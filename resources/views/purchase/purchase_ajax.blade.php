@@ -102,6 +102,9 @@
         // CSRF Token setup
         var csrfToken = $('meta[name="csrf-token"]').attr('content');
 
+        // DataTable global variable
+        let purchaseProductTable = null;
+
         // IMEI handling variables
         let purchaseImeiData = {};
         let pendingImeiProducts = [];
@@ -324,7 +327,7 @@
                                 // Server already returns results ordered by: exact SKU match > exact name > partial matches
                                 if (items.length > 0) {
                                     response(items.slice(0,
-                                    15)); // Show up to 15 results
+                                        15)); // Show up to 15 results
                                 } else {
                                     response([{
                                         label: "No products found",
@@ -449,7 +452,8 @@
         });
 
         function addProductToTable(product, isEditing = false, prices = {}) {
-            const table = $("#purchase_product").DataTable();
+            // Use global variable or get existing instance (don't create new!)
+            const table = purchaseProductTable || $('#purchase_product').DataTable();
             let existingRow = null;
 
             $('#purchase_product tbody tr').each(function() {
@@ -479,7 +483,7 @@
                 const wholesalePrice = parseFloat(prices.wholesale_price || latestPrices.wholesale_price) || 0;
                 const specialPrice = parseFloat(prices.special_price || latestPrices.special_price) || 0;
                 const maxRetailPrice = parseFloat(prices.max_retail_price || latestPrices.max_retail_price) ||
-                0;
+                    0;
                 let retailPrice = parseFloat(prices.retail_price || latestPrices.retail_price) || 0;
                 const unitCost = parseFloat(prices.unit_cost || latestPrices.unit_cost) || 0;
 
@@ -656,14 +660,31 @@
             let totalItems = 0;
             let netTotalAmount = 0;
 
-            $('#purchase_product tbody tr').each(function() {
-                const quantity = parseFloat($(this).find('.purchase-quantity').val()) || 0;
-                // Remove any commas before parsing (safety for formatted numbers)
-                const subTotal = parseFloat($(this).find('.sub-total').text().replace(/,/g, '')) || 0;
+            // CRITICAL FIX: Use DataTables API to get ALL rows (including paginated ones)
+            // $('#purchase_product tbody tr').each() only gets visible rows!
+            if ($.fn.DataTable.isDataTable('#purchase_product')) {
+                // Get ALL rows data from DataTable (not just visible page)
+                purchaseProductTable.rows().every(function() {
+                    const row = this.node();
+                    const quantity = parseFloat($(row).find('.purchase-quantity').val()) || 0;
+                    // Remove any commas before parsing (safety for formatted numbers)
+                    const subTotal = parseFloat($(row).find('.sub-total').text().replace(/,/g, '')) ||
+                        0;
 
-                totalItems += quantity;
-                netTotalAmount += subTotal;
-            });
+                    totalItems += quantity;
+                    netTotalAmount += subTotal;
+                });
+            } else {
+                // Fallback for when DataTable is not initialized yet
+                $('#purchase_product tbody tr').each(function() {
+                    const quantity = parseFloat($(this).find('.purchase-quantity').val()) || 0;
+                    const subTotal = parseFloat($(this).find('.sub-total').text().replace(/,/g, '')) ||
+                        0;
+
+                    totalItems += quantity;
+                    netTotalAmount += subTotal;
+                });
+            }
 
             $('#total-items').text(totalItems.toFixed(2));
             $('#net-total-amount').text(netTotalAmount.toFixed(2));
@@ -756,8 +777,18 @@
                 $('#payment-note').val(latestPayment.notes);
             }
 
-            const productTable = $('#purchase_product').DataTable();
-            productTable.clear().draw();
+            // Use global variable or get existing instance (don't reinitialize!)
+            let productTable;
+            if (purchaseProductTable) {
+                productTable = purchaseProductTable;
+            } else if ($.fn.DataTable.isDataTable('#purchase_product')) {
+                productTable = $('#purchase_product').DataTable();
+                purchaseProductTable = productTable; // Save to global
+            }
+
+            if (productTable) {
+                productTable.clear().draw();
+            }
 
             if (purchase.purchase_products && Array.isArray(purchase.purchase_products)) {
                 purchase.purchase_products.forEach(product => {
@@ -804,8 +835,20 @@
                 return;
             }
 
-            const productTableRows = document.querySelectorAll('#purchase_product tbody tr');
-            console.log('Product table rows count:', productTableRows.length); // Debug log
+            // CRITICAL FIX: Get ALL rows from DataTable (including paginated ones)
+            let productTableRows = [];
+            if ($.fn.DataTable.isDataTable('#purchase_product')) {
+                // Use DataTables API to get ALL rows across all pages
+                purchaseProductTable.rows().every(function() {
+                    productTableRows.push(this.node());
+                });
+                console.log('Product table rows count (ALL pages):', productTableRows.length);
+            } else {
+                // Fallback: get visible rows
+                productTableRows = document.querySelectorAll('#purchase_product tbody tr');
+                console.log('Product table rows count (visible only):', productTableRows.length);
+            }
+
             if (productTableRows.length === 0) {
                 toastr.error('Please add at least one product.', 'Warning');
                 document.getElementsByClassName('errorSound')[0].play();
@@ -820,9 +863,23 @@
         function collectImeiProducts(productTableRows) {
             pendingImeiProducts = [];
             console.log('=== IMEI Collection Debug ===');
-            console.log('Collecting IMEI products from', productTableRows.length, 'rows');
 
-            productTableRows.forEach((row, index) => {
+            // CRITICAL FIX: Get ALL rows from DataTable (including paginated ones)
+            let allRows = [];
+            if ($.fn.DataTable.isDataTable('#purchase_product')) {
+                // Use DataTables API to get ALL rows across all pages
+                purchaseProductTable.rows().every(function() {
+                    allRows.push(this.node());
+                });
+                console.log('Using DataTables API - Collecting IMEI products from', allRows.length,
+                    'rows (ALL pages)');
+            } else {
+                // Fallback: use provided rows
+                allRows = Array.from(productTableRows);
+                console.log('Using provided rows - Collecting IMEI products from', allRows.length, 'rows');
+            }
+
+            allRows.forEach((row, index) => {
                 const productId = $(row).data('id');
                 const quantity = parseInt($(row).find('.purchase-quantity').val()) || 0;
 
@@ -846,7 +903,7 @@
 
                 console.log(
                     `Product ${index + 1}: Name="${productName}", ID=${productId}, Cell Text="${productNameCell.text().trim()}"`
-                    );
+                );
 
                 // Check if product has IMEI enabled
                 const isImeiEnabled = $(row).data('imei-enabled') == 1 || $(row).data(
@@ -869,11 +926,11 @@
                     });
                     console.log(
                         `✅ Added IMEI product: ${productName} (ID: ${productId}) with quantity ${quantity}`
-                        );
+                    );
                 } else {
                     console.log(
                         `❌ Skipped product: ${productName} - IMEI: ${isImeiEnabled}, Qty: ${quantity}`
-                        );
+                    );
                 }
             });
 
@@ -945,7 +1002,7 @@
 
             // Add default option
             $('#purchaseImeiProductSelect').append(
-            '<option value="">Select products to enter IMEI...</option>');
+                '<option value="">Select products to enter IMEI...</option>');
 
             console.log('=== Initializing Select2 with products ===');
 
@@ -1017,7 +1074,7 @@
 
             $('#purchaseImeiCountDisplay').text(
                 `Products: ${completedProducts}/${totalProducts} complete | Total IMEI: ${totalEntered}/${totalRequired}`
-                );
+            );
         }
 
         function loadImeiEntrySectionForProducts(selectedProductIds) {
@@ -1157,7 +1214,7 @@
             pendingImeiProducts.forEach(product => {
                 const productInputs = $(
                     `#purchaseImeiTable tbody input.purchase-imei-input[data-product-id="${product.productId}"]`
-                    );
+                );
                 const productFilled = productInputs.filter(function() {
                     return $(this).val().trim() !== '';
                 }).length;
@@ -1173,7 +1230,6 @@
             console.log('Processing purchase with IMEI data:', purchaseImeiData);
 
             const formData = new FormData($('#purchaseForm')[0]);
-            const productTableRows = document.querySelectorAll('#purchase_product tbody tr');
 
             if (purchaseId && isNaN(purchaseId)) {
                 toastr.error('Invalid purchase ID.', 'Error');
@@ -1200,7 +1256,20 @@
             formData.append('tax_type', $('#tax-type').val() || '');
             formData.append('tax_amount', parseFloat($('#tax-display').text().replace(/[^0-9.-]/g, '')) || 0);
 
-            productTableRows.forEach((row, index) => {
+            // CRITICAL FIX: Get ALL rows from DataTable (including paginated ones)
+            // document.querySelectorAll() only gets visible DOM rows!
+            let allRows = [];
+            if ($.fn.DataTable.isDataTable('#purchase_product')) {
+                // Use DataTables API to get ALL rows across all pages
+                purchaseProductTable.rows().every(function() {
+                    allRows.push(this.node());
+                });
+            } else {
+                // Fallback: get visible rows
+                allRows = document.querySelectorAll('#purchase_product tbody tr');
+            }
+
+            allRows.forEach((row, index) => {
                 const productId = $(row).data('id');
                 const quantity = $(row).find('.purchase-quantity').val() || 0;
                 const price = $(row).find('.product-price').val() || 0;
@@ -1284,12 +1353,12 @@
             // Check current rows for this product (excluding header rows)
             const currentRows = $(
                 `#purchaseImeiTable tbody tr[data-product-id="${productId}"]:not([data-product-header])`
-                );
+            );
             const currentRowCount = currentRows.length;
 
             console.log(
                 `Add row for ${product.productName}: Current rows = ${currentRowCount}, Max quantity = ${product.quantity}`
-                );
+            );
 
             // Check if we've reached the quantity limit
             if (currentRowCount >= product.quantity) {
@@ -1298,7 +1367,7 @@
                     'Quantity Limit Reached');
                 console.warn(
                     `Quantity limit reached for product ${product.productName}: ${currentRowCount}/${product.quantity}`
-                    );
+                );
                 return;
             }
 
@@ -1333,7 +1402,7 @@
 
             console.log(
                 `✅ Added new row for ${product.productName}. New count: ${currentRowCount + 1}/${product.quantity}`
-                );
+            );
         });
 
         // Function to update add button visibility based on quantity limits
@@ -1352,12 +1421,12 @@
                 headerAddButton.hide();
                 console.log(
                     `🚫 Hiding add button for ${product.productName} (${currentRowCount}/${product.quantity})`
-                    );
+                );
             } else {
                 headerAddButton.show();
                 console.log(
                     `✅ Showing add button for ${product.productName} (${currentRowCount}/${product.quantity})`
-                    );
+                );
             }
         }
 
@@ -1376,7 +1445,7 @@
             // Re-number the rows for this product
             const productRows = $(
                 `#purchaseImeiTable tbody tr[data-product-id="${productId}"]:not([data-product-header])`
-                );
+            );
             productRows.each(function(index) {
                 $(this).find('td:first').text(index + 1);
                 $(this).attr('data-imei-index', index);
@@ -1406,7 +1475,7 @@
 
             console.log(
                 `Add row for ${product.productName}: Current rows = ${currentRowCount}, Max quantity = ${product.quantity}`
-                );
+            );
 
             // Check if we've reached the quantity limit
             if (currentRowCount >= product.quantity) {
@@ -1415,7 +1484,7 @@
                     'Quantity Limit Reached');
                 console.warn(
                     `Quantity limit reached for product ${product.productName}: ${currentRowCount}/${product.quantity}`
-                    );
+                );
                 return;
             }
 
@@ -1428,7 +1497,7 @@
 
             console.log(
                 `✅ Added new row for ${product.productName}. New count: ${currentRowCount + 1}/${product.quantity}`
-                );
+            );
         });
 
         // New Remove Row button for individual rows
@@ -1477,7 +1546,7 @@
             selectedProductIds.forEach(productId => {
                 const productImeiInputs = $(
                     `#purchaseImeiTable tbody input.purchase-imei-input[data-product-id="${productId}"]`
-                    );
+                );
                 const productImeiNumbers = [];
                 const product = pendingImeiProducts.find(p => p.productId == productId);
 
@@ -1493,7 +1562,7 @@
                             $(this).addClass('is-invalid');
                             $('#purchaseImeiError').removeClass('d-none').text(
                                 `Duplicate IMEI numbers found for ${product.productName}`
-                                );
+                            );
                             return false;
                         }
 
@@ -1610,7 +1679,7 @@
                 // Get existing rows for this product (excluding header rows)
                 const productRows = $(
                     `#purchaseImeiTable tbody tr[data-product-id="${productId}"]:not([data-product-header])`
-                    );
+                );
                 console.log(
                     `Found ${productRows.length} existing rows for product ${productId}`);
 
@@ -1624,7 +1693,7 @@
                             totalFilled++;
                             console.log(
                                 `✅ Filled row ${index + 1} for ${product.productName}: ${imeiLines[imeiIndex - 1]}`
-                                );
+                            );
                         }
                     }
                 });
@@ -1666,7 +1735,7 @@
                         // If no rows exist for this product, add after the header
                         const headerRow = $(
                             `#purchaseImeiTable tbody tr[data-product-header="${productId}"]`
-                            );
+                        );
                         if (headerRow.length > 0) {
                             headerRow.after(newRow);
                         } else {
@@ -1680,7 +1749,7 @@
                     totalFilled++;
                     console.log(
                         `➕ Added new row for ${product.productName}: ${imeiLines[imeiIndex - 1]} (${currentRowCount}/${product.quantity})`
-                        );
+                    );
                 }
 
                 // Update add button visibility for this product after auto-fill
@@ -1803,14 +1872,33 @@
         function resetFormAndValidation() {
             $('#purchaseForm')[0].reset();
             $('#purchaseForm').validate().resetForm();
-            const table = $("#purchase_product").DataTable();
-            table.clear().draw();
+            // Use global variable or get existing instance (don't reinitialize!)
+            if (purchaseProductTable) {
+                purchaseProductTable.clear().draw();
+            } else if ($.fn.DataTable.isDataTable('#purchase_product')) {
+                // DataTable exists but not in global variable
+                purchaseProductTable = $('#purchase_product').DataTable();
+                purchaseProductTable.clear().draw();
+            }
             updateFooter();
         }
 
         // Initialize DataTable
         $(document).ready(function() {
-            $('#purchase_product').DataTable();
+            // Check if DataTable already initialized (prevent double initialization)
+            if (!$.fn.DataTable.isDataTable('#purchase_product')) {
+                // Save DataTable instance to global variable
+                purchaseProductTable = $('#purchase_product').DataTable({
+                    "pageLength": 10,
+                    "ordering": true,
+                    "searching": false,
+                    "info": true,
+                    "lengthChange": true
+                });
+            } else {
+                // DataTable already exists, just get the instance
+                purchaseProductTable = $('#purchase_product').DataTable();
+            }
             fetchProducts();
         });
 
@@ -1895,7 +1983,7 @@
                         // Update the help text to show PDF is loaded
                         $(".preview-container .text-muted").html(
                             '<i class="fas fa-file-pdf text-danger"></i> PDF file loaded successfully'
-                            );
+                        );
 
                         toastr.success('PDF file uploaded successfully!', 'File Uploaded');
                     };
@@ -1910,7 +1998,7 @@
                         // Reset help text
                         $(".preview-container .text-muted").html(
                             '<i class="fas fa-info-circle"></i> Upload a file to see preview (Images & PDFs supported)'
-                            );
+                        );
 
                         toastr.success('Image file uploaded successfully!', 'File Uploaded');
                     };
@@ -1927,7 +2015,7 @@
                     const fileType = file.name.split('.').pop().toUpperCase();
                     $(".preview-container .text-muted").html(
                         `<i class="fas fa-file text-primary"></i> ${fileType} file uploaded (Preview not available)`
-                        );
+                    );
 
                     toastr.success(
                         'File uploaded successfully. Preview not available for this file type.',
@@ -2062,7 +2150,7 @@
                     } else {
                         productsTable.append(
                             '<tr><td colspan="6" class="text-center">No products found</td></tr>'
-                            );
+                        );
                     }
 
                     var paymentInfoTable = $('#paymentInfoTable tbody');
@@ -2077,19 +2165,19 @@
                             row.append('<td>' + (payment.payment_method || 'N/A') +
                                 '</td>');
                             row.append('<td>' + (payment.notes || 'No notes') +
-                            '</td>');
+                                '</td>');
                             paymentInfoTable.append(row);
                         });
                     } else {
                         paymentInfoTable.append(
                             '<tr><td colspan="5" class="text-center">No payments found</td></tr>'
-                            );
+                        );
                     }
 
                     var amountDetailsTable = $('#amountDetailsTable tbody');
                     amountDetailsTable.empty();
                     amountDetailsTable.append('<tr><td>Total: ' + purchase.total +
-                    '</td></tr>');
+                        '</td></tr>');
                     amountDetailsTable.append('<tr><td>Discount: ' + purchase.discount_amount +
                         '</td></tr>');
                     amountDetailsTable.append('<tr><td>Final Total: ' + purchase.final_total +
@@ -2243,12 +2331,12 @@
                     dataType: 'json',
                     success: function(response) {
                         console.log('Bulk payment modal - Supplier API response:',
-                        response);
+                            response);
                         var supplierSelect = $('#supplierSelect');
                         supplierSelect.empty();
                         supplierSelect.append(
                             '<option value="" selected disabled>Select Supplier</option>'
-                            );
+                        );
 
                         // Handle different response structures
                         let suppliers = [];
@@ -2259,7 +2347,7 @@
                         if (response.status === 200 && Array.isArray(response.message)) {
                             suppliers = response.message;
                         } else if (response.status === 200 && Array.isArray(response
-                            .data)) {
+                                .data)) {
                             suppliers = response.data;
                         } else if (Array.isArray(response.message)) {
                             suppliers = response.message;
@@ -2306,7 +2394,7 @@
                                 response);
                             supplierSelect.append(
                                 '<option value="" disabled>No suppliers available</option>'
-                                );
+                            );
                         }
                     },
                     error: function(xhr, status, error) {
@@ -2315,10 +2403,10 @@
                         supplierSelect.empty();
                         supplierSelect.append(
                             '<option value="" selected disabled>Select Supplier</option>'
-                            );
+                        );
                         supplierSelect.append(
                             '<option value="" disabled>Error loading suppliers</option>'
-                            );
+                        );
 
                         // Show user-friendly error message
                         if (typeof toastr !== 'undefined') {
@@ -2770,7 +2858,7 @@
                                 row.append('<td>' + product.quantity +
                                     '</td>');
                                 row.append('<td>' + (product.unit_cost ||
-                                    0) +
+                                        0) +
                                     '</td>');
                                 row.append('<td>' + product.total +
                                     '</td>');
