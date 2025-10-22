@@ -6342,12 +6342,7 @@
                                 printWindow.onload = function() {
                                     setTimeout(() => {
                                         printWindow.print();
-                                        
-                                        // Close window after print dialog is handled
-                                        // Use a longer delay to ensure print is completed
-                                        setTimeout(() => {
-                                            printWindow.close();
-                                        }, 1000);
+                                        // Don't auto-close on mobile - let user close manually
                                     }, 500);
                                 };
                             } else {
