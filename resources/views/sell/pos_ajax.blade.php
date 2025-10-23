@@ -5586,8 +5586,8 @@
                     }
 
                     const customerId = $('#customer-id').val();
-                    const totalAmount = parseFormattedAmount($('#final-total-amount')
-                        .text().trim());
+                    // USE final_total from saleData instead of reading from DOM to avoid discrepancies
+                    const totalAmount = saleData.final_total;
                     let amountGiven = parseFormattedAmount($('#amount-given').val()
                         .trim());
 
@@ -5597,6 +5597,15 @@
                     if (isNaN(amountGiven) || amountGiven <= 0) {
                         amountGiven = totalAmount;
                     }
+                    
+                    // Debug logging
+                    console.log('Cash Payment Debug:', {
+                        subtotal: saleData.total_amount,
+                        discount: saleData.discount_amount,
+                        discountType: saleData.discount_type,
+                        finalTotal: saleData.final_total,
+                        amountGiven: amountGiven
+                    });
 
                     let paidAmount = amountGiven;
                     let balance = amountGiven - totalAmount;
