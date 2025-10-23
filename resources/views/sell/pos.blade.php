@@ -31,6 +31,20 @@
         href="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.6/jquery.inputmask.min.css">
 
     <style>
+        /* Sales Rep Display - Hidden by default until confirmed as sales rep */
+        #salesRepDisplay {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+        }
+        
+        /* Only show when explicitly marked as visible */
+        #salesRepDisplay.sales-rep-visible {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+
         /* General Styles */
         body {
             font-family: 'Roboto', sans-serif;
@@ -1907,7 +1921,7 @@
                                 </select>
 
                                 <!-- Sales Rep Vehicle/Route Display (Desktop/Tablet Only) -->
-                                <div id="salesRepDisplay" style="display: none;" class="d-flex align-items-center gap-2">
+                                <div id="salesRepDisplay" class="align-items-center gap-2">
                                     <div class="badge bg-success text-white p-2">
                                         <i class="fas fa-truck me-1"></i>
                                         <span id="selectedVehicleDisplay">-</span>

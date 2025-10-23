@@ -45,10 +45,8 @@
         const subcategoryBackBtn = document.getElementById('subcategoryBackBtn');
 
         // ---- INIT ----
-        // Early restoration of sales rep display from storage (before API calls)
-        restoreSalesRepDisplayFromStorage();
-
         // Check if user is sales rep and handle vehicle/route selection
+        // This must be called FIRST before any display restoration
         checkSalesRepStatus();
 
         // Protect sales rep customer filtering from being overridden
@@ -478,6 +476,12 @@
 
         // ---- SALES REP FUNCTIONS ----
         function restoreSalesRepDisplayFromStorage() {
+            // Only restore if user is confirmed as sales rep
+            if (!isSalesRep) {
+                console.log('User is not a sales rep, skipping display restoration');
+                return;
+            }
+
             // Early restoration to prevent display flicker on page refresh
             const storedSelection = getSalesRepSelection();
             if (storedSelection && storedSelection.vehicle && storedSelection.route) {
@@ -667,6 +671,8 @@
                         // User is a sales rep with assignments
                         isSalesRep = true;
                         console.log('User identified as sales rep with assignments:', data.data);
+                        // Early restoration of sales rep display from storage (only for sales rep)
+                        restoreSalesRepDisplayFromStorage();
                         handleSalesRepUser(data.data);
                     } else if (status === 200 && data.status === false) {
                         // User is not a sales rep (explicit response)
@@ -854,7 +860,7 @@
                 }, 500);
             });
 
-            // Change selection button
+            // Change selection button (Desktop)
             const changeBtnElement = document.getElementById('changeSalesRepSelection');
             if (changeBtnElement) {
                 changeBtnElement.addEventListener('click', function() {
@@ -879,6 +885,49 @@
                             }
                         });
                         console.log('Change selection button listener added (delayed)');
+                    }
+                }, 1000);
+            }
+
+            // Change selection button (Mobile Menu)
+            const changeBtnMenuElement = document.getElementById('changeSalesRepSelectionMenu');
+            if (changeBtnMenuElement) {
+                changeBtnMenuElement.addEventListener('click', function() {
+                    console.log('Change sales rep selection button clicked (mobile menu)');
+                    // Close the mobile menu modal first
+                    const mobileMenuModal = bootstrap.Modal.getInstance(document.getElementById('mobileMenuModal'));
+                    if (mobileMenuModal) {
+                        mobileMenuModal.hide();
+                    }
+                    // Then show the sales rep modal
+                    setTimeout(() => {
+                        if (typeof showSalesRepModal === 'function') {
+                            showSalesRepModal();
+                        } else {
+                            console.error('showSalesRepModal function not available');
+                        }
+                    }, 300);
+                });
+                console.log('Change selection button listener added (mobile menu)');
+            } else {
+                console.log('Change selection button (mobile menu) not found, will try again later');
+                // Try again after a delay to ensure DOM is ready
+                setTimeout(() => {
+                    const delayedBtnMenu = document.getElementById('changeSalesRepSelectionMenu');
+                    if (delayedBtnMenu) {
+                        delayedBtnMenu.addEventListener('click', function() {
+                            console.log('Change sales rep selection button clicked (mobile menu - delayed)');
+                            const mobileMenuModal = bootstrap.Modal.getInstance(document.getElementById('mobileMenuModal'));
+                            if (mobileMenuModal) {
+                                mobileMenuModal.hide();
+                            }
+                            setTimeout(() => {
+                                if (typeof showSalesRepModal === 'function') {
+                                    showSalesRepModal();
+                                }
+                            }, 300);
+                        });
+                        console.log('Change selection button listener added (mobile menu - delayed)');
                     }
                 }, 1000);
             }
@@ -944,10 +993,60 @@
                 }
             }
 
-            // Show the display with proper flex styling
+            // Show the display with proper flex styling and special class
             salesRepDisplay.style.display = 'flex';
-            salesRepDisplay.classList.add('d-flex');
+            salesRepDisplay.classList.add('d-flex', 'sales-rep-visible');
             salesRepDisplay.classList.remove('d-none');
+
+            // Also update mobile menu display
+            const salesRepDisplayMenu = document.getElementById('salesRepDisplayMenu');
+            const selectedVehicleDisplayMenu = document.getElementById('selectedVehicleDisplayMenu');
+            const selectedRouteDisplayMenu = document.getElementById('selectedRouteDisplayMenu');
+            const salesAccessBadgeMenu = document.getElementById('salesAccessBadgeMenu');
+
+            console.log('Mobile menu elements found:', {
+                salesRepDisplayMenu: !!salesRepDisplayMenu,
+                selectedVehicleDisplayMenu: !!selectedVehicleDisplayMenu,
+                selectedRouteDisplayMenu: !!selectedRouteDisplayMenu,
+                salesAccessBadgeMenu: !!salesAccessBadgeMenu
+            });
+
+            if (salesRepDisplayMenu && selectedVehicleDisplayMenu && selectedRouteDisplayMenu && salesAccessBadgeMenu) {
+                // Prepare vehicle text
+                const vehicleText = selection.vehicle && selection.vehicle.name ?
+                    `${selection.vehicle.name} (${selection.vehicle.vehicle_number || 'N/A'})` : 'Unknown Vehicle';
+                const routeText = selection.route && selection.route.name ?
+                    selection.route.name : 'Unknown Route';
+
+                console.log('Updating mobile menu with:', {
+                    vehicle: vehicleText,
+                    route: routeText,
+                    canSell: selection.canSell
+                });
+
+                // Update mobile menu text
+                selectedVehicleDisplayMenu.textContent = vehicleText;
+                selectedRouteDisplayMenu.textContent = routeText;
+
+                // Update access badge for mobile
+                if (selection.canSell) {
+                    salesAccessBadgeMenu.className = 'badge bg-success';
+                    salesAccessBadgeMenu.textContent = 'Sales Allowed';
+                } else {
+                    salesAccessBadgeMenu.className = 'badge bg-warning text-dark';
+                    salesAccessBadgeMenu.textContent = 'View Only';
+                }
+
+                // Show mobile menu display
+                salesRepDisplayMenu.style.display = 'block';
+                
+                console.log('Mobile menu sales rep display updated and shown');
+                console.log('Mobile menu display style:', salesRepDisplayMenu.style.display);
+                console.log('Vehicle text set to:', selectedVehicleDisplayMenu.textContent);
+                console.log('Route text set to:', selectedRouteDisplayMenu.textContent);
+            } else {
+                console.error('One or more mobile menu elements not found!');
+            }
 
             console.log('Sales rep display updated and made visible with data:', {
                 vehicle: selection.vehicle?.name,
@@ -1340,20 +1439,32 @@
 
         function hideSalesRepDisplay() {
             // Hide sales rep display for non-sales rep users
-            // Use setTimeout to ensure DOM elements are loaded
-            setTimeout(() => {
-                const salesRepDisplay = document.getElementById('salesRepDisplay');
-                if (salesRepDisplay) {
-                    salesRepDisplay.style.display = 'none';
-                    salesRepDisplay.classList.remove('d-flex');
-                }
+            // Hide immediately to prevent flicker
+            const salesRepDisplay = document.getElementById('salesRepDisplay');
+            if (salesRepDisplay) {
+                salesRepDisplay.style.display = 'none';
+                salesRepDisplay.classList.remove('d-flex', 'sales-rep-visible');
+                salesRepDisplay.classList.add('d-none');
+            }
 
-                // Also hide any related UI elements for sales reps
-                const changeSalesRepBtn = document.getElementById('changeSalesRepSelection');
-                if (changeSalesRepBtn) {
-                    changeSalesRepBtn.style.display = 'none';
-                }
-            }, 100);
+            // Also hide mobile menu sales rep display
+            const salesRepDisplayMenu = document.getElementById('salesRepDisplayMenu');
+            if (salesRepDisplayMenu) {
+                salesRepDisplayMenu.style.display = 'none';
+            }
+
+            // Also hide any related UI elements for sales reps
+            const changeSalesRepBtn = document.getElementById('changeSalesRepSelection');
+            if (changeSalesRepBtn) {
+                changeSalesRepBtn.style.display = 'none';
+            }
+
+            const changeSalesRepBtnMenu = document.getElementById('changeSalesRepSelectionMenu');
+            if (changeSalesRepBtnMenu) {
+                changeSalesRepBtnMenu.style.display = 'none';
+            }
+            
+            console.log('Sales rep display hidden immediately (desktop and mobile)');
         }
 
         // Modify sale submission to check access rights
