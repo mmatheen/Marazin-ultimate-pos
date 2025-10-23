@@ -861,7 +861,8 @@ class SaleController extends Controller
             // Pre-validation: Skip expensive credit limit check for Walk-In Customer
             if ($request->customer_id != 1) {
                 // Only do credit limit validation for non Walk-In customers
-                $customer = Customer::findOrFail($request->customer_id);
+                // Use withoutGlobalScopes to avoid location/route filtering
+                $customer = Customer::withoutGlobalScopes()->findOrFail($request->customer_id);
                 $subtotal = array_reduce($request->products, fn($carry, $p) => $carry + $p['subtotal'], 0);
                 $discount = $request->discount_amount ?? 0;
                 $finalTotal = $request->discount_type === 'percentage'
@@ -972,7 +973,8 @@ class SaleController extends Controller
 
                 // Credit limit validation using centralized method (skip for Walk-In)
                 if ($request->customer_id != 1) {
-                    $customer = Customer::findOrFail($request->customer_id);
+                    // Use withoutGlobalScopes to avoid location/route filtering
+                    $customer = Customer::withoutGlobalScopes()->findOrFail($request->customer_id);
                     $this->validateCreditLimit($customer, $finalTotal, $request->payments ?? [], $newStatus);
                 }
 
@@ -1245,7 +1247,8 @@ class SaleController extends Controller
                     'email' => '',
                 ];
             } else {
-                $customer = Customer::findOrFail($sale->customer_id);
+                // Use withoutGlobalScopes for receipt generation
+                $customer = Customer::withoutGlobalScopes()->findOrFail($sale->customer_id);
             }
             
             $products = SalesProduct::with(['product'])->where('sale_id', $sale->id)->get();

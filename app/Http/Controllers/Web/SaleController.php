@@ -525,7 +525,8 @@ class SaleController extends Controller
                 }
 
                 // Credit limit validation using the enhanced method
-                $customer = Customer::findOrFail($request->customer_id);
+                // Use withoutGlobalScopes to avoid location/route filtering
+                $customer = Customer::withoutGlobalScopes()->findOrFail($request->customer_id);
                 $this->validateCreditLimit($customer, $finalTotal, $request->payments ?? [], $newStatus);
 
 
@@ -698,7 +699,8 @@ class SaleController extends Controller
                 return $sale;
             });
 
-            $customer = Customer::findOrFail($sale->customer_id);
+            // Use withoutGlobalScopes for receipt generation
+            $customer = Customer::withoutGlobalScopes()->findOrFail($sale->customer_id);
             $products = SalesProduct::where('sale_id', $sale->id)->get();
             $payments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->get();
             $user = User::find($sale->user_id);
@@ -1490,7 +1492,8 @@ class SaleController extends Controller
     {
         try {
             $sale = Sale::findOrFail($id);
-            $customer = Customer::findOrFail($sale->customer_id);
+            // Use withoutGlobalScopes for printing
+            $customer = Customer::withoutGlobalScopes()->findOrFail($sale->customer_id);
             $products = SalesProduct::where('sale_id', $sale->id)->get();
             $payments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->get();
             $totalDiscount = array_reduce($products->toArray(), function ($carry, $product) {

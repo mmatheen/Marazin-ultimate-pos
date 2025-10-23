@@ -540,8 +540,11 @@ class CustomerController extends Controller
      */
     public function filterByCities(Request $request)
     {
+        // Accept either city_ids (array of integers) or cities (array of strings)
         $validator = Validator::make($request->all(), [
-            'cities' => 'required|array',
+            'city_ids' => 'sometimes|required_without:cities|array',
+            'city_ids.*' => 'integer',
+            'cities' => 'sometimes|required_without:city_ids|array',
             'cities.*' => 'string'
         ]);
 
@@ -553,12 +556,20 @@ class CustomerController extends Controller
             ], 400);
         }
 
-        $cityNames = array_map('strtolower', $request->cities);
+        $cityIds = [];
 
-        // Get city IDs from names
-        $cityIds = City::whereIn(DB::raw('LOWER(name)'), $cityNames)
-            ->pluck('id')
-            ->toArray();
+        // If city_ids are provided directly, use them
+        if ($request->has('city_ids') && !empty($request->city_ids)) {
+            $cityIds = $request->city_ids;
+        }
+        // Otherwise, convert city names to IDs
+        elseif ($request->has('cities') && !empty($request->cities)) {
+            $cityNames = array_map('strtolower', $request->cities);
+            // Get city IDs from names
+            $cityIds = City::whereIn(DB::raw('LOWER(name)'), $cityNames)
+                ->pluck('id')
+                ->toArray();
+        }
 
         // Get customers from these cities + walk-in customers
         $query = Customer::with(['city']);
@@ -579,7 +590,6 @@ class CustomerController extends Controller
             'status' => true,
             'message' => 'Customers filtered successfully',
             'customers' => $customers,
-            'filtered_cities' => $cityNames,
             'found_city_ids' => $cityIds,
             'total_customers' => $customers->count()
         ]);

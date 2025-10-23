@@ -1595,7 +1595,6 @@
                     console.error('Error fetching the receipt:', error);
                     toastr.error('An error occurred while fetching the receipt. Please try again.', 'Error');
                 });
-        };
         }
 
         $('#savePayment').click(function() {

@@ -820,7 +820,7 @@ class PaymentController extends Controller
     {
         return match ($entityType) {
             'supplier' => Supplier::findOrFail($entityId),
-            'customer' => Customer::findOrFail($entityId),
+            'customer' => Customer::withoutGlobalScopes()->findOrFail($entityId),
             default => throw new \Exception('Invalid entity type')
         };
     }

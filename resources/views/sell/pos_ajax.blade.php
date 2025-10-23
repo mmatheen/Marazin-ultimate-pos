@@ -34,6 +34,7 @@
         let currentEditingSaleId = null; // Track the sale ID being edited
         let isSalesRep = false; // Track if current user is a sales rep
         let salesRepCustomersFiltered = false; // Track if sales rep customer filtering has been applied
+        let salesRepCustomersLoaded = false; // Track if customers have been loaded for this session
 
         const posProduct = document.getElementById('posProduct');
         const billingBody = document.getElementById('billing-body');
@@ -516,7 +517,6 @@
                 let storedData = sessionStorage.getItem('salesRepSelection');
                 let parsedData = storedData ? JSON.parse(storedData) : null;
 
-                // If not found in sessionStorage, check localStorage (persistent across refreshes)
                 if (!parsedData) {
                     storedData = localStorage.getItem('salesRepSelection');
                     parsedData = storedData ? JSON.parse(storedData) : null;
@@ -843,11 +843,14 @@
                 console.log('Sales rep selection confirmed event received:', event.detail);
                 const selection = event.detail;
                 salesRepCustomersFiltered = false; // Reset flag for new selection
+                salesRepCustomersLoaded = false; // Reset loaded flag to allow fresh filtering
                 updateSalesRepDisplay(selection);
                 restrictLocationAccess(selection);
 
-                // Reset customer to first available when selection changes
-                resetToWalkingCustomer();
+                // Filter customers but don't auto-select
+                setTimeout(() => {
+                    filterCustomersByRoute(selection);
+                }, 500);
             });
 
             // Change selection button
@@ -959,10 +962,14 @@
                 console.warn('Failed to store selection in localStorage:', e);
             }
 
-            // Filter customers based on route cities with a small delay to ensure DOM is ready
-            setTimeout(() => {
-                filterCustomersByRoute(selection);
-            }, 500);
+            // Filter customers only if not already loaded for this session
+            if (!salesRepCustomersLoaded) {
+                setTimeout(() => {
+                    filterCustomersByRoute(selection);
+                }, 500);
+            } else {
+                console.log('Customers already loaded, skipping filter in updateSalesRepDisplay');
+            }
         }
 
         function restrictLocationAccess(selection) {
@@ -1014,6 +1021,12 @@
         function filterCustomersByRoute(selection) {
             if (filteringInProgress) {
                 console.log('Filtering already in progress, skipping...');
+                return;
+            }
+
+            // Check if customers already loaded for this session
+            if (salesRepCustomersLoaded) {
+                console.log('Customers already loaded for this sales rep session, skipping filter');
                 return;
             }
 
@@ -1080,6 +1093,7 @@
                     if (data.status && data.customers) {
                         populateFilteredCustomers(data.customers, selection.route.name);
                         salesRepCustomersFiltered = true; // Mark that filtering has been applied
+                        salesRepCustomersLoaded = true; // Mark that customers are loaded for this session
                         console.log('Customer filtering completed successfully for route:', selection.route
                             .name);
                     } else {
@@ -1134,6 +1148,7 @@
             }
 
             salesRepCustomersFiltered = true;
+            salesRepCustomersLoaded = true; // Mark that customers are loaded
         }
 
         function populateFilteredCustomers(customers, routeName = '') {
@@ -1222,17 +1237,13 @@
             // Refresh Select2 and trigger change event to update due/credit display
             customerSelect.trigger('change');
 
-            // Auto-select first customer and update displays
+            // Auto-select appropriate customer based on user type
             setTimeout(() => {
                 if (isSalesRep) {
-                    // For sales reps, select the first available customer after "Please Select"
-                    const options = customerSelect.find('option');
-                    if (options.length > 1) { // More than just "Please Select"
-                        const firstCustomerOption = options.eq(1); // Get second option (first customer)
-                        customerSelect.val(firstCustomerOption.val()).trigger('change');
-                        console.log('Auto-selected first customer for sales rep:', firstCustomerOption
-                            .text());
-                    }
+                    // For sales reps, DO NOT auto-select any customer
+                    // Keep the dropdown at "Please Select" so user must choose
+                    customerSelect.val('').trigger('change');
+                    console.log('Sales rep: Customer dropdown ready - user must select a customer');
                 } else {
                     // For non-sales reps, select Walk-in customer
                     customerSelect.val('1').trigger('change');
@@ -6176,21 +6187,28 @@
                 const customerSelect = $('#customer-id');
 
                 if (isSalesRep) {
-                    // For sales reps, select the first available customer (not Walk-in)
-                    const firstCustomer = customerSelect.find('option:first');
-                    if (firstCustomer.length > 0) {
-                        customerSelect.val(firstCustomer.val());
-                        customerSelect.trigger('change');
-                    }
+                    // For sales reps, reset to "Please Select" - don't auto-select any customer
+                    customerSelect.val('').trigger('change');
+                    console.log('Sales rep: Customer reset to "Please Select"');
                 } else {
-                    // For non-sales reps, reset to Walk-in Customer
-                    const walkingCustomer = customerSelect.find('option').filter(function() {
-                        return $(this).text().startsWith('Walk-in');
-                    });
+                    // For non-sales reps, reset to Walk-in Customer (ID = 1)
+                    // Try by value first (most reliable)
+                    if (customerSelect.find('option[value="1"]').length > 0) {
+                        customerSelect.val('1').trigger('change');
+                        console.log('Non-sales rep: Customer reset to Walk-in Customer');
+                    } else {
+                        // Fallback: try to find by text
+                        const walkingCustomer = customerSelect.find('option').filter(function() {
+                            return $(this).text().toLowerCase().includes('walk-in');
+                        });
 
-                    if (walkingCustomer.length > 0) {
-                        customerSelect.val(walkingCustomer.val());
-                        customerSelect.trigger('change');
+                        if (walkingCustomer.length > 0) {
+                            customerSelect.val(walkingCustomer.val()).trigger('change');
+                            console.log('Non-sales rep: Customer reset to Walk-in Customer (by text)');
+                        } else {
+                            console.warn('Walk-in customer not found, resetting to empty');
+                            customerSelect.val('').trigger('change');
+                        }
                     }
                 }
             }
