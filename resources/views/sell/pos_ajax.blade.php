@@ -55,6 +55,7 @@
         protectSalesRepCustomerFiltering();
         fetchAllLocations();
         $('#locationSelect').on('change', handleLocationChange);
+        $('#locationSelectDesktop').on('change', handleLocationChange);
         fetchCategories();
         fetchBrands();
         initAutocomplete();
@@ -1597,19 +1598,31 @@
 
         function populateLocationDropdown(locations) {
             const locationSelect = $('#locationSelect');
+            const locationSelectDesktop = $('#locationSelectDesktop');
+            
             locationSelect.empty(); // Clear existing options
+            locationSelectDesktop.empty(); // Clear desktop options too
 
             // Add default prompt
             locationSelect.append('<option value="" disabled selected>Select Location</option>');
+            locationSelectDesktop.append('<option value="" disabled selected>Select Location</option>');
 
             locations.forEach((location, index) => {
                 const option = $('<option></option>').val(location.id).text(location.name);
-                if (index === 0) option.attr('selected', 'selected');
+                const optionDesktop = $('<option></option>').val(location.id).text(location.name);
+                
+                if (index === 0) {
+                    option.attr('selected', 'selected');
+                    optionDesktop.attr('selected', 'selected');
+                }
+                
                 locationSelect.append(option);
+                locationSelectDesktop.append(optionDesktop);
             });
 
             // Trigger change event (optional: useful if other logic depends on it)
             locationSelect.trigger('change');
+            locationSelectDesktop.trigger('change');
         }
 
         // ---- PAGINATED PRODUCT FETCH ----
@@ -4352,15 +4365,26 @@
                 .value) || 0 : 0;
             const globalDiscountType = discountTypeElement ? discountTypeElement.value : 'fixed';
 
+            // Debug logging
+            console.log('Discount Element:', discountElement);
+            console.log('Discount Element Value:', discountElement ? discountElement.value : 'null');
+            console.log('Global Discount:', globalDiscount);
+            console.log('Global Discount Type:', globalDiscountType);
+            console.log('Total Amount:', totalAmount);
+
             let totalAmountWithDiscount = totalAmount;
 
             if (globalDiscount > 0) {
                 if (globalDiscountType === 'percentage') {
                     totalAmountWithDiscount -= totalAmount * (globalDiscount / 100);
+                    console.log('Applied percentage discount:', totalAmount * (globalDiscount / 100));
                 } else {
                     totalAmountWithDiscount -= globalDiscount;
+                    console.log('Applied fixed discount:', globalDiscount);
                 }
             }
+
+            console.log('Total Amount With Discount:', totalAmountWithDiscount);
 
             // Prevent negative totals
             totalAmountWithDiscount = Math.max(0, totalAmountWithDiscount);
@@ -4692,7 +4716,12 @@
         const globalDiscountInput = document.getElementById('global-discount');
         const globalDiscountTypeInput = document.getElementById('discount-type');
         if (globalDiscountInput) {
-            // Allow free typing, validate only on change/blur
+            // Input event - fires immediately as user types
+            globalDiscountInput.addEventListener('input', function() {
+                updateTotals();
+            });
+            
+            // Change event - fires when input loses focus and value has changed
             globalDiscountInput.addEventListener('change', function() {
                 const discountValue = parseFloat(this.value) || 0;
                 const discountType = globalDiscountTypeInput.value;
@@ -4701,12 +4730,26 @@
                 }
                 updateTotals();
             });
+            
+            // Blur event - fires when input loses focus
             globalDiscountInput.addEventListener('blur', function() {
                 const discountValue = parseFloat(this.value) || 0;
                 const discountType = globalDiscountTypeInput.value;
                 if (discountType === 'percentage') {
                     this.value = Math.min(discountValue, 100); // Limit to 100%
                 }
+                updateTotals();
+            });
+            
+            // Keyup event - fires when user releases a key
+            globalDiscountInput.addEventListener('keyup', function() {
+                updateTotals();
+            });
+        }
+        
+        // Also trigger updateTotals when discount type changes
+        if (globalDiscountTypeInput) {
+            globalDiscountTypeInput.addEventListener('change', function() {
                 updateTotals();
             });
         }

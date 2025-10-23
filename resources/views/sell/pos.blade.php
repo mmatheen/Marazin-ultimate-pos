@@ -1110,6 +1110,116 @@
             }
         }
 
+        /* Mobile Menu Offcanvas Styles */
+        #mobileMenuOffcanvas .list-group-item {
+            border-left: none;
+            border-right: none;
+            transition: all 0.3s ease;
+            font-size: 15px;
+        }
+
+        #mobileMenuOffcanvas .list-group-item:hover {
+            background-color: #f8f9fa;
+            padding-left: 1.5rem;
+        }
+
+        #mobileMenuOffcanvas .list-group-item:first-child {
+            border-top: none;
+        }
+
+        #mobileMenuOffcanvas .offcanvas-body {
+            padding: 0;
+        }
+
+        /* Mobile menu - make it beautiful like your reference image */
+        #mobileMenuOffcanvas .offcanvas {
+            width: 280px;
+        }
+
+        #mobileMenuOffcanvas .list-group-item {
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        #mobileMenuOffcanvas .list-group-item .fw-medium {
+            font-size: 14px;
+            color: #212529;
+        }
+
+        /* Collapse invoice section styling */
+        #invoiceCollapse .card-body {
+            margin: 0 1rem 1rem 1rem;
+            border-radius: 8px;
+        }
+
+        /* Mobile Menu Modal Card Styles */
+        .menu-card {
+            background: white;
+            border: none;
+            border-radius: 15px;
+            padding: 15px 10px;
+            text-align: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            min-height: 100px;
+        }
+
+        .menu-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+        }
+
+        .menu-card:active {
+            transform: translateY(-2px);
+        }
+
+        .menu-card .menu-icon {
+            width: 45px;
+            height: 45px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+
+        .menu-card span {
+            font-size: 11px;
+            font-weight: 500;
+            color: #333;
+            line-height: 1.2;
+            text-align: center;
+        }
+
+        /* Modal styling */
+        #mobileMenuModal .modal-body {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 576px) {
+            .menu-card {
+                padding: 12px 8px;
+                min-height: 90px;
+            }
+
+            .menu-card .menu-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 18px;
+            }
+
+            .menu-card span {
+                font-size: 10px;
+            }
+        }
+
         @media (min-width: 768px) and (max-width: 1023px) {
             .offcanvas {
                 width: 70vw !important;
@@ -1213,6 +1323,51 @@
             }
         }
 
+        /* Header Mobile Styles */
+        @media (max-width: 767px) {
+            #locationSelect {
+                font-size: 13px;
+                min-width: 150px !important;
+            }
+            
+            .card.bg-white.p-2 {
+                padding: 0.5rem !important;
+            }
+
+            /* Hide all vehicle/route display elements on mobile */
+            #salesRepDisplay,
+            #changeSalesRepSelection,
+            .badge.bg-success,
+            .badge.bg-info,
+            #salesAccessBadge {
+                display: none !important;
+            }
+
+            /* Only show location and hamburger on mobile */
+            .col-md-6:first-child .d-flex > *:not(label):not(#locationSelect) {
+                display: none !important;
+            }
+        }
+
+        /* Vehicle/Route badges responsive */
+        #salesRepDisplay .badge {
+            font-size: 12px;
+        }
+
+        /* Force hide on mobile - IMPORTANT */
+        @media (max-width: 767px) {
+            #salesRepDisplay {
+                display: none !important;
+            }
+        }
+
+        @media (max-width: 991px) {
+            #salesRepDisplay .badge {
+                font-size: 11px;
+                padding: 4px 8px !important;
+            }
+        }
+
         /* Customer Credit Information Styling */
         .customer-credit-info {
             margin-top: 8px;
@@ -1241,6 +1396,21 @@
         .customer-credit-info .fw-bold {
             font-size: 14px;
             font-weight: 600;
+        }
+
+        /* Better spacing between customer section and product search */
+        #productSearchInput {
+            margin-top: 0;
+        }
+
+        @media (max-width: 767px) {
+            #productSearchInput {
+                margin-top: 10px;
+            }
+
+            .customer-credit-info {
+                margin-bottom: 10px;
+            }
         }
 
         /* Responsive adjustments for mobile */
@@ -1272,6 +1442,438 @@
                 border-bottom: none;
             }
         }
+
+        /* Mobile & Tablet Billing Table Card Styles */
+        @media (max-width: 991px) {
+            /* Hide table headers on mobile/tablet */
+            .table-responsive table thead {
+                display: none !important;
+            }
+
+            /* Make each table row a compact card */
+            #billing-body tr {
+                display: block;
+                position: relative;
+                margin-bottom: 12px;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                padding: 10px;
+                padding-top: 35px;
+                background: white;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            }
+
+            /* Make each cell a block */
+            #billing-body tr td {
+                display: block;
+                border: none !important;
+                padding: 0 !important;
+                text-align: left !important;
+            }
+
+            /* Counter Badge - Top Left (Small) */
+            #billing-body tr td.counter-cell {
+                position: absolute;
+                top: 8px;
+                left: 8px;
+                font-size: 12px;
+                font-weight: 600;
+                color: #ffffff;
+                background: #6c757d;
+                padding: 3px 10px !important;
+                border-radius: 4px;
+                z-index: 10;
+            }
+
+            /* Remove Button - Top Right (Small) */
+            #billing-body tr td:nth-child(8) {
+                position: absolute;
+                top: 8px;
+                right: 8px;
+                width: auto !important;
+                padding: 0 !important;
+            }
+
+            #billing-body tr td:nth-child(8) .remove-btn {
+                width: 28px;
+                height: 28px;
+                border-radius: 4px;
+                font-size: 16px;
+                padding: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: #dc3545;
+                border: none;
+                color: white;
+            }
+
+            /* Product Header: Image + Name + SKU */
+            #billing-body tr td:nth-child(2) {
+                margin-bottom: 10px;
+                padding-bottom: 10px !important;
+                border-bottom: 1px solid #eee !important;
+            }
+
+            #billing-body tr td:nth-child(2) .d-flex {
+                flex-direction: row !important;
+                gap: 10px;
+                align-items: flex-start;
+            }
+
+            #billing-body tr td:nth-child(2) img {
+                width: 50px !important;
+                height: 50px !important;
+                border-radius: 4px !important;
+                border: 1px solid #dee2e6;
+                flex-shrink: 0;
+            }
+
+            #billing-body tr td:nth-child(2) .product-info {
+                flex: 1;
+                min-width: 0;
+            }
+
+            #billing-body tr td:nth-child(2) .product-name {
+                font-size: 14px;
+                font-weight: 600;
+                color: #212529;
+                line-height: 1.3;
+                margin-bottom: 4px;
+                display: block;
+            }
+
+            #billing-body tr td:nth-child(2) .product-sku {
+                font-size: 12px;
+                color: #6c757d;
+                display: inline-block;
+                margin-right: 10px;
+            }
+
+            #billing-body tr td:nth-child(2) .quantity-display {
+                font-size: 12px;
+                color: #198754;
+                font-weight: 600;
+                display: inline-block;
+            }
+
+            #billing-body tr td:nth-child(2) .badge {
+                font-size: 10px;
+                padding: 2px 6px;
+            }
+
+            /* Quantity Section - Compact, No Label */
+            #billing-body tr td:nth-child(3) {
+                padding: 0 !important;
+                margin-bottom: 8px;
+            }
+
+            /* Hide the QUANTITY label */
+            #billing-body tr td:nth-child(3)::before {
+                display: none !important;
+            }
+
+            #billing-body tr td:nth-child(3) .d-flex {
+                justify-content: center;
+                gap: 0;
+            }
+
+            #billing-body tr td:nth-child(3) .quantity-minus {
+                width: 45px;
+                height: 40px;
+                border-radius: 4px 0 0 4px !important;
+                font-size: 20px;
+                font-weight: 600;
+                padding: 0 !important;
+                background: #dc3545;
+                border: none;
+                color: white;
+            }
+
+            #billing-body tr td:nth-child(3) .quantity-plus {
+                width: 45px;
+                height: 40px;
+                border-radius: 0 4px 4px 0 !important;
+                font-size: 20px;
+                font-weight: 600;
+                padding: 0 !important;
+                background: #198754;
+                border: none;
+                color: white;
+            }
+
+            #billing-body tr td:nth-child(3) .quantity-input {
+                width: 70px !important;
+                height: 40px;
+                font-size: 16px;
+                font-weight: 600;
+                text-align: center;
+                border: 1px solid #ced4da;
+                border-left: none;
+                border-right: none;
+                border-radius: 0 !important;
+                background: #ffffff;
+            }
+
+            /* Hide the Pc(s) text below quantity */
+            #billing-body tr td:nth-child(3) > div:last-child {
+                display: none !important;
+            }
+
+            /* All Price Fields in Single Row */
+            #billing-body tr td:nth-child(4),
+            #billing-body tr td:nth-child(5),
+            #billing-body tr td:nth-child(6) {
+                display: inline-block;
+                width: 32%;
+                margin: 0 0.5% 8px 0;
+                padding: 0 !important;
+                vertical-align: top;
+            }
+
+            #billing-body tr td:nth-child(6) {
+                margin-right: 0;
+            }
+
+            #billing-body tr td:nth-child(4)::before,
+            #billing-body tr td:nth-child(5)::before,
+            #billing-body tr td:nth-child(6)::before {
+                display: block;
+                font-size: 10px;
+                font-weight: 600;
+                color: #495057;
+                margin-bottom: 4px;
+            }
+
+            #billing-body tr td:nth-child(4)::before {
+                content: 'DISCOUNT (RS)';
+            }
+
+            #billing-body tr td:nth-child(5)::before {
+                content: 'DISCOUNT (%)';
+            }
+
+            #billing-body tr td:nth-child(6)::before {
+                content: 'UNIT PRICE';
+            }
+
+            #billing-body tr td:nth-child(4) input,
+            #billing-body tr td:nth-child(5) input,
+            #billing-body tr td:nth-child(6) input {
+                width: 100%;
+                font-size: 13px;
+                font-weight: 600;
+                padding: 8px 4px;
+                text-align: center;
+                border: 1px solid #ced4da;
+                border-radius: 4px;
+                background: #ffffff;
+            }
+
+            /* Subtotal - Left Label, Center Value */
+            #billing-body tr td:nth-child(7) {
+                width: 100%;
+                margin: 8px 0 0 0;
+                padding: 10px 12px !important;
+                background: #198754;
+                border-radius: 4px;
+                text-align: left;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            #billing-body tr td:nth-child(7)::before {
+                content: 'SUBTOTAL';
+                color: #ffffff;
+                font-size: 11px;
+                font-weight: 600;
+                text-transform: uppercase;
+            }
+
+            #billing-body tr td.subtotal {
+                font-size: 20px;
+                font-weight: 700;
+                color: #ffffff !important;
+                text-align: right;
+                flex: 1;
+            }
+
+            /* Hide hidden cells */
+            #billing-body tr td.d-none {
+                display: none !important;
+            }
+
+            /* Adjust table container */
+            .table-responsive {
+                height: auto !important;
+                max-height: calc(100vh - 350px) !important;
+                padding: 8px;
+                background: #f5f5f5;
+            }
+
+            #billing-body {
+                padding: 0;
+            }
+
+            /* Tablet specific adjustments (768px-991px) */
+            @media (min-width: 768px) {
+                /* Larger, more spacious cards for tablets */
+                #billing-body tr {
+                    margin-bottom: 20px;
+                    padding: 20px;
+                    padding-top: 50px;
+                    border-radius: 12px;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+                    border: 2px solid #e0e0e0;
+                }
+
+                /* Larger counter badge */
+                #billing-body tr td.counter-cell {
+                    top: 12px;
+                    left: 12px;
+                    font-size: 15px;
+                    padding: 5px 14px !important;
+                    border-radius: 6px;
+                }
+
+                /* Larger remove button */
+                #billing-body tr td:nth-child(8) {
+                    top: 12px;
+                    right: 12px;
+                }
+
+                #billing-body tr td:nth-child(8) .remove-btn {
+                    width: 40px;
+                    height: 40px;
+                    font-size: 20px;
+                    border-radius: 6px;
+                }
+
+                /* Product section with more space */
+                #billing-body tr td:nth-child(2) {
+                    margin-bottom: 16px;
+                    padding-bottom: 16px !important;
+                }
+
+                #billing-body tr td:nth-child(2) .d-flex {
+                    gap: 16px;
+                }
+
+                #billing-body tr td:nth-child(2) img {
+                    width: 75px !important;
+                    height: 75px !important;
+                    border-radius: 8px !important;
+                    border: 2px solid #dee2e6;
+                }
+
+                #billing-body tr td:nth-child(2) .product-name {
+                    font-size: 17px;
+                    margin-bottom: 7px;
+                    line-height: 1.4;
+                }
+
+                #billing-body tr td:nth-child(2) .product-sku {
+                    font-size: 14px;
+                    font-weight: 500;
+                }
+
+                #billing-body tr td:nth-child(2) .quantity-display {
+                    font-size: 14px;
+                    font-weight: 700;
+                }
+
+                #billing-body tr td:nth-child(2) .badge {
+                    font-size: 12px;
+                    padding: 4px 10px;
+                }
+
+                /* Larger quantity controls */
+                #billing-body tr td:nth-child(3) {
+                    margin-bottom: 16px;
+                }
+
+                #billing-body tr td:nth-child(3) .quantity-minus,
+                #billing-body tr td:nth-child(3) .quantity-plus {
+                    width: 60px;
+                    height: 52px;
+                    font-size: 24px;
+                    border-radius: 6px 0 0 6px !important;
+                }
+
+                #billing-body tr td:nth-child(3) .quantity-plus {
+                    border-radius: 0 6px 6px 0 !important;
+                }
+
+                #billing-body tr td:nth-child(3) .quantity-input {
+                    width: 100px !important;
+                    height: 52px;
+                    font-size: 20px;
+                    font-weight: 700;
+                }
+
+                /* Larger discount and price fields */
+                #billing-body tr td:nth-child(4),
+                #billing-body tr td:nth-child(5),
+                #billing-body tr td:nth-child(6) {
+                    width: 31.5%;
+                    margin: 0 1% 16px 0;
+                }
+
+                #billing-body tr td:nth-child(6) {
+                    margin-right: 0;
+                }
+
+                #billing-body tr td:nth-child(4)::before,
+                #billing-body tr td:nth-child(5)::before,
+                #billing-body tr td:nth-child(6)::before {
+                    font-size: 12px;
+                    margin-bottom: 8px;
+                    font-weight: 700;
+                }
+
+                #billing-body tr td:nth-child(4) input,
+                #billing-body tr td:nth-child(5) input,
+                #billing-body tr td:nth-child(6) input {
+                    font-size: 16px;
+                    padding: 12px 8px;
+                    border-radius: 6px;
+                    border: 2px solid #ced4da;
+                    font-weight: 600;
+                }
+
+                #billing-body tr td:nth-child(4) input:focus,
+                #billing-body tr td:nth-child(5) input:focus,
+                #billing-body tr td:nth-child(6) input:focus {
+                    border-color: #198754;
+                    box-shadow: 0 0 0 3px rgba(25, 135, 84, 0.1);
+                }
+
+                /* Larger subtotal section */
+                #billing-body tr td:nth-child(7) {
+                    margin-top: 16px;
+                    padding: 16px 20px !important;
+                    border-radius: 8px;
+                }
+
+                #billing-body tr td:nth-child(7)::before {
+                    font-size: 14px;
+                    font-weight: 700;
+                    letter-spacing: 0.5px;
+                }
+
+                #billing-body tr td.subtotal {
+                    font-size: 26px;
+                    font-weight: 800;
+                }
+
+                /* More spacious table container */
+                .table-responsive {
+                    padding: 16px;
+                    background: #fafafa;
+                }
+            }
+        }
     </style>
 </head>
 
@@ -1283,20 +1885,29 @@
         <div class="row">
             <div class="col-md-12">
                 <div class="card bg-white p-2">
-                    <div class="row align-items-center">
+                    <!-- Mobile View: Single Row -->
+                    <div class="d-md-none">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <select id="locationSelect" class="form-select" style="max-width: calc(100% - 50px);">
+                                <option value="" selected disabled>Select Location</option>
+                            </select>
+                            <button class="btn btn-primary ms-2" type="button" data-bs-toggle="modal" data-bs-target="#mobileMenuModal">
+                                <i class="fas fa-bars"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Desktop View: Two Columns -->
+                    <div class="row align-items-center d-none d-md-flex">
                         <!-- Location and Date Section -->
                         <div class="col-md-6 d-flex align-items-center">
-                            {{-- <h6 class="me-3 mb-0">Location: <strong>{{ $location->name ?? 'N/A' }}</strong></h6>
-                            --}}
-
-                            <div class="d-flex flex-row align-items-center gap-3 flex-wrap">
-                                <select id="locationSelect" class="form-control selectBox rounded-start"
-                                    style="max-width: 220px;">
+                            <div class="d-flex flex-row align-items-center gap-2 flex-wrap">
+                                <select id="locationSelectDesktop" class="form-select location-select-sync" style="min-width: 180px; max-width: 220px;">
                                     <option value="" selected disabled>Select Location</option>
                                 </select>
 
-                                <!-- Sales Rep Vehicle/Route Display -->
-                                <div id="salesRepDisplay" style="display: none;" class="align-items-center gap-2">
+                                <!-- Sales Rep Vehicle/Route Display (Desktop/Tablet Only) -->
+                                <div id="salesRepDisplay" style="display: none;" class="d-flex align-items-center gap-2">
                                     <div class="badge bg-success text-white p-2">
                                         <i class="fas fa-truck me-1"></i>
                                         <span id="selectedVehicleDisplay">-</span>
@@ -1308,23 +1919,24 @@
                                     <div id="salesAccessBadge" class="badge p-2">
                                         <span id="salesAccessText">-</span>
                                     </div>
-                                    <button class="btn btn-sm btn-outline-secondary" id="changeSalesRepSelection"
-                                        title="Change Vehicle/Route">
+                                    <button class="btn btn-sm btn-outline-secondary" id="changeSalesRepSelection" title="Change Vehicle/Route">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                 </div>
 
-                                <button class="btn btn-primary text-white border-1 px-3 py-1"
-                                    style="width: 130px; font-size: 1.15rem;" id="currentDateButton">
-                                    {{ \Carbon\Carbon::now('Asia/Colombo')->format('Y-m-d') }}
-                                </button>
-                                <span id="currentTimeText"
-                                    style="color: #1e90ff; font-weight: 600; font-size: 1.08rem;">
-                                    {{ \Carbon\Carbon::now('Asia/Colombo')->format('H:i:s') }}
-                                </span>
-                                <button
-                                    class="btn btn-info text-white border-1 px-2 py-1 d-flex align-items-center justify-content-center"
-                                    id="shortcutButton" style="width: 40px; height: 40px;" data-bs-toggle="popover"
+                                <!-- Date and Time (Desktop Only) -->
+                                <div class="d-flex align-items-center gap-2">
+                                    <button class="btn btn-primary text-white border-1 px-3 py-1" style="font-size: 0.95rem;" id="currentDateButton">
+                                        {{ \Carbon\Carbon::now('Asia/Colombo')->format('Y-m-d') }}
+                                    </button>
+                                    <span id="currentTimeText" style="color: #1e90ff; font-weight: 600; font-size: 1rem;">
+                                        {{ \Carbon\Carbon::now('Asia/Colombo')->format('H:i:s') }}
+                                    </span>
+                                </div>
+
+                                <!-- Keyboard Shortcuts Button (Desktop Only) -->
+                                <button class="btn btn-info text-white border-1 px-2 py-1 d-flex align-items-center justify-content-center"
+                                    id="shortcutButton" style="width: 38px; height: 38px;" data-bs-toggle="popover"
                                     data-bs-trigger="hover" data-bs-html="true"
                                     data-bs-content="
                                     <div class='row'>
@@ -1347,199 +1959,253 @@
                                     </div>">
                                     <i class="fas fa-keyboard fa-lg"></i>
                                 </button>
-                                <script>
-                                    document.addEventListener('DOMContentLoaded', function() {
-                                        function updateDateTime() {
-                                            const now = new Date();
-                                            const dateStr = now.getFullYear() + '-' +
-                                                ('0' + (now.getMonth() + 1)).slice(-2) + '-' +
-                                                ('0' + now.getDate()).slice(-2);
-                                            const timeStr = ('0' + now.getHours()).slice(-2) + ':' +
-                                                ('0' + now.getMinutes()).slice(-2) + ':' +
-                                                ('0' + now.getSeconds()).slice(-2);
-                                            document.getElementById('currentDateButton').innerText = dateStr;
-                                            document.getElementById('currentTimeText').innerText = timeStr;
-                                        }
-                                        setInterval(updateDateTime, 1000);
-                                        updateDateTime();
-                                    });
-                                </script>
                             </div>
-
-                            <script>
-                                document.addEventListener('DOMContentLoaded', function() {
-                                    const currentDateButton = document.getElementById('currentDateButton');
-                                    setInterval(() => {
-                                        const now = new Date();
-                                        const formattedDate = now.getFullYear() + '-' +
-                                            ('0' + (now.getMonth() + 1)).slice(-2) + '-' +
-                                            ('0' + now.getDate()).slice(-2);
-                                        currentDateButton.innerText = formattedDate;
-                                    }, 1000);
-                                    const popoverTriggerList = [].slice.call(document.querySelectorAll(
-                                        '[data-bs-toggle="popover"]'))
-                                    const popoverList = popoverTriggerList.map(function(popoverTriggerEl) {
-                                        return new bootstrap.Popover(popoverTriggerEl)
-                                    })
-
-                                    // Fix layout alignment on load and resize
-                                    function fixLayoutAlignment() {
-                                        const bottomFixed = document.querySelector('.bottom-fixed');
-                                        const container = document.querySelector('.container-fluid');
-                                        const isMobile = window.innerWidth <= 991;
-
-                                        if (bottomFixed && container) {
-                                            // Mobile-specific fixes
-                                            if (isMobile) {
-                                                bottomFixed.style.position = 'static';
-                                                bottomFixed.style.left = 'auto';
-                                                bottomFixed.style.right = 'auto';
-                                                bottomFixed.style.bottom = 'auto';
-                                                bottomFixed.style.width = '100%';
-                                                bottomFixed.style.maxWidth = '100%';
-                                                bottomFixed.style.overflow = 'hidden';
-
-                                                // Fix button layout on mobile
-                                                const buttonContainer = bottomFixed.querySelector('.col-md-7 .d-flex');
-                                                if (buttonContainer) {
-                                                    buttonContainer.style.display = 'grid';
-                                                    buttonContainer.style.gridTemplateColumns = '1fr 1fr';
-                                                    buttonContainer.style.gap = '8px';
-                                                    buttonContainer.style.width = '100%';
-                                                }
-
-                                                // Fix body padding for mobile
-                                                document.body.style.paddingBottom = '20px';
-                                            } else {
-                                                // Desktop fixes
-                                                bottomFixed.style.position = 'fixed';
-                                                bottomFixed.style.left = '0';
-                                                bottomFixed.style.right = '0';
-                                                bottomFixed.style.bottom = '0';
-                                                bottomFixed.style.width = '100%';
-                                                bottomFixed.style.maxWidth = '100vw';
-
-                                                document.body.style.paddingBottom = '120px';
-                                            }
-
-                                            // Fix container overflow
-                                            container.style.maxWidth = '100vw';
-                                            container.style.overflowX = 'hidden';
-                                        }
-                                    }
-
-                                    // Apply fixes on load and resize
-                                    fixLayoutAlignment();
-                                    window.addEventListener('resize', fixLayoutAlignment);
-                                    window.addEventListener('orientationchange', fixLayoutAlignment);
-                                });
-                            </script>
                         </div>
 
-                        <!-- Action Buttons -->
+                        <!-- Action Buttons (Desktop) -->
                         <div class="col-md-6">
-                            <div class="d-flex justify-content-end gap-3">
+                            <div class="d-flex justify-content-end gap-2 align-items-center flex-wrap">
+                                <button class="btn btn-secondary btn-sm" onclick="window.location.href='{{ route('dashboard') }}'" data-bs-toggle="tooltip" title="Go home">
+                                    <i class="fas fa-home"></i>
+                                </button>
 
-                                {{-- //Home Pagee --}}
-                                <button class="btn btn-secondary btn-sm"
-                                    onclick="window.location.href='{{ route('dashboard') }}'" data-bs-toggle="tooltip"
-                                    title="Go home"><i class="fas fa-home"></i></button>
-
-                                <button class="btn btn-light btn-sm" onclick="handleGoBack()" data-bs-toggle="tooltip"
-                                    title="Go Back"><i class="fas fa-backward"></i></button>
+                                <button class="btn btn-light btn-sm" onclick="handleGoBack()" data-bs-toggle="tooltip" title="Go Back">
+                                    <i class="fas fa-backward"></i>
+                                </button>
 
                                 <!-- Calculator Button with Dropdown -->
                                 <div class="dropdown">
-                                    <button class="btn btn-warning btn-sm dropdown-toggle" id="calculatorButton"
-                                        data-bs-toggle="dropdown" aria-expanded="false" data-bs-toggle="tooltip"
-                                        title="Calculator">
+                                    <button class="btn btn-warning btn-sm dropdown-toggle" id="calculatorButton" data-bs-toggle="dropdown" aria-expanded="false" data-bs-toggle="tooltip" title="Calculator">
                                         <i class="fas fa-calculator"></i>
                                     </button>
-                                    <div class="dropdown-menu p-2 shadow" id="calculatorDropdown"
-                                        style="width: 220px;">
+                                    <div class="dropdown-menu p-2 shadow" id="calculatorDropdown" style="width: 220px;">
                                         <div class="text-center">
-                                            <input type="text" id="calcDisplay" class="form-control text-end mb-2"
-                                                onkeydown="handleKeyboardInput(event)" autofocus>
+                                            <input type="text" id="calcDisplay" class="form-control text-end mb-2" onkeydown="handleKeyboardInput(event)" autofocus>
                                         </div>
                                         <div class="d-grid gap-1">
                                             <div class="row g-1">
-                                                <button class="btn btn-light btn-sm col"
-                                                    onclick="calcInput('7')">7</button>
-                                                <button class="btn btn-light btn-sm col"
-                                                    onclick="calcInput('8')">8</button>
-                                                <button class="btn btn-light btn-sm col"
-                                                    onclick="calcInput('9')">9</button>
-                                                <button class="btn btn-warning btn-sm col"
-                                                    onclick="calcInput('/')">/</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('7')">7</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('8')">8</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('9')">9</button>
+                                                <button class="btn btn-warning btn-sm col" onclick="calcInput('/')">/</button>
                                             </div>
                                             <div class="row g-1">
-                                                <button class="btn btn-light btn-sm col"
-                                                    onclick="calcInput('4')">4</button>
-                                                <button class="btn btn-light btn-sm col"
-                                                    onclick="calcInput('5')">5</button>
-                                                <button class="btn btn-light btn-sm col"
-                                                    onclick="calcInput('6')">6</button>
-                                                <button class="btn btn-warning btn-sm col"
-                                                    onclick="calcInput('*')">×</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('4')">4</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('5')">5</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('6')">6</button>
+                                                <button class="btn btn-warning btn-sm col" onclick="calcInput('*')">×</button>
                                             </div>
                                             <div class="row g-1">
-                                                <button class="btn btn-light btn-sm col"
-                                                    onclick="calcInput('1')">1</button>
-                                                <button class="btn btn-light btn-sm col"
-                                                    onclick="calcInput('2')">2</button>
-                                                <button class="btn btn-light btn-sm col"
-                                                    onclick="calcInput('3')">3</button>
-                                                <button class="btn btn-warning btn-sm col"
-                                                    onclick="calcInput('-')">-</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('1')">1</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('2')">2</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('3')">3</button>
+                                                <button class="btn btn-warning btn-sm col" onclick="calcInput('-')">-</button>
                                             </div>
                                             <div class="row g-1">
-                                                <button class="btn btn-light btn-sm col"
-                                                    onclick="calcInput('0')">0</button>
-                                                <button class="btn btn-light btn-sm col"
-                                                    onclick="calcInput('.')">.</button>
-                                                <button class="btn btn-danger btn-sm col"
-                                                    onclick="clearCalc()">C</button>
-                                                <button class="btn btn-warning btn-sm col"
-                                                    onclick="calcInput('+')">+</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('0')">0</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('.')">.</button>
+                                                <button class="btn btn-danger btn-sm col" onclick="clearCalc()">C</button>
+                                                <button class="btn btn-warning btn-sm col" onclick="calcInput('+')">+</button>
                                             </div>
                                             <div class="row g-1">
-                                                <button class="btn btn-success btn-sm col"
-                                                    onclick="calculateResult()">=</button>
+                                                <button class="btn btn-success btn-sm col" onclick="calculateResult()">=</button>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div class="dropdown">
-                                    <button class="btn btn-danger btn-sm dropdown-toggle" type="button"
-                                        id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false"
-                                        data-bs-toggle="tooltip" title="Enter Invoice No">
+                                    <button class="btn btn-danger btn-sm dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false" data-bs-toggle="tooltip" title="Enter Invoice No">
                                         <i class="fas fa-redo-alt"></i>
                                     </button>
-
-                                    <!-- Dropdown menu -->
                                     <div class="dropdown-menu p-3" style="min-width: 250px;">
                                         <label for="invoiceNo" class="form-label">Enter Invoice No</label>
-                                        <input type="text" id="invoiceNo" class="form-control form-control-sm"
-                                            placeholder="Invoice No">
+                                        <input type="text" id="invoiceNo" class="form-control form-control-sm" placeholder="Invoice No">
                                         <button id="invoiceSubmitBtn" class="btn btn-primary btn-sm mt-2 w-100">Submit</button>
                                     </div>
                                 </div>
-                                <button class="btn btn-outline-danger" id="pauseCircleButton" data-bs-toggle="modal"
-                                    data-bs-target="#suspendSalesModal" data-bs-toggle="tooltip"
-                                    title="Suspend Sales">
+
+                                <button class="btn btn-outline-danger btn-sm" id="pauseCircleButton" data-bs-toggle="modal" data-bs-target="#suspendSalesModal" data-bs-toggle="tooltip" title="Suspend Sales">
                                     <i class="fas fa-pause-circle"></i>
                                 </button>
 
-                                <button class="btn btn-primary" data-bs-toggle="modal"
-                                    data-bs-target="#recentTransactionsModal" data-bs-toggle="tooltip"
-                                    title="Recent Transactions"><i class="fas fa-clock"></i></button>
-                                <!-- Hamburger button to toggle the product list area -->
-                                <button class="btn btn-gradient" id="toggleProductList" data-bs-toggle="tooltip"
-                                    title="Hide or Show Product list"><i class="fas fa-bars"></i></i></button>
+                                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#recentTransactionsModal" data-bs-toggle="tooltip" title="Recent Transactions">
+                                    <i class="fas fa-clock"></i>
+                                </button>
 
+                                <button class="btn btn-gradient btn-sm" id="toggleProductList" data-bs-toggle="tooltip" title="Hide or Show Product list">
+                                    <i class="fas fa-bars"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // Sync location selects between mobile and desktop
+                const mobileSelect = document.getElementById('locationSelect');
+                const desktopSelect = document.getElementById('locationSelectDesktop');
+                
+                if (mobileSelect && desktopSelect) {
+                    mobileSelect.addEventListener('change', function() {
+                        desktopSelect.value = this.value;
+                        $(desktopSelect).trigger('change');
+                    });
+                    
+                    desktopSelect.addEventListener('change', function() {
+                        mobileSelect.value = this.value;
+                        $(mobileSelect).trigger('change');
+                    });
+                }
+
+                function updateDateTime() {
+                    const now = new Date();
+                    const dateStr = now.getFullYear() + '-' + ('0' + (now.getMonth() + 1)).slice(-2) + '-' + ('0' + now.getDate()).slice(-2);
+                    const timeStr = ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2) + ':' + ('0' + now.getSeconds()).slice(-2);
+                    const dateBtn = document.getElementById('currentDateButton');
+                    const timeText = document.getElementById('currentTimeText');
+                    if (dateBtn) dateBtn.innerText = dateStr;
+                    if (timeText) timeText.innerText = timeStr;
+                }
+                setInterval(updateDateTime, 1000);
+                updateDateTime();
+
+                // Initialize popovers
+                const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+                const popoverList = popoverTriggerList.map(function(popoverTriggerEl) {
+                    return new bootstrap.Popover(popoverTriggerEl);
+                });
+            });
+        </script>
+
+        <!-- Mobile Menu Modal -->
+        <div class="modal fade" id="mobileMenuModal" tabindex="-1" aria-labelledby="mobileMenuModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content" style="border-radius: 20px; overflow: hidden;">
+                    <div class="modal-header bg-white border-bottom">
+                        <h5 class="modal-title fw-bold text-dark" id="mobileMenuModalLabel">
+                            <i class="fas fa-bars me-2"></i> Menu
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-0 bg-white">
+                        <!-- Sales Rep Vehicle/Route Display (If applicable) -->
+                        <div id="salesRepDisplayMenu" style="display: none;" class="p-3 border-bottom bg-light">
+                            <div class="d-flex flex-column gap-2">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <strong class="text-dark"><i class="fas fa-truck me-2"></i>Vehicle:</strong>
+                                    <span id="selectedVehicleDisplayMenu" class="badge bg-success">-</span>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <strong class="text-dark"><i class="fas fa-route me-2"></i>Route:</strong>
+                                    <span id="selectedRouteDisplayMenu" class="badge bg-info">-</span>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <strong class="text-dark"><i class="fas fa-user-tag me-2"></i>Access:</strong>
+                                    <span id="salesAccessBadgeMenu" class="badge">-</span>
+                                </div>
+                                <button class="btn btn-sm btn-outline-primary w-100 mt-2" id="changeSalesRepSelectionMenu">
+                                    <i class="fas fa-edit me-2"></i>Change Vehicle/Route
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 p-3">
+                            <!-- Row 1 -->
+                            <div class="col-4">
+                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#recentTransactionsModal">
+                                    <div class="menu-icon bg-primary">
+                                        <i class="fas fa-clock"></i>
+                                    </div>
+                                    <span>Recent Transactions</span>
+                                </button>
+                            </div>
+                            <div class="col-4">
+                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal" onclick="window.location.href='{{ url('sale-return') }}'">
+                                    <div class="menu-icon bg-success">
+                                        <i class="fas fa-undo"></i>
+                                    </div>
+                                    <span>Sell Return</span>
+                                </button>
+                            </div>
+                            <div class="col-4">
+                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#suspendSalesModal">
+                                    <div class="menu-icon bg-secondary">
+                                        <i class="fas fa-pause-circle"></i>
+                                    </div>
+                                    <span>Suspended Sales</span>
+                                </button>
                             </div>
 
+                            <!-- Row 2 -->
+                            <div class="col-4">
+                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal" onclick="window.location.href='{{ url('expense-add') }}'">
+                                    <div class="menu-icon bg-success">
+                                        <i class="fas fa-plus-circle"></i>
+                                    </div>
+                                    <span>Add Expense</span>
+                                </button>
+                            </div>
+                            <div class="col-4">
+                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal" onclick="handleGoBack()">
+                                    <div class="menu-icon bg-secondary">
+                                        <i class="fas fa-backward"></i>
+                                    </div>
+                                    <span>Go Back</span>
+                                </button>
+                            </div>
+                            <div class="col-4">
+                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal" onclick="window.location.href='{{ route('dashboard') }}'">
+                                    <div class="menu-icon bg-info">
+                                        <i class="fas fa-home"></i>
+                                    </div>
+                                    <span>Go Home</span>
+                                </button>
+                            </div>
+
+                            <!-- Row 3 -->
+                            <div class="col-4">
+                                <button type="button" class="menu-card w-100" data-bs-toggle="collapse" data-bs-target="#invoiceCollapse">
+                                    <div class="menu-icon bg-danger">
+                                        <i class="fas fa-redo-alt"></i>
+                                    </div>
+                                    <span>Invoice No</span>
+                                </button>
+                            </div>
+                            <div class="col-4">
+                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal" id="toggleProductListMobile" onclick="document.getElementById('toggleProductList').click()">
+                                    <div class="menu-icon bg-primary">
+                                        <i class="fas fa-box-open"></i>
+                                    </div>
+                                    <span>Product List</span>
+                                </button>
+                            </div>
+                            <div class="col-4">
+                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal" onclick="toggleFullScreen()">
+                                    <div class="menu-icon bg-warning">
+                                        <i class="fas fa-expand"></i>
+                                    </div>
+                                    <span>Full Screen</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Invoice Number Input (Collapsible) -->
+                        <div class="collapse" id="invoiceCollapse">
+                            <div class="px-3 pb-3">
+                                <div class="card border-0 bg-light" style="border-radius: 15px;">
+                                    <div class="card-body">
+                                        <label for="invoiceNoMobile" class="form-label fw-bold">Enter Invoice Number</label>
+                                        <input type="text" id="invoiceNoMobile" class="form-control mb-2" placeholder="Invoice No">
+                                        <button class="btn btn-primary w-100" onclick="submitInvoiceNo()">
+                                            <i class="fas fa-check me-2"></i>Submit
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1578,40 +2244,37 @@
                                     </div>
                                     <!-- Customer Credit Information Row -->
                                     <div class="customer-credit-info mt-2" style="display: none;">
-                                        <div class="row g-0 border rounded">
-                                            <div class="col-4 border-end">
-                                                <div class="p-2 text-center">
-                                                    <small class="text-muted d-block">Total due amount</small>
-                                                    <span id="total-due-amount" class="fw-bold text-danger">
-                                                        Rs. 5000.00
-                                                    </span>
-                                                </div>
+                                        <div class="d-flex border rounded">
+                                            <div class="flex-fill border-end p-2 text-center">
+                                                <small class="text-muted d-block">Total Due</small>
+                                                <span id="total-due-amount" class="fw-bold text-danger d-block">
+                                                    Rs. 0.00
+                                                </span>
                                             </div>
-                                            <div class="col-4 border-end">
-                                                <div class="p-2 text-center">
-                                                    <small class="text-muted d-block">Credit limit</small>
-                                                    <span id="credit-limit-amount" class="fw-bold text-info">
-                                                        Rs. 15000.00
-                                                    </span>
-                                                </div>
+                                            <div class="flex-fill border-end p-2 text-center">
+                                                <small class="text-muted d-block">Credit Limit</small>
+                                                <span id="credit-limit-amount" class="fw-bold text-info d-block">
+                                                    Rs. 0.00
+                                                </span>
                                             </div>
-                                            <div class="col-4">
-                                                <div class="p-2 text-center">
-                                                    <small class="text-muted d-block">Available credit</small>
-                                                    <span id="available-credit-amount" class="fw-bold text-success">
-                                                        ✓ Rs. 10000.00
-                                                    </span>
-                                                </div>
+                                            <div class="flex-fill p-2 text-center">
+                                                <small class="text-muted d-block">Available</small>
+                                                <span id="available-credit-amount" class="fw-bold text-success d-block">
+                                                    Rs. 0.00
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="col-md-7">
                                     <input type="text" class="form-control" id="productSearchInput"
-                                        placeholder="Enter Product name / SKU / Scan bar code">
+                                        placeholder="Enter Product name / SKU / Scan bar code" style="height: 38px;">
                                 </div>
+                            </div>
 
-                                <div class="col-md-12 mt-3">
+                            <!-- Spacer for better separation -->
+                            <div class="row mt-1">
+                                <div class="col-md-12 mt-2">
                                     <div class="table-responsive"
                                         style="height: calc(100vh - 445px); overflow-y: auto;">
                                         <table class="table table-bordered">
@@ -1751,14 +2414,22 @@
                         percentageDiscountBtn.classList.remove('active');
                         discountIcon.textContent = 'Rs';
                         discountTypeInput.value = 'fixed';
-                        discountInput.value = ''; // Reset the discount value
+                        // Don't reset the discount value - keep existing value
+                        // Trigger calculation update if updateTotals exists
+                        if (typeof updateTotals === 'function') {
+                            updateTotals();
+                        }
                     });
                     percentageDiscountBtn.addEventListener('click', function() {
                         percentageDiscountBtn.classList.add('active');
                         fixedDiscountBtn.classList.remove('active');
                         discountIcon.textContent = '%';
                         discountTypeInput.value = 'percentage';
-                        discountInput.value = ''; // Reset the discount value
+                        // Don't reset the discount value - keep existing value
+                        // Trigger calculation update if updateTotals exists
+                        if (typeof updateTotals === 'function') {
+                            updateTotals();
+                        }
                     });
                     // Toggle product list area visibility
                     toggleProductListBtn.addEventListener('click', function() {
@@ -2876,6 +3547,21 @@
                     toastr.warning('Please enter an invoice number');
                 }
             }
+
+            // Function to handle invoice submission from mobile menu
+            window.submitInvoiceNo = function() {
+                const mobileInvoiceInput = document.getElementById('invoiceNoMobile');
+                if (mobileInvoiceInput && mobileInvoiceInput.value.trim() !== '') {
+                    document.getElementById('invoiceNo').value = mobileInvoiceInput.value;
+                    handleInvoiceSubmission();
+                    // Close the modal and collapse
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('mobileMenuModal'));
+                    if (modal) modal.hide();
+                    const collapse = bootstrap.Collapse.getInstance(document.getElementById('invoiceCollapse'));
+                    if (collapse) collapse.hide();
+                }
+            };
+            
             // Capture the Submit button click using specific ID
             const submitButton = document.getElementById('invoiceSubmitBtn');
             if (submitButton) {
@@ -2898,9 +3584,22 @@
                     }
                 });
             }
+
+            // Mobile invoice input Enter key
+            const mobileInvoiceInput = document.getElementById('invoiceNoMobile');
+            if (mobileInvoiceInput) {
+                mobileInvoiceInput.addEventListener('keydown', function(event) {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        window.submitInvoiceNo();
+                    }
+                });
+            }
         });
     </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.js"></script>
+   
+   
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.js"></script>
 
     <!-- Include Bootstrap JS -->
     @include('sell.pos_ajax')

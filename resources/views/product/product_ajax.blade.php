@@ -2578,68 +2578,56 @@
                                             `/assets/images/${product.product_image}` :
                                             '/assets/images/No Product Image Available.png';
                                         var details = `
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-striped">
-                            <tbody>
-                                <tr>
-                                    <td rowspan="8" class="text-center align-middle">
-                                        <img src='${imagePath}' width='150' height='200' class="rounded img-fluid" />
-                                    </td>
-                                    <th scope="row">Product Name</th>
-                                    <td>${product.product_name}</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">SKU</th>
-                                    <td>${product.sku}</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Category</th>
-                                    <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Brand</th>
-                                    <td>${brandMap[product.brand_id] || 'N/A'}</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Locations</th>
-                                    <td>${product.locations.map(loc => locationMap[loc.id] || 'N/A').join(', ')}</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Selling Price</th>
-                                    <td>${(() => {
-                                        let displayPrice = product.retail_price || 0;
-                                        let priceSource = 'Default Product Price';
-                                        
-                                        if (product.batches && product.batches.length > 0) {
-                                            const latestBatch = product.batches[product.batches.length - 1];
-                                            if (latestBatch && latestBatch.retail_price !== null && latestBatch.retail_price !== undefined) {
-                                                displayPrice = latestBatch.retail_price;
-                                                priceSource = `Latest Batch Price (${latestBatch.batch_no || 'N/A'})`;
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped">
+                                <tbody>
+                                    <tr>
+                                        <td rowspan="8" class="text-center align-middle">
+                                            <img src='${imagePath}' width='150' height='200' class="rounded img-fluid" />
+                                        </td>
+                                        <th scope="row">Product Name</th>
+                                        <td>${product.product_name}</td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">SKU</th>
+                                        <td>${product.sku}</td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">Category</th>
+                                        <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">Brand</th>
+                                        <td>${brandMap[product.brand_id] || 'N/A'}</td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">Locations</th>
+                                        <td>${product.locations.map(loc => locationMap[loc.id] || 'N/A').join(', ')}</td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">Selling Price</th>
+                                        <td>${(() => {
+                                            let displayPrice = product.retail_price || 0;
+                                            let priceSource = 'Default Product Price';
+                                            
+                                            if (product.batches && product.batches.length > 0) {
+                                                const latestBatch = product.batches[product.batches.length - 1];
+                                                if (latestBatch && latestBatch.retail_price !== null && latestBatch.retail_price !== undefined) {
+                                                    displayPrice = latestBatch.retail_price;
+                                                    priceSource = `Latest Batch Price (${latestBatch.batch_no || 'N/A'})`;
+                                                }
                                             }
-                                        }
-                                        
-                                        return `
-                                        Rs.$ {
-                                            parseFloat(displayPrice).toFixed(2)
-                                        } < br > < small class = "text-muted" > $ {
-                                            priceSource
-                                        } < /small>`;
-                                    })()
-                            } < /td> < /
-                            tr > <
-                            tr >
-                            <
-                            th scope = "row" > Imei is Checked < /th> <
-                            td > $ {
-                                product.is_imei_or_serial_no === 1 ? "True" : "False"
-                            } < /td> < /
-                            tr >
-
-                            <
-                            /tbody> < /
-                            table > <
-                            /div>
-                            `;
+                                            
+                                            return `Rs.${parseFloat(displayPrice).toFixed(2)}<br><small class="text-muted">${priceSource}</small>`;
+                                        })()}</td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">Imei is Checked</th>
+                                        <td>${product.is_imei_or_serial_no === 1 ? "True" : "False"}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>`;
                         $('#productDetails').html(details);
                     } else {
                         console.error('Failed to load product details. Status: ' + response.status);
