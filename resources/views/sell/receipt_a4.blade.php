@@ -167,13 +167,13 @@
         <div class="customer-details">
             <div class="section-title">Customer Details</div>
             <div><strong>Name:</strong> {{ $customer->first_name }} {{ $customer->last_name }}</div>
-            @if($customer->mobile_no)
+            @if(isset($customer->mobile_no) && $customer->mobile_no)
                 <div><strong>Mobile:</strong> {{ $customer->mobile_no }}</div>
             @endif
-            @if($customer->email)
+            @if(isset($customer->email) && $customer->email)
                 <div><strong>Email:</strong> {{ $customer->email }}</div>
             @endif
-            @if($customer->address)
+            @if(isset($customer->address) && $customer->address)
                 <div><strong>Address:</strong> {{ $customer->address }}</div>
             @endif
         </div>
