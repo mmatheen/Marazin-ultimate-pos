@@ -601,6 +601,31 @@ class ProductController extends Controller
         return response()->json(['status' => 200, 'message' => $message, 'product_id' => $product->id]);
     }
 
+    /**
+     * Check if SKU is unique (for real-time validation)
+     */
+    public function checkSkuUniqueness(Request $request)
+    {
+        $sku = $request->input('sku');
+        $productId = $request->input('product_id'); // Product ID if editing (to exclude from check)
+
+        if (!$sku) {
+            return response()->json(['exists' => false]);
+        }
+
+        // Query for existing SKU
+        $query = Product::where('sku', $sku);
+
+        // Exclude current product if editing
+        if ($productId) {
+            $query->where('id', '!=', $productId);
+        }
+
+        $exists = $query->exists();
+
+        return response()->json(['exists' => $exists]);
+    }
+
     public function showOpeningStock($productId)
     {
         $product = Product::with(['locations', 'unit:id,name,short_name,allow_decimal'])->findOrFail($productId);

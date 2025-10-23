@@ -186,6 +186,7 @@ Route::middleware(['auth'])->group(function () {
         // Product Store/Update
         Route::post('/product/store', [ProductController::class, 'storeOrUpdate']);
         Route::post('/product/update/{id}', [ProductController::class, 'storeOrUpdate']);
+        Route::post('/product/check-sku', [ProductController::class, 'checkSkuUniqueness']); // Real-time SKU validation
         // Category/Subcategory
         Route::get('/product-get-by-category/{categoryId}', [ProductController::class, 'getProductsByCategory']);
         Route::get('/sub_category-details-get-by-main-category-id/{main_category_id}', [ProductController::class, 'showSubCategoryDetailsUsingByMainCategoryId'])->name('sub_category-details-get-by-main-category-id');

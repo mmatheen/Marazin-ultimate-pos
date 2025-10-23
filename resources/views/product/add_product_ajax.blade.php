@@ -112,6 +112,46 @@
 
         // add form and update validation rules code end
 
+        // Real-time SKU uniqueness validation
+        $('#edit_sku').on('blur change', function() {
+            const sku = $(this).val().trim();
+            const productId = $('#product_id').val(); // Get product ID if editing
+            const errorSpan = $('#sku_error');
+            
+            // Only validate if SKU is provided
+            if (sku === '') {
+                errorSpan.html(''); // Clear error
+                $(this).removeClass('is-invalidRed').removeClass('is-validGreen');
+                return;
+            }
+            
+            // Check for duplicate SKU via AJAX
+            $.ajax({
+                url: '/product/check-sku',
+                type: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                data: {
+                    sku: sku,
+                    product_id: productId // Exclude current product if editing
+                },
+                dataType: 'json',
+                success: function(response) {
+                    if (response.exists) {
+                        errorSpan.html('SKU already exists! Please use a different SKU.');
+                        $('#edit_sku').addClass('is-invalidRed').removeClass('is-validGreen');
+                    } else {
+                        errorSpan.html('');
+                        $('#edit_sku').removeClass('is-invalidRed').addClass('is-validGreen');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error checking SKU:', error);
+                    errorSpan.html('Error validating SKU');
+                }
+            });
+        });
 
         // show the image when add and edit
         $(".show-picture").on("change", function() {
