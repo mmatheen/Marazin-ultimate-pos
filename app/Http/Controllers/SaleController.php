@@ -716,8 +716,8 @@ class SaleController extends Controller
             // Net Income: Bill Total - Total Sales Returns
             $netIncome = $billTotal - $totalSalesReturns;
 
-            // Cash in Hand: Cash Payments - Total Sales Returns
-            $cashInHand = $cashPayments - $totalSalesReturns;
+            // Cash in Hand: Cash Payments (actual cash received)
+            $cashInHand = $cashPayments;
 
             // Payment Total: Sum of all payment methods
             $paymentTotal = $cashPayments + $chequePayments + $bankTransferPayments + $cardPayments;
