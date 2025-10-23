@@ -540,8 +540,26 @@ class ProductController extends Controller
         // Retrieve or create the product
         $product = $id ? Product::find($id) : new Product;
 
-        if (!$product) {
+        if (!$product && $id) {
             return response()->json(['status' => 404, 'message' => 'Product not found!']);
+        }
+
+        // Check for duplicate product creation (prevent race condition)
+        // Only check when creating new product (no $id), and if a SKU is provided
+        if (!$id && $request->has('sku') && !empty($request->sku)) {
+            $existingProduct = Product::where('sku', $request->sku)->first();
+            if ($existingProduct) {
+                Log::warning('Attempted duplicate product creation', [
+                    'sku' => $request->sku,
+                    'product_name' => $request->product_name,
+                    'existing_product_id' => $existingProduct->id
+                ]);
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'A product with this SKU (' . $request->sku . ') already exists!',
+                    'errors' => ['sku' => 'SKU already exists']
+                ]);
+            }
         }
 
         // Auto-increment SKU logic

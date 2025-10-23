@@ -1,6 +1,7 @@
 <script type="text/javascript">
     $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
+        var isSubmitting = false; // Flag to prevent double submission
 
         var addAndUpdateValidationOptions = {
             rules: {
@@ -184,6 +185,12 @@
         $('#onlySaveProductButton').click(function(e) {
             e.preventDefault(); // Prevent default form submission
 
+            // Prevent double submission
+            if (isSubmitting) {
+                toastr.warning('Product is already being saved, please wait...', 'Please Wait');
+                return;
+            }
+
             // Gather the form data
             let form = $('#addForm')[0];
             let formData = new FormData(form);
@@ -200,8 +207,11 @@
                 return; // Return if form is not valid
             }
 
+            isSubmitting = true; // Set flag to prevent double submission
+            $(this).prop('disabled', true); // Disable button
+
             $.ajax({
-                url: '/api/product-store'
+                url: '/product/store'
 
                 , type: 'POST'
                 , headers: {
@@ -221,6 +231,18 @@
                         toastr.success(response.message, 'Added');
                         resetFormAndValidation();
                     }
+                }
+                , error: function(xhr, status, error) {
+                    console.error('AJAX Error:', error);
+                    var errorMsg = 'An error occurred while saving the product.';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMsg = xhr.responseJSON.message;
+                    }
+                    toastr.error(errorMsg, 'Error');
+                }
+                , complete: function() {
+                    isSubmitting = false; // Reset flag
+                    $('#onlySaveProductButton').prop('disabled', false); // Re-enable button
                 }
             });
         });
@@ -321,6 +343,12 @@
         $('#SaveProductButtonAndAnother').click(function(e) {
             e.preventDefault(); // Prevent default form submission
 
+            // Prevent double submission
+            if (isSubmitting) {
+                toastr.warning('Product is already being saved, please wait...', 'Please Wait');
+                return;
+            }
+
             // Gather the form data
             let form = $('#addForm')[0];
             let formData = new FormData(form);
@@ -337,8 +365,11 @@
                 return; // Return if form is not valid
             }
 
+            isSubmitting = true; // Set flag to prevent double submission
+            $(this).prop('disabled', true); // Disable button
+
             $.ajax({
-                url: '/api/product-store'
+                url: '/product/store'
 
                 , type: 'POST'
                 , headers: {
@@ -360,6 +391,18 @@
                         window.location.href = '{{ route("list-product") }}';
                     }
                 }
+                , error: function(xhr, status, error) {
+                    console.error('AJAX Error:', error);
+                    var errorMsg = 'An error occurred while saving the product.';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMsg = xhr.responseJSON.message;
+                    }
+                    toastr.error(errorMsg, 'Error');
+                }
+                , complete: function() {
+                    isSubmitting = false; // Reset flag
+                    $('#SaveProductButtonAndAnother').prop('disabled', false); // Re-enable button
+                }
             });
         });
 
@@ -367,6 +410,12 @@
         // Submit the Save & Add Opening Stock only
         $('#openingStockAndProduct').click(function(e) {
             e.preventDefault(); // Prevent default form submission
+
+            // Prevent double submission
+            if (isSubmitting) {
+                toastr.warning('Product is already being saved, please wait...', 'Please Wait');
+                return;
+            }
 
             // Gather the form data
             let form = $('#addForm')[0];
@@ -384,8 +433,11 @@
                 return; // Return if form is not valid
             }
 
+            isSubmitting = true; // Set flag to prevent double submission
+            $(this).prop('disabled', true); // Disable button
+
             $.ajax({
-                url: '/api/product-store'
+                url: '/product/store'
                 , type: 'POST'
                 , headers: {
                     'X-CSRF-TOKEN': csrfToken
@@ -407,6 +459,18 @@
                            $('#addOpeningStockModal').modal('show');
 
                     }
+                }
+                , error: function(xhr, status, error) {
+                    console.error('AJAX Error:', error);
+                    var errorMsg = 'An error occurred while saving the product.';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMsg = xhr.responseJSON.message;
+                    }
+                    toastr.error(errorMsg, 'Error');
+                }
+                , complete: function() {
+                    isSubmitting = false; // Reset flag
+                    $('#openingStockAndProduct').prop('disabled', false); // Re-enable button
                 }
             });
         });
