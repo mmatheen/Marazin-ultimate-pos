@@ -407,6 +407,13 @@ class ProductController extends Controller
 
     public function storeOrUpdate(Request $request, $id = null)
     {
+        // Log incoming request for debugging
+        Log::info('API Product storeOrUpdate called', [
+            'id' => $id,
+            'sku' => $request->sku,
+            'product_name' => $request->product_name
+        ]);
+
         // Validation rules
         $rules = [
             'product_name' => 'required|string|max:255',
@@ -429,8 +436,16 @@ class ProductController extends Controller
             'special_price' => 'nullable|numeric|min:0',
             'original_price' => 'required|numeric|min:0',
             'max_retail_price' => 'nullable|numeric|min:0',
-            'sku' => 'nullable|string|unique:products,sku,' . $id,
         ];
+
+        // Add SKU validation rule conditionally
+        if ($id) {
+            // When updating, allow current product's SKU
+            $rules['sku'] = 'nullable|string|unique:products,sku,' . $id;
+        } else {
+            // When creating, SKU must be unique
+            $rules['sku'] = 'nullable|string|unique:products,sku';
+        }
 
         $validator = Validator::make($request->all(), $rules);
 
@@ -471,18 +486,8 @@ class ProductController extends Controller
             }
         }
 
-        // Auto-increment SKU logic
-        if (!$request->has('sku') || empty($request->sku)) {
-            $lastProduct = Product::orderBy('id', 'desc')->first();
-            $lastId = $lastProduct ? $lastProduct->id : 0;
-            $autoIncrementSku = str_pad($lastId + 1, 4, '0', STR_PAD_LEFT);
-            $product->sku = $autoIncrementSku;
-        } else {
-            $product->sku = $request->sku;
-        }
-
-        // Update product details
-        $product->fill([
+        // Prepare product data (exclude sku when auto-generating)
+        $data = [
             'product_name' => $request->product_name,
             'unit_id' => $request->unit_id,
             'brand_id' => $request->brand_id,
@@ -501,7 +506,58 @@ class ProductController extends Controller
             'special_price' => $request->special_price,
             'original_price' => $request->original_price,
             'max_retail_price' => $request->max_retail_price,
-        ])->save();
+        ];
+
+        try {
+            if ($request->has('sku') && !empty($request->sku)) {
+                // Use provided SKU (we already checked duplicates earlier)
+                $product->fill(array_merge($data, ['sku' => (string) $request->sku]));
+                $product->save();
+            } else {
+                // Find first available SKU by checking for gaps in sequence
+                // Get all numeric SKUs sorted ascending
+                $existingSkus = Product::whereRaw('sku REGEXP "^[0-9]+$"')
+                    ->orderByRaw('CAST(sku AS UNSIGNED) ASC')
+                    ->pluck('sku')
+                    ->map(function($sku) {
+                        return (int)$sku;
+                    })
+                    ->toArray();
+                
+                // Find the first gap in the sequence
+                $nextSkuNumber = 1;
+                foreach ($existingSkus as $existingSku) {
+                    if ($existingSku == $nextSkuNumber) {
+                        $nextSkuNumber++;
+                    } else if ($existingSku > $nextSkuNumber) {
+                        // Found a gap, use this number
+                        break;
+                    }
+                }
+                
+                $generatedSku = str_pad($nextSkuNumber, 4, '0', STR_PAD_LEFT);
+                
+                Log::info('API auto-generated SKU (gap-filling)', [
+                    'existing_skus' => $existingSkus,
+                    'next_number' => $nextSkuNumber,
+                    'generated_sku' => $generatedSku
+                ]);
+
+                // Insert with generated SKU directly
+                $product->fill(array_merge($data, ['sku' => $generatedSku]));
+                $product->save();
+            }
+        } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+            Log::warning('API Unique constraint violation while saving product', ['sku' => $request->sku ?? null, 'exception' => $e->getMessage()]);
+            return response()->json([
+                'status' => 400,
+                'message' => 'A product with this SKU already exists. Please choose a different SKU or try again.',
+                'errors' => ['sku' => 'SKU already exists']
+            ]);
+        } catch (\Exception $e) {
+            Log::error('API Error saving product', ['exception' => $e->getMessage()]);
+            return response()->json(['status' => 500, 'message' => 'Failed to save product. Please try again.']);
+        }
 
         // Sync locations
         $product->locations()->sync($request->locations);

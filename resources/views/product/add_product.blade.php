@@ -439,7 +439,7 @@
                                 @endcan
                             </div>
                             <div>
-                                <button type="submit" class="btn btn-outline-danger"
+                                <button type="submit" class="btn btn-outline-primary"
                                     id="SaveProductButtonAndAnother">Save And Add Another</button>
                             </div>
                             <div>

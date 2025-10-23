@@ -1,7 +1,14 @@
 <script type="text/javascript">
     $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
-        showFetchData();
+        
+        // Initialize DataTable
+        try {
+            initializeCustomerTable();
+        } catch (error) {
+            console.error('Error initializing customer table:', error);
+        }
+        
         fetchCustomerData();
         fetchCities();
 
@@ -141,55 +148,175 @@
             $('#addAndEditCustomerModal').modal('show');
         });
 
-        function showFetchData() {
-            $.ajax({
-                url: '/customer-get-all',
-                type: 'GET',
-                dataType: 'json',
-                xhrFields: {
-                    withCredentials: true // 🔥 Required
-                },
-                headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                },
-                success: function(response) {
-                    var table = $('#customer').DataTable();
-                    table.clear().draw();
-                    var counter = 1;
-                    response.message.forEach(function(item) {
-                        let row = $('<tr>');
-                        row.append('<td>' + counter + '</td>');
-                        row.append('<td>' + item.prefix + '</td>');
-                        row.append('<td>' + item.first_name + '</td>');
-                        row.append('<td>' + item.last_name + '</td>');
-                        row.append('<td>' + item.mobile_no + '</td>');
-                        row.append('<td>' + item.email + '</td>');
-                        row.append('<td>' + item.city_name + '</td>');
-                        row.append('<td>' + (item.customer_type ? item.customer_type.charAt(
-                                0).toUpperCase() + item.customer_type.slice(1) :
-                            'Not Set') + '</td>');
-                        row.append('<td>' + item.address + '</td>');
-                        row.append('<td>' + item.opening_balance + '</td>');
-                        row.append('<td>' + item.credit_limit + '</td>');
-                        row.append('<td>' + item.total_sale_due + '</td>');
-                        row.append('<td>' + item.total_return_due + '</td>');
+        function initializeCustomerTable() {
+            if ($.fn.DataTable.isDataTable('#customer')) {
+                $('#customer').DataTable().destroy();
+            }
+            $('#customer tbody').empty();
 
-
-                        row.append('<td>' +
-                            '@can('view customer')<button type="button" value="' +
-                            item.id +
-                            '" class="ledger_btn btn btn-outline-primary btn-sm me-2"><i class="feather-book-open text-primary"></i> Ledger</button>@endcan' +
-                            '@can('edit customer')<button type="button" value="' +
-                            item.id +
-                            '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
-                            '@can('delete customer')<button type="button" value="' +
-                            item.id +
-                            '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +
-                            '</td>');
-                        table.row.add(row).draw(false);
-                        counter++;
-                    });
+            $('#customer').DataTable({
+                processing: true,
+                ajax: {
+                    url: '/customer-get-all',
+                    type: 'GET',
+                    dataType: 'json',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    dataSrc: function(response) {
+                        if (response && response.status === 200 && Array.isArray(response.message)) {
+                            return response.message;
+                        }
+                        console.error('Invalid response format:', response);
+                        return [];
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Customer DataTable AJAX error:', error);
+                        if (typeof toastr !== 'undefined') {
+                            toastr.error('Failed to load customer data.', 'Error');
+                        }
+                    }
                 },
+                columns: [
+                    { 
+                        data: null, 
+                        render: function(data, type, row, meta) {
+                            return meta.row + meta.settings._iDisplayStart + 1;
+                        },
+                        title: 'ID',
+                        orderable: false
+                    },
+                    { 
+                        data: 'prefix', 
+                        title: 'Prefix',
+                        defaultContent: '',
+                        render: function(data, type, row) {
+                            return data || '';
+                        }
+                    },
+                    { 
+                        data: 'first_name', 
+                        title: 'First Name',
+                        defaultContent: ''
+                    },
+                    { 
+                        data: 'last_name', 
+                        title: 'Last Name',
+                        defaultContent: '',
+                        render: function(data, type, row) {
+                            return data || '';
+                        }
+                    },
+                    { 
+                        data: 'mobile_no', 
+                        title: 'Mobile No',
+                        defaultContent: ''
+                    },
+                    { 
+                        data: 'email', 
+                        title: 'Email',
+                        defaultContent: '',
+                        render: function(data, type, row) {
+                            return data || '';
+                        }
+                    },
+                    { 
+                        data: 'city_name', 
+                        title: 'City', 
+                        defaultContent: '',
+                        render: function(data, type, row) {
+                            return data || '';
+                        }
+                    },
+                    { 
+                        data: 'customer_type', 
+                        title: 'Customer Type',
+                        defaultContent: 'Not Set',
+                        render: function(data, type, row) {
+                            return data ? data.charAt(0).toUpperCase() + data.slice(1) : 'Not Set';
+                        }
+                    },
+                    { 
+                        data: 'address', 
+                        title: 'Address', 
+                        defaultContent: '',
+                        render: function(data, type, row) {
+                            return data || '';
+                        }
+                    },
+                    { 
+                        data: 'opening_balance', 
+                        title: 'Opening Balance', 
+                        defaultContent: '0',
+                        render: function(data, type, row) {
+                            return data || '0';
+                        }
+                    },
+                    { 
+                        data: 'credit_limit', 
+                        title: 'Credit Limit', 
+                        defaultContent: '0',
+                        render: function(data, type, row) {
+                            return data || '0';
+                        }
+                    },
+                    { 
+                        data: 'total_sale_due', 
+                        title: 'Total Sale Due', 
+                        defaultContent: '0',
+                        render: function(data, type, row) {
+                            return data || '0';
+                        }
+                    },
+                    { 
+                        data: 'total_return_due', 
+                        title: 'Total Return Due', 
+                        defaultContent: '0',
+                        render: function(data, type, row) {
+                            return data || '0';
+                        }
+                    },
+                    {
+                        data: null,
+                        title: 'Action',
+                        render: function(data, type, row) {
+                            let actions = '';
+                            @can('view customer')
+                                actions += `<button type="button" value="${row.id}" class="ledger_btn btn btn-outline-primary btn-sm me-2"><i class="feather-book-open text-primary"></i> Ledger</button>`;
+                            @endcan
+                            @can('edit customer')
+                                actions += `<button type="button" value="${row.id}" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>`;
+                            @endcan
+                            @can('delete customer')
+                                actions += `<button type="button" value="${row.id}" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>`;
+                            @endcan
+                            return actions;
+                        },
+                        orderable: false
+                    }
+                ],
+                pageLength: 10,
+                lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+                responsive: true,
+                order: [[2, 'asc']], // Order by first_name
+                language: {
+                    processing: "Loading customer data...",
+                    emptyTable: "No customers found",
+                    zeroRecords: "No matching customers found",
+                    info: "Showing _START_ to _END_ of _TOTAL_ customers",
+                    infoEmpty: "Showing 0 to 0 of 0 customers",
+                    infoFiltered: "(filtered from _MAX_ total customers)",
+                    search: "Search customers:",
+                    paginate: {
+                        first: "First",
+                        last: "Last",
+                        next: "Next",
+                        previous: "Previous"
+                    }
+                },
+                dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+                     '<"row"<"col-sm-12"tr>>' +
+                     '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>'
             });
         }
 
@@ -421,7 +548,7 @@
                     if (response.status == 200) {
                         $('#addAndEditCustomerModal').modal('hide');
                         // Clear validation error messages
-                        showFetchData();
+                        $('#customer').DataTable().ajax.reload();
                         fetchCustomerData();
                         document.getElementsByClassName('successSound')[0]
                             .play(); //for sound
@@ -556,7 +683,7 @@
                         toastr.error(response.message, 'Error');
                     } else {
                         $('#deleteModal').modal('hide');
-                        showFetchData();
+                        $('#customer').DataTable().ajax.reload();
                         document.getElementsByClassName('successSound')[0]
                             .play(); //for sound
                         toastr.options = {

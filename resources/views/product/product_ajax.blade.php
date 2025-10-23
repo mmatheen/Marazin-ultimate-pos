@@ -1,3 +1,47 @@
+<style>
+    /* Ensure proper button colors and styling */
+    .btn-primary {
+        background-color: #007bff !important;
+        border-color: #007bff !important;
+        color: #fff !important;
+    }
+    
+    .btn-secondary {
+        background-color: #6c757d !important;
+        border-color: #6c757d !important;
+        color: #fff !important;
+    }
+    
+    .btn-primary:hover {
+        background-color: #0056b3 !important;
+        border-color: #0056b3 !important;
+        color: #fff !important;
+    }
+    
+    .btn:disabled {
+        opacity: 0.6 !important;
+        cursor: not-allowed !important;
+    }
+    
+    /* Validation styling */
+    .is-invalidRed {
+        border-color: #dc3545 !important;
+        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+    }
+    
+    .is-validGreen {
+        border-color: #28a745 !important;
+        box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25) !important;
+    }
+    
+    /* Select2 styling improvements */
+    .select2-container--default .select2-selection--multiple .select2-selection__choice {
+        background-color: #007bff !important;
+        border-color: #007bff !important;
+        color: #fff !important;
+    }
+</style>
+
 <script>
     $(document).ready(function() {
                 var csrfToken = $('meta[name="csrf-token"]').attr('content'); // For CSRF token
@@ -91,6 +135,85 @@
                 // Apply validation to forms
                 $('#addForm').validate(addAndUpdateValidationOptions);
 
+                // Initialize form validation and button states after setup
+                setTimeout(function() {
+                    fetchInitialDropdowns(function() {
+                        validateFormAndUpdateButtons();
+                    });
+                }, 500);
+
+                // Global button selector for easier management
+                const allButtons = $('#onlySaveProductButton, #SaveProductButtonAndAnother, #openingStockAndProduct');
+
+                // Improved form validation and button state management
+                function validateFormAndUpdateButtons() {
+                    if (isSubmitting) return; // Don't change button state during submission
+
+                    // Check all required fields
+                    const requiredFields = [
+                        'input[name="product_name"]',
+                        'select[name="unit_id"]', 
+                        'select[name="brand_id"]',
+                        'select[name="main_category_id"]',
+                        'input[name="retail_price"]',
+                        'input[name="whole_sale_price"]',
+                        'input[name="original_price"]',
+                        'input[name="max_retail_price"]'
+                    ];
+                    
+                    let isFormValid = true;
+                    let missingFields = [];
+                    
+                    // Check each required field
+                    requiredFields.forEach(function(selector) {
+                        const field = $(selector);
+                        const fieldName = field.attr('name') || selector;
+                        if (field.length && (!field.val() || field.val() === '')) {
+                            isFormValid = false;
+                            missingFields.push(fieldName);
+                        }
+                    });
+                    
+                    // Special check for locations array
+                    const selectedLocations = $('select[name="locations[]"]').val();
+                    if (!selectedLocations || selectedLocations.length === 0) {
+                        isFormValid = false;
+                        missingFields.push('locations');
+                    }
+                    
+                    // Update button state and styling
+                    if (isFormValid) {
+                        allButtons.prop('disabled', false);
+                        allButtons.removeClass('btn-secondary btn-outline-secondary').addClass('btn-primary');
+                    } else {
+                        allButtons.prop('disabled', true);
+                        allButtons.removeClass('btn-primary').addClass('btn-secondary');
+                    }
+                    
+                    return isFormValid;
+                }
+
+                // Initialize buttons as disabled on page load
+                allButtons.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary');
+                
+                // Monitor form changes with improved debouncing
+                let validationTimeout;
+                function scheduleValidation() {
+                    clearTimeout(validationTimeout);
+                    validationTimeout = setTimeout(validateFormAndUpdateButtons, 100);
+                }
+
+                // Attach validation to form events
+                $('#addForm').on('input change keyup blur', 'input, select, textarea', scheduleValidation);
+                
+                // Special handling for Select2 dropdowns
+                $(document).on('change select2:select select2:unselect select2:clear', 'select', scheduleValidation);
+                
+                // Initial validation check after page load
+                $(document).ready(function() {
+                    setTimeout(validateFormAndUpdateButtons, 500);
+                });
+
                 // Helper function to populate a dropdown with improved caching and error handling
                 function fetchData(url, successCallback, errorCallback) {
                     $.ajax({
@@ -100,8 +223,6 @@
                         cache: true, // Enable browser caching for better performance
                         timeout: 10000, // 10 second timeout
                         success: function(response) {
-                            console.log('fetchData response for ' + url + ':', response);
-
                             // For /get-last-product endpoint, pass the response as-is
                             if (url.includes('/get-last-product')) {
                                 successCallback(response);
@@ -135,35 +256,95 @@
 
                 function populateDropdown(selector, items, displayProperty) {
                     const selectElement = $(selector).empty();
+                    
+                    // Add appropriate placeholder based on selector - but NOT for location dropdown if it's multiple select
+                    const placeholders = {
+                        '#edit_unit_id': 'Select Unit',
+                        '#edit_brand_id': 'Select Brand', 
+                        '#edit_main_category_id': 'Select Main Category',
+                        '#edit_sub_category_id': 'Select Sub Category',
+                        '#edit_location_id': 'Select Location'
+                    };
+                    
+                    // Only add placeholder for non-multiple select dropdowns
+                    if (!selector.includes('locations[]') && selector !== '#edit_location_id') {
+                        const placeholder = placeholders[selector] || 'Select Option';
+                        selectElement.append(`<option value="" disabled selected>${placeholder}</option>`);
+                    }
+                    
+                    // Add the actual data items
                     items.forEach(item => {
                         const option = new Option(item[displayProperty], item.id);
-                        if (item.selected) {
+                        if (item.selected && !selector.includes('locations[]')) {
                             option.selected = true;
                         }
                         selectElement.append(option);
                     });
+                    
+                    // For location dropdowns, handle Select2 initialization separately
+                    if (selector === '#edit_location_id' || selector.includes('locations[]')) {
+                        setTimeout(function() {
+                            if (!selectElement.hasClass('select2-hidden-accessible')) {
+                                selectElement.select2({
+                                    placeholder: 'Select Location',
+                                    allowClear: true,
+                                    width: '100%',
+                                    multiple: selector.includes('locations[]')
+                                });
+                            }
+                        }, 100);
+                    }
                 }
 
                 function populateInitialDropdowns(mainCategories, subCategories, brands, units, locations,
                     autoSelectSingle, callback) {
+                    // Populate dropdowns with data (location dropdown will be handled specially)
                     populateDropdown('#edit_main_category_id', mainCategories, 'mainCategoryName');
                     populateDropdown('#edit_sub_category_id', subCategories, 'subCategoryname');
                     populateDropdown('#edit_brand_id', brands, 'name');
                     populateDropdown('#edit_unit_id', units, 'name');
-                    populateDropdown('#edit_location_id', locations, 'name');
+                    
+                    // Handle location dropdown separately to avoid adding "Select Location" as an option
+                    const $locationSelect = $('#edit_location_id, select[name="locations[]"]');
+                    $locationSelect.empty(); // Clear first
+                    
+                    // Add only the actual location options (no placeholder option)
+                    locations.forEach(location => {
+                        const option = new Option(location.name, location.id);
+                        $locationSelect.append(option);
+                    });
 
-                    // Auto-select location for Select2 if only one location is available
-                    if (locations.length === 1 && locations[0].selected) {
+                    // Initialize Select2 for location dropdown with proper placeholder
+                    setTimeout(function() {
+                        $locationSelect.each(function() {
+                            const $this = $(this);
+                            if (!$this.hasClass('select2-hidden-accessible')) {
+                                $this.select2({
+                                    placeholder: 'Select Location',
+                                    allowClear: true,
+                                    width: '100%',
+                                    multiple: $this.attr('name') === 'locations[]'
+                                });
+                            }
+                        });
+                    }, 100);
+
+                    // Auto-select location only in edit mode
+                    if (locations.length === 1 && locations[0].selected && $('#product_id').val()) {
                         setTimeout(function() {
                             $('#edit_location_id').val([locations[0].id]).trigger('change');
-                            console.log('Auto-selected location:', locations[0].name);
-                        }, 100);
+                            validateFormAndUpdateButtons();
+                        }, 200);
                     }
 
-                    // Populate location filter dropdown with "All Location" option
+                    // Populate location filter dropdown
                     populateLocationFilterDropdown(locations, autoSelectSingle);
 
-                    if (callback) callback();
+                    // Validate form after initialization
+                    setTimeout(function() {
+                        validateFormAndUpdateButtons();
+                        if (callback) callback();
+                    }, 300);
                 }
 
                 // New function to handle location filter dropdown with "All Location" option
@@ -183,7 +364,6 @@
                     // Auto-select single location if user has access to only one location
                     if (autoSelectSingle && locations.length === 1) {
                         locationFilter.val(locations[0].id);
-                        console.log('Auto-selected single accessible location for filter:', locations[0].name);
                     }
                 }
 
@@ -201,12 +381,8 @@
                             populateInitialDropdowns(mainCategories, subCategories, brands, units, locations,
                                 autoSelectSingle, callback);
 
-                            // Log auto-selection info
-                            if (autoSelectSingle && locations.length === 1) {
-                                console.log('Auto-selected single location:', locations[0].name);
-                            }
                         } else {
-                            console.error('Failed to load initial product details. Status:', response.status);
+                            // Failed to load initial product details
                         }
                     });
                 }
@@ -414,7 +590,7 @@
                             }
                         });
                     } else {
-                        alert('Please select at least one product and one location.');
+                        toastr.warning('Please select at least one product and one location.', 'Selection Required');
                     }
                 });
 
@@ -507,7 +683,6 @@
                             'X-CSRF-TOKEN': csrfToken
                         },
                         success: function(response) {
-                            console.log('Status toggle response:', response);
                             if (response.status === 200) {
                                 toastr.success(response.message, 'Success');
                                 // Reload the DataTable
@@ -593,24 +768,14 @@
                 }
 
                 function buildActionsDropdown(row) {
-                    // Debug the row structure
-                    console.log('Building dropdown for row:', row);
-
                     // Ensure we have product data
                     if (!row.product) {
-                        console.error('No product data found in row:', row);
                         return '<div class="text-danger">Error: No product data</div>';
                     }
 
                     // Determine button text and icon based on status - access from nested product object
                     const isActive = row.product.is_active === 1 || row.product.is_active === true || row.product
                         .is_active === "1";
-
-                    console.log('Product status check:', {
-                        productId: row.product.id,
-                        rawStatus: row.product.is_active,
-                        isActive: isActive
-                    });
 
                     // Pass the actual boolean status to the click handler
                     const statusButton = isActive ?
@@ -677,15 +842,9 @@
                                     // Show all products (active and inactive) in product list
                                     show_all: true
                                 };
-                                console.log('DataTable request data:', requestData);
                                 return requestData;
                             },
-                            beforeSend: function(xhr) {
-                                console.log('Making AJAX request to /products/stocks');
-                            },
                             dataSrc: function(response) {
-                                console.log('DataTable response received:', response);
-                                console.log('Response type:', typeof response);
 
                                 // DataTables expects an object with at least 'data' property as array
                                 if (!response || typeof response !== 'object') {
@@ -767,10 +926,6 @@
                                 data: null,
                                 render: function(data, type, row) {
                                     let locationDisplay = [];
-
-                                    console.log('Business Location render - Row data:', row);
-                                    console.log('Row locations:', row.locations);
-                                    console.log('Row batches:', row.batches);
 
                                     if (row.batches && row.batches.length > 0) {
                                         // Collect locations with stock from batches (already filtered by backend location scope)
@@ -975,21 +1130,9 @@
                         const productId = $(this).data('product-id');
                         const statusData = $(this).data('status');
 
-                        console.log('Button clicked - Raw data:', {
-                            productId: productId,
-                            statusData: statusData,
-                            element: this
-                        });
-
                         // Convert string to boolean
                         const currentStatus = statusData === 'true' || statusData === true || statusData ===
                             1 || statusData === "1";
-
-                        console.log('Parsed status:', {
-                            statusData: statusData,
-                            currentStatus: currentStatus,
-                            typeof_statusData: typeof statusData
-                        });
 
                         if (productId !== undefined && productId !== null) {
                             try {
@@ -1115,12 +1258,9 @@
 
                 // On filter change, reload DataTable (triggers ajax with filters)
                 $('#productNameFilter, #categoryFilter, #brandFilter, #locationFilter').on('change', function() {
-                    console.log('Filter changed, reloading DataTable...');
                     if ($.fn.DataTable.isDataTable('#productTable')) {
                         try {
-                            $('#productTable').DataTable().ajax.reload(function(json) {
-                                console.log('DataTable reloaded successfully:', json);
-                            }, false);
+                            $('#productTable').DataTable().ajax.reload(null, false);
                         } catch (error) {
                             console.error('Error reloading DataTable:', error);
                             toastr.error('Error reloading product list', 'Error');
@@ -1144,22 +1284,162 @@
                 });
 
                 function resetFormAndValidation() {
+                    // Reset form and validation
                     $('#addForm')[0].reset();
                     $('#addForm').validate().resetForm();
-                    $('#addForm').find('.is-invalidRed').removeClass('is-invalidRed');
-                    $('#addForm').find('.is-validGreen').removeClass('is-validGreen');
+                    
+                    // Clear validation styling
+                    $('#addForm').find('.is-invalidRed, .is-validGreen').removeClass('is-invalidRed is-validGreen');
+                    $('.text-danger').html('');
+                    
+                    // Reset product image
                     $('#product-selectedImage').attr('src', '/assets/img/No Product Image Available.png');
 
-                    // Clear product ID when resetting (important for edit mode)
+                    // Clear product ID (important for edit mode)
                     $('#product_id').val('');
 
-                    // Reset buttons to add mode text
+                    // Reset buttons to add mode
                     resetButtonsForAddMode();
 
                     // Clear summernote content
                     if ($('#summernote').length) {
                         $('#summernote').summernote('code', '');
                     }
+                    
+                    // Clear all input fields
+                    $('input[type="text"], input[type="number"], input[type="email"], input[type="tel"], textarea').val('');
+                    
+                    // Clear checkboxes and radio buttons
+                    $('input[type="checkbox"], input[type="radio"]').prop('checked', false);
+                    
+                    // Reset dropdowns first
+                    resetAllDropdowns();
+                    
+                    // Re-fetch and populate dropdown data to ensure proper options with placeholders
+                    setTimeout(function() {
+                        fetchInitialDropdowns(function() {
+                            // After re-populating, ensure dropdowns are properly reset without selectable placeholders
+                            setTimeout(function() {
+                                // Special handling for location dropdown to ensure no "Select Location" option is added
+                                const $locationSelects = $('#edit_location_id, select[name="locations[]"]');
+                                $locationSelects.each(function() {
+                                    const $this = $(this);
+                                    // Clear selection but keep the actual location options
+                                    $this.val(null).trigger('change');
+                                    
+                                    // Ensure Select2 shows proper placeholder without adding it as an option
+                                    if ($this.hasClass('select2-hidden-accessible')) {
+                                        $this.select2('destroy').select2({
+                                            placeholder: 'Select Location',
+                                            allowClear: true,
+                                            width: '100%',
+                                            multiple: $this.attr('name') === 'locations[]'
+                                        });
+                                    }
+                                });
+                                
+                                // Reset other dropdowns normally
+                                resetAllDropdowns();
+                                
+                                // Disable buttons initially 
+                                allButtons.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary');
+                                
+                                // Focus on first field and validate
+                                $('input[name="product_name"]').focus();
+                                validateFormAndUpdateButtons();
+                            }, 200);
+                        });
+                    }, 100);
+                }
+                
+                // Enhanced function to reset all dropdowns with proper placeholders
+                function resetAllDropdowns() {
+                    // Define dropdowns with their placeholders
+                    const dropdownConfig = {
+                        '#edit_unit_id': 'Select Unit',
+                        '#edit_brand_id': 'Select Brand',
+                        '#edit_main_category_id': 'Select Main Category', 
+                        '#edit_sub_category_id': 'Select Sub Category',
+                        '#edit_location_id': 'Select Location',
+                        'select[name="locations[]"]': 'Select Location'
+                    };
+                    
+                    // Reset each dropdown with proper placeholder
+                    Object.entries(dropdownConfig).forEach(function([selector, placeholder]) {
+                        const $dropdown = $(selector);
+                        if (!$dropdown.length) return;
+                        
+                        try {
+                            // Clear current selection
+                            $dropdown.val(null);
+                            
+                            if ($dropdown.hasClass('select2-hidden-accessible')) {
+                                // For Select2 dropdowns - destroy and reinitialize with placeholder
+                                $dropdown.select2('destroy');
+                                
+                                // Reset options - DO NOT add placeholder as an option for location dropdowns
+                                if (!selector.includes('locations[]') && selector !== '#edit_location_id') {
+                                    // For regular single select dropdowns (unit, brand, category)
+                                    $dropdown.empty().append(`<option value="" disabled selected>${placeholder}</option>`);
+                                } else {
+                                    // For location dropdowns (single or multiple) - keep empty, let Select2 handle placeholder
+                                    $dropdown.empty();
+                                }
+                                
+                                // Reinitialize Select2 with proper settings
+                                const select2Config = {
+                                    placeholder: placeholder,
+                                    allowClear: true,
+                                    width: '100%'
+                                };
+                                
+                                if (selector.includes('locations[]')) {
+                                    select2Config.multiple = true;
+                                }
+                                
+                                $dropdown.select2(select2Config);
+                                
+                            } else {
+                                // For regular dropdowns
+                                $dropdown.empty().append(`<option value="" disabled selected>${placeholder}</option>`);
+                            }
+                            
+                        } catch (e) {
+                            console.warn('Failed to reset dropdown:', selector, e);
+                            // Fallback: simple reset
+                            $dropdown.val('').trigger('change');
+                        }
+                    });
+                    
+                    // Additional cleanup for location fields
+                    setTimeout(function() {
+                        // Clear any remaining Select2 visual artifacts
+                        $('.select2-selection__choice').remove();
+                        
+                        // Ensure location placeholder is properly displayed
+                        const locationContainers = $('select[name="locations[]"], #edit_location_id').next('.select2-container');
+                        locationContainers.find('.select2-selection__rendered').html(
+                            '<span class="select2-selection__placeholder">Select Location</span>'
+                        );
+                        
+                    }, 200);
+                    
+                    // Reset sub-category when main category changes
+                    setTimeout(function() {
+                        // Trigger main category change to reset sub-category with placeholder
+                        const $mainCategory = $('#edit_main_category_id');
+                        const $subCategory = $('#edit_sub_category_id');
+                        
+                        // Reset sub-category to placeholder
+                        $subCategory.empty().append('<option value="" disabled selected>Select Sub Category</option>');
+                        if ($subCategory.hasClass('select2-hidden-accessible')) {
+                            $subCategory.select2({
+                                placeholder: 'Select Sub Category',
+                                allowClear: true,
+                                width: '100%'
+                            });
+                        }
+                    }, 300);
                 }
 
                 // Global flag to track submission state
@@ -1172,31 +1452,36 @@
 
                 }
 
-                // Function to handle form submission
+                // Simplified form submission handler
                 function handleFormSubmit(buttonType) {
+                    // Prevent double submission
                     if (isSubmitting) {
-                        // Clear existing toastr notifications before showing new one
                         toastr.clear();
                         toastr.warning('Form is already being submitted. Please wait.', 'Please Wait');
-                        return; // Prevent further execution
+                        return;
                     }
 
-                    isSubmitting = true; // Set the flag to indicate that the form is being submitted
+                    // Validate form first
+                    if (!$('#addForm').valid() || !validateFormAndUpdateButtons()) {
+                        // Play warning sound if available
+                        if (document.getElementsByClassName('warningSound')[0]) {
+                            document.getElementsByClassName('warningSound')[0].play();
+                        }
+                        toastr.error('Please fill all required fields correctly!', 'Validation Error');
+                        return;
+                    }
 
+                    // Set submission state and disable buttons
+                    isSubmitting = true;
+                    allButtons.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary');
+
+                    // Prepare form data
                     let form = $('#addForm')[0];
                     let formData = new FormData(form);
 
-                    // Add Summernote content to form data if necessary
+                    // Add Summernote content if available
                     if ($('#summernote').length) {
                         formData.append('description', $('#summernote').val());
-                    }
-
-                    // Validate the form before submitting
-                    if (!$('#addForm').valid()) {
-                        document.getElementsByClassName('warningSound')[0].play(); // Play warning sound
-                        toastr.error('Invalid inputs, Check & try again!!', 'Warning');
-                        isSubmitting = false;
-                        return; // Return if form is not valid
                     }
 
                     $.ajax({
@@ -1254,20 +1539,53 @@
                                     $('#new_purchase_product').modal('hide');
                                 } else if (buttonType === 'saveAndAnother') {
                                     if (isEditMode || isEditPage) {
-                                        // Edit mode - show success message and go to add product page
-                                        toastr.clear(); // Clear any existing notifications
+                                        // Edit mode - redirect to add new product
+                                        toastr.clear();
                                         toastr.success('Product updated successfully!', 'Updated');
                                         window.location.href = '/add-product';
                                     } else {
-                                        // Add mode - normal behavior
-                                        toastr.clear(); // Clear any existing notifications
-                                        toastr.success(response.message, 'Success');
-                                        resetFormAndValidation();
-                                        // Also fetch and add the last product to purchase table if it exists
+                                        // Add mode - reset form for next product
+                                        toastr.clear();
+                                        toastr.success(response.message + ' - Ready for next product', 'Success');
+                                        
+                                        // Comprehensive form reset with multiple clearing approaches
+                                        setTimeout(function() {
+                                            // First, use the standard reset function
+                                            resetFormAndValidation();
+                                            
+                                            // Additional aggressive clearing for persistent elements
+                                            setTimeout(function() {
+                                                // Clear all Select2 selections thoroughly
+                                                $('.select2-hidden-accessible').each(function() {
+                                                    const $select = $(this);
+                                                    try {
+                                                        $select.val(null).trigger('change');
+                                                        if ($select.attr('name') === 'locations[]') {
+                                                            $select.val([]).trigger('change');
+                                                            // Force clear visual elements
+                                                            $select.next('.select2-container')
+                                                                .find('.select2-selection__choice').remove();
+                                                        }
+                                                    } catch (e) {
+                                                        console.warn('Select2 clear failed:', e);
+                                                    }
+                                                });
+                                                
+                                                // Clear any remaining visual artifacts
+                                                $('.select2-selection__choice').remove();
+                                                
+                                                // Ensure all text inputs are empty
+                                                $('#addForm input[type="text"], #addForm input[type="number"], #addForm textarea').val('');
+                                                
+                                                // Re-validate to update button states
+                                                validateFormAndUpdateButtons();
+                                            }, 200);
+                                        }, 100);
+                                        
+                                        // Add product to purchase table if it exists
                                         if ($('#purchase_product').length > 0) {
                                             fetchLastAddedProducts();
                                         }
-                                        // For "Save & Add Another", we stay on the same page to add more products
                                     }
                                 } else if (buttonType === 'saveAndOpeningStock') {
                                     const productId = $('#product_id').val();
@@ -1286,32 +1604,36 @@
                             toastr.error('Failed to add product. Please try again.', 'Error');
                         },
                         complete: function() {
-                            isSubmitting =
-                                false; // Reset the flag after the request completes (success or failure)
-                            // Re-enable all buttons
-                            $('#onlySaveProductButton, #SaveProductButtonAndAnother, #openingStockAndProduct')
-                                .prop('disabled', false);
+                            // Reset submission flag
+                            isSubmitting = false;
+                            
+                            // Re-validate form to determine proper button state
+                            setTimeout(function() {
+                                validateFormAndUpdateButtons();
+                            }, 100);
                         }
                     });
                 }
 
-                // Button click event handlers with debouncing
+                // Button click event handlers with validation check first
                 $('#onlySaveProductButton').click(function(e) {
                     e.preventDefault();
-                    $(this).prop('disabled', true); // Disable button immediately
+                    
+                    // Only disable button AFTER validation passes (handled in handleFormSubmit)
                     handleFormSubmit('onlySave');
-                    // Re-enable button after a delay (will be handled in complete callback)
                 });
 
                 $('#SaveProductButtonAndAnother').click(function(e) {
                     e.preventDefault();
-                    $(this).prop('disabled', true); // Disable button immediately
+                    
+                    // Only disable button AFTER validation passes (handled in handleFormSubmit)
                     handleFormSubmit('saveAndAnother');
                 });
 
                 $('#openingStockAndProduct').click(function(e) {
                     e.preventDefault();
-                    $(this).prop('disabled', true); // Disable button immediately
+                    
+                    // Only disable button AFTER validation passes (handled in handleFormSubmit)
                     handleFormSubmit('saveAndOpeningStock');
                 });
 
@@ -1319,11 +1641,8 @@
 
                 function fetchLastAddedProducts() {
                     fetchData('/get-last-product', function(response) {
-                        console.log('Last product response:', response);
-
                         if (response.status === 200) {
                             const product = response.product;
-                            console.log('Adding product to table:', product);
 
                             // Check if purchase_product table exists
                             if ($('#purchase_product').length === 0) {
@@ -1344,8 +1663,6 @@
                 }
 
                 function addProductToTable(product, isEditing = false, prices = {}) {
-                    console.log('Adding product to table:', product);
-
                     // Check if the purchase_product table exists and is initialized as DataTable
                     if ($('#purchase_product').length === 0) {
                         console.error('Purchase product table element not found');
@@ -1360,9 +1677,7 @@
                     if ($.fn.DataTable.isDataTable('#purchase_product')) {
                         table = $("#purchase_product").DataTable();
                         isDataTable = true;
-                        console.log('Using existing DataTable');
                     } else {
-                        console.log('DataTable not initialized, using regular table');
                         table = $("#purchase_product");
                     }
 
@@ -1394,7 +1709,6 @@
                         let currentVal = parseFloat(quantityInput.val()) || 0;
                         let newQuantity = allowDecimal ? (currentVal + 1) : (parseInt(currentVal) + 1);
                         quantityInput.val(newQuantity).trigger('input');
-                        console.log('Updated existing row quantity to:', newQuantity);
                     } else {
                         // Use correct property names from the JSON response
                         const wholesalePrice = parseFloat(prices.wholesale_price || product.whole_sale_price) || 0;
@@ -1435,11 +1749,9 @@
                             if (isDataTable) {
                                 // Add to DataTable
                                 table.row.add($newRow).draw();
-                                console.log('Added new row to DataTable');
                             } else {
                                 // Add to regular table
                                 $('#purchase_product tbody').append($newRow);
-                                console.log('Added new row to regular table');
                             }
 
                             // Trigger any necessary events
@@ -2904,4 +3216,15 @@
             }
         });
     });
+
+    // Safety net - prevent buttons from being permanently disabled
+    setInterval(function() {
+        if ($('#product_table').length) {
+            var form = $('form[id*="product_form"]');
+            if (form.length && form.valid()) {
+                form.find('button[type="submit"]').prop('disabled', false);
+            }
+        }
+    }, 5000);
+
 </script>

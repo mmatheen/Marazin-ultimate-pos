@@ -100,14 +100,6 @@ class ProductController extends Controller
                 return $locBatch->stockHistories;
             });
 
-            // Log for debugging
-            Log::info('Web Stock History Debug', [
-                'product_id' => $productId,
-                'location_id' => $locationId,
-                'location_batches_count' => $product->locationBatches->count(),
-                'stock_histories_count' => $stockHistories->count()
-            ]);
-
             if ($stockHistories->isEmpty()) {
                 if (request()->ajax()) {
                     return response()->json([
@@ -116,7 +108,7 @@ class ProductController extends Controller
                         'stock_histories' => [],
                         'stock_type_sums' => [],
                         'current_stock' => 0,
-                    ], 200); // Return 200 instead of 404 for better UX
+                    ]);
                 }
                 return redirect()->back()->withErrors('No stock history found for this product.');
             }
@@ -168,11 +160,7 @@ class ProductController extends Controller
             return view('product.product_stock_history', compact('products', 'locations'))->with($responseData);
             
         } catch (\Exception $e) {
-            Log::error('Error in Web getStockHistory: ' . $e->getMessage(), [
-                'product_id' => $productId,
-                'location_id' => $locationId,
-                'trace' => $e->getTraceAsString()
-            ]);
+            Log::error('Error in Web getStockHistory: ' . $e->getMessage());
             
             if (request()->ajax()) {
                 return response()->json([
@@ -208,12 +196,6 @@ class ProductController extends Controller
                 ];
             });
             
-            Log::info('Web initialProductDetails called', [
-                'user_id' => auth()->id(),
-                'locations_count' => $locations->count(),
-                'auto_select' => $locations->count() === 1
-            ]);
-
             // Check if all collections have records
             if ($mainCategories->count() > 0 || $subCategories->count() > 0 || $brands->count() > 0 || $units->count() > 0 || $locations->count() > 0) {
                 return response()->json([
@@ -234,10 +216,7 @@ class ProductController extends Controller
                 ]);
             }
         } catch (\Exception $e) {
-            Log::error('Error in Web initialProductDetails: ' . $e->getMessage(), [
-                'user_id' => auth()->id(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            Log::error('Error in Web initialProductDetails: ' . $e->getMessage());
             
             return response()->json([
                 'status' => 500,
@@ -252,8 +231,7 @@ class ProductController extends Controller
     private function getUserAccessibleLocations($user)
     {
         if (!$user) {
-            Log::warning('getUserAccessibleLocations called with null user (Web)');
-            return collect([]); // Return empty collection if no user
+            return collect([]);
         }
         
         // Load user roles if not already loaded
@@ -282,29 +260,15 @@ class ProductController extends Controller
             }
         }
         
-        Log::info('Web Location access check', [
-            'user_id' => $user->id,
-            'is_master_super_admin' => $isMasterSuperAdmin,
-            'has_bypass_permission' => $hasBypassPermission,
-            'user_roles' => $user->roles->pluck('name')->toArray()
-        ]);
-        
         if ($isMasterSuperAdmin || $hasBypassPermission) {
             // Master Super Admin or users with bypass permission see all locations
-            $locations = Location::select('id', 'name')->get();
-            Log::info('Web User has admin/bypass access, returning all locations', ['count' => $locations->count()]);
-            return $locations;
+            return Location::select('id', 'name')->get();
         } else {
             // Regular users see only their assigned locations
             $locations = Location::select('locations.id', 'locations.name')
                 ->join('location_user', 'locations.id', '=', 'location_user.location_id')
                 ->where('location_user.user_id', $user->id)
                 ->get();
-            Log::info('Web Regular user, returning assigned locations', [
-                'user_id' => $user->id, 
-                'count' => $locations->count(),
-                'locations' => $locations->toArray()
-            ]);
             return $locations;
         }
     }
@@ -462,8 +426,16 @@ class ProductController extends Controller
             'special_price' => 'nullable|numeric|min:0',
             'original_price' => 'required|numeric|min:0',
             'max_retail_price' => 'nullable|numeric|min:0',
-            'sku' => 'nullable|string|unique:products,sku,' . $id,
         ];
+
+        // Add SKU validation rule conditionally
+        if ($id) {
+            // When updating, allow current product's SKU
+            $rules['sku'] = 'nullable|string|unique:products,sku,' . $id;
+        } else {
+            // When creating, SKU must be unique
+            $rules['sku'] = 'nullable|string|unique:products,sku';
+        }
 
         $validator = Validator::make($request->all(), $rules);
 
@@ -486,18 +458,26 @@ class ProductController extends Controller
             return response()->json(['status' => 404, 'message' => 'Product not found!']);
         }
 
-        // Auto-increment SKU logic
-        if (!$request->has('sku') || empty($request->sku)) {
-            $lastProduct = Product::orderBy('id', 'desc')->first();
-            $lastId = $lastProduct ? $lastProduct->id : 0;
-            $autoIncrementSku = str_pad($lastId + 1, 4, '0', STR_PAD_LEFT);
-            $product->sku = $autoIncrementSku;
-        } else {
-            $product->sku = $request->sku;
+        // Check for duplicate product creation (prevent race condition)
+        // Only check when creating new product (no $id), and if a SKU is provided
+        if (!$id && $request->has('sku') && !empty($request->sku)) {
+            $existingProduct = Product::where('sku', $request->sku)->first();
+            if ($existingProduct) {
+                Log::warning('Attempted duplicate product creation', [
+                    'sku' => $request->sku,
+                    'product_name' => $request->product_name,
+                    'existing_product_id' => $existingProduct->id
+                ]);
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'A product with this SKU (' . $request->sku . ') already exists!',
+                    'errors' => ['sku' => 'SKU already exists']
+                ]);
+            }
         }
 
-        // Update product details
-        $product->fill([
+        // Prepare product data (exclude sku when auto-generating)
+        $data = [
             'product_name' => $request->product_name,
             'unit_id' => $request->unit_id,
             'brand_id' => $request->brand_id,
@@ -516,13 +496,89 @@ class ProductController extends Controller
             'special_price' => $request->special_price,
             'original_price' => $request->original_price,
             'max_retail_price' => $request->max_retail_price,
-        ])->save();
+        ];
+
+        try {
+            if ($request->has('sku') && !empty($request->sku)) {
+                // Use provided SKU (we already checked duplicates earlier)
+                $product->fill(array_merge($data, ['sku' => (string) $request->sku]));
+                $product->save();
+            } else {
+                // Find first available SKU by checking for gaps in sequence
+                // Get all numeric SKUs sorted ascending
+                $existingSkus = Product::whereRaw('sku REGEXP "^[0-9]+$"')
+                    ->orderByRaw('CAST(sku AS UNSIGNED) ASC')
+                    ->pluck('sku')
+                    ->map(function($sku) {
+                        return (int)$sku;
+                    })
+                    ->toArray();
+                
+                // Find the first gap in the sequence
+                $nextSkuNumber = 1;
+                foreach ($existingSkus as $existingSku) {
+                    if ($existingSku == $nextSkuNumber) {
+                        $nextSkuNumber++;
+                    } else if ($existingSku > $nextSkuNumber) {
+                        // Found a gap, use this number
+                        break;
+                    }
+                }
+                
+                $generatedSku = str_pad($nextSkuNumber, 4, '0', STR_PAD_LEFT);
+                
+                Log::info('Auto-generated SKU (gap-filling)', [
+                    'existing_skus' => $existingSkus,
+                    'next_number' => $nextSkuNumber,
+                    'generated_sku' => $generatedSku
+                ]);
+
+                // Insert with generated SKU directly
+                $product->fill(array_merge($data, ['sku' => $generatedSku]));
+                $product->save();
+            }
+        } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+            Log::warning('Unique constraint violation while saving product', ['sku' => $request->sku ?? null, 'exception' => $e->getMessage()]);
+            return response()->json([
+                'status' => 400,
+                'message' => 'A product with this SKU already exists. Please choose a different SKU or try again.',
+                'errors' => ['sku' => 'SKU already exists']
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error saving product', ['exception' => $e->getMessage()]);
+            return response()->json(['status' => 500, 'message' => 'Failed to save product. Please try again.']);
+        }
 
         // Sync locations
         $product->locations()->sync($request->locations);
 
         $message = $id ? 'Product Details Updated Successfully!' : 'New Product Details Created Successfully!';
         return response()->json(['status' => 200, 'message' => $message, 'product_id' => $product->id]);
+    }
+
+    /**
+     * Check if SKU is unique (for real-time validation)
+     */
+    public function checkSkuUniqueness(Request $request)
+    {
+        $sku = $request->input('sku');
+        $productId = $request->input('product_id'); // Product ID if editing (to exclude from check)
+
+        if (!$sku) {
+            return response()->json(['exists' => false]);
+        }
+
+        // Query for existing SKU
+        $query = Product::where('sku', $sku);
+
+        // Exclude current product if editing
+        if ($productId) {
+            $query->where('id', '!=', $productId);
+        }
+
+        $exists = $query->exists();
+
+        return response()->json(['exists' => $exists]);
     }
 
     public function showOpeningStock($productId)
