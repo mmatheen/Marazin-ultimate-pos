@@ -449,8 +449,26 @@ class ProductController extends Controller
         // Retrieve or create the product
         $product = $id ? Product::find($id) : new Product;
 
-        if (!$product) {
+        if (!$product && $id) {
             return response()->json(['status' => 404, 'message' => 'Product not found!']);
+        }
+
+        // Check for duplicate product creation (prevent race condition)
+        // Only check when creating new product (no $id), and if a SKU is provided
+        if (!$id && $request->has('sku') && !empty($request->sku)) {
+            $existingProduct = Product::where('sku', $request->sku)->first();
+            if ($existingProduct) {
+                Log::warning('Attempted duplicate product creation via API', [
+                    'sku' => $request->sku,
+                    'product_name' => $request->product_name,
+                    'existing_product_id' => $existingProduct->id
+                ]);
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'A product with this SKU (' . $request->sku . ') already exists!',
+                    'errors' => ['sku' => 'SKU already exists']
+                ]);
+            }
         }
 
         // Auto-increment SKU logic
@@ -490,6 +508,31 @@ class ProductController extends Controller
 
         $message = $id ? 'Product Details Updated Successfully!' : 'New Product Details Created Successfully!';
         return response()->json(['status' => 200, 'message' => $message, 'product_id' => $product->id]);
+    }
+
+    /**
+     * Check if SKU is unique (for real-time validation) - API version
+     */
+    public function checkSkuUniqueness(Request $request)
+    {
+        $sku = $request->input('sku');
+        $productId = $request->input('product_id'); // Product ID if editing (to exclude from check)
+
+        if (!$sku) {
+            return response()->json(['exists' => false]);
+        }
+
+        // Query for existing SKU
+        $query = Product::where('sku', $sku);
+
+        // Exclude current product if editing
+        if ($productId) {
+            $query->where('id', '!=', $productId);
+        }
+
+        $exists = $query->exists();
+
+        return response()->json(['exists' => $exists]);
     }
 
     public function showOpeningStock($productId)

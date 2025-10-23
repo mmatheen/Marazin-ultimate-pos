@@ -236,6 +236,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/products/stocks/autocomplete', [ProductController::class, 'autocompleteStock']);
     Route::post('/product/store', [ProductController::class, 'storeOrUpdate']);
     Route::post('/product/update/{id}', [ProductController::class, 'storeOrUpdate']);
+    Route::post('/product/check-sku', [ProductController::class, 'checkSkuUniqueness']); // Real-time SKU validation
     Route::get('/get-last-product', [ProductController::class, 'getLastProduct']);
 
     // Product Category Relations
