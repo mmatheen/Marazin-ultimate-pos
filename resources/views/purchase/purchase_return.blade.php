@@ -50,10 +50,10 @@
                 <div class="row align-items-center">
                     <div class="col-sm-12">
                         <div class="page-sub-header">
-                            <h3 class="page-title">Purchases</h3>
+                            <h3 class="page-title">Purchases Return</h3>
                             <ul class="breadcrumb">
                                 <li class="breadcrumb-item">Purchases</li>
-                                <li class="breadcrumb-item active">List Purchases </li>
+                                <li class="breadcrumb-item active">List Purchases Return</li>
                             </ul>
                         </div>
                     </div>
