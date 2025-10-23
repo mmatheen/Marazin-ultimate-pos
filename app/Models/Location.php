@@ -74,7 +74,9 @@ class Location extends Model
             return 'LOC';
         }
 
-        $words = preg_split('/\s+/', $name);
+        // Remove special characters and extra spaces, keep only letters and numbers
+        $cleanName = preg_replace('/[^a-zA-Z0-9\s]/', '', $name);
+        $words = preg_split('/\s+/', trim($cleanName));
         $prefix = '';
 
         if (count($words) === 1) {

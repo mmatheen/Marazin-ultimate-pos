@@ -38,7 +38,7 @@ class SaleController extends Controller
     {
         $this->unifiedLedgerService = $unifiedLedgerService;
         $this->paymentService = $paymentService;
-        $this->middleware('permission:view all sales|view own sales', ['only' => ['listSale', 'index', 'show']]);
+        $this->middleware('permission:view all sales|view own sales', ['only' => ['listSale', 'index', 'show', 'getDataTableSales', 'salesDetails']]);
         $this->middleware('permission:create sale', ['only' => ['addSale', 'storeOrUpdate']]);
         $this->middleware('permission:access pos', ['only' => ['pos']]);
         $this->middleware('permission:edit sale', ['only' => ['editSale']]);
@@ -57,7 +57,7 @@ class SaleController extends Controller
                 });
             }
             return $next($request);
-        })->only(['index', 'listSale']);
+        })->only(['index', 'listSale', 'getDataTableSales', 'salesDetails']);
     }
 
  
@@ -382,8 +382,19 @@ class SaleController extends Controller
             if ($perPage <= 0) $perPage = 10;
             if ($start < 0) $start = 0;
             
+            // Get authenticated user
+            /** @var \App\Models\User|null $user */
+            $user = auth()->user();
+            
             // 2. Check if we have any sales (bypassing location scopes to get all sales)
-            $totalSales = Sale::withoutGlobalScopes()->count();
+            $totalSalesQuery = Sale::withoutGlobalScopes();
+            
+            // If user can only view own sales, apply filter for total count too
+            if ($user && $user->can('view own sales') && !$user->can('view all sales')) {
+                $totalSalesQuery->where('user_id', $user->id);
+            }
+            
+            $totalSales = $totalSalesQuery->count();
             
             // If no sales exist in database, return helpful message
             if ($totalSales === 0) {
@@ -406,10 +417,18 @@ class SaleController extends Controller
                 'created_at', 'updated_at'
             ])->where('status', 'final');
             
+            // Apply user-based filtering - if user can only view own sales, filter by user_id
+            if ($user && $user->can('view own sales') && !$user->can('view all sales')) {
+                $query->where('user_id', $user->id);
+            }
+            
             // Load related data (customer, user, location, payments) with correct column names
             // Note: We only load the columns we need to make the query faster
+            // Load customer without global scopes to avoid location filtering
             $query->with([
-                'customer:id,first_name,last_name,mobile_no',  // Customer info
+                'customer' => function($q) {
+                    $q->withoutGlobalScopes()->select('id', 'first_name', 'last_name', 'mobile_no');
+                },
                 'user:id,full_name',                           // User who made the sale
                 'location:id,name',                            // Location where sale was made
                 'payments:id,reference_id,amount,payment_method,payment_date,notes' // Payment info
