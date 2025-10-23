@@ -1270,7 +1270,7 @@ class SaleController extends Controller
                 $customer = Customer::withoutGlobalScopes()->findOrFail($sale->customer_id);
             }
             
-            $products = SalesProduct::with(['product'])->where('sale_id', $sale->id)->get();
+            $products = SalesProduct::with(['product', 'imeis'])->where('sale_id', $sale->id)->get();
             $payments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->get();
             $user = $sale->user;
             $location = $sale->location;
@@ -2140,7 +2140,7 @@ class SaleController extends Controller
         try {
             $sale = Sale::findOrFail($id);
             $customer = Customer::withoutLocationScope()->findOrFail($sale->customer_id);
-            $products = SalesProduct::where('sale_id', $sale->id)->get();
+            $products = SalesProduct::with(['product', 'imeis'])->where('sale_id', $sale->id)->get();
             $payments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->get();
             $totalDiscount = array_reduce($products->toArray(), function ($carry, $product) {
                 return $carry + ($product['discount'] ?? 0);

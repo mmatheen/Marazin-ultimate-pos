@@ -179,25 +179,62 @@
                     <th colspan="5">
                         <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
                     </th>
-                    {{-- Group products by product_id and batch_id --}}
-                    @foreach ($products->groupBy(function ($item) {
-        return $item->product_id . '-' . ($item->batch_id ?? '0');
-    }) as $groupKey => $group)
-                        @php
-                            $firstProduct = $group->first();
-                            $totalQuantity = $group->sum('quantity');
-                            $totalAmount = $group->sum(fn($p) => $p->price * $p->quantity);
-                        @endphp
+                    {{-- Load IMEI data for all products --}}
+                    @php
+                        $products->load('imeis');
+                    @endphp
+                    
+                    {{-- Process products: separate IMEI products, group non-IMEI products --}}
+                    @php
+                        $displayItems = [];
+                        $nonImeiGroups = [];
+                        
+                        foreach ($products as $product) {
+                            // Check if product has IMEIs
+                            if ($product->imeis && $product->imeis->count() > 0) {
+                                // For IMEI products, create separate rows for each IMEI
+                                foreach ($product->imeis as $imei) {
+                                    $displayItems[] = [
+                                        'type' => 'imei',
+                                        'product' => $product,
+                                        'imei' => $imei->imei_number,
+                                        'quantity' => 1,
+                                        'amount' => $product->price * 1,
+                                    ];
+                                }
+                            } else {
+                                // Group non-IMEI products by product_id and batch_id
+                                $groupKey = $product->product_id . '-' . ($product->batch_id ?? '0');
+                                if (!isset($nonImeiGroups[$groupKey])) {
+                                    $nonImeiGroups[$groupKey] = [
+                                        'type' => 'grouped',
+                                        'product' => $product,
+                                        'quantity' => 0,
+                                        'amount' => 0,
+                                    ];
+                                }
+                                $nonImeiGroups[$groupKey]['quantity'] += $product->quantity;
+                                $nonImeiGroups[$groupKey]['amount'] += $product->price * $product->quantity;
+                            }
+                        }
+                        
+                        // Merge grouped items with IMEI items
+                        $displayItems = array_merge($displayItems, array_values($nonImeiGroups));
+                    @endphp
 
+                    @foreach ($displayItems as $index => $item)
                 <tr>
                     <td>{{ $loop->iteration }}</td>
                     <td colspan="4" valign="top">
-                        {{ $firstProduct->product->product_name }}
-                        @if ($firstProduct->price_type == 'retail')
+                        {{ $item['product']->product->product_name }}
+                        @if ($item['type'] == 'imei')
+                            <span style="font-size: 10px;">({{ $item['imei'] }})</span>
+                        @endif
+                        @if ($item['product']->price_type == 'retail')
                             <span style="font-weight: bold;">*</span>
-                        @elseif($firstProduct->price_type == 'wholesale')
+                        @elseif($item['product']->price_type == 'wholesale')
                             <span style="font-weight: bold;">**</span>
-                        @elseif($firstProduct->price_type == 'special')
+                        @elseif($item['product']->price_type == 'special')
                             <span style="font-weight: bold;">***</span>
                         @endif
                     </td>
@@ -207,19 +244,19 @@
                     <td valign="top">&nbsp;</td>
                     <td valign="top">
                         <span style="text-decoration: line-through">
-                            {{ number_format($firstProduct->product->max_retail_price, 0, '.', ',') }}
+                            {{ number_format($item['product']->product->max_retail_price, 0, '.', ',') }}
                         </span>
-                        ({{ number_format($firstProduct->product->max_retail_price - $firstProduct->price, 0, '.', ',') }})
+                        ({{ number_format($item['product']->product->max_retail_price - $item['product']->price, 0, '.', ',') }})
                     </td>
                     <td align="left" valign="top">
-                        <span>{{ number_format($firstProduct->price, 0, '.', ',') }}</span>
+                        <span>{{ number_format($item['product']->price, 0, '.', ',') }}</span>
                     </td>
                     <td align="left" valign="top" class="quantity-with-pcs">
-                        <span>&times; {{ $totalQuantity }} pcs</span>
+                        <span>&times; {{ $item['quantity'] }} pcs</span>
                     </td>
                     <td valign="top" align="right">
                         <span style="font-weight: bold;">
-                            {{ number_format($totalAmount, 0, '.', ',') }}
+                            {{ number_format($item['amount'], 0, '.', ',') }}
                         </span>
                     </td>
                 </tr>

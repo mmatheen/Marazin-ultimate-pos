@@ -701,7 +701,7 @@ class SaleController extends Controller
 
             // Use withoutGlobalScopes for receipt generation
             $customer = Customer::withoutGlobalScopes()->findOrFail($sale->customer_id);
-            $products = SalesProduct::where('sale_id', $sale->id)->get();
+            $products = SalesProduct::with(['product', 'imeis'])->where('sale_id', $sale->id)->get();
             $payments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->get();
             $user = User::find($sale->user_id);
             // Use the location from the sale, not from user's first location
@@ -1494,7 +1494,7 @@ class SaleController extends Controller
             $sale = Sale::findOrFail($id);
             // Use withoutGlobalScopes for printing
             $customer = Customer::withoutGlobalScopes()->findOrFail($sale->customer_id);
-            $products = SalesProduct::where('sale_id', $sale->id)->get();
+            $products = SalesProduct::with(['product', 'imeis'])->where('sale_id', $sale->id)->get();
             $payments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->get();
             $totalDiscount = array_reduce($products->toArray(), function ($carry, $product) {
                 return $carry + ($product['discount'] ?? 0);

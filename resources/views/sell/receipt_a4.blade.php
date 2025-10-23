@@ -201,32 +201,73 @@
             </tr>
         </thead>
         <tbody>
-            @php $index = 1; @endphp
-            @forelse ($products->groupBy(function($item) {
-                return $item->product_id . '-' . ($item->batch_id ?? '0');
-            }) as $groupKey => $group)
-                @php
-                    $firstProduct = $group->first();
-                    $totalQuantity = $group->sum('quantity');
-                    $totalAmount = $group->sum(fn($p) => $p->price * $p->quantity);
-                    $productDiscount = $group->sum(fn($p) => ($p->product->max_retail_price - $p->price) * $p->quantity);
-                @endphp
+            {{-- Load IMEI data for all products --}}
+            @php
+                $products->load('imeis');
+            @endphp
+            
+            {{-- Process products: separate IMEI products, group non-IMEI products --}}
+            @php
+                $displayItems = [];
+                $nonImeiGroups = [];
+                
+                foreach ($products as $product) {
+                    // Check if product has IMEIs
+                    if ($product->imeis && $product->imeis->count() > 0) {
+                        // For IMEI products, create separate rows for each IMEI
+                        foreach ($product->imeis as $imei) {
+                            $displayItems[] = [
+                                'type' => 'imei',
+                                'product' => $product,
+                                'imei' => $imei->imei_number,
+                                'quantity' => 1,
+                                'amount' => $product->price * 1,
+                                'discount' => ($product->product->max_retail_price - $product->price) * 1,
+                            ];
+                        }
+                    } else {
+                        // Group non-IMEI products by product_id and batch_id
+                        $groupKey = $product->product_id . '-' . ($product->batch_id ?? '0');
+                        if (!isset($nonImeiGroups[$groupKey])) {
+                            $nonImeiGroups[$groupKey] = [
+                                'type' => 'grouped',
+                                'product' => $product,
+                                'quantity' => 0,
+                                'amount' => 0,
+                                'discount' => 0,
+                            ];
+                        }
+                        $nonImeiGroups[$groupKey]['quantity'] += $product->quantity;
+                        $nonImeiGroups[$groupKey]['amount'] += $product->price * $product->quantity;
+                        $nonImeiGroups[$groupKey]['discount'] += ($product->product->max_retail_price - $product->price) * $product->quantity;
+                    }
+                }
+                
+                // Merge grouped items with IMEI items
+                $displayItems = array_merge($displayItems, array_values($nonImeiGroups));
+                $index = 1;
+            @endphp
+
+            @forelse ($displayItems as $item)
                 <tr>
                     <td>{{ $index++ }}</td>
                     <td>
-                        {{ $firstProduct->product->product_name }}
-                        @if ($firstProduct->price_type == 'retail')
+                        {{ $item['product']->product->product_name }}
+                        @if ($item['type'] == 'imei')
+                            <span style="font-size: 11px; color: #666;">({{ $item['imei'] }})</span>
+                        @endif
+                        @if ($item['product']->price_type == 'retail')
                             <span style="color: blue;">*</span>
-                        @elseif($firstProduct->price_type == 'wholesale')
+                        @elseif($item['product']->price_type == 'wholesale')
                             <span style="color: green;">**</span>
-                        @elseif($firstProduct->price_type == 'special')
+                        @elseif($item['product']->price_type == 'special')
                             <span style="color: red;">***</span>
                         @endif
                     </td>
-                    <td class="text-right">Rs. {{ number_format($firstProduct->price, 2) }}</td>
-                    <td class="text-right">{{ number_format($totalQuantity, 2) }}</td>
-                    <td class="text-right">Rs. {{ number_format($productDiscount, 2) }}</td>
-                    <td class="text-right">Rs. {{ number_format($totalAmount, 2) }}</td>
+                    <td class="text-right">Rs. {{ number_format($item['product']->price, 2) }}</td>
+                    <td class="text-right">{{ number_format($item['quantity'], 2) }}</td>
+                    <td class="text-right">Rs. {{ number_format($item['discount'], 2) }}</td>
+                    <td class="text-right">Rs. {{ number_format($item['amount'], 2) }}</td>
                 </tr>
             @empty
                 <tr>
