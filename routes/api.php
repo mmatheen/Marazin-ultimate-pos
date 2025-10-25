@@ -228,7 +228,7 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Product Basic Operations
     Route::get('/products/stocks', [ProductController::class, 'getAllProductStocks']);
-    Route::delete('/delete-product/{id}', [ProductController::class, 'destroy']);
+    Route::delete('/delete-product/{id}', [ProductController::class, 'destroy']); // Safe delete with validation
     Route::post('/toggle-product-status/{id}', [ProductController::class, 'toggleStatus']);
     Route::get('/initial-product-details', [ProductController::class, 'initialProductDetails'])->name('product-details');
     Route::get('/product-get-details/{id}', [ProductController::class, 'getProductDetails']);

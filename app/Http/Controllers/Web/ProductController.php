@@ -2230,7 +2230,14 @@ class ProductController extends Controller
     {
         try {
             $result = DB::transaction(function () use ($id) {
-                $product = Product::with('batches')->find($id);
+                $product = Product::with([
+                    'batches.salesProducts',
+                    'batches.purchaseProducts', 
+                    'batches.purchaseReturns',
+                    'batches.saleReturns',
+                    'batches.stockAdjustments',
+                    'batches.stockTransfers'
+                ])->find($id);
 
                 if (!$product) {
                     return [
@@ -2238,6 +2245,55 @@ class ProductController extends Controller
                         'message' => "No Such Product Found!"
                     ];
                 }
+
+                // Check if product is used in any important tables
+                $hasTransactions = false;
+                $usedInTables = [];
+
+                if ($product->batches->isNotEmpty()) {
+                    foreach ($product->batches as $batch) {
+                        if ($batch->salesProducts->isNotEmpty()) {
+                            $hasTransactions = true;
+                            $usedInTables[] = 'Sales';
+                        }
+                        if ($batch->purchaseProducts->isNotEmpty()) {
+                            $hasTransactions = true;
+                            $usedInTables[] = 'Purchases';
+                        }
+                        if ($batch->purchaseReturns->isNotEmpty()) {
+                            $hasTransactions = true;
+                            $usedInTables[] = 'Purchase Returns';
+                        }
+                        if ($batch->saleReturns->isNotEmpty()) {
+                            $hasTransactions = true;
+                            $usedInTables[] = 'Sale Returns';
+                        }
+                        if ($batch->stockAdjustments->isNotEmpty()) {
+                            $hasTransactions = true;
+                            $usedInTables[] = 'Stock Adjustments';
+                        }
+                        if ($batch->stockTransfers->isNotEmpty()) {
+                            $hasTransactions = true;
+                            $usedInTables[] = 'Stock Transfers';
+                        }
+                    }
+                }
+
+                // If product is used in any transaction, prevent deletion
+                if ($hasTransactions) {
+                    $usedInTables = array_unique($usedInTables);
+                    return [
+                        'status' => 403,
+                        'can_delete' => false,
+                        'message' => "Cannot delete this product! It is being used in: " . implode(', ', $usedInTables) . ". Please deactivate the product instead.",
+                        'used_in' => $usedInTables,
+                        'product_status' => $product->is_active ? 'active' : 'inactive'
+                    ];
+                }
+
+                // Product is safe to delete - only exists in product_locations
+                // Delete location_product pivot records
+                DB::table('location_product')->where('product_id', $id)->delete();
 
                 // Delete all related batches and their location batches
                 if ($product->batches->isNotEmpty()) {
@@ -2250,21 +2306,33 @@ class ProductController extends Controller
                     Batch::whereIn('id', $batchIds)->delete();
                 }
 
-                // Delete the product
+                // Delete IMEI numbers if any
+                DB::table('imei_numbers')->where('product_id', $id)->delete();
+
+                // Delete discount associations
+                DB::table('discount_product')->where('product_id', $id)->delete();
+
+                // Finally delete the product
                 $product->delete();
 
                 return [
                     'status' => 200,
-                    'message' => "Product and all associated batches deleted successfully!"
+                    'can_delete' => true,
+                    'message' => "Product deleted successfully!"
                 ];
             });
 
-            return response()->json($result);
+            return response()->json($result, $result['status']);
         } catch (\Exception $e) {
+            Log::error('Product deletion error: ' . $e->getMessage(), [
+                'product_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'status' => 500,
                 'message' => "Error deleting product: " . $e->getMessage()
-            ]);
+            ], 500);
         }
     }
 

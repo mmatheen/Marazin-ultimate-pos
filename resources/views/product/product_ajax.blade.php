@@ -665,17 +665,28 @@
                 function toggleProductStatus(productId, currentStatus) {
                     const action = currentStatus ? 'deactivate' : 'activate';
                     const actionText = currentStatus ? 'Deactivate' : 'Activate';
+                    const actionCapitalized = action.charAt(0).toUpperCase() + action.slice(1);
 
-                    // Use native confirm dialog - more reliable
-                    const confirmMessage = `Are you sure you want to ${action} this product?`;
-
-                    if (confirm(confirmMessage)) {
-                        performStatusToggle(productId, action);
-                    }
+                    // Use SweetAlert for confirmation
+                    swal({
+                        title: "Are you sure?",
+                        text: `Do you want to ${action} this product?`,
+                        type: "warning",
+                        showCancelButton: true,
+                        confirmButtonColor: currentStatus ? "#DD6B55" : "#5cb85c",
+                        confirmButtonText: `Yes, ${action} it!`,
+                        cancelButtonText: "No, cancel",
+                        closeOnConfirm: false,
+                        closeOnCancel: true
+                    }, function(isConfirm) {
+                        if (isConfirm) {
+                            performStatusToggle(productId, action, actionCapitalized);
+                        }
+                    });
                 }
 
                 // Separate function to perform the actual AJAX call
-                function performStatusToggle(productId, action) {
+                function performStatusToggle(productId, action, actionCapitalized) {
                     $.ajax({
                         url: '/toggle-product-status/' + productId,
                         type: 'POST',
@@ -684,13 +695,20 @@
                         },
                         success: function(response) {
                             if (response.status === 200) {
-                                toastr.success(response.message, 'Success');
+                                swal({
+                                    title: "Success!",
+                                    text: response.message,
+                                    type: "success",
+                                    timer: 2000,
+                                    showConfirmButton: false
+                                });
+                                
                                 // Reload the DataTable
                                 if ($.fn.DataTable.isDataTable('#productTable')) {
                                     $('#productTable').DataTable().ajax.reload(null, false);
                                 }
                             } else {
-                                toastr.error(response.message || 'Failed to update status', 'Error');
+                                swal("Error!", response.message || 'Failed to update status', "error");
                             }
                         },
                         error: function(xhr, status, error) {
@@ -699,7 +717,7 @@
                             if (xhr.responseJSON && xhr.responseJSON.message) {
                                 errorMessage = xhr.responseJSON.message;
                             }
-                            toastr.error(errorMessage, 'Error');
+                            swal("Error!", errorMessage, "error");
                         }
                     });
                 }
@@ -799,6 +817,8 @@
                         ${row.product.is_imei_or_serial_no === 1
                             ? `<li><a class="dropdown-item show-imei-modal" href="#" data-product-id="${row.product.id}"><i class="fas fa-barcode"></i> IMEI Entry</a></li>`
                             : ''}
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger delete-product-dropdown" href="#" data-product-id="${row.product.id}"><i class="fas fa-trash"></i> Delete Product</a></li>
                     </ul>
                 </div>
             `;
@@ -1068,6 +1088,7 @@
                     $('.view-product').off('click');
                     $('.edit-batch-prices').off('click');
                     $('.show-imei-modal').off('click');
+                    $('.delete-product-dropdown').off('click');
                     $('#selectAll').off('change');
 
                     // Select all checkbox
@@ -1225,6 +1246,112 @@
                                     '<tr><td colspan="5" class="text-center text-danger">Error loading IMEI numbers. Please try again.</td></tr>'
                                 );
                             }
+                        });
+                    });
+
+                    // Delete product handler - single event handler
+                    $('.delete-product-dropdown').on('click', function(event) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        
+                        const productId = $(this).data('product-id');
+                        
+                        if (!productId) {
+                            toastr.error('Product ID not found', 'Error');
+                            return;
+                        }
+
+                        // Show SweetAlert confirmation dialog
+                        swal({
+                            title: "Are you sure?",
+                            text: "Do you want to delete this product? This action cannot be undone!",
+                            type: "warning",
+                            showCancelButton: true,
+                            confirmButtonColor: "#DD6B55",
+                            confirmButtonText: "Yes, delete it!",
+                            cancelButtonText: "No, cancel",
+                            closeOnConfirm: false,
+                            closeOnCancel: true
+                        }, function(isConfirm) {
+                            if (!isConfirm) return;
+
+                            $.ajax({
+                                url: `/product-delete/${productId}`,
+                                type: 'DELETE',
+                                headers: {
+                                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                                },
+                                success: function(response) {
+                                    if (response.status === 200 && response.can_delete) {
+                                        // Product deleted successfully
+                                        swal({
+                                            title: "Deleted!",
+                                            text: response.message,
+                                            type: "success",
+                                            timer: 2000,
+                                            showConfirmButton: false
+                                        });
+                                        
+                                        // Reload the DataTable
+                                        if ($.fn.DataTable.isDataTable('#productTable')) {
+                                            $('#productTable').DataTable().ajax.reload(null, false);
+                                        }
+                                    } else if (response.status === 403 && !response.can_delete) {
+                                        // Product cannot be deleted - show detailed message
+                                        swal({
+                                            title: "Cannot Delete!",
+                                            text: response.message,
+                                            type: "warning",
+                                            showCancelButton: true,
+                                            confirmButtonText: "Deactivate Instead",
+                                            cancelButtonText: "Cancel",
+                                            closeOnConfirm: false
+                                        }, function(willDeactivate) {
+                                            if (willDeactivate) {
+                                                // Toggle product status
+                                                $.ajax({
+                                                    url: `/toggle-product-status/${productId}`,
+                                                    type: 'POST',
+                                                    headers: {
+                                                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                                                    },
+                                                    success: function(toggleResponse) {
+                                                        if (toggleResponse.status === 200) {
+                                                            swal({
+                                                                title: "Success!",
+                                                                text: "Product deactivated successfully",
+                                                                type: "success",
+                                                                timer: 2000,
+                                                                showConfirmButton: false
+                                                            });
+                                                            
+                                                            // Reload table
+                                                            if ($.fn.DataTable.isDataTable('#productTable')) {
+                                                                $('#productTable').DataTable().ajax.reload(null, false);
+                                                            }
+                                                        }
+                                                    },
+                                                    error: function(xhr) {
+                                                        swal("Error!", "Failed to deactivate product", "error");
+                                                    }
+                                                });
+                                            }
+                                        });
+                                    } else {
+                                        swal("Error!", response.message || 'Failed to delete product', "error");
+                                    }
+                                },
+                                error: function(xhr, status, error) {
+                                    console.error('Delete error:', error);
+                                    
+                                    let errorMessage = 'Failed to delete product';
+                                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                                        errorMessage = xhr.responseJSON.message;
+                                    }
+                                    
+                                    swal("Error!", errorMessage, "error");
+                                }
+                            });
                         });
                     });
 
@@ -2116,6 +2243,124 @@
                     // Remove row button handler (only for rows with the button)
                     $(document).on('click', '.removeRowBtn', function() {
                         $(this).closest('tr').remove();
+                    });
+
+                    // Delete product button handler with safe deletion logic
+                    $(document).on('click', '.delete-product', function(e) {
+                        e.preventDefault();
+                        
+                        const button = $(this);
+                        const row = button.closest('tr');
+                        const productId = row.data('id');
+                        
+                        if (!productId) {
+                            toastr.error('Product ID not found', 'Error');
+                            return;
+                        }
+
+                        // Show SweetAlert confirmation dialog
+                        swal({
+                            title: "Are you sure?",
+                            text: "Do you want to delete this product? This action cannot be undone!",
+                            type: "warning",
+                            showCancelButton: true,
+                            confirmButtonColor: "#DD6B55",
+                            confirmButtonText: "Yes, delete it!",
+                            cancelButtonText: "No, cancel",
+                            closeOnConfirm: false,
+                            closeOnCancel: true
+                        }, function(isConfirm) {
+                            if (!isConfirm) return;
+
+                            // Disable button during deletion
+                            button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+
+                            $.ajax({
+                                url: `/product-delete/${productId}`,
+                                type: 'DELETE',
+                                headers: {
+                                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                                },
+                                success: function(response) {
+                                    if (response.status === 200 && response.can_delete) {
+                                        // Product deleted successfully
+                                        swal({
+                                            title: "Deleted!",
+                                            text: response.message,
+                                            type: "success",
+                                            timer: 2000,
+                                            showConfirmButton: false
+                                        });
+                                        
+                                        // Remove the row from DataTable or regular table
+                                        if ($.fn.DataTable.isDataTable('#productTable')) {
+                                            $('#productTable').DataTable().row(row).remove().draw();
+                                        } else {
+                                            row.fadeOut(300, function() {
+                                                $(this).remove();
+                                            });
+                                        }
+                                    } else if (response.status === 403 && !response.can_delete) {
+                                        // Product cannot be deleted - show detailed message
+                                        swal({
+                                            title: "Cannot Delete!",
+                                            text: response.message,
+                                            type: "warning",
+                                            showCancelButton: true,
+                                            confirmButtonText: "Deactivate Instead",
+                                            cancelButtonText: "Cancel",
+                                            closeOnConfirm: false
+                                        }, function(willDeactivate) {
+                                            if (willDeactivate) {
+                                                // Toggle product status
+                                                $.ajax({
+                                                    url: `/toggle-product-status/${productId}`,
+                                                    type: 'POST',
+                                                    headers: {
+                                                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                                                    },
+                                                    success: function(toggleResponse) {
+                                                        if (toggleResponse.status === 200) {
+                                                            swal({
+                                                                title: "Success!",
+                                                                text: "Product deactivated successfully",
+                                                                type: "success",
+                                                                timer: 2000,
+                                                                showConfirmButton: false
+                                                            });
+                                                            
+                                                            // Reload table if exists
+                                                            if ($.fn.DataTable.isDataTable('#productTable')) {
+                                                                $('#productTable').DataTable().ajax.reload(null, false);
+                                                            }
+                                                        }
+                                                    },
+                                                    error: function(xhr) {
+                                                        swal("Error!", "Failed to deactivate product", "error");
+                                                    }
+                                                });
+                                            }
+                                        });
+                                        
+                                        button.prop('disabled', false).html('<i class="fas fa-trash"></i>');
+                                    } else {
+                                        swal("Error!", response.message || 'Failed to delete product', "error");
+                                        button.prop('disabled', false).html('<i class="fas fa-trash"></i>');
+                                    }
+                                },
+                                error: function(xhr, status, error) {
+                                    console.error('Delete error:', error);
+                                    
+                                    let errorMessage = 'Failed to delete product';
+                                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                                        errorMessage = xhr.responseJSON.message;
+                                    }
+                                    
+                                    swal("Error!", errorMessage, "error");
+                                    button.prop('disabled', false).html('<i class="fas fa-trash"></i>');
+                                }
+                            });
+                        });
                     });
 
                     // Real-time quantity formatting for opening stock inputs

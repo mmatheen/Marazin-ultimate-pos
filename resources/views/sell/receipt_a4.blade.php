@@ -362,7 +362,7 @@
             @endif
         </p>
         
-        <p>Thank you for your business!</p>
+        <p>Come again! Thank you for your business!</p>
         <p style="font-size: 10px; text-transform: uppercase;">SOFTWARE: MARAZIN PVT.LTD | WWW.MARAZIN.LK | +94 70 123 0959</p>
     </div>
 </body>

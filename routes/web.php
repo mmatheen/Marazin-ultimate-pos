@@ -173,6 +173,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/add-product', [ProductController::class, 'addProduct'])->name('add-product');
         Route::get('/edit-product/{id}', [ProductController::class, 'EditProduct'])->name('edit-product');
         Route::post('/toggle-product-status/{id}', [ProductController::class, 'toggleStatus']);
+        Route::delete('/product-delete/{id}', [ProductController::class, 'destroy'])->name('product.delete');
         // Product Details & Stock
         Route::get('/initial-product-details', [ProductController::class, 'initialProductDetails'])->name('product-details');
         Route::get('/product-get-details/{id}', [ProductController::class, 'getProductDetails']);
