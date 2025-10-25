@@ -2085,36 +2085,110 @@
             }).autocomplete("instance")._renderItem = function(ul, item) {
                 const li = $("<li>");
                 if (item.product) {
-                    const style = item.imeiMatch ?
-                        "padding: 8px; background-color: #e8f4f8; border-left: 3px solid #17a2b8;" :
-                        "padding: 8px;";
-                    li.append(`<div style="${style}">${item.label}</div>`);
+                    // Enhanced display for IMEI products
+                    if (item.imeiMatch) {
+                        const productName = item.product.product_name;
+                        const sku = item.product.sku || '';
+                        const imeiInfo = item.label.match(/📱 IMEI: ([^\[]+)/);
+                        const imeiNumber = imeiInfo ? imeiInfo[1].trim() : '';
+                        const stockInfo = item.label.match(/\[Stock: ([^\]]+)\]/);
+                        const stock = stockInfo ? stockInfo[1] : '';
+                        
+                        const html = `
+                            <div style="padding: 10px 12px; background-color: #e8f4f8; border-left: 4px solid #17a2b8;">
+                                <div style="font-weight: 600; color: #2c3e50; margin-bottom: 4px;">
+                                    ${productName} ${sku ? '<span style="color: #6c757d; font-size: 0.9em;">(' + sku + ')</span>' : ''}
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9em;">
+                                    <div style="color: #17a2b8; font-weight: 500;">
+                                        📱 IMEI: ${imeiNumber}
+                                    </div>
+                                    <div style="color: #28a745; font-weight: 500; padding-left: 10px;">
+                                        Stock: ${stock}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        li.append(html);
+                    } else {
+                        // Regular product display
+                        const style = "padding: 8px 12px;";
+                        li.append(`<div style="${style}">${item.label}</div>`);
+                    }
                 } else {
                     li.append(
-                        `<div style="color: red; padding: 8px; font-style: italic;">${item.label}</div>`
+                        `<div style="color: red; padding: 8px 12px; font-style: italic;">${item.label}</div>`
                     );
                 }
                 return li.appendTo(ul);
             };
 
             $("#productSearchInput").autocomplete("instance")._resizeMenu = function() {
-                this.menu.element.outerWidth(Math.max(this.element.outerWidth(), this.menu.element.width("")
-                    .outerWidth()));
+                const inputWidth = this.element.outerWidth();
+                const minWidth = 450; // Minimum width for proper IMEI display
+                const menuWidth = Math.max(inputWidth, minWidth);
+                this.menu.element.outerWidth(menuWidth);
             };
 
             if (!document.getElementById('autocomplete-styles')) {
                 const style = document.createElement('style');
                 style.id = 'autocomplete-styles';
                 style.textContent = `
-                .ui-autocomplete { max-height: 300px; overflow-y: auto; z-index: 1000; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-                .ui-autocomplete .ui-menu-item { border-bottom: 1px solid #f0f0f0; }
-                .ui-autocomplete .ui-menu-item:last-child { border-bottom: none; }
-                .ui-autocomplete .ui-state-focus { background: #007bff !important; color: white !important; margin: 0; }
-                .ui-autocomplete .ui-menu-item div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-                #productSearchInput { position: relative; }
-                .search-indicator { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; color: #28a745; pointer-events: none; }
-                .quantity-error { border: 2px solid #dc3545 !important; box-shadow: 0 0 5px rgba(220, 53, 69, 0.3) !important; background-color: #fff5f5 !important; }
-                .quantity-error:focus { border-color: #dc3545 !important; box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important; }
+                .ui-autocomplete { 
+                    max-height: 400px; 
+                    overflow-y: auto; 
+                    z-index: 1000; 
+                    border: 1px solid #ddd; 
+                    border-radius: 4px; 
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+                    min-width: 400px !important;
+                }
+                .ui-autocomplete .ui-menu-item { 
+                    border-bottom: 1px solid #f0f0f0; 
+                    list-style: none;
+                }
+                .ui-autocomplete .ui-menu-item:last-child { 
+                    border-bottom: none; 
+                }
+                .ui-autocomplete .ui-state-focus { 
+                    background: #007bff !important; 
+                    color: white !important; 
+                    margin: 0; 
+                }
+                .ui-autocomplete .ui-state-focus div { 
+                    color: white !important; 
+                }
+                .ui-autocomplete .ui-state-focus div > div { 
+                    color: white !important; 
+                }
+                .ui-autocomplete .ui-state-focus span { 
+                    color: rgba(255,255,255,0.9) !important; 
+                }
+                .ui-autocomplete .ui-menu-item div { 
+                    white-space: normal; 
+                    word-wrap: break-word;
+                }
+                #productSearchInput { 
+                    position: relative; 
+                }
+                .search-indicator { 
+                    position: absolute; 
+                    right: 10px; 
+                    top: 50%; 
+                    transform: translateY(-50%); 
+                    font-size: 12px; 
+                    color: #28a745; 
+                    pointer-events: none; 
+                }
+                .quantity-error { 
+                    border: 2px solid #dc3545 !important; 
+                    box-shadow: 0 0 5px rgba(220, 53, 69, 0.3) !important; 
+                    background-color: #fff5f5 !important; 
+                }
+                .quantity-error:focus { 
+                    border-color: #dc3545 !important; 
+                    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important; 
+                }
             `;
                 document.head.appendChild(style);
             }
