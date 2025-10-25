@@ -331,8 +331,7 @@
 
             @php
                 $total_discount = $products->sum(function ($product) {
-                    return ($product->product->max_retail_price - $product->price) *
-                        ($product->quantity > 1 ? 1 : $product->quantity);
+                    return ($product->product->max_retail_price - $product->price) * $product->quantity;
                 });
 
                 // Calculate bill discount if exists
