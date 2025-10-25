@@ -2157,12 +2157,14 @@
                 }
                 .ui-autocomplete .ui-state-focus div { 
                     color: white !important; 
+                    background-color: transparent !important;
+                    border-left-color: white !important;
                 }
                 .ui-autocomplete .ui-state-focus div > div { 
                     color: white !important; 
                 }
                 .ui-autocomplete .ui-state-focus span { 
-                    color: rgba(255,255,255,0.9) !important; 
+                    color: white !important; 
                 }
                 .ui-autocomplete .ui-menu-item div { 
                     white-space: normal; 
@@ -2258,8 +2260,18 @@
                 if (!item.product) return;
 
                 // Prevent duplicate quantity increment for same product and matchType
-                if (lastAddedProduct && lastAddedProduct.id === item.product.id && matchType !== 'MANUAL')
-                    return;
+                // For IMEI products, prevent duplicate calls when same IMEI is scanned again
+                if (lastAddedProduct && lastAddedProduct.id === item.product.id) {
+                    // For IMEI products, check if this is a duplicate IMEI scan
+                    if (item.product.is_imei_or_serial_no === 1 && matchType === 'IMEI') {
+                        console.log('Preventing duplicate IMEI scan for product:', item.product.product_name);
+                        return;
+                    }
+                    // For non-IMEI products, prevent duplicate within short time frame
+                    if (matchType !== 'MANUAL') {
+                        return;
+                    }
+                }
 
                 lastAddedProduct = item.product;
 
@@ -3403,6 +3415,9 @@
                 );
             });
 
+            // Reset lastAddedProduct to allow adding more products
+            lastAddedProduct = null;
+            
             updateTotals();
             fetchPaginatedProducts(true);
         }
