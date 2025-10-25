@@ -368,6 +368,10 @@
                                 <li><a href="{{ route('sales-report') }}" class="{{ set_active(['sales-report']) }}">Daily Sales Report</a></li>
                             @endcan
                             
+                            @can('view stock-report')
+                                <li><a href="{{ route('stock.report') }}" class="{{ set_active(['stock-report']) }}">Stock Report</a></li>
+                            @endcan
+                            
                             @can('view profit-loss-report')
                                 <li><a href="{{ route('profit-loss.report') }}" class="{{ set_active(['profit-loss.report']) }}">Profit & Loss Report</a></li>
                             @endcan

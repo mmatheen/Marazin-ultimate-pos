@@ -33,96 +33,184 @@ class ReportController extends Controller
         $this->middleware('permission:export reports', ['only' => ['exportReport', 'profitLossExportPdf', 'profitLossExportExcel', 'profitLossExportCsv']]);
     }
 
-    public function stockHistory()
+    public function stockHistory(Request $request)
     {
-        // Dummy data for stock history
-        $stockHistory = [
-            [
-                'Action' => 'Sold',
-                'SKU' => 'SKU001',
-                'Product' => 'Product A',
-               
-                'Category' => 'Clothing',
-                'Location' => 'Store 1',
-                'Unit Selling Price' => 50.00,
-                'Current stock' => 100,
-                'Current Stock Value (By purchase price)' => 4000.00,
-                'Current Stock Value (By sale price)' => 5000.00,
-                'Potential profit' => 1000.00,
-                'Total unit sold' => 200,
-                'Total Unit Transferred' => 50,
-                'Total Unit Adjusted' => 10,
-            ],
-            [
-                'Action' => 'Purchased',
-                'SKU' => 'SKU002',
-                'Product' => 'Product B',
-                
-                'Category' => 'Electronics',
-                'Location' => 'Store 2',
-                'Unit Selling Price' => 120.00,
-                'Current stock' => 50,
-                'Current Stock Value (By purchase price)' => 4500.00,
-                'Current Stock Value (By sale price)' => 6000.00,
-                'Potential profit' => 1500.00,
-                'Total unit sold' => 80,
-                'Total Unit Transferred' => 20,
-                'Total Unit Adjusted' => 5,
-            ],
-            [
-                'Action' => 'Adjusted',
-                'SKU' => 'SKU003',
-                'Product' => 'Product C',
-                
-                'Category' => 'Stationery',
-                'Location' => 'Store 3',
-                'Unit Selling Price' => 10.00,
-                'Current stock' => 300,
-                'Current Stock Value (By purchase price)' => 2000.00,
-                'Current Stock Value (By sale price)' => 3000.00,
-                'Potential profit' => 1000.00,
-                'Total unit sold' => 150,
-                'Total Unit Transferred' => 30,
-                'Total Unit Adjusted' => 15,
-            ],
-            [
-                'Action' => 'Transferred',
-                'SKU' => 'SKU004',
-                'Product' => 'Product D',
-              
-                'Category' => 'Apparel',
-                'Location' => 'Warehouse',
-                'Unit Selling Price' => 80.00,
-                'Current stock' => 200,
-                'Current Stock Value (By purchase price)' => 8000.00,
-                'Current Stock Value (By sale price)' => 16000.00,
-                'Potential profit' => 8000.00,
-                'Total unit sold' => 100,
-                'Total Unit Transferred' => 75,
-                'Total Unit Adjusted' => 20,
-            ],
-            [
-                'Action' => 'Sold',
-                'SKU' => 'SKU005',
-                'Product' => 'Product E',
-             
-                'Category' => 'Home Decor',
-                'Location' => 'Store 4',
-                'Unit Selling Price' => 25.00,
-                'Current stock' => 150,
-                'Current Stock Value (By purchase price)' => 3000.00,
-                'Current Stock Value (By sale price)' => 3750.00,
-                'Potential profit' => 750.00,
-                'Total unit sold' => 250,
-                'Total Unit Transferred' => 40,
-                'Total Unit Adjusted' => 10,
+        // Get all locations for filter dropdown
+        $locations = Location::all();
+        $categories = \App\Models\MainCategory::all();
+        $subCategories = \App\Models\SubCategory::all();
+        $brands = Brand::all();
+        $units = \App\Models\Unit::all();
 
-                
-            ],
+        // If AJAX request for DataTables
+        if ($request->ajax()) {
+            return $this->getStockDataForDataTables($request);
+        }
+
+        // Calculate summary data
+        $summaryData = $this->calculateStockSummary($request);
+
+        return view('reports.stock_report', compact('locations', 'categories', 'subCategories', 'brands', 'units', 'summaryData'));
+    }
+
+    private function getStockDataForDataTables($request)
+    {
+        // Build query for products with all necessary relationships
+        $query = Product::select('products.*') // Explicitly select all product columns
+            ->with([
+            'mainCategory', 
+            'subCategory', 
+            'brand', 
+            'unit', 
+            'batches' => function($q) {
+                $q->with(['locationBatches' => function($lb) {
+                    $lb->with('location')->where('qty', '>', 0);
+                }]);
+            }
+        ]);
+
+        // Apply filters
+        if ($request->has('location_id') && $request->location_id != '' && $request->location_id != null) {
+            $query->whereHas('batches.locationBatches', function($q) use ($request) {
+                $q->where('location_id', $request->location_id);
+            });
+        }
+
+        if ($request->has('category_id') && $request->category_id != '' && $request->category_id != null) {
+            $query->where('main_category_id', $request->category_id);
+        }
+
+        if ($request->has('sub_category_id') && $request->sub_category_id != '' && $request->sub_category_id != null) {
+            $query->where('sub_category_id', $request->sub_category_id);
+        }
+
+        if ($request->has('brand_id') && $request->brand_id != '' && $request->brand_id != null) {
+            $query->where('brand_id', $request->brand_id);
+        }
+
+        if ($request->has('unit_id') && $request->unit_id != '' && $request->unit_id != null) {
+            $query->where('unit_id', $request->unit_id);
+        }
+
+        $products = $query->get();
+
+        // Process stock data
+        $stockData = [];
+        foreach ($products as $product) {
+            if ($product->batches->isEmpty()) continue;
+
+            foreach ($product->batches as $batch) {
+                $locationBatches = $batch->locationBatches;
+
+                if ($request->has('location_id') && $request->location_id != '' && $request->location_id != null) {
+                    $locationBatches = $locationBatches->where('location_id', $request->location_id);
+                }
+
+                foreach ($locationBatches as $locationBatch) {
+                    $currentStock = floatval($locationBatch->qty ?? 0);
+
+                    if ($currentStock > 0) {
+                        $locationName = $locationBatch->location->name ?? 'Unknown Location';
+                        // Use ONLY batch prices, not product table prices
+                        $unitCost = floatval($batch->unit_cost ?? 0);
+                        $retailPrice = floatval($batch->retail_price ?? 0);
+                        
+                        $stockByPurchasePrice = $currentStock * $unitCost;
+                        $stockBySalePrice = $currentStock * $retailPrice;
+                        $potentialProfit = $stockBySalePrice - $stockByPurchasePrice;
+
+                        $stockData[] = [
+                            'sku' => $product->sku ?? 'N/A',
+                            'product_name' => $product->product_name ?? 'Unknown Product',
+                            'batch_no' => $batch->batch_no ?? 'N/A',
+                            'category' => optional($product->mainCategory)->mainCategoryName ?? 'N/A',
+                            'location' => $locationName,
+                            'unit_selling_price' => $retailPrice,
+                            'unit_cost' => $unitCost,
+                            'current_stock' => $currentStock,
+                            'stock_value_purchase' => $stockByPurchasePrice,
+                            'stock_value_sale' => $stockBySalePrice,
+                            'potential_profit' => $potentialProfit,
+                            'expiry_date' => $batch->expiry_date ? \Carbon\Carbon::parse($batch->expiry_date)->format('Y-m-d') : null,
+                            'product_id' => $product->id, // Add for debugging
+                        ];
+                    }
+                }
+            }
+        }
+
+        return response()->json(['data' => $stockData]);
+    }
+
+    private function calculateStockSummary($request)
+    {
+        $query = Product::with([
+            'batches' => function($q) {
+                $q->with(['locationBatches' => function($lb) {
+                    $lb->where('qty', '>', 0);
+                }]);
+            }
+        ]);
+
+        // Apply same filters
+        if ($request->has('location_id') && $request->location_id != '' && $request->location_id != null) {
+            $query->whereHas('batches.locationBatches', function($q) use ($request) {
+                $q->where('location_id', $request->location_id);
+            });
+        }
+
+        if ($request->has('category_id') && $request->category_id != '' && $request->category_id != null) {
+            $query->where('main_category_id', $request->category_id);
+        }
+
+        if ($request->has('sub_category_id') && $request->sub_category_id != '' && $request->sub_category_id != null) {
+            $query->where('sub_category_id', $request->sub_category_id);
+        }
+
+        if ($request->has('brand_id') && $request->brand_id != '' && $request->brand_id != null) {
+            $query->where('brand_id', $request->brand_id);
+        }
+
+        if ($request->has('unit_id') && $request->unit_id != '' && $request->unit_id != null) {
+            $query->where('unit_id', $request->unit_id);
+        }
+
+        $products = $query->get();
+
+        $totalStockByPurchasePrice = 0;
+        $totalStockBySalePrice = 0;
+        $totalPotentialProfit = 0;
+
+        foreach ($products as $product) {
+            foreach ($product->batches as $batch) {
+                $locationBatches = $batch->locationBatches;
+
+                if ($request->has('location_id') && $request->location_id != '' && $request->location_id != null) {
+                    $locationBatches = $locationBatches->where('location_id', $request->location_id);
+                }
+
+                foreach ($locationBatches as $locationBatch) {
+                    $currentStock = floatval($locationBatch->qty ?? 0);
+                    if ($currentStock > 0) {
+                        // Use ONLY batch prices, not product table prices
+                        $unitCost = floatval($batch->unit_cost ?? 0);
+                        $retailPrice = floatval($batch->retail_price ?? 0);
+                        
+                        $totalStockByPurchasePrice += ($currentStock * $unitCost);
+                        $totalStockBySalePrice += ($currentStock * $retailPrice);
+                        $totalPotentialProfit += (($currentStock * $retailPrice) - ($currentStock * $unitCost));
+                    }
+                }
+            }
+        }
+
+        return [
+            'total_stock_by_purchase_price' => $totalStockByPurchasePrice,
+            'total_stock_by_sale_price' => $totalStockBySalePrice,
+            'total_potential_profit' => $totalPotentialProfit,
+            // Profit Margin = (Profit / Sale Price) × 100 - Maximum 100%
+            'profit_margin' => $totalStockBySalePrice > 0 ? (($totalPotentialProfit / $totalStockBySalePrice) * 100) : 0,
         ];
-
-        // Return the view with stock history data
-        return view('reports.stock_report', compact('stockHistory'));
     }
 
     /**
