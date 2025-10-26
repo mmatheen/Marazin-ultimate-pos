@@ -5097,19 +5097,28 @@
                             }
 
                             // Apply product-level discount
-                            const productRow = $('#billing-body tr:last-child');
+                            // Since addProductToBillingBody inserts at the FIRST position, get the first-child, not last-child
+                            const productRow = $('#billing-body tr:first-child');
                             const fixedDiscountInput = productRow.find('.fixed_discount');
                             const percentDiscountInput = productRow.find('.percent_discount');
 
                             if (saleProduct.discount_type === 'fixed') {
                                 const fixedAmount = parseFloat(saleProduct.discount_amount) || 0;
                                 fixedDiscountInput.val(fixedAmount.toFixed(2));
-                                percentDiscountInput.val('');
+                                percentDiscountInput.val('0.00');
+                                console.log('Applied fixed discount:', fixedAmount, 'to product:', saleProduct.product.product_name);
                             } else if (saleProduct.discount_type === 'percentage') {
                                 const percentAmount = parseFloat(saleProduct.discount_amount) || 0;
                                 percentDiscountInput.val(percentAmount.toFixed(2));
-                                fixedDiscountInput.val('');
+                                fixedDiscountInput.val('0.00');
+                                console.log('Applied percentage discount:', percentAmount, 'to product:', saleProduct.product.product_name);
+                            } else {
+                                // No discount or null discount_type - leave as calculated by addProductToBillingBody
+                                console.log('No explicit discount for product:', saleProduct.product.product_name);
                             }
+                            
+                            // Trigger discount recalculation to update price and subtotal
+                            productRow.find('.fixed_discount, .percent_discount').trigger('input');
                         });
 
                         // If the sale has a customer_id, trigger customer data fetch
