@@ -829,7 +829,33 @@ class SaleController extends Controller
                 'invoice_html' => $html,
                 'data' => $viewData
             ], 200);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Handle duplicate invoice number error specifically
+            if ($e->getCode() == 23000 && str_contains($e->getMessage(), 'sales_invoice_no_unique')) {
+                Log::error('Duplicate invoice number error', [
+                    'error' => $e->getMessage(),
+                    'location_id' => $request->location_id ?? null,
+                ]);
+                
+                // Retry the operation once with a new invoice number
+                try {
+                    return $this->store($request, $id);
+                } catch (\Exception $retryException) {
+                    return response()->json([
+                        'message' => 'Failed to generate unique invoice number. Please try again.',
+                        'error' => $retryException->getMessage()
+                    ], 400);
+                }
+            }
+            
+            return response()->json([
+                'message' => 'Database error: ' . $e->getMessage()
+            ], 400);
         } catch (\Exception $e) {
+           Log::error('Sale creation error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json(['message' => $e->getMessage()], 400);
             
         }

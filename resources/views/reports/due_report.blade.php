@@ -207,7 +207,7 @@
                                             <option value="">All Users</option>
                                             @foreach($users as $user)
                                                 <option value="{{ $user->id }}">
-                                                    {{ $user->name }}
+                                                    {{ $user->full_name }}
                                                 </option>
                                             @endforeach
                                         </select>

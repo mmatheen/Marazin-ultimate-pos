@@ -543,11 +543,12 @@ class Sale extends Model
     public static function generateInvoiceNo($locationId)
     {
         return DB::transaction(function () use ($locationId) {
-            // Fetch or create the counter for this location
-            $counter = \App\Models\InvoiceCounter::firstOrCreate(
-                ['location_id' => $locationId],
-                ['next_invoice_number' => 1]
-            );
+            // Lock the counter row to prevent race conditions
+            $counter = \App\Models\InvoiceCounter::lockForUpdate()
+                ->firstOrCreate(
+                    ['location_id' => $locationId],
+                    ['next_invoice_number' => 1]
+                );
 
             // Get prefix from Location and adjust for "Arf fashion" to "AFS"
             $location = \App\Models\Location::findOrFail($locationId);
@@ -558,15 +559,22 @@ class Sale extends Model
                 $prefix = 'AFS';
             }
 
-            // Use current value first
+            // Generate invoice number with current counter
             $invoiceNo = "{$prefix}-" . str_pad($counter->next_invoice_number, 3, '0', STR_PAD_LEFT);
 
-            // Now increment it only after generating the number
-            DB::table('invoice_counters')
-                ->where('location_id', $locationId)
-                ->increment('next_invoice_number');
+            // Check if this invoice number already exists (safety check)
+            $attempts = 0;
+            $maxAttempts = 10;
+            
+            while (self::where('invoice_no', $invoiceNo)->exists() && $attempts < $maxAttempts) {
+                $counter->next_invoice_number++;
+                $invoiceNo = "{$prefix}-" . str_pad($counter->next_invoice_number, 3, '0', STR_PAD_LEFT);
+                $attempts++;
+            }
 
-            $counter->refresh(); // Optional: refresh if needed later
+            // Increment for next invoice
+            $counter->next_invoice_number++;
+            $counter->save();
 
             return $invoiceNo;
         });
