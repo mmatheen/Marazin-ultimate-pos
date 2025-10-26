@@ -4020,7 +4020,7 @@
             <span class="quantity-display ms-2" style="font-size: 0.95em;">
              ${adjustedBatchQuantity} ${unitName}
             </span>
-            ${product.is_imei_or_serial_no === 1 ? `<span class="badge bg-info ms-2">IMEI: ${imeis[0]}</span>
+            ${product.is_imei_or_serial_no === 1 ? `<span class="badge bg-info ms-2">IMEI</span>
               <i class="fas fa-info-circle show-imei-btn ms-1" style="cursor: pointer;" title="View/Edit IMEI"></i>` : ''}
             </div>
             </div>
@@ -6894,18 +6894,18 @@
     //     console.log = function() {};
     // }
 
-    // function preventDoubleClick(button, callback) {
-    //     if (button.dataset.isProcessing === "true") return;
-    //     button.dataset.isProcessing = "true";
-    //     button.disabled = true;
+    function preventDoubleClick(button, callback) {
+        if (button.dataset.isProcessing === "true") return;
+        button.dataset.isProcessing = "true";
+        button.disabled = true;
 
-    //     try {
-    //         callback();
-    //     } catch (error) {
-    //         console.error("Error in button callback:", error);
-    //         enableButton(button);
-    //     }
-    // }
+        try {
+            callback();
+        } catch (error) {
+            console.error("Error in button callback:", error);
+            enableButton(button);
+        }
+    }
 
     function enableButton(button) {
         button.disabled = false;

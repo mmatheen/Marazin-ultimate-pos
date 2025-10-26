@@ -70,6 +70,21 @@
             box-sizing: border-box;
         }
 
+        /* Prevent page scrolling - single view only */
+        html, body {
+            overflow: hidden !important;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Container should fit viewport exactly */
+        .container-fluid {
+            height: 100vh;
+            overflow: hidden;
+            padding-bottom: 60px !important; /* Space for bottom fixed */
+        }
+
 
         /* Fix button text wrapping */
         .bottom-fixed .btn {
@@ -138,27 +153,175 @@
             background-color: #fff;
             box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
             z-index: 1000;
-            padding: 5px 5px;
+            padding: 2px 5px;
             border-top: 1px solid #ddd;
         }
 
         .bottom-fixed .btn {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: bold;
-            padding: 5px 5px;
-            border-radius: 5px;
-            margin: 2px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin: 1px;
         }
 
         .bottom-fixed .row {
             margin: 0;
             align-items: center;
+            padding: 2px 0;
         }
 
         .bottom-fixed .col-md-5,
+        .bottom-fixed .col-md-5,
         .bottom-fixed .col-md-7 {
-            padding: 0 10px;
+            padding: 0 8px;
         }
+
+        .bottom-fixed h4 {
+            font-size: 20px;
+            margin-bottom: 0;
+            font-weight: 700;
+        }
+
+        .bottom-fixed #total {
+            font-size: 24px;
+            font-weight: 800;
+        }
+
+        .bottom-fixed #items-count {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        /* Ensure Total Payable section stays on left */
+        .bottom-fixed .col-md-5 {
+            justify-content: flex-start !important;
+            gap: 10px !important;
+        }
+
+        .bottom-fixed .col-md-5 .d-flex {
+            gap: 10px !important;
+        }
+        /* Header card styling */
+        .card.bg-white.p-1 {
+            margin-bottom: 0 !important;
+        }
+
+        /* Desktop header row */
+        .row.align-items-center.d-none.d-md-flex {
+            padding: 4px 8px;
+            min-height: 50px;
+            flex-wrap: nowrap !important;
+        }
+
+        /* Left section - prevent wrapping */
+        .col-md-6.d-flex.align-items-center .d-flex.flex-row {
+            flex-wrap: nowrap !important;
+        }
+
+        /* Location select styling */
+        .form-select.location-select-sync {
+            height: 38px;
+            font-size: 12px;
+            padding: 6px 10px;
+            min-width: 160px;
+            max-width: 180px;
+        }
+
+        /* Date and time buttons */
+        #currentDateButton {
+            height: 38px;
+            font-size: 12px !important;
+            padding: 4px 10px !important;
+            white-space: nowrap;
+        }
+
+        #currentTimeText {
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        /* Keyboard shortcut button */
+        #shortcutButton {
+            height: 38px;
+            width: 38px !important;
+            min-width: 38px !important;
+            padding: 0 !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        /* Sales rep badges */
+        #salesRepDisplay .badge {
+            font-size: 10px;
+            padding: 4px 8px !important;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
+        }
+
+        #salesRepDisplay .btn-sm {
+            height: 30px;
+            padding: 4px 8px !important;
+        }
+
+        #salesRepDisplay {
+            flex-shrink: 0;
+        }
+
+        /* Header action buttons alignment */
+        .col-md-6 .d-flex.justify-content-end {
+            gap: 5px !important;
+            flex-wrap: nowrap !important;
+        }
+
+        .col-md-6 .d-flex.justify-content-end .btn-sm {
+            height: 36px;
+            min-width: 36px;
+            padding: 5px 8px !important;
+            font-size: 12px !important;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        /* Dropdown buttons */
+        .dropdown .btn {
+            height: 36px;
+            min-width: 36px;
+        }
+
+        /* Ensure all header buttons same height */
+        .row.align-items-center.d-none.d-md-flex .btn {
+            height: 36px !important;
+        }
+
+        /* Left section alignment */
+        .col-md-6.d-flex.align-items-center {
+            gap: 6px;
+            overflow: visible;
+        }
+
+        .col-md-6.d-flex.align-items-center .d-flex {
+            gap: 6px !important;
+        }
+
+        /* Prevent button text wrapping */
+        .row.align-items-center.d-none.d-md-flex .btn {
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        /* Ensure columns don't wrap */
+        .col-md-6 {
+            flex-shrink: 0;
+        }
+
 
         .product-card {
             border: 1px solid #ddd;
@@ -612,6 +775,39 @@
             border: 1px solid #ccc;
             padding: 5px 0;
             font-size: 14px;
+        }
+
+        /* Mobile/Tablet: Fix autocomplete overflow */
+        @media (max-width: 991px) {
+            .ui-autocomplete {
+                position: fixed !important;
+                left: 10px !important;
+                right: 10px !important;
+                width: calc(100% - 20px) !important;
+                max-width: calc(100vw - 20px) !important;
+                max-height: 300px !important;
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                z-index: 10000 !important;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25) !important;
+                border-radius: 8px !important;
+            }
+
+            .ui-menu .ui-menu-item {
+                padding: 12px 15px !important;
+                font-size: 14px !important;
+                border-bottom: 1px solid #f0f0f0;
+            }
+
+            .ui-menu .ui-menu-item:last-child {
+                border-bottom: none;
+            }
+
+            .ui-menu .ui-menu-item:hover,
+            .ui-menu .ui-menu-item.ui-state-focus,
+            .ui-menu .ui-menu-item.ui-state-active {
+                background-color: #e3f2fd !important;
+            }
         }
 
         /* Ensure autocomplete items are properly styled */
@@ -1459,6 +1655,149 @@
 
         /* Mobile & Tablet Billing Table Card Styles */
         @media (max-width: 991px) {
+            /* Allow page scrolling on mobile/tablet */
+            html, body {
+                overflow: auto !important;
+                padding-bottom: 200px !important; /* Space for bottom-fixed section */
+            }
+
+            /* Ensure bottom-fixed is visible and properly positioned */
+            .bottom-fixed {
+                position: fixed !important;
+                bottom: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                width: 100% !important;
+                z-index: 9999 !important;
+                background-color: #fff !important;
+                box-shadow: 0 -3px 10px rgba(0, 0, 0, 0.15) !important;
+                padding: 8px 10px !important;
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            }
+
+            /* Mobile layout for bottom-fixed */
+            .bottom-fixed .row {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 8px;
+            }
+
+            .bottom-fixed .col-md-5,
+            .bottom-fixed .col-md-7 {
+                width: 100% !important;
+                max-width: 100% !important;
+                flex: 0 0 100% !important;
+                padding: 0 !important;
+            }
+
+            /* Total Payable section on mobile */
+            .bottom-fixed .col-md-5 {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                gap: 8px !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+            }
+
+            .bottom-fixed h4 {
+                font-size: 14px !important;
+                margin: 0 !important;
+            }
+
+            .bottom-fixed #total {
+                font-size: 18px !important;
+                font-weight: 700 !important;
+            }
+
+            .bottom-fixed #items-count {
+                font-size: 13px !important;
+            }
+
+            /* Buttons container on mobile */
+            .bottom-fixed .col-md-7 .d-flex {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                gap: 5px !important;
+                justify-content: center !important;
+            }
+
+            .bottom-fixed .btn {
+                font-size: 11px !important;
+                padding: 6px 10px !important;
+                white-space: nowrap !important;
+                flex: 0 1 auto !important;
+            }
+
+            .bottom-fixed .btn i {
+                font-size: 10px !important;
+            }
+
+            /* Make billing card scrollable */
+            .card.bg-white.p-2 {
+                height: auto !important;
+                overflow: visible !important;
+                margin-bottom: 200px !important; /* Space for bottom-fixed */
+            }
+
+            /* Total Items Section - Mobile/Tablet Responsive */
+            .row[style*="border-top: 2px solid #ddd"][style*="background-color: #f8f9fa"] {
+                display: flex !important;
+                flex-direction: column;
+                padding: 10px 12px !important;
+                gap: 8px;
+            }
+
+            .row[style*="border-top: 2px solid #ddd"][style*="background-color: #f8f9fa"] .d-flex {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 8px !important;
+            }
+
+            /* Total/Discount/Final Total Section - Mobile/Tablet Stacked Layout */
+            .row.align-items-end[style*="border-top: 2px solid #ddd"] {
+                display: flex !important;
+                flex-direction: column !important;
+                padding: 12px !important;
+                gap: 12px;
+            }
+
+            .row.align-items-end[style*="border-top: 2px solid #ddd"] > div[class*="col-md"] {
+                width: 100% !important;
+                max-width: 100% !important;
+                flex: 0 0 100% !important;
+            }
+
+            .row.align-items-end[style*="border-top: 2px solid #ddd"] .form-group label {
+                font-size: 12px !important;
+                font-weight: 700 !important;
+                margin-bottom: 4px !important;
+            }
+
+            .row.align-items-end[style*="border-top: 2px solid #ddd"] .form-control,
+            .row.align-items-end[style*="border-top: 2px solid #ddd"] .input-group,
+            .row.align-items-end[style*="border-top: 2px solid #ddd"] .btn-group {
+                height: 42px !important;
+                font-size: 15px !important;
+            }
+
+            .row.align-items-end[style*="border-top: 2px solid #ddd"] .btn-group .btn {
+                height: 42px !important;
+                font-size: 13px !important;
+                padding: 8px 12px !important;
+            }
+
+            .row.align-items-end[style*="border-top: 2px solid #ddd"] .input-group input {
+                height: 42px !important;
+                font-size: 15px !important;
+            }
+
+            .row.align-items-end[style*="border-top: 2px solid #ddd"] .input-group-text {
+                height: 42px !important;
+                font-size: 15px !important;
+            }
+
             /* Hide table headers on mobile/tablet */
             .table-responsive table thead {
                 display: none !important;
@@ -1888,6 +2227,228 @@
                 }
             }
         }
+
+        /* ============================================
+           OPTIMIZED BILLING TABLE STYLES FOR DESKTOP
+           ============================================ */
+        
+        /* Desktop: Reduce table cell padding for compact display */
+        @media (min-width: 992px) {
+            #billing-body tr td {
+                padding: 4px 6px !important;
+                vertical-align: middle !important;
+            }
+
+            /* Counter cell - centered alignment */
+            #billing-body tr td:nth-child(1) {
+                text-align: center !important;
+                vertical-align: middle !important;
+                padding: 4px !important;
+            }
+
+            /* Product cell - optimize spacing */
+            #billing-body tr td:nth-child(2) {
+                padding: 6px 8px !important;
+                vertical-align: middle !important;
+            }
+
+            #billing-body tr td:nth-child(2) .d-flex {
+                align-items: center;
+                gap: 8px;
+            }
+
+            /* Product image - reduce size for compactness */
+            #billing-body tr td:nth-child(2) img {
+                width: 40px !important;
+                height: 40px !important;
+                margin-right: 6px !important;
+            }
+
+            /* Product info section */
+            #billing-body tr td:nth-child(2) .product-info {
+                line-height: 1.2;
+            }
+
+            /* Product name - reduce font size and spacing */
+            #billing-body tr td:nth-child(2) .product-name {
+                font-size: 13px;
+                line-height: 1.3;
+                margin-bottom: 2px;
+            }
+
+            /* Reduce badge sizes */
+            #billing-body tr td:nth-child(2) .badge {
+                font-size: 9px;
+                padding: 2px 5px;
+                margin: 0 2px;
+            }
+
+            /* SKU and quantity display - smaller text */
+            #billing-body tr td:nth-child(2) .product-sku,
+            #billing-body tr td:nth-child(2) .quantity-display {
+                font-size: 11px;
+            }
+
+            /* IMEI section - optimize spacing */
+            #billing-body tr td:nth-child(2) .d-flex.flex-wrap {
+                gap: 4px !important;
+                margin-top: 2px !important;
+            }
+
+            /* IMEI badge - compact size */
+            #billing-body tr td:nth-child(2) .badge.bg-info {
+                font-size: 9px;
+                padding: 2px 5px;
+            }
+
+            /* IMEI info icon - smaller */
+            #billing-body tr td:nth-child(2) .show-imei-btn {
+                font-size: 12px;
+                margin-left: 2px !important;
+            }
+
+            /* Quantity controls - compact size */
+            #billing-body tr td:nth-child(3) {
+                text-align: center;
+                vertical-align: middle !important;
+            }
+
+            #billing-body tr td:nth-child(3) .d-flex {
+                gap: 0;
+            }
+
+            #billing-body tr td:nth-child(3) .quantity-minus,
+            #billing-body tr td:nth-child(3) .quantity-plus {
+                width: 28px;
+                height: 28px;
+                font-size: 14px;
+                padding: 0;
+            }
+
+            #billing-body tr td:nth-child(3) .quantity-input {
+                width: 50px;
+                height: 28px;
+                font-size: 13px;
+                padding: 0 4px;
+            }
+
+            /* Unit name below quantity - smaller */
+            #billing-body tr td:nth-child(3) > div:last-child {
+                font-size: 10px;
+                margin-top: 1px;
+            }
+
+            /* Discount and Price columns - centered */
+            #billing-body tr td:nth-child(4),
+            #billing-body tr td:nth-child(5),
+            #billing-body tr td:nth-child(6),
+            #billing-body tr td:nth-child(7) {
+                text-align: center;
+                vertical-align: middle !important;
+            }
+
+            /* Input fields - compact height */
+            #billing-body tr td input.form-control {
+                height: 28px;
+                font-size: 12px;
+                padding: 2px 6px;
+                text-align: center;
+            }
+
+            /* Subtotal column - ensure proper alignment */
+            #billing-body tr td.subtotal {
+                font-weight: 600;
+                text-align: center;
+                vertical-align: middle !important;
+            }
+
+            /* Remove button - smaller and properly aligned */
+            #billing-body tr td:nth-child(8) {
+                text-align: center;
+                vertical-align: middle !important;
+            }
+
+            #billing-body tr td:nth-child(8) .remove-btn {
+                width: 24px;
+                height: 24px;
+                font-size: 14px;
+                padding: 0;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                line-height: 1;
+            }
+
+            /* Table header - reduce padding */
+            .table thead th {
+                padding: 6px 8px !important;
+                font-size: 12px;
+            }
+
+            /* Compact form groups for single-screen view */
+            .form-group {
+                margin-bottom: 3px !important;
+            }
+
+            .form-group label {
+                font-size: 11px;
+                margin-bottom: 1px;
+                font-weight: 600;
+            }
+
+            .form-group .form-control,
+            .form-group p.form-control {
+                height: 30px;
+                font-size: 12px;
+                padding: 3px 6px;
+            }
+
+            /* Compact card sections */
+            .card.bg-light,
+            .card.bg-white {
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+
+            /* Reduce button group height */
+            .btn-group .btn {
+                padding: 3px 10px;
+                font-size: 11px;
+                height: 30px;
+            }
+
+            /* Input group text sizing */
+            .input-group-text {
+                font-size: 11px;
+                padding: 3px 8px;
+                height: 30px;
+            }
+
+            /* Reduce input group margins */
+            .input-group {
+                height: 30px;
+            }
+
+            .input-group .form-control {
+                height: 30px;
+                font-size: 12px;
+            }
+        }
+
+        /* Additional compact adjustments for standard desktop screens */
+        @media (min-width: 992px) and (max-width: 1399px) {
+            #billing-body tr td {
+                padding: 3px 4px !important;
+            }
+
+            #billing-body tr td:nth-child(2) img {
+                width: 35px !important;
+                height: 35px !important;
+            }
+
+            #billing-body tr td:nth-child(2) .product-name {
+                font-size: 12px;
+            }
+        }
     </style>
 </head>
 
@@ -1895,10 +2456,10 @@
     <!-- Include Sales Rep Vehicle/Route Selection Modal -->
     @include('components.sales-rep-modal')
 
-    <div class="container-fluid p-2">
+    <div class="container-fluid p-1">
         <div class="row">
             <div class="col-md-12">
-                <div class="card bg-white p-2">
+                <div class="card bg-white p-1">
                     <!-- Mobile View: Single Row -->
                     <div class="d-md-none">
                         <div class="d-flex justify-content-between align-items-center">
@@ -1912,16 +2473,16 @@
                     </div>
 
                     <!-- Desktop View: Two Columns -->
-                    <div class="row align-items-center d-none d-md-flex">
+                    <div class="row align-items-center d-none d-md-flex" style="margin: 0; padding: 4px 6px;">
                         <!-- Location and Date Section -->
-                        <div class="col-md-6 d-flex align-items-center">
-                            <div class="d-flex flex-row align-items-center gap-2 flex-wrap">
+                        <div class="col-md-6 d-flex align-items-center" style="padding: 0 6px;">
+                            <div class="d-flex flex-row align-items-center" style="gap: 6px;">
                                 <select id="locationSelectDesktop" class="form-select location-select-sync" style="min-width: 180px; max-width: 220px;">
                                     <option value="" selected disabled>Select Location</option>
                                 </select>
 
                                 <!-- Sales Rep Vehicle/Route Display (Desktop/Tablet Only) -->
-                                <div id="salesRepDisplay" class="align-items-center gap-2">
+                                <div id="salesRepDisplay" class="align-items-center" style="gap: 6px; display: none;">
                                     <div class="badge bg-success text-white p-2">
                                         <i class="fas fa-truck me-1"></i>
                                         <span id="selectedVehicleDisplay">-</span>
@@ -1939,7 +2500,7 @@
                                 </div>
 
                                 <!-- Date and Time (Desktop Only) -->
-                                <div class="d-flex align-items-center gap-2">
+                                <div class="d-flex align-items-center" style="gap: 6px;">
                                     <button class="btn btn-primary text-white border-1 px-3 py-1" style="font-size: 0.95rem;" id="currentDateButton">
                                         {{ \Carbon\Carbon::now('Asia/Colombo')->format('Y-m-d') }}
                                     </button>
@@ -1977,8 +2538,8 @@
                         </div>
 
                         <!-- Action Buttons (Desktop) -->
-                        <div class="col-md-6">
-                            <div class="d-flex justify-content-end gap-2 align-items-center flex-wrap">
+                        <div class="col-md-6" style="padding: 0 6px;">
+                            <div class="d-flex justify-content-end align-items-center" style="gap: 5px;">
                                 <button class="btn btn-secondary btn-sm" onclick="window.location.href='{{ route('dashboard') }}'" data-bs-toggle="tooltip" title="Go home">
                                     <i class="fas fa-home"></i>
                                 </button>
@@ -2233,15 +2794,15 @@
             }
         </script>
 
-        <div class="row mt-2">
+        <div class="row mt-1">
 
-            <div class="container-fluid">
+            <div class="container-fluid p-1">
                 <div class="row">
                     <div class="col-md-12" id="mainContent">
-                        <div class="card bg-white p-3">
+                        <div class="card bg-white p-2" style="height: calc(100vh - 215px); overflow: hidden; display: flex; flex-direction: column;">
                             <div class="row">
                                 <div class="col-12">
-                                    <p id="sale-invoice-no" class="text-info fw-bold"></p>
+                                    <p id="sale-invoice-no" class="text-info fw-bold mb-1"></p>
                                 </div>
                             </div>
                             <div class="row">
@@ -2287,10 +2848,9 @@
                             </div>
 
                             <!-- Spacer for better separation -->
-                            <div class="row mt-1">
-                                <div class="col-md-12 mt-2">
-                                    <div class="table-responsive"
-                                        style="height: calc(100vh - 445px); overflow-y: auto;">
+                            <div class="row mt-1" style="flex: 1; overflow: hidden;">
+                                <div class="col-md-12 mt-1" style="height: 100%; display: flex; flex-direction: column;">
+                                    <div class="table-responsive" style="flex: 1; overflow-y: auto;">
                                         <table class="table table-bordered">
                                             <thead class="thead-light">
                                                 <tr>
@@ -2311,70 +2871,65 @@
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Item Counter Section -->
-                        <div class="card bg-light mt-2 p-2">
-                            <div class="row align-items-center">
-                                <div class="col-md-6">
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-shopping-cart me-2 text-primary"></i>
-                                        <span class="fw-bold">Total Items: </span>
-                                        <span id="total-items-count" class="badge bg-secondary ms-2">0</span>
+                            <!-- Item Counter Section - Fixed at bottom of billing card -->
+                            <div class="row" style="margin: 0; border-top: 2px solid #ddd; background-color: #f8f9fa;">
+                                <div class="col-md-12" style="padding: 4px 8px;">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-shopping-cart me-2 text-primary"></i>
+                                            <span class="fw-bold">Total Items: </span>
+                                            <span id="total-items-count" class="badge bg-secondary ms-2">0</span>
+                                        </div>
+                                        <small class="text-muted">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            Items in cart
+                                        </small>
                                     </div>
-                                </div>
-                                <div class="col-md-6 text-end">
-                                    <small class="text-muted">
-                                        <i class="fas fa-info-circle me-1"></i>
-                                        Items in cart
-                                    </small>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="card bg-white mt-3 p-2">
-                            <div class="row align-items-center">
+                            <!-- Total, Discount, Final Total Section - Fixed at bottom -->
+                            <div class="row align-items-end" style="margin: 0; border-top: 2px solid #ddd; background-color: #fff; padding: 8px;">
                                 <div class="col-md-2">
-                                    <div class="form-group">
-                                        <label>Total</label>
-                                        <p id="total-amount" class="form-control">0.00</p>
+                                    <div class="form-group mb-0">
+                                        <label style="font-size: 11px; font-weight: 600; margin-bottom: 3px; display: block;">Total</label>
+                                        <p id="total-amount" class="form-control form-control-sm mb-0" style="height: 32px; line-height: 20px;">0.00</p>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
-                                    <div class="form-group">
-                                        <label for="discount-type">Global Discount Type</label>
-                                        <div class="btn-group w-100" role="group" aria-label="Discount Type">
-                                            <button type="button" class="btn btn-outline-primary active"
-                                                id="fixed-discount-btn">Fixed</button>
-                                            <button type="button" class="btn btn-outline-primary"
-                                                id="percentage-discount-btn">Percentage</button>
+                                    <div class="form-group mb-0">
+                                        <label style="font-size: 11px; font-weight: 600; margin-bottom: 3px; display: block;">Global Discount Type</label>
+                                        <div class="btn-group w-100" role="group" aria-label="Discount Type" style="height: 32px;">
+                                            <button type="button" class="btn btn-outline-primary btn-sm active"
+                                                id="fixed-discount-btn" style="font-size: 12px; padding: 4px 8px;">Fixed</button>
+                                            <button type="button" class="btn btn-outline-primary btn-sm"
+                                                id="percentage-discount-btn" style="font-size: 12px; padding: 4px 8px;">Percentage</button>
                                         </div>
-                                        <input type="hidden" id="discount-type" name="discount_type"
-                                            value="fixed">
+                                        <input type="hidden" id="discount-type" name="discount_type" value="fixed">
                                     </div>
                                 </div>
-
                                 <div class="col-md-2">
-                                    <div class="form-group">
-                                        <label>Discount</label>
-                                        <div class="input-group">
+                                    <div class="form-group mb-0">
+                                        <label style="font-size: 11px; font-weight: 600; margin-bottom: 3px; display: block;">Discount</label>
+                                        <div class="input-group input-group-sm" style="height: 32px;">
                                             <input type="text" id="global-discount" name="discount"
-                                                class="form-control" placeholder="0.00">
-                                            <span class="input-group-text" id="discount-icon">Rs</span>
+                                                class="form-control form-control-sm" placeholder="0.00" style="height: 32px;">
+                                            <span class="input-group-text" id="discount-icon" style="height: 32px;">Rs</span>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="col-md-2">
-                                    <div class="form-group">
-                                        <label>Final Total</label>
-                                        <p id="final-total-amount" class="form-control">0.00</p>
+                                    <div class="form-group mb-0">
+                                        <label style="font-size: 11px; font-weight: 600; margin-bottom: 3px; display: block;">Final Total</label>
+                                        <p id="final-total-amount" class="form-control form-control-sm mb-0" style="height: 32px; line-height: 20px;">0.00</p>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
-                                    <div class="form-group">
-                                        <label>Amount Given</label>
-                                        <input type="text" id="amount-given" class="form-control"
-                                            placeholder="0.00" oninput="formatAmount(this)">
+                                    <div class="form-group mb-0">
+                                        <label style="font-size: 11px; font-weight: 600; margin-bottom: 3px; display: block;">Amount Given</label>
+                                        <input type="text" id="amount-given" class="form-control form-control-sm"
+                                            placeholder="0.00" oninput="formatAmount(this)" style="height: 32px;">
                                     </div>
                                 </div>
                             </div>
@@ -2382,9 +2937,9 @@
                     </div>
 
                     <div class="col-md-5 collapse" id="productListArea">
-                        <div class="card bg-white p-3" style="height: calc(100vh - 180px);">
+                        <div class="card bg-white p-2" style="height: calc(100vh - 215px); overflow: hidden;">
                             <!-- Buttons for Category and Brand -->
-                            <div class="row mb-3">
+                            <div class="row mb-2">
                                 <div class="d-flex justify-content-between w-100 mb-2">
                                     <button type="button" class="btn btn-gradient w-50 me-3" id="allProductsBtn">
                                         <i class="fas fa-box"></i> All Products
@@ -2402,7 +2957,7 @@
                                 </div>
                             </div>
 
-                            <div class="row g-3 overflow-auto" id="posProduct" style="height: calc(100vh - 300px);">
+                            <div class="row g-3 overflow-auto" id="posProduct" style="height: calc(100vh - 315px); overflow-y: auto;">
 
                             </div>
                         </div>
@@ -2519,20 +3074,20 @@
         </div>
 
         <!-- Bottom Fixed Section -->
-        <div class="bottom-fixed mt-3">
+        <div class="bottom-fixed">
             <div class="row">
-                <!-- Right Side: Total Payable -->
-                <div class="col-md-5 d-flex align-items-center justify-content-end gap-4">
+                <!-- Left Side: Total Payable and Cancel -->
+                <div class="col-md-5 d-flex align-items-center justify-content-start gap-3">
                     <h4 class="mb-0">Total Payable:</h4>
-                    <span id="total" class="text-success fs-4 fw-bold ms-2">Rs 0.00</span>
-                    <span id="items-count" class="text-secondary fs-5 ms-2">(0)</span>
-                    <button class="btn btn-danger ms-2" id="cancelButton"><i class="fas fa-times"></i>
+                    <span id="total" class="text-success fw-bold ms-2" style="font-size: 24px;">Rs 0.00</span>
+                    <span id="items-count" class="text-secondary ms-2" style="font-size: 16px;">(0)</span>
+                    <button class="btn btn-danger ms-3 btn-sm" id="cancelButton"><i class="fas fa-times"></i>
                         Cancel</button>
                 </div>
 
-                <!-- Left Side: Actions (Aligned to Right) -->
+                <!-- Right Side: Actions (Aligned to Right) -->
                 <div class="col-md-7 text-end">
-                    <div class="d-flex justify-content-end gap-2 flex-wrap">
+                    <div class="d-flex justify-content-end gap-1 flex-wrap">
 
                         @can('create job-ticket')
                             {{-- job ticket --}}
@@ -3425,34 +3980,32 @@
             border-radius: 10px;
         }
     </style>
-
-
     <!-- Batch Price Selection Modal -->
     <div class="modal fade" id="batchPriceModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Select Retail Price</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <table class="table table-bordered">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Batch No</th>
-                                <th>Retail Price</th>
-                                <th>Quantity</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="batch-price-list">
-                            <!-- Rows will be injected here -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title">Select Retail Price</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
+        <div class="modal-body">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Batch No</th>
+                        <th>Retail Price</th>
+                        <th>Quantity</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="batch-price-list">
+                    <!-- Rows will be injected here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    </div>
     </div>
 
     <!-- JavaScript for Calculator Functionality -->
