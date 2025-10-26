@@ -1936,6 +1936,11 @@
             let lastAddedProduct = null; // Prevent duplicate quantity increments
 
             $("#productSearchInput").autocomplete({
+                position: {
+                    my: "left top",
+                    at: "left bottom",
+                    collision: "none"
+                },
                 source: function(request, response) {
                     if (!selectedLocationId) return response([]);
 
@@ -2130,10 +2135,24 @@
             };
 
             $("#productSearchInput").autocomplete("instance")._resizeMenu = function() {
-                const inputWidth = this.element.outerWidth();
-                const minWidth = 450; // Minimum width for proper IMEI display
-                const menuWidth = Math.max(inputWidth, minWidth);
-                this.menu.element.outerWidth(menuWidth);
+                const isMobile = window.innerWidth <= 991;
+                
+                if (isMobile) {
+                    // Mobile: use viewport width minus margins
+                    const menuWidth = window.innerWidth - 10; // 5px margin on each side
+                    this.menu.element.css({
+                        'width': menuWidth + 'px',
+                        'max-width': menuWidth + 'px',
+                        'left': '5px',
+                        'right': '5px'
+                    });
+                } else {
+                    // Desktop: use input width or minimum
+                    const inputWidth = this.element.outerWidth();
+                    const minWidth = 450;
+                    const menuWidth = Math.max(inputWidth, minWidth);
+                    this.menu.element.outerWidth(menuWidth);
+                }
             };
 
             if (!document.getElementById('autocomplete-styles')) {

@@ -762,8 +762,27 @@
 
         .customer-select2 .select2-container--default .select2-selection--single {
             border-radius: 5px 0 0 5px !important;
+            height: 38px !important;
+            display: flex !important;
+            align-items: center !important;
+            padding: 0 12px !important;
+        }
 
+        .customer-select2 .select2-container--default .select2-selection--single .select2-selection__rendered {
+            line-height: 38px !important;
+            padding-left: 0 !important;
+        }
 
+        .customer-select2 .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 38px !important;
+        }
+
+        .customer-select2 #addCustomerButton {
+            height: 38px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 0 15px !important;
         }
 
         .batch-dropdown {
@@ -803,22 +822,39 @@
         @media (max-width: 991px) {
             .ui-autocomplete {
                 position: fixed !important;
-                left: 10px !important;
-                right: 10px !important;
-                width: calc(100% - 20px) !important;
-                max-width: calc(100vw - 20px) !important;
-                max-height: 300px !important;
+                left: 5px !important;
+                right: 5px !important;
+                width: calc(100vw - 10px) !important;
+                max-width: calc(100vw - 10px) !important;
+                max-height: 250px !important;
                 overflow-y: auto !important;
                 overflow-x: hidden !important;
                 z-index: 10000 !important;
-                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25) !important;
-                border-radius: 8px !important;
+                box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15) !important;
+                border-radius: 5px !important;
+                margin-top: 2px !important;
+                padding: 0 !important;
+                box-sizing: border-box !important;
             }
 
             .ui-menu .ui-menu-item {
-                padding: 12px 15px !important;
-                font-size: 14px !important;
+                padding: 6px 10px !important;
+                font-size: 12px !important;
                 border-bottom: 1px solid #f0f0f0;
+                line-height: 1.3 !important;
+                min-height: auto !important;
+                box-sizing: border-box !important;
+            }
+
+            .ui-menu .ui-menu-item a {
+                padding: 2px 0 !important;
+                display: block !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                white-space: nowrap !important;
+                font-size: 12px !important;
+                line-height: 1.3 !important;
+                max-width: 100% !important;
             }
 
             .ui-menu .ui-menu-item:last-child {
@@ -830,12 +866,35 @@
             .ui-menu .ui-menu-item.ui-state-active {
                 background-color: #e3f2fd !important;
             }
+
+            /* Prevent text overflow in autocomplete items */
+            .ui-autocomplete .ui-menu-item-wrapper {
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                white-space: nowrap !important;
+                max-width: 100% !important;
+                font-size: 12px !important;
+                padding: 2px 0 !important;
+                box-sizing: border-box !important;
+            }
+
+            /* Smaller font for stock info */
+            .ui-autocomplete .ui-menu-item-wrapper small,
+            .ui-autocomplete .ui-menu-item-wrapper .text-muted {
+                font-size: 10px !important;
+            }
         }
 
         /* Ensure autocomplete items are properly styled */
         .ui-menu .ui-menu-item {
             padding: 8px 12px;
             cursor: pointer;
+        }
+
+        .ui-menu .ui-menu-item a {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
         }
 
         /* Ensure hover and keyboard focus both show highlight */
@@ -2859,10 +2918,10 @@
                                 </div>
                             </div>
                             <div class="row">
-                                <div class="col-md-5">
+                                <div class="col-md-5 pe-2">
 
                                     <div class="d-flex justify-content-center customer-select2">
-                                        <select class="form-control selectBox" id="customer-id">
+                                        <select class="form-control selectBox" id="customer-id" style="flex: 1;">
                                             <option selected disabled>Please Select</option>
                                         </select>
                                         <button type="button" class="btn btn-outline-info rounded-0"
@@ -2894,9 +2953,9 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-7">
+                                <div class="col-md-7 ps-2">
                                     <input type="text" class="form-control" id="productSearchInput"
-                                        placeholder="Enter Product name / SKU / Scan bar code" style="height: 38px;">
+                                        placeholder="Enter Product name / SKU / Scan bar code" style="height: 38px; font-size: 14px;">
                                 </div>
                             </div>
 
