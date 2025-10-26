@@ -37,7 +37,7 @@
             visibility: hidden !important;
             opacity: 0 !important;
         }
-        
+
         /* Only show when explicitly marked as visible */
         #salesRepDisplay.sales-rep-visible {
             display: flex !important;
@@ -71,7 +71,8 @@
         }
 
         /* Prevent page scrolling - single view only */
-        html, body {
+        html,
+        body {
             overflow: hidden !important;
             height: 100vh;
             margin: 0;
@@ -82,7 +83,8 @@
         .container-fluid {
             height: 100vh;
             overflow: hidden;
-            padding-bottom: 60px !important; /* Space for bottom fixed */
+            padding-bottom: 60px !important;
+            /* Space for bottom fixed */
         }
 
 
@@ -202,6 +204,7 @@
         .bottom-fixed .col-md-5 .d-flex {
             gap: 10px !important;
         }
+
         /* Header card styling */
         .card.bg-white.p-1 {
             margin-bottom: 0 !important;
@@ -809,52 +812,125 @@
         }
 
         .ui-autocomplete {
-            max-height: 200px;
+            max-height: 300px;
             overflow-y: auto;
             overflow-x: hidden;
             background: #fff;
-            border: 1px solid #ccc;
-            padding: 5px 0;
+            border: 1px solid #ddd;
+            padding: 0;
             font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-radius: 6px;
+            z-index: 1000;
+        }
+
+        /* Scrollbar styling for autocomplete */
+        .ui-autocomplete::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .ui-autocomplete::-webkit-scrollbar-thumb {
+            background-color: #888;
+            border-radius: 10px;
+        }
+
+        .ui-autocomplete::-webkit-scrollbar-track {
+            background-color: #f5f5f5;
+        }
+
+        /* Menu item styling */
+        .ui-menu .ui-menu-item {
+            border-bottom: 1px solid #f5f5f5;
+            padding: 0;
+        }
+
+        .ui-menu .ui-menu-item:last-child {
+            border-bottom: none;
+        }
+
+        .ui-menu .ui-menu-item a,
+        .ui-menu .ui-menu-item div,
+        .ui-menu .ui-menu-item-wrapper {
+            padding: 10px 15px;
+            display: block;
+            color: #333;
+            text-decoration: none;
+            line-height: 1.5;
+            white-space: normal;
+            word-wrap: break-word;
+        }
+
+        .ui-menu .ui-menu-item:hover,
+        .ui-menu .ui-menu-item.ui-state-focus,
+        .ui-menu .ui-menu-item.ui-state-active {
+            background-color: #f0f7ff;
+            border-color: #f5f5f5;
+        }
+
+        .ui-autocomplete .ui-menu-item-wrapper small,
+        .ui-autocomplete .ui-menu-item-wrapper .text-muted {
+            font-size: 12px;
+            color: #666;
+            display: block;
+            margin-top: 3px;
         }
 
         /* Mobile/Tablet: Fix autocomplete overflow */
         @media (max-width: 991px) {
             .ui-autocomplete {
                 position: fixed !important;
-                left: 5px !important;
-                right: 5px !important;
-                width: calc(100vw - 10px) !important;
-                max-width: calc(100vw - 10px) !important;
-                max-height: 250px !important;
+                left: 10px !important;
+                right: 10px !important;
+                width: calc(100vw - 20px) !important;
+                max-width: calc(100vw - 20px) !important;
+                max-height: 300px !important;
                 overflow-y: auto !important;
                 overflow-x: hidden !important;
                 z-index: 10000 !important;
-                box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15) !important;
-                border-radius: 5px !important;
-                margin-top: 2px !important;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
+                border-radius: 8px !important;
+                margin-top: 5px !important;
                 padding: 0 !important;
                 box-sizing: border-box !important;
+                background-color: #ffffff !important;
+                border: 1px solid #e0e0e0 !important;
+            }
+
+            /* Smooth scrolling for dropdown */
+            .ui-autocomplete::-webkit-scrollbar {
+                width: 5px;
+            }
+
+            .ui-autocomplete::-webkit-scrollbar-thumb {
+                background-color: #888;
+                border-radius: 10px;
+            }
+
+            .ui-autocomplete::-webkit-scrollbar-track {
+                background-color: #f1f1f1;
             }
 
             .ui-menu .ui-menu-item {
-                padding: 6px 10px !important;
-                font-size: 12px !important;
-                border-bottom: 1px solid #f0f0f0;
-                line-height: 1.3 !important;
+                padding: 0 !important;
+                font-size: 13px !important;
+                border-bottom: 1px solid #f5f5f5;
+                line-height: 1.4 !important;
                 min-height: auto !important;
                 box-sizing: border-box !important;
             }
 
-            .ui-menu .ui-menu-item a {
-                padding: 2px 0 !important;
+            .ui-menu .ui-menu-item a,
+            .ui-menu .ui-menu-item div {
+                padding: 10px 12px !important;
                 display: block !important;
-                overflow: hidden !important;
-                text-overflow: ellipsis !important;
-                white-space: nowrap !important;
-                font-size: 12px !important;
-                line-height: 1.3 !important;
+                overflow: visible !important;
+                white-space: normal !important;
+                word-wrap: break-word !important;
+                font-size: 13px !important;
+                line-height: 1.4 !important;
                 max-width: 100% !important;
+                color: #333 !important;
+                text-decoration: none !important;
             }
 
             .ui-menu .ui-menu-item:last-child {
@@ -864,24 +940,29 @@
             .ui-menu .ui-menu-item:hover,
             .ui-menu .ui-menu-item.ui-state-focus,
             .ui-menu .ui-menu-item.ui-state-active {
-                background-color: #e3f2fd !important;
+                background-color: #f0f7ff !important;
             }
 
             /* Prevent text overflow in autocomplete items */
             .ui-autocomplete .ui-menu-item-wrapper {
-                overflow: hidden !important;
-                text-overflow: ellipsis !important;
-                white-space: nowrap !important;
+                overflow: visible !important;
+                white-space: normal !important;
+                word-wrap: break-word !important;
                 max-width: 100% !important;
-                font-size: 12px !important;
-                padding: 2px 0 !important;
+                font-size: 13px !important;
+                padding: 10px 12px !important;
                 box-sizing: border-box !important;
+                display: block !important;
+                line-height: 1.4 !important;
             }
 
             /* Smaller font for stock info */
             .ui-autocomplete .ui-menu-item-wrapper small,
             .ui-autocomplete .ui-menu-item-wrapper .text-muted {
-                font-size: 10px !important;
+                font-size: 11px !important;
+                display: block !important;
+                margin-top: 3px !important;
+                color: #666 !important;
             }
         }
 
@@ -1215,40 +1296,164 @@
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03) !important;
         } */
 
+        /* Mobile Bottom Fixed Button Styles */
+        .mobile-bottom-fixed {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1050;
+            animation: slideUpFade 0.3s ease-out;
+            display: none;
+            padding: 0 15px 15px 15px;
+        }
+
+        .mobile-bottom-container {
+            background-color: #0d6efd;
+            border-radius: 12px;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+            padding: 15px 20px;
+        }
+
+        /* Hide mobile button on desktop */
+        @media (min-width: 1200px) {
+            .mobile-bottom-fixed {
+                display: none !important;
+            }
+        }
+
+        @keyframes slideUpFade {
+            from {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Payment Modal Styles */
+        #mobilePaymentModal .payment-icon {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        #mobilePaymentModal .list-group-item {
+            border: none;
+            border-bottom: 1px solid #f0f0f0;
+            transition: all 0.2s ease;
+        }
+
+        #mobilePaymentModal .list-group-item:hover {
+            background-color: #f8f9fa;
+            transform: translateX(5px);
+        }
+
+        #mobilePaymentModal .list-group-item:active {
+            background-color: #e9ecef;
+        }
+
+        #mobilePaymentModal .mobile-action-btn {
+            padding: 15px 10px;
+            font-size: 13px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        #mobilePaymentModal .mobile-action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
         /* Mobile/Tablet adjustments */
         @media (max-width: 991px) {
-            /* Hide bottom-fixed section on mobile/tablet */
+
+            /* Hide desktop bottom-fixed section on mobile/tablet */
             .bottom-fixed {
                 display: none !important;
             }
 
-            /* Allow full scrolling on mobile */
-            html, body {
+            /* Show mobile bottom-fixed button */
+            .mobile-bottom-fixed {
+                display: block !important;
+            }
+
+            /* CRITICAL: Override desktop restrictions - Allow full scrolling */
+            html,
+            body {
                 height: auto !important;
+                min-height: 100vh !important;
                 overflow: auto !important;
-                padding-bottom: 20px !important;
+                overflow-x: hidden !important;
+                padding-bottom: 100px !important;
+                margin: 0 !important;
             }
 
-            /* Remove fixed height on billing card for mobile */
-            .card.bg-white.p-2 {
-                height: auto !important;
-                min-height: calc(100vh - 100px) !important;
-                overflow: visible !important;
-            }
-
-            /* Fix container width */
+            /* Override container fixed height */
             .container-fluid {
+                height: auto !important;
+                min-height: 100vh !important;
                 max-width: 100vw !important;
+                overflow: visible !important;
                 overflow-x: hidden !important;
                 padding-left: 10px !important;
                 padding-right: 10px !important;
+                padding-bottom: 20px !important;
             }
 
-            /* Make billing body scrollable on mobile */
+            /* Remove ALL height restrictions on billing card */
+            .card.bg-white.p-2 {
+                height: auto !important;
+                min-height: auto !important;
+                max-height: none !important;
+                overflow: visible !important;
+                display: block !important;
+            }
+
+            /* Make billing body fully scrollable */
             .table-responsive {
                 height: auto !important;
                 max-height: none !important;
                 overflow: visible !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                display: block !important;
+            }
+
+            /* Ensure table body is fully visible */
+            #billing-body {
+                overflow: visible !important;
+                margin-bottom: 20px !important;
+            }
+
+            /* Ensure Total Items section is visible */
+            .row[style*="border-top: 2px solid #ddd"] {
+                overflow: visible !important;
+                margin-bottom: 15px !important;
+                display: flex !important;
+            }
+
+            /* Ensure all sections of billing card are scrollable */
+            .card.bg-white.p-2 .row {
+                overflow: visible !important;
+            }
+
+            /* Ensure all card children are visible */
+            .card.bg-white.p-2>* {
+                overflow: visible !important;
+                display: block !important;
+            }
+
+            /* Add extra padding to last section for full visibility */
+            .card.bg-white.p-2>.row:last-child {
+                margin-bottom: 60px !important;
+                padding-bottom: 40px !important;
             }
         }
 
@@ -1410,7 +1615,7 @@
             .offcanvas-header,
             .offcanvas-body {
                 padding-left: 22px !important;
-                padding-right: 22px !important;
+                padding-right: 22pxx !important;
             }
 
             .offcanvas-title {
@@ -1506,7 +1711,7 @@
                 font-size: 13px;
                 min-width: 150px !important;
             }
-            
+
             .card.bg-white.p-2 {
                 padding: 0.5rem !important;
             }
@@ -1521,7 +1726,7 @@
             }
 
             /* Only show location and hamburger on mobile */
-            .col-md-6:first-child .d-flex > *:not(label):not(#locationSelect) {
+            .col-md-6:first-child .d-flex>*:not(label):not(#locationSelect) {
                 display: none !important;
             }
         }
@@ -1622,147 +1827,193 @@
 
         /* Mobile & Tablet Billing Table Card Styles */
         @media (max-width: 991px) {
-            /* Allow page scrolling on mobile/tablet */
-            html, body {
+
+            /* CRITICAL: Override desktop fixed viewport restrictions */
+            html,
+            body {
                 overflow: auto !important;
-                padding-bottom: 200px !important; /* Space for bottom-fixed section */
-            }
-
-            /* Ensure bottom-fixed is visible and properly positioned */
-            .bottom-fixed {
-                position: fixed !important;
-                bottom: 0 !important;
-                left: 0 !important;
-                right: 0 !important;
-                width: 100% !important;
-                z-index: 9999 !important;
-                background-color: #fff !important;
-                box-shadow: 0 -3px 10px rgba(0, 0, 0, 0.15) !important;
-                padding: 8px 10px !important;
-                display: block !important;
-                visibility: visible !important;
-                opacity: 1 !important;
-            }
-
-            /* Mobile layout for bottom-fixed */
-            .bottom-fixed .row {
-                display: flex !important;
-                flex-direction: column !important;
-                gap: 8px;
-            }
-
-            .bottom-fixed .col-md-5,
-            .bottom-fixed .col-md-7 {
-                width: 100% !important;
-                max-width: 100% !important;
-                flex: 0 0 100% !important;
-                padding: 0 !important;
-            }
-
-            /* Total Payable section on mobile */
-            .bottom-fixed .col-md-5 {
-                display: flex !important;
-                flex-wrap: wrap !important;
-                gap: 8px !important;
-                align-items: center !important;
-                justify-content: space-between !important;
-            }
-
-            .bottom-fixed h4 {
-                font-size: 14px !important;
+                overflow-x: hidden !important;
+                height: auto !important;
+                min-height: 100vh !important;
+                padding-bottom: 120px !important;
                 margin: 0 !important;
             }
 
-            .bottom-fixed #total {
-                font-size: 18px !important;
-                font-weight: 700 !important;
+            /* Override container fixed height */
+            .container-fluid {
+                height: auto !important;
+                min-height: 100vh !important;
+                overflow: visible !important;
+                padding-bottom: 20px !important;
             }
 
-            .bottom-fixed #items-count {
-                font-size: 13px !important;
+            /* Hide bottom-fixed on mobile/tablet - show inline instead */
+            .bottom-fixed {
+                display: none !important;
             }
 
-            /* Buttons container on mobile */
-            .bottom-fixed .col-md-7 .d-flex {
-                display: flex !important;
-                flex-wrap: wrap !important;
-                gap: 5px !important;
-                justify-content: center !important;
-            }
-
-            .bottom-fixed .btn {
-                font-size: 11px !important;
-                padding: 6px 10px !important;
-                white-space: nowrap !important;
-                flex: 0 1 auto !important;
-            }
-
-            .bottom-fixed .btn i {
-                font-size: 10px !important;
-            }
-
-            /* Make billing card scrollable */
+            /* Make billing card fully scrollable with NO height restrictions */
             .card.bg-white.p-2 {
                 height: auto !important;
+                min-height: auto !important;
+                max-height: none !important;
                 overflow: visible !important;
-                margin-bottom: 200px !important; /* Space for bottom-fixed */
+                margin-bottom: 50px !important;
+                display: block !important;
             }
 
-            /* Total Items Section - Mobile/Tablet Responsive */
+            /* Ensure all card content is visible */
+            .card.bg-white.p-2>* {
+                overflow: visible !important;
+                display: block !important;
+            }
+
+            /* Remove any height restrictions on card body */
+            .card-body {
+                height: auto !important;
+                max-height: none !important;
+                overflow: visible !important;
+            }
+
+            /* Total Items Section - Hide on Mobile/Tablet */
             .row[style*="border-top: 2px solid #ddd"][style*="background-color: #f8f9fa"] {
-                display: flex !important;
-                flex-direction: column;
-                padding: 10px 12px !important;
-                gap: 8px;
+                display: none !important;
+                border-top: 2px solid #ddd !important;
             }
 
             .row[style*="border-top: 2px solid #ddd"][style*="background-color: #f8f9fa"] .d-flex {
                 flex-direction: column !important;
                 align-items: flex-start !important;
-                gap: 8px !important;
+                gap: 10px !important;
+            }
+
+            .row[style*="border-top: 2px solid #ddd"][style*="background-color: #f8f9fa"] h5,
+            .row[style*="border-top: 2px solid #ddd"][style*="background-color: #f8f9fa"] h6 {
+                font-size: 16px !important;
+                font-weight: 700 !important;
+                margin: 0 !important;
             }
 
             /* Total/Discount/Final Total Section - Mobile/Tablet Stacked Layout */
             .row.align-items-end[style*="border-top: 2px solid #ddd"] {
                 display: flex !important;
                 flex-direction: column !important;
-                padding: 12px !important;
-                gap: 12px;
+                padding: 15px 12px !important;
+                gap: 15px;
+                overflow: visible !important;
+                margin-bottom: 20px !important;
+                background-color: #ffffff !important;
+                border-top: 2px solid #ddd !important;
             }
 
-            .row.align-items-end[style*="border-top: 2px solid #ddd"] > div[class*="col-md"] {
+            .row.align-items-end[style*="border-top: 2px solid #ddd"]>div[class*="col-md"] {
                 width: 100% !important;
                 max-width: 100% !important;
                 flex: 0 0 100% !important;
+                overflow: visible !important;
+            }
+
+            .row.align-items-end[style*="border-top: 2px solid #ddd"] .form-group {
+                margin-bottom: 12px !important;
+                overflow: visible !important;
             }
 
             .row.align-items-end[style*="border-top: 2px solid #ddd"] .form-group label {
-                font-size: 12px !important;
+                font-size: 13px !important;
                 font-weight: 700 !important;
-                margin-bottom: 4px !important;
+                margin-bottom: 6px !important;
+                display: block !important;
             }
 
             .row.align-items-end[style*="border-top: 2px solid #ddd"] .form-control,
             .row.align-items-end[style*="border-top: 2px solid #ddd"] .input-group,
             .row.align-items-end[style*="border-top: 2px solid #ddd"] .btn-group {
-                height: 42px !important;
+                height: 45px !important;
                 font-size: 15px !important;
+                width: 100% !important;
+            }
+
+            .row.align-items-end[style*="border-top: 2px solid #ddd"] .btn-group {
+                display: flex !important;
+                border-radius: 6px !important;
+                overflow: hidden !important;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
             }
 
             .row.align-items-end[style*="border-top: 2px solid #ddd"] .btn-group .btn {
-                height: 42px !important;
-                font-size: 13px !important;
-                padding: 8px 12px !important;
+                height: 45px !important;
+                font-size: 14px !important;
+                padding: 0 15px !important;
+                flex: 1 !important;
+                border: none !important;
+                border-radius: 0 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                font-weight: 600 !important;
+            }
+
+            .row.align-items-end[style*="border-top: 2px solid #ddd"] .btn-group .btn.active {
+                background-color: #0d6efd !important;
+                color: white !important;
+            }
+
+            .row.align-items-end[style*="border-top: 2px solid #ddd"] .btn-group .btn:not(.active) {
+                background-color: white !important;
+                color: #0d6efd !important;
+                border: 1px solid #0d6efd !important;
+            }
+
+            .row.align-items-end[style*="border-top: 2px solid #ddd"] .input-group {
+                display: flex !important;
+                align-items: stretch !important;
+                border-radius: 6px !important;
+                overflow: hidden !important;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08) !important;
             }
 
             .row.align-items-end[style*="border-top: 2px solid #ddd"] .input-group input {
-                height: 42px !important;
-                font-size: 15px !important;
+                height: 45px !important;
+                font-size: 16px !important;
+                border-radius: 0 !important;
+                border: 1px solid #ced4da !important;
+                border-right: none !important;
+                padding: 8px 12px !important;
+                font-weight: 600 !important;
             }
 
             .row.align-items-end[style*="border-top: 2px solid #ddd"] .input-group-text {
-                height: 42px !important;
-                font-size: 15px !important;
+                height: 45px !important;
+                font-size: 16px !important;
+                font-weight: 700 !important;
+                background-color: #e9ecef !important;
+                border: 1px solid #ced4da !important;
+                border-radius: 0 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                padding: 0 12px !important;
+                min-width: 50px !important;
+            }
+
+            /* CRITICAL: Ensure table container is fully scrollable without height restrictions */
+            .table-responsive {
+                height: auto !important;
+                min-height: auto !important;
+                max-height: none !important;
+                overflow: visible !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                padding: 8px;
+                background: #f5f5f5;
+                display: block !important;
+            }
+
+            /* Table should be fully visible */
+            .table-responsive table {
+                height: auto !important;
+                max-height: none !important;
+                overflow: visible !important;
             }
 
             /* Hide table headers on mobile/tablet */
@@ -1936,7 +2187,7 @@
             }
 
             /* Hide the Pc(s) text below quantity */
-            #billing-body tr td:nth-child(3) > div:last-child {
+            #billing-body tr td:nth-child(3)>div:last-child {
                 display: none !important;
             }
 
@@ -2024,20 +2275,22 @@
                 display: none !important;
             }
 
-            /* Adjust table container */
-            .table-responsive {
-                height: auto !important;
-                max-height: calc(100vh - 350px) !important;
-                padding: 8px;
-                background: #f5f5f5;
-            }
-
+            /* Billing body spacing */
             #billing-body {
                 padding: 0;
+                margin-bottom: 20px !important;
+                overflow: visible !important;
+            }
+
+            /* Ensure sections after billing body are visible */
+            #billing-body+* {
+                display: block !important;
+                overflow: visible !important;
             }
 
             /* Tablet specific adjustments (768px-991px) */
             @media (min-width: 768px) {
+
                 /* Larger, more spacious cards for tablets */
                 #billing-body tr {
                     margin-bottom: 20px;
@@ -2198,7 +2451,78 @@
         /* ============================================
            OPTIMIZED BILLING TABLE STYLES FOR DESKTOP
            ============================================ */
-        
+
+        /* Desktop: Perfect alignment for Global Discount section */
+        @media (min-width: 992px) {
+
+            /* Global Discount Type - Button Group */
+            .row.align-items-end[style*="border-top: 2px solid #ddd"] .btn-group {
+                display: flex !important;
+                height: 36px !important;
+                border-radius: 6px !important;
+                overflow: hidden !important;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+            }
+
+            .row.align-items-end[style*="border-top: 2px solid #ddd"] .btn-group .btn {
+                height: 36px !important;
+                font-size: 14px !important;
+                padding: 0 !important;
+                font-weight: 600 !important;
+                border: none !important;
+                border-radius: 0 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                transition: all 0.3s ease !important;
+            }
+
+            /* Discount Input Group - Perfect Alignment */
+            .row.align-items-end[style*="border-top: 2px solid #ddd"] .input-group {
+                display: flex !important;
+                align-items: stretch !important;
+                height: 36px !important;
+                border-radius: 6px !important;
+                overflow: hidden !important;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08) !important;
+            }
+
+            .row.align-items-end[style*="border-top: 2px solid #ddd"] .input-group input {
+                height: 36px !important;
+                font-size: 15px !important;
+                font-weight: 600 !important;
+                border-radius: 0 !important;
+                border: 1px solid #ced4da !important;
+                border-right: none !important;
+                padding: 6px 12px !important;
+                line-height: 24px !important;
+            }
+
+            .row.align-items-end[style*="border-top: 2px solid #ddd"] .input-group-text {
+                height: 36px !important;
+                font-size: 14px !important;
+                font-weight: 600 !important;
+                background-color: #e9ecef !important;
+                border: 1px solid #ced4da !important;
+                border-radius: 0 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                padding: 0 12px !important;
+                line-height: 24px !important;
+                min-width: 45px !important;
+            }
+
+            /* Form controls consistency */
+            .row.align-items-end[style*="border-top: 2px solid #ddd"] .form-control {
+                height: 36px !important;
+                font-size: 15px !important;
+                font-weight: 600 !important;
+                line-height: 24px !important;
+                padding: 6px 12px !important;
+            }
+        }
+
         /* Desktop: Reduce table cell padding for compact display */
         @media (min-width: 992px) {
             #billing-body tr td {
@@ -2302,7 +2626,7 @@
             }
 
             /* Unit name below quantity - larger */
-            #billing-body tr td:nth-child(3) > div:last-child {
+            #billing-body tr td:nth-child(3)>div:last-child {
                 font-size: 12px;
                 margin-top: 2px;
             }
@@ -2379,7 +2703,7 @@
             /* Compact card sections */
             .card.bg-light,
             .card.bg-white {
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             }
 
             /* Beautiful Button Group for Discount Type */
@@ -2394,7 +2718,7 @@
 
             .btn-group .btn:hover {
                 transform: translateY(-1px);
-                box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
             }
 
             .btn-group .btn.active {
@@ -2464,7 +2788,8 @@
                             <select id="locationSelect" class="form-select" style="max-width: calc(100% - 50px);">
                                 <option value="" selected disabled>Select Location</option>
                             </select>
-                            <button class="btn btn-primary ms-2" type="button" data-bs-toggle="modal" data-bs-target="#mobileMenuModal">
+                            <button class="btn btn-primary ms-2" type="button" data-bs-toggle="modal"
+                                data-bs-target="#mobileMenuModal">
                                 <i class="fas fa-bars"></i>
                             </button>
                         </div>
@@ -2475,7 +2800,8 @@
                         <!-- Location and Date Section -->
                         <div class="col-md-6 d-flex align-items-center" style="padding: 0 6px;">
                             <div class="d-flex flex-row align-items-center" style="gap: 6px;">
-                                <select id="locationSelectDesktop" class="form-select location-select-sync" style="min-width: 180px; max-width: 220px;">
+                                <select id="locationSelectDesktop" class="form-select location-select-sync"
+                                    style="min-width: 180px; max-width: 220px;">
                                     <option value="" selected disabled>Select Location</option>
                                 </select>
 
@@ -2492,23 +2818,27 @@
                                     <div id="salesAccessBadge" class="badge p-2">
                                         <span id="salesAccessText">-</span>
                                     </div>
-                                    <button class="btn btn-sm btn-outline-secondary" id="changeSalesRepSelection" title="Change Vehicle/Route">
+                                    <button class="btn btn-sm btn-outline-secondary" id="changeSalesRepSelection"
+                                        title="Change Vehicle/Route">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                 </div>
 
                                 <!-- Date and Time (Desktop Only) -->
                                 <div class="d-flex align-items-center" style="gap: 6px;">
-                                    <button class="btn btn-primary text-white border-1 px-3 py-1" style="font-size: 0.95rem;" id="currentDateButton">
+                                    <button class="btn btn-primary text-white border-1 px-3 py-1"
+                                        style="font-size: 0.95rem;" id="currentDateButton">
                                         {{ \Carbon\Carbon::now('Asia/Colombo')->format('Y-m-d') }}
                                     </button>
-                                    <span id="currentTimeText" style="color: #1e90ff; font-weight: 600; font-size: 1rem;">
+                                    <span id="currentTimeText"
+                                        style="color: #1e90ff; font-weight: 600; font-size: 1rem;">
                                         {{ \Carbon\Carbon::now('Asia/Colombo')->format('H:i:s') }}
                                     </span>
                                 </div>
 
                                 <!-- Keyboard Shortcuts Button (Desktop Only) -->
-                                <button class="btn btn-info text-white border-1 px-2 py-1 d-flex align-items-center justify-content-center"
+                                <button
+                                    class="btn btn-info text-white border-1 px-2 py-1 d-flex align-items-center justify-content-center"
                                     id="shortcutButton" style="width: 38px; height: 38px;" data-bs-toggle="popover"
                                     data-bs-trigger="hover" data-bs-html="true"
                                     data-bs-content="
@@ -2538,75 +2868,108 @@
                         <!-- Action Buttons (Desktop) -->
                         <div class="col-md-6" style="padding: 0 6px;">
                             <div class="d-flex justify-content-end align-items-center" style="gap: 5px;">
-                                <button class="btn btn-secondary btn-sm" onclick="window.location.href='{{ route('dashboard') }}'" data-bs-toggle="tooltip" title="Go home">
+                                <button class="btn btn-secondary btn-sm"
+                                    onclick="window.location.href='{{ route('dashboard') }}'"
+                                    data-bs-toggle="tooltip" title="Go home">
                                     <i class="fas fa-home"></i>
                                 </button>
 
-                                <button class="btn btn-light btn-sm" onclick="handleGoBack()" data-bs-toggle="tooltip" title="Go Back">
+                                <button class="btn btn-light btn-sm" onclick="handleGoBack()"
+                                    data-bs-toggle="tooltip" title="Go Back">
                                     <i class="fas fa-backward"></i>
                                 </button>
 
                                 <!-- Calculator Button with Dropdown -->
                                 <div class="dropdown">
-                                    <button class="btn btn-warning btn-sm dropdown-toggle" id="calculatorButton" data-bs-toggle="dropdown" aria-expanded="false" data-bs-toggle="tooltip" title="Calculator">
+                                    <button class="btn btn-warning btn-sm dropdown-toggle" id="calculatorButton"
+                                        data-bs-toggle="dropdown" aria-expanded="false" data-bs-toggle="tooltip"
+                                        title="Calculator">
                                         <i class="fas fa-calculator"></i>
                                     </button>
-                                    <div class="dropdown-menu p-2 shadow" id="calculatorDropdown" style="width: 220px;">
+                                    <div class="dropdown-menu p-2 shadow" id="calculatorDropdown"
+                                        style="width: 220px;">
                                         <div class="text-center">
-                                            <input type="text" id="calcDisplay" class="form-control text-end mb-2" onkeydown="handleKeyboardInput(event)" autofocus>
+                                            <input type="text" id="calcDisplay" class="form-control text-end mb-2"
+                                                onkeydown="handleKeyboardInput(event)" autofocus>
                                         </div>
                                         <div class="d-grid gap-1">
                                             <div class="row g-1">
-                                                <button class="btn btn-light btn-sm col" onclick="calcInput('7')">7</button>
-                                                <button class="btn btn-light btn-sm col" onclick="calcInput('8')">8</button>
-                                                <button class="btn btn-light btn-sm col" onclick="calcInput('9')">9</button>
-                                                <button class="btn btn-warning btn-sm col" onclick="calcInput('/')">/</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('7')">7</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('8')">8</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('9')">9</button>
+                                                <button class="btn btn-warning btn-sm col"
+                                                    onclick="calcInput('/')">/</button>
                                             </div>
                                             <div class="row g-1">
-                                                <button class="btn btn-light btn-sm col" onclick="calcInput('4')">4</button>
-                                                <button class="btn btn-light btn-sm col" onclick="calcInput('5')">5</button>
-                                                <button class="btn btn-light btn-sm col" onclick="calcInput('6')">6</button>
-                                                <button class="btn btn-warning btn-sm col" onclick="calcInput('*')">×</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('4')">4</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('5')">5</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('6')">6</button>
+                                                <button class="btn btn-warning btn-sm col"
+                                                    onclick="calcInput('*')">×</button>
                                             </div>
                                             <div class="row g-1">
-                                                <button class="btn btn-light btn-sm col" onclick="calcInput('1')">1</button>
-                                                <button class="btn btn-light btn-sm col" onclick="calcInput('2')">2</button>
-                                                <button class="btn btn-light btn-sm col" onclick="calcInput('3')">3</button>
-                                                <button class="btn btn-warning btn-sm col" onclick="calcInput('-')">-</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('1')">1</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('2')">2</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('3')">3</button>
+                                                <button class="btn btn-warning btn-sm col"
+                                                    onclick="calcInput('-')">-</button>
                                             </div>
                                             <div class="row g-1">
-                                                <button class="btn btn-light btn-sm col" onclick="calcInput('0')">0</button>
-                                                <button class="btn btn-light btn-sm col" onclick="calcInput('.')">.</button>
-                                                <button class="btn btn-danger btn-sm col" onclick="clearCalc()">C</button>
-                                                <button class="btn btn-warning btn-sm col" onclick="calcInput('+')">+</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('0')">0</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('.')">.</button>
+                                                <button class="btn btn-danger btn-sm col"
+                                                    onclick="clearCalc()">C</button>
+                                                <button class="btn btn-warning btn-sm col"
+                                                    onclick="calcInput('+')">+</button>
                                             </div>
                                             <div class="row g-1">
-                                                <button class="btn btn-success btn-sm col" onclick="calculateResult()">=</button>
+                                                <button class="btn btn-success btn-sm col"
+                                                    onclick="calculateResult()">=</button>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div class="dropdown">
-                                    <button class="btn btn-danger btn-sm dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false" data-bs-toggle="tooltip" title="Enter Invoice No">
+                                    <button class="btn btn-danger btn-sm dropdown-toggle" type="button"
+                                        id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false"
+                                        data-bs-toggle="tooltip" title="Enter Invoice No">
                                         <i class="fas fa-redo-alt"></i>
                                     </button>
                                     <div class="dropdown-menu p-3" style="min-width: 250px;">
                                         <label for="invoiceNo" class="form-label">Enter Invoice No</label>
-                                        <input type="text" id="invoiceNo" class="form-control form-control-sm" placeholder="Invoice No">
-                                        <button id="invoiceSubmitBtn" class="btn btn-primary btn-sm mt-2 w-100">Submit</button>
+                                        <input type="text" id="invoiceNo" class="form-control form-control-sm"
+                                            placeholder="Invoice No">
+                                        <button id="invoiceSubmitBtn"
+                                            class="btn btn-primary btn-sm mt-2 w-100">Submit</button>
                                     </div>
                                 </div>
 
-                                <button class="btn btn-outline-danger btn-sm" id="pauseCircleButton" data-bs-toggle="modal" data-bs-target="#suspendSalesModal" data-bs-toggle="tooltip" title="Suspend Sales">
+                                <button class="btn btn-outline-danger btn-sm" id="pauseCircleButton"
+                                    data-bs-toggle="modal" data-bs-target="#suspendSalesModal"
+                                    data-bs-toggle="tooltip" title="Suspend Sales">
                                     <i class="fas fa-pause-circle"></i>
                                 </button>
 
-                                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#recentTransactionsModal" data-bs-toggle="tooltip" title="Recent Transactions">
+                                <button class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                                    data-bs-target="#recentTransactionsModal" data-bs-toggle="tooltip"
+                                    title="Recent Transactions">
                                     <i class="fas fa-clock"></i>
                                 </button>
 
-                                <button class="btn btn-gradient btn-sm" id="toggleProductList" data-bs-toggle="tooltip" title="Hide or Show Product list">
+                                <button class="btn btn-gradient btn-sm" id="toggleProductList"
+                                    data-bs-toggle="tooltip" title="Hide or Show Product list">
                                     <i class="fas fa-bars"></i>
                                 </button>
                             </div>
@@ -2621,13 +2984,13 @@
                 // Sync location selects between mobile and desktop
                 const mobileSelect = document.getElementById('locationSelect');
                 const desktopSelect = document.getElementById('locationSelectDesktop');
-                
+
                 if (mobileSelect && desktopSelect) {
                     mobileSelect.addEventListener('change', function() {
                         desktopSelect.value = this.value;
                         $(desktopSelect).trigger('change');
                     });
-                    
+
                     desktopSelect.addEventListener('change', function() {
                         mobileSelect.value = this.value;
                         $(mobileSelect).trigger('change');
@@ -2636,8 +2999,10 @@
 
                 function updateDateTime() {
                     const now = new Date();
-                    const dateStr = now.getFullYear() + '-' + ('0' + (now.getMonth() + 1)).slice(-2) + '-' + ('0' + now.getDate()).slice(-2);
-                    const timeStr = ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2) + ':' + ('0' + now.getSeconds()).slice(-2);
+                    const dateStr = now.getFullYear() + '-' + ('0' + (now.getMonth() + 1)).slice(-2) + '-' + ('0' + now
+                        .getDate()).slice(-2);
+                    const timeStr = ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2) + ':' +
+                        ('0' + now.getSeconds()).slice(-2);
                     const dateBtn = document.getElementById('currentDateButton');
                     const timeText = document.getElementById('currentTimeText');
                     if (dateBtn) dateBtn.innerText = dateStr;
@@ -2662,7 +3027,8 @@
                         <h5 class="modal-title fw-bold text-dark" id="mobileMenuModalLabel">
                             <i class="fas fa-bars me-2"></i> Menu
                         </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
                     </div>
                     <div class="modal-body p-0 bg-white">
                         <!-- Sales Rep Vehicle/Route Display (If applicable) -->
@@ -2680,7 +3046,8 @@
                                     <strong class="text-dark"><i class="fas fa-user-tag me-2"></i>Access:</strong>
                                     <span id="salesAccessBadgeMenu" class="badge">-</span>
                                 </div>
-                                <button class="btn btn-sm btn-outline-primary w-100 mt-2" id="changeSalesRepSelectionMenu">
+                                <button class="btn btn-sm btn-outline-primary w-100 mt-2"
+                                    id="changeSalesRepSelectionMenu">
                                     <i class="fas fa-edit me-2"></i>Change Vehicle/Route
                                 </button>
                             </div>
@@ -2689,7 +3056,8 @@
                         <div class="row g-3 p-3">
                             <!-- Row 1 -->
                             <div class="col-4">
-                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#recentTransactionsModal">
+                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal"
+                                    data-bs-toggle="modal" data-bs-target="#recentTransactionsModal">
                                     <div class="menu-icon bg-primary">
                                         <i class="fas fa-clock"></i>
                                     </div>
@@ -2697,7 +3065,8 @@
                                 </button>
                             </div>
                             <div class="col-4">
-                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal" onclick="window.location.href='{{ url('sale-return') }}'">
+                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal"
+                                    onclick="window.location.href='{{ url('sale-return') }}'">
                                     <div class="menu-icon bg-success">
                                         <i class="fas fa-undo"></i>
                                     </div>
@@ -2705,7 +3074,8 @@
                                 </button>
                             </div>
                             <div class="col-4">
-                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#suspendSalesModal">
+                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal"
+                                    data-bs-toggle="modal" data-bs-target="#suspendSalesModal">
                                     <div class="menu-icon bg-secondary">
                                         <i class="fas fa-pause-circle"></i>
                                     </div>
@@ -2715,7 +3085,8 @@
 
                             <!-- Row 2 -->
                             <div class="col-4">
-                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal" onclick="window.location.href='{{ url('expense-add') }}'">
+                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal"
+                                    onclick="window.location.href='{{ url('expense-add') }}'">
                                     <div class="menu-icon bg-success">
                                         <i class="fas fa-plus-circle"></i>
                                     </div>
@@ -2723,7 +3094,8 @@
                                 </button>
                             </div>
                             <div class="col-4">
-                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal" onclick="handleGoBack()">
+                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal"
+                                    onclick="handleGoBack()">
                                     <div class="menu-icon bg-secondary">
                                         <i class="fas fa-backward"></i>
                                     </div>
@@ -2731,7 +3103,8 @@
                                 </button>
                             </div>
                             <div class="col-4">
-                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal" onclick="window.location.href='{{ route('dashboard') }}'">
+                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal"
+                                    onclick="window.location.href='{{ route('dashboard') }}'">
                                     <div class="menu-icon bg-info">
                                         <i class="fas fa-home"></i>
                                     </div>
@@ -2741,7 +3114,8 @@
 
                             <!-- Row 3 -->
                             <div class="col-4">
-                                <button type="button" class="menu-card w-100" data-bs-toggle="collapse" data-bs-target="#invoiceCollapse">
+                                <button type="button" class="menu-card w-100" data-bs-toggle="collapse"
+                                    data-bs-target="#invoiceCollapse">
                                     <div class="menu-icon bg-danger">
                                         <i class="fas fa-redo-alt"></i>
                                     </div>
@@ -2749,7 +3123,9 @@
                                 </button>
                             </div>
                             <div class="col-4">
-                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal" id="toggleProductListMobile" onclick="document.getElementById('toggleProductList').click()">
+                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal"
+                                    id="toggleProductListMobile"
+                                    onclick="document.getElementById('toggleProductList').click()">
                                     <div class="menu-icon bg-primary">
                                         <i class="fas fa-box-open"></i>
                                     </div>
@@ -2757,7 +3133,8 @@
                                 </button>
                             </div>
                             <div class="col-4">
-                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal" onclick="toggleFullScreen()">
+                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal"
+                                    onclick="toggleFullScreen()">
                                     <div class="menu-icon bg-warning">
                                         <i class="fas fa-expand"></i>
                                     </div>
@@ -2771,8 +3148,10 @@
                             <div class="px-3 pb-3">
                                 <div class="card border-0 bg-light" style="border-radius: 15px;">
                                     <div class="card-body">
-                                        <label for="invoiceNoMobile" class="form-label fw-bold">Enter Invoice Number</label>
-                                        <input type="text" id="invoiceNoMobile" class="form-control mb-2" placeholder="Invoice No">
+                                        <label for="invoiceNoMobile" class="form-label fw-bold">Enter Invoice
+                                            Number</label>
+                                        <input type="text" id="invoiceNoMobile" class="form-control mb-2"
+                                            placeholder="Invoice No">
                                         <button class="btn btn-primary w-100" onclick="submitInvoiceNo()">
                                             <i class="fas fa-check me-2"></i>Submit
                                         </button>
@@ -2797,7 +3176,8 @@
             <div class="container-fluid p-1">
                 <div class="row">
                     <div class="col-md-12" id="mainContent">
-                        <div class="card bg-white p-2" style="height: calc(100vh - 215px); overflow: hidden; display: flex; flex-direction: column;">
+                        <div class="card bg-white p-2"
+                            style="height: calc(100vh - 215px); overflow: hidden; display: flex; flex-direction: column;">
                             <div class="row">
                                 <div class="col-12">
                                     <p id="sale-invoice-no" class="text-info fw-bold mb-1"></p>
@@ -2832,7 +3212,8 @@
                                             </div>
                                             <div class="flex-fill p-2 text-center">
                                                 <small class="text-muted d-block">Available</small>
-                                                <span id="available-credit-amount" class="fw-bold text-success d-block">
+                                                <span id="available-credit-amount"
+                                                    class="fw-bold text-success d-block">
                                                     Rs. 0.00
                                                 </span>
                                             </div>
@@ -2841,13 +3222,15 @@
                                 </div>
                                 <div class="col-md-7 ps-2">
                                     <input type="text" class="form-control" id="productSearchInput"
-                                        placeholder="Enter Product name / SKU / Scan bar code" style="height: 38px; font-size: 14px;">
+                                        placeholder="Enter Product name / SKU / Scan bar code"
+                                        style="height: 38px; font-size: 14px;">
                                 </div>
                             </div>
 
                             <!-- Spacer for better separation -->
                             <div class="row mt-1" style="flex: 1; overflow: hidden;">
-                                <div class="col-md-12 mt-1" style="height: 100%; display: flex; flex-direction: column;">
+                                <div class="col-md-12 mt-1"
+                                    style="height: 100%; display: flex; flex-direction: column;">
                                     <div class="table-responsive" style="flex: 1; overflow-y: auto;">
                                         <table class="table table-bordered">
                                             <thead class="thead-light">
@@ -2871,7 +3254,8 @@
                             </div>
 
                             <!-- Item Counter Section - Fixed at bottom of billing card -->
-                            <div class="row" style="margin: 0; border-top: 2px solid #ddd; background-color: #f8f9fa;">
+                            <div class="row"
+                                style="margin: 0; border-top: 2px solid #ddd; background-color: #f8f9fa;">
                                 <div class="col-md-12" style="padding: 4px 8px;">
                                     <div class="d-flex align-items-center justify-content-between">
                                         <div class="d-flex align-items-center">
@@ -2888,46 +3272,66 @@
                             </div>
 
                             <!-- Total, Discount, Final Total Section - Fixed at bottom -->
-                            <div class="row align-items-end" style="margin: 0; border-top: 2px solid #ddd; background-color: #fff; padding: 10px;">
+                            <div class="row align-items-end"
+                                style="margin: 0; border-top: 2px solid #ddd; background-color: #fff; padding: 10px;">
                                 <div class="col-md-2">
                                     <div class="form-group mb-0">
-                                        <label style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">Total</label>
-                                        <p id="total-amount" class="form-control form-control-sm mb-0" style="height: 36px; line-height: 24px; font-size: 15px; font-weight: 600;">0.00</p>
+                                        <label
+                                            style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">Total</label>
+                                        <p id="total-amount" class="form-control form-control-sm mb-0"
+                                            style="height: 36px; line-height: 24px; font-size: 15px; font-weight: 600;">
+                                            0.00</p>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <div class="form-group mb-0">
-                                        <label style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">Global Discount Type</label>
-                                        <div class="btn-group w-100" role="group" aria-label="Discount Type" style="height: 36px; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                        <label
+                                            style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">Global
+                                            Discount Type</label>
+                                        <div class="btn-group w-100" role="group" aria-label="Discount Type"
+                                            style="height: 36px; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                                             <button type="button" class="btn btn-primary active"
-                                                id="fixed-discount-btn" style="font-size: 14px; padding: 0; font-weight: 600; height: 36px; border: none; border-radius: 0; transition: all 0.3s ease;">Fixed</button>
+                                                id="fixed-discount-btn"
+                                                style="font-size: 14px; padding: 0; font-weight: 600; height: 36px; border: none; border-radius: 0; transition: all 0.3s ease;">Fixed</button>
                                             <button type="button" class="btn btn-outline-primary"
-                                                id="percentage-discount-btn" style="font-size: 14px; padding: 0; font-weight: 600; height: 36px; border: none; border-radius: 0; background: white; transition: all 0.3s ease;">Percentage</button>
+                                                id="percentage-discount-btn"
+                                                style="font-size: 14px; padding: 0; font-weight: 600; height: 36px; border: none; border-radius: 0; background: white; transition: all 0.3s ease;">Percentage</button>
                                         </div>
-                                        <input type="hidden" id="discount-type" name="discount_type" value="fixed">
+                                        <input type="hidden" id="discount-type" name="discount_type"
+                                            value="fixed">
                                     </div>
                                 </div>
                                 <div class="col-md-2">
                                     <div class="form-group mb-0">
-                                        <label style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">Discount</label>
+                                        <label
+                                            style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">Discount</label>
                                         <div class="input-group input-group-sm" style="height: 36px;">
                                             <input type="text" id="global-discount" name="discount"
-                                                class="form-control form-control-sm" placeholder="0.00" style="height: 36px; font-size: 15px; font-weight: 600;">
-                                            <span class="input-group-text" id="discount-icon" style="height: 36px; font-size: 14px; font-weight: 600;">Rs</span>
+                                                class="form-control form-control-sm" placeholder="0.00"
+                                                style="height: 36px; font-size: 15px; font-weight: 600;">
+                                            <span class="input-group-text" id="discount-icon"
+                                                style="height: 36px; font-size: 14px; font-weight: 600;">Rs</span>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="col-md-2">
                                     <div class="form-group mb-0">
-                                        <label style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">Final Total</label>
-                                        <p id="final-total-amount" class="form-control form-control-sm mb-0" style="height: 36px; line-height: 24px; font-size: 15px; font-weight: 600;">0.00</p>
+                                        <label
+                                            style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">Final
+                                            Total</label>
+                                        <p id="final-total-amount" class="form-control form-control-sm mb-0"
+                                            style="height: 36px; line-height: 24px; font-size: 15px; font-weight: 600;">
+                                            0.00</p>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <div class="form-group mb-0">
-                                        <label style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">Amount Given</label>
+                                        <label
+                                            style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">Amount
+                                            Given</label>
                                         <input type="text" id="amount-given" class="form-control form-control-sm"
-                                            placeholder="0.00" oninput="formatAmount(this)" style="height: 36px; font-size: 15px; font-weight: 600;">
+                                            placeholder="0.00" oninput="formatAmount(this)"
+                                            style="height: 36px; font-size: 15px; font-weight: 600;">
                                     </div>
                                 </div>
                             </div>
@@ -2955,7 +3359,8 @@
                                 </div>
                             </div>
 
-                            <div class="row g-1 overflow-auto" id="posProduct" style="height: calc(100vh - 315px); overflow-y: auto;">
+                            <div class="row g-1 overflow-auto" id="posProduct"
+                                style="height: calc(100vh - 315px); overflow-y: auto;">
 
                             </div>
                         </div>
@@ -3027,6 +3432,261 @@
             </style>
 
         </div>
+
+        <!-- Mobile/Tablet Bottom Fixed Button (Shows Final Total & Opens Payment Modal) -->
+        <div class="mobile-bottom-fixed d-xl-none">
+            <div class="mobile-bottom-container">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <small class="text-white d-block mb-1" style="font-size: 11px; opacity: 0.9;">Final
+                            Total</small>
+                        <h5 class="text-white mb-0 fw-bold" id="mobile-final-total">Rs 0.00</h5>
+                        <small class="text-white" style="font-size: 10px; opacity: 0.8;">
+                            <span id="mobile-items-count">0</span> item(s)
+                        </small>
+                    </div>
+                    <button class="btn btn-light fw-bold px-3 py-2" data-bs-toggle="modal"
+                        data-bs-target="#mobilePaymentModal">
+                        <i class="fas fa-credit-card me-1"></i>
+                        Pay Now
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Payment Methods Modal -->
+        <div class="modal fade" id="mobilePaymentModal" tabindex="-1" aria-labelledby="mobilePaymentModalLabel">
+            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <div class="w-100">
+                            <h5 class="modal-title mb-1" id="mobilePaymentModalLabel">
+                                <i class="fas fa-wallet me-2"></i>Select Payment Method
+                            </h5>
+                            <div class="d-flex align-items-center justify-content-between">
+                                <small>Final Total:</small>
+                                <h6 class="mb-0 fw-bold" id="modal-final-total">Rs 0.00</h6>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-0">
+                        <div class="list-group list-group-flush">
+                            @can('cash payment')
+                                <button type="button"
+                                    class="list-group-item list-group-item-action d-flex align-items-center p-3 mobile-payment-btn"
+                                    data-payment="cash" data-bs-dismiss="modal">
+                                    <div class="payment-icon bg-success text-white rounded-circle me-3">
+                                        <i class="fas fa-money-bill-wave"></i>
+                                    </div>
+                                    <div class="flex-fill">
+                                        <h6 class="mb-0 fw-bold">Cash</h6>
+                                        <small class="text-muted">Pay with cash</small>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-muted"></i>
+                                </button>
+                            @endcan
+
+                            @can('card payment')
+                                <button type="button"
+                                    class="list-group-item list-group-item-action d-flex align-items-center p-3 mobile-payment-btn"
+                                    data-payment="card" data-bs-dismiss="modal">
+                                    <div class="payment-icon bg-primary text-white rounded-circle me-3">
+                                        <i class="fas fa-credit-card"></i>
+                                    </div>
+                                    <div class="flex-fill">
+                                        <h6 class="mb-0 fw-bold">Card</h6>
+                                        <small class="text-muted">Credit/Debit card</small>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-muted"></i>
+                                </button>
+                            @endcan
+
+                            @can('cheque payment')
+                                <button type="button"
+                                    class="list-group-item list-group-item-action d-flex align-items-center p-3 mobile-payment-btn"
+                                    data-payment="cheque" data-bs-dismiss="modal">
+                                    <div class="payment-icon bg-warning text-white rounded-circle me-3">
+                                        <i class="fas fa-money-check"></i>
+                                    </div>
+                                    <div class="flex-fill">
+                                        <h6 class="mb-0 fw-bold">Cheque</h6>
+                                        <small class="text-muted">Pay by cheque</small>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-muted"></i>
+                                </button>
+                            @endcan
+
+                            @can('credit sale')
+                                <button type="button"
+                                    class="list-group-item list-group-item-action d-flex align-items-center p-3 mobile-payment-btn"
+                                    data-payment="credit" data-bs-dismiss="modal">
+                                    <div class="payment-icon bg-info text-white rounded-circle me-3">
+                                        <i class="fas fa-user-clock"></i>
+                                    </div>
+                                    <div class="flex-fill">
+                                        <h6 class="mb-0 fw-bold">Credit Sale</h6>
+                                        <small class="text-muted">Pay later</small>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-muted"></i>
+                                </button>
+                            @endcan
+
+                            @can('multiple payment methods')
+                                <button type="button"
+                                    class="list-group-item list-group-item-action d-flex align-items-center p-3 mobile-payment-btn"
+                                    data-payment="multiple" data-bs-dismiss="modal" data-bs-toggle="modal"
+                                    data-bs-target="#paymentModal">
+                                    <div class="payment-icon bg-dark text-white rounded-circle me-3">
+                                        <i class="fas fa-list"></i>
+                                    </div>
+                                    <div class="flex-fill">
+                                        <h6 class="mb-0 fw-bold">Multiple Payment</h6>
+                                        <small class="text-muted">Split payment</small>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-muted"></i>
+                                </button>
+                            @endcan
+                        </div>
+
+                        <!-- Other Actions Section -->
+                        <div class="border-top mt-2">
+                            <div class="p-3 bg-light">
+                                <h6 class="text-muted mb-3"><i class="fas fa-ellipsis-h me-2"></i>Other Actions</h6>
+                                <div class="row g-2">
+                                    @can('save draft')
+                                        <div class="col-6">
+                                            <button type="button" class="btn btn-outline-info w-100 mobile-action-btn"
+                                                data-action="draft" data-bs-dismiss="modal">
+                                                <i class="fas fa-edit d-block mb-1"></i>
+                                                <small>Draft</small>
+                                            </button>
+                                        </div>
+                                    @endcan
+
+                                    @can('save draft')
+                                        <div class="col-6">
+                                            <button type="button" class="btn btn-outline-success w-100 mobile-action-btn"
+                                                data-action="sale-order" data-bs-dismiss="modal">
+                                                <i class="fas fa-shopping-cart d-block mb-1"></i>
+                                                <small>Sale Order</small>
+                                            </button>
+                                        </div>
+                                    @endcan
+
+                                    @can('create quotation')
+                                        <div class="col-6">
+                                            <button type="button" class="btn btn-outline-warning w-100 mobile-action-btn"
+                                                data-action="quotation" data-bs-dismiss="modal">
+                                                <i class="fas fa-file-alt d-block mb-1"></i>
+                                                <small>Quotation</small>
+                                            </button>
+                                        </div>
+                                    @endcan
+
+                                    @can('create job-ticket')
+                                        <div class="col-6">
+                                            <button type="button"
+                                                class="btn btn-outline-secondary w-100 mobile-action-btn"
+                                                data-action="job-ticket" data-bs-dismiss="modal">
+                                                <i class="fas fa-ticket-alt d-block mb-1"></i>
+                                                <small>Job Ticket</small>
+                                            </button>
+                                        </div>
+                                    @endcan
+
+                                    @can('suspend sale')
+                                        <div class="col-6">
+                                            <button type="button" class="btn btn-outline-danger w-100 mobile-action-btn"
+                                                data-action="suspend" data-bs-dismiss="modal" data-bs-toggle="modal"
+                                                data-bs-target="#suspendModal">
+                                                <i class="fas fa-pause d-block mb-1"></i>
+                                                <small>Suspend</small>
+                                            </button>
+                                        </div>
+                                    @endcan
+
+                                    <div class="col-12">
+                                        <button type="button" class="btn btn-outline-danger w-100"
+                                            id="mobile-cancel-button">
+                                            <i class="fas fa-times me-2"></i>Cancel Order
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Mobile payment button handlers
+            document.addEventListener('DOMContentLoaded', function() {
+                // Update mobile totals when main totals change
+                function updateMobileTotals() {
+                    const finalTotal = document.getElementById('final-total-amount')?.textContent || '0.00';
+                    const itemsCount = document.getElementById('total-items-count')?.textContent || '0';
+
+                    document.getElementById('mobile-final-total').textContent = 'Rs ' + finalTotal;
+                    document.getElementById('modal-final-total').textContent = 'Rs ' + finalTotal;
+                    document.getElementById('mobile-items-count').textContent = itemsCount;
+                }
+
+                // Call update function periodically
+                setInterval(updateMobileTotals, 500);
+
+                // Mobile payment method buttons
+                document.querySelectorAll('.mobile-payment-btn').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const paymentType = this.getAttribute('data-payment');
+
+                        switch (paymentType) {
+                            case 'cash':
+                                document.getElementById('cashButton')?.click();
+                                break;
+                            case 'card':
+                                document.getElementById('cardButton')?.click();
+                                break;
+                            case 'cheque':
+                                document.getElementById('chequeButton')?.click();
+                                break;
+                            case 'credit':
+                                document.getElementById('creditSaleButton')?.click();
+                                break;
+                        }
+                    });
+                });
+
+                // Mobile action buttons
+                document.querySelectorAll('.mobile-action-btn').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const actionType = this.getAttribute('data-action');
+
+                        switch (actionType) {
+                            case 'draft':
+                                document.getElementById('draftButton')?.click();
+                                break;
+                            case 'sale-order':
+                                document.getElementById('saleOrderButton')?.click();
+                                break;
+                            case 'quotation':
+                                document.getElementById('quotationButton')?.click();
+                                break;
+                            case 'job-ticket':
+                                document.getElementById('jobTicketButton')?.click();
+                                break;
+                        }
+                    });
+                });
+
+                // Mobile cancel button
+                document.getElementById('mobile-cancel-button')?.addEventListener('click', function() {
+                    document.getElementById('cancelButton')?.click();
+                });
+            });
+        </script>
 
         <!-- Offcanvas Category Menu -->
         <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasCategory"
@@ -3282,13 +3942,13 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="expectedDeliveryDate" class="form-label">Expected Delivery Date</label>
-                        <input type="date" class="form-control" id="expectedDeliveryDate" 
-                               min="{{ date('Y-m-d') }}" required>
+                        <input type="date" class="form-control" id="expectedDeliveryDate"
+                            min="{{ date('Y-m-d') }}" required>
                     </div>
                     <div class="mb-3">
                         <label for="orderNotes" class="form-label">Order Notes (Optional)</label>
-                        <textarea class="form-control" id="orderNotes" rows="3" 
-                                  placeholder="Enter any special instructions or notes..."></textarea>
+                        <textarea class="form-control" id="orderNotes" rows="3"
+                            placeholder="Enter any special instructions or notes..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -3499,7 +4159,8 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" id="confirmCardPayment">Confirm Payment</button>
+                    <button type="button" class="btn btn-primary" id="confirmCardPayment">Confirm
+                        Payment</button>
                 </div>
             </div>
         </div>
@@ -3510,7 +4171,8 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="chequeModalLabel">Cheque Payment Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="row g-3">
@@ -3539,7 +4201,8 @@
                         </div>
                         <div class="col-md-6">
                             <label for="cheque_given_by" class="form-label">Cheque Given by</label>
-                            <input type="text" class="form-control" name="cheque_given_by" id="cheque_given_by">
+                            <input type="text" class="form-control" name="cheque_given_by"
+                                id="cheque_given_by">
                             <div id="chequeGivenByError" class="text-danger"></div>
                         </div>
                         <div class="col-md-6">
@@ -3561,7 +4224,8 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" id="confirmChequePayment">Confirm Payment</button>
+                    <button type="button" class="btn btn-primary" id="confirmChequePayment">Confirm
+                        Payment</button>
                 </div>
             </div>
         </div>
@@ -3573,12 +4237,14 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="imeiModalLabel">Select IMEI Numbers</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <input type="text" id="imeiSearch" class="form-control" placeholder="Search IMEI...">
+                            <input type="text" id="imeiSearch" class="form-control"
+                                placeholder="Search IMEI...">
                         </div>
                         <div class="col-md-4">
                             <select id="checkboxFilter" class="form-select">
@@ -3618,7 +4284,8 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="confirmDeleteModalLabel">Confirm Delete</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     Are you sure you want to delete this IMEI?
@@ -3859,14 +4526,16 @@
             <div class="modal-content" style="font-family: 'Roboto', sans-serif;">
                 <div class="modal-header">
                     <h5 class="modal-title" id="jobTicketModalLabel" style="font-weight: bold;">JOB-TICKET</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
                 </div>
                 <div class="modal-body px-4 py-3">
                     <form id="jobTicketForm">
                         <div class="row mb-2">
                             <div class="col-6">
                                 <label class="form-label mb-1" style="font-size: 13px;">Ticket ID</label>
-                                <input type="text" class="form-control form-control-sm" id="ticketId" readonly>
+                                <input type="text" class="form-control form-control-sm" id="ticketId"
+                                    readonly>
                             </div>
                             <div class="col-6 text-end">
                                 <label class="form-label mb-1" style="font-size: 13px;">Date</label>
@@ -3884,7 +4553,8 @@
                         <div class="row mb-2">
                             <div class="col-4">
                                 <label class="form-label mb-1" style="font-size: 13px;">Advance</label>
-                                <input type="number" class="form-control form-control-sm" id="advanceAmountInput">
+                                <input type="number" class="form-control form-control-sm"
+                                    id="advanceAmountInput">
                             </div>
                             <div class="col-4">
                                 <label class="form-label mb-1" style="font-size: 13px;">Balance</label>
@@ -3980,30 +4650,30 @@
     </style>
     <!-- Batch Price Selection Modal -->
     <div class="modal fade" id="batchPriceModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h5 class="modal-title">Select Retail Price</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Select Retail Price</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Batch No</th>
+                                <th>Retail Price</th>
+                                <th>Quantity</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="batch-price-list">
+                            <!-- Rows will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-        <div class="modal-body">
-            <table class="table table-bordered">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Batch No</th>
-                        <th>Retail Price</th>
-                        <th>Quantity</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody id="batch-price-list">
-                    <!-- Rows will be injected here -->
-                </tbody>
-            </table>
-        </div>
-    </div>
-    </div>
     </div>
 
     <!-- JavaScript for Calculator Functionality -->
@@ -4039,7 +4709,7 @@
         }
         document.addEventListener('DOMContentLoaded', function() {
             console.log('DOM Content Loaded - Invoice functionality initializing');
-            
+
             // Check if required libraries are loaded
             if (typeof $ === 'undefined') {
                 console.error('jQuery is not loaded');
@@ -4047,7 +4717,7 @@
             if (typeof toastr === 'undefined') {
                 console.error('Toastr is not loaded');
             }
-            
+
             function handleInvoiceSubmission() {
                 console.log('handleInvoiceSubmission called');
                 const invoiceInput = document.getElementById('invoiceNo');
@@ -4055,10 +4725,10 @@
                     console.error('Invoice input not found');
                     return;
                 }
-                
+
                 const invoiceNo = invoiceInput.value.trim();
                 console.log('Invoice number entered:', invoiceNo);
-                
+
                 if (invoiceNo) {
                     // Fetch sales data from the API
                     $.ajax({
@@ -4066,7 +4736,7 @@
                         method: 'GET',
                         success: function(data) {
                             console.log('Sales data received:', data);
-                            
+
                             // Check if data has the expected structure
                             if (!data.sales || !Array.isArray(data.sales)) {
                                 console.error('Invalid sales data structure:', data);
@@ -4077,20 +4747,23 @@
                                 }
                                 return;
                             }
-                            
+
                             // Check if the entered invoice number matches any sales data
-                            const sale = data.sales.find(sale => sale.invoice_no.toLowerCase() === invoiceNo.toLowerCase());
+                            const sale = data.sales.find(sale => sale.invoice_no.toLowerCase() ===
+                                invoiceNo.toLowerCase());
                             console.log('Found sale:', sale);
-                            
+
                             if (sale) {
                                 console.log('Redirecting to sale return page');
                                 // Redirect to the sale return page with the invoice number as a query parameter
-                                window.location.href = `/sale-return/add?invoiceNo=${encodeURIComponent(invoiceNo)}`;
+                                window.location.href =
+                                    `/sale-return/add?invoiceNo=${encodeURIComponent(invoiceNo)}`;
                             } else {
                                 console.log('Sale not found for invoice:', invoiceNo);
                                 // Show toastr message indicating sale not found
                                 if (typeof toastr !== 'undefined') {
-                                    toastr.error('Sale not found. Please enter a valid invoice number.');
+                                    toastr.error(
+                                        'Sale not found. Please enter a valid invoice number.');
                                 } else {
                                     alert('Sale not found. Please enter a valid invoice number.');
                                 }
@@ -4119,7 +4792,7 @@
                     if (collapse) collapse.hide();
                 }
             };
-            
+
             // Capture the Submit button click using specific ID
             const submitButton = document.getElementById('invoiceSubmitBtn');
             if (submitButton) {
@@ -4131,7 +4804,7 @@
             } else {
                 console.error('Submit button for invoice not found');
             }
-            
+
             // Capture the Enter key press in the input field
             const invoiceInput = document.getElementById('invoiceNo');
             if (invoiceInput) {
@@ -4155,9 +4828,9 @@
             }
         });
     </script>
-   
-   
-   <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.js"></script>
+
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.js"></script>
 
     <!-- Include Bootstrap JS -->
     @include('sell.pos_ajax')
