@@ -1217,97 +1217,9 @@
 
         /* Mobile/Tablet adjustments */
         @media (max-width: 991px) {
+            /* Hide bottom-fixed section on mobile/tablet */
             .bottom-fixed {
-                position: static !important;
-                width: 100% !important;
-                max-width: 100% !important;
-                padding: 15px 10px !important;
-                margin: 0 !important;
-                background: #fff !important;
-                box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08) !important;
-                border-top: 1px solid #ddd !important;
-                overflow: hidden !important;
-            }
-
-            .bottom-fixed .row {
-                margin: 0 !important;
-                width: 100% !important;
-                display: flex !important;
-                flex-direction: column !important;
-            }
-
-            /* Total Payable Section */
-            .bottom-fixed .col-md-5 {
-                width: 100% !important;
-                max-width: 100% !important;
-                padding: 10px 0 !important;
-                text-align: center !important;
-                order: 1 !important;
-                margin-bottom: 15px !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                gap: 10px !important;
-                flex-wrap: wrap !important;
-            }
-
-            .bottom-fixed .col-md-5 h4 {
-                font-size: 16px !important;
-                margin: 0 !important;
-                white-space: nowrap !important;
-            }
-
-            .bottom-fixed .col-md-5 #total {
-                font-size: 16px !important;
-                font-weight: bold !important;
-            }
-
-            .bottom-fixed .col-md-5 #items-count {
-                font-size: 14px !important;
-            }
-
-            .bottom-fixed .col-md-5 #cancelButton {
-                font-size: 12px !important;
-                padding: 8px 16px !important;
-                border-radius: 6px !important;
-            }
-
-            /* Payment Buttons Section */
-            .bottom-fixed .col-md-7 {
-                width: 100% !important;
-                max-width: 100% !important;
-                padding: 0 !important;
-                order: 2 !important;
-            }
-
-            .bottom-fixed .col-md-7 .d-flex {
-                display: grid !important;
-                grid-template-columns: repeat(3, 1fr) !important;
-                gap: 8px !important;
-                width: 100% !important;
-                justify-content: center !important;
-                align-items: stretch !important;
-            }
-
-            .bottom-fixed .btn {
-                font-size: 11px !important;
-                padding: 10px 6px !important;
-                margin: 0 !important;
-                border-radius: 6px !important;
-                min-height: 44px !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                text-align: center !important;
-                white-space: nowrap !important;
-                overflow: hidden !important;
-                text-overflow: ellipsis !important;
-                line-height: 1.2 !important;
-            }
-
-            .bottom-fixed .btn i {
-                font-size: 10px !important;
-                margin-right: 3px !important;
+                display: none !important;
             }
 
             /* Ensure body has proper spacing */
@@ -1327,48 +1239,7 @@
 
         /* Small Mobile Screens */
         @media (max-width: 576px) {
-            .bottom-fixed {
-                padding: 12px 8px !important;
-            }
-
-            .bottom-fixed .col-md-5 {
-                margin-bottom: 12px !important;
-                gap: 8px !important;
-            }
-
-            .bottom-fixed .col-md-5 h4 {
-                font-size: 14px !important;
-            }
-
-            .bottom-fixed .col-md-5 #total {
-                font-size: 14px !important;
-            }
-
-            .bottom-fixed .col-md-5 #items-count {
-                font-size: 12px !important;
-            }
-
-            .bottom-fixed .col-md-5 #cancelButton {
-                font-size: 10px !important;
-                padding: 6px 10px !important;
-            }
-
-            .bottom-fixed .btn {
-                font-size: 9px !important;
-                padding: 8px 4px !important;
-                min-height: 40px !important;
-                line-height: 1.1 !important;
-            }
-
-            .bottom-fixed .btn i {
-                font-size: 8px !important;
-                margin-right: 2px !important;
-            }
-
-            .bottom-fixed .col-md-7 .d-flex {
-                grid-template-columns: repeat(3, 1fr) !important;
-                gap: 6px !important;
-            }
+            /* bottom-fixed already hidden in parent media query */
 
             /* Make sure container fits properly */
             .container-fluid {
@@ -3185,8 +3056,8 @@
             </div>
         </div>
 
-        <!-- Bottom Fixed Section -->
-        <div class="bottom-fixed">
+        <!-- Bottom Fixed Section (Hidden on Mobile/Tablet) -->
+        <div class="bottom-fixed d-none d-lg-block">
             <div class="row">
                 <!-- Left Side: Total Payable and Cancel -->
                 <div class="col-md-5 d-flex align-items-center justify-content-start gap-3">
