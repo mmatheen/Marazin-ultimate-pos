@@ -503,14 +503,6 @@
         @endif
     </div>
     
-    {{-- Price Legend --}}
-    <div class="price-legend">
-        <strong>Price Type Legend:</strong> 
-        <span style="color: blue; font-weight: bold;">*</span> = Retail Price | 
-        <span style="color: green; font-weight: bold;">**</span> = Wholesale Price | 
-        <span style="color: red; font-weight: bold;">***</span> = Special Price
-    </div>
-    
     {{-- Footer --}}
     <div class="footer">
         <p><strong>Come again! Thank you for your business!</strong></p>
