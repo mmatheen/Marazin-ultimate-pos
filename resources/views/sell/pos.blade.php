@@ -2096,7 +2096,7 @@
         </script>
 
         <!-- Mobile Menu Modal -->
-        <div class="modal fade" id="mobileMenuModal" tabindex="-1" aria-labelledby="mobileMenuModalLabel" aria-hidden="true">
+        <div class="modal fade" id="mobileMenuModal" tabindex="-1" aria-labelledby="mobileMenuModalLabel">
             <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content" style="border-radius: 20px; overflow: hidden;">
                     <div class="modal-header bg-white border-bottom">
@@ -2608,8 +2608,7 @@
     </div>
 
     <!-- Bootstrap Modal with Tabs and Dynamic Table -->
-    <div class="modal fade" id="recentTransactionsModal" tabindex="-1" aria-labelledby="recentTransactionsLabel"
-        aria-hidden="true">
+    <div class="modal fade" id="recentTransactionsModal" tabindex="-1" aria-labelledby="recentTransactionsLabel">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -2681,8 +2680,7 @@
         }
     </style>
 
-    <div class="modal fade" id="productModal" tabindex="-1" aria-labelledby="productModalLabel"
-        aria-hidden="true">
+    <div class="modal fade" id="productModal" tabindex="-1" aria-labelledby="productModalLabel">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
@@ -2701,8 +2699,7 @@
     </div>
 
     <!-- Bootstrap Modal for Suspend -->
-    <div class="modal fade" id="suspendModal" tabindex="-1" aria-labelledby="suspendModalLabel"
-        aria-hidden="true">
+    <div class="modal fade" id="suspendModal" tabindex="-1" aria-labelledby="suspendModalLabel">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -2722,8 +2719,7 @@
     </div>
 
     <!-- Bootstrap Modal for Sale Order -->
-    <div class="modal fade" id="saleOrderModal" tabindex="-1" aria-labelledby="saleOrderModalLabel"
-        aria-hidden="true">
+    <div class="modal fade" id="saleOrderModal" tabindex="-1" aria-labelledby="saleOrderModalLabel">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -2751,8 +2747,7 @@
     </div>
 
     <!-- Bootstrap Modal for Suspended Sales -->
-    <div class="modal fade" id="suspendSalesModal" tabindex="-1" aria-labelledby="suspendSalesModalLabel"
-        aria-hidden="true">
+    <div class="modal fade" id="suspendSalesModal" tabindex="-1" aria-labelledby="suspendSalesModalLabel">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -2786,7 +2781,7 @@
 
     <div class="container mt-5">
         <div class="modal fade" id="paymentModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
-            aria-labelledby="paymentModalLabel" aria-hidden="true">
+            aria-labelledby="paymentModalLabel">
             <div class="modal-dialog modal-xl">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -2905,7 +2900,7 @@
     </div>
 
     <!-- Card Payment Modal -->
-    <div class="modal fade" id="cardModal" tabindex="-1" aria-labelledby="cardModalLabel" aria-hidden="true">
+    <div class="modal fade" id="cardModal" tabindex="-1" aria-labelledby="cardModalLabel">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -2957,7 +2952,7 @@
         </div>
     </div>
     <!-- Cheque Payment Modal -->
-    <div class="modal fade" id="chequeModal" tabindex="-1" aria-labelledby="chequeModalLabel" aria-hidden="true">
+    <div class="modal fade" id="chequeModal" tabindex="-1" aria-labelledby="chequeModalLabel">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -3020,7 +3015,7 @@
     </div>
 
     <!-- IMEI Selection Modal -->
-    <div class="modal fade" id="imeiModal" tabindex="-1" aria-labelledby="imeiModalLabel" aria-hidden="true">
+    <div class="modal fade" id="imeiModal" tabindex="-1" aria-labelledby="imeiModalLabel">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -3065,8 +3060,7 @@
     </div>
 
     <!-- Confirmation Modal -->
-    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel"
-        aria-hidden="true">
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel">
         <div class="modal-dialog modal-dialog-top">
             <div class="modal-content">
                 <div class="modal-header">
@@ -3307,8 +3301,7 @@
     </script>
 
     <!-- Modal -->
-    <div class="modal fade" id="jobTicketModal" tabindex="-1" aria-labelledby="jobTicketModalLabel"
-        aria-hidden="true">
+    <div class="modal fade" id="jobTicketModal" tabindex="-1" aria-labelledby="jobTicketModalLabel">
         <div class="modal-dialog modal-lg">
             <div class="modal-content" style="font-family: 'Roboto', sans-serif;">
                 <div class="modal-header">
