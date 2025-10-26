@@ -2414,20 +2414,21 @@
 
             /* Compact form groups for single-screen view */
             .form-group {
-                margin-bottom: 3px !important;
+                margin-bottom: 4px !important;
             }
 
             .form-group label {
-                font-size: 11px;
-                margin-bottom: 1px;
+                font-size: 13px;
+                margin-bottom: 2px;
                 font-weight: 600;
             }
 
             .form-group .form-control,
             .form-group p.form-control {
-                height: 30px;
-                font-size: 12px;
-                padding: 3px 6px;
+                height: 36px;
+                font-size: 15px;
+                padding: 5px 8px;
+                font-weight: 600;
             }
 
             /* Compact card sections */
@@ -2436,28 +2437,53 @@
                 box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             }
 
-            /* Reduce button group height */
+            /* Beautiful Button Group for Discount Type */
             .btn-group .btn {
-                padding: 3px 10px;
-                font-size: 11px;
-                height: 30px;
+                padding: 0;
+                font-size: 14px;
+                height: 36px;
+                font-weight: 600;
+                transition: all 0.3s ease;
+                border: none !important;
+            }
+
+            .btn-group .btn:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            }
+
+            .btn-group .btn.active {
+                background-color: #0d6efd !important;
+                color: white !important;
+                box-shadow: 0 2px 6px rgba(13, 110, 253, 0.3);
+            }
+
+            .btn-group .btn:not(.active) {
+                background-color: white;
+                color: #0d6efd;
+            }
+
+            .btn-group .btn:not(.active):hover {
+                background-color: #e7f1ff;
             }
 
             /* Input group text sizing */
             .input-group-text {
-                font-size: 11px;
-                padding: 3px 8px;
-                height: 30px;
+                font-size: 14px;
+                padding: 5px 10px;
+                height: 36px;
+                font-weight: 600;
             }
 
             /* Reduce input group margins */
             .input-group {
-                height: 30px;
+                height: 36px;
             }
 
             .input-group .form-control {
-                height: 30px;
-                font-size: 12px;
+                height: 36px;
+                font-size: 15px;
+                font-weight: 600;
             }
         }
 
@@ -2917,46 +2943,46 @@
                             </div>
 
                             <!-- Total, Discount, Final Total Section - Fixed at bottom -->
-                            <div class="row align-items-end" style="margin: 0; border-top: 2px solid #ddd; background-color: #fff; padding: 8px;">
+                            <div class="row align-items-end" style="margin: 0; border-top: 2px solid #ddd; background-color: #fff; padding: 10px;">
                                 <div class="col-md-2">
                                     <div class="form-group mb-0">
-                                        <label style="font-size: 11px; font-weight: 600; margin-bottom: 3px; display: block;">Total</label>
-                                        <p id="total-amount" class="form-control form-control-sm mb-0" style="height: 32px; line-height: 20px;">0.00</p>
+                                        <label style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">Total</label>
+                                        <p id="total-amount" class="form-control form-control-sm mb-0" style="height: 36px; line-height: 24px; font-size: 15px; font-weight: 600;">0.00</p>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <div class="form-group mb-0">
-                                        <label style="font-size: 11px; font-weight: 600; margin-bottom: 3px; display: block;">Global Discount Type</label>
-                                        <div class="btn-group w-100" role="group" aria-label="Discount Type" style="height: 32px;">
-                                            <button type="button" class="btn btn-outline-primary btn-sm active"
-                                                id="fixed-discount-btn" style="font-size: 12px; padding: 4px 8px;">Fixed</button>
-                                            <button type="button" class="btn btn-outline-primary btn-sm"
-                                                id="percentage-discount-btn" style="font-size: 12px; padding: 4px 8px;">Percentage</button>
+                                        <label style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">Global Discount Type</label>
+                                        <div class="btn-group w-100" role="group" aria-label="Discount Type" style="height: 36px; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                            <button type="button" class="btn btn-primary active"
+                                                id="fixed-discount-btn" style="font-size: 14px; padding: 0; font-weight: 600; height: 36px; border: none; border-radius: 0; transition: all 0.3s ease;">Fixed</button>
+                                            <button type="button" class="btn btn-outline-primary"
+                                                id="percentage-discount-btn" style="font-size: 14px; padding: 0; font-weight: 600; height: 36px; border: none; border-radius: 0; background: white; transition: all 0.3s ease;">Percentage</button>
                                         </div>
                                         <input type="hidden" id="discount-type" name="discount_type" value="fixed">
                                     </div>
                                 </div>
                                 <div class="col-md-2">
                                     <div class="form-group mb-0">
-                                        <label style="font-size: 11px; font-weight: 600; margin-bottom: 3px; display: block;">Discount</label>
-                                        <div class="input-group input-group-sm" style="height: 32px;">
+                                        <label style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">Discount</label>
+                                        <div class="input-group input-group-sm" style="height: 36px;">
                                             <input type="text" id="global-discount" name="discount"
-                                                class="form-control form-control-sm" placeholder="0.00" style="height: 32px;">
-                                            <span class="input-group-text" id="discount-icon" style="height: 32px;">Rs</span>
+                                                class="form-control form-control-sm" placeholder="0.00" style="height: 36px; font-size: 15px; font-weight: 600;">
+                                            <span class="input-group-text" id="discount-icon" style="height: 36px; font-size: 14px; font-weight: 600;">Rs</span>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="col-md-2">
                                     <div class="form-group mb-0">
-                                        <label style="font-size: 11px; font-weight: 600; margin-bottom: 3px; display: block;">Final Total</label>
-                                        <p id="final-total-amount" class="form-control form-control-sm mb-0" style="height: 32px; line-height: 20px;">0.00</p>
+                                        <label style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">Final Total</label>
+                                        <p id="final-total-amount" class="form-control form-control-sm mb-0" style="height: 36px; line-height: 24px; font-size: 15px; font-weight: 600;">0.00</p>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <div class="form-group mb-0">
-                                        <label style="font-size: 11px; font-weight: 600; margin-bottom: 3px; display: block;">Amount Given</label>
+                                        <label style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">Amount Given</label>
                                         <input type="text" id="amount-given" class="form-control form-control-sm"
-                                            placeholder="0.00" oninput="formatAmount(this)" style="height: 32px;">
+                                            placeholder="0.00" oninput="formatAmount(this)" style="height: 36px; font-size: 15px; font-weight: 600;">
                                     </div>
                                 </div>
                             </div>
