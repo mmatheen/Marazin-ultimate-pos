@@ -294,6 +294,12 @@
          * Update all existing billing rows with new pricing based on customer type
          */
         function updateAllBillingRowsPricing(newCustomerType) {
+            // Skip price updates during edit mode to preserve original sale data
+            if (isEditing) {
+                console.log('Edit mode active: Skipping automatic price updates to preserve original sale data');
+                return;
+            }
+            
             const billingBody = document.getElementById('billing-body');
             const existingRows = billingBody ? billingBody.querySelectorAll('tr') : [];
 
@@ -3836,13 +3842,16 @@
             // 2. Active discount
             // 3. Default (MRP - customer type price)
             if (discountType && discountAmount !== null) {
+                console.log('Applying manual discount:', {discountType, discountAmount, productName: product.product_name});
                 if (discountType === 'fixed') {
                     discountFixed = parseFloat(discountAmount);
                     finalPrice = product.max_retail_price - discountFixed;
                     if (finalPrice < 0) finalPrice = 0;
+                    console.log('Fixed discount applied:', {discountFixed, finalPrice, MRP: product.max_retail_price});
                 } else if (discountType === 'percentage') {
                     discountPercent = parseFloat(discountAmount);
                     finalPrice = product.max_retail_price * (1 - discountPercent / 100);
+                    console.log('Percentage discount applied:', {discountPercent, finalPrice, MRP: product.max_retail_price});
                 }
             } else if (activeDiscount) {
                 if (activeDiscount.type === 'percentage') {
@@ -3858,6 +3867,15 @@
                 discountPercent = (discountFixed / product.max_retail_price) * 100;
                 finalPrice = price; // Use customer type-specific price
             }
+
+            console.log('Final discount values for product:', product.product_name, {
+                discountFixed: discountFixed,
+                discountPercent: discountPercent,
+                finalPrice: finalPrice,
+                discountType: discountType,
+                discountAmount: discountAmount,
+                isEditing: isEditing
+            });
 
             let adjustedBatchQuantity = batchQuantity;
             if (batchId === "all") {
@@ -4075,6 +4093,17 @@
             }
 
             disableConflictingDiscounts(row);
+            
+            // Debug: Log actual DOM values after disableConflictingDiscounts
+            const fixedInputDebug = row.querySelector('.fixed_discount');
+            const percentInputDebug = row.querySelector('.percent_discount');
+            console.log('After disableConflictingDiscounts for:', product.product_name, {
+                fixedValue: fixedInputDebug?.value,
+                percentValue: percentInputDebug?.value,
+                fixedDisabled: fixedInputDebug?.disabled,
+                percentDisabled: percentInputDebug?.disabled
+            });
+            
             updateTotals();
 
             // Auto-focus search input after adding product for quick next product search
@@ -5090,35 +5119,17 @@
                                     saleProduct.discount_type,
                                     saleProduct.discount_amount
                                 );
+                                
+                                console.log('Product added to billing:', saleProduct.product.product_name, {
+                                    discount_type: saleProduct.discount_type,
+                                    discount_amount: saleProduct.discount_amount,
+                                    price: saleProduct.price
+                                });
                             } catch (error) {
                                 console.error('Error adding product to billing:', error,
                                     saleProduct);
                                 // Continue with next product instead of breaking the whole process
                             }
-
-                            // Apply product-level discount
-                            // Since addProductToBillingBody inserts at the FIRST position, get the first-child, not last-child
-                            const productRow = $('#billing-body tr:first-child');
-                            const fixedDiscountInput = productRow.find('.fixed_discount');
-                            const percentDiscountInput = productRow.find('.percent_discount');
-
-                            if (saleProduct.discount_type === 'fixed') {
-                                const fixedAmount = parseFloat(saleProduct.discount_amount) || 0;
-                                fixedDiscountInput.val(fixedAmount.toFixed(2));
-                                percentDiscountInput.val('0.00');
-                                console.log('Applied fixed discount:', fixedAmount, 'to product:', saleProduct.product.product_name);
-                            } else if (saleProduct.discount_type === 'percentage') {
-                                const percentAmount = parseFloat(saleProduct.discount_amount) || 0;
-                                percentDiscountInput.val(percentAmount.toFixed(2));
-                                fixedDiscountInput.val('0.00');
-                                console.log('Applied percentage discount:', percentAmount, 'to product:', saleProduct.product.product_name);
-                            } else {
-                                // No discount or null discount_type - leave as calculated by addProductToBillingBody
-                                console.log('No explicit discount for product:', saleProduct.product.product_name);
-                            }
-                            
-                            // Trigger discount recalculation to update price and subtotal
-                            productRow.find('.fixed_discount, .percent_discount').trigger('input');
                         });
 
                         // If the sale has a customer_id, trigger customer data fetch
@@ -6878,23 +6889,23 @@
 </script>
 
 <script>
-    // Disable all console.log in production
-    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-        console.log = function() {};
-    }
+    // // Disable all console.log in production
+    // if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    //     console.log = function() {};
+    // }
 
-    function preventDoubleClick(button, callback) {
-        if (button.dataset.isProcessing === "true") return;
-        button.dataset.isProcessing = "true";
-        button.disabled = true;
+    // function preventDoubleClick(button, callback) {
+    //     if (button.dataset.isProcessing === "true") return;
+    //     button.dataset.isProcessing = "true";
+    //     button.disabled = true;
 
-        try {
-            callback();
-        } catch (error) {
-            console.error("Error in button callback:", error);
-            enableButton(button);
-        }
-    }
+    //     try {
+    //         callback();
+    //     } catch (error) {
+    //         console.error("Error in button callback:", error);
+    //         enableButton(button);
+    //     }
+    // }
 
     function enableButton(button) {
         button.disabled = false;
