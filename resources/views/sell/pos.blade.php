@@ -1222,10 +1222,18 @@
                 display: none !important;
             }
 
-            /* Ensure body has proper spacing */
-            body {
+            /* Allow full scrolling on mobile */
+            html, body {
+                height: auto !important;
+                overflow: auto !important;
                 padding-bottom: 20px !important;
-                overflow-x: hidden !important;
+            }
+
+            /* Remove fixed height on billing card for mobile */
+            .card.bg-white.p-2 {
+                height: auto !important;
+                min-height: calc(100vh - 100px) !important;
+                overflow: visible !important;
             }
 
             /* Fix container width */
@@ -1234,6 +1242,13 @@
                 overflow-x: hidden !important;
                 padding-left: 10px !important;
                 padding-right: 10px !important;
+            }
+
+            /* Make billing body scrollable on mobile */
+            .table-responsive {
+                height: auto !important;
+                max-height: none !important;
+                overflow: visible !important;
             }
         }
 
@@ -3057,7 +3072,7 @@
         </div>
 
         <!-- Bottom Fixed Section (Hidden on Mobile/Tablet) -->
-        <div class="bottom-fixed d-none d-lg-block">
+        <div class="bottom-fixed d-none d-xl-block">
             <div class="row">
                 <!-- Left Side: Total Payable and Cancel -->
                 <div class="col-md-5 d-flex align-items-center justify-content-start gap-3">
