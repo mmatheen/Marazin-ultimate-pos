@@ -261,8 +261,9 @@ class CustomerController extends Controller
             
             // Check if this is a duplicate entry error that wasn't caught above
             $errorMessage = $e->getMessage();
-            if (strpos($errorMessage, 'Duplicate') !== false || strpos($errorMessage, '1062') !== false) {
-                if (strpos($errorMessage, 'mobile') !== false) {
+            if (strpos($errorMessage, 'Duplicate') !== false || strpos($errorMessage, '1062') !== false || strpos($errorMessage, 'Integrity constraint violation') !== false) {
+                // Check for mobile number duplicate
+                if (strpos($errorMessage, 'mobile') !== false || strpos($errorMessage, 'mobile_no') !== false || strpos($errorMessage, 'customers_mobile_no_unique') !== false) {
                     return response()->json([
                         'status' => 400,
                         'errors' => [
@@ -270,6 +271,17 @@ class CustomerController extends Controller
                         ]
                     ], 400);
                 }
+                
+                // Check for email duplicate
+                if (strpos($errorMessage, 'email') !== false) {
+                    return response()->json([
+                        'status' => 400,
+                        'errors' => [
+                            'email' => ['This email address is already registered with another customer.']
+                        ]
+                    ], 400);
+                }
+                
                 return response()->json([
                     'status' => 400,
                     'message' => 'A customer with these details already exists.'
@@ -420,10 +432,40 @@ class CustomerController extends Controller
             } catch (\Exception $e) {
                 DB::rollBack();
                 Log::error('Customer update error: ' . $e->getMessage());
+                
+                // Check if this is a duplicate entry error that wasn't caught above
+                $errorMessage = $e->getMessage();
+                if (strpos($errorMessage, 'Duplicate') !== false || strpos($errorMessage, '1062') !== false || strpos($errorMessage, 'Integrity constraint violation') !== false) {
+                    // Check for mobile number duplicate
+                    if (strpos($errorMessage, 'mobile') !== false || strpos($errorMessage, 'mobile_no') !== false || strpos($errorMessage, 'customers_mobile_no_unique') !== false) {
+                        return response()->json([
+                            'status' => 400,
+                            'errors' => [
+                                'mobile_no' => ['This mobile number is already registered with another customer.']
+                            ]
+                        ], 400);
+                    }
+                    
+                    // Check for email duplicate
+                    if (strpos($errorMessage, 'email') !== false) {
+                        return response()->json([
+                            'status' => 400,
+                            'errors' => [
+                                'email' => ['This email address is already registered with another customer.']
+                            ]
+                        ], 400);
+                    }
+                    
+                    return response()->json([
+                        'status' => 400,
+                        'message' => 'A customer with these details already exists.'
+                    ], 400);
+                }
+                
                 return response()->json([
                     'status' => 500,
-                    'message' => "Error updating customer: " . $e->getMessage()
-                ]);
+                    'message' => "Error updating customer. Please try again."
+                ], 500);
             }
         }
 

@@ -131,8 +131,8 @@ class CustomerController extends Controller
             'prefix' => 'nullable|string|max:10',
             'first_name' => 'required|string|max:255',
             'last_name' => 'nullable|string|max:255',
-            'mobile_no' => 'required|numeric|digits_between:10,15',
-            'email' => 'nullable|email|max:255',
+            'mobile_no' => 'required|numeric|digits_between:10,15|unique:customers,mobile_no',
+            'email' => 'nullable|email|max:255|unique:customers,email',
             'address' => 'nullable|string|max:500',
             'opening_balance' => 'nullable|numeric',
             'credit_limit' => 'nullable|numeric|min:0',
@@ -144,11 +144,35 @@ class CustomerController extends Controller
             return response()->json([
                 'status' => 400,
                 'errors' => $validator->messages()
-            ]);
+            ], 400);
         }
 
         try {
             DB::beginTransaction();
+
+            // Check for duplicate mobile number before creating
+            $existingCustomer = Customer::withoutLocationScope()->where('mobile_no', $request->mobile_no)->first();
+            if ($existingCustomer) {
+                return response()->json([
+                    'status' => 400,
+                    'errors' => [
+                        'mobile_no' => ['This mobile number is already registered with another customer.']
+                    ]
+                ], 400);
+            }
+
+            // Check for duplicate email if provided
+            if ($request->email) {
+                $existingCustomerByEmail = Customer::withoutLocationScope()->where('email', $request->email)->first();
+                if ($existingCustomerByEmail) {
+                    return response()->json([
+                        'status' => 400,
+                        'errors' => [
+                            'email' => ['This email address is already registered with another customer.']
+                        ]
+                    ], 400);
+                }
+            }
 
             $customerData = $request->only([
                 'prefix',
@@ -179,12 +203,81 @@ class CustomerController extends Controller
                 'message' => "New Customer Created Successfully!",
                 'calculated_credit_limit' => $customerData['credit_limit'] ?? 0
             ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            DB::rollBack();
+            Log::error('Customer creation QueryException: ' . $e->getMessage());
+            
+            // Handle specific database constraint violations
+            if ($e->errorInfo[1] == 1062) { // Duplicate entry error code
+                $errorMessage = $e->getMessage();
+                
+                // Check for mobile number duplicate
+                if (strpos($errorMessage, 'mobile') !== false || strpos($errorMessage, 'mobile_no') !== false || strpos($errorMessage, 'customers_mobile_no_unique') !== false) {
+                    return response()->json([
+                        'status' => 400,
+                        'errors' => [
+                            'mobile_no' => ['This mobile number is already registered with another customer.']
+                        ]
+                    ], 400);
+                }
+                
+                // Check for email duplicate
+                if (strpos($errorMessage, 'email') !== false) {
+                    return response()->json([
+                        'status' => 400,
+                        'errors' => [
+                            'email' => ['This email address is already registered with another customer.']
+                        ]
+                    ], 400);
+                }
+                
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'A customer with these details already exists.'
+                ], 400);
+            }
+            
+            return response()->json([
+                'status' => 400,
+                'message' => "Error creating customer. Please check your input and try again."
+            ], 400);
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Customer creation Exception: ' . $e->getMessage());
+            
+            // Check if this is a duplicate entry error that wasn't caught above
+            $errorMessage = $e->getMessage();
+            if (strpos($errorMessage, 'Duplicate') !== false || strpos($errorMessage, '1062') !== false || strpos($errorMessage, 'Integrity constraint violation') !== false) {
+                // Check for mobile number duplicate
+                if (strpos($errorMessage, 'mobile') !== false || strpos($errorMessage, 'mobile_no') !== false || strpos($errorMessage, 'customers_mobile_no_unique') !== false) {
+                    return response()->json([
+                        'status' => 400,
+                        'errors' => [
+                            'mobile_no' => ['This mobile number is already registered with another customer.']
+                        ]
+                    ], 400);
+                }
+                
+                // Check for email duplicate
+                if (strpos($errorMessage, 'email') !== false) {
+                    return response()->json([
+                        'status' => 400,
+                        'errors' => [
+                            'email' => ['This email address is already registered with another customer.']
+                        ]
+                    ], 400);
+                }
+                
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'A customer with these details already exists.'
+                ], 400);
+            }
+            
             return response()->json([
                 'status' => 500,
-                'message' => "Error creating customer: " . $e->getMessage()
-            ]);
+                'message' => "Error creating customer. Please try again."
+            ], 500);
         }
     }
 
@@ -206,8 +299,8 @@ class CustomerController extends Controller
             'prefix' => 'nullable|string|max:10',
             'first_name' => 'required|string|max:255',
             'last_name' => 'nullable|string|max:255',
-            'mobile_no' => 'required|numeric|digits_between:10,15',
-            'email' => 'nullable|email|max:255',
+            'mobile_no' => 'required|numeric|digits_between:10,15|unique:customers,mobile_no,' . $id,
+            'email' => 'nullable|email|max:255|unique:customers,email,' . $id,
             'address' => 'nullable|string|max:500',
             'opening_balance' => 'nullable|numeric',
             'credit_limit' => 'nullable|numeric|min:0',
@@ -219,13 +312,43 @@ class CustomerController extends Controller
             return response()->json([
                 'status' => 400,
                 'errors' => $validator->messages()
-            ]);
+            ], 400);
         }
 
         $customer = Customer::withoutLocationScope()->find($id);
         if ($customer) {
             try {
                 DB::beginTransaction();
+
+                // Check for duplicate mobile number before updating (excluding current customer)
+                $existingCustomer = Customer::withoutLocationScope()
+                    ->where('mobile_no', $request->mobile_no)
+                    ->where('id', '!=', $id)
+                    ->first();
+                if ($existingCustomer) {
+                    return response()->json([
+                        'status' => 400,
+                        'errors' => [
+                            'mobile_no' => ['This mobile number is already registered with another customer.']
+                        ]
+                    ], 400);
+                }
+
+                // Check for duplicate email if provided (excluding current customer)
+                if ($request->email) {
+                    $existingCustomerByEmail = Customer::withoutLocationScope()
+                        ->where('email', $request->email)
+                        ->where('id', '!=', $id)
+                        ->first();
+                    if ($existingCustomerByEmail) {
+                        return response()->json([
+                            'status' => 400,
+                            'errors' => [
+                                'email' => ['This email address is already registered with another customer.']
+                            ]
+                        ], 400);
+                    }
+                }
 
                 $customerData = $request->only([
                     'prefix',
@@ -259,12 +382,81 @@ class CustomerController extends Controller
                     'message' => "Customer Details Updated Successfully!",
                     'calculated_credit_limit' => $customerData['credit_limit'] ?? $customer->credit_limit
                 ]);
+            } catch (\Illuminate\Database\QueryException $e) {
+                DB::rollBack();
+                Log::error('Customer update QueryException: ' . $e->getMessage());
+                
+                // Handle specific database constraint violations
+                if ($e->errorInfo[1] == 1062) { // Duplicate entry error code
+                    $errorMessage = $e->getMessage();
+                    
+                    // Check for mobile number duplicate
+                    if (strpos($errorMessage, 'mobile') !== false || strpos($errorMessage, 'mobile_no') !== false || strpos($errorMessage, 'customers_mobile_no_unique') !== false) {
+                        return response()->json([
+                            'status' => 400,
+                            'errors' => [
+                                'mobile_no' => ['This mobile number is already registered with another customer.']
+                            ]
+                        ], 400);
+                    }
+                    
+                    // Check for email duplicate
+                    if (strpos($errorMessage, 'email') !== false) {
+                        return response()->json([
+                            'status' => 400,
+                            'errors' => [
+                                'email' => ['This email address is already registered with another customer.']
+                            ]
+                        ], 400);
+                    }
+                    
+                    return response()->json([
+                        'status' => 400,
+                        'message' => 'A customer with these details already exists.'
+                    ], 400);
+                }
+                
+                return response()->json([
+                    'status' => 400,
+                    'message' => "Error updating customer. Please check your input and try again."
+                ], 400);
             } catch (\Exception $e) {
                 DB::rollBack();
+                Log::error('Customer update Exception: ' . $e->getMessage());
+                
+                // Check if this is a duplicate entry error that wasn't caught above
+                $errorMessage = $e->getMessage();
+                if (strpos($errorMessage, 'Duplicate') !== false || strpos($errorMessage, '1062') !== false || strpos($errorMessage, 'Integrity constraint violation') !== false) {
+                    // Check for mobile number duplicate
+                    if (strpos($errorMessage, 'mobile') !== false || strpos($errorMessage, 'mobile_no') !== false || strpos($errorMessage, 'customers_mobile_no_unique') !== false) {
+                        return response()->json([
+                            'status' => 400,
+                            'errors' => [
+                                'mobile_no' => ['This mobile number is already registered with another customer.']
+                            ]
+                        ], 400);
+                    }
+                    
+                    // Check for email duplicate
+                    if (strpos($errorMessage, 'email') !== false) {
+                        return response()->json([
+                            'status' => 400,
+                            'errors' => [
+                                'email' => ['This email address is already registered with another customer.']
+                            ]
+                        ], 400);
+                    }
+                    
+                    return response()->json([
+                        'status' => 400,
+                        'message' => 'A customer with these details already exists.'
+                    ], 400);
+                }
+                
                 return response()->json([
                     'status' => 500,
-                    'message' => "Error updating customer: " . $e->getMessage()
-                ]);
+                    'message' => "Error updating customer. Please try again."
+                ], 500);
             }
         }
 
