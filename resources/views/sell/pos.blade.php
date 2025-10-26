@@ -324,41 +324,63 @@
 
 
         .product-card {
-            border: 1px solid #ddd;
-            padding: 10px;
+            border: 1px solid #e0e0e0;
+            padding: 8px 8px;
             text-align: center;
-            min-height: 160px;
+            min-height: 135px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            margin-bottom: 10px;
-            /* Uniform margin bottom */
+            margin-bottom: 6px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .product-card:hover {
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+            border-color: #007bff;
         }
 
         .product-card img {
             max-width: 100%;
-            height: auto;
-            max-height: 80px;
+            height: 55px;
+            max-height: 55px;
             object-fit: contain;
+            margin-bottom: 8px;
         }
 
         .product-card h6 {
-            font-size: 14px;
-            margin: 6px 0;
+            font-size: 12px;
+            font-weight: 600;
+            margin: 5px 0 7px 0;
+            color: #333;
+            line-height: 1.4;
+            min-height: 34px;
+            max-height: 34px;
             overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
             text-overflow: ellipsis;
-            white-space: nowrap;
+            word-break: break-word;
         }
 
         .product-card .product-card-body {
             display: flex;
             flex-direction: column;
-            align-items: left;
+            align-items: center;
         }
 
         .product-card .badge {
-            font-size: 12px;
-            margin-top: 5px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: 4px;
+            padding: 3px 8px;
+            border-radius: 4px;
         }
 
         /* Responsive grid layout */
@@ -2269,24 +2291,25 @@
                 line-height: 1.2;
             }
 
-            /* Product name - reduce font size and spacing */
+            /* Product name - increase font size more */
             #billing-body tr td:nth-child(2) .product-name {
-                font-size: 13px;
-                line-height: 1.3;
-                margin-bottom: 2px;
+                font-size: 15px;
+                line-height: 1.4;
+                margin-bottom: 3px;
+                font-weight: 600;
             }
 
-            /* Reduce badge sizes */
+            /* Increase badge sizes more */
             #billing-body tr td:nth-child(2) .badge {
-                font-size: 9px;
-                padding: 2px 5px;
-                margin: 0 2px;
+                font-size: 11px;
+                padding: 3px 7px;
+                margin: 0 3px;
             }
 
-            /* SKU and quantity display - smaller text */
+            /* SKU and quantity display - even larger text */
             #billing-body tr td:nth-child(2) .product-sku,
             #billing-body tr td:nth-child(2) .quantity-display {
-                font-size: 11px;
+                font-size: 13px;
             }
 
             /* IMEI section - optimize spacing */
@@ -2295,19 +2318,19 @@
                 margin-top: 2px !important;
             }
 
-            /* IMEI badge - compact size */
+            /* IMEI badge - larger size */
             #billing-body tr td:nth-child(2) .badge.bg-info {
-                font-size: 9px;
-                padding: 2px 5px;
+                font-size: 10px;
+                padding: 3px 6px;
             }
 
-            /* IMEI info icon - smaller */
+            /* IMEI info icon - larger */
             #billing-body tr td:nth-child(2) .show-imei-btn {
-                font-size: 12px;
+                font-size: 13px;
                 margin-left: 2px !important;
             }
 
-            /* Quantity controls - compact size */
+            /* Quantity controls - larger size */
             #billing-body tr td:nth-child(3) {
                 text-align: center;
                 vertical-align: middle !important;
@@ -2319,23 +2342,24 @@
 
             #billing-body tr td:nth-child(3) .quantity-minus,
             #billing-body tr td:nth-child(3) .quantity-plus {
-                width: 28px;
-                height: 28px;
-                font-size: 14px;
+                width: 34px;
+                height: 34px;
+                font-size: 17px;
                 padding: 0;
             }
 
             #billing-body tr td:nth-child(3) .quantity-input {
-                width: 50px;
-                height: 28px;
-                font-size: 13px;
-                padding: 0 4px;
+                width: 60px;
+                height: 34px;
+                font-size: 15px;
+                padding: 0 5px;
+                font-weight: 600;
             }
 
-            /* Unit name below quantity - smaller */
+            /* Unit name below quantity - larger */
             #billing-body tr td:nth-child(3) > div:last-child {
-                font-size: 10px;
-                margin-top: 1px;
+                font-size: 12px;
+                margin-top: 2px;
             }
 
             /* Discount and Price columns - centered */
@@ -2347,31 +2371,33 @@
                 vertical-align: middle !important;
             }
 
-            /* Input fields - compact height */
+            /* Input fields - even larger height and font */
             #billing-body tr td input.form-control {
-                height: 28px;
-                font-size: 12px;
-                padding: 2px 6px;
+                height: 34px;
+                font-size: 14px;
+                padding: 4px 7px;
                 text-align: center;
+                font-weight: 500;
             }
 
-            /* Subtotal column - ensure proper alignment */
+            /* Subtotal column - even larger and bold */
             #billing-body tr td.subtotal {
-                font-weight: 600;
+                font-weight: 700;
+                font-size: 15px;
                 text-align: center;
                 vertical-align: middle !important;
             }
 
-            /* Remove button - smaller and properly aligned */
+            /* Remove button - larger */
             #billing-body tr td:nth-child(8) {
                 text-align: center;
                 vertical-align: middle !important;
             }
 
             #billing-body tr td:nth-child(8) .remove-btn {
-                width: 24px;
-                height: 24px;
-                font-size: 14px;
+                width: 30px;
+                height: 30px;
+                font-size: 17px;
                 padding: 0;
                 display: inline-flex;
                 align-items: center;
@@ -2379,10 +2405,11 @@
                 line-height: 1;
             }
 
-            /* Table header - reduce padding */
+            /* Table header - even larger font */
             .table thead th {
-                padding: 6px 8px !important;
-                font-size: 12px;
+                padding: 7px 9px !important;
+                font-size: 14px;
+                font-weight: 600;
             }
 
             /* Compact form groups for single-screen view */
@@ -2957,7 +2984,7 @@
                                 </div>
                             </div>
 
-                            <div class="row g-3 overflow-auto" id="posProduct" style="height: calc(100vh - 315px); overflow-y: auto;">
+                            <div class="row g-1 overflow-auto" id="posProduct" style="height: calc(100vh - 315px); overflow-y: auto;">
 
                             </div>
                         </div>
