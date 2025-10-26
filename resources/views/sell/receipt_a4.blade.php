@@ -6,15 +6,17 @@
     <style>
         @page {
             size: A4;
-            margin: 15mm;
+            margin: 12mm 15mm;
         }
         
         body {
             font-family: Arial, sans-serif;
-            font-size: 14px;
-            line-height: 1.5;
+            font-size: 13px;
+            line-height: 1.4;
             color: #000;
-            padding: 20px;
+            padding: 10px 15px;
+            max-width: 100%;
+            overflow-x: hidden;
         }
         
         .logo-container {
@@ -37,13 +39,14 @@
         
         .company-details {
             text-align: center;
-            font-size: 12px;
+            font-size: 11px;
             color: #000;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
+            line-height: 1.3;
         }
         
         .company-details div {
-            margin-bottom: 2px;
+            margin-bottom: 1px;
         }
         
         hr.dashed {
@@ -55,17 +58,19 @@
         .invoice-header-section {
             border-top: 2px dashed #000;
             border-bottom: 2px dashed #000;
-            padding: 10px 0;
-            margin-bottom: 15px;
+            padding: 8px 0;
+            margin-bottom: 12px;
         }
         
         .invoice-header-table {
             width: 100%;
+            table-layout: fixed;
         }
         
         .invoice-header-table td {
             vertical-align: top;
-            font-size: 13px;
+            font-size: 12px;
+            word-wrap: break-word;
         }
         
         .customer-name {
@@ -95,32 +100,40 @@
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 15px;
+            table-layout: fixed;
         }
         
         .products-table th {
             background-color: #f0f0f0;
-            padding: 8px;
+            padding: 8px 4px;
             text-align: left;
             font-weight: bold;
-            font-size: 12px;
+            font-size: 11px;
             text-transform: uppercase;
             border-bottom: 2px solid #000;
         }
         
         .products-table td {
-            padding: 6px 8px;
-            font-size: 13px;
+            padding: 6px 4px;
+            font-size: 12px;
             vertical-align: top;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
         
         .product-name-row {
             border-top: 1px solid #ddd;
         }
         
+        .product-name-row td {
+            font-size: 13px;
+        }
+        
         .product-details-row td {
             padding-top: 2px;
             padding-bottom: 8px;
             border-bottom: 1px solid #eee;
+            font-size: 11px;
         }
         
         .text-right {
@@ -146,23 +159,27 @@
             margin-top: 15px;
             border-top: 2px dashed #000;
             padding-top: 10px;
+            table-layout: fixed;
         }
         
         .totals-table td {
             padding: 5px 0;
-            font-size: 14px;
+            font-size: 13px;
+            word-wrap: break-word;
         }
         
         .totals-table .label {
             text-align: right;
             font-weight: bold;
-            padding-right: 20px;
+            padding-right: 15px;
+            width: 70%;
         }
         
         .totals-table .value {
             text-align: right;
-            width: 150px;
+            width: 30%;
             font-weight: bold;
+            white-space: nowrap;
         }
         
         .grand-total {
@@ -175,8 +192,8 @@
             display: flex;
             justify-content: space-around;
             text-align: center;
-            margin: 20px 0;
-            padding: 15px 0;
+            margin: 15px 0;
+            padding: 12px 0;
             border-top: 2px dashed #000;
             border-bottom: 2px dashed #000;
         }
@@ -184,7 +201,7 @@
         .stat-item {
             flex: 1;
             border-right: 2px dashed #000;
-            padding: 0 10px;
+            padding: 0 8px;
         }
         
         .stat-item:last-child {
@@ -192,22 +209,22 @@
         }
         
         .stat-number {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: bold;
             color: #000;
         }
         
         .stat-label {
-            font-size: 11px;
+            font-size: 10px;
             color: #666;
             text-transform: uppercase;
-            margin-top: 3px;
+            margin-top: 2px;
         }
         
         .payment-info {
             text-align: center;
-            margin: 15px 0;
-            font-size: 13px;
+            margin: 12px 0;
+            font-size: 12px;
         }
         
         .payment-info strong {
@@ -215,23 +232,23 @@
         }
         
         .footer {
-            margin-top: 20px;
-            padding-top: 15px;
+            margin-top: 15px;
+            padding-top: 12px;
             border-top: 2px dashed #000;
             text-align: center;
-            font-size: 11px;
+            font-size: 10px;
             color: #666;
         }
         
         .footer p {
-            margin: 5px 0;
+            margin: 4px 0;
         }
         
         .price-legend {
-            font-size: 11px;
+            font-size: 10px;
             color: #666;
-            margin: 10px 0;
-            padding: 10px;
+            margin: 8px 0;
+            padding: 8px;
             background-color: #f9f9f9;
             border-left: 3px solid #333;
             text-align: left;
@@ -297,10 +314,10 @@
     <table class="products-table">
         <thead>
             <tr>
-                <th style="width: 5%;">#</th>
-                <th style="width: 40%;">ITEMS</th>
-                <th style="width: 15%; text-align: right;">RATE</th>
-                <th style="width: 15%; text-align: right;">QTY</th>
+                <th style="width: 4%;">#</th>
+                <th style="width: 42%;">ITEMS</th>
+                <th style="width: 16%; text-align: right;">RATE</th>
+                <th style="width: 13%; text-align: right;">QTY</th>
                 <th style="width: 25%; text-align: right;">AMOUNT</th>
             </tr>
         </thead>
@@ -352,10 +369,10 @@
                 {{-- Product Name Row --}}
                 <tr class="product-name-row">
                     <td>{{ $loop->iteration }}</td>
-                    <td colspan="4">
+                    <td colspan="4" style="padding-right: 10px;">
                         <strong>{{ $item['product']->product->product_name }}</strong>
                         @if ($item['type'] == 'imei')
-                            <span style="font-size: 11px; color: #666;">({{ $item['imei'] }})</span>
+                            <span style="font-size: 10px; color: #666; display: inline-block;">({{ $item['imei'] }})</span>
                         @endif
                         @if ($item['product']->price_type == 'retail')
                             <span style="color: blue; font-weight: bold;">*</span>
@@ -370,21 +387,21 @@
                 {{-- Product Details Row --}}
                 <tr class="product-details-row">
                     <td></td>
-                    <td>
-                        <span class="strikethrough">
+                    <td style="padding-right: 5px;">
+                        <span class="strikethrough" style="white-space: nowrap;">
                             Rs. {{ number_format($item['product']->product->max_retail_price, 2) }}
                         </span>
-                        <span class="discount-amount">
+                        <span class="discount-amount" style="white-space: nowrap;">
                             (Disc: Rs. {{ number_format($item['product']->product->max_retail_price - $item['product']->price, 2) }})
                         </span>
                     </td>
-                    <td class="text-right">
+                    <td class="text-right" style="white-space: nowrap;">
                         <strong>Rs. {{ number_format($item['product']->price, 2) }}</strong>
                     </td>
-                    <td class="text-right">
+                    <td class="text-right" style="white-space: nowrap;">
                         <strong>&times; {{ number_format($item['quantity'], 2) }} pcs</strong>
                     </td>
-                    <td class="text-right">
+                    <td class="text-right" style="white-space: nowrap;">
                         <strong>Rs. {{ number_format($item['amount'], 2) }}</strong>
                     </td>
                 </tr>
