@@ -479,22 +479,30 @@
                             }
                         },
                         { 
-                            "data": currentReportType === 'customer' ? "invoice_no" : "reference_no",
+                            "data": function(row) {
+                                return currentReportType === 'customer' ? row.invoice_no : row.reference_no;
+                            },
                             "render": function(data) {
                                 return '<strong>' + data + '</strong>';
                             }
                         },
                         { 
-                            "data": currentReportType === 'customer' ? "customer_name" : "supplier_name",
+                            "data": function(row) {
+                                return currentReportType === 'customer' ? row.customer_name : row.supplier_name;
+                            },
                             "render": function(data) {
                                 return '<strong>' + data + '</strong>';
                             }
                         },
                         { 
-                            "data": currentReportType === 'customer' ? "customer_mobile" : "supplier_mobile"
+                            "data": function(row) {
+                                return currentReportType === 'customer' ? row.customer_mobile : row.supplier_mobile;
+                            }
                         },
                         { 
-                            "data": currentReportType === 'customer' ? "sales_date" : "purchase_date"
+                            "data": function(row) {
+                                return currentReportType === 'customer' ? row.sales_date : row.purchase_date;
+                            }
                         },
                         { "data": "location" },
                         { "data": "user" },
