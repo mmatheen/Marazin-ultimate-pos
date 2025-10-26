@@ -616,4 +616,64 @@ class UserController extends Controller
         // Check for specific permissions
         return $user->hasPermissionTo('override location scope');
     }
+
+    /**
+     * Get all details of authenticated user including location
+     * This endpoint is used by the header to display current user's location
+     */
+    public function getAllDetailsUsingGuard(Request $request)
+    {
+        try {
+            $user = auth()->user();
+            
+            if (!$user) {
+                return response()->json([
+                    'status' => 401,
+                    'message' => 'Unauthorized'
+                ], 401);
+            }
+
+            // Load user relationships - ensure we have a proper User model instance
+            $user = User::with(['roles', 'locations'])->find($user->id);
+            
+            if (!$user) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => 'User not found'
+                ], 404);
+            }
+            
+            // Get the user's primary/first location
+            $location = $user->locations->first();
+            
+            if (!$location) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => 'No location assigned to user'
+                ], 404);
+            }
+
+            return response()->json([
+                'status' => 200,
+                'message' => [
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                    ],
+                    'location' => [
+                        'id' => $location->id,
+                        'name' => $location->name,
+                    ],
+                    'role' => $user->roles->first()?->name ?? 'No Role'
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Error retrieving user details: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

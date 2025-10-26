@@ -33,7 +33,10 @@ class PurchaseController extends Controller
 
     public function listPurchase()
     {
-        return view('purchase.list_purchase');
+        $locations = \App\Models\Location::all();
+        $suppliers = \App\Models\Supplier::orderBy('first_name')->get();
+        
+        return view('purchase.list_purchase', compact('locations', 'suppliers'));
     }
 
     public function AddPurchase()

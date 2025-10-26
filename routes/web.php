@@ -91,6 +91,10 @@ Route::middleware(['auth'])->group(function () {
 
          // -------------------- DashboardController Routes --------------------
         Route::get('/dashboard-data', [DashboardController::class, 'getDashboardData']);
+        
+        // -------------------- Get User Details for Header --------------------
+        Route::get('/get-all-details-using-guard', [UserController::class, 'getAllDetailsUsingGuard']);
+        
         // -------------------- UserController Routes --------------------
         // User Management
         Route::get('/user', [UserController::class, 'user'])->name('user');
@@ -480,6 +484,12 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/profit-loss-export-excel', [ReportController::class, 'profitLossExportExcel'])->name('profit-loss.export.excel');
         Route::post('/profit-loss-export-csv', [ReportController::class, 'profitLossExportCsv'])->name('profit-loss.export.csv');
         Route::match(['GET', 'POST'], '/profit-loss-product-details/{productId?}', [ReportController::class, 'profitLossProductDetails'])->name('profit-loss.product.details');
+
+        // Due Reports
+        Route::get('/due-report', [ReportController::class, 'dueReport'])->name('due.report');
+        Route::get('/due-report-export-pdf', [ReportController::class, 'dueReportExportPdf'])->name('due.report.export.pdf');
+        Route::get('/due-report-export-excel', [ReportController::class, 'dueReportExportExcel'])->name('due.report.export.excel');
+        Route::get('/due-report-export-csv', [ReportController::class, 'dueReportExportCsv'])->name('due.report.export.csv');
 
        // -------------------- LocationController Routes --------------------
         Route::get('/location', [LocationController::class, 'location'])->name('location');

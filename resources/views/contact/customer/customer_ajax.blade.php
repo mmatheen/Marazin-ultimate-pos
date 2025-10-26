@@ -280,7 +280,25 @@
                         data: null,
                         title: 'Action',
                         render: function(data, type, row) {
-                            let actions = '';
+                            let actions = '<div class="btn-group" role="group">';
+                            
+                            // Dropdown for Sales Reports
+                            actions += `
+                                <div class="btn-group me-2" role="group">
+                                    <button type="button" class="btn btn-outline-success btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="feather-file-text"></i> Sales
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="{{ route('list-sale') }}?customer_id=${row.id}" target="_blank">
+                                            <i class="feather-list text-success"></i> All Sales
+                                        </a></li>
+                                        <li><a class="dropdown-item" href="{{ route('due.report') }}?report_type=customer&customer_id=${row.id}" target="_blank">
+                                            <i class="feather-alert-circle text-danger"></i> Due Sales
+                                        </a></li>
+                                    </ul>
+                                </div>
+                            `;
+                            
                             @can('view customer')
                                 actions += `<button type="button" value="${row.id}" class="ledger_btn btn btn-outline-primary btn-sm me-2"><i class="feather-book-open text-primary"></i> Ledger</button>`;
                             @endcan
@@ -290,6 +308,8 @@
                             @can('delete customer')
                                 actions += `<button type="button" value="${row.id}" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>`;
                             @endcan
+                            
+                            actions += '</div>';
                             return actions;
                         },
                         orderable: false

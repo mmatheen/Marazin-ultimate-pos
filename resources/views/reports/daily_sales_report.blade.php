@@ -29,6 +29,65 @@
                 margin-right: 0.2in;
             }
         }
+
+        /* Select2 Styling for Perfect Alignment */
+        .select2-container {
+            width: 100% !important;
+        }
+
+        .select2-container .select2-selection--single {
+            height: 44px !important;
+            border: 1px solid #ddd !important;
+            border-radius: 5px !important;
+            background-color: #fff !important;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            line-height: 42px !important;
+            padding-left: 12px !important;
+            padding-right: 30px !important;
+            color: #333 !important;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 42px !important;
+            right: 8px !important;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__placeholder {
+            color: #999 !important;
+        }
+
+        .select2-container--default.select2-container--focus .select2-selection--single {
+            border-color: #80bdff !important;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+        }
+
+        .select2-dropdown {
+            border: 1px solid #ddd !important;
+            border-radius: 5px !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+        }
+
+        .select2-search--dropdown .select2-search__field {
+            border: 1px solid #ddd !important;
+            border-radius: 4px !important;
+            padding: 6px 12px !important;
+        }
+
+        .select2-results__option {
+            padding: 8px 12px !important;
+        }
+
+        .form-group.local-forms {
+            margin-bottom: 1rem;
+        }
+
+        .form-group.local-forms label {
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #333;
+        }
     </style>
     <div class="content container-fluid">
         <div class="row">
@@ -100,7 +159,7 @@
                             <div class="col-lg-3 col-md-6">
                                 <div class="form-group local-forms">
                                     <label>Customer:</label>
-                                    <select class="form-control select" id="customerFilter">
+                                    <select class="form-control selectBox" id="customerFilter">
                                         <option value="">Select Customer</option>
                                     </select>
                                 </div>
@@ -108,7 +167,7 @@
                             <div class="col-lg-3 col-md-6">
                                 <div class="form-group local-forms">
                                     <label>User:</label>
-                                    <select class="form-control select" id="userFilter">
+                                    <select class="form-control selectBox" id="userFilter">
                                         <option value="">Select User</option>
                                     </select>
                                 </div>
@@ -116,7 +175,7 @@
                             <div class="col-lg-3 col-md-6">
                                 <div class="form-group local-forms">
                                     <label>Location:</label>
-                                    <select class="form-control select" id="locationFilter">
+                                    <select class="form-control selectBox" id="locationFilter">
                                         <option value="">Select Location</option>
                                     </select>
                                 </div>

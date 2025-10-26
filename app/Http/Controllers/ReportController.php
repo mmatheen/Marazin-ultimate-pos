@@ -30,7 +30,7 @@ class ReportController extends Controller
         $this->middleware('permission:view payment-report', ['only' => ['paymentReport']]);
         $this->middleware('permission:view customer-report', ['only' => ['customerReport']]);
         $this->middleware('permission:view supplier-report', ['only' => ['supplierReport']]);
-        $this->middleware('permission:export reports', ['only' => ['exportReport', 'profitLossExportPdf', 'profitLossExportExcel', 'profitLossExportCsv']]);
+        $this->middleware('permission:export reports', ['only' => ['exportReport', 'profitLossExportPdf', 'profitLossExportExcel', 'profitLossExportCsv', 'dueReportExportPdf', 'dueReportExportExcel', 'dueReportExportCsv']]);
     }
 
     public function stockHistory(Request $request)
@@ -533,5 +533,392 @@ public function fetchActivityLog(Request $request)
             'report_type' => $request->report_type ?? 'overall',
             'costing_method' => $request->costing_method ?? 'fifo' // fifo or batch
         ];
+    }
+
+    // ==================== DUE REPORT METHODS ====================
+
+    /**
+     * Display the Due Report page for customers and suppliers
+     */
+    public function dueReport(Request $request)
+    {
+        $locations = Location::all();
+        $users = \App\Models\User::all();
+        $customers = \App\Models\Customer::orderBy('first_name')->get();
+        $suppliers = \App\Models\Supplier::orderBy('first_name')->get();
+
+        // If AJAX request for DataTables
+        if ($request->ajax()) {
+            return $this->getDueDataForDataTables($request);
+        }
+
+        // Initial summary data (empty state)
+        $summaryData = [
+            'total_due' => 0,
+            'total_bills' => 0,
+            'total_parties' => 0,
+            'avg_due_per_bill' => 0,
+        ];
+
+        return view('reports.due_report', compact('locations', 'users', 'customers', 'suppliers', 'summaryData'));
+    }
+
+    /**
+     * Get due data for DataTables via AJAX
+     */
+    private function getDueDataForDataTables($request)
+    {
+        $reportType = $request->input('report_type', 'customer'); // customer or supplier
+        
+        Log::info('Due Report Request', [
+            'report_type' => $reportType,
+            'customer_id' => $request->customer_id,
+            'supplier_id' => $request->supplier_id,
+            'location_id' => $request->location_id,
+            'user_id' => $request->user_id,
+            'start_date' => $request->start_date,
+            'end_date' => $request->end_date,
+        ]);
+        
+        // Get data and summary
+        if ($reportType === 'customer') {
+            $data = $this->getCustomerDueDataArray($request);
+        } else {
+            $data = $this->getSupplierDueDataArray($request);
+        }
+        
+        Log::info('Due Report Data Count', ['count' => count($data)]);
+        
+        // Calculate summary
+        $summary = $this->calculateDueSummaryFromData($data, $reportType);
+        
+        Log::info('Due Report Summary', $summary);
+        
+        return response()->json([
+            'data' => $data,
+            'summary' => $summary
+        ]);
+    }
+
+    /**
+     * Get customer due data as array
+     */
+    private function getCustomerDueDataArray($request)
+    {
+        $query = Sale::with(['customer', 'location', 'user'])
+            ->whereIn('payment_status', ['partial', 'due'])
+            ->where('total_due', '>', 0)
+            ->whereNotNull('customer_id');
+
+        // Apply filters
+        if ($request->has('customer_id') && $request->customer_id != '' && $request->customer_id != null) {
+            $query->where('customer_id', $request->customer_id);
+        }
+
+        if ($request->has('location_id') && $request->location_id != '' && $request->location_id != null) {
+            $query->where('location_id', $request->location_id);
+        }
+
+        if ($request->has('user_id') && $request->user_id != '' && $request->user_id != null) {
+            $query->where('user_id', $request->user_id);
+        }
+
+        // Date range filter
+        if ($request->has('start_date') && $request->start_date != '' && $request->start_date != null) {
+            $query->whereDate('sales_date', '>=', $request->start_date);
+        }
+
+        if ($request->has('end_date') && $request->end_date != '' && $request->end_date != null) {
+            $query->whereDate('sales_date', '<=', $request->end_date);
+        }
+
+        // Due days range filter
+        if ($request->has('due_days_from') && $request->due_days_from != '' && $request->due_days_from != null) {
+            $dueDaysFrom = (int)$request->due_days_from;
+            $dateFrom = Carbon::now()->subDays($dueDaysFrom)->format('Y-m-d');
+            $query->whereDate('sales_date', '<=', $dateFrom);
+        }
+
+        if ($request->has('due_days_to') && $request->due_days_to != '' && $request->due_days_to != null) {
+            $dueDaysTo = (int)$request->due_days_to;
+            $dateTo = Carbon::now()->subDays($dueDaysTo)->format('Y-m-d');
+            $query->whereDate('sales_date', '>=', $dateTo);
+        }
+
+        $sales = $query->orderBy('sales_date', 'desc')->get();
+
+        // Format data for DataTables
+        $data = [];
+        foreach ($sales as $sale) {
+            // Only include if there's actual due amount and not paid
+            if ($sale->total_due <= 0 || $sale->payment_status === 'paid') continue;
+            
+            $salesDate = Carbon::parse($sale->sales_date);
+            $dueDate = $salesDate; // You can modify this if you have a separate due_date field
+            $dueDays = Carbon::now()->diffInDays($salesDate, false);
+            
+            $data[] = [
+                'id' => $sale->id,
+                'invoice_no' => $sale->invoice_no ?? 'N/A',
+                'customer_name' => $sale->customer ? $sale->customer->full_name : 'N/A',
+                'customer_mobile' => $sale->customer ? $sale->customer->mobile_no : 'N/A',
+                'sales_date' => $salesDate->format('d-M-Y'),
+                'location' => $sale->location ? $sale->location->name : 'N/A',
+                'user' => $sale->user ? $sale->user->name : 'N/A',
+                'final_total' => $sale->final_total,
+                'total_paid' => $sale->total_paid,
+                'total_due' => $sale->total_due,
+                'payment_status' => $sale->payment_status,
+                'due_days' => abs($dueDays),
+                'due_status' => $this->getDueStatus($dueDays),
+            ];
+        }
+
+        return $data;
+    }
+
+    /**
+     * Get supplier due data as array
+     */
+    private function getSupplierDueDataArray($request)
+    {
+        $query = \App\Models\Purchase::with(['supplier', 'location', 'user'])
+            ->whereIn('payment_status', ['partial', 'due'])
+            ->where('total_due', '>', 0)
+            ->whereNotNull('supplier_id');
+
+        // Apply filters
+        if ($request->has('supplier_id') && $request->supplier_id != '' && $request->supplier_id != null) {
+            $query->where('supplier_id', $request->supplier_id);
+        }
+
+        if ($request->has('location_id') && $request->location_id != '' && $request->location_id != null) {
+            $query->where('location_id', $request->location_id);
+        }
+
+        if ($request->has('user_id') && $request->user_id != '' && $request->user_id != null) {
+            $query->where('user_id', $request->user_id);
+        }
+
+        // Date range filter
+        if ($request->has('start_date') && $request->start_date != '' && $request->start_date != null) {
+            $query->whereDate('purchase_date', '>=', $request->start_date);
+        }
+
+        if ($request->has('end_date') && $request->end_date != '' && $request->end_date != null) {
+            $query->whereDate('purchase_date', '<=', $request->end_date);
+        }
+
+        // Due days range filter
+        if ($request->has('due_days_from') && $request->due_days_from != '' && $request->due_days_from != null) {
+            $dueDaysFrom = (int)$request->due_days_from;
+            $dateFrom = Carbon::now()->subDays($dueDaysFrom)->format('Y-m-d');
+            $query->whereDate('purchase_date', '<=', $dateFrom);
+        }
+
+        if ($request->has('due_days_to') && $request->due_days_to != '' && $request->due_days_to != null) {
+            $dueDaysTo = (int)$request->due_days_to;
+            $dateTo = Carbon::now()->subDays($dueDaysTo)->format('Y-m-d');
+            $query->whereDate('purchase_date', '>=', $dateTo);
+        }
+
+        $purchases = $query->orderBy('purchase_date', 'desc')->get();
+
+        // Format data for DataTables
+        $data = [];
+        foreach ($purchases as $purchase) {
+            // Only include if there's actual due amount and not paid
+            if ($purchase->total_due <= 0 || $purchase->payment_status === 'paid') continue;
+            
+            $purchaseDate = Carbon::parse($purchase->purchase_date);
+            $dueDate = $purchaseDate; // You can modify this if you have a separate due_date field
+            $dueDays = Carbon::now()->diffInDays($purchaseDate, false);
+            
+            $data[] = [
+                'id' => $purchase->id,
+                'reference_no' => $purchase->reference_no ?? 'N/A',
+                'supplier_name' => $purchase->supplier ? $purchase->supplier->full_name : 'N/A',
+                'supplier_mobile' => $purchase->supplier ? $purchase->supplier->mobile_no : 'N/A',
+                'purchase_date' => $purchaseDate->format('d-M-Y'),
+                'location' => $purchase->location ? $purchase->location->name : 'N/A',
+                'user' => $purchase->user ? $purchase->user->name : 'N/A',
+                'final_total' => $purchase->final_total,
+                'total_paid' => $purchase->total_paid,
+                'total_due' => $purchase->total_due,
+                'payment_status' => $purchase->payment_status,
+                'due_days' => abs($dueDays),
+                'due_status' => $this->getDueStatus($dueDays),
+            ];
+        }
+
+        return $data;
+    }
+
+    /**
+     * Calculate summary from data array
+     */
+    private function calculateDueSummaryFromData($data, $reportType)
+    {
+        $totalDue = 0;
+        $totalBills = count($data);
+        $uniqueParties = [];
+
+        foreach ($data as $row) {
+            $totalDue += $row['total_due'];
+            
+            if ($reportType === 'customer') {
+                $uniqueParties[$row['customer_name']] = true;
+            } else {
+                $uniqueParties[$row['supplier_name']] = true;
+            }
+        }
+
+        $totalParties = count($uniqueParties);
+        $avgDuePerBill = $totalBills > 0 ? $totalDue / $totalBills : 0;
+
+        return [
+            'total_due' => $totalDue,
+            'total_bills' => $totalBills,
+            'total_parties' => $totalParties,
+            'avg_due_per_bill' => $avgDuePerBill,
+        ];
+    }
+
+    /**
+     * Get due status based on days
+     */
+    private function getDueStatus($dueDays)
+    {
+        $days = abs($dueDays);
+        
+        if ($days <= 7) {
+            return 'recent';
+        } elseif ($days <= 30) {
+            return 'medium';
+        } elseif ($days <= 90) {
+            return 'old';
+        } else {
+            return 'critical';
+        }
+    }
+
+    /**
+     * Calculate summary data for due report
+     */
+    private function calculateDueSummary($request)
+    {
+        $reportType = $request->input('report_type', 'customer');
+        
+        if ($reportType === 'customer') {
+            $query = Sale::whereIn('payment_status', ['partial', 'due'])
+                ->where('total_due', '>', 0)
+                ->whereNotNull('customer_id');
+
+            // Apply same filters as main query
+            if ($request->has('customer_id') && $request->customer_id != '') {
+                $query->where('customer_id', $request->customer_id);
+            }
+            if ($request->has('location_id') && $request->location_id != '') {
+                $query->where('location_id', $request->location_id);
+            }
+            if ($request->has('user_id') && $request->user_id != '') {
+                $query->where('user_id', $request->user_id);
+            }
+            if ($request->has('start_date') && $request->start_date != '') {
+                $query->whereDate('sales_date', '>=', $request->start_date);
+            }
+            if ($request->has('end_date') && $request->end_date != '') {
+                $query->whereDate('sales_date', '<=', $request->end_date);
+            }
+
+            $totalDue = $query->sum('total_due');
+            $totalBills = $query->count();
+            $totalCustomers = $query->distinct('customer_id')->count('customer_id');
+            $avgDuePerBill = $totalBills > 0 ? $totalDue / $totalBills : 0;
+
+        } else {
+            $query = \App\Models\Purchase::whereIn('payment_status', ['partial', 'due'])
+                ->where('total_due', '>', 0)
+                ->whereNotNull('supplier_id');
+
+            // Apply same filters as main query
+            if ($request->has('supplier_id') && $request->supplier_id != '') {
+                $query->where('supplier_id', $request->supplier_id);
+            }
+            if ($request->has('location_id') && $request->location_id != '') {
+                $query->where('location_id', $request->location_id);
+            }
+            if ($request->has('user_id') && $request->user_id != '') {
+                $query->where('user_id', $request->user_id);
+            }
+            if ($request->has('start_date') && $request->start_date != '') {
+                $query->whereDate('purchase_date', '>=', $request->start_date);
+            }
+            if ($request->has('end_date') && $request->end_date != '') {
+                $query->whereDate('purchase_date', '<=', $request->end_date);
+            }
+
+            $totalDue = $query->sum('total_due');
+            $totalBills = $query->count();
+            $totalSuppliers = $query->distinct('supplier_id')->count('supplier_id');
+            $avgDuePerBill = $totalBills > 0 ? $totalDue / $totalBills : 0;
+            $totalCustomers = $totalSuppliers; // For consistency in blade template
+        }
+
+        return [
+            'total_due' => $totalDue,
+            'total_bills' => $totalBills,
+            'total_parties' => $totalCustomers,
+            'avg_due_per_bill' => $avgDuePerBill,
+        ];
+    }
+
+    /**
+     * Export due report as PDF
+     */
+    public function dueReportExportPdf(Request $request)
+    {
+        $reportType = $request->input('report_type', 'customer');
+        $data = $reportType === 'customer' 
+            ? $this->getCustomerDueDataArray($request)
+            : $this->getSupplierDueDataArray($request);
+        
+        $summaryData = $this->calculateDueSummaryFromData($data, $reportType);
+        
+        $pdf = Pdf::loadView('reports.due_report_pdf', compact('data', 'summaryData', 'reportType'));
+        
+        $filename = 'due-report-' . $reportType . '-' . date('Y-m-d-H-i-s') . '.pdf';
+        
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Export due report as Excel
+     */
+    public function dueReportExportExcel(Request $request)
+    {
+        $reportType = $request->input('report_type', 'customer');
+        $data = $reportType === 'customer' 
+            ? $this->getCustomerDueDataArray($request)
+            : $this->getSupplierDueDataArray($request);
+        
+        $filename = 'due-report-' . $reportType . '-' . date('Y-m-d-H-i-s') . '.xlsx';
+        
+        return Excel::download(new \App\Exports\DueReportExport($data, $reportType), $filename);
+    }
+
+    /**
+     * Export due report as CSV
+     */
+    public function dueReportExportCsv(Request $request)
+    {
+        $reportType = $request->input('report_type', 'customer');
+        $data = $reportType === 'customer' 
+            ? $this->getCustomerDueDataArray($request)
+            : $this->getSupplierDueDataArray($request);
+        
+        $filename = 'due-report-' . $reportType . '-' . date('Y-m-d-H-i-s') . '.csv';
+        
+        return Excel::download(new \App\Exports\DueReportExport($data, $reportType), $filename, \Maatwebsite\Excel\Excel::CSV);
     }
 }

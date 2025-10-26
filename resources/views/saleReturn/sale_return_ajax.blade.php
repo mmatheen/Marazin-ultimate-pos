@@ -166,12 +166,33 @@
                 return urlParams.get(param);
             }
 
+            // Check for invoice number in URL and auto-load
             const invoiceNo = getQueryParam('invoiceNo');
-
+            
+            console.log('=== Sale Return Page Loaded ===');
+            console.log('URL invoice parameter:', invoiceNo);
+            
             if (invoiceNo) {
-                document.getElementById('invoiceNo').value = invoiceNo;
-
-                fetchSaleProducts(invoiceNo);
+                console.log('Setting invoice number to:', invoiceNo);
+                
+                // Wait a bit for all elements to be ready
+                setTimeout(function() {
+                    const invoiceField = document.getElementById('invoiceNo');
+                    console.log('Invoice field found:', invoiceField !== null);
+                    
+                    if (invoiceField) {
+                        invoiceField.value = invoiceNo;
+                        console.log('Invoice field value set to:', invoiceField.value);
+                        
+                        // Trigger the fetch
+                        console.log('Fetching sale products for invoice:', invoiceNo);
+                        fetchSaleProducts(invoiceNo);
+                    } else {
+                        console.error('Invoice field not found!');
+                    }
+                }, 300);
+            } else {
+                console.log('No invoice parameter in URL');
             }
 
             $("#invoiceNo").autocomplete({
@@ -194,14 +215,19 @@
             });
 
             function fetchSaleProducts(invoiceNo) {
+                console.log('fetchSaleProducts called with:', invoiceNo);
+                
                 $.ajax({
                     url: `/sales/${invoiceNo}`,
                     method: 'GET',
                     success: function(data) {
+                        console.log('Sale data received:', data);
+                        
                         const productsTableBody = $("#productsTableBody");
                         productsTableBody.empty();
 
                         if (!data || !data.products) {
+                            console.error('Invalid sale data:', data);
                             swal({
                                 title: "Invalid Sale",
                                 text: "Invalid Sale ID. Please check and try again.",
@@ -213,6 +239,7 @@
 
                         // Check if there are any returnable products (quantity > 0)
                         if (data.products.length === 0) {
+                            console.warn('No returnable products found');
                             swal({
                                 title: "No Returnable Products",
                                 text: "All products in this sale have already been returned or have zero quantity.",

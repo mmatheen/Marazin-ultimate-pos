@@ -2,6 +2,26 @@
     $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); // For CSRF token
 
+        // Check for URL parameters and auto-select filters
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlCustomerId = urlParams.get('customer_id');
+        const urlLocationId = urlParams.get('location_id');
+        
+        console.log('=== Sales Page URL Parameters ===');
+        console.log('customer_id from URL:', urlCustomerId);
+        console.log('location_id from URL:', urlLocationId);
+
+        // Set filter values IMMEDIATELY before DataTable initialization
+        if (urlCustomerId) {
+            console.log('Pre-setting customer filter to:', urlCustomerId);
+            $('#customerFilter').val(urlCustomerId);
+            console.log('Customer filter value after setting:', $('#customerFilter').val());
+        }
+        if (urlLocationId) {
+            console.log('Pre-setting location filter to:', urlLocationId);
+            $('#locationFilter').val(urlLocationId);
+            console.log('Location filter value after setting:', $('#locationFilter').val());
+        }
 
         // Make sure table exists and destroy any existing DataTable
         if ($.fn.DataTable.isDataTable('#salesTable')) {
@@ -46,6 +66,11 @@
                     }
 
                     // Add custom filters
+                    console.log('=== Reading Filter Values ===');
+                    console.log('customerFilter element:', $('#customerFilter').length > 0);
+                    console.log('customerFilter value:', $('#customerFilter').val());
+                    console.log('locationFilter value:', $('#locationFilter').val());
+                    
                     if ($('#customerFilter').val()) requestData.customer_id = $('#customerFilter')
                         .val();
                     if ($('#locationFilter').val()) requestData.location_id = $('#locationFilter')
@@ -63,6 +88,8 @@
                         }
                     }
 
+                    console.log('DataTable AJAX request data:', requestData);
+                    console.log('================================');
                     return requestData;
                 },
                 // Simple DataTable server-side response handler
@@ -462,6 +489,46 @@
         $(document).on('change', '.dataTables_wrapper select', function() {
             console.log('Any DataTable select changed:', $(this).attr('name'), 'to:', $(this).val());
         });
+
+        // Auto-select filters from URL parameters after Select2 initialization
+        function applyURLFilters() {
+            console.log('=== Applying URL Filters ===');
+            
+            if (urlCustomerId) {
+                console.log('Setting customer filter to:', urlCustomerId);
+                
+                // Check if Select2 is initialized
+                if ($('#customerFilter').hasClass('select2-hidden-accessible')) {
+                    // Select2 is initialized, use Select2 API
+                    $('#customerFilter').val(urlCustomerId).trigger('change.select2');
+                    console.log('Customer filter set via Select2');
+                } else {
+                    // Fallback to regular select
+                    $('#customerFilter').val(urlCustomerId).trigger('change');
+                    console.log('Customer filter set via regular select');
+                }
+            }
+            
+            if (urlLocationId) {
+                console.log('Setting location filter to:', urlLocationId);
+                
+                if ($('#locationFilter').hasClass('select2-hidden-accessible')) {
+                    $('#locationFilter').val(urlLocationId).trigger('change.select2');
+                    console.log('Location filter set via Select2');
+                } else {
+                    $('#locationFilter').val(urlLocationId).trigger('change');
+                    console.log('Location filter set via regular select');
+                }
+            }
+            
+            console.log('=== URL Filters Applied ===');
+        }
+        
+        // Wait for Select2 to initialize, then apply filters
+        // Try multiple times with increasing delays to ensure Select2 is ready
+        setTimeout(applyURLFilters, 800);
+        setTimeout(applyURLFilters, 1500);
+        setTimeout(applyURLFilters, 2500);
 
         // Add filter change handlers to refresh table
         $('#customerFilter, #locationFilter, #userFilter, #paymentStatusFilter, #paymentMethodFilter, #dateRangeFilter')
@@ -2348,6 +2415,21 @@
         $(document).on('click', '.edit_btn', function(event) {
             var id = $(this).val();
             window.location.href = `/sales/edit/${id}`;
+        });
+
+        // Handle sell return button click
+        $(document).on('click', '.sell-return', function(event) {
+            event.preventDefault();
+            var saleId = $(this).val();
+            
+            // Get the sale details to find the invoice number
+            var row = $('#salesTable').DataTable().row($(this).closest('tr')).data();
+            var invoiceNo = row ? (row.invoice_no || row.id) : saleId;
+            
+            console.log('Navigating to sale return with invoice:', invoiceNo);
+            
+            // Navigate to sale return page with invoice number as parameter (use 'invoiceNo' not 'invoice_no')
+            window.location.href = `{{ route('sale-return/add') }}?invoiceNo=${invoiceNo}`;
         });
 
 

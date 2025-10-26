@@ -2232,27 +2232,92 @@
 
 
         $(document).ready(function() {
+            // Get URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlSupplierId = urlParams.get('supplier_id');
+            const urlLocationId = urlParams.get('location_id');
+            
+            console.log('URL Parameters:', { supplier_id: urlSupplierId, location_id: urlLocationId });
+            
+            // Set filters from URL if present
+            setTimeout(function() {
+                if (urlSupplierId) {
+                    console.log('Setting supplier filter to:', urlSupplierId);
+                    $('#supplierFilter').val(urlSupplierId).trigger('change');
+                }
+                if (urlLocationId) {
+                    console.log('Setting location filter to:', urlLocationId);
+                    $('#locationFilter').val(urlLocationId).trigger('change');
+                }
+            }, 500);
+            
             fetchPurchases();
+            
+            // Add filter change listeners
+            $('#supplierFilter, #locationFilter, #purchaseStatusFilter, #paymentStatusFilter').on('change', function() {
+                console.log('Filter changed, fetching purchases...');
+                fetchPurchases();
+            });
 
             // Fetch and display data
             function fetchPurchases() {
+                // Get filter values
+                const filters = {
+                    supplier_id: $('#supplierFilter').val() || '',
+                    location_id: $('#locationFilter').val() || '',
+                    purchase_status: $('#purchaseStatusFilter').val() || '',
+                    payment_status: $('#paymentStatusFilter').val() || ''
+                };
+                
+                console.log('Fetching purchases with filters:', filters);
+                
                 $.ajax({
                     url: '/get-all-purchases',
                     type: 'GET',
                     dataType: 'json',
                     success: function(response) {
+                        console.log('Purchases received:', response.purchases ? response.purchases.length : 0);
+                        
                         var table = $('#purchase-list').DataTable();
                         table.clear().draw();
                         if (response.purchases && response.purchases.length > 0) {
-                            // Sort purchases by id descending (or by purchase_date if you prefer)
+                            // Sort purchases by id descending
                             response.purchases.sort(function(a, b) {
-                                // Sort by id descending
                                 return b.id - a.id;
-
-                                return new Date(b.purchase_date) - new Date(a
-                                    .purchase_date);
                             });
-                            response.purchases.forEach(function(item) {
+                            
+                            // Apply client-side filtering
+                            let filteredPurchases = response.purchases;
+                            
+                            if (filters.supplier_id) {
+                                console.log('Filtering by supplier_id:', filters.supplier_id);
+                                filteredPurchases = filteredPurchases.filter(item => item.supplier_id == filters.supplier_id);
+                                console.log('After supplier filter:', filteredPurchases.length);
+                            }
+                            
+                            if (filters.location_id) {
+                                console.log('Filtering by location_id:', filters.location_id);
+                                filteredPurchases = filteredPurchases.filter(item => item.location_id == filters.location_id);
+                                console.log('After location filter:', filteredPurchases.length);
+                            }
+                            
+                            if (filters.purchase_status) {
+                                filteredPurchases = filteredPurchases.filter(item => 
+                                    item.purchasing_status && item.purchasing_status.toLowerCase() === filters.purchase_status.toLowerCase()
+                                );
+                                console.log('After purchase status filter:', filteredPurchases.length);
+                            }
+                            
+                            if (filters.payment_status) {
+                                filteredPurchases = filteredPurchases.filter(item => 
+                                    item.payment_status && item.payment_status.toLowerCase() === filters.payment_status.toLowerCase()
+                                );
+                                console.log('After payment status filter:', filteredPurchases.length);
+                            }
+                            
+                            console.log('Final filtered purchases:', filteredPurchases.length);
+                            
+                            filteredPurchases.forEach(function(item) {
                                 let row = $('<tr data-id="' + item.id + '">');
                                 row.append(
                                     '<td><a href="#" class="action-icon dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">' +

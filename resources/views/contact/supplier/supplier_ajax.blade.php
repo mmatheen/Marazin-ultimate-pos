@@ -95,10 +95,28 @@
                         row.append('<td>Rs ' + item.current_balance + '</td>');
                         row.append('<td>Rs ' + item.total_purchase_due + '</td>');
                         row.append('<td>Rs ' + item.total_return_due + '</td>');
-                        row.append('<td>' + 
+                        
+                        // Action buttons with dropdown
+                        let actionHtml = '<div class="btn-group" role="group">' +
+                            '<div class="btn-group me-2" role="group">' +
+                                '<button type="button" class="btn btn-outline-success btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">' +
+                                    '<i class="feather-file-text"></i> Purchases' +
+                                '</button>' +
+                                '<ul class="dropdown-menu">' +
+                                    '<li><a class="dropdown-item" href="{{ route("list-purchase") }}?supplier_id=' + item.id + '" target="_blank">' +
+                                        '<i class="feather-list text-success"></i> All Purchases' +
+                                    '</a></li>' +
+                                    '<li><a class="dropdown-item" href="{{ route("due.report") }}?report_type=supplier&supplier_id=' + item.id + '" target="_blank">' +
+                                        '<i class="feather-alert-circle text-danger"></i> Due Purchases' +
+                                    '</a></li>' +
+                                '</ul>' +
+                            '</div>' +
                             '@can("view supplier")<button type="button" value="' + item.id + '" class="ledger_btn btn btn-outline-primary btn-sm me-2"><i class="feather-book text-primary"></i> Ledger</button>@endcan' +
                             '@can("edit supplier")<button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
-                            '@can("delete supplier")<button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +'</td>');
+                            '@can("delete supplier")<button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +
+                        '</div>';
+                        
+                        row.append('<td>' + actionHtml + '</td>');
                         table.row.add(row).draw(false);
                     });
                 },

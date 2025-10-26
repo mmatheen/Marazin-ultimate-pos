@@ -375,6 +375,8 @@
                             @can('view profit-loss-report')
                                 <li><a href="{{ route('profit-loss.report') }}" class="{{ set_active(['profit-loss.report']) }}">Profit & Loss Report</a></li>
                             @endcan
+
+                            <li><a href="{{ route('due.report') }}" class="{{ set_active(['due-report']) }}">Due Report</a></li>
                         </ul>
                     </li>
                 @endcanany
