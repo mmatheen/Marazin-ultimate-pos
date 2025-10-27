@@ -6892,7 +6892,8 @@
             successSound.play();
         @endif
 
-        @if (Session::has('toastr-error'))
+
+4        @if (Session::has('toastr-error'))
             toastr.error("{{ Session::get('toastr-error') }}");
             errorSound.play();
         @endif

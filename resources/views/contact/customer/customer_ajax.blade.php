@@ -354,15 +354,27 @@
                 url: '/api/cities',
                 type: 'GET',
                 dataType: 'json',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken
+                },
                 success: function(response) {
+                    console.log('Cities API Response:', response); // Debug log
                     if (response.status && response.data) {
-                        allCities = response.data;
+                        // Clear and repopulate the array to maintain reference
+                        allCities.length = 0;
+                        Array.prototype.push.apply(allCities, response.data);
                         window.allCities = allCities; // Keep global reference updated
+                        console.log('Cities loaded:', allCities.length, allCities); // Debug log
                         if (!citySearchInitialized) {
                             setupCitySearch();
                             citySearchInitialized = true;
                         }
+                    } else {
+                        console.error('Invalid cities response:', response);
                     }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching cities:', error, xhr.responseText);
                 }
             });
         }
@@ -380,6 +392,8 @@
                 hiddenInput.val('');
                 currentIndex = -1;
 
+                console.log('Search query:', query, 'Available cities:', allCities.length); // Debug log
+
                 if (query === '') {
                     dropdown.hide();
                     return;
@@ -388,6 +402,8 @@
                 const matches = allCities.filter(city =>
                     city.name.toLowerCase().includes(query.toLowerCase())
                 );
+
+                console.log('Matches found:', matches.length, matches); // Debug log
 
                 if (matches.length > 0) {
                     showResults(matches);
