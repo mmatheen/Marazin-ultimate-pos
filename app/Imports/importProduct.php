@@ -47,14 +47,6 @@ class importProduct implements ToCollection, WithHeadingRow
 
     public function collection(Collection $rows)
     {
-        Log::info("Starting import with " . count($rows) . " rows");
-        
-        // Debug: Log the first row to see column headers
-        if (count($rows) > 0) {
-            $firstRow = $rows->first();
-            Log::info("Excel column headers found: " . json_encode($firstRow->keys()->toArray()));
-        }
-        
         // First pass: Validate all rows without inserting anything
         $this->validateAllRows($rows);
         
@@ -64,8 +56,6 @@ class importProduct implements ToCollection, WithHeadingRow
             return; // Stop processing - no data will be imported
         }
 
-        Log::info("Validation passed, starting import process");
-        
         // Second pass: Import all rows (only if validation passed)
         DB::beginTransaction();
         
@@ -73,13 +63,11 @@ class importProduct implements ToCollection, WithHeadingRow
             $processedCount = 0;
             foreach ($rows as $index => $row) {
                 $excelRowNumber = $index + 2; // Excel row number (accounting for header)
-                Log::info("Processing row {$excelRowNumber}");
                 
                 try {
                     $result = $this->processRow($row->toArray(), $excelRowNumber);
                     if ($result !== null) {
                         $processedCount++;
-                        Log::info("Successfully processed row {$excelRowNumber}");
                     }
                 } catch (\Exception $rowException) {
                     Log::error("Error processing row {$excelRowNumber}: " . $rowException->getMessage());
@@ -90,7 +78,6 @@ class importProduct implements ToCollection, WithHeadingRow
             }
             
             DB::commit();
-            Log::info("Successfully imported {$processedCount} out of " . count($rows) . " products.");
             
         } catch (\Exception $e) {
             DB::rollBack();
@@ -225,9 +212,6 @@ class importProduct implements ToCollection, WithHeadingRow
      */
     private function mapExcelHeaders(array &$rowArray)
     {
-        // Debug: Log all available keys
-        Log::info("Available row keys: " . json_encode(array_keys($rowArray)));
-        
         // Special handling for your Excel structure where "is_imeiserial_no" contains IMEI numbers
         if (isset($rowArray['is_imeiserial_no']) && !empty($rowArray['is_imeiserial_no'])) {
             // This column contains IMEI numbers, not 0/1 values
@@ -238,15 +222,10 @@ class importProduct implements ToCollection, WithHeadingRow
             $rowArray['is_imei_or_serial_no'] = 1;
             
             // If description is empty, use the IMEI data as description
-            // If description is not empty, append IMEI data to it
+            // If description is not empty, keep existing description
             if (empty($rowArray['description'])) {
                 $rowArray['description'] = $imeiData;
-            } else {
-                // If description already has data, we'll prefer it and log the IMEI data
-                Log::info("Description exists, IMEI data from is_imeiserial_no: " . $imeiData);
             }
-            
-            Log::info("Mapped IMEI product - Flag: 1, IMEI data: " . substr($imeiData, 0, 100));
         } else {
             // No IMEI data found, set flag to 0
             $rowArray['is_imei_or_serial_no'] = 0;
@@ -268,13 +247,6 @@ class importProduct implements ToCollection, WithHeadingRow
                     unset($rowArray[$excelHeader]);
                 }
             }
-        }
-        
-        // Log the final mapped values for debugging
-        Log::info("Final is_imei_or_serial_no value: " . ($rowArray['is_imei_or_serial_no'] ?? 'not set'));
-        
-        if (isset($rowArray['description'])) {
-            Log::info("Description value: " . substr($rowArray['description'], 0, 100)); // Log first 100 chars
         }
     }
 
@@ -310,34 +282,26 @@ class importProduct implements ToCollection, WithHeadingRow
             if (isset($rowArray['is_imei_or_serial_no'])) {
                 $imeiFlag = trim($rowArray['is_imei_or_serial_no']);
                 $isImeiProduct = ($imeiFlag == '1' || $imeiFlag == 1 || strtolower($imeiFlag) == 'true');
-                Log::info("Row {$excelRowNumber}: is_imei_or_serial_no = '{$imeiFlag}', isImeiProduct = " . ($isImeiProduct ? 'true' : 'false'));
             }
             
             // For IMEI products, extract IMEI numbers from description
             if ($isImeiProduct && !empty($rowArray['description'])) {
                 $imeiFieldValue = $rowArray['description'];
-                Log::info("Row {$excelRowNumber}: Extracting IMEI from description: " . substr($imeiFieldValue, 0, 100));
             }
             
             if (!empty($imeiFieldValue)) {
                 $imeiList = preg_split('/[\/,]+/', $imeiFieldValue);
                 $imeiList = array_map('trim', $imeiList);
                 $imeiList = array_filter($imeiList);
-                
-                Log::info("Row {$excelRowNumber}: Found " . count($imeiList) . " IMEI numbers to validate");
 
                 foreach ($imeiList as $imei) {
                     // Check IMEI format (must be 10-17 digits for flexibility as mentioned in requirements)
                     if (!preg_match('/^\d{10,17}$/', $imei)) {
                         $this->validationErrors[] = "Row {$excelRowNumber}: Invalid IMEI format '{$imei}'. IMEI must be 10-17 digits.";
-                        Log::warning("Row {$excelRowNumber}: Invalid IMEI format '{$imei}' (length: " . strlen($imei) . ")");
                     } else {
                         // Check for duplicate IMEI
                         if (ImeiNumber::isDuplicate($imei)) {
                             $this->validationErrors[] = "Row {$excelRowNumber}: IMEI '{$imei}' already exists in the database.";
-                            Log::warning("Row {$excelRowNumber}: Duplicate IMEI '{$imei}'");
-                        } else {
-                            Log::info("Row {$excelRowNumber}: Valid IMEI '{$imei}'");
                         }
                     }
                 }
@@ -406,11 +370,8 @@ class importProduct implements ToCollection, WithHeadingRow
         try {
             // Skip empty rows
             if (empty(array_filter($row))) {
-                Log::info("Skipping empty row {$excelRowNumber}");
                 return null;
             }
-            
-            Log::info("Processing row {$excelRowNumber} with data: " . json_encode(array_slice($row, 0, 3))); // Log first 3 fields
 
             // Clean data before processing
             $this->cleanRowData($row);
@@ -446,10 +407,11 @@ class importProduct implements ToCollection, WithHeadingRow
             if ($selectedLocationId) {
                 // Verify that the selected location is assigned to the user
                 $userLocationIds = $authUser->locations->pluck('id')->toArray();
+                
                 if (in_array($selectedLocationId, $userLocationIds)) {
                     $authLocationId = $selectedLocationId;
                 } else {
-                    throw new \Exception("Selected location is not assigned to the current user.");
+                    throw new \Exception("Selected location {$selectedLocationId} is not assigned to the current user.");
                 }
             } else {
                 // Fall back to user's first assigned location
@@ -484,8 +446,21 @@ class importProduct implements ToCollection, WithHeadingRow
                     'main_category_id' => $mainCategory->id,
                 ], ['location_id' => $authLocationId]) : null;
 
-            // Create and save the product
-            $product = new Product([
+            // Check if product already exists (by ID or SKU) to prevent duplicates
+            $product = null;
+            
+            // First, try to find by ID if provided in Excel
+            if (!empty($row['id'])) {
+                $product = Product::find($row['id']);
+            }
+            
+            // If not found by ID, try to find by SKU to prevent duplicate SKUs
+            if (!$product && !empty($row['sku'])) {
+                $product = Product::where('sku', $row['sku'])->first();
+            }
+            
+            // Prepare product data
+            $productData = [
                 'product_name' => $row['product_name'],
                 'sku' => $row['sku'],
                 'unit_id' => $unit->id,
@@ -505,19 +480,36 @@ class importProduct implements ToCollection, WithHeadingRow
                 'whole_sale_price' => $row['whole_sale_price'],
                 'special_price' => $row['special_price'] ?? null,
                 'max_retail_price' => $row['max_retail_price'] ?? null,
-            ]);
-            $product->save();
+            ];
+            
+            // Update existing product or create new one
+            if ($product) {
+                // Update existing product
+                $product->fill($productData);
+                $product->save();
+            } else {
+                // Create new product
+                $product = new Product($productData);
+                $product->save();
+            }
 
             $productId = $product->id;
 
-            // Insert into location_product table
-            DB::table('location_product')->insert([
-                'location_id' => $authLocationId,
-                'product_id' => $productId,
-                'qty' => 0, // Default quantity
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            // Insert or update location_product table (prevent duplicate entries)
+            $existingLocationProduct = DB::table('location_product')
+                ->where('location_id', $authLocationId)
+                ->where('product_id', $productId)
+                ->first();
+            
+            if (!$existingLocationProduct) {
+                DB::table('location_product')->insert([
+                    'location_id' => $authLocationId,
+                    'product_id' => $productId,
+                    'qty' => 0, // Default quantity
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
 
             // Handle Batch, LocationBatch, StockHistory - Check IMEI first to determine quantity
             $actualQty = $row['qty'] ?? 0;
@@ -531,13 +523,11 @@ class importProduct implements ToCollection, WithHeadingRow
             if (isset($row['is_imei_or_serial_no'])) {
                 $imeiFlag = trim($row['is_imei_or_serial_no']);
                 $isImeiProduct = ($imeiFlag == '1' || $imeiFlag == 1 || strtolower($imeiFlag) == 'true');
-                Log::info("Row {$excelRowNumber}: Batch processing - is_imei_or_serial_no = '{$imeiFlag}', isImeiProduct = " . ($isImeiProduct ? 'true' : 'false'));
             }
             
             // For IMEI products, extract IMEI numbers from description
             if ($isImeiProduct && !empty($row['description'])) {
                 $imeiFieldValue = $row['description'];
-                Log::info("Row {$excelRowNumber}: Batch processing - Extracting IMEI from description: " . substr($imeiFieldValue, 0, 100));
             }
             
             // If IMEI numbers are provided, count them to determine actual quantity
@@ -547,12 +537,10 @@ class importProduct implements ToCollection, WithHeadingRow
                 $imeiList = array_filter($imeiList); // Remove empty entries
                 $imeiCount = count($imeiList);
                 
-                Log::info("Row {$excelRowNumber}: Found {$imeiCount} IMEI numbers for batch processing");
                 
                 // If qty is 0 or not provided, use IMEI count as quantity
                 if (empty($actualQty) || $actualQty == 0) {
                     $actualQty = $imeiCount;
-                    Log::info("Auto-setting quantity to {$actualQty} based on IMEI count for row {$excelRowNumber}");
                 }
                 
                 // Validate that IMEI count matches quantity if both are provided
@@ -614,7 +602,6 @@ class importProduct implements ToCollection, WithHeadingRow
                     ->where('product_id', $productId)
                     ->update(['qty' => $actualQty]);
                     
-                Log::info("Created batch with quantity {$actualQty} for product {$productId} in row {$excelRowNumber}");
             }
 
             // Handle IMEI/Serial Numbers - Use same enhanced detection logic
@@ -625,17 +612,14 @@ class importProduct implements ToCollection, WithHeadingRow
             if (isset($row['is_imei_or_serial_no'])) {
                 $imeiFlag = trim($row['is_imei_or_serial_no']);
                 $isImeiProduct = ($imeiFlag == '1' || $imeiFlag == 1 || strtolower($imeiFlag) == 'true');
-                Log::info("Row {$excelRowNumber}: IMEI creation - is_imei_or_serial_no = '{$imeiFlag}', isImeiProduct = " . ($isImeiProduct ? 'true' : 'false'));
             }
             
             // For IMEI products, extract IMEI numbers from description
             if ($isImeiProduct && !empty($row['description'])) {
                 $imeiFieldValue = $row['description'];
-                Log::info("Row {$excelRowNumber}: IMEI creation - Extracting IMEI from description: " . substr($imeiFieldValue, 0, 100));
             }
             
             if (!empty($imeiFieldValue)) {
-                Log::info("Row {$excelRowNumber}: Processing IMEI creation with value: " . substr($imeiFieldValue, 0, 100));
                 
                 // Ensure we have a batch for IMEI products (should be created above)
                 if (!isset($batch)) {
@@ -659,7 +643,6 @@ class importProduct implements ToCollection, WithHeadingRow
                         ]
                     );
                     
-                    Log::info("Created fallback batch for IMEI product {$productId} in row {$excelRowNumber}");
                 }
 
                 // Split IMEIs by comma or slash and process each one
@@ -683,7 +666,6 @@ class importProduct implements ToCollection, WithHeadingRow
                                     'status' => 'available'
                                 ]);
                                 $validImeiCount++;
-                                Log::info("Created IMEI record: {$imei} for product {$productId} in batch {$batch->id}");
                             } catch (\Exception $e) {
                                 Log::error("Failed to create IMEI '{$imei}' for product {$productId} in row {$excelRowNumber}: " . $e->getMessage());
                             }
@@ -699,7 +681,6 @@ class importProduct implements ToCollection, WithHeadingRow
                 if ($validImeiCount > 0) {
                     $product->is_imei_or_serial_no = 1;
                     $product->save();
-                    Log::info("Updated product {$productId} as IMEI product with {$validImeiCount} valid IMEI numbers");
                 }
             }
             // Store data for later use - only after successful product creation

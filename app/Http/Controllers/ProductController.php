@@ -2160,10 +2160,6 @@ class ProductController extends Controller
                     $records = $import->getData();
                     $successCount = count($records);
                     $errorCount = count($validationErrors);
-
-                    // Log for debugging
-                    Log::info("Import Results - Success Count: {$successCount}, Error Count: {$errorCount}");
-                    Log::info("Validation Errors: " . json_encode($validationErrors));
                     
                     // If there are validation errors, return them in the response
                     if (!empty($validationErrors)) {

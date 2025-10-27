@@ -89,15 +89,14 @@
                                         <!-- Location Selection -->
                                         <div class="col-md-12 mt-3">
                                             <div class="mb-3">
-                                                <label for="import_location" class="form-label"><i
-                                                        class="fas fa-map-marker-alt"></i> Select Location for Import <span
-                                                        class="text-danger">*</span></label>
-                                                <select name="import_location" id="import_location" class="form-control"
-                                                    required>
+                                                <label for="import_location" class="form-label">
+                                                    <i class="fas fa-map-marker-alt"></i> Select Location for Import 
+                                                    <span class="text-danger">*</span>
+                                                </label>
+                                                <select name="import_location" id="import_location" class="form-control select2" required>
                                                     <option value="">Choose Location to Import Products...</option>
                                                 </select>
-                                                <small class="text-muted">All products from the uploaded file will be
-                                                    imported to the selected location</small>
+                                                <small class="text-muted">All products from the uploaded file will be imported to the selected location</small>
                                             </div>
                                         </div>
 

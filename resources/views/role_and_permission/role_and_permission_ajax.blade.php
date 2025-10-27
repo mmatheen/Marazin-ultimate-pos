@@ -61,9 +61,16 @@
                 let row = $('<tr>');
                 row.append('<td>' + counter + '</td>');
                 row.append('<td>' + item.role_name + '</td>');
-                // Combine all permissions' names into a single string
-                let permissions = item.permissions.map(permission =>'<span class="badge rounded-pill bg-dark me-1">' + permission.name + '</span>').join(', ');
-                row.append('<td>' + permissions + '</td>');
+                
+                // Display permission count and View All button
+                let permissionCount = item.permissions.length;
+                let permissionsHtml = '<div class="d-flex align-items-center justify-content-between">';
+                permissionsHtml += '<span class="permission-count-badge">' + permissionCount + ' Permission' + (permissionCount !== 1 ? 's' : '') + '</span>';
+                permissionsHtml += '<button type="button" class="btn btn-sm btn-outline-primary view-permissions-btn" data-role-id="' + item.role_id + '" data-role-name="' + item.role_name + '" data-permissions=\'' + JSON.stringify(item.permissions) + '\'>';
+                permissionsHtml += '<i class="feather-eye"></i> View All</button>';
+                permissionsHtml += '</div>';
+                
+                row.append('<td>' + permissionsHtml + '</td>');
                 row.append('<td>' + '@can("edit role-permission")<button type="button" value="' + item.role_id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
                     '@can("delete role-permission")<button type="button" value="' + item.role_id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +'</td>');
                 table.row.add(row).draw(false);
@@ -72,6 +79,183 @@
         },
     });
 }
+
+    // Handle View All Permissions button click
+    $(document).on('click', '.view-permissions-btn', function() {
+        let roleName = $(this).data('role-name');
+        let permissions = $(this).data('permissions');
+        
+        // Set modal title
+        $('#permissionsModalLabel').html('<i class="feather-shield"></i> ' + roleName);
+        
+        // Group permissions by their actual group structure
+        let groupedPermissions = {};
+        
+        permissions.forEach(function(permission) {
+            let permName = permission.name;
+            
+            // Extract group from permission name patterns
+            // Pattern 1: "create user" -> group: "User Management"
+            // Pattern 2: "view product" -> group: "Product Management"
+            let groupName = 'Other';
+            
+            // Define group mapping based on keywords
+            if (permName.includes('user') && !permName.includes('customer')) {
+                groupName = 'User Management';
+            } else if (permName.includes('role')) {
+                groupName = 'Role & Permission Management';
+            } else if (permName.includes('supplier')) {
+                groupName = 'Supplier Management';
+            } else if (permName.includes('customer')) {
+                groupName = 'Customer Management';
+            } else if (permName.includes('product')) {
+                groupName = 'Product Management';
+            } else if (permName.includes('unit')) {
+                groupName = 'Unit Management';
+            } else if (permName.includes('brand')) {
+                groupName = 'Brand Management';
+            } else if (permName.includes('batch')) {
+                groupName = 'Batch Management';
+            } else if (permName.includes('category') || permName.includes('sub-category')) {
+                groupName = 'Category Management';
+            } else if (permName.includes('warranty')) {
+                groupName = 'Warranty Management';
+            } else if (permName.includes('variation')) {
+                groupName = 'Variation Management';
+            } else if (permName.includes('sale') && !permName.includes('wholesale')) {
+                groupName = 'Sales Management';
+            } else if (permName.includes('purchase')) {
+                groupName = 'Purchase Management';
+            } else if (permName.includes('payment')) {
+                groupName = 'Payment Management';
+            } else if (permName.includes('expense')) {
+                groupName = 'Expense Management';
+            } else if (permName.includes('parent-expense') || permName.includes('child-expense')) {
+                groupName = 'Expense Category';
+            } else if (permName.includes('stock')) {
+                groupName = 'Stock Management';
+            } else if (permName.includes('location')) {
+                groupName = 'Location Management';
+            } else if (permName.includes('discount')) {
+                groupName = 'Discount Management';
+            } else if (permName.includes('quotation')) {
+                groupName = 'Quotation Management';
+            } else if (permName.includes('invoice')) {
+                groupName = 'Invoice Management';
+            } else if (permName.includes('report')) {
+                groupName = 'Reports';
+            } else if (permName.includes('settings') || permName.includes('business-settings') || permName.includes('tax-settings')) {
+                groupName = 'Settings';
+            } else if (permName.includes('route')) {
+                groupName = 'Route Management';
+            } else if (permName.includes('vehicle')) {
+                groupName = 'Vehicle Management';
+            } else if (permName.includes('database')) {
+                groupName = 'Database Management';
+            } else if (permName.includes('master admin')) {
+                groupName = 'System Administration';
+            } else if (permName.includes('sales-rep')) {
+                groupName = 'Sales Rep Management';
+            } else if (permName.includes('cities')) {
+                groupName = 'City Management';
+            } else if (permName.includes('currencies')) {
+                groupName = 'Currency Management';
+            } else if (permName.includes('barcode') || permName.includes('label')) {
+                groupName = 'Label & Barcode';
+            } else if (permName.includes('super admin')) {
+                groupName = 'Super Admin';
+            }
+            
+            if (!groupedPermissions[groupName]) {
+                groupedPermissions[groupName] = [];
+            }
+            groupedPermissions[groupName].push(permName);
+        });
+        
+        // Sort groups alphabetically
+        let sortedGroups = Object.keys(groupedPermissions).sort();
+        
+        // Build the permissions HTML grouped by category with beautiful UI
+        let permissionsHtml = '<div class="permissions-grid">';
+        
+        sortedGroups.forEach(function(groupName, groupIndex) {
+            let iconClass = getGroupIcon(groupName);
+            let colorClass = 'color-' + (groupIndex % 6 + 1);
+            
+            permissionsHtml += '<div class="permission-card ' + colorClass + '">';
+            permissionsHtml += '<div class="permission-card-header">';
+            permissionsHtml += '<div class="header-left">';
+            permissionsHtml += '<i class="' + iconClass + '"></i>';
+            permissionsHtml += '<span class="group-title">' + groupName + '</span>';
+            permissionsHtml += '</div>';
+            permissionsHtml += '<span class="badge-count">' + groupedPermissions[groupName].length + '</span>';
+            permissionsHtml += '</div>';
+            permissionsHtml += '<div class="permission-card-body">';
+            
+            groupedPermissions[groupName].forEach(function(permissionName) {
+                let actionIcon = getActionIcon(permissionName);
+                permissionsHtml += '<div class="permission-pill">';
+                permissionsHtml += '<i class="' + actionIcon + '"></i>';
+                permissionsHtml += '<span>' + permissionName + '</span>';
+                permissionsHtml += '</div>';
+            });
+            
+            permissionsHtml += '</div>';
+            permissionsHtml += '</div>';
+        });
+        
+        permissionsHtml += '</div>';
+        
+        $('#permissionsModalBody').html(permissionsHtml);
+        
+        // Show the modal
+        $('#viewPermissionsModal').modal('show');
+    });
+    
+    // Helper function to get icon based on group name
+    function getGroupIcon(groupName) {
+        const iconMap = {
+            'User Management': 'feather-users',
+            'Role & Permission Management': 'feather-shield',
+            'Supplier Management': 'feather-truck',
+            'Customer Management': 'feather-user-check',
+            'Product Management': 'feather-package',
+            'Sales Management': 'feather-shopping-cart',
+            'Purchase Management': 'feather-shopping-bag',
+            'Stock Management': 'feather-layers',
+            'Payment Management': 'feather-credit-card',
+            'Expense Management': 'feather-trending-down',
+            'Reports': 'feather-bar-chart-2',
+            'Settings': 'feather-settings',
+            'Location Management': 'feather-map-pin',
+            'Invoice Management': 'feather-file-text',
+            'Database Management': 'feather-database',
+            'System Administration': 'feather-shield'
+        };
+        return iconMap[groupName] || 'feather-folder';
+    }
+    
+    // Helper function to get icon based on action
+    function getActionIcon(permissionName) {
+        if (permissionName.includes('create') || permissionName.includes('add')) {
+            return 'feather-plus-circle';
+        } else if (permissionName.includes('edit') || permissionName.includes('update')) {
+            return 'feather-edit-2';
+        } else if (permissionName.includes('delete') || permissionName.includes('remove')) {
+            return 'feather-trash-2';
+        } else if (permissionName.includes('view') || permissionName.includes('show')) {
+            return 'feather-eye';
+        } else if (permissionName.includes('import')) {
+            return 'feather-download';
+        } else if (permissionName.includes('export')) {
+            return 'feather-upload';
+        } else if (permissionName.includes('manage')) {
+            return 'feather-tool';
+        } else if (permissionName.includes('assign')) {
+            return 'feather-check-circle';
+        }
+        return 'feather-check';
+    }
 
 
         $(document).on('click', '.edit_btn', function() {
