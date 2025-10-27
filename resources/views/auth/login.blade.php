@@ -54,7 +54,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0">
     <title>{{ $activeSetting?->app_name ?? 'My App' }}</title>
-    <link rel="shortcut icon" href="{{ URL::to('assets/img/ARB Logo.png') }}">
+    <link rel="shortcut icon" href="{{ $activeSetting?->favicon_url ?? URL::to('assets/img/favicon.png') }}">
     <link rel="stylesheet" href="{{ URL::to('assets/plugins/bootstrap/css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ URL::to('assets/plugins/feather/feather.css') }}">
     <link rel="stylesheet" href="{{ URL::to('assets/plugins/icons/flags/flags.css') }}">
@@ -84,8 +84,8 @@
                 <div class="loginbox">
                     <div class="login-left">
                         <img class="img-fluid"
-                            src="{{ $activeSetting?->logo_url ?? URL::to('assets/img/ARB Logo.png') }}"
-                            alt="ARB login image">
+                            src="{{ $activeSetting?->logo_url ?? URL::to('assets/img/MARAZIN.png') }}"
+                            alt="Login image">
                     </div>
 
                     <div class="login-right">
@@ -93,7 +93,7 @@
                             <div class="d-flex justify-content-center mb-3">
                                 <a href="https://marazin.lk/" target="_blank"><img class="img-fluid" width="100px"
                                         height="100px"
-                                        src="{{ $activeSetting?->logo_url ?? URL::to('assets/img/ARB Logo.png') }}"
+                                        src="{{ $activeSetting?->logo_url ?? URL::to('assets/img/MARAZIN.png') }}"
                                         alt="Logo"></a>
 
                             </div>

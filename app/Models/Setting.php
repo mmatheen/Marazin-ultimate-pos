@@ -20,7 +20,7 @@ class Setting extends Model
     // Accessor: Full URL for logo
     public function getLogoUrlAttribute()
     {
-        return $this->logo ? Storage::url('settings/' . $this->logo) : asset('assets/img/ARB Logo.png');
+        return $this->logo ? Storage::url('settings/' . $this->logo) : asset('assets/img/MARAZIN.png');
     }
 
     // Accessor: Full URL for favicon
@@ -29,6 +29,6 @@ class Setting extends Model
         if ($this->favicon) {
             return asset('storage/settings/' . $this->favicon);
         }
-        return asset('assets/img/favicon.ico'); // Fallback favicon
+        return asset('assets/img/favicon.png'); // Fallback favicon
     }
 }
