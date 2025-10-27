@@ -2,6 +2,49 @@
 
 @section('head')
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+    <style>
+        /* Fix Select2 dropdown alignment and search in modal */
+        #bulkPaymentModal .select2-container {
+            width: 100% !important;
+        }
+        
+        #bulkPaymentModal .select2-container--default .select2-selection--single {
+            height: 38px;
+            padding: 6px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+        }
+        
+        #bulkPaymentModal .select2-container--default .select2-selection--single .select2-selection__rendered {
+            line-height: 24px;
+            padding-left: 0;
+        }
+        
+        #bulkPaymentModal .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 36px;
+        }
+        
+        /* Ensure dropdown appears above modal backdrop */
+        .select2-container--open {
+            z-index: 9999 !important;
+        }
+        
+        .select2-dropdown {
+            z-index: 9999 !important;
+        }
+        
+        /* Fix search input focus */
+        .select2-search__field {
+            outline: none;
+            border: 1px solid #ced4da !important;
+            padding: 4px !important;
+        }
+        
+        .select2-search__field:focus {
+            border-color: #80bdff !important;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+        }
+    </style>
 @endsection
 
 @section('content')
@@ -583,7 +626,7 @@
                                 <div class="card-body">
                                     <div class="form-group">
                                         <label for="customerSelect">Select Customer</label>
-                                        <select id="customerSelect" class="form-control select2Box">
+                                        <select id="customerSelect" class="form-control selectBox">
                                             <option value="">Select Customer</option>
                                         </select>
                                     </div>

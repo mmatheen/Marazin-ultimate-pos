@@ -1,5 +1,51 @@
 @extends('layout.layout')
 
+@section('head')
+<style>
+    /* Fix Select2 dropdown alignment and search on bulk payment page */
+    .select2-container {
+        width: 100% !important;
+    }
+    
+    .select2-container--default .select2-selection--single {
+        height: 38px;
+        padding: 6px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+    }
+    
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 24px;
+        padding-left: 0;
+    }
+    
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px;
+    }
+    
+    /* Ensure dropdown appears properly */
+    .select2-container--open {
+        z-index: 9999 !important;
+    }
+    
+    .select2-dropdown {
+        z-index: 9999 !important;
+    }
+    
+    /* Fix search input focus */
+    .select2-search__field {
+        outline: none;
+        border: 1px solid #ced4da !important;
+        padding: 4px !important;
+    }
+    
+    .select2-search__field:focus {
+        border-color: #80bdff !important;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+    }
+</style>
+@endsection
+
 @section('content')
 <div class="container-fluid">
     <form id="bulkPaymentForm">
@@ -30,7 +76,7 @@
             <div class="card-body">
                 <div class="form-group">
                     <label for="customerSelect">Select Customer</label>
-                    <select id="customerSelect" class="form-control select2Box">
+                    <select id="customerSelect" class="form-control selectBox">
                         <option value="">Select Customer</option>
                     </select>
                 </div>
@@ -322,12 +368,49 @@ function loadCustomersForBulkPayment() {
 $(document).ready(function() {
     console.log('Bulk payment page specific initialization...');
     
-    // Initialize select2 if available
+    // Initialize select2 with proper settings for standalone page
     if (typeof $.fn.select2 !== 'undefined') {
         $('#customerSelect').select2({
             placeholder: "Select Customer",
-            allowClear: true
+            allowClear: true,
+            width: '100%'
         });
+        console.log('Select2 initialized on bulk payment page');
+        
+        // Add event listener to ensure search input gets focus when dropdown opens
+        $('#customerSelect').on('select2:open', function() {
+            setTimeout(function() {
+                var searchField = document.querySelector('.select2-search__field');
+                if (searchField) {
+                    searchField.focus();
+                }
+            }, 100);
+        });
+    }
+    
+    // Set today's date as default for "Paid On" field in DD-MM-YYYY format
+    var today = new Date();
+    var todayFormatted = String(today.getDate()).padStart(2, '0') + '-' + 
+        String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+        today.getFullYear();
+    $('input[name="payment_date"]').val(todayFormatted);
+    console.log('Set default date to today (DD-MM-YYYY):', todayFormatted);
+    
+    // Initialize DataTable for sales list
+    if ($('#salesList').length > 0 && typeof $.fn.DataTable !== 'undefined') {
+        $('#salesList').DataTable({
+            columns: [
+                { title: "Sale ID (Invoice)" },
+                { title: "Final Total" },
+                { title: "Total Paid" },
+                { title: "Total Due" },
+                { title: "Payment Amount" }
+            ],
+            paging: true,
+            searching: true,
+            ordering: true
+        });
+        console.log('DataTable initialized for sales list');
     }
     
     // Load customers immediately
@@ -366,8 +449,13 @@ $(document).on('change', '#customerSelect', function() {
     $('#openingBalance').text('Rs. ' + customerOpeningBalance.toFixed(2));
     $('#totalCustomerDue').text('Rs. ' + totalDue.toFixed(2));
     
-    // Store original opening balance
+    // Store original opening balance globally
     window.originalOpeningBalance = customerOpeningBalance;
+    window.saleDueAmount = saleDue;
+    
+    // Reset and clear previous validation errors
+    $('#globalPaymentAmount').removeClass('is-invalid').next('.invalid-feedback').remove();
+    $('#globalPaymentAmount').val('');
     
     // Load sales for the selected customer
     loadCustomerSales(customerId);
@@ -490,6 +578,133 @@ $(document).on('input', '.reference-amount', function() {
     }
     
     // Update individual payment total whenever amount changes
+    updateIndividualPaymentTotal();
+});
+
+// Handle payment type selection change - auto-apply global amount
+$('input[name="paymentType"]').change(function() {
+    var paymentType = $(this).val();
+    var customerId = $('#customerSelect').val();
+    console.log('Payment type changed to:', paymentType);
+    
+    if (!customerId) {
+        return;
+    }
+    
+    // Show/hide sales list based on payment type
+    if (paymentType === 'opening_balance') {
+        $('#salesListContainer').hide();
+    } else {
+        $('#salesListContainer').show();
+    }
+    
+    // Update max amount and placeholder for global payment input
+    var customerOpeningBalance = window.originalOpeningBalance || 0;
+    var saleDueAmount = window.saleDueAmount || 0;
+    var totalDueAmount = parseFloat($('#totalCustomerDue').text().replace('Rs. ', '')) || 0;
+    
+    if (paymentType === 'opening_balance') {
+        $('#globalPaymentAmount').attr('max', customerOpeningBalance);
+        $('#globalPaymentAmount').attr('placeholder', 'Max: Rs. ' + customerOpeningBalance.toFixed(2));
+    } else if (paymentType === 'sale_dues') {
+        $('#globalPaymentAmount').attr('max', saleDueAmount);
+        $('#globalPaymentAmount').attr('placeholder', 'Max: Rs. ' + saleDueAmount.toFixed(2));
+    } else if (paymentType === 'both') {
+        $('#globalPaymentAmount').attr('max', totalDueAmount);
+        $('#globalPaymentAmount').attr('placeholder', 'Max: Rs. ' + totalDueAmount.toFixed(2));
+    }
+    
+    // Reset and re-apply global amount if any
+    var globalAmount = parseFloat($('#globalPaymentAmount').val()) || 0;
+    if (globalAmount > 0) {
+        $('#globalPaymentAmount').trigger('input');
+    }
+});
+
+// Handle global payment amount input - AUTO-APPLY to sales
+$(document).on('input', '#globalPaymentAmount', function() {
+    var globalAmount = parseFloat($(this).val()) || 0;
+    var customerOpeningBalance = window.originalOpeningBalance || 0;
+    var remainingAmount = globalAmount;
+    var paymentType = $('input[name="paymentType"]:checked').val();
+    
+    console.log('Global amount changed:', globalAmount, 'Payment type:', paymentType);
+    
+    // Validate global amount based on payment type
+    var totalCustomerDue = parseFloat($('#totalCustomerDue').text().replace('Rs. ', '')) || 0;
+    var maxAmount = 0;
+    if (paymentType === 'opening_balance') {
+        maxAmount = customerOpeningBalance;
+    } else if (paymentType === 'sale_dues') {
+        maxAmount = totalCustomerDue;
+    } else if (paymentType === 'both') {
+        maxAmount = totalCustomerDue;
+    }
+    
+    // Clear existing validation feedback
+    $(this).removeClass('is-invalid');
+    $(this).next('.invalid-feedback').remove();
+    
+    if (globalAmount > maxAmount) {
+        $(this).addClass('is-invalid').after(
+            '<span class="invalid-feedback d-block">Global amount exceeds total due amount.</span>'
+        );
+        return;
+    }
+    
+    // AUTO-APPLY: Distribute payment based on payment type
+    if (paymentType === 'opening_balance') {
+        // Only apply to opening balance
+        let newOpeningBalance = Math.max(0, customerOpeningBalance - remainingAmount);
+        $('#openingBalance').text('Rs. ' + newOpeningBalance.toFixed(2));
+        
+        // Clear all sales payment inputs
+        $('.reference-amount').val(0);
+        
+    } else if (paymentType === 'sale_dues') {
+        // Only apply to sales dues in order
+        $('.reference-amount').each(function() {
+            var referenceDue = parseFloat($(this).closest('tr').find('td:eq(3)').text()) || 0;
+            if (remainingAmount > 0 && referenceDue > 0) {
+                var paymentAmount = Math.min(remainingAmount, referenceDue);
+                $(this).val(paymentAmount.toFixed(2));
+                remainingAmount -= paymentAmount;
+            } else {
+                $(this).val(0);
+            }
+        });
+        
+        // Don't change opening balance
+        $('#openingBalance').text('Rs. ' + customerOpeningBalance.toFixed(2));
+        
+    } else if (paymentType === 'both') {
+        // First deduct from opening balance
+        let newOpeningBalance = customerOpeningBalance;
+        if (newOpeningBalance > 0 && remainingAmount > 0) {
+            if (remainingAmount <= newOpeningBalance) {
+                newOpeningBalance -= remainingAmount;
+                remainingAmount = 0;
+            } else {
+                remainingAmount -= newOpeningBalance;
+                newOpeningBalance = 0;
+            }
+        }
+        $('#openingBalance').text('Rs. ' + newOpeningBalance.toFixed(2));
+        
+        // Then apply remaining amount to sales in order
+        $('.reference-amount').each(function() {
+            var referenceDue = parseFloat($(this).closest('tr').find('td:eq(3)').text()) || 0;
+            if (remainingAmount > 0 && referenceDue > 0) {
+                var paymentAmount = Math.min(remainingAmount, referenceDue);
+                $(this).val(paymentAmount.toFixed(2));
+                remainingAmount -= paymentAmount;
+            } else {
+                $(this).val(0);
+            }
+        });
+    }
+    
+    // Update the individual payment total display
     updateIndividualPaymentTotal();
 });
 
@@ -689,15 +904,32 @@ $(document).on('click', '#submitBulkPayment', function() {
         },
         success: function(response) {
             console.log('Payment submission successful:', response);
-            // You can add success handling here, like showing a success message
-            // and optionally redirecting or refreshing the customer data
-            alert('Payment submitted successfully!');
             
-            // Reload the customer data to show updated balances
-            if (customerId) {
-                loadCustomerSales(customerId);
-                loadCustomersForBulkPayment();
+            // Show success toastr notification
+            if (typeof toastr !== 'undefined') {
+                toastr.success('Payment submitted successfully!', 'Success', {
+                    timeOut: 3000,
+                    progressBar: true,
+                    closeButton: true
+                });
             }
+            
+            // Reset form
+            $('#bulkPaymentForm')[0].reset();
+            $('#customerSelect').val('').trigger('change');
+            $('#salesList tbody').empty();
+            $('#openingBalance').text('Rs. 0.00');
+            $('#totalSalesAmount').text('Rs. 0.00');
+            $('#totalPaidAmount').text('Rs. 0.00');
+            $('#totalDueAmount').text('Rs. 0.00');
+            $('#totalCustomerDue').text('Rs. 0.00');
+            $('#individualPaymentTotal').text('Rs. 0.00');
+            $('#globalPaymentAmount').val('');
+            
+            // Reload customers to refresh due amounts
+            setTimeout(function() {
+                loadCustomersForBulkPayment();
+            }, 1000);
         },
         error: function(xhr, status, error) {
             console.error('Payment submission failed:', {
@@ -705,7 +937,27 @@ $(document).on('click', '#submitBulkPayment', function() {
                 error: error,
                 response: xhr.responseText
             });
-            alert('Payment submission failed. Please check console for details.');
+            
+            // Show error toastr notification
+            var errorMessage = 'Payment submission failed. Please try again.';
+            
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMessage = xhr.responseJSON.message;
+            } else if (xhr.status === 422) {
+                errorMessage = 'Validation error. Please check your input.';
+            } else if (xhr.status === 500) {
+                errorMessage = 'Server error. Please contact support.';
+            }
+            
+            if (typeof toastr !== 'undefined') {
+                toastr.error(errorMessage, 'Error', {
+                    timeOut: 5000,
+                    progressBar: true,
+                    closeButton: true
+                });
+            } else {
+                alert(errorMessage);
+            }
         }
     });
 });

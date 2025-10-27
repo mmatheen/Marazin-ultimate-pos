@@ -13,13 +13,16 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule)
     {
       
-         //Backup at 8:00 AM
-        $schedule->command('backup:run')->dailyAt('08:00')->timezone('Asia/Colombo');
+        //  //Backup at 8:00 AM
+        // $schedule->command('backup:run')->dailyAt('08:00')->timezone('Asia/Colombo');
 
-        // Backup at 22:00 PM
-        $schedule->command('backup:run')->dailyAt('22:00')->timezone('Asia/Colombo');
+        // // Backup at 22:00 PM
+        // $schedule->command('backup:run')->dailyAt('22:00')->timezone('Asia/Colombo');
 
-        // after 5PM backup
+        // // after 5PM backup
+        // $schedule->command('backup:clean')->dailyAt('23:00')->timezone('Asia/Colombo');
+
+         // after 11PM backup
         $schedule->command('backup:clean')->dailyAt('23:00')->timezone('Asia/Colombo');
     }
 

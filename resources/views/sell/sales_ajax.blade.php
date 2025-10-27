@@ -982,29 +982,43 @@
             console.log('Current URL:', window.location.href);
             console.log('CustomerSelect element found:', $('#customerSelect').length > 0);
 
-            // Load customers on page load for bulk payment functionality
-            if ($('#customerSelect').length > 0) {
-                console.log('CustomerSelect element exists, initializing...');
-
-                // Wait a bit for DOM to be fully ready
-                setTimeout(function() {
-                    // Initialize select2 for customer dropdown if available
-                    if (typeof $.fn.select2 !== 'undefined') {
-                        $('#customerSelect').select2({
-                            placeholder: "Select Customer",
-                            allowClear: true
-                        });
-                        console.log('Select2 initialized for customerSelect');
-                    } else {
-                        console.log('Select2 not available, using regular dropdown');
-                    }
-
-                    // Load customers
-                    loadCustomersForBulkPayment();
-                }, 500);
-            } else {
-                console.log('CustomerSelect element not found on this page');
-            }
+            // Initialize Select2 when bulk payment modal is shown
+            $('#bulkPaymentModal').on('shown.bs.modal', function() {
+                console.log('Bulk payment modal shown - initializing Select2...');
+                
+                // Destroy existing Select2 instance if exists
+                if ($('#customerSelect').hasClass('select2-hidden-accessible')) {
+                    $('#customerSelect').select2('destroy');
+                }
+                
+                // Initialize select2 for customer dropdown with proper settings
+                $('#customerSelect').select2({
+                    placeholder: "Select Customer",
+                    allowClear: true,
+                    dropdownParent: $('#bulkPaymentModal'), // Ensure dropdown renders inside modal
+                    width: '100%' // Proper width alignment
+                });
+                
+                console.log('Select2 initialized for customerSelect in modal');
+                
+                // Add event listener to ensure search input gets focus when dropdown opens
+                $('#customerSelect').on('select2:open', function() {
+                    setTimeout(function() {
+                        document.querySelector('.select2-search__field').focus();
+                    }, 100);
+                });
+                
+                // Set today's date as default for "Paid On" field
+                var today = new Date();
+                var todayFormatted = today.getFullYear() + '-' + 
+                    String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                    String(today.getDate()).padStart(2, '0');
+                $('#paidOn').val(todayFormatted);
+                console.log('Set default date to today:', todayFormatted);
+                
+                // Load customers after Select2 is initialized
+                loadCustomersForBulkPayment();
+            });
 
             $('#salesList').DataTable({
                 columns: [{
@@ -1037,6 +1051,11 @@
 
             // Clear the modal content when the modal is hidden
             $('#bulkPaymentModal').on('hidden.bs.modal', function() {
+                // Destroy Select2 instance before clearing
+                if ($('#customerSelect').hasClass('select2-hidden-accessible')) {
+                    $('#customerSelect').select2('destroy');
+                }
+                
                 $('#bulkPaymentForm')[0].reset(); // Reset the form
                 $('#customerSelect').val('').trigger('change'); // Clear customer selection
                 $('#salesList').DataTable().clear().draw(); // Clear the sales list

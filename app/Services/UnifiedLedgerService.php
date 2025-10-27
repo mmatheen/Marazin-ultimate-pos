@@ -265,6 +265,18 @@ class UnifiedLedgerService
             $ledgerQuery = $this->applyLocationFilter($ledgerQuery, $locationId, 'customer');
         }
 
+        // **IMPORTANT: Exclude reversal and deleted entries from display**
+        // These entries are kept in database for audit trail but hidden from user view
+        // -REV, -OLD-REV, -OLD: From payment edits
+        // -DELETED, -DEL-REV: From payment deletions
+        $ledgerQuery->where(function($query) {
+            $query->where('reference_no', 'NOT LIKE', '%-REV')
+                  ->where('reference_no', 'NOT LIKE', '%-OLD-REV')
+                  ->where('reference_no', 'NOT LIKE', '%-OLD')
+                  ->where('reference_no', 'NOT LIKE', '%-DELETED')
+                  ->where('reference_no', 'NOT LIKE', '%-DEL-REV');
+        });
+
         $ledgerTransactions = $ledgerQuery
             ->orderBy('transaction_date', 'asc') // Order by actual transaction date for chronological view
             ->orderBy('id', 'asc') // Secondary sort by ID for same-date transactions
@@ -381,6 +393,18 @@ class UnifiedLedgerService
         if ($locationId) {
             $ledgerQuery = $this->applyLocationFilter($ledgerQuery, $locationId, 'supplier');
         }
+
+        // **IMPORTANT: Exclude reversal and deleted entries from display**
+        // These entries are kept in database for audit trail but hidden from user view
+        // -REV, -OLD-REV, -OLD: From payment edits
+        // -DELETED, -DEL-REV: From payment deletions
+        $ledgerQuery->where(function($query) {
+            $query->where('reference_no', 'NOT LIKE', '%-REV')
+                  ->where('reference_no', 'NOT LIKE', '%-OLD-REV')
+                  ->where('reference_no', 'NOT LIKE', '%-OLD')
+                  ->where('reference_no', 'NOT LIKE', '%-DELETED')
+                  ->where('reference_no', 'NOT LIKE', '%-DEL-REV');
+        });
 
         $ledgerTransactions = $ledgerQuery
             ->orderBy('transaction_date', 'asc') // Order by actual transaction date
@@ -832,16 +856,64 @@ class UnifiedLedgerService
      */
     public function updatePayment($payment, $oldPayment = null)
     {
-        // If we have old payment data, clean it up first
+        // ACCOUNTING BEST PRACTICE: Don't DELETE old entries, create REVERSAL entries
+        // This maintains complete audit trail and prevents data loss
+        
         if ($oldPayment) {
             $oldReferenceNo = $oldPayment->reference_no ?: 'PAY-' . $oldPayment->id;
-            Ledger::where('reference_no', $oldReferenceNo)
+            $contactType = $oldPayment->customer_id ? 'customer' : 'supplier';
+            $userId = $oldPayment->customer_id ?: $oldPayment->supplier_id;
+            
+            // Instead of deleting, create REVERSAL entries
+            $oldLedgerEntries = Ledger::where('reference_no', $oldReferenceNo)
                 ->where('transaction_type', 'payments')
-                ->where('user_id', $oldPayment->customer_id ?: $oldPayment->supplier_id)
-                ->delete();
+                ->where('user_id', $userId)
+                ->where('contact_type', $contactType)
+                ->get();
+            
+            foreach ($oldLedgerEntries as $oldEntry) {
+                // Create reversal entry - swap debit and credit amounts to reverse the effect
+                $reversalEntry = new Ledger();
+                $reversalEntry->transaction_date = now();
+                $reversalEntry->reference_no = $oldReferenceNo . '-REV';
+                $reversalEntry->transaction_type = 'payments';
+                $reversalEntry->debit = $oldEntry->credit;  // Swap: original credit becomes debit
+                $reversalEntry->credit = $oldEntry->debit;  // Swap: original debit becomes credit
+                $reversalEntry->balance = 0; // Will be recalculated
+                $reversalEntry->contact_type = $contactType;
+                $reversalEntry->user_id = $userId;
+                $reversalEntry->save();
+                
+                Log::info("Ledger reversal entry created for payment edit", [
+                    'original_reference' => $oldReferenceNo,
+                    'reversal_reference' => $oldReferenceNo . '-REV',
+                    'original_debit' => $oldEntry->debit,
+                    'original_credit' => $oldEntry->credit,
+                    'reversal_debit' => $reversalEntry->debit,
+                    'reversal_credit' => $reversalEntry->credit,
+                    'old_balance' => $oldEntry->balance,
+                    'contact_type' => $contactType,
+                    'user_id' => $userId
+                ]);
+            }
+            
+            // CRITICAL: Recalculate ALL balances after reversal to ensure accuracy
+            // This ensures running balance is correct for both customer and supplier
+            Ledger::recalculateAllBalances($userId, $contactType);
+            
+            Log::info("Ledger balances recalculated after reversal", [
+                'contact_type' => $contactType,
+                'user_id' => $userId,
+                'final_balance' => Ledger::where('user_id', $userId)
+                    ->where('contact_type', $contactType)
+                    ->orderBy('created_at', 'desc')
+                    ->orderBy('id', 'desc')
+                    ->first()->balance ?? 0
+            ]);
         }
         
-        // Determine contact type and record appropriate payment
+        // Now record the new/updated payment
+        // This will automatically trigger recalculateAllBalances again in createEntry
         if ($payment->customer_id) {
             return $this->recordSalePayment($payment);
         } elseif ($payment->supplier_id) {
@@ -914,15 +986,140 @@ class UnifiedLedgerService
     /**
      * Delete payment ledger entries - for when payments are removed
      */
+    /**
+     * Delete payment ledger entries - MARKS entries as deleted instead of removing
+     * This maintains complete audit trail for accounting compliance
+     * Similar to edit logic: -OLD, -REV patterns, now also -DELETED
+     */
     public function deletePaymentLedger($payment)
     {
-        $referenceNo = $payment->reference_no ?: 'PAY-' . $payment->id;
-        $userId = $payment->customer_id ?: $payment->supplier_id;
+        // CRITICAL: Build the unique reference using payment ID (same as updatePayment)
+        // For bulk payments, multiple payments have same base reference
+        // We MUST include payment ID to identify the specific payment entries
+        $baseReference = $payment->reference_no ?: 'PAY-' . $payment->id;
+        $referenceNo = $baseReference . '-PAY' . $payment->id;
         
-        return Ledger::where('reference_no', $referenceNo)
-            ->where('user_id', $userId)
+        $userId = $payment->customer_id ?: $payment->supplier_id;
+        $contactType = $payment->customer_id ? 'customer' : 'supplier';
+        
+        Log::info("Marking payment ledger entries as deleted", [
+            'payment_id' => $payment->id,
+            'base_reference' => $baseReference,
+            'unique_reference' => $referenceNo,
+            'user_id' => $userId,
+            'contact_type' => $contactType
+        ]);
+        
+        // ACCOUNTING BEST PRACTICE: Don't delete ledger entries, MARK them as deleted
+        // This maintains complete audit trail - all transactions remain visible in logs
+        // Similar to how we mark -OLD entries during edits
+        
+        // STEP 1: Find ALL related entries to mark as deleted
+        $entriesToMark = Ledger::where('user_id', $userId)
+            ->where('contact_type', $contactType)
             ->where('transaction_type', 'payments')
-            ->delete();
+            ->where(function($query) use ($referenceNo) {
+                $query->where('reference_no', $referenceNo)              // Original entry
+                      ->orWhere('reference_no', $referenceNo . '-REV')   // Reversal entry
+                      ->orWhere('reference_no', $referenceNo . '-OLD')   // Old entry (before edit)
+                      ->orWhere('reference_no', $referenceNo . '-OLD-REV'); // Old reversal entry
+            })
+            ->get();
+        
+        $markedCount = 0;
+        
+        // STEP 2: Mark each entry with -DELETED suffix and update notes
+        foreach ($entriesToMark as $entry) {
+            // Skip if already marked as deleted
+            if (strpos($entry->reference_no, '-DELETED') !== false) {
+                continue;
+            }
+            
+            $oldReference = $entry->reference_no;
+            $entry->reference_no = $oldReference . '-DELETED';
+            $entry->notes = ($entry->notes ? $entry->notes . ' | ' : '') . 
+                '[DELETED] Payment deleted on ' . now()->format('Y-m-d H:i:s') . 
+                ' - Original ref: ' . $oldReference;
+            $entry->save();
+            
+            $markedCount++;
+            
+            Log::info("Ledger entry marked as deleted", [
+                'entry_id' => $entry->id,
+                'old_reference' => $oldReference,
+                'new_reference' => $entry->reference_no,
+                'debit' => $entry->debit,
+                'credit' => $entry->credit
+            ]);
+        }
+        
+        // STEP 3: Create REVERSAL entries to cancel out the deleted payment's effect
+        // This maintains accurate running balance without actually deleting records
+        foreach ($entriesToMark as $entry) {
+            // Skip reversal entries themselves
+            if (strpos($entry->reference_no, '-REV') !== false && 
+                strpos($entry->reference_no, '-DELETED') === false) {
+                continue;
+            }
+            
+            // Skip if this was an -OLD entry (already reversed during edit)
+            if (strpos($entry->reference_no, '-OLD') !== false && 
+                strpos($entry->reference_no, '-DELETED') === false) {
+                continue;
+            }
+            
+            // Create reversal entry ONLY for the main payment entry
+            if (strpos($entry->reference_no, '-DELETED') !== false && 
+                strpos($entry->reference_no, '-OLD') === false && 
+                strpos($entry->reference_no, '-REV-DELETED') === false) {
+                
+                $reversalEntry = new Ledger();
+                $reversalEntry->transaction_date = now();
+                $reversalEntry->reference_no = $referenceNo . '-DEL-REV';
+                $reversalEntry->transaction_type = 'payments';
+                // SWAP: Original credit becomes reversal debit, original debit becomes reversal credit
+                $reversalEntry->debit = $entry->credit;
+                $reversalEntry->credit = $entry->debit;
+                $reversalEntry->balance = 0; // Will be recalculated
+                $reversalEntry->contact_type = $contactType;
+                $reversalEntry->user_id = $userId;
+                $reversalEntry->notes = 'Reversal of deleted payment - Amount: Rs. ' . 
+                    number_format($entry->credit > 0 ? $entry->credit : $entry->debit, 2) . 
+                    ' | Original ref: ' . str_replace('-DELETED', '', $entry->reference_no);
+                $reversalEntry->save();
+                
+                Log::info("Delete reversal entry created", [
+                    'reversal_id' => $reversalEntry->id,
+                    'reversal_reference' => $reversalEntry->reference_no,
+                    'original_debit' => $entry->debit,
+                    'original_credit' => $entry->credit,
+                    'reversal_debit' => $reversalEntry->debit,
+                    'reversal_credit' => $reversalEntry->credit
+                ]);
+            }
+        }
+        
+        Log::info("Payment ledger entries marked as deleted", [
+            'marked_count' => $markedCount,
+            'entries_found' => $entriesToMark->count(),
+            'reference_patterns_checked' => [
+                'original' => $referenceNo,
+                'reversal' => $referenceNo . '-REV',
+                'old' => $referenceNo . '-OLD',
+                'old_reversal' => $referenceNo . '-OLD-REV'
+            ]
+        ]);
+        
+        // STEP 4: Recalculate balances after marking as deleted
+        Ledger::recalculateAllBalances($userId, $contactType);
+        
+        Log::info("Balances recalculated after payment deletion", [
+            'user_id' => $userId,
+            'contact_type' => $contactType,
+            'final_balance' => Ledger::getLatestBalance($userId, $contactType)
+        ]);
+        
+        return $markedCount;
     }
 
     /**
@@ -1052,5 +1249,35 @@ class UnifiedLedgerService
             ->where('user_id', $contactId)
             ->where('contact_type', $contactType)
             ->delete();
+    }
+
+    /**
+     * Get current balance for a customer or supplier
+     * 
+     * @param string $contactType ('customer' or 'supplier')
+     * @param int $userId
+     * @return float
+     */
+    private function getCurrentBalance(string $contactType, int $userId): float
+    {
+        // Get the latest ledger entry balance
+        $latestEntry = Ledger::where('contact_type', $contactType)
+            ->where('user_id', $userId)
+            ->orderBy('transaction_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->first();
+        
+        if ($latestEntry) {
+            return $latestEntry->balance;
+        }
+        
+        // If no ledger entries, check opening balance from customer/supplier table
+        if ($contactType === 'customer') {
+            $customer = \App\Models\Customer::find($userId);
+            return $customer ? ($customer->current_balance ?? 0) : 0;
+        } else {
+            $supplier = \App\Models\Supplier::find($userId);
+            return $supplier ? ($supplier->current_balance ?? 0) : 0;
+        }
     }
 }

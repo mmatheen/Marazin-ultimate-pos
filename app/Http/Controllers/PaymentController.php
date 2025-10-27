@@ -690,11 +690,24 @@ class PaymentController extends Controller
     {
         $supplier = Supplier::find($supplierId);
         if ($supplier) {
-            $totalPurchases = Purchase::where('supplier_id', $supplierId)->sum('final_total');
-            $totalPurchasesReturn = PurchaseReturn::where('supplier_id', $supplierId)->sum('return_total');
-            $totalPayments = Payment::where('supplier_id', $supplierId)->where('payment_type', 'purchase')->sum('amount');
-            $supplier->current_balance = ($supplier->opening_balance + $totalPurchases) - ($totalPayments + $totalPurchasesReturn);
-            $supplier->save();
+            // Use ledger system for consistent balance calculation
+            // Get the latest balance from ledger entries
+            $latestEntry = \App\Models\Ledger::where('user_id', $supplierId)
+                ->where('contact_type', 'supplier')
+                ->orderBy('created_at', 'desc')
+                ->orderBy('id', 'desc')
+                ->first();
+            
+            if ($latestEntry) {
+                $supplier->current_balance = $latestEntry->balance;
+                $supplier->saveQuietly(); // Use saveQuietly to prevent triggering observers
+                
+                Log::info("Supplier balance updated from ledger", [
+                    'supplier_id' => $supplierId,
+                    'new_balance' => $supplier->current_balance,
+                    'ledger_entry_id' => $latestEntry->id
+                ]);
+            }
         }
     }
 
@@ -1155,6 +1168,8 @@ class PaymentController extends Controller
             $validator = Validator::make($request->all(), [
                 'entity_type' => 'nullable|in:sale,purchase',
                 'entity_id' => 'nullable|integer',
+                'customer_id' => 'nullable|integer',
+                'supplier_id' => 'nullable|integer',
                 'start_date' => 'nullable|date',
                 'end_date' => 'nullable|date|after_or_equal:start_date',
             ]);
@@ -1171,10 +1186,20 @@ class PaymentController extends Controller
                 $query->where('payment_type', 'sale')
                       ->with(['customer']);
                 // Don't require customer_id to be not null as it might be optional
+                
+                // Filter by specific customer if provided
+                if ($request->customer_id) {
+                    $query->where('customer_id', $request->customer_id);
+                }
             } else {
                 $query->where('payment_type', 'purchase')
                       ->with(['supplier']);
                 // Don't require supplier_id to be not null as it might be optional
+                
+                // Filter by specific supplier if provided
+                if ($request->supplier_id) {
+                    $query->where('supplier_id', $request->supplier_id);
+                }
             }
 
             // Filter by specific entity ID if provided
@@ -1194,6 +1219,11 @@ class PaymentController extends Controller
                 $query->whereDate('payment_date', '<=', $endDate);
             }
 
+            // **IMPORTANT: Filter out zero-amount payments**
+            // Zero-amount payments are typically from credit sales where no actual payment was made
+            // They create ledger entries for sales but shouldn't appear in payment lists
+            $query->where('amount', '>', 0);
+
             // Get payments ordered by date descending (latest first)
             $payments = $query->orderBy('payment_date', 'desc')
                              ->orderBy('created_at', 'desc')
@@ -1202,6 +1232,8 @@ class PaymentController extends Controller
             // Debug: Log the query and results
             Log::info('Bulk payments query', [
                 'entity_type' => $entityType,
+                'customer_id' => $request->customer_id,
+                'supplier_id' => $request->supplier_id,
                 'start_date' => $startDate,
                 'end_date' => $endDate,
                 'sql' => $query->toSql(),
@@ -1226,7 +1258,9 @@ class PaymentController extends Controller
                 'filters' => [
                     'start_date' => $startDate,
                     'end_date' => $endDate,
-                    'entity_type' => $entityType
+                    'entity_type' => $entityType,
+                    'customer_id' => $request->customer_id,
+                    'supplier_id' => $request->supplier_id
                 ]
             ]);
 
@@ -1287,6 +1321,7 @@ class PaymentController extends Controller
             'payment_date' => 'required|date',
             'notes' => 'nullable|string',
             'reason' => 'required|string|max:500',
+            'allow_advance' => 'nullable|boolean',
             // Card fields
             'card_number' => 'nullable|string',
             'card_holder_name' => 'nullable|string',
@@ -1309,9 +1344,22 @@ class PaymentController extends Controller
 
         try {
             $payment = Payment::findOrFail($id);
-            $entityType = $payment->payment_type === 'sale' ? 'sale' : 'purchase';
             
-            DB::transaction(function () use ($request, $id) {
+            // CRITICAL: Only allow editing TODAY's payments to maintain ledger integrity
+            $paymentDate = Carbon::parse($payment->payment_date);
+            $today = Carbon::today();
+            
+            if (!$paymentDate->isSameDay($today)) {
+                return response()->json([
+                    'status' => 403,
+                    'message' => 'Cannot edit past payments. Only TODAY\'s payments can be edited to maintain ledger integrity and prevent accounting corruption.'
+                ]);
+            }
+            
+            $entityType = $payment->payment_type === 'sale' ? 'sale' : 'purchase';
+            $advanceAmount = 0; // Initialize outside transaction
+            
+            DB::transaction(function () use ($request, $id, &$advanceAmount) {
                 $payment = Payment::findOrFail($id);
                 
                 // Store old payment data for logging and ledger management
@@ -1324,17 +1372,123 @@ class PaymentController extends Controller
                 $customerId = $payment->customer_id;
                 $supplierId = $payment->supplier_id;
 
-                // Validate the new amount doesn't exceed what's due
-                if ($entityType === 'sale') {
+                // CRITICAL VALIDATION: Prevent overpayment for bulk payments
+                // For bulk payments, we need to check against the original sale/purchase amount
+                // to ensure total payments don't exceed the invoice total
+                
+                // Skip validation if this is an opening balance payment or payment without reference
+                if (!$entityId) {
+                    Log::info("Payment edit without reference_id - skipping overpayment validation", [
+                        'payment_id' => $id,
+                        'payment_type' => $payment->payment_type,
+                        'amount' => $request->amount
+                    ]);
+                    // Allow edit for payments without entity reference (opening balance, etc.)
+                } elseif ($entityType === 'sale') {
                     $entity = Sale::find($entityId);
-                    $maxAmount = $entity->total_due + $oldAmount; // Current due + old payment amount
+                    if (!$entity) {
+                        throw new \Exception('Related sale not found');
+                    }
+                    
+                    // Skip validation if sale has 0 amount (opening balance or special case)
+                    if ($entity->total_amount <= 0) {
+                        Log::info("Payment edit for sale with zero amount - skipping overpayment validation", [
+                            'payment_id' => $id,
+                            'sale_id' => $entityId,
+                            'sale_amount' => $entity->total_amount,
+                            'payment_amount' => $request->amount
+                        ]);
+                    } else {
+                        // Calculate total payments for this sale (excluding current payment being edited)
+                        $totalOtherPayments = Payment::where('reference_id', $entityId)
+                            ->where('payment_type', 'sale')
+                            ->where('id', '!=', $payment->id)
+                            ->sum('amount');
+                        
+                        // Maximum allowed for this payment = Total Sale Amount - Other Payments
+                        $maxAmount = $entity->total_amount - $totalOtherPayments;
+                        
+                        // Also check against available due (current due + old payment amount)
+                        // This handles cases where there might be returns or adjustments
+                        $maxAmountByDue = $entity->total_due + $oldAmount;
+                        
+                        // Use the smaller of the two to be safe
+                        $maxAmount = min($maxAmount, $maxAmountByDue);
+                    }
+                    
                 } else {
                     $entity = Purchase::find($entityId);
-                    $maxAmount = $entity->total_due + $oldAmount; // Current due + old payment amount
+                    if (!$entity) {
+                        throw new \Exception('Related purchase not found');
+                    }
+                    
+                    // Skip validation if purchase has 0 amount (opening balance or special case)
+                    if ($entity->total_amount <= 0) {
+                        Log::info("Payment edit for purchase with zero amount - skipping overpayment validation", [
+                            'payment_id' => $id,
+                            'purchase_id' => $entityId,
+                            'purchase_amount' => $entity->total_amount,
+                            'payment_amount' => $request->amount
+                        ]);
+                    } else {
+                        // Calculate total payments for this purchase (excluding current payment being edited)
+                        $totalOtherPayments = Payment::where('reference_id', $entityId)
+                            ->where('payment_type', 'purchase')
+                            ->where('id', '!=', $payment->id)
+                            ->sum('amount');
+                        
+                        // Maximum allowed for this payment = Total Purchase Amount - Other Payments
+                        $maxAmount = $entity->total_amount - $totalOtherPayments;
+                        
+                        // Also check against available due (current due + old payment amount)
+                        $maxAmountByDue = $entity->total_due + $oldAmount;
+                        
+                        // Use the smaller of the two to be safe
+                        $maxAmount = min($maxAmount, $maxAmountByDue);
+                    }
                 }
 
-                if ($request->amount > $maxAmount) {
-                    throw new \Exception('Payment amount cannot exceed the total due amount');
+                // ADVANCE PAYMENT HANDLING
+                // Check if user explicitly allowed advance payment (for customer credit)
+                $allowAdvance = $request->input('allow_advance', false);
+                $advanceAmount = 0;
+                
+                // Only validate overpayment if there's a linked entity (sale/purchase)
+                if ($entityId && isset($maxAmount) && $request->amount > $maxAmount) {
+                    if (!$allowAdvance) {
+                        // Overpayment not allowed without advance flag
+                        $totalPaid = ($entityType === 'sale' ? 
+                            Payment::where('reference_id', $entityId)->where('payment_type', 'sale')->where('id', '!=', $payment->id)->sum('amount') :
+                            Payment::where('reference_id', $entityId)->where('payment_type', 'purchase')->where('id', '!=', $payment->id)->sum('amount')
+                        );
+                        
+                        // Create a structured error message for better display
+                        $errorData = [
+                            'title' => 'Overpayment Not Allowed!',
+                            'message' => 'The payment amount exceeds the maximum allowed for this ' . $entityType . '.',
+                            'details' => [
+                                'Total ' . ucfirst($entityType) . ' Amount' => 'Rs. ' . number_format($entity->total_amount, 2),
+                                'Already Paid (other payments)' => 'Rs. ' . number_format($totalPaid, 2),
+                                'Maximum allowed for this payment' => 'Rs. ' . number_format($maxAmount, 2),
+                                'You tried to pay' => 'Rs. ' . number_format($request->amount, 2)
+                            ],
+                            'tip' => 'Check "Allow Advance Payment" if customer is paying extra as advance credit.'
+                        ];
+                        
+                        // Throw exception with JSON encoded data for frontend parsing
+                        throw new \Exception(json_encode($errorData));
+                    } else {
+                        // Advance payment is allowed - calculate excess amount
+                        $advanceAmount = $request->amount - $maxAmount;
+                        Log::info("Advance payment detected", [
+                            'payment_id' => $id,
+                            'total_payment' => $request->amount,
+                            'applied_to_bill' => $maxAmount,
+                            'advance_amount' => $advanceAmount,
+                            'entity_type' => $entityType,
+                            'entity_id' => $entityId
+                        ]);
+                    }
                 }
 
                 // Update payment data
@@ -1369,22 +1523,42 @@ class PaymentController extends Controller
                 // Update the payment
                 $payment->update($updateData);
 
-                // Handle unified ledger update - this is crucial for accurate accounting
+                // LEDGER MANAGEMENT: Handle unified ledger update - this is crucial for accurate accounting
                 try {
                     // Create old payment object for ledger cleanup
                     $oldPayment = new Payment($oldPaymentData);
                     $oldPayment->id = $payment->id;
                     
-                    // Update unified ledger with both old and new payment data
+                    // Step 1: Delete old ledger entry
+                    // Step 2: Create new ledger entry with updated amount
+                    // This ensures the ledger is always in sync with the payment
                     $this->unifiedLedgerService->updatePayment($payment->fresh(), $oldPayment);
                     
-                    Log::info('Unified ledger updated successfully for payment ID: ' . $payment->id);
+                    Log::info('Ledger updated successfully for payment edit', [
+                        'payment_id' => $payment->id,
+                        'old_amount' => $oldAmount,
+                        'new_amount' => $request->amount,
+                        'customer_id' => $customerId,
+                        'supplier_id' => $supplierId,
+                        'entity_type' => $entityType
+                    ]);
                 } catch (\Exception $e) {
-                    Log::error('Failed to update unified ledger for payment ID: ' . $payment->id . '. Error: ' . $e->getMessage());
-                    throw new \Exception('Failed to update payment ledger: ' . $e->getMessage());
+                    Log::error('CRITICAL: Failed to update unified ledger for payment', [
+                        'payment_id' => $payment->id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    throw new \Exception('Failed to update payment ledger. Transaction rolled back to prevent data corruption: ' . $e->getMessage());
                 }
 
-                // Log the edit action
+                // Log the edit action with proper reference information
+                $referenceInfo = '';
+                if ($entityType === 'sale' && isset($entity)) {
+                    $referenceInfo = $entity->invoice_no ?? 'Sale #' . $entityId;
+                } elseif ($entityType === 'purchase' && isset($entity)) {
+                    $referenceInfo = $entity->reference_no ?? 'Purchase #' . $entityId;
+                }
+                
                 BulkPaymentLog::create([
                     'action' => 'edit',
                     'entity_type' => $entityType,
@@ -1396,11 +1570,36 @@ class PaymentController extends Controller
                     'new_data' => $payment->fresh()->toArray(),
                     'old_amount' => $oldAmount,
                     'new_amount' => $request->amount,
-                    'reference_no' => $payment->reference_no,
+                    'reference_no' => $referenceInfo ?: $payment->reference_no,
                     'reason' => $request->reason,
-                    'performed_by' => Auth::id(),
+                    'performed_by' => auth()->id() ?? Auth::id(),
                     'performed_at' => Carbon::now(),
                 ]);
+
+                // HANDLE ADVANCE PAYMENT (Customer Credit)
+                if ($advanceAmount > 0 && $entityType === 'sale') {
+                    // Add advance amount to customer's credit balance
+                    $customer = Customer::find($customerId);
+                    if ($customer) {
+                        $oldCreditBalance = $customer->current_balance;
+                        $customer->current_balance = ($customer->current_balance ?? 0) - $advanceAmount; // Negative means customer has credit
+                        $customer->save();
+                        
+                        Log::info("Customer credit updated for advance payment", [
+                            'customer_id' => $customerId,
+                            'customer_name' => $customer->first_name . ' ' . $customer->last_name,
+                            'old_credit_balance' => $oldCreditBalance,
+                            'new_credit_balance' => $customer->current_balance,
+                            'advance_amount_added' => $advanceAmount,
+                            'payment_id' => $payment->id
+                        ]);
+                        
+                        // Add note to payment about advance
+                        $advanceNote = "\n[Advance Payment: Rs. " . number_format($advanceAmount, 2) . " added to customer credit. Applied to bill: Rs. " . number_format($maxAmount, 2) . "]";
+                        $payment->notes = ($payment->notes ?? '') . $advanceNote;
+                        $payment->save();
+                    }
+                }
 
                 // Update related tables and balances
                 if ($entityType === 'sale') {
@@ -1412,10 +1611,17 @@ class PaymentController extends Controller
                 }
             });
 
+            // Prepare success message
+            $successMessage = 'Payment updated successfully! The ' . $entityType . ' balance has been recalculated.';
+            if ($advanceAmount > 0) {
+                $successMessage .= ' Advance amount of Rs. ' . number_format($advanceAmount, 2) . ' has been added to customer credit.';
+            }
+
             return response()->json([
                 'status' => 200,
-                'message' => 'Payment updated successfully! The ' . $entityType . ' balance has been recalculated.',
-                'payment' => $payment->fresh()
+                'message' => $successMessage,
+                'payment' => $payment->fresh(),
+                'advance_amount' => $advanceAmount
             ]);
 
         } catch (\Exception $e) {
@@ -1440,6 +1646,19 @@ class PaymentController extends Controller
         }
 
         try {
+            $payment = Payment::findOrFail($id);
+            
+            // CRITICAL: Only allow deleting TODAY's payments to maintain ledger integrity
+            $paymentDate = Carbon::parse($payment->payment_date);
+            $today = Carbon::today();
+            
+            if (!$paymentDate->isSameDay($today)) {
+                return response()->json([
+                    'status' => 403,
+                    'message' => 'Cannot delete past payments. Only TODAY\'s payments can be deleted to maintain ledger integrity and prevent accounting corruption.'
+                ]);
+            }
+            
             $entityType = '';
             $amount = 0;
             
@@ -1454,15 +1673,26 @@ class PaymentController extends Controller
                 $supplierId = $payment->supplier_id;
                 $amount = $payment->amount;
 
-                // Handle unified ledger cleanup - this is crucial for accurate accounting
+                // LEDGER MANAGEMENT: Handle unified ledger cleanup - this is crucial for accurate accounting
                 try {
                     // Delete the payment ledger entries from unified ledger
+                    // This removes the debit/credit entries for this payment
                     $this->unifiedLedgerService->deletePaymentLedger($payment);
                     
-                    Log::info('Unified ledger payment entries deleted successfully for payment ID: ' . $payment->id);
+                    Log::info('Ledger payment entries deleted successfully', [
+                        'payment_id' => $payment->id,
+                        'amount' => $amount,
+                        'customer_id' => $customerId,
+                        'supplier_id' => $supplierId,
+                        'entity_type' => $entityType
+                    ]);
                 } catch (\Exception $e) {
-                    Log::error('Failed to delete unified ledger entries for payment ID: ' . $payment->id . '. Error: ' . $e->getMessage());
-                    throw new \Exception('Failed to delete payment ledger entries: ' . $e->getMessage());
+                    Log::error('CRITICAL: Failed to delete unified ledger entries for payment', [
+                        'payment_id' => $payment->id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    throw new \Exception('Failed to delete payment ledger entries. Transaction rolled back to prevent data corruption: ' . $e->getMessage());
                 }
 
                 // Log the delete action
@@ -1517,6 +1747,7 @@ class PaymentController extends Controller
         $validator = Validator::make($request->all(), [
             'entity_type' => 'nullable|in:sale,purchase',
             'action' => 'nullable|in:edit,delete',
+            'payment_id' => 'nullable|integer',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
             'per_page' => 'nullable|integer|min:1|max:100'
@@ -1535,6 +1766,11 @@ class PaymentController extends Controller
 
         if ($request->action) {
             $query->where('action', $request->action);
+        }
+        
+        // Filter by specific payment ID
+        if ($request->payment_id) {
+            $query->where('payment_id', $request->payment_id);
         }
 
         if ($request->start_date) {
