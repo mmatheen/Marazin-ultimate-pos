@@ -2944,7 +2944,7 @@
                                 <div class="dropdown">
                                     <button class="btn btn-danger btn-sm dropdown-toggle" type="button"
                                         id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false"
-                                        data-bs-toggle="tooltip" title="Enter Invoice No">
+                                        title="Enter Invoice No">
                                         <i class="fas fa-redo-alt"></i>
                                     </button>
                                     <div class="dropdown-menu p-3" style="min-width: 250px;">
@@ -3175,7 +3175,7 @@
 
             <div class="container-fluid p-1">
                 <div class="row">
-                    <div class="col-md-12" id="mainContent">
+                    <div class="col-md-7" id="mainContent">
                         <div class="card bg-white p-2"
                             style="height: calc(100vh - 215px); overflow: hidden; display: flex; flex-direction: column;">
                             <div class="row">
@@ -3338,7 +3338,7 @@
                         </div>
                     </div>
 
-                    <div class="col-md-5 collapse" id="productListArea">
+                    <div class="col-md-5 show" id="productListArea">
                         <div class="card bg-white p-2" style="height: calc(100vh - 215px); overflow: hidden;">
                             <!-- Buttons for Category and Brand -->
                             <div class="row mb-2">
@@ -3407,9 +3407,11 @@
                     toggleProductListBtn.addEventListener('click', function() {
                         if (productListArea.classList.contains('show')) {
                             productListArea.classList.remove('show');
+                            productListArea.classList.add('d-none');
                             mainContent.classList.remove('col-md-7');
                             mainContent.classList.add('col-md-12');
                         } else {
+                            productListArea.classList.remove('d-none');
                             productListArea.classList.add('show');
                             mainContent.classList.remove('col-md-12');
                             mainContent.classList.add('col-md-7');
