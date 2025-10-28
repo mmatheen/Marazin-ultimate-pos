@@ -1130,6 +1130,12 @@
                 return;
             }
 
+            // Check if auto-selection is currently prevented (e.g., after form reset)
+            if (window.preventAutoSelection) {
+                console.log('Customer filtering skipped - auto-selection is prevented');
+                return;
+            }
+
             // Check if customers already loaded for this session
             if (salesRepCustomersLoaded) {
                 console.log('Customers already loaded for this sales rep session, skipping filter');
@@ -1345,6 +1351,12 @@
 
             // Auto-select appropriate customer based on user type
             setTimeout(() => {
+                // Check if auto-selection is currently prevented (e.g., after form reset)
+                if (window.preventAutoSelection) {
+                    console.log('Auto-selection prevented - form was recently reset');
+                    return;
+                }
+                
                 if (isSalesRep) {
                     // For sales reps, DO NOT auto-select any customer
                     // Keep the dropdown at "Please Select" so user must choose
@@ -5463,6 +5475,26 @@
 
                             // IMMEDIATE form reset and UI feedback - don't wait for async operations
                             resetForm();
+                            
+                            // Extra safety check for sales rep customer reset after successful billing
+                            if (isSalesRep) {
+                                setTimeout(() => {
+                                    const customerSelect = $('#customer-id');
+                                    if (customerSelect.val() && customerSelect.val() !== '') {
+                                        console.log('BILLING SUCCESS: Customer was auto-selected after reset, forcing back to "Please Select"');
+                                        customerSelect.val('').trigger('change');
+                                    }
+                                }, 100);
+                                
+                                // Additional check after 300ms for any delayed customer filtering
+                                setTimeout(() => {
+                                    const customerSelect = $('#customer-id');
+                                    if (customerSelect.val() && customerSelect.val() !== '') {
+                                        console.log('BILLING SUCCESS: Customer was auto-selected after reset (delayed check), forcing back to "Please Select"');
+                                        customerSelect.val('').trigger('change');
+                                    }
+                                }, 300);
+                            }
 
                             // Call onComplete immediately for button re-enabling
                             if (onComplete) onComplete();
@@ -6481,6 +6513,12 @@
                     // For sales reps, reset to "Please Select" - don't auto-select any customer
                     customerSelect.val('').trigger('change');
                     console.log('Sales rep: Customer reset to "Please Select"');
+                    
+                    // Set a flag to prevent any auto-selection for a short period
+                    window.preventAutoSelection = true;
+                    setTimeout(() => {
+                        window.preventAutoSelection = false;
+                    }, 1000); // Prevent auto-selection for 1 second after reset
                 } else {
                     // For non-sales reps, reset to Walk-in Customer (ID = 1)
                     // Try by value first (most reliable)
@@ -6510,6 +6548,26 @@
                 currentEditingSaleId = null; // Reset the editing sale ID
 
                 resetToWalkingCustomer();
+                
+                // For sales reps, ensure customer stays reset with additional safeguard
+                if (isSalesRep) {
+                    setTimeout(() => {
+                        const customerSelect = $('#customer-id');
+                        if (customerSelect.val() && customerSelect.val() !== '') {
+                            console.log('Customer auto-selected after reset, forcing back to empty');
+                            customerSelect.val('').trigger('change');
+                        }
+                    }, 200); // Check after a short delay
+                    
+                    setTimeout(() => {
+                        const customerSelect = $('#customer-id');
+                        if (customerSelect.val() && customerSelect.val() !== '') {
+                            console.log('Customer auto-selected after reset (second check), forcing back to empty');
+                            customerSelect.val('').trigger('change');
+                        }
+                    }, 500); // Check again after 500ms
+                }
+                
                 const quantityInputs = document.querySelectorAll('.quantity-input');
                 quantityInputs.forEach(input => {
                     input.value = 1;
