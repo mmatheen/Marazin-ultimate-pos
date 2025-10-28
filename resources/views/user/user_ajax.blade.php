@@ -352,8 +352,8 @@
 
         populateLocationDropdown();
 
-        // Populate Location Dropdown Based on User Role & Vehicle
-        function populateLocationDropdown() {
+        // Populate Location Dropdown Based on User Role & Vehicle Type
+        function populateLocationDropdown(selectedRole = null) {
             $.ajax({
                 url: '/location-get-all',
                 type: 'GET',
@@ -363,25 +363,136 @@
                     dropdown.empty().append('<option value="">Select Location</option>');
 
                     if (res.status && Array.isArray(res.data)) {
+                        // Get the selected role or current role value
+                        const currentRole = selectedRole || $('#edit_role_name').val();
+                        
+                        // Check if this is a sales rep role using helper function
+                        const roleData = window.rolesData ? window.rolesData[currentRole] : null;
+                        const isSalesRepRoleSelected = isSalesRepRole(currentRole, roleData);
+
+                        console.log('Populating locations for role:', currentRole, 'isSalesRep:', isSalesRepRoleSelected);
+
                         res.data.forEach(function(loc) {
-                            // Optional: Show hierarchy
-                            let label = loc.parent ? `${loc.parent.name} → ${loc.name}` :
-                                loc.name;
-                            dropdown.append(`<option value="${loc.id}">${label}</option>`);
+                            let shouldInclude = false;
+                            let label = '';
+                            
+                            if (isSalesRepRoleSelected) {
+                                // For Sales Rep: Only show sub-locations (vehicles) - locations with parent_id
+                                if (loc.parent_id && loc.vehicle_type) {
+                                    shouldInclude = true;
+                                    // Show vehicle info: Parent → Vehicle (Type: vehicle_type)
+                                    label = `${loc.parent?.name || 'Location'} → ${loc.name}`;
+                                    if (loc.vehicle_number) {
+                                        label += ` (${loc.vehicle_number})`;
+                                    }
+                                    if (loc.vehicle_type) {
+                                        label += ` - ${loc.vehicle_type}`;
+                                    }
+                                }
+                            } else {
+                                // For Other Roles: Show main locations (parent locations without parent_id)
+                                if (!loc.parent_id) {
+                                    shouldInclude = true;
+                                    label = loc.name;
+                                    
+                                    // Count child locations for context
+                                    const childCount = res.data.filter(child => child.parent_id === loc.id).length;
+                                    if (childCount > 0) {
+                                        label += ` (${childCount} vehicles)`;
+                                    }
+                                }
+                            }
+
+                            if (shouldInclude) {
+                                dropdown.append(`<option value="${loc.id}" data-location-type="${loc.parent_id ? 'sub' : 'main'}" data-vehicle-type="${loc.vehicle_type || ''}">${label}</option>`);
+                            }
                         });
+
+                        // Show appropriate message if no locations found
+                        if (dropdown.find('option').length === 1) { // Only the "Select Location" option
+                            const messageText = isSalesRepRoleSelected ? 
+                                'No vehicles/sub-locations available for Sales Rep' : 
+                                'No main locations available';
+                            dropdown.append(`<option value="" disabled>${messageText}</option>`);
+                        }
+
+                        // Refresh Select2 to show updated options
+                        dropdown.trigger('change.select2');
+                        
+                        console.log(`Loaded ${dropdown.find('option').length - 1} locations for role type: ${isSalesRepRoleSelected ? 'Sales Rep' : 'Regular User'}`);
+                        
                     } else {
-                        dropdown.append(
-                            '<option value="" disabled>No locations available</option>');
+                        dropdown.append('<option value="" disabled>No locations available</option>');
                     }
                 },
                 error: function(xhr) {
                     console.error("Failed to load locations:", xhr.responseJSON?.message);
-                    $('#edit_location_id').html(
-                        '<option value="" disabled>Failed to load locations</option>');
+                    $('#edit_location_id').html('<option value="" disabled>Failed to load locations</option>');
                     toastr.error('Could not load locations.');
                 }
             });
         }
+
+        // Store role data globally for better role detection
+        window.rolesData = {};
+
+        // Helper function to accurately detect if a role is Sales Rep
+        function isSalesRepRole(roleName, roleData = null) {
+            if (!roleName) return false;
+            
+            // Check by role key first (most accurate)
+            if (roleData && roleData.key) {
+                if (roleData.key.toLowerCase().includes('sales_rep') || 
+                    roleData.key.toLowerCase().includes('sale_rep')) {
+                    return true;
+                }
+            }
+            
+            // Fallback to role name pattern matching
+            const roleNameLower = roleName.toLowerCase();
+            return roleNameLower.includes('sales rep') || 
+                   roleNameLower.includes('salesrep') || 
+                   roleNameLower === 'sales rep' ||
+                   (roleNameLower.includes('sales') && roleNameLower.includes('rep'));
+        }
+
+        // Add event listener to role dropdown to update locations when role changes
+        $(document).on('change', '#edit_role_name', function() {
+            const selectedRole = $(this).val();
+            console.log('Role changed to:', selectedRole);
+            
+            // Clear current location selection
+            $('#edit_location_id').val(null).trigger('change');
+            
+            // Repopulate location dropdown based on new role
+            populateLocationDropdown(selectedRole);
+            
+            // Show informative message and update info text
+            if (selectedRole) {
+                const roleData = window.rolesData[selectedRole];
+                const isSalesRep = isSalesRepRole(selectedRole, roleData);
+                
+                // Update info message below dropdown
+                const infoDiv = $('#location-role-info');
+                if (isSalesRep) {
+                    infoDiv.html('<i class="fas fa-info-circle text-warning"></i> <strong>Sales Rep Role:</strong> You can only select vehicles/sub-locations, not main locations.').show();
+                    toastr.info('Location list updated to show vehicles/sub-locations only for Sales Rep role.', 'Role Changed');
+                } else {
+                    infoDiv.html('<i class="fas fa-info-circle text-info"></i> <strong>Regular Role:</strong> You can only select main locations, not individual vehicles.').show();
+                    toastr.info('Location list updated to show main locations for this role.', 'Role Changed');
+                }
+            } else {
+                $('#location-role-info').hide();
+            }
+        });
+
+        // Also trigger on modal show to ensure correct locations are loaded
+        $('#addAndEditModal').on('shown.bs.modal', function() {
+            const currentRole = $('#edit_role_name').val();
+            if (currentRole) {
+                populateLocationDropdown(currentRole);
+            }
+        });
 
     });
 </script>
