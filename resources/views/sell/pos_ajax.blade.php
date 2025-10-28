@@ -6627,77 +6627,8 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.invoice_html) {
-                        // Check if mobile device
-                        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-                        
-                        if (isMobile) {
-                            // For mobile: Open in new window/tab for better print support
-                            const printWindow = window.open('', '_blank');
-                            if (printWindow) {
-                                printWindow.document.open();
-                                printWindow.document.write(data.invoice_html);
-                                printWindow.document.close();
-                                
-                                // Wait for content to load then trigger print
-                                printWindow.onload = function() {
-                                    setTimeout(() => {
-                                        printWindow.print();
-                                        // Don't auto-close on mobile - let user close manually
-                                    }, 500);
-                                };
-                            } else {
-                                toastr.error('Please allow pop-ups to print the receipt.');
-                            }
-                        } else {
-                            // For desktop: Use hidden iframe method (no blank page)
-                            const iframe = document.createElement('iframe');
-                            iframe.style.position = 'absolute';
-                            iframe.style.width = '0';
-                            iframe.style.height = '0';
-                            iframe.style.border = 'none';
-                            iframe.style.left = '-9999px';
-                            iframe.style.top = '-9999px';
-                            iframe.style.visibility = 'hidden';
-                            document.body.appendChild(iframe);
-
-                            const iframeDoc = iframe.contentWindow.document;
-                            iframeDoc.open();
-                            iframeDoc.write(data.invoice_html);
-                            iframeDoc.close();
-
-                            // Wait for content to load
-                            iframe.onload = function() {
-                                setTimeout(() => {
-                                    try {
-                                        iframe.contentWindow.focus();
-                                        iframe.contentWindow.print();
-                                    } catch (e) {
-                                        console.error('Print error:', e);
-                                        toastr.error('Unable to print. Please try again.');
-                                    }
-                                    
-                                    // Cleanup after printing or after timeout
-                                    const cleanup = () => {
-                                        if (iframe && document.body.contains(iframe)) {
-                                            document.body.removeChild(iframe);
-                                        }
-                                    };
-                                    
-                                    // Try to cleanup after print dialog closes
-                                    if (iframe.contentWindow.matchMedia) {
-                                        const mediaQueryList = iframe.contentWindow.matchMedia('print');
-                                        mediaQueryList.addListener(function(mql) {
-                                            if (!mql.matches) {
-                                                setTimeout(cleanup, 500);
-                                            }
-                                        });
-                                    }
-                                    
-                                    // Fallback cleanup after 2 seconds
-                                    setTimeout(cleanup, 2000);
-                                }, 100);
-                            };
-                        }
+                        // Use iframe method for all devices to avoid pop-up blocking
+                        printWithIframe(data.invoice_html);
                     } else {
                         toastr.error('Failed to fetch the receipt. Please try again.');
                     }
@@ -6708,6 +6639,129 @@
                 });
         }, 300); // Delay to ensure modal is closed
     }
+
+    // Enhanced print function using iframe - works on all devices without pop-ups
+    function printWithIframe(htmlContent) {
+        // Create a hidden iframe for printing
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'absolute';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = 'none';
+        iframe.style.left = '-9999px';
+        iframe.style.top = '-9999px';
+        iframe.style.visibility = 'hidden';
+        iframe.setAttribute('aria-hidden', 'true');
+        
+        // Add iframe to DOM
+        document.body.appendChild(iframe);
+
+        try {
+            const iframeDoc = iframe.contentWindow.document;
+            iframeDoc.open();
+            iframeDoc.write(htmlContent);
+            iframeDoc.close();
+
+            // Wait for content to load and then print
+            iframe.onload = function() {
+                setTimeout(() => {
+                    try {
+                        // Focus the iframe window and trigger print
+                        iframe.contentWindow.focus();
+                        iframe.contentWindow.print();
+                        
+                        // Show success message
+                        toastr.success('Receipt sent to printer successfully!');
+                    } catch (printError) {
+                        console.error('Print error:', printError);
+                        
+                        // Fallback: Try direct window.print() on the main window
+                        fallbackPrint(htmlContent);
+                    }
+                    
+                    // Clean up the iframe after printing
+                    cleanupIframe(iframe);
+                }, 200);
+            };
+
+            // Handle iframe load errors
+            iframe.onerror = function() {
+                console.error('Iframe load error');
+                fallbackPrint(htmlContent);
+                cleanupIframe(iframe);
+            };
+
+        } catch (error) {
+            console.error('Error setting up iframe:', error);
+            fallbackPrint(htmlContent);
+            cleanupIframe(iframe);
+        }
+    }
+
+    // Fallback print method - temporarily replace page content
+    function fallbackPrint(htmlContent) {
+        try {
+            // Store current page content
+            const originalContent = document.body.innerHTML;
+            const originalTitle = document.title;
+            
+            // Replace page content with receipt
+            document.body.innerHTML = htmlContent;
+            document.title = 'Receipt Print';
+            
+            // Trigger print
+            window.print();
+            
+            // Restore original content after print dialog
+            setTimeout(() => {
+                document.body.innerHTML = originalContent;
+                document.title = originalTitle;
+                
+                // Re-initialize any necessary components after content restoration
+                if (typeof initializePage === 'function') {
+                    initializePage();
+                }
+            }, 1000);
+            
+        } catch (error) {
+            console.error('Fallback print error:', error);
+            toastr.error('Unable to print receipt. Please try downloading the receipt instead.');
+        }
+    }
+
+    // Clean up iframe with proper error handling
+    function cleanupIframe(iframe) {
+        try {
+            // Try to detect when print dialog closes using media query
+            if (iframe.contentWindow && iframe.contentWindow.matchMedia) {
+                const mediaQueryList = iframe.contentWindow.matchMedia('print');
+                mediaQueryList.addListener(function(mql) {
+                    if (!mql.matches) {
+                        // Print dialog closed
+                        setTimeout(() => removeIframe(iframe), 500);
+                    }
+                });
+            }
+        } catch (error) {
+            console.warn('Could not set up print dialog detection:', error);
+        }
+        
+        // Fallback cleanup after 3 seconds
+        setTimeout(() => removeIframe(iframe), 3000);
+    }
+
+    // Safely remove iframe from DOM
+    function removeIframe(iframe) {
+        try {
+            if (iframe && iframe.parentNode) {
+                iframe.parentNode.removeChild(iframe);
+            }
+        } catch (error) {
+            console.warn('Error removing iframe:', error);
+        }
+    }
+
+
 });
 </script>
 
