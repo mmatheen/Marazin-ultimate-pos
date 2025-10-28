@@ -1,13 +1,31 @@
 <script src="{{ asset('assets/js/jquery-3.6.0.min.js') }}"></script>
 
+<style>
+/* Visual feedback for required customer selection for sales reps */
+.form-select-required {
+    border-color: #fd7e14 !important;
+    box-shadow: 0 0 0 0.2rem rgba(253, 126, 20, 0.25) !important;
+}
+
+.customer-selection-hint {
+    color: #fd7e14;
+    font-size: 0.875rem;
+    font-style: italic;
+    margin-top: 0.25rem;
+}
+</style>
+
 <script>
-    // Pass user permissions to JavaScript
+    // Pass user permissions and current user ID to JavaScript
     const userPermissions = {
         canEditSale: @json(auth()->check() && auth()->user()->can('edit sale')),
         canDeleteSale: @json(auth()->check() && auth()->user()->can('delete sale')),
         canEditProduct: @json(auth()->check() && auth()->user()->can('edit product')),
         canDeleteProduct: @json(auth()->check() && auth()->user()->can('delete product'))
     };
+    
+    // Current user ID for user-specific storage
+    const currentUserId = @json(auth()->user()->id ?? null);
 
     // Global function to clean up modal backdrops and body styles
     window.cleanupModalBackdrop = function() {
@@ -22,6 +40,77 @@
 
         console.log('Modal backdrop cleanup completed');
     };
+
+    // Function to clear previous user's sales rep data
+    function clearPreviousUserData() {
+        if (!currentUserId) return;
+        
+        try {
+            // Get stored user ID from previous session
+            const storedUserId = localStorage.getItem('lastUserId');
+            
+            // If different user is logging in, clear all sales rep data
+            if (storedUserId && storedUserId !== currentUserId.toString()) {
+                console.log('Different user detected, clearing previous sales rep data');
+                
+                // Clear localStorage sales rep selection
+                localStorage.removeItem('salesRepSelection');
+                sessionStorage.removeItem('salesRepSelection');
+                
+                // Clear all user-specific sales rep storage
+                const keys = Object.keys(localStorage);
+                keys.forEach(key => {
+                    if (key.startsWith('salesRepSelection_') || key.startsWith('salesRepCustomers_')) {
+                        localStorage.removeItem(key);
+                    }
+                });
+                
+                // Clear customer filtering flags
+                window.originalCustomerOptions = null;
+                window.salesRepCustomersFiltered = false;
+                window.salesRepCustomersLoaded = false;
+                window.hasStoredSalesRepSelection = false;
+                window.validationPerformed = false;
+                
+                console.log('Previous user data cleared successfully');
+            }
+            
+            // Store current user ID for next session
+            localStorage.setItem('lastUserId', currentUserId.toString());
+            
+        } catch (error) {
+            console.warn('Error clearing previous user data:', error);
+        }
+    }
+    
+    // Clear previous user data immediately when page loads
+    clearPreviousUserData();
+
+    // Function to initialize customer dropdown properly for different user types
+    function initializeCustomerDropdown() {
+        // Wait for customer dropdown to be available
+        setTimeout(() => {
+            const customerSelect = $('#customer-id');
+            if (customerSelect.length) {
+                // Store original options if not already stored
+                if (!window.originalCustomerOptions) {
+                    window.originalCustomerOptions = customerSelect.html();
+                    console.log('Original customer options stored for session');
+                }
+
+                // Ensure proper default selection based on user type
+                const currentValue = customerSelect.val();
+                if (!currentValue) {
+                    // No selection - ensure "Please Select" is shown
+                    customerSelect.val('').trigger('change');
+                    console.log('Customer dropdown initialized to "Please Select"');
+                }
+            } else {
+                // Retry if dropdown not ready
+                setTimeout(() => initializeCustomerDropdown(), 200);
+            }
+        }, 100);
+    }
 
     document.addEventListener("DOMContentLoaded", function() {
         let selectedLocationId = null;
@@ -45,6 +134,9 @@
         const subcategoryBackBtn = document.getElementById('subcategoryBackBtn');
 
         // ---- INIT ----
+        // Initialize customer dropdown state for sales reps
+        initializeCustomerDropdown();
+        
         // Check if user is sales rep and handle vehicle/route selection
         // This must be called FIRST before any display restoration
         checkSalesRepStatus();
@@ -94,6 +186,12 @@
 
         // Listen for customer changes to update pricing
         $('#customer-id').on('change', function() {
+            // Remove visual feedback when a customer is selected
+            if ($(this).val()) {
+                $(this).removeClass('form-select-required');
+                $(this).next('.customer-selection-hint').remove();
+            } 
+            
             // Update pricing for existing products in billing table
             const billingBody = document.getElementById('billing-body');
             const existingRows = billingBody ? billingBody.querySelectorAll('tr') : [];
@@ -528,14 +626,24 @@
                 let storedData = sessionStorage.getItem('salesRepSelection');
                 let parsedData = storedData ? JSON.parse(storedData) : null;
 
-                if (!parsedData) {
-                    storedData = localStorage.getItem('salesRepSelection');
+                if (!parsedData && currentUserId) {
+                    // Check user-specific localStorage first
+                    storedData = localStorage.getItem(`salesRepSelection_${currentUserId}`);
                     parsedData = storedData ? JSON.parse(storedData) : null;
 
-                    // If found in localStorage, also store in sessionStorage for current session
                     if (parsedData) {
+                        // Store in session for current session
                         sessionStorage.setItem('salesRepSelection', JSON.stringify(parsedData));
-                        console.log('Restored sales rep selection from localStorage to sessionStorage');
+                        console.log('Restored sales rep selection from user-specific localStorage');
+                    } else {
+                        // Fallback to global localStorage (legacy support)
+                        storedData = localStorage.getItem('salesRepSelection');
+                        parsedData = storedData ? JSON.parse(storedData) : null;
+
+                        if (parsedData) {
+                            sessionStorage.setItem('salesRepSelection', JSON.stringify(parsedData));
+                            console.log('Restored sales rep selection from global localStorage (legacy)');
+                        }
                     }
                 }
 
@@ -677,23 +785,33 @@
                         // User is a sales rep with assignments
                         isSalesRep = true;
                         console.log('User identified as sales rep with assignments:', data.data);
+                        
+                        // Reset customer filtering flags for new sales rep session
+                        salesRepCustomersFiltered = false;
+                        salesRepCustomersLoaded = false;
+                        
                         // Early restoration of sales rep display from storage (only for sales rep)
                         restoreSalesRepDisplayFromStorage();
                         handleSalesRepUser(data.data);
                     } else if (status === 200 && data.status === false) {
                         // User is not a sales rep (explicit response)
                         isSalesRep = false;
+                        clearSalesRepSelection(); // Clear any leftover data
+                        restoreOriginalCustomers(); // Ensure customer list is restored
                         hideSalesRepDisplay();
                         console.log('User is not a sales rep (API confirmed)');
                     } else if (status === 200 && data.status === true && (!data.data || data.data.length ===
                             0)) {
                         // User is a sales rep but no assignments
                         isSalesRep = true;
+                        clearSalesRepSelection(); // Clear selection if no assignments
                         console.log('User is a sales rep but has no assignments');
                         hideSalesRepDisplay(); // Hide display if no assignments
                     } else {
                         // Other cases - treat as non-sales rep
                         isSalesRep = false;
+                        clearSalesRepSelection(); // Clear any leftover data
+                        restoreOriginalCustomers(); // Ensure customer list is restored
                         hideSalesRepDisplay();
                         console.log('User is not a sales rep (other case)');
                     }
@@ -722,6 +840,12 @@
             // Check if we already have a valid selection
             if (!hasSalesRepSelection()) {
                 console.log('No existing sales rep selection, showing modal');
+                
+                // Clear any previous customer filtering state
+                salesRepCustomersFiltered = false;
+                salesRepCustomersLoaded = false;
+                window.originalCustomerOptions = null;
+                
                 // Show modal for vehicle/route selection
                 if (typeof showSalesRepModal === 'function') {
                     showSalesRepModal();
@@ -1130,6 +1254,13 @@
                 return;
             }
 
+            // Reset customer filtering state for new sales rep selection
+            if (!salesRepCustomersLoaded) {
+                console.log('Resetting customer filtering state for new sales rep selection');
+                window.originalCustomerOptions = null;
+                salesRepCustomersFiltered = false;
+            }
+
             // Check if customers already loaded for this session
             if (salesRepCustomersLoaded) {
                 console.log('Customers already loaded for this sales rep session, skipping filter');
@@ -1273,10 +1404,10 @@
             // Clear existing options
             customerSelect.empty();
 
-            // Add "Please select" option first
-            customerSelect.append('<option value="">Please Select</option>');
+            // Add "Please select" option first - this should be the only default option for sales reps
+            customerSelect.append('<option value="">Please Select Customer</option>');
 
-            // Don't add Walk-In Customer for sales reps
+            // Don't add Walk-In Customer for sales reps to prevent automatic selection
             if (!isSalesRep) {
                 const walkInOption = $(
                     '<option value="1" data-customer-type="retailer">Walk-in Customer (Walk-in Customer)</option>'
@@ -1349,7 +1480,11 @@
                     // For sales reps, DO NOT auto-select any customer
                     // Keep the dropdown at "Please Select" so user must choose
                     customerSelect.val('').trigger('change');
-                    console.log('Sales rep: Customer dropdown ready - user must select a customer');
+                    
+                    // Add visual feedback to indicate selection is required
+                    customerSelect.addClass('form-select-required');
+                    
+                   
                 } else {
                     // For non-sales reps, select Walk-in customer
                     customerSelect.val('1').trigger('change');
@@ -1420,9 +1555,15 @@
                 customerSelect.html(window.originalCustomerOptions);
                 customerSelect.trigger('change');
 
-                // Auto-select Walk-in customer and update displays
+                // Only auto-select Walk-in customer for non-sales reps
                 setTimeout(() => {
-                    customerSelect.val('1').trigger('change');
+                    if (!isSalesRep) {
+                        customerSelect.val('1').trigger('change');
+                        console.log('Non-sales rep: Auto-selected Walk-in Customer');
+                    } else {
+                        customerSelect.val('').trigger('change');
+                        console.log('Sales rep: Customer dropdown restored to "Please Select"');
+                    }
                 }, 100);
             }
         }
@@ -1510,9 +1651,36 @@
                 // Store in both sessionStorage (for current session) and localStorage (for persistence)
                 sessionStorage.setItem('salesRepSelection', selectionJson);
                 localStorage.setItem('salesRepSelection', selectionJson);
+                
+                // Also store with user-specific key for better user isolation
+                if (currentUserId) {
+                    localStorage.setItem(`salesRepSelection_${currentUserId}`, selectionJson);
+                }
+                
                 console.log('Sales rep selection stored in both session and local storage');
             } catch (e) {
                 console.error('Failed to store sales rep selection:', e);
+            }
+        }
+
+        function clearSalesRepSelection() {
+            try {
+                // Clear from both session and localStorage
+                sessionStorage.removeItem('salesRepSelection');
+                localStorage.removeItem('salesRepSelection');
+                
+                // Clear user-specific storage
+                if (currentUserId) {
+                    localStorage.removeItem(`salesRepSelection_${currentUserId}`);
+                }
+                
+                // Clear global flags
+                window.hasStoredSalesRepSelection = false;
+                window.validationPerformed = false;
+                
+                console.log('Sales rep selection cleared from storage');
+            } catch (e) {
+                console.error('Failed to clear sales rep selection:', e);
             }
         }
 

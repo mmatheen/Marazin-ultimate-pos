@@ -465,6 +465,13 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/sales-reps/available-routes', [SalesRepController::class, 'getAvailableRoutes'])->name('sales-reps.available-routes');
             Route::post('/sales-reps/assign-locations', [SalesRepController::class, 'assignUserToLocations'])->name('sales-reps.assign-locations');
             
+            // -------------------- Sales Rep Status Management Routes --------------------
+            Route::post('/sales-reps/update-statuses', [SalesRepController::class, 'updateAllStatusesByDate'])->name('sales-reps.update-statuses');
+            Route::get('/sales-reps/expiring-soon', [SalesRepController::class, 'getExpiringSoon'])->name('sales-reps.expiring-soon');
+            Route::get('/sales-reps/status-statistics', [SalesRepController::class, 'getStatusStatistics'])->name('sales-reps.status-statistics');
+            Route::put('/sales-reps/{id}/cancel', [SalesRepController::class, 'cancelAssignment'])->name('sales-reps.cancel');
+            Route::put('/sales-reps/{id}/reactivate', [SalesRepController::class, 'reactivateAssignment'])->name('sales-reps.reactivate');
+            
             // -------------------- Sales Rep POS Routes --------------------
             Route::get('/my-assignments', [SalesRepController::class, 'getMyAssignments'])->name('sales-rep.my-assignments');
 

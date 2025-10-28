@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Expand/Maximize Icon -->
+    <path d="M7 14H5V19H10V17H7V14Z" fill="currentColor" fill-opacity="0.8"/>
+    <path d="M5 10H7V7H10V5H5V10Z" fill="currentColor" fill-opacity="0.8"/>
+    <path d="M17 14H19V19H14V17H17V14Z" fill="currentColor" fill-opacity="0.8"/>
+    <path d="M14 5V7H17V10H19V5H14Z" fill="currentColor" fill-opacity="0.8"/>
+    <!-- Corner indicators -->
+    <rect x="3" y="3" width="2" height="2" fill="currentColor" fill-opacity="0.6"/>
+    <rect x="19" y="3" width="2" height="2" fill="currentColor" fill-opacity="0.6"/>
+    <rect x="3" y="19" width="2" height="2" fill="currentColor" fill-opacity="0.6"/>
+    <rect x="19" y="19" width="2" height="2" fill="currentColor" fill-opacity="0.6"/>
+</svg>

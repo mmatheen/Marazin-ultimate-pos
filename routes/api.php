@@ -420,6 +420,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('sales-reps/available-routes', [SalesRepController::class, 'getAvailableRoutes']);
     Route::post('/sales-reps/assign-locations', [SalesRepController::class, 'assignUserToLocations']);
     Route::get('/sales-rep/my-assignments', [SalesRepController::class, 'getMyAssignments']);
+    
+    // Status Management Routes
+    Route::post('/sales-reps/update-statuses', [SalesRepController::class, 'updateAllStatusesByDate']);
+    Route::get('/sales-reps/expiring-soon', [SalesRepController::class, 'getExpiringSoon']);
+    Route::get('/sales-reps/status-statistics', [SalesRepController::class, 'getStatusStatistics']);
+    Route::put('/sales-reps/{id}/cancel', [SalesRepController::class, 'cancelAssignment']);
+    Route::put('/sales-reps/{id}/reactivate', [SalesRepController::class, 'reactivateAssignment']);
 
     // Route Management
     Route::apiResource('routes', RouteController::class);

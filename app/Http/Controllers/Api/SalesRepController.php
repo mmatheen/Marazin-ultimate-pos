@@ -22,11 +22,16 @@ class SalesRepController extends Controller
     public function index()
     {
         try {
+            // First, update all statuses based on current dates
+            SalesRep::where('status', '!=', SalesRep::STATUS_CANCELLED)
+                ->get()
+                ->each(fn($assignment) => $assignment->updateStatusByDate());
+
             $salesReps = SalesRep::with([
                 'user:id,user_name,full_name,email',
                 'subLocation:id,name,parent_id,vehicle_number,vehicle_type',
                 'subLocation.parent:id,name,vehicle_number,vehicle_type',
-                'route:id,name,status',
+                'route:id,name,description,status',
             ])->get();
 
             if ($salesReps->isEmpty()) {
@@ -446,8 +451,15 @@ class SalesRepController extends Controller
      */
     public function update(Request $request, $id)
     {
+        Log::info('SalesRep Update Request', [
+            'id' => $id,
+            'request_data' => $request->all(),
+            'method' => $request->method()
+        ]);
+
         $salesRep = SalesRep::find($id);
         if (!$salesRep) {
+            Log::error('SalesRep not found for update', ['id' => $id]);
             return response()->json([
                 'status' => false,
                 'message' => 'Route assignment not found.',
@@ -460,6 +472,8 @@ class SalesRepController extends Controller
             $requestData['can_sell'] = filter_var($requestData['can_sell'], FILTER_VALIDATE_BOOLEAN);
         }
 
+        Log::info('Processed request data', ['processed_data' => $requestData]);
+
         $validator = Validator::make($requestData, [
             'user_id' => 'required|exists:users,id',
             'sub_location_id' => 'required|exists:locations,id',
@@ -471,6 +485,11 @@ class SalesRepController extends Controller
         ]);
 
         if ($validator->fails()) {
+            Log::error('SalesRep Update Validation Failed', [
+                'id' => $id,
+                'errors' => $validator->errors(),
+                'request_data' => $requestData
+            ]);
             return response()->json([
                 'status' => false,
                 'message' => 'Validation failed.',
@@ -862,6 +881,253 @@ class SalesRepController extends Controller
             return response()->json([
                 'status' => false,
                 'message' => 'Failed to retrieve assignments.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Update all assignments status based on their dates
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateAllStatusesByDate()
+    {
+        try {
+            $updated = 0;
+            
+            // Get all assignments except cancelled ones
+            $assignments = SalesRep::where('status', '!=', SalesRep::STATUS_CANCELLED)->get();
+            
+            foreach ($assignments as $assignment) {
+                if ($assignment->updateStatusByDate()) {
+                    $updated++;
+                }
+            }
+
+            Log::info("Status update completed", [
+                'total_checked' => $assignments->count(),
+                'updated_count' => $updated,
+            ]);
+
+            return response()->json([
+                'status' => true,
+                'message' => "Status update completed. {$updated} assignments updated.",
+                'data' => [
+                    'total_checked' => $assignments->count(),
+                    'updated_count' => $updated,
+                ],
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error("Status update error", [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to update assignment statuses.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get assignments that are expiring soon
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getExpiringSoon(Request $request)
+    {
+        try {
+            $days = $request->get('days', 3); // Default 3 days
+
+            $assignments = SalesRep::with([
+                'user:id,user_name,full_name,email',
+                'subLocation:id,name,vehicle_number,vehicle_type',
+                'route:id,name,status',
+            ])
+            ->where('status', SalesRep::STATUS_ACTIVE)
+            ->whereNotNull('end_date')
+            ->whereRaw('DATEDIFF(end_date, CURDATE()) BETWEEN 0 AND ?', [$days])
+            ->orderBy('end_date')
+            ->get();
+
+            $formattedAssignments = $assignments->map(function($assignment) {
+                return array_merge(
+                    $this->formatSalesRep($assignment),
+                    [
+                        'days_until_expiry' => $assignment->getDaysUntilExpiry(),
+                        'is_expiring_soon' => $assignment->isExpiringSoon(),
+                    ]
+                );
+            });
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Expiring assignments retrieved successfully.',
+                'data' => $formattedAssignments,
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error("Get expiring assignments error", [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to retrieve expiring assignments.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get assignment statistics by status
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getStatusStatistics()
+    {
+        try {
+            $stats = [
+                'active' => SalesRep::where('status', SalesRep::STATUS_ACTIVE)->count(),
+                'expired' => SalesRep::where('status', SalesRep::STATUS_EXPIRED)->count(),
+                'upcoming' => SalesRep::where('status', SalesRep::STATUS_UPCOMING)->count(),
+                'cancelled' => SalesRep::where('status', SalesRep::STATUS_CANCELLED)->count(),
+                'expiring_soon' => SalesRep::where('status', SalesRep::STATUS_ACTIVE)
+                    ->whereNotNull('end_date')
+                    ->whereRaw('DATEDIFF(end_date, CURDATE()) BETWEEN 0 AND 3')
+                    ->count(),
+            ];
+
+            $stats['total'] = array_sum(array_values($stats)) - $stats['expiring_soon']; // Don't double count expiring
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Status statistics retrieved successfully.',
+                'data' => $stats,
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error("Get status statistics error", [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to retrieve status statistics.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Cancel an assignment (set status to cancelled)
+     *
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function cancelAssignment($id)
+    {
+        try {
+            $assignment = SalesRep::find($id);
+
+            if (!$assignment) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Assignment not found.',
+                ], 404);
+            }
+
+            if ($assignment->status === SalesRep::STATUS_CANCELLED) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Assignment is already cancelled.',
+                ], 400);
+            }
+
+            $assignment->status = SalesRep::STATUS_CANCELLED;
+            $assignment->save();
+
+            Log::info("Assignment cancelled", [
+                'assignment_id' => $id,
+                'user_id' => $assignment->user_id,
+                'cancelled_by' => auth()->id(),
+            ]);
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Assignment cancelled successfully.',
+                'data' => $this->formatSalesRep($assignment),
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error("Cancel assignment error", [
+                'assignment_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to cancel assignment.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Reactivate a cancelled assignment
+     *
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function reactivateAssignment($id)
+    {
+        try {
+            $assignment = SalesRep::find($id);
+
+            if (!$assignment) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Assignment not found.',
+                ], 404);
+            }
+
+            if ($assignment->status !== SalesRep::STATUS_CANCELLED) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Only cancelled assignments can be reactivated.',
+                ], 400);
+            }
+
+            // Update status based on dates
+            $assignment->updateStatusByDate();
+
+            Log::info("Assignment reactivated", [
+                'assignment_id' => $id,
+                'user_id' => $assignment->user_id,
+                'new_status' => $assignment->status,
+                'reactivated_by' => auth()->id(),
+            ]);
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Assignment reactivated successfully.',
+                'data' => $this->formatSalesRep($assignment),
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error("Reactivate assignment error", [
+                'assignment_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to reactivate assignment.',
                 'error' => $e->getMessage(),
             ], 500);
         }

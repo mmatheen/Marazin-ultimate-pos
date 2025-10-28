@@ -82,8 +82,9 @@
             <li class="nav-item dropdown has-arrow new-user-menus">
                 <a href="#" class="dropdown-toggle nav-link" data-bs-toggle="dropdown">
                     <span class="user-img">
-                        <img class="rounded-circle" src="{{ asset('assets/img/profiles/avatar-01.jpg') }}"
-                            width="31" alt="Soeng Souy">
+                        <img class="rounded-circle" src="{{ asset('assets/img/profiles/default-avatar.svg') }}"
+                            width="31" alt="{{ Auth::user()->user_name }}"
+                            onerror="this.src='{{ asset('assets/img/profiles/avatar-01.svg') }}'">
                         <div class="user-text">
                             <h6>{{ Auth::user()->user_name }}</h6>
                             <p class="text-muted mb-0">{{ Auth::user()->getRoleName() ?? 'No Role' }}</p>
@@ -93,8 +94,9 @@
                 <div class="dropdown-menu">
                     <div class="user-header">
                         <div class="avatar avatar-sm">
-                            <img src="{{ asset('assets/img/profiles/avatar-01.jpg') }}" alt="User Image"
-                                class="avatar-img rounded-circle">
+                            <img src="{{ asset('assets/img/profiles/default-avatar.svg') }}" alt="{{ Auth::user()->user_name }}"
+                                class="avatar-img rounded-circle"
+                                onerror="this.src='{{ asset('assets/img/profiles/avatar-01.svg') }}'">
                         </div>
                         <div class="user-text">
                             <h6>{{ Auth::user()->user_name }}</h6>
