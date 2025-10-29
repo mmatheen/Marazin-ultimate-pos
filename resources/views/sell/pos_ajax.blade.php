@@ -39,6 +39,16 @@
             }
         });
 
+        // ---- DOM ELEMENTS ----
+        const posProduct = document.getElementById('posProduct');
+        const billingBody = document.getElementById('billing-body');
+        const discountInput = document.getElementById('discount');
+        const finalValue = document.getElementById('total');
+        const categoryBtn = document.getElementById('category-btn');
+        const allProductsBtn = document.getElementById('allProductsBtn');
+        const subcategoryBackBtn = document.getElementById('subcategoryBackBtn');
+
+        // ---- GLOBAL VARIABLES ----
         let selectedLocationId = null;
         let currentProductsPage = 1;
         let hasMoreProducts = true;
@@ -50,22 +60,6 @@
         let isSalesRep = false; // Track if current user is a sales rep
         let salesRepCustomersFiltered = false; // Track if sales rep customer filtering has been applied
         let salesRepCustomersLoaded = false; // Track if customers have been loaded for this session
-
-        const posProduct = document.getElementById('posProduct');
-        const billingBody = document.getElementById('billing-body');
-        const discountInput = document.getElementById('discount');
-        const finalValue = document.getElementById('total');
-        const categoryBtn = document.getElementById('category-btn');
-        const allProductsBtn = document.getElementById('allProductsBtn');
-        const subcategoryBackBtn = document.getElementById('subcategoryBackBtn');
-
-        // ---- GLOBAL VARIABLES ----
-        let currentProductsPage = 1;
-        let isLoadingProducts = false;
-        let hasMoreProducts = true;
-        let selectedLocationId = null;
-        let allProducts = [];
-        let stockData = [];
         const perPage = 24;
 
         // ---- INIT ----
