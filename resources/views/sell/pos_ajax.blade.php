@@ -24,6 +24,21 @@
     };
 
     document.addEventListener("DOMContentLoaded", function() {
+        // Global error handler for appendChild and DOM manipulation errors
+        window.addEventListener('error', function(e) {
+            if (e.message && e.message.includes('appendChild')) {
+                console.error('DOM Manipulation Error Caught:', {
+                    message: e.message,
+                    filename: e.filename,
+                    lineno: e.lineno,
+                    stack: e.error ? e.error.stack : 'No stack trace'
+                });
+                // Prevent the error from breaking the entire page
+                e.preventDefault();
+                return true;
+            }
+        });
+
         let selectedLocationId = null;
         let currentProductsPage = 1;
         let hasMoreProducts = true;
@@ -44,6 +59,15 @@
         const allProductsBtn = document.getElementById('allProductsBtn');
         const subcategoryBackBtn = document.getElementById('subcategoryBackBtn');
 
+        // ---- GLOBAL VARIABLES ----
+        let currentProductsPage = 1;
+        let isLoadingProducts = false;
+        let hasMoreProducts = true;
+        let selectedLocationId = null;
+        let allProducts = [];
+        let stockData = [];
+        const perPage = 24;
+
         // ---- INIT ----
         // Check if user is sales rep and handle vehicle/route selection
         // This must be called FIRST before any display restoration
@@ -54,8 +78,21 @@
         fetchAllLocations();
         $('#locationSelect').on('change', handleLocationChange);
         $('#locationSelectDesktop').on('change', handleLocationChange);
-        fetchCategories();
-        fetchBrands();
+        
+        // Safely call fetchCategories with error handling
+        try {
+            fetchCategories();
+        } catch (categoryInitError) {
+            console.error('❌ [INIT] Error initializing categories:', categoryInitError);
+        }
+        
+        // Safely call fetchBrands with error handling
+        try {
+            fetchBrands();
+        } catch (brandInitError) {
+            console.error('❌ [INIT] Error initializing brands:', brandInitError);
+        }
+        
         initAutocomplete();
 
         // Auto-focus product search input for quick product search
@@ -1542,56 +1579,167 @@
         }
 
         function hideLoader() {
-            posProduct.innerHTML = '';
+            // Remove both main loader and small loader
+            const mainLoader = posProduct.querySelector('.loader-container');
+            const smallLoader = posProduct.querySelector('.small-loader');
+            
+            if (mainLoader) {
+                mainLoader.remove();
+            }
+            if (smallLoader) {
+                smallLoader.remove();
+            }
+            
+            // Only clear innerHTML if it's just a loader
+            if (posProduct.innerHTML.includes('loader-container') && 
+                !posProduct.innerHTML.includes('product-card')) {
+                posProduct.innerHTML = '';
+            }
+        }
+
+        // Smaller loader for subsequent page loads
+        function showLoaderSmall() {
+            // Only show small loader if posProduct is not completely empty
+            if (posProduct.children.length > 0) {
+                // Add small loading indicator at bottom
+                let existingSmallLoader = posProduct.querySelector('.small-loader');
+                if (!existingSmallLoader) {
+                    const smallLoader = document.createElement('div');
+                    smallLoader.className = 'small-loader text-center p-3';
+                    smallLoader.innerHTML = `
+                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                            <span class="visually-hidden">Loading more...</span>
+                        </div>
+                        <small class="text-muted d-block mt-1">Loading more products...</small>
+                    `;
+                    posProduct.appendChild(smallLoader);
+                }
+            } else {
+                // If empty, use regular loader
+                showLoader();
+            }
+        }
+
+        // Safe fetch function with error handling
+        function safeFetchJson(url) {
+            return fetch(url).then(res => {
+                if (!res.ok) {
+                    if (res.status === 429) {
+                        const retryAfter = parseInt(res.headers.get('Retry-After') || '2', 10) * 1000;
+                        return Promise.reject({ 
+                            status: 429, 
+                            retryAfter,
+                            message: 'Rate limited'
+                        });
+                    }
+                    return res.text().then(text => Promise.reject({ 
+                        status: res.status, 
+                        text,
+                        message: `HTTP ${res.status}`
+                    }));
+                }
+                
+                const contentType = res.headers.get('content-type') || '';
+                if (contentType.indexOf('application/json') === -1) {
+                    return res.text().then(text => Promise.reject({ 
+                        text,
+                        message: 'Non-JSON response'
+                    }));
+                }
+                
+                return res.json();
+            });
         }
 
         // ---- CATEGORY/SUBCATEGORY/BRAND (unchanged) ----
         function fetchCategories() {
+            
             fetch('/main-category-get-all')
-                .then(response => response.json())
+                .then(response => {
+                    return response.json();
+                })
                 .then(data => {
                     const categories = data.message;
                     const categoryContainer = document.getElementById('categoryContainer');
+                    
+                    
+                    // Clear existing content before adding new categories
+                    try {
+                        categoryContainer.innerHTML = '';
+                        console.log('[FETCHCATEGORIES] Container cleared successfully');
+                    } catch (clearError) {
+                        return;
+                    }
+                    
                     if (Array.isArray(categories)) {
-                        categories.forEach(category => {
-                            const card = document.createElement('div');
-                            card.classList.add('category-card');
-                            card.setAttribute('data-id', category.id);
+                        categories.forEach((category, index) => {
+                            try {
 
-                            const cardTitle = document.createElement('h6');
-                            cardTitle.textContent = category.mainCategoryName;
-                            card.appendChild(cardTitle);
+                                const card = document.createElement('div');
+                                card.classList.add('category-card');
+                                card.setAttribute('data-id', category.id);
 
-                            const buttonContainer = document.createElement('div');
-                            buttonContainer.classList.add('category-footer');
+                                const cardTitle = document.createElement('h6');
+                                cardTitle.textContent = category.mainCategoryName;
+                                card.appendChild(cardTitle);
 
-                            const allButton = document.createElement('button');
-                            allButton.textContent = 'All';
-                            allButton.classList.add('btn', 'btn-outline-green', 'me-2');
-                            allButton.addEventListener('click', () => {
-                                filterProductsByCategory(category.id);
-                                closeOffcanvas('offcanvasCategory');
-                            });
+                                const buttonContainer = document.createElement('div');
+                                buttonContainer.classList.add('category-footer');
 
-                            const nextButton = document.createElement('button');
-                            nextButton.textContent = 'Next >>';
-                            nextButton.classList.add('btn', 'btn-outline-purple');
-                            nextButton.addEventListener('click', () => {
-                                fetchSubcategories(category.id);
-                            });
+                                const allButton = document.createElement('button');
+                                allButton.textContent = 'All';
+                                allButton.classList.add('btn', 'btn-outline-green', 'me-2');
+                                allButton.addEventListener('click', () => {
+                                    filterProductsByCategory(category.id);
+                                    closeOffcanvas('offcanvasCategory');
+                                });
 
-                            buttonContainer.appendChild(allButton);
-                            buttonContainer.appendChild(nextButton);
-                            card.appendChild(buttonContainer);
+                                const nextButton = document.createElement('button');
+                                nextButton.textContent = 'Next >>';
+                                nextButton.classList.add('btn', 'btn-outline-purple');
+                                nextButton.addEventListener('click', () => {
+                                    fetchSubcategories(category.id);
+                                });
 
-                            categoryContainer.appendChild(card);
+                                buttonContainer.appendChild(allButton);
+                                buttonContainer.appendChild(nextButton);
+                                card.appendChild(buttonContainer);
+
+                                // Triple-check container still exists and has appendChild method before appending
+                                if (categoryContainer && 
+                                    typeof categoryContainer.appendChild === 'function' && 
+                                    categoryContainer.parentNode) {
+                                    categoryContainer.appendChild(card);
+                                } else {
+                                    console.log('🔍 [FETCHCATEGORIES] Container state:', {
+                                        exists: !!categoryContainer,
+                                        hasAppendChild: categoryContainer && typeof categoryContainer.appendChild === 'function',
+                                        hasParent: categoryContainer && !!categoryContainer.parentNode
+                                    });
+                                }
+                            } catch (categoryError) {
+                                console.error('[FETCHCATEGORIES] Error processing category:', category, categoryError);
+                            }
                         });
+                        console.log('[FETCHCATEGORIES] All categories processed successfully');
                     } else {
-                        console.error('Categories not found:', categories);
+                        console.error('[FETCHCATEGORIES] Categories not found or not array:', categories);
                     }
                 })
                 .catch(error => {
-                    console.error('Error fetching categories:', error);
+                    console.error('[FETCHCATEGORIES] Error fetching categories:', error);
+                    console.error('[FETCHCATEGORIES] Detailed error information:', {
+                        message: error.message,
+                        stack: error.stack,
+                        name: error.name,
+                        type: typeof error,
+                        toString: error.toString()
+                    });
+                    console.error('[FETCHCATEGORIES] DOM state at error time:', {
+                        categoryContainer: !!document.getElementById('categoryContainer'),
+                        documentReady: document.readyState,
+                        bodyChildren: document.body ? document.body.children.length : 'no body'
+                    });
                 });
         }
 
@@ -1648,63 +1796,88 @@
         });
 
         function fetchBrands() {
+            
             fetch('/brand-get-all')
-                .then(response => response.json())
+                .then(response => {
+                    return response.json();
+                })
                 .then(data => {
+                   
                     const brands = data.message;
-                    const brandContainer = document.getElementById('brandContainer');
+                    let brandContainer = document.getElementById('brandContainer');
+            
+                    // Validate container exists before proceeding
+                    if (!brandContainer) {
+                        console.error('[FETCHBRANDS] Brand container not found in DOM');
+                        return;
+                    }
+                 
+                    // Clear existing content before adding new brands
+                    try {
+                        brandContainer.innerHTML = '';
+                        console.log('[FETCHBRANDS] Container cleared successfully');
+                    } catch (clearError) {
+                        console.error('[FETCHBRANDS] Error clearing container:', clearError);
+                        return;
+                    }
+                    
                     if (Array.isArray(brands)) {
-                        brands.forEach(brand => {
-                            const brandCard = document.createElement('div');
-                            brandCard.classList.add('brand-card');
-                            brandCard.setAttribute('data-id', brand.id);
+                        brands.forEach((brand, index) => {
+                            try {
+                                // Re-check container exists on each iteration
+                                brandContainer = document.getElementById('brandContainer');
+                                if (!brandContainer) {
+                                    console.error('[FETCHBRANDS] Container disappeared during iteration:', index);
+                                    return;
+                                }
+                                
+                                const brandCard = document.createElement('div');
+                                brandCard.classList.add('brand-card');
+                                brandCard.setAttribute('data-id', brand.id);
 
-                            const brandName = document.createElement('h6');
-                            brandName.textContent = brand.name;
-                            brandCard.appendChild(brandName);
+                                const brandName = document.createElement('h6');
+                                brandName.textContent = brand.name;
+                                brandCard.appendChild(brandName);
 
-                            brandCard.addEventListener('click', () => {
-                                filterProductsByBrand(brand.id);
-                                closeOffcanvas('offcanvasBrand');
-                            });
+                                brandCard.addEventListener('click', () => {
+                                    filterProductsByBrand(brand.id);
+                                    closeOffcanvas('offcanvasBrand');
+                                });
 
-                            brandContainer.appendChild(brandCard);
+                                // Triple-check container still exists and has appendChild method before appending
+                                if (brandContainer && 
+                                    typeof brandContainer.appendChild === 'function' && 
+                                    brandContainer.parentNode) {
+                                    brandContainer.appendChild(brandCard);
+                                } else {
+                                    console.log('🔍 [FETCHBRANDS] Container state during append:', {
+                                        exists: !!brandContainer,
+                                        hasAppendChild: brandContainer && typeof brandContainer.appendChild === 'function',
+                                        hasParent: brandContainer && !!brandContainer.parentNode,
+                                        brandIndex: index,
+                                        brandName: brand.name
+                                    });
+                                }
+                            } catch (brandError) {
+                                console.error('[FETCHBRANDS] Error processing brand:', brand, brandError);
+                            }
                         });
+                        console.log('[FETCHBRANDS] All brands processed successfully');
                     } else {
-                        console.error('Brands not found:', brands);
+                        console.error('[FETCHBRANDS] Brands not found or not array:', brands);
                     }
                 })
                 .catch(error => {
-                    console.error('Error fetching brands:', error);
+                    console.error('[FETCHBRANDS] Error fetching brands:', error);
+                    console.error('🔍 [FETCHBRANDS] DOM state at error time:', {
+                        brandContainer: !!document.getElementById('brandContainer'),
+                        documentReady: document.readyState,
+                        bodyChildren: document.body ? document.body.children.length : 'no body'
+                    });
                 });
         }
 
-        // // ---- LOCATION ----
-        // function fetchAllLocations() {
-        //     $.ajax({
-        //         url: '/location-get-all',
-        //         method: 'GET',
-        //         success: function(data) {
-        //             if (data.status === 200) populateLocationDropdown(data.message);
-        //             else console.error('Error fetching locations:', data.message);
-        //         },
-        //         error: function(jqXHR, textStatus, errorThrown) {
-        //             console.error('AJAX Error:', textStatus, errorThrown);
-        //         }
-        //     });
-        // }
-
-        // function populateLocationDropdown(locations) {
-        //     const locationSelect = $('#locationSelect');
-        //     locationSelect.empty();
-        //     locationSelect.append('<option value="" disabled selected>Select Location</option>');
-        //     locations.forEach((location, index) => {
-        //         const option = $('<option></option>').val(location.id).text(location.name);
-        //         if (index === 0) option.attr('selected', 'selected');
-        //         locationSelect.append(option);
-        //     });
-        //     locationSelect.trigger('change');
-        // }
+      
 
         // ---- LOCATION ----
         function fetchAllLocations() {
@@ -1778,68 +1951,143 @@
         }
 
         function fetchPaginatedProducts(reset = false) {
+            // Basic guards
             if (isLoadingProducts || !selectedLocationId || !hasMoreProducts) return;
+            
             isLoadingProducts = true;
-            if (reset) showLoader();
-            fetch(
-                    `/api/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=24`
-                )
-                .then(res => res.json())
+            const perPage = 24;
+            
+            if (reset) {
+                currentProductsPage = 1;
+                showLoader();
+            } else {
+                // Show smaller loader for subsequent pages (if function exists)
+                if (typeof showLoaderSmall === 'function') {
+                    showLoaderSmall();
+                } else {
+                    showLoader();
+                }
+            }
+
+            const url = `/api/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=${perPage}`;
+
+            fetch(url)
+                .then(res => {
+                    // Handle HTTP errors and 429 specially
+                    if (!res.ok) {
+                        if (res.status === 429) {
+                            // Rate limited: respect Retry-After if present, else wait 2s
+                            const retryAfter = parseInt(res.headers.get('Retry-After') || '2', 10) * 1000;
+                            console.warn(`Rate limited. Retrying after ${retryAfter} ms`);
+                            
+                            // Temporary cooldown: prevent further requests for this period
+                            hasMoreProducts = false;
+                            setTimeout(() => {
+                                hasMoreProducts = true;
+                                isLoadingProducts = false;
+                                // Retry the same page
+                                fetchPaginatedProducts(reset);
+                            }, retryAfter);
+                            return Promise.reject({ isHandled: true, message: '429' });
+                        } else {
+                            // If server returned HTML error page, try to show text for debugging
+                            return res.text().then(text => Promise.reject({ 
+                                isHandled: false, 
+                                status: res.status, 
+                                text 
+                            }));
+                        }
+                    }
+
+                    // Ensure response is JSON
+                    const contentType = res.headers.get('content-type') || '';
+                    if (contentType.indexOf('application/json') === -1) {
+                        return res.text().then(text => Promise.reject({ 
+                            isHandled: false, 
+                            text,
+                            message: 'Non-JSON response received'
+                        }));
+                    }
+                    return res.json();
+                })
                 .then(data => {
                     hideLoader();
-                    if (data.status !== 200 || !Array.isArray(data.data)) {
+                    isLoadingProducts = false;
+
+                    if (!data || data.status !== 200 || !Array.isArray(data.data)) {
                         if (reset) posProduct.innerHTML = '<p class="text-center">No products found.</p>';
-                        isLoadingProducts = false;
                         return;
                     }
+
                     if (reset) {
                         allProducts = [];
+                        stockData = [];
                         posProduct.innerHTML = '';
-                        stockData = []; // Reset stockData on reset
                     }
+
                     data.data.forEach(stock => allProducts.push(stock));
                     // Always keep stockData in sync with allProducts
                     stockData = [...allProducts];
                     displayProducts(allProducts);
-                    if (data.data.length === 0 || data.data.length < 24) hasMoreProducts = false;
-                    else hasMoreProducts = true;
-                    isLoadingProducts = false;
-                    currentProductsPage++;
+
+                    if (data.data.length === 0 || data.data.length < perPage) {
+                        hasMoreProducts = false;
+                    } else {
+                        hasMoreProducts = true;
+                        currentProductsPage++;
+                    }
                 })
-                .catch(e => {
+                .catch(err => {
                     hideLoader();
+                    
+                    if (err && err.isHandled) {
+                        // Already handled 429, don't show error
+                        return;
+                    }
+                    
                     isLoadingProducts = false;
+                    console.error('Error fetching products:', err);
+                    
+                    if (err.text) {
+                        console.error('Response text:', err.text);
+                    }
+                    
                     if (reset) posProduct.innerHTML = '<p class="text-center">No products found.</p>';
-                    console.error('Error fetching products:', e);
+                    
+                    // Show user-friendly error message
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error('Failed to load products. Please try again.', 'Error');
+                    }
                 });
         }
-        // Infinite scroll (using posProduct for lazy loading)
+        // Infinite scroll (using posProduct for lazy loading) - Throttled version
         function setupLazyLoad() {
-            let productPage = 1;
-            let productLoading = false;
+            let scrollThrottleTimer = null;
+            const throttleDelay = 200; // ms
+
+            if (!posProduct) {
+                console.error('posProduct element not found for lazy loading');
+                return;
+            }
+
             posProduct.addEventListener('scroll', () => {
-                // Scroll down: fetch next page
-                if (
-                    hasMoreProducts &&
-                    !productLoading &&
-                    posProduct.scrollTop + posProduct.clientHeight >= posProduct.scrollHeight - 100
-                ) {
-                    productPage += 1;
-                    fetchPaginatedProducts();
-                }
-                // Scroll up: fetch previous page (if needed)
-                // Uncomment below if you want to fetch previous products when scrolling up
-                /*
-                if (
-                    productPage > 1 &&
-                    !productLoading &&
-                    posProduct.scrollTop <= 100
-                ) {
-                    productPage -= 1;
-                    fetchPaginatedProducts(true); // true to reset and load previous page
-                }
-                */
-            });
+                // Throttle scroll events to prevent rapid-fire requests
+                if (scrollThrottleTimer) return;
+                
+                scrollThrottleTimer = setTimeout(() => {
+                    scrollThrottleTimer = null;
+
+                    // Use global flags only - no local variables
+                    if (
+                        hasMoreProducts &&
+                        !isLoadingProducts &&
+                        posProduct.scrollTop + posProduct.clientHeight >= posProduct.scrollHeight - 120
+                    ) {
+                        // Fetch next page without reset
+                        fetchPaginatedProducts(false);
+                    }
+                }, throttleDelay);
+            }, { passive: true }); // passive for better performance
         }
         // Call setupLazyLoad after posProduct is initialized
         setupLazyLoad();
@@ -2060,12 +2308,24 @@
                                 }]);
                             }
                         },
-                        error: function() {
-                            lastSearchResults = [];
-                            response([{
-                                label: "No results found",
-                                value: ""
-                            }]);
+                        error: function(jqXHR, textStatus, errorThrown) {
+                            console.error('Autocomplete AJAX error:', textStatus, errorThrown);
+                            
+                            if (jqXHR.status === 429) {
+                                const retryAfter = parseInt(jqXHR.getResponseHeader('Retry-After') || '2', 10);
+                                console.warn(`Autocomplete rate limited. Retry after ${retryAfter} seconds`);
+                                
+                                response([{
+                                    label: `Rate limited. Please wait ${retryAfter} seconds...`,
+                                    value: ""
+                                }]);
+                            } else {
+                                lastSearchResults = [];
+                                response([{
+                                    label: "Error loading results. Please try again.",
+                                    value: ""
+                                }]);
+                            }
                         }
                     });
                 },
@@ -2228,6 +2488,15 @@
                     border-color: #dc3545 !important; 
                     box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important; 
                 }
+                .small-loader {
+                    background-color: rgba(248, 249, 250, 0.9);
+                    border-top: 1px solid #dee2e6;
+                    animation: fadeIn 0.3s ease-in;
+                }
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
             `;
                 document.head.appendChild(style);
             }
@@ -2323,10 +2592,9 @@
                 }
 
                 if (!stockEntry) {
-                    fetch(
-                            `/api/products/stocks?location_id=${selectedLocationId}&product_id=${item.product.id}`
-                        )
-                        .then(res => res.json())
+                    const url = `/api/products/stocks?location_id=${selectedLocationId}&product_id=${item.product.id}`;
+                    
+                    safeFetchJson(url)
                         .then(data => {
                             if (data.status === 200 && Array.isArray(data.data) && data.data.length > 0) {
                                 stockData.push(data.data[0]);
@@ -2336,8 +2604,17 @@
                                 toastr.error('Stock entry not found for the product', 'Error');
                             }
                         })
-                        .catch(() => {
-                            toastr.error('Error fetching product stock data', 'Error');
+                        .catch((err) => {
+                            console.error('Error fetching product stock data:', err);
+                            
+                            if (err.status === 429) {
+                                toastr.warning(`Rate limited. Please wait ${Math.ceil(err.retryAfter/1000)} seconds.`, 'Too Many Requests');
+                            } else if (err.text) {
+                                console.error('Response text:', err.text);
+                                toastr.error('Server error while fetching product data', 'Error');
+                            } else {
+                                toastr.error('Error fetching product stock data', 'Error');
+                            }
                         });
                     return;
                 }
@@ -2427,7 +2704,7 @@
             }
         }
 
-        let locationId = null;
+        // Variables moved to top of file for better organization
         let priceType = 'retail';
         let selectedRow;
 
@@ -4621,30 +4898,31 @@
             // Global discount
             const discountElement = document.getElementById('global-discount');
             const discountTypeElement = document.getElementById('discount-type');
-            const globalDiscount = discountElement && discountElement.value ? parseFloat(discountElement
-                .value) || 0 : 0;
+            const discountInputValue = discountElement ? discountElement.value.trim() : '';
+            const globalDiscount = discountInputValue !== '' ? parseFloat(discountInputValue) || 0 : 0;
             const globalDiscountType = discountTypeElement ? discountTypeElement.value : 'fixed';
 
-            // Debug logging
-            console.log('Discount Element:', discountElement);
-            console.log('Discount Element Value:', discountElement ? discountElement.value : 'null');
-            console.log('Global Discount:', globalDiscount);
-            console.log('Global Discount Type:', globalDiscountType);
-            console.log('Total Amount:', totalAmount);
+            console.log('Global Discount Debug:', {
+                inputValue: discountInputValue,
+                parsedDiscount: globalDiscount,
+                discountType: globalDiscountType,
+                totalAmount: totalAmount
+            });
 
             let totalAmountWithDiscount = totalAmount;
 
             if (globalDiscount > 0) {
                 if (globalDiscountType === 'percentage') {
-                    totalAmountWithDiscount -= totalAmount * (globalDiscount / 100);
-                    console.log('Applied percentage discount:', totalAmount * (globalDiscount / 100));
+                    const discountAmount = totalAmount * (globalDiscount / 100);
+                    totalAmountWithDiscount -= discountAmount;
+                    console.log('Applied percentage discount:', discountAmount);
                 } else {
                     totalAmountWithDiscount -= globalDiscount;
                     console.log('Applied fixed discount:', globalDiscount);
                 }
+            } else {
+                console.log('No discount applied - discount value is:', globalDiscount);
             }
-
-            console.log('Total Amount With Discount:', totalAmountWithDiscount);
 
             // Prevent negative totals
             totalAmountWithDiscount = Math.max(0, totalAmountWithDiscount);
@@ -5010,6 +5288,13 @@
         // Also trigger updateTotals when discount type changes
         if (globalDiscountTypeInput) {
             globalDiscountTypeInput.addEventListener('change', function() {
+                // Clear the discount input value when changing discount type
+                if (globalDiscountInput) {
+                    globalDiscountInput.value = '0';
+                    // Trigger input event to ensure proper recalculation
+                    globalDiscountInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    globalDiscountInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
                 updateTotals();
             });
         }

@@ -17,12 +17,14 @@ class SalesRep extends Model
     public const STATUS_EXPIRED = 'expired';
     public const STATUS_UPCOMING = 'upcoming';
     public const STATUS_CANCELLED = 'cancelled';
+    public const STATUS_INACTIVE = 'inactive'; // Legacy status - converted to cancelled in migration
 
     public const STATUSES = [
         self::STATUS_ACTIVE => 'Active',
         self::STATUS_EXPIRED => 'Expired',
         self::STATUS_UPCOMING => 'Upcoming',
         self::STATUS_CANCELLED => 'Cancelled',
+        // Note: STATUS_INACTIVE is not included here as it's legacy and converted to cancelled
     ];
 
     protected $fillable = [

@@ -103,13 +103,23 @@ document.addEventListener('DOMContentLoaded', function() {
     let salesRepAssignments = [];
 
     // Function to load sales rep assignments
-    function loadSalesRepAssignments() {
-        // Check if assignments are already loaded globally
-        if (window.salesRepAssignments && window.salesRepAssignments.length > 0) {
-            salesRepAssignments = window.salesRepAssignments;
-            populateVehicleOptions();
-            return Promise.resolve(true);
+    function loadSalesRepAssignments(forceRefresh = false) {
+        // Check if assignments are already loaded globally and not forcing refresh
+        if (!forceRefresh && window.salesRepAssignments && window.salesRepAssignments.length > 0) {
+            // Check if cached data is from today (to ensure fresh status updates)
+            const lastFetch = localStorage.getItem('salesRepAssignmentsFetchTime');
+            const today = new Date().toDateString();
+            
+            if (lastFetch && new Date(lastFetch).toDateString() === today) {
+                salesRepAssignments = window.salesRepAssignments;
+                populateVehicleOptions();
+                return Promise.resolve(true);
+            }
         }
+        
+        // Clear cached data and fetch fresh assignments
+        window.salesRepAssignments = null;
+        localStorage.removeItem('salesRepAssignmentsFetchTime');
         
         return fetch('/sales-rep/my-assignments', {
             method: 'GET',
@@ -124,6 +134,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.status) {
                 salesRepAssignments = data.data || [];
                 window.salesRepAssignments = salesRepAssignments; // Store globally
+                localStorage.setItem('salesRepAssignmentsFetchTime', new Date().toISOString());
                 populateVehicleOptions();
                 return true;
             } else {
@@ -326,8 +337,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Function to show modal
-    window.showSalesRepModal = function() {
-        loadSalesRepAssignments().then(success => {
+    window.showSalesRepModal = function(forceRefresh = false) {
+        loadSalesRepAssignments(forceRefresh).then(success => {
             if (success) {
                 const modal = new bootstrap.Modal(document.getElementById('salesRepSelectionModal'));
                 modal.show();
@@ -375,6 +386,38 @@ document.addEventListener('DOMContentLoaded', function() {
         sessionStorage.removeItem('salesRepSelection');
         localStorage.removeItem('salesRepSelection');
         console.log('Sales rep selection cleared from both session and local storage');
+    };
+
+    // Function to refresh assignments and clear cache
+    window.refreshSalesRepAssignments = function() {
+        window.salesRepAssignments = null;
+        localStorage.removeItem('salesRepAssignmentsFetchTime');
+        
+        // Also clear any invalid selections
+        const currentSelection = window.getSalesRepSelection();
+        if (currentSelection) {
+            // Force refresh to check if the selection is still valid
+            loadSalesRepAssignments(true).then(success => {
+                if (success) {
+                    // Check if current selection is still valid (not expired)
+                    const isStillValid = salesRepAssignments.some(assignment => 
+                        assignment.sub_location?.id === currentSelection.vehicle?.id &&
+                        assignment.route?.id === currentSelection.route?.id &&
+                        assignment.status === 'active'
+                    );
+                    
+                    if (!isStillValid) {
+                        window.clearSalesRepSelection();
+                        console.log('Cleared invalid/expired sales rep selection');
+                        if (typeof toastr !== 'undefined') {
+                            toastr.warning('Your previous vehicle/route selection has expired. Please select again.', 'Selection Expired');
+                        }
+                    }
+                }
+            });
+        }
+        
+        console.log('Sales rep assignments cache refreshed');
     };
 });
 </script>

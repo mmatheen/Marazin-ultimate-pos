@@ -246,6 +246,30 @@
         if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
             console.log = function() {};
         }
+
+        // Sales Rep Assignment Status Management
+        document.addEventListener("DOMContentLoaded", function() {
+            // Check if refreshSalesRepAssignments function exists (from sales-rep-modal component)
+            if (typeof window.refreshSalesRepAssignments === 'function') {
+                
+                // Refresh assignments on page load if it's a new day
+                const lastRefreshDate = localStorage.getItem('salesRepLastRefreshDate');
+                const today = new Date().toDateString();
+                
+                if (lastRefreshDate !== today) {
+                    // It's a new day, refresh assignments to update statuses
+                    window.refreshSalesRepAssignments();
+                    localStorage.setItem('salesRepLastRefreshDate', today);
+                }
+
+                // Set up periodic refresh every 30 minutes to catch any status changes
+                setInterval(function() {
+                    if (typeof window.refreshSalesRepAssignments === 'function') {
+                        window.refreshSalesRepAssignments();
+                    }
+                }, 30 * 60 * 1000); // 30 minutes
+            }
+        });
     </script>
     <script>
         // Global utility function to format currency

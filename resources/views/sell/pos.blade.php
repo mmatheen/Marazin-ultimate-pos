@@ -30,2748 +30,7 @@
     <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.6/jquery.inputmask.min.css">
 
-    <style>
-        /* Sales Rep Display - Hidden by default until confirmed as sales rep */
-        #salesRepDisplay {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-        }
-
-        /* Only show when explicitly marked as visible */
-        #salesRepDisplay.sales-rep-visible {
-            display: flex !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-
-        /* General Styles */
-        body {
-            font-family: 'Roboto', sans-serif;
-            font-size: 14px;
-            line-height: 1.5;
-            background-color: #dedede;
-            overflow-x: hidden;
-            min-height: 100vh;
-        }
-
-        .container-fluid {
-            padding-left: 15px;
-            padding-right: 15px;
-            margin-left: auto;
-            margin-right: auto;
-            width: 100%;
-            max-width: 100vw;
-            overflow-x: hidden;
-        }
-
-        /* Prevent horizontal scroll on all elements */
-        * {
-            box-sizing: border-box;
-        }
-
-        /* Prevent page scrolling - single view only */
-        html,
-        body {
-            overflow: hidden !important;
-            height: 100vh;
-            margin: 0;
-            padding: 0;
-        }
-
-        /* Container should fit viewport exactly */
-        .container-fluid {
-            height: 100vh;
-            overflow: hidden;
-            padding-bottom: 60px !important;
-            /* Space for bottom fixed */
-        }
-
-
-        /* Fix button text wrapping */
-        .bottom-fixed .btn {
-            word-break: keep-all;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* Ensure cards don't overflow */
-        .card {
-            overflow: hidden;
-            word-wrap: break-word;
-        }
-
-        .is-invalidRed {
-            border-color: #e61414 !important;
-        }
-
-        .is-validGreen {
-            border-color: rgb(3, 105, 54) !important;
-        }
-
-        .toast-error {
-            animation: fadeIn 0.3s ease-in-out;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* Hide number input arrows in Chrome, Safari, Edge, and Opera */
-        .quantity-input::-webkit-outer-spin-button,
-        .quantity-input::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-
-        /* Hide number input arrows in Firefox */
-        .quantity-input {
-            -moz-appearance: textfield;
-        }
-
-        /* Button Sizes */
-        .btn-sm {
-            padding: 8px 12px !important;
-            font-size: 14px !important;
-            border-radius: 5px !important;
-        }
-
-        /* Bottom Fixed Section */
-        .bottom-fixed {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            width: 100%;
-            background-color: #fff;
-            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
-            z-index: 1000;
-            padding: 2px 5px;
-            border-top: 1px solid #ddd;
-        }
-
-        .bottom-fixed .btn {
-            font-size: 12px;
-            font-weight: bold;
-            padding: 3px 8px;
-            border-radius: 4px;
-            margin: 1px;
-        }
-
-        .bottom-fixed .row {
-            margin: 0;
-            align-items: center;
-            padding: 2px 0;
-        }
-
-        .bottom-fixed .col-md-5,
-        .bottom-fixed .col-md-5,
-        .bottom-fixed .col-md-7 {
-            padding: 0 8px;
-        }
-
-        .bottom-fixed h4 {
-            font-size: 20px;
-            margin-bottom: 0;
-            font-weight: 700;
-        }
-
-        .bottom-fixed #total {
-            font-size: 24px;
-            font-weight: 800;
-        }
-
-        .bottom-fixed #items-count {
-            font-size: 16px;
-            font-weight: 600;
-        }
-
-        /* Ensure Total Payable section stays on left */
-        .bottom-fixed .col-md-5 {
-            justify-content: flex-start !important;
-            gap: 10px !important;
-        }
-
-        .bottom-fixed .col-md-5 .d-flex {
-            gap: 10px !important;
-        }
-
-        /* Header card styling */
-        .card.bg-white.p-1 {
-            margin-bottom: 0 !important;
-        }
-
-        /* Desktop header row */
-        .row.align-items-center.d-none.d-md-flex {
-            padding: 4px 8px;
-            min-height: 50px;
-            flex-wrap: nowrap !important;
-        }
-
-        /* Left section - prevent wrapping */
-        .col-md-6.d-flex.align-items-center .d-flex.flex-row {
-            flex-wrap: nowrap !important;
-        }
-
-        /* Location select styling */
-        .form-select.location-select-sync {
-            height: 38px;
-            font-size: 12px;
-            padding: 6px 10px;
-            min-width: 160px;
-            max-width: 180px;
-        }
-
-        /* Date and time buttons */
-        #currentDateButton {
-            height: 38px;
-            font-size: 12px !important;
-            padding: 4px 10px !important;
-            white-space: nowrap;
-        }
-
-        #currentTimeText {
-            font-size: 13px;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-
-        /* Keyboard shortcut button */
-        #shortcutButton {
-            height: 38px;
-            width: 38px !important;
-            min-width: 38px !important;
-            padding: 0 !important;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-
-        /* Sales rep badges */
-        #salesRepDisplay .badge {
-            font-size: 10px;
-            padding: 4px 8px !important;
-            height: 30px;
-            display: inline-flex;
-            align-items: center;
-            white-space: nowrap;
-        }
-
-        #salesRepDisplay .btn-sm {
-            height: 30px;
-            padding: 4px 8px !important;
-        }
-
-        #salesRepDisplay {
-            flex-shrink: 0;
-        }
-
-        /* Header action buttons alignment */
-        .col-md-6 .d-flex.justify-content-end {
-            gap: 5px !important;
-            flex-wrap: nowrap !important;
-        }
-
-        .col-md-6 .d-flex.justify-content-end .btn-sm {
-            height: 36px;
-            min-width: 36px;
-            padding: 5px 8px !important;
-            font-size: 12px !important;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-
-        /* Dropdown buttons */
-        .dropdown .btn {
-            height: 36px;
-            min-width: 36px;
-        }
-
-        /* Ensure all header buttons same height */
-        .row.align-items-center.d-none.d-md-flex .btn {
-            height: 36px !important;
-        }
-
-        /* Left section alignment */
-        .col-md-6.d-flex.align-items-center {
-            gap: 6px;
-            overflow: visible;
-        }
-
-        .col-md-6.d-flex.align-items-center .d-flex {
-            gap: 6px !important;
-        }
-
-        /* Prevent button text wrapping */
-        .row.align-items-center.d-none.d-md-flex .btn {
-            white-space: nowrap;
-            flex-shrink: 0;
-        }
-
-        /* Ensure columns don't wrap */
-        .col-md-6 {
-            flex-shrink: 0;
-        }
-
-
-        .product-card {
-            border: 1px solid #e0e0e0;
-            padding: 8px 8px;
-            text-align: center;
-            min-height: 135px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            margin-bottom: 6px;
-            background: #fff;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-            transition: all 0.2s ease;
-            cursor: pointer;
-        }
-
-        .product-card:hover {
-            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
-            transform: translateY(-2px);
-            border-color: #007bff;
-        }
-
-        .product-card img {
-            max-width: 100%;
-            height: 55px;
-            max-height: 55px;
-            object-fit: contain;
-            margin-bottom: 8px;
-        }
-
-        .product-card h6 {
-            font-size: 12px;
-            font-weight: 600;
-            margin: 5px 0 7px 0;
-            color: #333;
-            line-height: 1.4;
-            min-height: 34px;
-            max-height: 34px;
-            overflow: hidden;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            text-overflow: ellipsis;
-            word-break: break-word;
-        }
-
-        .product-card .product-card-body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .product-card .badge {
-            font-size: 11px;
-            font-weight: 600;
-            margin-top: 4px;
-            padding: 3px 8px;
-            border-radius: 4px;
-        }
-
-        /* Responsive grid layout */
-        @media (min-width: 1400px) {
-            #posProduct .col-xxl-3 {
-                flex: 0 0 25%;
-                max-width: 25%;
-            }
-        }
-
-        @media (min-width: 1200px) and (max-width: 1399px) {
-            #posProduct .col-xl-4 {
-                flex: 0 0 33.3333%;
-                max-width: 33.3333%;
-            }
-        }
-
-        @media (min-width: 992px) and (max-width: 1199px) {
-            #posProduct .col-lg-4 {
-                flex: 0 0 33.3333%;
-                max-width: 33.3333%;
-            }
-        }
-
-        @media (min-width: 768px) and (max-width: 991px) {
-            #posProduct .col-md-6 {
-                flex: 0 0 50%;
-                max-width: 50%;
-            }
-        }
-
-        @media (max-width: 767px) {
-            #posProduct .col-sm-12 {
-                flex: 0 0 100%;
-                max-width: 100%;
-            }
-        }
-
-        /* Offcanvas Styles */
-        .offcanvas {
-            background-color: white;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 40%
-        }
-
-        .offcanvas-body {
-            padding: 15px;
-        }
-
-        .offcanvas-body button {
-            background-color: transparent;
-            /* Remove the background color */
-            color: #007bff;
-            /* Set the text color to blue */
-            border: 2px solid #007bff;
-            /* Add a blue outline border */
-            padding: 8px 16px;
-            margin-bottom: 10px;
-            width: 100%;
-            text-align: left;
-            border-radius: 4px;
-            transition: background-color 0.3s ease, color 0.3s ease;
-        }
-
-        .offcanvas-body button:hover {
-            background-color: #007bff;
-            /* Add blue background on hover */
-            color: #fff;
-            /* Change text color to white on hover */
-        }
-
-        /* Category Styles */
-        .category-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: center;
-        }
-
-        .category-card,
-        .brand-card {
-            width: calc(33.33% - 15px);
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            text-align: center;
-            padding: 15px;
-            background-color: #fff;
-            transition: transform 0.3s ease-in-out;
-            box-shadow: rgba(50, 50, 105, 0.15) 0px 2px 5px 0px, rgba(0, 0, 0, 0.05) 0px 1px 1px 0px;
-        }
-
-        .category-card:hover,
-        .brand-card:hover {
-            transform: translateY(-10px);
-        }
-
-        .category-card h6,
-        .brand-card h6 {
-            font-size: 16px;
-            margin: 10px 0;
-            color: #333;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .category-footer,
-        .brand-footer {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 20px;
-            text-align: center;
-
-        }
-
-        /* Category Button Styles */
-        .category-footer button {
-            background-color: transparent;
-            /* color: #28a745;
-                border: 2px solid #28a745; */
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: background-color 0.3s ease, color 0.3s ease;
-        }
-
-        .category-footer button:hover {
-            /* background-color: #28a745; */
-            color: #fff;
-        }
-
-        /* Green Outline Button */
-        .btn-outline-green {
-            background-color: transparent !important;
-            color: #28a745 !important;
-            border: 2px solid #28a745 !important;
-            transition: background-color 0.3s ease, color 0.3s ease !important;
-            padding: 5px 10px !important;
-            text-align: center !important;
-
-        }
-
-        .btn-outline-green:hover {
-            background-color: #28a745 !important;
-            color: white !important;
-        }
-
-        /* Blue Outline Button */
-        .btn-outline-purple {
-            background-color: transparent !important;
-            color: #6f42c1 !important;
-            border: 2px solid #6f42c1 !important;
-            transition: background-color 0.3s ease, color 0.3s ease !important;
-            text-align: center !important;
-        }
-
-        .btn-outline-purple:hover {
-            background-color: #6f42c1 !important;
-            color: white !important;
-        }
-
-
-        /* Responsive Styles */
-        @media (min-width: 1024px) {
-
-            .category-card,
-            .brand-card {
-                width: calc(33.33% - 10px);
-            }
-        }
-
-        @media (min-width: 768px) and (max-width: 1023px) {
-
-            .category-card,
-            .brand-card {
-                width: calc(50% - 10px);
-            }
-
-            .bottom-fixed {
-                padding: 5px 10px;
-            }
-
-            .bottom-fixed .btn {
-                font-size: 12px;
-                padding: 8px 10px;
-            }
-        }
-
-        @media (min-width: 576px) and (max-width: 767px) {
-
-            .category-card,
-            .brand-card {
-                width: calc(100% - 10px);
-            }
-
-            .bottom-fixed {
-                padding: 5px 5px;
-            }
-
-            .bottom-fixed .btn {
-                font-size: 10px;
-                padding: 5px 8px;
-            }
-        }
-
-        @media (max-width: 575px) {
-
-            .category-card,
-            .brand-card {
-                width: calc(100% - 10px);
-            }
-
-            .bottom-fixed {
-                padding: 5px 5px;
-            }
-
-            .bottom-fixed .btn {
-                font-size: 8px;
-                padding: 5px 6px;
-            }
-        }
-
-        /* Updated Loader Styles */
-        .loader-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            /* Use viewport height to ensure full coverage */
-            width: 100vw;
-            /* Use viewport width to ensure full coverage */
-            position: fixed;
-            /* Ensure loader is on top of everything */
-            top: 0;
-            left: 0;
-            z-index: 1;
-            background: rgba(255, 255, 255, 0.8);
-            /* Optional background overlay */
-        }
-
-        .loader {
-            --dim: 3rem;
-            width: var(--dim);
-            height: var(--dim);
-            position: relative;
-            animation: spin988 2s linear infinite;
-        }
-
-        .loader .circle {
-            --color: #333;
-            --dim: 1.2rem;
-            width: var(--dim);
-            height: var(--dim);
-            background-color: var(--color);
-            border-radius: 50%;
-            position: absolute;
-        }
-
-        .loader .circle:nth-child(1) {
-            top: 0;
-            left: 0;
-        }
-
-        .loader .circle:nth-child(2) {
-            top: 0;
-            right: 0;
-        }
-
-        .loader .circle:nth-child(3) {
-            bottom: 0;
-            left: 0;
-        }
-
-        .loader .circle:nth-child(4) {
-            bottom: 0;
-            right: 0;
-        }
-
-        @keyframes spin988 {
-            0% {
-                transform: scale(1) rotate(0);
-            }
-
-            20%,
-            25% {
-                transform: scale(1.3) rotate(90deg);
-            }
-
-            45%,
-            50% {
-                transform: scale(1) rotate(180deg);
-            }
-
-            70%,
-            75% {
-                transform: scale(1.3) rotate(270deg);
-            }
-
-            95%,
-            100% {
-                transform: scale(1) rotate(360deg);
-            }
-        }
-
-        /* Style for the dropdown container */
-        .ui-autocomplete {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            z-index: 1000;
-            float: left;
-            display: none;
-            min-width: 160px;
-            padding: 4px 0;
-            margin: 2px 0 0 0;
-            list-style: none;
-            background-color: #ffffff;
-            border: 1px solid #ccc;
-            border: 1px solid rgba(0, 0, 0, .15);
-            border-radius: 4px;
-            box-shadow: 0 6px 12px rgba(0, 0, 0, .175);
-        }
-
-        /* Style for each dropdown item */
-        .ui-menu-item {
-            padding: 3px 20px;
-            line-height: 1.5;
-            cursor: pointer;
-        }
-
-        /* Hover effect for dropdown items */
-        .ui-menu-item:hover {
-            background-color: #f1f1f1;
-        }
-
-        /* Style for the dropdown input */
-        .ui-autocomplete-input {
-            margin-bottom: 0;
-            padding: 10px;
-            width: 100%;
-            box-sizing: border-box;
-            border-radius: 4px;
-            border: 1px solid #ccc;
-        }
-
-        .card-body::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .card-body::-webkit-scrollbar-thumb {
-            background-color: #6c757d;
-            border-radius: 4px;
-        }
-
-        .card-body::-webkit-scrollbar-track {
-            background-color: #f1f1f1;
-        }
-
-        .quantity-container {
-            display: flex;
-            align-items: center;
-        }
-
-        .quantity-input {
-            width: 60px;
-            text-align: center;
-            border-radius: 0 !important;
-        }
-
-        .quantity-minus {
-            border-radius: 3px 0 0 3px !important;
-
-        }
-
-        .quantity-plus {
-            border-radius: 0 3px 3px 0 !important;
-
-        }
-
-        .customer-select2 .select2-container--default .select2-selection--single {
-            border-radius: 5px 0 0 5px !important;
-            height: 38px !important;
-            display: flex !important;
-            align-items: center !important;
-            padding: 0 12px !important;
-        }
-
-        .customer-select2 .select2-container--default .select2-selection--single .select2-selection__rendered {
-            line-height: 38px !important;
-            padding-left: 0 !important;
-        }
-
-        .customer-select2 .select2-container--default .select2-selection--single .select2-selection__arrow {
-            height: 38px !important;
-        }
-
-        .customer-select2 #addCustomerButton {
-            height: 38px !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            padding: 0 15px !important;
-        }
-
-        .batch-dropdown {
-            width: 100%;
-            margin-top: 5px;
-        }
-
-        .price-input,
-        .subtotal {
-            text-align: right;
-        }
-
-        .product-name {
-            font-size: 16px;
-            font-weight: bold;
-        }
-
-
-
-        .star {
-            color: gold;
-            font-size: 20px;
-            margin-left: 5px;
-        }
-
-        .ui-autocomplete {
-            max-height: 300px;
-            overflow-y: auto;
-            overflow-x: hidden;
-            background: #fff;
-            border: 1px solid #ddd;
-            padding: 0;
-            font-size: 14px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            border-radius: 6px;
-            z-index: 1000;
-        }
-
-        /* Scrollbar styling for autocomplete */
-        .ui-autocomplete::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .ui-autocomplete::-webkit-scrollbar-thumb {
-            background-color: #888;
-            border-radius: 10px;
-        }
-
-        .ui-autocomplete::-webkit-scrollbar-track {
-            background-color: #f5f5f5;
-        }
-
-        /* Menu item styling */
-        .ui-menu .ui-menu-item {
-            border-bottom: 1px solid #f5f5f5;
-            padding: 0;
-        }
-
-        .ui-menu .ui-menu-item:last-child {
-            border-bottom: none;
-        }
-
-        .ui-menu .ui-menu-item a,
-        .ui-menu .ui-menu-item div,
-        .ui-menu .ui-menu-item-wrapper {
-            padding: 10px 15px;
-            display: block;
-            color: #333;
-            text-decoration: none;
-            line-height: 1.5;
-            white-space: normal;
-            word-wrap: break-word;
-        }
-
-        .ui-menu .ui-menu-item:hover,
-        .ui-menu .ui-menu-item.ui-state-focus,
-        .ui-menu .ui-menu-item.ui-state-active {
-            background-color: #f0f7ff;
-            border-color: #f5f5f5;
-        }
-
-        .ui-autocomplete .ui-menu-item-wrapper small,
-        .ui-autocomplete .ui-menu-item-wrapper .text-muted {
-            font-size: 12px;
-            color: #666;
-            display: block;
-            margin-top: 3px;
-        }
-
-        /* Mobile/Tablet: Fix autocomplete overflow */
-        @media (max-width: 991px) {
-            .ui-autocomplete {
-                position: fixed !important;
-                left: 10px !important;
-                right: 10px !important;
-                width: calc(100vw - 20px) !important;
-                max-width: calc(100vw - 20px) !important;
-                max-height: 300px !important;
-                overflow-y: auto !important;
-                overflow-x: hidden !important;
-                z-index: 10000 !important;
-                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
-                border-radius: 8px !important;
-                margin-top: 5px !important;
-                padding: 0 !important;
-                box-sizing: border-box !important;
-                background-color: #ffffff !important;
-                border: 1px solid #e0e0e0 !important;
-            }
-
-            /* Smooth scrolling for dropdown */
-            .ui-autocomplete::-webkit-scrollbar {
-                width: 5px;
-            }
-
-            .ui-autocomplete::-webkit-scrollbar-thumb {
-                background-color: #888;
-                border-radius: 10px;
-            }
-
-            .ui-autocomplete::-webkit-scrollbar-track {
-                background-color: #f1f1f1;
-            }
-
-            .ui-menu .ui-menu-item {
-                padding: 0 !important;
-                font-size: 13px !important;
-                border-bottom: 1px solid #f5f5f5;
-                line-height: 1.4 !important;
-                min-height: auto !important;
-                box-sizing: border-box !important;
-            }
-
-            .ui-menu .ui-menu-item a,
-            .ui-menu .ui-menu-item div {
-                padding: 10px 12px !important;
-                display: block !important;
-                overflow: visible !important;
-                white-space: normal !important;
-                word-wrap: break-word !important;
-                font-size: 13px !important;
-                line-height: 1.4 !important;
-                max-width: 100% !important;
-                color: #333 !important;
-                text-decoration: none !important;
-            }
-
-            .ui-menu .ui-menu-item:last-child {
-                border-bottom: none;
-            }
-
-            .ui-menu .ui-menu-item:hover,
-            .ui-menu .ui-menu-item.ui-state-focus,
-            .ui-menu .ui-menu-item.ui-state-active {
-                background-color: #f0f7ff !important;
-            }
-
-            /* Prevent text overflow in autocomplete items */
-            .ui-autocomplete .ui-menu-item-wrapper {
-                overflow: visible !important;
-                white-space: normal !important;
-                word-wrap: break-word !important;
-                max-width: 100% !important;
-                font-size: 13px !important;
-                padding: 10px 12px !important;
-                box-sizing: border-box !important;
-                display: block !important;
-                line-height: 1.4 !important;
-            }
-
-            /* Smaller font for stock info */
-            .ui-autocomplete .ui-menu-item-wrapper small,
-            .ui-autocomplete .ui-menu-item-wrapper .text-muted {
-                font-size: 11px !important;
-                display: block !important;
-                margin-top: 3px !important;
-                color: #666 !important;
-            }
-        }
-
-        /* Ensure autocomplete items are properly styled */
-        .ui-menu .ui-menu-item {
-            padding: 8px 12px;
-            cursor: pointer;
-        }
-
-        .ui-menu .ui-menu-item a {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            display: block;
-        }
-
-        /* Ensure hover and keyboard focus both show highlight */
-        .ui-menu .ui-menu-item:hover,
-        .ui-menu .ui-menu-item.ui-state-focus,
-        .ui-menu .ui-menu-item.ui-state-active {
-            /* Fix for keyboard navigation */
-            background-color: #007bff !important;
-            /* Highlight color */
-            color: #fff !important;
-            /* Text color */
-            border-radius: 4px;
-        }
-
-
-        /* //new styles */
-        /* --- Product Info, Name, and Badge --- */
-        .product-info {
-            display: flex !important;
-            flex-direction: row !important;
-            align-items: flex-start !important;
-            gap: 8px !important;
-            min-width: 0 !important;
-            flex-wrap: wrap !important;
-        }
-
-        .product-name {
-            font-weight: bold !important;
-            display: flex !important;
-            align-items: center !important;
-            gap: 6px !important;
-            flex-wrap: wrap !important;
-            word-break: break-word !important;
-            min-width: 0 !important;
-        }
-
-        .product-name .badge {
-            flex-shrink: 0 !important;
-            max-width: 100% !important;
-            white-space: nowrap !important;
-            margin-left: 4px !important;
-        }
-
-
-
-        /* Laptop/Tablet fixes (768px-1199px) */
-        @media (max-width: 1199px) and (min-width: 768px) {
-
-            .category-card,
-            .brand-card {
-                min-height: 72px;
-                padding: 14px 18px;
-                display: flex;
-                flex-direction: row;
-                align-items: center;
-                gap: 16px;
-                justify-content: flex-start;
-            }
-
-            .category-card h6,
-            .brand-card h6 {
-                font-size: 1.08rem;
-                margin-bottom: 5px;
-                white-space: normal;
-                overflow: visible;
-            }
-
-            /* Better bottom-fixed for tablet */
-            .bottom-fixed {
-                padding: 12px 15px;
-                position: fixed;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                width: 100%;
-                background: #fff;
-                box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
-                z-index: 1000;
-            }
-
-            .bottom-fixed .row {
-                align-items: center;
-                margin: 0;
-            }
-
-            /* Total Payable Section - Better spacing */
-            .bottom-fixed .col-md-5 {
-                padding: 0 10px;
-                display: flex;
-                align-items: center;
-                justify-content: flex-start;
-                gap: 15px;
-            }
-
-            .bottom-fixed .col-md-5 h4 {
-                font-size: 1.0rem;
-                margin: 0;
-                white-space: nowrap;
-            }
-
-            .bottom-fixed .col-md-5 #total {
-                font-size: 1.1rem;
-                font-weight: bold;
-            }
-
-            .bottom-fixed .col-md-5 #items-count {
-                font-size: 0.9rem;
-            }
-
-            .bottom-fixed .col-md-5 #cancelButton {
-                font-size: 11px;
-                padding: 6px 12px;
-                margin-left: 10px;
-            }
-
-            /* Payment Buttons Section - Better grid layout */
-            .bottom-fixed .col-md-7 {
-                padding: 0 10px;
-            }
-
-            .bottom-fixed .col-md-7 .d-flex {
-                display: grid !important;
-                grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-                gap: 6px;
-                justify-content: center;
-                align-items: stretch;
-            }
-
-            .bottom-fixed .btn {
-                font-size: 10px;
-                padding: 8px 6px;
-                margin: 0;
-                border-radius: 4px;
-                min-height: 38px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                text-align: center;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                line-height: 1.2;
-            }
-
-            .bottom-fixed .btn i {
-                font-size: 10px;
-                margin-right: 3px;
-            }
-        }
-
-        /* Small tablet specific adjustments (768px-991px) */
-        @media (max-width: 991px) and (min-width: 768px) {
-            .bottom-fixed .col-md-7 .d-flex {
-                display: grid !important;
-                grid-template-columns: repeat(4, 1fr) !important;
-                gap: 6px !important;
-                width: 100% !important;
-                justify-content: center !important;
-                align-items: stretch !important;
-            }
-
-            .bottom-fixed .btn {
-                font-size: 10px !important;
-                padding: 8px 4px !important;
-                margin: 0 !important;
-                border-radius: 4px !important;
-                min-height: 40px !important;
-                display: flex !important;
-                flex-direction: column !important;
-                align-items: center !important;
-                justify-content: center !important;
-                text-align: center !important;
-                white-space: nowrap !important;
-                overflow: hidden !important;
-                text-overflow: ellipsis !important;
-                line-height: 1.1 !important;
-            }
-
-            .bottom-fixed .btn i {
-                font-size: 12px !important;
-                margin-right: 0 !important;
-                margin-bottom: 2px !important;
-            }
-
-            /* Adjust total payable section for tablet */
-            .bottom-fixed .col-md-5 {
-                padding: 5px 10px !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: flex-start !important;
-                gap: 10px !important;
-            }
-
-            .bottom-fixed .col-md-5 h4 {
-                font-size: 14px !important;
-                margin: 0 !important;
-            }
-
-            .bottom-fixed .col-md-5 #total {
-                font-size: 16px !important;
-                font-weight: bold !important;
-            }
-
-            .bottom-fixed .col-md-5 #cancelButton {
-                font-size: 10px !important;
-                padding: 6px 10px !important;
-            }
-        }
-
-        /* 600px–767px: Small tablet, landscape mobile */
-        /* Medium Mobile/Small Tablet */
-        @media (max-width: 767px) and (min-width: 600px) {
-
-            .category-card,
-            .brand-card {
-                min-height: 68px;
-                padding: 12px 13px;
-                gap: 13px;
-            }
-
-            .category-card h6,
-            .brand-card h6 {
-                font-size: 1.01rem;
-                margin-bottom: 4px;
-            }
-
-            /* Fix main content area */
-            .col-md-12 .card {
-                margin-bottom: 10px;
-            }
-
-            .table-responsive {
-                overflow-x: auto;
-                max-width: 100%;
-            }
-
-            /* Header buttons */
-            .col-md-6 .d-flex {
-                flex-wrap: wrap;
-                gap: 5px;
-            }
-
-            .col-md-6 .btn {
-                font-size: 12px;
-                padding: 6px 8px;
-            }
-        }
-
-        /* Small Mobile Screens */
-        @media (max-width: 599px) {
-
-            .category-card,
-            .brand-card {
-                min-height: 62px;
-                padding: 10px 8px;
-                flex-direction: row;
-                align-items: center;
-                gap: 10px;
-            }
-
-            .category-card h6,
-            .brand-card h6 {
-                font-size: 0.98rem;
-                margin-bottom: 3px;
-            }
-
-            /* Fix header layout for small screens */
-            .row.align-items-center .col-md-6 {
-                margin-bottom: 10px;
-            }
-
-            .d-flex.flex-row.align-items-center.gap-3.flex-wrap {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 8px;
-            }
-
-            #locationSelect {
-                max-width: 100%;
-                width: 100%;
-            }
-
-            /* Fix customer section */
-            .customer-select2 {
-                margin-bottom: 10px;
-            }
-
-            /* Fix product search */
-            #productSearchInput {
-                margin-bottom: 10px;
-            }
-
-            /* Fix table responsiveness */
-            .table-responsive {
-                font-size: 12px;
-            }
-
-            .table th,
-            .table td {
-                padding: 6px 4px;
-                font-size: 11px;
-            }
-
-            /* Fix discount section */
-            .card.bg-white.mt-3.p-2 .row .col-md-2,
-            .card.bg-white.mt-3.p-2 .row .col-md-3 {
-                margin-bottom: 10px;
-            }
-        }
-
-        /* Fix for all: remove excessive whitespace on product cards
-        .product-card,
-        .category-card,
-        .brand-card {
-            box-sizing: border-box;
-            background: #fff !important;
-            border: 1px solid #e2e2e2 !important;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03) !important;
-        } */
-
-        /* Mobile Bottom Fixed Button Styles */
-        .mobile-bottom-fixed {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            z-index: 1050;
-            animation: slideUpFade 0.3s ease-out;
-            display: none;
-            padding: 0 15px 15px 15px;
-        }
-
-        .mobile-bottom-container {
-            background-color: #0d6efd;
-            border-radius: 12px;
-            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
-            padding: 15px 20px;
-        }
-
-        /* Hide mobile button on desktop */
-        @media (min-width: 1200px) {
-            .mobile-bottom-fixed {
-                display: none !important;
-            }
-        }
-
-        @keyframes slideUpFade {
-            from {
-                transform: translateY(100%);
-                opacity: 0;
-            }
-
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        /* Payment Modal Styles */
-        #mobilePaymentModal .payment-icon {
-            width: 50px;
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-        }
-
-        #mobilePaymentModal .list-group-item {
-            border: none;
-            border-bottom: 1px solid #f0f0f0;
-            transition: all 0.2s ease;
-        }
-
-        #mobilePaymentModal .list-group-item:hover {
-            background-color: #f8f9fa;
-            transform: translateX(5px);
-        }
-
-        #mobilePaymentModal .list-group-item:active {
-            background-color: #e9ecef;
-        }
-
-        #mobilePaymentModal .mobile-action-btn {
-            padding: 15px 10px;
-            font-size: 13px;
-            border-radius: 8px;
-            transition: all 0.2s ease;
-        }
-
-        #mobilePaymentModal .mobile-action-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Mobile/Tablet adjustments */
-        @media (max-width: 991px) {
-
-            /* Hide desktop bottom-fixed section on mobile/tablet */
-            .bottom-fixed {
-                display: none !important;
-            }
-
-            /* Show mobile bottom-fixed button */
-            .mobile-bottom-fixed {
-                display: block !important;
-            }
-
-            /* CRITICAL: Override desktop restrictions - Allow full scrolling */
-            html,
-            body {
-                height: auto !important;
-                min-height: 100vh !important;
-                overflow: auto !important;
-                overflow-x: hidden !important;
-                padding-bottom: 100px !important;
-                margin: 0 !important;
-            }
-
-            /* Override container fixed height */
-            .container-fluid {
-                height: auto !important;
-                min-height: 100vh !important;
-                max-width: 100vw !important;
-                overflow: visible !important;
-                overflow-x: hidden !important;
-                padding-left: 10px !important;
-                padding-right: 10px !important;
-                padding-bottom: 20px !important;
-            }
-
-            /* Remove ALL height restrictions on billing card */
-            .card.bg-white.p-2 {
-                height: auto !important;
-                min-height: auto !important;
-                max-height: none !important;
-                overflow: visible !important;
-                display: block !important;
-            }
-
-            /* Make billing body fully scrollable */
-            .table-responsive {
-                height: auto !important;
-                max-height: none !important;
-                overflow: visible !important;
-                overflow-x: auto !important;
-                -webkit-overflow-scrolling: touch !important;
-                display: block !important;
-            }
-
-            /* Ensure table body is fully visible */
-            #billing-body {
-                overflow: visible !important;
-                margin-bottom: 20px !important;
-            }
-
-            /* Ensure Total Items section is visible */
-            .row[style*="border-top: 2px solid #ddd"] {
-                overflow: visible !important;
-                margin-bottom: 15px !important;
-                display: flex !important;
-            }
-
-            /* Ensure all sections of billing card are scrollable */
-            .card.bg-white.p-2 .row {
-                overflow: visible !important;
-            }
-
-            /* Ensure all card children are visible */
-            .card.bg-white.p-2>* {
-                overflow: visible !important;
-                display: block !important;
-            }
-
-            /* Add extra padding to last section for full visibility */
-            .card.bg-white.p-2>.row:last-child {
-                margin-bottom: 60px !important;
-                padding-bottom: 40px !important;
-            }
-        }
-
-        /* Small Mobile Screens */
-        @media (max-width: 576px) {
-            /* bottom-fixed already hidden in parent media query */
-
-            /* Make sure container fits properly */
-            .container-fluid {
-                padding-left: 8px !important;
-                padding-right: 8px !important;
-            }
-
-            /* Fix card padding for mobile */
-            .card.bg-white.p-3,
-            .card.bg-white.p-2 {
-                padding: 15px 10px !important;
-            }
-        }
-
-        /* Extra Small Mobile Screens */
-        @media (max-width: 400px) {
-            .bottom-fixed .btn {
-                font-size: 10px !important;
-                padding: 6px 4px !important;
-                min-height: 36px !important;
-            }
-
-            .bottom-fixed .col-md-5 h4,
-            .bottom-fixed .col-md-5 #total {
-                font-size: 14px !important;
-            }
-
-            .bottom-fixed .col-md-7 .d-flex {
-                gap: 4px !important;
-            }
-        }
-
-        /* Mobile Menu Offcanvas Styles */
-        #mobileMenuOffcanvas .list-group-item {
-            border-left: none;
-            border-right: none;
-            transition: all 0.3s ease;
-            font-size: 15px;
-        }
-
-        #mobileMenuOffcanvas .list-group-item:hover {
-            background-color: #f8f9fa;
-            padding-left: 1.5rem;
-        }
-
-        #mobileMenuOffcanvas .list-group-item:first-child {
-            border-top: none;
-        }
-
-        #mobileMenuOffcanvas .offcanvas-body {
-            padding: 0;
-        }
-
-        /* Mobile menu - make it beautiful like your reference image */
-        #mobileMenuOffcanvas .offcanvas {
-            width: 280px;
-        }
-
-        #mobileMenuOffcanvas .list-group-item {
-            border-bottom: 1px solid #e9ecef;
-        }
-
-        #mobileMenuOffcanvas .list-group-item .fw-medium {
-            font-size: 14px;
-            color: #212529;
-        }
-
-        /* Collapse invoice section styling */
-        #invoiceCollapse .card-body {
-            margin: 0 1rem 1rem 1rem;
-            border-radius: 8px;
-        }
-
-        /* Mobile Menu Modal Card Styles */
-        .menu-card {
-            background: white;
-            border: none;
-            border-radius: 15px;
-            padding: 15px 10px;
-            text-align: center;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-            min-height: 100px;
-        }
-
-        .menu-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
-        }
-
-        .menu-card:active {
-            transform: translateY(-2px);
-        }
-
-        .menu-card .menu-icon {
-            width: 45px;
-            height: 45px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 20px;
-            margin-bottom: 5px;
-        }
-
-        .menu-card span {
-            font-size: 11px;
-            font-weight: 500;
-            color: #333;
-            line-height: 1.2;
-            text-align: center;
-        }
-
-        /* Modal styling */
-        #mobileMenuModal .modal-body {
-            max-height: 70vh;
-            overflow-y: auto;
-        }
-
-        /* Responsive adjustments */
-        @media (max-width: 576px) {
-            .menu-card {
-                padding: 12px 8px;
-                min-height: 90px;
-            }
-
-            .menu-card .menu-icon {
-                width: 40px;
-                height: 40px;
-                font-size: 18px;
-            }
-
-            .menu-card span {
-                font-size: 10px;
-            }
-        }
-
-        @media (min-width: 768px) and (max-width: 1023px) {
-            .offcanvas {
-                width: 70vw !important;
-                /* wider for tablet */
-                min-width: 360px !important;
-                max-width: 90vw !important;
-                border-radius: 0 12px 12px 0 !important;
-                box-shadow: 0 2px 24px rgba(0, 0, 0, 0.06) !important;
-            }
-
-            .offcanvas-header,
-            .offcanvas-body {
-                padding-left: 22px !important;
-                padding-right: 22pxx !important;
-            }
-
-            .offcanvas-title {
-                font-size: 1.32rem !important;
-                font-weight: 500 !important;
-            }
-
-            .offcanvas-body {
-                padding-top: 18px !important;
-                padding-bottom: 18px !important;
-                overflow-y: auto !important;
-                max-height: 85vh !important;
-            }
-
-            .category-container,
-            .brand-container {
-                gap: 16px !important;
-                padding-bottom: 20px !important;
-            }
-
-            .category-card,
-            .brand-card {
-                font-size: 1.06rem !important;
-                padding: 17px !important;
-            }
-        }
-
-        /* Desktop screens */
-        @media (min-width: 1200px) {
-
-            html,
-            body {
-                height: 100%;
-                min-height: 100vh;
-                overflow-x: hidden;
-                overflow-y: auto;
-            }
-
-            body {
-                padding-bottom: 120px;
-                /* Height of .bottom-fixed + margin */
-            }
-
-            .bottom-fixed {
-                position: fixed;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                width: 100%;
-                padding: 20px;
-                z-index: 1000;
-            }
-        }
-
-        /* Laptop screen fix (1024px-1199px) */
-        @media (min-width: 1024px) and (max-width: 1199px) {
-            body {
-                padding-bottom: 140px;
-            }
-
-            .bottom-fixed {
-                position: fixed;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                width: 100%;
-                padding: 15px 20px;
-                z-index: 1000;
-                background: #fff;
-                border-top: 1px solid #ddd;
-                box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-            }
-
-            .bottom-fixed .btn {
-                font-size: 13px;
-                padding: 8px 10px;
-                margin: 2px 3px;
-            }
-
-            .bottom-fixed h4 {
-                font-size: 1.1rem;
-            }
-
-            .bottom-fixed .row {
-                align-items: center;
-                margin: 0;
-            }
-        }
-
-        /* Header Mobile Styles */
-        @media (max-width: 767px) {
-            #locationSelect {
-                font-size: 13px;
-                min-width: 150px !important;
-            }
-
-            .card.bg-white.p-2 {
-                padding: 0.5rem !important;
-            }
-
-            /* Hide all vehicle/route display elements on mobile */
-            #salesRepDisplay,
-            #changeSalesRepSelection,
-            .badge.bg-success,
-            .badge.bg-info,
-            #salesAccessBadge {
-                display: none !important;
-            }
-
-            /* Only show location and hamburger on mobile */
-            .col-md-6:first-child .d-flex>*:not(label):not(#locationSelect) {
-                display: none !important;
-            }
-        }
-
-        /* Vehicle/Route badges responsive */
-        #salesRepDisplay .badge {
-            font-size: 12px;
-        }
-
-        /* Force hide on mobile - IMPORTANT */
-        @media (max-width: 767px) {
-            #salesRepDisplay {
-                display: none !important;
-            }
-        }
-
-        @media (max-width: 991px) {
-            #salesRepDisplay .badge {
-                font-size: 11px;
-                padding: 4px 8px !important;
-            }
-        }
-
-        /* Customer Credit Information Styling */
-        .customer-credit-info {
-            margin-top: 8px;
-        }
-
-        .customer-credit-info .border {
-            border-color: #e0e6ed !important;
-            background-color: #f8f9fa;
-        }
-
-        .customer-credit-info .col-4 {
-            transition: background-color 0.2s ease;
-        }
-
-        .customer-credit-info .col-4:hover {
-            background-color: #e9ecef;
-        }
-
-        .customer-credit-info small {
-            font-size: 11px;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .customer-credit-info .fw-bold {
-            font-size: 14px;
-            font-weight: 600;
-        }
-
-        /* Better spacing between customer section and product search */
-        #productSearchInput {
-            margin-top: 0;
-        }
-
-        @media (max-width: 767px) {
-            #productSearchInput {
-                margin-top: 10px;
-            }
-
-            .customer-credit-info {
-                margin-bottom: 10px;
-            }
-        }
-
-        /* Responsive adjustments for mobile */
-        @media (max-width: 768px) {
-            .customer-credit-info .p-2 {
-                padding: 8px !important;
-            }
-
-            .customer-credit-info small {
-                font-size: 10px;
-            }
-
-            .customer-credit-info .fw-bold {
-                font-size: 12px;
-            }
-        }
-
-        @media (max-width: 576px) {
-            .customer-credit-info .row {
-                flex-direction: column;
-            }
-
-            .customer-credit-info .col-4 {
-                border-right: none !important;
-                border-bottom: 1px solid #e0e6ed;
-            }
-
-            .customer-credit-info .col-4:last-child {
-                border-bottom: none;
-            }
-        }
-
-        /* Mobile & Tablet Billing Table Card Styles */
-        @media (max-width: 991px) {
-
-            /* CRITICAL: Override desktop fixed viewport restrictions */
-            html,
-            body {
-                overflow: auto !important;
-                overflow-x: hidden !important;
-                height: auto !important;
-                min-height: 100vh !important;
-                padding-bottom: 120px !important;
-                margin: 0 !important;
-            }
-
-            /* Override container fixed height */
-            .container-fluid {
-                height: auto !important;
-                min-height: 100vh !important;
-                overflow: visible !important;
-                padding-bottom: 20px !important;
-            }
-
-            /* Hide bottom-fixed on mobile/tablet - show inline instead */
-            .bottom-fixed {
-                display: none !important;
-            }
-
-            /* Make billing card fully scrollable with NO height restrictions */
-            .card.bg-white.p-2 {
-                height: auto !important;
-                min-height: auto !important;
-                max-height: none !important;
-                overflow: visible !important;
-                margin-bottom: 50px !important;
-                display: block !important;
-            }
-
-            /* Ensure all card content is visible */
-            .card.bg-white.p-2>* {
-                overflow: visible !important;
-                display: block !important;
-            }
-
-            /* Remove any height restrictions on card body */
-            .card-body {
-                height: auto !important;
-                max-height: none !important;
-                overflow: visible !important;
-            }
-
-            /* Total Items Section - Hide on Mobile/Tablet */
-            .row[style*="border-top: 2px solid #ddd"][style*="background-color: #f8f9fa"] {
-                display: none !important;
-                border-top: 2px solid #ddd !important;
-            }
-
-            .row[style*="border-top: 2px solid #ddd"][style*="background-color: #f8f9fa"] .d-flex {
-                flex-direction: column !important;
-                align-items: flex-start !important;
-                gap: 10px !important;
-            }
-
-            .row[style*="border-top: 2px solid #ddd"][style*="background-color: #f8f9fa"] h5,
-            .row[style*="border-top: 2px solid #ddd"][style*="background-color: #f8f9fa"] h6 {
-                font-size: 16px !important;
-                font-weight: 700 !important;
-                margin: 0 !important;
-            }
-
-            /* Total/Discount/Final Total Section - Mobile/Tablet Stacked Layout */
-            .row.align-items-end[style*="border-top: 2px solid #ddd"] {
-                display: flex !important;
-                flex-direction: column !important;
-                padding: 15px 12px !important;
-                gap: 15px;
-                overflow: visible !important;
-                margin-bottom: 20px !important;
-                background-color: #ffffff !important;
-                border-top: 2px solid #ddd !important;
-            }
-
-            .row.align-items-end[style*="border-top: 2px solid #ddd"]>div[class*="col-md"] {
-                width: 100% !important;
-                max-width: 100% !important;
-                flex: 0 0 100% !important;
-                overflow: visible !important;
-            }
-
-            .row.align-items-end[style*="border-top: 2px solid #ddd"] .form-group {
-                margin-bottom: 12px !important;
-                overflow: visible !important;
-            }
-
-            .row.align-items-end[style*="border-top: 2px solid #ddd"] .form-group label {
-                font-size: 13px !important;
-                font-weight: 700 !important;
-                margin-bottom: 6px !important;
-                display: block !important;
-            }
-
-            .row.align-items-end[style*="border-top: 2px solid #ddd"] .form-control,
-            .row.align-items-end[style*="border-top: 2px solid #ddd"] .input-group,
-            .row.align-items-end[style*="border-top: 2px solid #ddd"] .btn-group {
-                height: 45px !important;
-                font-size: 15px !important;
-                width: 100% !important;
-            }
-
-            .row.align-items-end[style*="border-top: 2px solid #ddd"] .btn-group {
-                display: flex !important;
-                border-radius: 6px !important;
-                overflow: hidden !important;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
-            }
-
-            .row.align-items-end[style*="border-top: 2px solid #ddd"] .btn-group .btn {
-                height: 45px !important;
-                font-size: 14px !important;
-                padding: 0 15px !important;
-                flex: 1 !important;
-                border: none !important;
-                border-radius: 0 !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                font-weight: 600 !important;
-            }
-
-            .row.align-items-end[style*="border-top: 2px solid #ddd"] .btn-group .btn.active {
-                background-color: #0d6efd !important;
-                color: white !important;
-            }
-
-            .row.align-items-end[style*="border-top: 2px solid #ddd"] .btn-group .btn:not(.active) {
-                background-color: white !important;
-                color: #0d6efd !important;
-                border: 1px solid #0d6efd !important;
-            }
-
-            .row.align-items-end[style*="border-top: 2px solid #ddd"] .input-group {
-                display: flex !important;
-                align-items: stretch !important;
-                border-radius: 6px !important;
-                overflow: hidden !important;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08) !important;
-            }
-
-            .row.align-items-end[style*="border-top: 2px solid #ddd"] .input-group input {
-                height: 45px !important;
-                font-size: 16px !important;
-                border-radius: 0 !important;
-                border: 1px solid #ced4da !important;
-                border-right: none !important;
-                padding: 8px 12px !important;
-                font-weight: 600 !important;
-            }
-
-            .row.align-items-end[style*="border-top: 2px solid #ddd"] .input-group-text {
-                height: 45px !important;
-                font-size: 16px !important;
-                font-weight: 700 !important;
-                background-color: #e9ecef !important;
-                border: 1px solid #ced4da !important;
-                border-radius: 0 !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                padding: 0 12px !important;
-                min-width: 50px !important;
-            }
-
-            /* CRITICAL: Ensure table container is fully scrollable without height restrictions */
-            .table-responsive {
-                height: auto !important;
-                min-height: auto !important;
-                max-height: none !important;
-                overflow: visible !important;
-                overflow-x: auto !important;
-                -webkit-overflow-scrolling: touch !important;
-                padding: 8px;
-                background: #f5f5f5;
-                display: block !important;
-            }
-
-            /* Table should be fully visible */
-            .table-responsive table {
-                height: auto !important;
-                max-height: none !important;
-                overflow: visible !important;
-            }
-
-            /* Hide table headers on mobile/tablet */
-            .table-responsive table thead {
-                display: none !important;
-            }
-
-            /* Make each table row a compact card */
-            #billing-body tr {
-                display: block;
-                position: relative;
-                margin-bottom: 12px;
-                border: 1px solid #ddd;
-                border-radius: 8px;
-                padding: 10px;
-                padding-top: 35px;
-                background: white;
-                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            }
-
-            /* Make each cell a block */
-            #billing-body tr td {
-                display: block;
-                border: none !important;
-                padding: 0 !important;
-                text-align: left !important;
-            }
-
-            /* Counter Badge - Top Left (Small) */
-            #billing-body tr td.counter-cell {
-                position: absolute;
-                top: 8px;
-                left: 8px;
-                font-size: 12px;
-                font-weight: 600;
-                color: #ffffff;
-                background: #6c757d;
-                padding: 3px 10px !important;
-                border-radius: 4px;
-                z-index: 10;
-            }
-
-            /* Remove Button - Top Right (Small) */
-            #billing-body tr td:nth-child(8) {
-                position: absolute;
-                top: 8px;
-                right: 8px;
-                width: auto !important;
-                padding: 0 !important;
-            }
-
-            #billing-body tr td:nth-child(8) .remove-btn {
-                width: 28px;
-                height: 28px;
-                border-radius: 4px;
-                font-size: 16px;
-                padding: 0;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                background: #dc3545;
-                border: none;
-                color: white;
-            }
-
-            /* Product Header: Image + Name + SKU */
-            #billing-body tr td:nth-child(2) {
-                margin-bottom: 10px;
-                padding-bottom: 10px !important;
-                border-bottom: 1px solid #eee !important;
-            }
-
-            #billing-body tr td:nth-child(2) .d-flex {
-                flex-direction: row !important;
-                gap: 10px;
-                align-items: flex-start;
-            }
-
-            #billing-body tr td:nth-child(2) img {
-                width: 50px !important;
-                height: 50px !important;
-                border-radius: 4px !important;
-                border: 1px solid #dee2e6;
-                flex-shrink: 0;
-            }
-
-            #billing-body tr td:nth-child(2) .product-info {
-                flex: 1;
-                min-width: 0;
-            }
-
-            #billing-body tr td:nth-child(2) .product-name {
-                font-size: 14px;
-                font-weight: 600;
-                color: #212529;
-                line-height: 1.3;
-                margin-bottom: 4px;
-                display: block;
-            }
-
-            #billing-body tr td:nth-child(2) .product-sku {
-                font-size: 12px;
-                color: #6c757d;
-                display: inline-block;
-                margin-right: 10px;
-            }
-
-            #billing-body tr td:nth-child(2) .quantity-display {
-                font-size: 12px;
-                color: #198754;
-                font-weight: 600;
-                display: inline-block;
-            }
-
-            #billing-body tr td:nth-child(2) .badge {
-                font-size: 10px;
-                padding: 2px 6px;
-            }
-
-            /* Quantity Section - Compact, No Label */
-            #billing-body tr td:nth-child(3) {
-                padding: 0 !important;
-                margin-bottom: 8px;
-            }
-
-            /* Hide the QUANTITY label */
-            #billing-body tr td:nth-child(3)::before {
-                display: none !important;
-            }
-
-            #billing-body tr td:nth-child(3) .d-flex {
-                justify-content: center;
-                gap: 0;
-            }
-
-            #billing-body tr td:nth-child(3) .quantity-minus {
-                width: 45px;
-                height: 40px;
-                border-radius: 4px 0 0 4px !important;
-                font-size: 20px;
-                font-weight: 600;
-                padding: 0 !important;
-                background: #dc3545;
-                border: none;
-                color: white;
-            }
-
-            #billing-body tr td:nth-child(3) .quantity-plus {
-                width: 45px;
-                height: 40px;
-                border-radius: 0 4px 4px 0 !important;
-                font-size: 20px;
-                font-weight: 600;
-                padding: 0 !important;
-                background: #198754;
-                border: none;
-                color: white;
-            }
-
-            #billing-body tr td:nth-child(3) .quantity-input {
-                width: 70px !important;
-                height: 40px;
-                font-size: 16px;
-                font-weight: 600;
-                text-align: center;
-                border: 1px solid #ced4da;
-                border-left: none;
-                border-right: none;
-                border-radius: 0 !important;
-                background: #ffffff;
-            }
-
-            /* Hide the Pc(s) text below quantity */
-            #billing-body tr td:nth-child(3)>div:last-child {
-                display: none !important;
-            }
-
-            /* All Price Fields in Single Row */
-            #billing-body tr td:nth-child(4),
-            #billing-body tr td:nth-child(5),
-            #billing-body tr td:nth-child(6) {
-                display: inline-block;
-                width: 32%;
-                margin: 0 0.5% 8px 0;
-                padding: 0 !important;
-                vertical-align: top;
-            }
-
-            #billing-body tr td:nth-child(6) {
-                margin-right: 0;
-            }
-
-            #billing-body tr td:nth-child(4)::before,
-            #billing-body tr td:nth-child(5)::before,
-            #billing-body tr td:nth-child(6)::before {
-                display: block;
-                font-size: 10px;
-                font-weight: 600;
-                color: #495057;
-                margin-bottom: 4px;
-            }
-
-            #billing-body tr td:nth-child(4)::before {
-                content: 'DISCOUNT (RS)';
-            }
-
-            #billing-body tr td:nth-child(5)::before {
-                content: 'DISCOUNT (%)';
-            }
-
-            #billing-body tr td:nth-child(6)::before {
-                content: 'UNIT PRICE';
-            }
-
-            #billing-body tr td:nth-child(4) input,
-            #billing-body tr td:nth-child(5) input,
-            #billing-body tr td:nth-child(6) input {
-                width: 100%;
-                font-size: 13px;
-                font-weight: 600;
-                padding: 8px 4px;
-                text-align: center;
-                border: 1px solid #ced4da;
-                border-radius: 4px;
-                background: #ffffff;
-            }
-
-            /* Subtotal - Left Label, Center Value */
-            #billing-body tr td:nth-child(7) {
-                width: 100%;
-                margin: 8px 0 0 0;
-                padding: 10px 12px !important;
-                background: #198754;
-                border-radius: 4px;
-                text-align: left;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-
-            #billing-body tr td:nth-child(7)::before {
-                content: 'SUBTOTAL';
-                color: #ffffff;
-                font-size: 11px;
-                font-weight: 600;
-                text-transform: uppercase;
-            }
-
-            #billing-body tr td.subtotal {
-                font-size: 20px;
-                font-weight: 700;
-                color: #ffffff !important;
-                text-align: right;
-                flex: 1;
-            }
-
-            /* Hide hidden cells */
-            #billing-body tr td.d-none {
-                display: none !important;
-            }
-
-            /* Billing body spacing */
-            #billing-body {
-                padding: 0;
-                margin-bottom: 20px !important;
-                overflow: visible !important;
-            }
-
-            /* Ensure sections after billing body are visible */
-            #billing-body+* {
-                display: block !important;
-                overflow: visible !important;
-            }
-
-            /* Tablet specific adjustments (768px-991px) */
-            @media (min-width: 768px) {
-
-                /* Larger, more spacious cards for tablets */
-                #billing-body tr {
-                    margin-bottom: 20px;
-                    padding: 20px;
-                    padding-top: 50px;
-                    border-radius: 12px;
-                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-                    border: 2px solid #e0e0e0;
-                }
-
-                /* Larger counter badge */
-                #billing-body tr td.counter-cell {
-                    top: 12px;
-                    left: 12px;
-                    font-size: 15px;
-                    padding: 5px 14px !important;
-                    border-radius: 6px;
-                }
-
-                /* Larger remove button */
-                #billing-body tr td:nth-child(8) {
-                    top: 12px;
-                    right: 12px;
-                }
-
-                #billing-body tr td:nth-child(8) .remove-btn {
-                    width: 40px;
-                    height: 40px;
-                    font-size: 20px;
-                    border-radius: 6px;
-                }
-
-                /* Product section with more space */
-                #billing-body tr td:nth-child(2) {
-                    margin-bottom: 16px;
-                    padding-bottom: 16px !important;
-                }
-
-                #billing-body tr td:nth-child(2) .d-flex {
-                    gap: 16px;
-                }
-
-                #billing-body tr td:nth-child(2) img {
-                    width: 75px !important;
-                    height: 75px !important;
-                    border-radius: 8px !important;
-                    border: 2px solid #dee2e6;
-                }
-
-                #billing-body tr td:nth-child(2) .product-name {
-                    font-size: 17px;
-                    margin-bottom: 7px;
-                    line-height: 1.4;
-                }
-
-                #billing-body tr td:nth-child(2) .product-sku {
-                    font-size: 14px;
-                    font-weight: 500;
-                }
-
-                #billing-body tr td:nth-child(2) .quantity-display {
-                    font-size: 14px;
-                    font-weight: 700;
-                }
-
-                #billing-body tr td:nth-child(2) .badge {
-                    font-size: 12px;
-                    padding: 4px 10px;
-                }
-
-                /* Larger quantity controls */
-                #billing-body tr td:nth-child(3) {
-                    margin-bottom: 16px;
-                }
-
-                #billing-body tr td:nth-child(3) .quantity-minus,
-                #billing-body tr td:nth-child(3) .quantity-plus {
-                    width: 60px;
-                    height: 52px;
-                    font-size: 24px;
-                    border-radius: 6px 0 0 6px !important;
-                }
-
-                #billing-body tr td:nth-child(3) .quantity-plus {
-                    border-radius: 0 6px 6px 0 !important;
-                }
-
-                #billing-body tr td:nth-child(3) .quantity-input {
-                    width: 100px !important;
-                    height: 52px;
-                    font-size: 20px;
-                    font-weight: 700;
-                }
-
-                /* Larger discount and price fields */
-                #billing-body tr td:nth-child(4),
-                #billing-body tr td:nth-child(5),
-                #billing-body tr td:nth-child(6) {
-                    width: 31.5%;
-                    margin: 0 1% 16px 0;
-                }
-
-                #billing-body tr td:nth-child(6) {
-                    margin-right: 0;
-                }
-
-                #billing-body tr td:nth-child(4)::before,
-                #billing-body tr td:nth-child(5)::before,
-                #billing-body tr td:nth-child(6)::before {
-                    font-size: 12px;
-                    margin-bottom: 8px;
-                    font-weight: 700;
-                }
-
-                #billing-body tr td:nth-child(4) input,
-                #billing-body tr td:nth-child(5) input,
-                #billing-body tr td:nth-child(6) input {
-                    font-size: 16px;
-                    padding: 12px 8px;
-                    border-radius: 6px;
-                    border: 2px solid #ced4da;
-                    font-weight: 600;
-                }
-
-                #billing-body tr td:nth-child(4) input:focus,
-                #billing-body tr td:nth-child(5) input:focus,
-                #billing-body tr td:nth-child(6) input:focus {
-                    border-color: #198754;
-                    box-shadow: 0 0 0 3px rgba(25, 135, 84, 0.1);
-                }
-
-                /* Larger subtotal section */
-                #billing-body tr td:nth-child(7) {
-                    margin-top: 16px;
-                    padding: 16px 20px !important;
-                    border-radius: 8px;
-                }
-
-                #billing-body tr td:nth-child(7)::before {
-                    font-size: 14px;
-                    font-weight: 700;
-                    letter-spacing: 0.5px;
-                }
-
-                #billing-body tr td.subtotal {
-                    font-size: 26px;
-                    font-weight: 800;
-                }
-
-                /* More spacious table container */
-                .table-responsive {
-                    padding: 16px;
-                    background: #fafafa;
-                }
-            }
-        }
-
-        /* ============================================
-           OPTIMIZED BILLING TABLE STYLES FOR DESKTOP
-           ============================================ */
-
-        /* Desktop: Perfect alignment for Global Discount section */
-        @media (min-width: 992px) {
-
-            /* Global Discount Type - Button Group */
-            .row.align-items-end[style*="border-top: 2px solid #ddd"] .btn-group {
-                display: flex !important;
-                height: 36px !important;
-                border-radius: 6px !important;
-                overflow: hidden !important;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
-            }
-
-            .row.align-items-end[style*="border-top: 2px solid #ddd"] .btn-group .btn {
-                height: 36px !important;
-                font-size: 14px !important;
-                padding: 0 !important;
-                font-weight: 600 !important;
-                border: none !important;
-                border-radius: 0 !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                transition: all 0.3s ease !important;
-            }
-
-            /* Discount Input Group - Perfect Alignment */
-            .row.align-items-end[style*="border-top: 2px solid #ddd"] .input-group {
-                display: flex !important;
-                align-items: stretch !important;
-                height: 36px !important;
-                border-radius: 6px !important;
-                overflow: hidden !important;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08) !important;
-            }
-
-            .row.align-items-end[style*="border-top: 2px solid #ddd"] .input-group input {
-                height: 36px !important;
-                font-size: 15px !important;
-                font-weight: 600 !important;
-                border-radius: 0 !important;
-                border: 1px solid #ced4da !important;
-                border-right: none !important;
-                padding: 6px 12px !important;
-                line-height: 24px !important;
-            }
-
-            .row.align-items-end[style*="border-top: 2px solid #ddd"] .input-group-text {
-                height: 36px !important;
-                font-size: 14px !important;
-                font-weight: 600 !important;
-                background-color: #e9ecef !important;
-                border: 1px solid #ced4da !important;
-                border-radius: 0 !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                padding: 0 12px !important;
-                line-height: 24px !important;
-                min-width: 45px !important;
-            }
-
-            /* Form controls consistency */
-            .row.align-items-end[style*="border-top: 2px solid #ddd"] .form-control {
-                height: 36px !important;
-                font-size: 15px !important;
-                font-weight: 600 !important;
-                line-height: 24px !important;
-                padding: 6px 12px !important;
-            }
-        }
-
-        /* Desktop: Reduce table cell padding for compact display */
-        @media (min-width: 992px) {
-            #billing-body tr td {
-                padding: 4px 6px !important;
-                vertical-align: middle !important;
-            }
-
-            /* Counter cell - centered alignment */
-            #billing-body tr td:nth-child(1) {
-                text-align: center !important;
-                vertical-align: middle !important;
-                padding: 4px !important;
-            }
-
-            /* Product cell - optimize spacing */
-            #billing-body tr td:nth-child(2) {
-                padding: 6px 8px !important;
-                vertical-align: middle !important;
-            }
-
-            #billing-body tr td:nth-child(2) .d-flex {
-                align-items: center;
-                gap: 8px;
-            }
-
-            /* Product image - reduce size for compactness */
-            #billing-body tr td:nth-child(2) img {
-                width: 40px !important;
-                height: 40px !important;
-                margin-right: 6px !important;
-            }
-
-            /* Product info section */
-            #billing-body tr td:nth-child(2) .product-info {
-                line-height: 1.2;
-            }
-
-            /* Product name - increase font size more */
-            #billing-body tr td:nth-child(2) .product-name {
-                font-size: 15px;
-                line-height: 1.4;
-                margin-bottom: 3px;
-                font-weight: 600;
-            }
-
-            /* Increase badge sizes more */
-            #billing-body tr td:nth-child(2) .badge {
-                font-size: 11px;
-                padding: 3px 7px;
-                margin: 0 3px;
-            }
-
-            /* SKU and quantity display - even larger text */
-            #billing-body tr td:nth-child(2) .product-sku,
-            #billing-body tr td:nth-child(2) .quantity-display {
-                font-size: 13px;
-            }
-
-            /* IMEI section - optimize spacing */
-            #billing-body tr td:nth-child(2) .d-flex.flex-wrap {
-                gap: 4px !important;
-                margin-top: 2px !important;
-            }
-
-            /* IMEI badge - larger size */
-            #billing-body tr td:nth-child(2) .badge.bg-info {
-                font-size: 10px;
-                padding: 3px 6px;
-            }
-
-            /* IMEI info icon - larger */
-            #billing-body tr td:nth-child(2) .show-imei-btn {
-                font-size: 13px;
-                margin-left: 2px !important;
-            }
-
-            /* Quantity controls - larger size */
-            #billing-body tr td:nth-child(3) {
-                text-align: center;
-                vertical-align: middle !important;
-            }
-
-            #billing-body tr td:nth-child(3) .d-flex {
-                gap: 0;
-            }
-
-            #billing-body tr td:nth-child(3) .quantity-minus,
-            #billing-body tr td:nth-child(3) .quantity-plus {
-                width: 34px;
-                height: 34px;
-                font-size: 17px;
-                padding: 0;
-            }
-
-            #billing-body tr td:nth-child(3) .quantity-input {
-                width: 60px;
-                height: 34px;
-                font-size: 15px;
-                padding: 0 5px;
-                font-weight: 600;
-            }
-
-            /* Unit name below quantity - larger */
-            #billing-body tr td:nth-child(3)>div:last-child {
-                font-size: 12px;
-                margin-top: 2px;
-            }
-
-            /* Discount and Price columns - centered */
-            #billing-body tr td:nth-child(4),
-            #billing-body tr td:nth-child(5),
-            #billing-body tr td:nth-child(6),
-            #billing-body tr td:nth-child(7) {
-                text-align: center;
-                vertical-align: middle !important;
-            }
-
-            /* Input fields - even larger height and font */
-            #billing-body tr td input.form-control {
-                height: 34px;
-                font-size: 14px;
-                padding: 4px 7px;
-                text-align: center;
-                font-weight: 500;
-            }
-
-            /* Subtotal column - even larger and bold */
-            #billing-body tr td.subtotal {
-                font-weight: 700;
-                font-size: 15px;
-                text-align: center;
-                vertical-align: middle !important;
-            }
-
-            /* Remove button - larger */
-            #billing-body tr td:nth-child(8) {
-                text-align: center;
-                vertical-align: middle !important;
-            }
-
-            #billing-body tr td:nth-child(8) .remove-btn {
-                width: 30px;
-                height: 30px;
-                font-size: 17px;
-                padding: 0;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                line-height: 1;
-            }
-
-            /* Table header - even larger font */
-            .table thead th {
-                padding: 7px 9px !important;
-                font-size: 14px;
-                font-weight: 600;
-            }
-
-            /* Compact form groups for single-screen view */
-            .form-group {
-                margin-bottom: 4px !important;
-            }
-
-            .form-group label {
-                font-size: 13px;
-                margin-bottom: 2px;
-                font-weight: 600;
-            }
-
-            .form-group .form-control,
-            .form-group p.form-control {
-                height: 36px;
-                font-size: 15px;
-                padding: 5px 8px;
-                font-weight: 600;
-            }
-
-            /* Compact card sections */
-            .card.bg-light,
-            .card.bg-white {
-                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            }
-
-            /* Beautiful Button Group for Discount Type */
-            .btn-group .btn {
-                padding: 0;
-                font-size: 14px;
-                height: 36px;
-                font-weight: 600;
-                transition: all 0.3s ease;
-                border: none !important;
-            }
-
-            .btn-group .btn:hover {
-                transform: translateY(-1px);
-                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-            }
-
-            .btn-group .btn.active {
-                background-color: #0d6efd !important;
-                color: white !important;
-                box-shadow: 0 2px 6px rgba(13, 110, 253, 0.3);
-            }
-
-            .btn-group .btn:not(.active) {
-                background-color: white;
-                color: #0d6efd;
-            }
-
-            .btn-group .btn:not(.active):hover {
-                background-color: #e7f1ff;
-            }
-
-            /* Input group text sizing */
-            .input-group-text {
-                font-size: 14px;
-                padding: 5px 10px;
-                height: 36px;
-                font-weight: 600;
-            }
-
-            /* Reduce input group margins */
-            .input-group {
-                height: 36px;
-            }
-
-            .input-group .form-control {
-                height: 36px;
-                font-size: 15px;
-                font-weight: 600;
-            }
-        }
-
-        /* Additional compact adjustments for standard desktop screens */
-        @media (min-width: 992px) and (max-width: 1399px) {
-            #billing-body tr td {
-                padding: 3px 4px !important;
-            }
-
-            #billing-body tr td:nth-child(2) img {
-                width: 35px !important;
-                height: 35px !important;
-            }
-
-            #billing-body tr td:nth-child(2) .product-name {
-                font-size: 12px;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="{{ asset('assets/css/pos_page_style/pos-main.css') }}">
 </head>
 
 <body>
@@ -2794,7 +53,6 @@
                             </button>
                         </div>
                     </div>
-
                     <!-- Desktop View: Two Columns -->
                     <div class="row align-items-center d-none d-md-flex" style="margin: 0; padding: 4px 6px;">
                         <!-- Location and Date Section -->
@@ -2869,7 +127,7 @@
                         <div class="col-md-6" style="padding: 0 6px;">
                             <div class="d-flex justify-content-end align-items-center" style="gap: 5px;">
                                 <button class="btn btn-secondary btn-sm"
-                                    onclick="window.location.href='{{ route('dashboard') }}'"
+                                    onclick="handleGoHome()"
                                     data-bs-toggle="tooltip" title="Go home">
                                     <i class="fas fa-home"></i>
                                 </button>
@@ -2979,46 +237,6 @@
             </div>
         </div>
 
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                // Sync location selects between mobile and desktop
-                const mobileSelect = document.getElementById('locationSelect');
-                const desktopSelect = document.getElementById('locationSelectDesktop');
-
-                if (mobileSelect && desktopSelect) {
-                    mobileSelect.addEventListener('change', function() {
-                        desktopSelect.value = this.value;
-                        $(desktopSelect).trigger('change');
-                    });
-
-                    desktopSelect.addEventListener('change', function() {
-                        mobileSelect.value = this.value;
-                        $(mobileSelect).trigger('change');
-                    });
-                }
-
-                function updateDateTime() {
-                    const now = new Date();
-                    const dateStr = now.getFullYear() + '-' + ('0' + (now.getMonth() + 1)).slice(-2) + '-' + ('0' + now
-                        .getDate()).slice(-2);
-                    const timeStr = ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2) + ':' +
-                        ('0' + now.getSeconds()).slice(-2);
-                    const dateBtn = document.getElementById('currentDateButton');
-                    const timeText = document.getElementById('currentTimeText');
-                    if (dateBtn) dateBtn.innerText = dateStr;
-                    if (timeText) timeText.innerText = timeStr;
-                }
-                setInterval(updateDateTime, 1000);
-                updateDateTime();
-
-                // Initialize popovers
-                const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
-                const popoverList = popoverTriggerList.map(function(popoverTriggerEl) {
-                    return new bootstrap.Popover(popoverTriggerEl);
-                });
-            });
-        </script>
-
         <!-- Mobile Menu Modal -->
         <div class="modal fade" id="mobileMenuModal" tabindex="-1" aria-labelledby="mobileMenuModalLabel">
             <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
@@ -3056,47 +274,28 @@
                         <div class="row g-3 p-3">
                             <!-- Row 1 -->
                             <div class="col-4">
-                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal"
-                                    data-bs-toggle="modal" data-bs-target="#recentTransactionsModal">
-                                    <div class="menu-icon bg-primary">
+                                <button type="button" class="menu-card w-100" 
+                                    data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#recentTransactionsModal">
+                                    <div class="menu-icon bg-secondary text-white">
                                         <i class="fas fa-clock"></i>
                                     </div>
                                     <span>Recent Transactions</span>
                                 </button>
-                            </div>
-                            <div class="col-4">
-                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal"
-                                    onclick="window.location.href='{{ url('sale-return') }}'">
-                                    <div class="menu-icon bg-success">
-                                        <i class="fas fa-undo"></i>
-                                    </div>
-                                    <span>Sell Return</span>
-                                </button>
-                            </div>
+                            </div>  
                             <div class="col-4">
                                 <button type="button" class="menu-card w-100" data-bs-dismiss="modal"
                                     data-bs-toggle="modal" data-bs-target="#suspendSalesModal">
-                                    <div class="menu-icon bg-secondary">
+                                    <div class="menu-icon bg-secondary text-white">
                                         <i class="fas fa-pause-circle"></i>
                                     </div>
                                     <span>Suspended Sales</span>
                                 </button>
                             </div>
 
-                            <!-- Row 2 -->
-                            <div class="col-4">
-                                <button type="button" class="menu-card w-100" data-bs-dismiss="modal"
-                                    onclick="window.location.href='{{ url('expense-add') }}'">
-                                    <div class="menu-icon bg-success">
-                                        <i class="fas fa-plus-circle"></i>
-                                    </div>
-                                    <span>Add Expense</span>
-                                </button>
-                            </div>
                             <div class="col-4">
                                 <button type="button" class="menu-card w-100" data-bs-dismiss="modal"
                                     onclick="handleGoBack()">
-                                    <div class="menu-icon bg-secondary">
+                                    <div class="menu-icon bg-secondary text-white">
                                         <i class="fas fa-backward"></i>
                                     </div>
                                     <span>Go Back</span>
@@ -3104,8 +303,8 @@
                             </div>
                             <div class="col-4">
                                 <button type="button" class="menu-card w-100" data-bs-dismiss="modal"
-                                    onclick="window.location.href='{{ route('dashboard') }}'">
-                                    <div class="menu-icon bg-info">
+                                    onclick="handleGoHome()">
+                                    <div class="menu-icon bg-info text-white">
                                         <i class="fas fa-home"></i>
                                     </div>
                                     <span>Go Home</span>
@@ -3116,7 +315,7 @@
                             <div class="col-4">
                                 <button type="button" class="menu-card w-100" data-bs-toggle="collapse"
                                     data-bs-target="#invoiceCollapse">
-                                    <div class="menu-icon bg-danger">
+                                    <div class="menu-icon bg-danger text-white">
                                         <i class="fas fa-redo-alt"></i>
                                     </div>
                                     <span>Invoice No</span>
@@ -3126,7 +325,7 @@
                                 <button type="button" class="menu-card w-100" data-bs-dismiss="modal"
                                     id="toggleProductListMobile"
                                     onclick="document.getElementById('toggleProductList').click()">
-                                    <div class="menu-icon bg-primary">
+                                    <div class="menu-icon bg-secondary text-white">
                                         <i class="fas fa-box-open"></i>
                                     </div>
                                     <span>Product List</span>
@@ -3135,13 +334,62 @@
                             <div class="col-4">
                                 <button type="button" class="menu-card w-100" data-bs-dismiss="modal"
                                     onclick="toggleFullScreen()">
-                                    <div class="menu-icon bg-warning">
+                                    <div class="menu-icon bg-warning text-white">
                                         <i class="fas fa-expand"></i>
                                     </div>
                                     <span>Full Screen</span>
                                 </button>
                             </div>
                         </div>
+
+                        <!-- Menu Card Styles -->
+                        <style>
+                            .menu-card {
+                                background: white;
+                                border: 1px solid #e0e0e0;
+                                border-radius: 12px;
+                                padding: 15px 10px;
+                                display: flex;
+                                flex-direction: column;
+                                align-items: center;
+                                gap: 8px;
+                                transition: all 0.3s ease;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                                min-height: 80px;
+                            }
+
+                            .menu-card:hover {
+                                transform: translateY(-2px);
+                                box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+                                border-color: #007bff;
+                            }
+
+                            .menu-icon {
+                                width: 40px;
+                                height: 40px;
+                                border-radius: 50%;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 16px;
+                            }
+
+                            .menu-icon i {
+                                font-size: 18px;
+                            }
+
+                            .menu-card span {
+                                font-size: 12px;
+                                font-weight: 500;
+                                text-align: center;
+                                line-height: 1.2;
+                                color: #333;
+                            }
+
+                            .menu-card:active {
+                                transform: scale(0.98);
+                            }
+                        </style>
 
                         <!-- Invoice Number Input (Collapsible) -->
                         <div class="collapse" id="invoiceCollapse">
@@ -3164,13 +412,7 @@
             </div>
         </div>
 
-        <script>
-            // Handle back navigation for POS system: always redirect to dashboard if no history
-            function handleGoBack() {
-                window.location.href = "{{ route('dashboard') }}";
-            }
-        </script>
-
+    
         <div class="row mt-1">
 
             <div class="container-fluid p-1">
@@ -3367,72 +609,49 @@
                     </div>
                 </div>
             </div>
+        </div>
 
-            <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    const fixedDiscountBtn = document.getElementById('fixed-discount-btn');
-                    const percentageDiscountBtn = document.getElementById('percentage-discount-btn');
-                    const discountInput = document.getElementById('global-discount');
-                    const discountIcon = document.getElementById('discount-icon');
-                    const discountTypeInput = document.getElementById('discount-type');
-                    const toggleProductListBtn = document.getElementById('toggleProductList');
-                    const productListArea = document.getElementById('productListArea');
-                    const mainContent = document.getElementById('mainContent');
-                    // Set default to fixed discount
-                    fixedDiscountBtn.classList.add('active');
-                    discountIcon.textContent = 'Rs';
-                    fixedDiscountBtn.addEventListener('click', function() {
-                        fixedDiscountBtn.classList.add('active');
-                        percentageDiscountBtn.classList.remove('active');
-                        discountIcon.textContent = 'Rs';
-                        discountTypeInput.value = 'fixed';
-                        // Don't reset the discount value - keep existing value
-                        // Trigger calculation update if updateTotals exists
-                        if (typeof updateTotals === 'function') {
-                            updateTotals();
-                        }
-                    });
-                    percentageDiscountBtn.addEventListener('click', function() {
-                        percentageDiscountBtn.classList.add('active');
-                        fixedDiscountBtn.classList.remove('active');
-                        discountIcon.textContent = '%';
-                        discountTypeInput.value = 'percentage';
-                        // Don't reset the discount value - keep existing value
-                        // Trigger calculation update if updateTotals exists
-                        if (typeof updateTotals === 'function') {
-                            updateTotals();
-                        }
-                    });
-                    // Toggle product list area visibility
-                    toggleProductListBtn.addEventListener('click', function() {
-                        if (productListArea.classList.contains('show')) {
-                            productListArea.classList.remove('show');
-                            productListArea.classList.add('d-none');
-                            mainContent.classList.remove('col-md-7');
-                            mainContent.classList.add('col-md-12');
-                        } else {
-                            productListArea.classList.remove('d-none');
-                            productListArea.classList.add('show');
-                            mainContent.classList.remove('col-md-12');
-                            mainContent.classList.add('col-md-7');
-                        }
-                    });
-                });
-            </script>
-            <style>
-                .btn-gradient {
-                    background: linear-gradient(85deg, #1e90ff, #1e90ff, #87cefa);
-                    border: none;
-                    color: white;
-                    transition: background 0.3s ease;
-                }
+         <!-- Offcanvas Category Menu -->
+        <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasCategory"
+            aria-labelledby="offcanvasCategoryLabel">
+            <div class="offcanvas-header">
+                <h5 class="offcanvas-title" id="offcanvasCategoryLabel">Categories</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body">
+                <div id="categoryContainer" class="category-container">
+                    <!-- Categories will be dynamically injected here -->
+                </div>
+            </div>
+        </div>
 
-                .btn-gradient:hover {
-                    background: linear-gradient(85deg, #1e90ff, #1e90ff);
-                    color: white;
-                }
-            </style>
+        <!-- Offcanvas Subcategory Menu -->
+        <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasSubcategory"
+            aria-labelledby="offcanvasSubcategoryLabel">
+            <div class="offcanvas-header">
+                <button type="button" class="btn btn-secondary" id="subcategoryBackBtn">Back</button>
+                <h5 class="offcanvas-title" id="offcanvasSubcategoryLabel">Subcategories</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body">
+                <div id="subcategoryContainer" class="subcategory-container">
+                    <!-- Subcategories will be dynamically injected here -->
+                </div>
+            </div>
+        </div>
 
+        <!-- Offcanvas Brand Menu -->
+        <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasBrand"
+            aria-labelledby="offcanvasBrandLabel">
+            <div class="offcanvas-header">
+                <h5 class="offcanvas-title" id="offcanvasBrandLabel">Brands</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body">
+                <div id="brandContainer" class="category-container">
+                    <!-- Brands will be dynamically injected here -->
+                </div>
+            </div>
         </div>
 
         <!-- Mobile/Tablet Bottom Fixed Button (Shows Final Total & Opens Payment Modal) -->
@@ -3623,115 +842,6 @@
             </div>
         </div>
 
-        <script>
-            // Mobile payment button handlers
-            document.addEventListener('DOMContentLoaded', function() {
-                // Update mobile totals when main totals change
-                function updateMobileTotals() {
-                    const finalTotal = document.getElementById('final-total-amount')?.textContent || '0.00';
-                    const itemsCount = document.getElementById('total-items-count')?.textContent || '0';
-
-                    document.getElementById('mobile-final-total').textContent = 'Rs ' + finalTotal;
-                    document.getElementById('modal-final-total').textContent = 'Rs ' + finalTotal;
-                    document.getElementById('mobile-items-count').textContent = itemsCount;
-                }
-
-                // Call update function periodically
-                setInterval(updateMobileTotals, 500);
-
-                // Mobile payment method buttons
-                document.querySelectorAll('.mobile-payment-btn').forEach(button => {
-                    button.addEventListener('click', function() {
-                        const paymentType = this.getAttribute('data-payment');
-
-                        switch (paymentType) {
-                            case 'cash':
-                                document.getElementById('cashButton')?.click();
-                                break;
-                            case 'card':
-                                document.getElementById('cardButton')?.click();
-                                break;
-                            case 'cheque':
-                                document.getElementById('chequeButton')?.click();
-                                break;
-                            case 'credit':
-                                document.getElementById('creditSaleButton')?.click();
-                                break;
-                        }
-                    });
-                });
-
-                // Mobile action buttons
-                document.querySelectorAll('.mobile-action-btn').forEach(button => {
-                    button.addEventListener('click', function() {
-                        const actionType = this.getAttribute('data-action');
-
-                        switch (actionType) {
-                            case 'draft':
-                                document.getElementById('draftButton')?.click();
-                                break;
-                            case 'sale-order':
-                                document.getElementById('saleOrderButton')?.click();
-                                break;
-                            case 'quotation':
-                                document.getElementById('quotationButton')?.click();
-                                break;
-                            case 'job-ticket':
-                                document.getElementById('jobTicketButton')?.click();
-                                break;
-                        }
-                    });
-                });
-
-                // Mobile cancel button
-                document.getElementById('mobile-cancel-button')?.addEventListener('click', function() {
-                    document.getElementById('cancelButton')?.click();
-                });
-            });
-        </script>
-
-        <!-- Offcanvas Category Menu -->
-        <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasCategory"
-            aria-labelledby="offcanvasCategoryLabel">
-            <div class="offcanvas-header">
-                <h5 class="offcanvas-title" id="offcanvasCategoryLabel">Categories</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-            </div>
-            <div class="offcanvas-body">
-                <div id="categoryContainer" class="category-container">
-                    <!-- Categories will be dynamically injected here -->
-                </div>
-            </div>
-        </div>
-
-        <!-- Offcanvas Subcategory Menu -->
-        <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasSubcategory"
-            aria-labelledby="offcanvasSubcategoryLabel">
-            <div class="offcanvas-header">
-                <button type="button" class="btn btn-secondary" id="subcategoryBackBtn">Back</button>
-                <h5 class="offcanvas-title" id="offcanvasSubcategoryLabel">Subcategories</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-            </div>
-            <div class="offcanvas-body">
-                <div id="subcategoryContainer" class="subcategory-container">
-                    <!-- Subcategories will be dynamically injected here -->
-                </div>
-            </div>
-        </div>
-
-        <!-- Offcanvas Brand Menu -->
-        <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasBrand"
-            aria-labelledby="offcanvasBrandLabel">
-            <div class="offcanvas-header">
-                <h5 class="offcanvas-title" id="offcanvasBrandLabel">Brands</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-            </div>
-            <div class="offcanvas-body">
-                <div id="brandContainer" class="category-container">
-                    <!-- Brands will be dynamically injected here -->
-                </div>
-            </div>
-        </div>
 
         <!-- Bottom Fixed Section (Hidden on Mobile/Tablet) -->
         <div class="bottom-fixed d-none d-xl-block">
@@ -3883,17 +993,6 @@
             </div>
         </div>
     </div>
-
-    <style>
-        .modal-body {
-            max-height: 70vh;
-            overflow-y: auto;
-        }
-
-        .table-responsive {
-            overflow-x: auto;
-        }
-    </style>
 
     <div class="modal fade" id="productModal" tabindex="-1" aria-labelledby="productModalLabel">
         <div class="modal-dialog modal-dialog-centered">
@@ -4112,7 +1211,6 @@
             </div>
         </div>
     </div>
-    </div>
 
     <!-- Card Payment Modal -->
     <div class="modal fade" id="cardModal" tabindex="-1" aria-labelledby="cardModalLabel">
@@ -4134,14 +1232,6 @@
                             <input type="text" class="form-control" name="card_holder_name"
                                 id="card_holder_name">
                         </div>
-                        {{-- <div class="col-md-6">
-                            <label for="cardType" class="form-label">Card Type</label>
-                            <select class="form-select" name="card_type" id="card_type">
-                                <option value="visa">Visa</option>
-                                <option value="mastercard">MasterCard</option>
-                                <option value="amex">American Express</option>
-                            </select>
-                        </div> --}}
                         <div class="col-md-6">
                             <label for="expiryMonth" class="form-label">Expiry Month</label>
                             <input type="text" class="form-control" name="card_expiry_month"
@@ -4300,228 +1390,7 @@
         </div>
     </div>
 
-    <script>
-        // Format amounts with commas
-        function formatAmountWithSeparators(amount) {
-            return new Intl.NumberFormat().format(amount);
-        }
-        // Parse formatted numbers back to float
-        function parseFormattedAmount(formattedAmount) {
-            return parseFloat(formattedAmount.replace(/,/g, ''));
-        }
-
-        // Format input field value with commas for better readability
-        function formatAmount(input) {
-            // Get the current value and remove any existing commas
-            let value = input.value.replace(/,/g, '');
-
-            // Only format if it's a valid number
-            if (value && !isNaN(value)) {
-                // Format with commas and update the input
-                input.value = formatAmountWithSeparators(parseFloat(value));
-            }
-        }
-
-        let totalPayable = 0;
-        document.getElementById('addPaymentRow').addEventListener('click', function() {
-            const paymentRows = document.getElementById('paymentRows');
-            const usedMethods = Array.from(document.querySelectorAll('.payment-method')).map(el => el.value);
-            const newPaymentRow = document.createElement('div');
-            newPaymentRow.className = 'card mb-3 payment-row position-relative';
-            newPaymentRow.innerHTML = `
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4">
-                        <label for="paymentMethod" class="form-label">Payment Method</label>
-                        <select class="form-select payment-method" name="payment_method" onchange="togglePaymentFields(this)">
-                            <option value="cash" ${!usedMethods.includes('cash') ? '' : 'disabled'}>Cash</option>
-                            <option value="card" ${!usedMethods.includes('card') ? '' : 'disabled'}>Credit Card</option>
-                            <option value="cheque" ${!usedMethods.includes('cheque') ? '' : 'disabled'}>Cheque</option>
-                            <option value="bank_transfer" ${!usedMethods.includes('bank_transfer') ? '' : 'disabled'}>Bank Transfer</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="paidOn" class="form-label">Paid On</label>
-                        <input class="form-control datetimepicker payment-date" type="text" name="payment_date"
-                               placeholder="DD-MM-YYYY" value="${moment().format('DD-MM-YYYY')}">
-                    </div>
-                    <div class="col-md-4">
-                        <label for="payAmount" class="form-label">Amount</label>
-                        <input type="text" class="form-control payment-amount" name="amount" oninput="validateAmount()">
-                        <div class="text-danger amount-error" style="display:none;">Enter valid amount</div>
-                    </div>
-                </div>
-                <div class="conditional-fields row mt-3"></div>
-            </div>
-            <button type="button" class="btn-close position-absolute top-0 end-0 mt-2 me-2 remove-payment-row" aria-label="Close"></button>
-        `;
-            paymentRows.appendChild(newPaymentRow);
-            // Initialize date pickers
-            initializeDateTimePickers();
-            // Remove button handler
-            newPaymentRow.querySelector('.remove-payment-row').addEventListener('click', function() {
-                this.closest('.payment-row').remove();
-                updatePaymentSummary();
-            });
-            togglePaymentFields(newPaymentRow.querySelector('.payment-method'));
-            updatePaymentSummary();
-        });
-
-        function togglePaymentFields(selectElement) {
-            const paymentMethod = selectElement.value;
-            const conditionalFields = selectElement.closest('.payment-row').querySelector('.conditional-fields');
-            conditionalFields.innerHTML = '';
-            if (paymentMethod === 'card') {
-                conditionalFields.innerHTML =
-                    `
-                <div class="col-md-6"><label class="form-label">Card Number</label><input class="form-control" name="card_number" required></div>
-                <div class="col-md-6"><label class="form-label">Card Holder Name</label><input class="form-control" name="card_holder_name"></div>
-                <div class="col-md-6"><label class="form-label">Card Type</label><select class="form-select" name="card_type">
-                    <option value="visa">Visa</option><option value="mastercard">MasterCard</option><option value="amex">American Express</option>
-                </select></div>
-                <div class="col-md-6"><label class="form-label">Expiry Month</label><input class="form-control" name="card_expiry_month"></div>
-                <div class="col-md-6"><label class="form-label">Expiry Year</label><input class="form-control" name="card_expiry_year"></div>
-                <div class="col-md-6"><label class="form-label">Security Code</label><input class="form-control" name="card_security_code"></div>`;
-            } else if (paymentMethod === 'cheque') {
-                conditionalFields.innerHTML =
-                    `
-                <div class="col-md-6"><label class="form-label">Cheque Number</label><input class="form-control" name="cheque_number" required></div>
-                <div class="col-md-6"><label class="form-label">Bank Branch</label><input class="form-control" name="cheque_bank_branch"></div>
-                <div class="col-md-6"><label class="form-label">Received Date</label><input class="form-control datetimepicker cheque-received-date" name="cheque_received_date"></div>
-                <div class="col-md-6"><label class="form-label">Valid Date</label><input class="form-control datetimepicker cheque-valid-date" name="cheque_valid_date"></div>
-                <div class="col-md-6"><label class="form-label">Given By</label><input class="form-control" name="cheque_given_by"></div>`;
-                initializeDateTimePickers();
-            } else if (paymentMethod === 'bank_transfer') {
-                conditionalFields.innerHTML =
-                    `
-                <div class="col-md-12"><label class="form-label">Bank Account Number</label><input class="form-control" name="bank_account_number"></div>`;
-            }
-        }
-
-        function validateAmount() {
-            const amountInputs = document.querySelectorAll('.payment-amount');
-            amountInputs.forEach(input => {
-                const amountError = input.nextElementSibling;
-                const val = parseFloat(input.value);
-                if (isNaN(val) || val <= 0) {
-                    amountError.style.display = 'block';
-                } else {
-                    amountError.style.display = 'none';
-                }
-            });
-            updatePaymentSummary();
-        }
-
-        function updatePaymentSummary() {
-            const totalItems = fetchTotalItems();
-            const totalAmount = fetchTotalAmount();
-            // Apply discount if any
-            const discount = parseFloat((document.getElementById('global-discount') && document.getElementById(
-                    'global-discount')
-                .value) || 0);
-            const discountType = (document.getElementById('discount-type') && document.getElementById('discount-type')
-                .value) || 'fixed';
-            totalPayable = discountType === 'percentage' ?
-                totalAmount - (totalAmount * discount / 100) :
-                totalAmount - discount;
-            let totalPaying = 0;
-            document.querySelectorAll('.payment-amount').forEach(input => {
-                totalPaying += parseFloat(input.value) || 0;
-            });
-            let changeReturn = Math.max(totalPaying - totalPayable, 0);
-            let balance = Math.max(totalPayable - totalPaying, 0);
-            document.getElementById('modal-total-items').textContent = totalItems.toFixed(2);
-            document.getElementById('modal-total-payable').textContent = formatAmountWithSeparators(totalPayable
-                .toFixed(
-                    2));
-            document.getElementById('modal-total-paying').textContent = formatAmountWithSeparators(totalPaying.toFixed(
-                2));
-            document.getElementById('modal-change-return').textContent = formatAmountWithSeparators(changeReturn
-                .toFixed(
-                    2));
-            document.getElementById('modal-balance').textContent = formatAmountWithSeparators(balance.toFixed(2));
-            // Disable add button if balance is zero
-            document.getElementById('addPaymentRow').disabled = (balance === 0 && totalPaying >= totalPayable);
-        }
-
-        function fetchTotalAmount() {
-            let total = 0;
-            document.querySelectorAll('#billing-body tr .subtotal').forEach(cell => {
-                total += parseFloat(cell.textContent.replace(/,/g, ''));
-            });
-            return total;
-        }
-
-        function fetchTotalItems() {
-            let count = 0;
-            document.querySelectorAll('#billing-body tr .quantity-input').forEach(input => {
-                count += parseInt(input.value) || 0;
-            });
-            return count;
-        }
-
-        function initializeDateTimePickers() {
-            $('.datetimepicker').datetimepicker({
-                format: 'DD-MM-YYYY',
-                useCurrent: false,
-                minDate: moment().startOf('day')
-            });
-            $('.cheque-received-date').datetimepicker({
-                format: 'DD-MM-YYYY'
-            });
-            $('.cheque-valid-date').datetimepicker({
-                format: 'DD-MM-YYYY',
-                minDate: moment().add(1, 'days')
-            });
-        }
-        document.getElementById('paymentModal').addEventListener('show.bs.modal', function() {
-            // Reset form
-            document.getElementById('paymentForm').reset();
-            document.getElementById('paymentRows').innerHTML = ''; // Clear all rows
-            // Set default first cash row
-            const totalAmount = fetchTotalAmount();
-            // Apply global discount to get the actual payable amount
-            const discount = parseFloat((document.getElementById('global-discount') && document.getElementById(
-                    'global-discount')
-                .value) || 0);
-            const discountType = (document.getElementById('discount-type') && document.getElementById(
-                    'discount-type')
-                .value) || 'fixed';
-            const defaultAmount = discountType === 'percentage' ?
-                totalAmount - (totalAmount * discount / 100) :
-                totalAmount - discount;
-            const defaultRow = document.createElement('div');
-            defaultRow.className = 'card mb-3 payment-row position-relative';
-            defaultRow.innerHTML = `
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4">
-                        <label class="form-label">Payment Method</label>
-                        <select class="form-select payment-method" name="payment_method" disabled onchange="togglePaymentFields(this)">
-                            <option value="cash" selected>Cash</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Paid On</label>
-                        <input class="form-control datetimepicker payment-date" type="text" name="payment_date"
-                               placeholder="DD-MM-YYYY" value="${moment().format('DD-MM-YYYY')}">
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Amount</label>
-                        <input type="text" class="form-control payment-amount" name="amount"
-                               value="${defaultAmount.toFixed(2)}" oninput="validateAmount()">
-                        <div class="text-danger amount-error" style="display:none;"></div>
-                    </div>
-                </div>
-                <div class="conditional-fields row mt-3"></div>
-            </div>
-        `;
-            document.getElementById('paymentRows').appendChild(defaultRow);
-            initializeDateTimePickers();
-            updatePaymentSummary();
-        });
-    </script>
-
+    
     <!-- Modal -->
     <div class="modal fade" id="jobTicketModal" tabindex="-1" aria-labelledby="jobTicketModalLabel">
         <div class="modal-dialog modal-lg">
@@ -4631,25 +1500,7 @@
             </div>
         </div>
     </div>
-    <style>
-        #jobTicketModal .form-label {
-            font-weight: 500;
-        }
-
-        #jobTicketModal input[readonly],
-        #jobTicketModal textarea[readonly] {
-            background: #f8f9fa;
-        }
-
-        #jobTicketModal input,
-        #jobTicketModal textarea {
-            font-size: 13px;
-        }
-
-        #jobTicketModal .modal-content {
-            border-radius: 10px;
-        }
-    </style>
+    
     <!-- Batch Price Selection Modal -->
     <div class="modal fade" id="batchPriceModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -4679,158 +1530,576 @@
     </div>
 
     <!-- JavaScript for Calculator Functionality -->
-    <script>
-        function calcInput(value) {
-            document.getElementById('calcDisplay').value += value;
-        }
-
-        function clearCalc() {
-            document.getElementById('calcDisplay').value = '';
-        }
-
-        function calculateResult() {
-            try {
-                document.getElementById('calcDisplay').value = eval(document.getElementById('calcDisplay').value);
-            } catch (e) {
-                document.getElementById('calcDisplay').value = 'Error';
-            }
-        }
-        // Prevent dropdown from closing when clicking inside
-        document.getElementById('calculatorDropdown').addEventListener('click', function(event) {
-            event.stopPropagation();
-        });
-        // Handle keyboard input, allowing only numbers and operators
-        function handleKeyboardInput(event) {
-            const allowedKeys = "0123456789+-*/.";
-            if (!allowedKeys.includes(event.key) && event.key !== "Backspace" && event.key !== "Enter") {
-                event.preventDefault();
-            }
-            if (event.key === "Enter") {
-                calculateResult();
-            }
-        }
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM Content Loaded - Invoice functionality initializing');
-
-            // Check if required libraries are loaded
-            if (typeof $ === 'undefined') {
-                console.error('jQuery is not loaded');
-            }
-            if (typeof toastr === 'undefined') {
-                console.error('Toastr is not loaded');
+        <script>
+            function calcInput(value) {
+                document.getElementById('calcDisplay').value += value;
             }
 
-            function handleInvoiceSubmission() {
-                console.log('handleInvoiceSubmission called');
-                const invoiceInput = document.getElementById('invoiceNo');
-                if (!invoiceInput) {
-                    console.error('Invoice input not found');
-                    return;
-                }
+            function clearCalc() {
+                document.getElementById('calcDisplay').value = '';
+            }
 
-                const invoiceNo = invoiceInput.value.trim();
-                console.log('Invoice number entered:', invoiceNo);
-
-                if (invoiceNo) {
-                    // Fetch sales data from the API
-                    $.ajax({
-                        url: '/sales',
-                        method: 'GET',
-                        success: function(data) {
-                            console.log('Sales data received:', data);
-
-                            // Check if data has the expected structure
-                            if (!data.sales || !Array.isArray(data.sales)) {
-                                console.error('Invalid sales data structure:', data);
-                                if (typeof toastr !== 'undefined') {
-                                    toastr.error('Invalid sales data received.');
-                                } else {
-                                    alert('Invalid sales data received.');
-                                }
-                                return;
-                            }
-
-                            // Check if the entered invoice number matches any sales data
-                            const sale = data.sales.find(sale => sale.invoice_no.toLowerCase() ===
-                                invoiceNo.toLowerCase());
-                            console.log('Found sale:', sale);
-
-                            if (sale) {
-                                console.log('Redirecting to sale return page');
-                                // Redirect to the sale return page with the invoice number as a query parameter
-                                window.location.href =
-                                    `/sale-return/add?invoiceNo=${encodeURIComponent(invoiceNo)}`;
-                            } else {
-                                console.log('Sale not found for invoice:', invoiceNo);
-                                // Show toastr message indicating sale not found
-                                if (typeof toastr !== 'undefined') {
-                                    toastr.error(
-                                        'Sale not found. Please enter a valid invoice number.');
-                                } else {
-                                    alert('Sale not found. Please enter a valid invoice number.');
-                                }
-                            }
-                        },
-                        error: function(xhr, status, error) {
-                            console.error('Error fetching sales data:', xhr.responseText);
-                            toastr.error('An error occurred while fetching sales data.');
-                        }
-                    });
-                } else {
-                    toastr.warning('Please enter an invoice number');
+            function calculateResult() {
+                try {
+                    document.getElementById('calcDisplay').value = eval(document.getElementById('calcDisplay').value);
+                } catch (e) {
+                    document.getElementById('calcDisplay').value = 'Error';
                 }
             }
-
-            // Function to handle invoice submission from mobile menu
-            window.submitInvoiceNo = function() {
-                const mobileInvoiceInput = document.getElementById('invoiceNoMobile');
-                if (mobileInvoiceInput && mobileInvoiceInput.value.trim() !== '') {
-                    document.getElementById('invoiceNo').value = mobileInvoiceInput.value;
-                    handleInvoiceSubmission();
-                    // Close the modal and collapse
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('mobileMenuModal'));
-                    if (modal) modal.hide();
-                    const collapse = bootstrap.Collapse.getInstance(document.getElementById('invoiceCollapse'));
-                    if (collapse) collapse.hide();
-                }
-            };
-
-            // Capture the Submit button click using specific ID
-            const submitButton = document.getElementById('invoiceSubmitBtn');
-            if (submitButton) {
-                submitButton.addEventListener('click', function(event) {
+            // Prevent dropdown from closing when clicking inside
+            document.getElementById('calculatorDropdown').addEventListener('click', function(event) {
+                event.stopPropagation();
+            });
+            // Handle keyboard input, allowing only numbers and operators
+            function handleKeyboardInput(event) {
+                const allowedKeys = "0123456789+-*/.";
+                if (!allowedKeys.includes(event.key) && event.key !== "Backspace" && event.key !== "Enter") {
                     event.preventDefault();
-                    handleInvoiceSubmission();
-                });
-                console.log('Submit button event listener attached');
-            } else {
-                console.error('Submit button for invoice not found');
+                }
+                if (event.key === "Enter") {
+                    calculateResult();
+                }
             }
+            document.addEventListener('DOMContentLoaded', function() {
+                console.log('DOM Content Loaded - Invoice functionality initializing');
 
-            // Capture the Enter key press in the input field
-            const invoiceInput = document.getElementById('invoiceNo');
-            if (invoiceInput) {
-                invoiceInput.addEventListener('keydown', function(event) {
-                    if (event.key === 'Enter') {
+                // Check if required libraries are loaded
+                if (typeof $ === 'undefined') {
+                    console.error('jQuery is not loaded');
+                }
+                if (typeof toastr === 'undefined') {
+                    console.error('Toastr is not loaded');
+                }
+
+                function handleInvoiceSubmission() {
+                    console.log('handleInvoiceSubmission called');
+                    const invoiceInput = document.getElementById('invoiceNo');
+                    if (!invoiceInput) {
+                        console.error('Invoice input not found');
+                        return;
+                    }
+
+                    const invoiceNo = invoiceInput.value.trim();
+                    console.log('Invoice number entered:', invoiceNo);
+
+                    if (invoiceNo) {
+                        // Fetch sales data from the API
+                        $.ajax({
+                            url: '/sales',
+                            method: 'GET',
+                            success: function(data) {
+                                console.log('Sales data received:', data);
+
+                                // Check if data has the expected structure
+                                if (!data.sales || !Array.isArray(data.sales)) {
+                                    console.error('Invalid sales data structure:', data);
+                                    if (typeof toastr !== 'undefined') {
+                                        toastr.error('Invalid sales data received.');
+                                    } else {
+                                        alert('Invalid sales data received.');
+                                    }
+                                    return;
+                                }
+
+                                // Check if the entered invoice number matches any sales data
+                                const sale = data.sales.find(sale => sale.invoice_no.toLowerCase() ===
+                                    invoiceNo.toLowerCase());
+                                console.log('Found sale:', sale);
+
+                                if (sale) {
+                                    console.log('Redirecting to sale return page');
+                                    // Redirect to the sale return page with the invoice number as a query parameter
+                                    window.location.href =
+                                        `/sale-return/add?invoiceNo=${encodeURIComponent(invoiceNo)}`;
+                                } else {
+                                    console.log('Sale not found for invoice:', invoiceNo);
+                                    // Show toastr message indicating sale not found
+                                    if (typeof toastr !== 'undefined') {
+                                        toastr.error(
+                                            'Sale not found. Please enter a valid invoice number.');
+                                    } else {
+                                        alert('Sale not found. Please enter a valid invoice number.');
+                                    }
+                                }
+                            },
+                            error: function(xhr, status, error) {
+                                console.error('Error fetching sales data:', xhr.responseText);
+                                toastr.error('An error occurred while fetching sales data.');
+                            }
+                        });
+                    } else {
+                        toastr.warning('Please enter an invoice number');
+                    }
+                }
+
+                // Function to handle invoice submission from mobile menu
+                window.submitInvoiceNo = function() {
+                    const mobileInvoiceInput = document.getElementById('invoiceNoMobile');
+                    if (mobileInvoiceInput && mobileInvoiceInput.value.trim() !== '') {
+                        document.getElementById('invoiceNo').value = mobileInvoiceInput.value;
+                        handleInvoiceSubmission();
+                        // Close the modal and collapse
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('mobileMenuModal'));
+                        if (modal) modal.hide();
+                        const collapse = bootstrap.Collapse.getInstance(document.getElementById('invoiceCollapse'));
+                        if (collapse) collapse.hide();
+                    }
+                };
+
+                // Capture the Submit button click using specific ID
+                const submitButton = document.getElementById('invoiceSubmitBtn');
+                if (submitButton) {
+                    submitButton.addEventListener('click', function(event) {
                         event.preventDefault();
                         handleInvoiceSubmission();
-                    }
+                    });
+                    console.log('Submit button event listener attached');
+                } else {
+                    console.error('Submit button for invoice not found');
+                }
+
+                // Capture the Enter key press in the input field
+                const invoiceInput = document.getElementById('invoiceNo');
+                if (invoiceInput) {
+                    invoiceInput.addEventListener('keydown', function(event) {
+                        if (event.key === 'Enter') {
+                            event.preventDefault();
+                            handleInvoiceSubmission();
+                        }
+                    });
+                }
+
+                // Mobile invoice input Enter key
+                const mobileInvoiceInput = document.getElementById('invoiceNoMobile');
+                if (mobileInvoiceInput) {
+                    mobileInvoiceInput.addEventListener('keydown', function(event) {
+                        if (event.key === 'Enter') {
+                            event.preventDefault();
+                            window.submitInvoiceNo();
+                        }
+                    });
+                }
+            });
+        </script>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // Sync location selects between mobile and desktop
+                const mobileSelect = document.getElementById('locationSelect');
+                const desktopSelect = document.getElementById('locationSelectDesktop');
+
+                if (mobileSelect && desktopSelect) {
+                    mobileSelect.addEventListener('change', function() {
+                        desktopSelect.value = this.value;
+                        $(desktopSelect).trigger('change');
+                    });
+
+                    desktopSelect.addEventListener('change', function() {
+                        mobileSelect.value = this.value;
+                        $(mobileSelect).trigger('change');
+                    });
+                }
+
+                function updateDateTime() {
+                    const now = new Date();
+                    const dateStr = now.getFullYear() + '-' + ('0' + (now.getMonth() + 1)).slice(-2) + '-' + ('0' + now
+                        .getDate()).slice(-2);
+                    const timeStr = ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2) + ':' +
+                        ('0' + now.getSeconds()).slice(-2);
+                    const dateBtn = document.getElementById('currentDateButton');
+                    const timeText = document.getElementById('currentTimeText');
+                    if (dateBtn) dateBtn.innerText = dateStr;
+                    if (timeText) timeText.innerText = timeStr;
+                }
+                setInterval(updateDateTime, 1000);
+                updateDateTime();
+
+                // Initialize popovers
+                const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+                const popoverList = popoverTriggerList.map(function(popoverTriggerEl) {
+                    return new bootstrap.Popover(popoverTriggerEl);
                 });
+            });
+        </script>
+        <script>
+                // Handle back navigation for POS system: go to previous page or dashboard if no history
+                function handleGoBack() {
+                    // Check if there's a previous page in browser history
+                    if (window.history.length > 1 && document.referrer) {
+                        // Go back to previous page
+                        window.history.back();
+                    } else {
+                        // No previous page, redirect to dashboard as fallback
+                        window.location.href = "{{ route('dashboard') }}";
+                    }
+                }
+
+                // Function to go directly to dashboard (for Go Home button)
+                function handleGoHome() {
+                    window.location.href = "{{ route('dashboard') }}";
+                }
+            </script>
+            <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const fixedDiscountBtn = document.getElementById('fixed-discount-btn');
+                        const percentageDiscountBtn = document.getElementById('percentage-discount-btn');
+                        const discountInput = document.getElementById('global-discount');
+                        const discountIcon = document.getElementById('discount-icon');
+                        const discountTypeInput = document.getElementById('discount-type');
+                        const toggleProductListBtn = document.getElementById('toggleProductList');
+                        const productListArea = document.getElementById('productListArea');
+                        const mainContent = document.getElementById('mainContent');
+                        // Set default to fixed discount
+                        fixedDiscountBtn.classList.add('active');
+                        discountIcon.textContent = 'Rs';
+                        fixedDiscountBtn.addEventListener('click', function() {
+                            fixedDiscountBtn.classList.add('active');
+                            percentageDiscountBtn.classList.remove('active');
+                            discountIcon.textContent = 'Rs';
+                            discountTypeInput.value = 'fixed';
+                            // Clear the discount value when switching discount type
+                            discountInput.value = '0';
+                            // Trigger input event to ensure proper recalculation
+                            discountInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            discountInput.dispatchEvent(new Event('change', { bubbles: true }));
+                            // Trigger calculation update if updateTotals exists
+                            if (typeof updateTotals === 'function') {
+                                updateTotals();
+                            }
+                        });
+                        percentageDiscountBtn.addEventListener('click', function() {
+                            percentageDiscountBtn.classList.add('active');
+                            fixedDiscountBtn.classList.remove('active');
+                            discountIcon.textContent = '%';
+                            discountTypeInput.value = 'percentage';
+                            // Clear the discount value when switching discount type
+                            discountInput.value = '0';
+                            // Trigger input event to ensure proper recalculation
+                            discountInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            discountInput.dispatchEvent(new Event('change', { bubbles: true }));
+                            // Trigger calculation update if updateTotals exists
+                            if (typeof updateTotals === 'function') {
+                                updateTotals();
+                            }
+                        });
+                        // Toggle product list area visibility
+                        toggleProductListBtn.addEventListener('click', function() {
+                            if (productListArea.classList.contains('show')) {
+                                productListArea.classList.remove('show');
+                                productListArea.classList.add('d-none');
+                                mainContent.classList.remove('col-md-7');
+                                mainContent.classList.add('col-md-12');
+                            } else {
+                                productListArea.classList.remove('d-none');
+                                productListArea.classList.add('show');
+                                mainContent.classList.remove('col-md-12');
+                                mainContent.classList.add('col-md-7');
+                            }
+                        });
+                    });
+                </script>
+
+                <script>
+            // Format amounts with commas
+            function formatAmountWithSeparators(amount) {
+                return new Intl.NumberFormat().format(amount);
+            }
+            // Parse formatted numbers back to float
+            function parseFormattedAmount(formattedAmount) {
+                return parseFloat(formattedAmount.replace(/,/g, ''));
             }
 
-            // Mobile invoice input Enter key
-            const mobileInvoiceInput = document.getElementById('invoiceNoMobile');
-            if (mobileInvoiceInput) {
-                mobileInvoiceInput.addEventListener('keydown', function(event) {
-                    if (event.key === 'Enter') {
-                        event.preventDefault();
-                        window.submitInvoiceNo();
+            // Format input field value with commas for better readability
+            function formatAmount(input) {
+                // Get the current value and remove any existing commas
+                let value = input.value.replace(/,/g, '');
+
+                // Only format if it's a valid number
+                if (value && !isNaN(value)) {
+                    // Format with commas and update the input
+                    input.value = formatAmountWithSeparators(parseFloat(value));
+                }
+            }
+
+            let totalPayable = 0;
+            document.getElementById('addPaymentRow').addEventListener('click', function() {
+                const paymentRows = document.getElementById('paymentRows');
+                const usedMethods = Array.from(document.querySelectorAll('.payment-method')).map(el => el.value);
+                const newPaymentRow = document.createElement('div');
+                newPaymentRow.className = 'card mb-3 payment-row position-relative';
+                newPaymentRow.innerHTML = `
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label for="paymentMethod" class="form-label">Payment Method</label>
+                            <select class="form-select payment-method" name="payment_method" onchange="togglePaymentFields(this)">
+                                <option value="cash" ${!usedMethods.includes('cash') ? '' : 'disabled'}>Cash</option>
+                                <option value="card" ${!usedMethods.includes('card') ? '' : 'disabled'}>Credit Card</option>
+                                <option value="cheque" ${!usedMethods.includes('cheque') ? '' : 'disabled'}>Cheque</option>
+                                <option value="bank_transfer" ${!usedMethods.includes('bank_transfer') ? '' : 'disabled'}>Bank Transfer</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="paidOn" class="form-label">Paid On</label>
+                            <input class="form-control datetimepicker payment-date" type="text" name="payment_date"
+                                placeholder="DD-MM-YYYY" value="${moment().format('DD-MM-YYYY')}">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="payAmount" class="form-label">Amount</label>
+                            <input type="text" class="form-control payment-amount" name="amount" oninput="validateAmount()">
+                            <div class="text-danger amount-error" style="display:none;">Enter valid amount</div>
+                        </div>
+                    </div>
+                    <div class="conditional-fields row mt-3"></div>
+                </div>
+                <button type="button" class="btn-close position-absolute top-0 end-0 mt-2 me-2 remove-payment-row" aria-label="Close"></button>
+            `;
+                paymentRows.appendChild(newPaymentRow);
+                // Initialize date pickers
+                initializeDateTimePickers();
+                // Remove button handler
+                newPaymentRow.querySelector('.remove-payment-row').addEventListener('click', function() {
+                    this.closest('.payment-row').remove();
+                    updatePaymentSummary();
+                });
+                togglePaymentFields(newPaymentRow.querySelector('.payment-method'));
+                updatePaymentSummary();
+            });
+
+            function togglePaymentFields(selectElement) {
+                const paymentMethod = selectElement.value;
+                const conditionalFields = selectElement.closest('.payment-row').querySelector('.conditional-fields');
+                conditionalFields.innerHTML = '';
+                if (paymentMethod === 'card') {
+                    conditionalFields.innerHTML =
+                        `
+                    <div class="col-md-6"><label class="form-label">Card Number</label><input class="form-control" name="card_number" required></div>
+                    <div class="col-md-6"><label class="form-label">Card Holder Name</label><input class="form-control" name="card_holder_name"></div>
+                    <div class="col-md-6"><label class="form-label">Card Type</label><select class="form-select" name="card_type">
+                        <option value="visa">Visa</option><option value="mastercard">MasterCard</option><option value="amex">American Express</option>
+                    </select></div>
+                    <div class="col-md-6"><label class="form-label">Expiry Month</label><input class="form-control" name="card_expiry_month"></div>
+                    <div class="col-md-6"><label class="form-label">Expiry Year</label><input class="form-control" name="card_expiry_year"></div>
+                    <div class="col-md-6"><label class="form-label">Security Code</label><input class="form-control" name="card_security_code"></div>`;
+                } else if (paymentMethod === 'cheque') {
+                    conditionalFields.innerHTML =
+                        `
+                    <div class="col-md-6"><label class="form-label">Cheque Number</label><input class="form-control" name="cheque_number" required></div>
+                    <div class="col-md-6"><label class="form-label">Bank Branch</label><input class="form-control" name="cheque_bank_branch"></div>
+                    <div class="col-md-6"><label class="form-label">Received Date</label><input class="form-control datetimepicker cheque-received-date" name="cheque_received_date"></div>
+                    <div class="col-md-6"><label class="form-label">Valid Date</label><input class="form-control datetimepicker cheque-valid-date" name="cheque_valid_date"></div>
+                    <div class="col-md-6"><label class="form-label">Given By</label><input class="form-control" name="cheque_given_by"></div>`;
+                    initializeDateTimePickers();
+                } else if (paymentMethod === 'bank_transfer') {
+                    conditionalFields.innerHTML =
+                        `
+                    <div class="col-md-12"><label class="form-label">Bank Account Number</label><input class="form-control" name="bank_account_number"></div>`;
+                }
+            }
+
+            function validateAmount() {
+                const amountInputs = document.querySelectorAll('.payment-amount');
+                amountInputs.forEach(input => {
+                    const amountError = input.nextElementSibling;
+                    const val = parseFloat(input.value);
+                    if (isNaN(val) || val <= 0) {
+                        amountError.style.display = 'block';
+                    } else {
+                        amountError.style.display = 'none';
                     }
                 });
+                updatePaymentSummary();
             }
-        });
-    </script>
 
+            function updatePaymentSummary() {
+                const totalItems = fetchTotalItems();
+                const totalAmount = fetchTotalAmount();
+                // Apply discount if any
+                const discount = parseFloat((document.getElementById('global-discount') && document.getElementById(
+                        'global-discount')
+                    .value) || 0);
+                const discountType = (document.getElementById('discount-type') && document.getElementById('discount-type')
+                    .value) || 'fixed';
+                totalPayable = discountType === 'percentage' ?
+                    totalAmount - (totalAmount * discount / 100) :
+                    totalAmount - discount;
+                let totalPaying = 0;
+                document.querySelectorAll('.payment-amount').forEach(input => {
+                    totalPaying += parseFloat(input.value) || 0;
+                });
+                let changeReturn = Math.max(totalPaying - totalPayable, 0);
+                let balance = Math.max(totalPayable - totalPaying, 0);
+                document.getElementById('modal-total-items').textContent = totalItems.toFixed(2);
+                document.getElementById('modal-total-payable').textContent = formatAmountWithSeparators(totalPayable
+                    .toFixed(
+                        2));
+                document.getElementById('modal-total-paying').textContent = formatAmountWithSeparators(totalPaying.toFixed(
+                    2));
+                document.getElementById('modal-change-return').textContent = formatAmountWithSeparators(changeReturn
+                    .toFixed(
+                        2));
+                document.getElementById('modal-balance').textContent = formatAmountWithSeparators(balance.toFixed(2));
+                // Disable add button if balance is zero
+                document.getElementById('addPaymentRow').disabled = (balance === 0 && totalPaying >= totalPayable);
+            }
+
+            function fetchTotalAmount() {
+                let total = 0;
+                document.querySelectorAll('#billing-body tr .subtotal').forEach(cell => {
+                    total += parseFloat(cell.textContent.replace(/,/g, ''));
+                });
+                return total;
+            }
+
+            function fetchTotalItems() {
+                let count = 0;
+                document.querySelectorAll('#billing-body tr .quantity-input').forEach(input => {
+                    count += parseInt(input.value) || 0;
+                });
+                return count;
+            }
+
+            function initializeDateTimePickers() {
+                $('.datetimepicker').datetimepicker({
+                    format: 'DD-MM-YYYY',
+                    useCurrent: false,
+                    minDate: moment().startOf('day')
+                });
+                $('.cheque-received-date').datetimepicker({
+                    format: 'DD-MM-YYYY'
+                });
+                $('.cheque-valid-date').datetimepicker({
+                    format: 'DD-MM-YYYY',
+                    minDate: moment().add(1, 'days')
+                });
+            }
+            document.getElementById('paymentModal').addEventListener('show.bs.modal', function() {
+                // Reset form
+                document.getElementById('paymentForm').reset();
+                document.getElementById('paymentRows').innerHTML = ''; // Clear all rows
+                // Set default first cash row
+                const totalAmount = fetchTotalAmount();
+                // Apply global discount to get the actual payable amount
+                const discount = parseFloat((document.getElementById('global-discount') && document.getElementById(
+                        'global-discount')
+                    .value) || 0);
+                const discountType = (document.getElementById('discount-type') && document.getElementById(
+                        'discount-type')
+                    .value) || 'fixed';
+                const defaultAmount = discountType === 'percentage' ?
+                    totalAmount - (totalAmount * discount / 100) :
+                    totalAmount - discount;
+                const defaultRow = document.createElement('div');
+                defaultRow.className = 'card mb-3 payment-row position-relative';
+                defaultRow.innerHTML = `
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label class="form-label">Payment Method</label>
+                            <select class="form-select payment-method" name="payment_method" disabled onchange="togglePaymentFields(this)">
+                                <option value="cash" selected>Cash</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Paid On</label>
+                            <input class="form-control datetimepicker payment-date" type="text" name="payment_date"
+                                placeholder="DD-MM-YYYY" value="${moment().format('DD-MM-YYYY')}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Amount</label>
+                            <input type="text" class="form-control payment-amount" name="amount"
+                                value="${defaultAmount.toFixed(2)}" oninput="validateAmount()">
+                            <div class="text-danger amount-error" style="display:none;"></div>
+                        </div>
+                    </div>
+                    <div class="conditional-fields row mt-3"></div>
+                </div>
+            `;
+                document.getElementById('paymentRows').appendChild(defaultRow);
+                initializeDateTimePickers();
+                updatePaymentSummary();
+            });
+        </script>
+
+         <script>
+            // Mobile payment button handlers
+            document.addEventListener('DOMContentLoaded', function() {
+                // Update mobile totals when main totals change
+                function updateMobileTotals() {
+                    const finalTotal = document.getElementById('final-total-amount')?.textContent || '0.00';
+                    const itemsCount = document.getElementById('total-items-count')?.textContent || '0';
+
+                    // Update mobile final total with null check
+                    const mobileFinalTotalEl = document.getElementById('mobile-final-total');
+                    if (mobileFinalTotalEl) {
+                        mobileFinalTotalEl.textContent = 'Rs ' + finalTotal;
+                    }
+
+                    // Update modal final total with null check
+                    const modalFinalTotalEl = document.getElementById('modal-final-total');
+                    if (modalFinalTotalEl) {
+                        modalFinalTotalEl.textContent = 'Rs ' + finalTotal;
+                    }
+
+                    // Update mobile items count with null check
+                    const mobileItemsCountEl = document.getElementById('mobile-items-count');
+                    if (mobileItemsCountEl) {
+                        mobileItemsCountEl.textContent = itemsCount;
+                    }
+                }
+
+                // Call update function periodically
+                setInterval(updateMobileTotals, 500);
+
+                // Mobile payment method buttons
+                document.querySelectorAll('.mobile-payment-btn').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const paymentType = this.getAttribute('data-payment');
+
+                        switch (paymentType) {
+                            case 'cash':
+                                document.getElementById('cashButton')?.click();
+                                break;
+                            case 'card':
+                                document.getElementById('cardButton')?.click();
+                                break;
+                            case 'cheque':
+                                document.getElementById('chequeButton')?.click();
+                                break;
+                            case 'credit':
+                                document.getElementById('creditSaleButton')?.click();
+                                break;
+                        }
+                    });
+                });
+
+                // Mobile action buttons
+                document.querySelectorAll('.mobile-action-btn').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const actionType = this.getAttribute('data-action');
+
+                        switch (actionType) {
+                            case 'draft':
+                                document.getElementById('draftButton')?.click();
+                                break;
+                            case 'sale-order':
+                                document.getElementById('saleOrderButton')?.click();
+                                break;
+                            case 'quotation':
+                                document.getElementById('quotationButton')?.click();
+                                break;
+                            case 'job-ticket':
+                                document.getElementById('jobTicketButton')?.click();
+                                break;
+                        }
+                    });
+                });
+
+                // Mobile cancel button
+                document.getElementById('mobile-cancel-button')?.addEventListener('click', function() {
+                    document.getElementById('cancelButton')?.click();
+                });
+            });
+        </script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.js"></script>
 

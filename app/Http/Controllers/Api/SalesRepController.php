@@ -810,7 +810,25 @@ class SalesRepController extends Controller
                 ], 403);
             }
 
-            // Get all active sales rep assignments for this user
+            // Get all sales rep assignments for this user (including potentially expired ones)
+            $allAssignments = SalesRep::where('user_id', $user->id)
+                ->where('status', '!=', SalesRep::STATUS_CANCELLED)
+                ->get();
+
+            // Update each assignment's status based on current dates
+            $updatedCount = 0;
+            foreach ($allAssignments as $assignment) {
+                if ($assignment->updateStatusByDate()) {
+                    $updatedCount++;
+                }
+            }
+
+            // Log if any assignments were updated
+            if ($updatedCount > 0) {
+                Log::info("Updated {$updatedCount} sales rep assignment statuses for user {$user->id} based on current dates");
+            }
+
+            // Now get only active assignments with relationships
             $assignments = SalesRep::where('user_id', $user->id)
                 ->where('status', 'active')
                 ->with([

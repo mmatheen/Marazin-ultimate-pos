@@ -24,6 +24,12 @@ class Kernel extends ConsoleKernel
 
          // after 11PM backup
         $schedule->command('backup:clean')->dailyAt('23:00')->timezone('Asia/Colombo');
+
+        // Update sales rep assignment statuses based on dates (runs every hour)
+        $schedule->command('sales-rep:update-status')->hourly()->timezone('Asia/Colombo');
+        
+        // Alternative: run it every day at midnight
+        // $schedule->command('sales-rep:update-status')->dailyAt('00:01')->timezone('Asia/Colombo');
     }
 
     /**
