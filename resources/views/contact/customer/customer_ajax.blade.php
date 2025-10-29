@@ -374,7 +374,7 @@
                     }
                 },
                 error: function(xhr, status, error) {
-                    console.error('Error fetching cities:', error, xhr.responseText);
+                    console.error('Error fetching cities:', error);
                 }
             });
         }

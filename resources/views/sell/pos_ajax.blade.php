@@ -1615,30 +1615,45 @@
         }
 
         // Safe fetch function with error handling
-        function safeFetchJson(url) {
-            return fetch(url).then(res => {
+        function safeFetchJson(url, options = {}) {
+            // Add default headers if not provided
+            const defaultOptions = {
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                },
+                ...options
+            };
+            
+            return fetch(url, defaultOptions).then(res => {
                 if (!res.ok) {
                     if (res.status === 429) {
                         const retryAfter = parseInt(res.headers.get('Retry-After') || '2', 10) * 1000;
+                        console.warn(`Rate limited on ${url}. Retry after ${retryAfter}ms`);
                         return Promise.reject({ 
                             status: 429, 
                             retryAfter,
-                            message: 'Rate limited'
+                            message: `Rate limited. Please wait ${Math.ceil(retryAfter/1000)} seconds.`
                         });
                     }
                     return res.text().then(text => Promise.reject({ 
                         status: res.status, 
                         text,
-                        message: `HTTP ${res.status}`
+                        message: `HTTP ${res.status}: ${res.statusText}`
                     }));
                 }
                 
                 const contentType = res.headers.get('content-type') || '';
                 if (contentType.indexOf('application/json') === -1) {
-                    return res.text().then(text => Promise.reject({ 
-                        text,
-                        message: 'Non-JSON response'
-                    }));
+                    return res.text().then(text => {
+                        console.warn('Non-JSON response received:', text.substring(0, 200));
+                        return Promise.reject({ 
+                            text,
+                            message: 'Server returned non-JSON response. Please check server configuration.'
+                        });
+                    });
                 }
                 
                 return res.json();
@@ -1944,7 +1959,12 @@
             }, 300);
         }
 
-        function fetchPaginatedProducts(reset = false) {
+        // Request retry tracking
+        let retryCount = 0;
+        const maxRetries = 3;
+        const baseRetryDelay = 1000; // 1 second base delay
+
+        function fetchPaginatedProducts(reset = false, attemptNumber = 0) {
             // Basic guards
             if (isLoadingProducts || !selectedLocationId || !hasMoreProducts) return;
             
@@ -1953,6 +1973,7 @@
             
             if (reset) {
                 currentProductsPage = 1;
+                retryCount = 0; // Reset retry count on fresh fetch
                 showLoader();
             } else {
                 // Show smaller loader for subsequent pages (if function exists)
@@ -1964,51 +1985,96 @@
             }
 
             const url = `/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=${perPage}`;
+            
+            // Add CSRF token and headers to prevent 419 errors
+            const fetchOptions = {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                }
+            };
 
-            fetch(url)
+            console.log(`Fetching products: ${url} (attempt ${attemptNumber + 1})`);
+
+            fetch(url, fetchOptions)
                 .then(res => {
                     // Handle HTTP errors and 429 specially
                     if (!res.ok) {
                         if (res.status === 429) {
-                            // Rate limited: respect Retry-After if present, else wait 2s
+                            // Rate limited: implement exponential backoff
                             const retryAfter = parseInt(res.headers.get('Retry-After') || '2', 10) * 1000;
-                            console.warn(`Rate limited. Retrying after ${retryAfter} ms`);
+                            const exponentialDelay = Math.min(baseRetryDelay * Math.pow(2, attemptNumber), 10000); // Max 10s
+                            const finalDelay = Math.max(retryAfter, exponentialDelay);
                             
-                            // Temporary cooldown: prevent further requests for this period
-                            hasMoreProducts = false;
-                            setTimeout(() => {
-                                hasMoreProducts = true;
-                                isLoadingProducts = false;
-                                // Retry the same page
-                                fetchPaginatedProducts(reset);
-                            }, retryAfter);
-                            return Promise.reject({ isHandled: true, message: '429' });
-                        } else {
-                            // If server returned HTML error page, try to show text for debugging
-                            return res.text().then(text => Promise.reject({ 
+                            console.warn(`Rate limited (429). Attempt ${attemptNumber + 1}/${maxRetries}. Retrying after ${finalDelay} ms`);
+                            
+                            if (attemptNumber < maxRetries - 1) {
+                                // Temporary cooldown: prevent further requests for this period
+                                hasMoreProducts = false;
+                                setTimeout(() => {
+                                    hasMoreProducts = true;
+                                    isLoadingProducts = false;
+                                    // Retry with incremented attempt number
+                                    fetchPaginatedProducts(reset, attemptNumber + 1);
+                                }, finalDelay);
+                                return Promise.reject({ isHandled: true, message: '429 - Retrying' });
+                            } else {
+                                // Max retries exceeded
+                                console.error('Max retries exceeded for rate limiting');
+                                return Promise.reject({ 
+                                    isHandled: false, 
+                                    message: 'Rate limit exceeded. Please try again later.',
+                                    status: 429
+                                });
+                            }
+                        } else if (res.status === 419) {
+                            // CSRF token mismatch
+                            console.error('CSRF token mismatch (419)');
+                            return Promise.reject({ 
                                 isHandled: false, 
-                                status: res.status, 
-                                text 
-                            }));
+                                message: 'Session expired. Please refresh the page.',
+                                status: 419
+                            });
+                        } else {
+                            // Other HTTP errors - try to get response text for debugging
+                            return res.text().then(text => {
+                                console.error(`HTTP ${res.status} error:`, text);
+                                return Promise.reject({ 
+                                    isHandled: false, 
+                                    status: res.status, 
+                                    text,
+                                    message: `Server error (${res.status}). Please try again.`
+                                });
+                            });
                         }
                     }
 
                     // Ensure response is JSON
                     const contentType = res.headers.get('content-type') || '';
                     if (contentType.indexOf('application/json') === -1) {
-                        return res.text().then(text => Promise.reject({ 
-                            isHandled: false, 
-                            text,
-                            message: 'Non-JSON response received'
-                        }));
+                        return res.text().then(text => {
+                            console.error('Non-JSON response received:', text.substring(0, 200) + '...');
+                            return Promise.reject({ 
+                                isHandled: false, 
+                                text,
+                                message: 'Invalid response format. Please check server configuration.'
+                            });
+                        });
                     }
                     return res.json();
                 })
                 .then(data => {
                     hideLoader();
                     isLoadingProducts = false;
+                    retryCount = 0; // Reset on successful fetch
+
+                    console.log('Products fetched successfully:', data);
 
                     if (!data || data.status !== 200 || !Array.isArray(data.data)) {
+                        console.warn('Invalid data structure received:', data);
                         if (reset) posProduct.innerHTML = '<p class="text-center">No products found.</p>';
                         return;
                     }
@@ -2035,7 +2101,7 @@
                     hideLoader();
                     
                     if (err && err.isHandled) {
-                        // Already handled 429, don't show error
+                        // Already handled (e.g., 429 retry), don't show error
                         return;
                     }
                     
@@ -2043,14 +2109,17 @@
                     console.error('Error fetching products:', err);
                     
                     if (err.text) {
-                        console.error('Response text:', err.text);
+                        console.error('Response text:', err.text.substring(0, 500));
                     }
                     
-                    if (reset) posProduct.innerHTML = '<p class="text-center">No products found.</p>';
+                    if (reset) {
+                        posProduct.innerHTML = '<div class="text-center p-4"><p class="text-danger">Failed to load products</p><button onclick="fetchPaginatedProducts(true)" class="btn btn-primary btn-sm">Retry</button></div>';
+                    }
                     
                     // Show user-friendly error message
                     if (typeof toastr !== 'undefined') {
-                        toastr.error('Failed to load products. Please try again.', 'Error');
+                        const errorMessage = err.message || 'Failed to load products. Please try again.';
+                        toastr.error(errorMessage, 'Error');
                     }
                 });
         }
@@ -2182,6 +2251,26 @@
         }
 
         // ---- AUTOCOMPLETE (server driven, optimized for your controller) ----
+        // Request management for autocomplete
+        let autocompleteRequestQueue = [];
+        let isAutocompleteRequestInProgress = false;
+        let autocompleteDebounceTimer = null;
+        
+        function processAutocompleteQueue() {
+            if (autocompleteRequestQueue.length === 0 || isAutocompleteRequestInProgress) {
+                return;
+            }
+            
+            // Get the latest request (ignore older ones)
+            const latestRequest = autocompleteRequestQueue[autocompleteRequestQueue.length - 1];
+            autocompleteRequestQueue = []; // Clear queue
+            
+            isAutocompleteRequestInProgress = true;
+            
+            // Execute the request
+            latestRequest.execute();
+        }
+        
         function initAutocomplete() {
             let autoAddTimeout = null;
             let lastSearchResults = [];
@@ -2205,15 +2294,34 @@
                         autoAddTimeout = null;
                     }
 
-                    $.ajax({
-                        url: '/api/products/stocks/autocomplete',
-                        data: {
-                            location_id: selectedLocationId,
-                            search: request.term,
-                            per_page: 15
-                        },
-                        success: function(data) {
-                            if (data.status === 200 && Array.isArray(data.data)) {
+                    // Debounce autocomplete requests
+                    if (autocompleteDebounceTimer) {
+                        clearTimeout(autocompleteDebounceTimer);
+                    }
+                    
+                    autocompleteDebounceTimer = setTimeout(() => {
+                        // Add request to queue
+                        autocompleteRequestQueue.push({
+                            term: request.term,
+                            response: response,
+                            execute: function() {
+                                console.log('Executing autocomplete request for:', this.term);
+                                
+                                $.ajax({
+                                    url: '/products/stocks/autocomplete',
+                                    data: {
+                                        location_id: selectedLocationId,
+                                        search: this.term,
+                                        per_page: 15
+                                    },
+                                    timeout: 10000, // 10 second timeout
+                                    success: function(data) {
+                                        isAutocompleteRequestInProgress = false;
+                                        
+                                        // Process next request in queue if any
+                                        setTimeout(() => processAutocompleteQueue(), 100);
+                                        
+                                        if (data.status === 200 && Array.isArray(data.data)) {
                                 const filtered = data.data.filter(stock =>
                                     stock.product &&
                                     (
@@ -2235,7 +2343,7 @@
                                         const matchingImei = stock.imei_numbers
                                             .find(imei =>
                                                 imei.imei_number.toLowerCase()
-                                                .includes(request.term
+                                                .includes(this.term
                                                     .toLowerCase())
                                             );
                                         if (matchingImei) {
@@ -2243,7 +2351,7 @@
                                                 ` 📱 IMEI: ${matchingImei.imei_number}`;
                                             exactImeiMatch = matchingImei
                                                 .imei_number.toLowerCase() ===
-                                                request.term.toLowerCase();
+                                                this.term.toLowerCase();
                                         }
                                     }
                                     return {
@@ -2266,13 +2374,13 @@
                                 // Auto-add exact SKU or IMEI match
                                 const exactMatch = results.find(r =>
                                     r.product && ((r.product.sku && r.product.sku
-                                        .toLowerCase() === request.term
+                                        .toLowerCase() === this.term
                                         .toLowerCase()) || r.exactImeiMatch)
                                 );
 
-                                if (exactMatch && request.term.length >= 3) {
+                                if (exactMatch && this.term.length >= 3) {
                                     const matchType = exactMatch.product.sku &&
-                                        exactMatch.product.sku.toLowerCase() === request
+                                        exactMatch.product.sku.toLowerCase() === this
                                         .term.toLowerCase() ? 'SKU' : 'IMEI';
                                     showSearchIndicator("⚡ Auto-adding...", "orange");
                                     autoAddTimeout = setTimeout(() => {
@@ -2281,7 +2389,7 @@
                                             $("#productSearchInput")
                                                 .autocomplete('close');
                                             addProductFromAutocomplete(
-                                                exactMatch, request.term,
+                                                exactMatch, this.term,
                                                 matchType);
                                             $("#productSearchInput").val('');
                                             hideSearchIndicator();
@@ -2293,35 +2401,50 @@
                                     }, 500);
                                 }
 
-                                response(results);
+                                this.response(results);
                             } else {
                                 lastSearchResults = [];
-                                response([{
+                                this.response([{
                                     label: "No results found",
                                     value: ""
                                 }]);
                             }
-                        },
-                        error: function(jqXHR, textStatus, errorThrown) {
+                                        }.bind(this),
+                                    error: function(jqXHR, textStatus, errorThrown) {
+                            isAutocompleteRequestInProgress = false;
                             console.error('Autocomplete AJAX error:', textStatus, errorThrown);
                             
                             if (jqXHR.status === 429) {
                                 const retryAfter = parseInt(jqXHR.getResponseHeader('Retry-After') || '2', 10);
                                 console.warn(`Autocomplete rate limited. Retry after ${retryAfter} seconds`);
                                 
-                                response([{
-                                    label: `Rate limited. Please wait ${retryAfter} seconds...`,
+                                // Retry after the specified delay
+                                setTimeout(() => {
+                                    processAutocompleteQueue();
+                                }, retryAfter * 1000);
+                                
+                                this.response([{
+                                    label: `Rate limited. Retrying in ${retryAfter}s...`,
                                     value: ""
                                 }]);
                             } else {
+                                // Process next request in queue on other errors too
+                                setTimeout(() => processAutocompleteQueue(), 1000);
+                                
                                 lastSearchResults = [];
-                                response([{
+                                this.response([{
                                     label: "Error loading results. Please try again.",
                                     value: ""
                                 }]);
                             }
-                        }
-                    });
+                                    }.bind(this)
+                                });
+                            }
+                        });
+                        
+                        // Process the queue
+                        processAutocompleteQueue();
+                    }, 300); // 300ms debounce
                 },
                 select: function(event, ui) {
                     if (!ui.item.product || autocompleteAdding) return false;
@@ -3138,39 +3261,51 @@
                 fetch(`/api/products/stocks/autocomplete?search=${encodeURIComponent(product.product_name)}&location_id=${selectedLocationId}`, {
                         headers: {
                             'X-Requested-With': 'XMLHttpRequest',
-                            'Content-Type': 'application/json'
-                        }
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        timeout: 15000 // 15 second timeout
                     })
-                    .then(response => response.json())
+                    .then(response => {
+                        if (!response.ok) {
+                            if (response.status === 429) {
+                                const retryAfter = parseInt(response.headers.get('Retry-After') || '2', 10);
+                                console.warn(`IMEI data refresh rate limited. Retry after ${retryAfter} seconds`);
+                                throw new Error(`Rate limited. Please wait ${retryAfter} seconds.`);
+                            }
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
-                        if (data && data.length > 0) {
+                        if (data && data.status === 200 && Array.isArray(data.data) && data.data.length > 0) {
                             // Find the current product in the response
-                            const updatedStockEntry = data.find(item => item.product.id === product.id);
+                            const updatedStockEntry = data.data.find(item => item.product && item.product.id === product.id);
                             if (updatedStockEntry) {
                                 console.log('Updated stock entry:', updatedStockEntry);
                                 // Update the global stockData
-                                const stockIndex = stockData.findIndex(stock => stock.product.id === product
-                                    .id);
+                                const stockIndex = stockData.findIndex(stock => stock.product.id === product.id);
                                 if (stockIndex !== -1) {
                                     stockData[stockIndex] = updatedStockEntry;
                                     console.log('Updated global stockData for product:', product.id);
                                 }
                                 // Use the updated stock entry
-                                continueWithImeiModal(product, updatedStockEntry, searchTerm, matchType,
-                                    selectedBatchId);
+                                continueWithImeiModal(product, updatedStockEntry, searchTerm, matchType, selectedBatchId);
                             } else {
                                 console.log('Product not found in updated data, using original');
-                                continueWithImeiModal(product, stockEntry, searchTerm, matchType,
-                                    selectedBatchId);
+                                continueWithImeiModal(product, stockEntry, searchTerm, matchType, selectedBatchId);
                             }
                         } else {
                             console.log('No updated data received, using original');
-                            continueWithImeiModal(product, stockEntry, searchTerm, matchType,
-                                selectedBatchId);
+                            continueWithImeiModal(product, stockEntry, searchTerm, matchType, selectedBatchId);
                         }
                     })
                     .catch(error => {
                         console.error('Error refreshing stock data:', error);
+                        if (error.message.includes('Rate limited')) {
+                            toastr.warning(error.message, 'Rate Limited');
+                        }
+                        // Continue with original data on any error
                         continueWithImeiModal(product, stockEntry, searchTerm, matchType, selectedBatchId);
                     });
             } else {
@@ -4896,12 +5031,6 @@
             const globalDiscount = discountInputValue !== '' ? parseFloat(discountInputValue) || 0 : 0;
             const globalDiscountType = discountTypeElement ? discountTypeElement.value : 'fixed';
 
-            console.log('Global Discount Debug:', {
-                inputValue: discountInputValue,
-                parsedDiscount: globalDiscount,
-                discountType: globalDiscountType,
-                totalAmount: totalAmount
-            });
 
             let totalAmountWithDiscount = totalAmount;
 
