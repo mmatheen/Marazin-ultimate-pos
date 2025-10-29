@@ -1969,7 +1969,7 @@
                 }
             }
 
-            const url = `/api/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=${perPage}`;
+            const url = `/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=${perPage}`;
 
             fetch(url)
                 .then(res => {

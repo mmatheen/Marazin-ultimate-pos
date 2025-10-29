@@ -417,7 +417,7 @@
 
             <div class="container-fluid p-1">
                 <div class="row">
-                    <div class="col-md-7" id="mainContent">
+                    <div class="col-md-12" id="mainContent">
                         <div class="card bg-white p-2"
                             style="height: calc(100vh - 215px); overflow: hidden; display: flex; flex-direction: column;">
                             <div class="row">
@@ -580,7 +580,7 @@
                         </div>
                     </div>
 
-                    <div class="col-md-5 show" id="productListArea">
+                    <div class="col-md-5 d-none" id="productListArea">
                         <div class="card bg-white p-2" style="height: calc(100vh - 215px); overflow: hidden;">
                             <!-- Buttons for Category and Brand -->
                             <div class="row mb-2">

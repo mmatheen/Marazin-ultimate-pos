@@ -153,7 +153,7 @@
         fetchNotifications();
 
         function fetchNotifications() {
-            fetch('/api/notifications')
+            fetch('/notifications')
                 .then(async response => {
                     const text = await response.text();
                     try {
@@ -171,7 +171,6 @@
                             // If response is empty or not valid JSON, show no notifications
                             updateNotifications([]);
                             updateNotificationCount(0);
-                            console.error('Response is not valid JSON or is empty:', text);
                         }
                     } catch (e) {
                         updateNotifications([]);
