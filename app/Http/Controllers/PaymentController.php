@@ -81,7 +81,9 @@ class PaymentController extends Controller
 
         try {
             // Get show_full_history parameter (default false for backward compatibility)
-            $showFullHistory = $request->boolean('show_full_history', false);
+            // Support both parameter names for compatibility
+            $showFullHistory = $request->boolean('show_full_history', false) 
+                || $request->boolean('show_full_audit_trail', false);
             
             $ledgerData = $this->unifiedLedgerService->getCustomerLedger(
                 $request->customer_id,
@@ -94,7 +96,7 @@ class PaymentController extends Controller
             return response()->json([
                 'status' => 200,
                 'customer' => $ledgerData['customer'],
-                'transactions' => $ledgerData['transactions'],
+                'transactions' => $ledgerData['transactions']->values()->all(), // Convert collection to array
                 'summary' => $ledgerData['summary'],
                 'period' => $ledgerData['period'],
                 'advance_application' => $ledgerData['advance_application']
@@ -379,7 +381,9 @@ class PaymentController extends Controller
 
         try {
             // Get show_full_history parameter (default false for backward compatibility)
-            $showFullHistory = $request->boolean('show_full_history', false);
+            // Support both parameter names for compatibility
+            $showFullHistory = $request->boolean('show_full_history', false) 
+                || $request->boolean('show_full_audit_trail', false);
             
             $ledgerData = $this->unifiedLedgerService->getSupplierLedger(
                 $request->supplier_id,
@@ -392,7 +396,7 @@ class PaymentController extends Controller
             return response()->json([
                 'status' => 200,
                 'supplier' => $ledgerData['supplier'],
-                'transactions' => $ledgerData['transactions'],
+                'transactions' => $ledgerData['transactions']->values()->all(), // Convert collection to array
                 'summary' => $ledgerData['summary'],
                 'period' => $ledgerData['period'],
                 'advance_application' => $ledgerData['advance_application']

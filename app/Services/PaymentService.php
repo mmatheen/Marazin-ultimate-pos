@@ -89,15 +89,23 @@ class PaymentService
 
             // Create reverse entry for old payment (if ledger tracking is enabled)
             if ($sale->customer_id != 1) { // Skip Walk-In customers for now
-                Ledger::createEntry([
-                    'user_id' => $payment->customer_id,
-                    'contact_type' => 'customer',
-                    'transaction_date' => now(),
-                    'reference_no' => "EDIT-REV-{$payment->reference_no}",
-                    'transaction_type' => 'payments',
-                    'amount' => $oldAmount,
-                    'notes' => "Payment Edit - Reverse Old Amount (LKR {$oldAmount})"
-                ]);
+                // For payment reversal, we create a manual debit entry to reverse the original credit
+                // Original payment: Credit $oldAmount (reduced customer debt)
+                // Reversal: Debit $oldAmount (increases customer debt back)
+                $reverseEntry = new Ledger();
+                $reverseEntry->user_id = $payment->customer_id;
+                $reverseEntry->contact_type = 'customer';
+                $reverseEntry->transaction_date = now();
+                $reverseEntry->reference_no = "EDIT-REV-{$payment->reference_no}";
+                $reverseEntry->transaction_type = 'payments';
+                $reverseEntry->debit = $oldAmount; // Direct debit to reverse the credit
+                $reverseEntry->credit = 0;
+                $reverseEntry->balance = 0; // Will be recalculated
+                $reverseEntry->notes = "Payment Adjustment - Remove Previous Payment (LKR {$oldAmount})";
+                $reverseEntry->save();
+                
+                // Recalculate balances after manual entry
+                Ledger::recalculateAllBalances($payment->customer_id, 'customer');
             }
 
             // Update payment record
@@ -118,6 +126,7 @@ class PaymentService
 
             // Create new entry for updated payment (if ledger tracking is enabled)
             if ($sale->customer_id != 1) { // Skip Walk-In customers for now
+                // Use the standard createEntry method for the new payment
                 Ledger::createEntry([
                     'user_id' => $payment->customer_id,
                     'contact_type' => 'customer',
@@ -125,7 +134,7 @@ class PaymentService
                     'reference_no' => $payment->reference_no,
                     'transaction_type' => 'payments',
                     'amount' => $newAmount,
-                    'notes' => "Payment Edit - New Amount (LKR {$newAmount})"
+                    'notes' => "Payment Adjustment - New Payment Amount (LKR {$newAmount})"
                 ]);
             }
 

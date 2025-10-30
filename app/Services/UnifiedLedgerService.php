@@ -414,7 +414,10 @@ class UnifiedLedgerService
      */
     public function getCustomerLedger($customerId, $startDate, $endDate, $locationId = null, $showFullHistory = false)
     {
-        $customer = Customer::find($customerId);
+        // Use withoutGlobalScopes to bypass LocationScope filtering
+        // This is necessary because LocationScope filters customers by user's location permissions
+        // but for ledger reports, we need to access all customers regardless of location
+        $customer = Customer::withoutGlobalScopes()->find($customerId);
         if (!$customer) {
             throw new \Exception('Customer not found');
         }
@@ -429,45 +432,32 @@ class UnifiedLedgerService
             $ledgerQuery = $this->applyLocationFilter($ledgerQuery, $locationId, 'customer');
         }
 
-        // Apply filtering based on $showFullHistory parameter
-        if (!$showFullHistory) {
-            // **IMPORTANT: Exclude reversal and deleted entries from display for clean view**
-            // These entries are kept in database for audit trail but hidden from user view
-            // -REV, -OLD-REV, -OLD: From payment edits
-            // -DELETED, -DEL-REV: From payment deletions
-            $ledgerQuery->where(function($query) {
-                $query->where('reference_no', 'NOT LIKE', '%-REV')
-                      ->where('reference_no', 'NOT LIKE', '%-OLD-REV')
-                      ->where('reference_no', 'NOT LIKE', '%-OLD')
-                      ->where('reference_no', 'NOT LIKE', '%-DELETED')
-                      ->where('reference_no', 'NOT LIKE', '%-DEL-REV')
-                      ->where('notes', 'NOT LIKE', 'REVERSAL:%'); // Exclude reversal entries
-            });
-        }
-
         $ledgerTransactions = $ledgerQuery
             ->orderBy('created_at', 'asc') // Order by created_at ascending (chronological order)
             ->orderBy('id', 'asc') // Secondary sort by ID for same-date transactions (chronological)
             ->get();
 
-        // Apply duplicate filtering only for clean view
+        // Apply filtering based on $showFullHistory parameter
         if (!$showFullHistory) {
-            // Filter to show only the latest entry for each reference number to avoid showing edit history
-            $filteredTransactions = collect();
-            $seenReferences = [];
-            
-            // Process in reverse order to keep the latest entries
-            foreach ($ledgerTransactions->reverse() as $ledger) {
-                $key = $ledger->reference_no . '_' . $ledger->transaction_type;
-                
-                if (!isset($seenReferences[$key])) {
-                    $seenReferences[$key] = true;
-                    $filteredTransactions->prepend($ledger); // Add to beginning to maintain order
+            // **CLEAN VIEW: Hide technical reversal entries for better user experience**
+            // Hide EDIT-REV entries which are technical reversal entries created during payment edits
+            // These are kept in database for audit trail but hidden from normal business view
+            $transactionsToProcess = $ledgerTransactions->filter(function ($ledger) {
+                // Hide entries with EDIT-REV in reference number (payment edit reversals)
+                if (strpos($ledger->reference_no, 'EDIT-REV') !== false) {
+                    return false;
                 }
-            }
-            $transactionsToProcess = $filteredTransactions;
+                
+                // Hide entries with reversal indicators in notes
+                if (strpos($ledger->notes, 'REVERSAL:') !== false) {
+                    return false;
+                }
+                
+                // Show all other entries including the Rs. 2,000 payment
+                return true;
+            });
         } else {
-            // For full history, show all transactions with enhanced information
+            // **FULL AUDIT TRAIL: Show ALL transactions including technical entries**
             $transactionsToProcess = $ledgerTransactions;
         }
 
@@ -775,12 +765,38 @@ class UnifiedLedgerService
     }
 
     /**
-     * Extract payment method from ledger notes
+     * Extract payment method from actual Payment record or ledger notes
      */
     private function extractPaymentMethod($ledger)
     {
-        // For payment transactions, try to extract payment method from notes
+        // For payment transactions, try to get actual payment method from Payment table first
         if (in_array($ledger->transaction_type, ['payments', 'sale_payment', 'purchase_payment'])) {
+            try {
+                // Try to find the actual Payment record by reference number
+                $referenceNo = $ledger->reference_no;
+                
+                // Look for payment by reference number or extract payment ID
+                $payment = null;
+                
+                // Try direct reference match first
+                $payment = \App\Models\Payment::where('reference_no', $referenceNo)->first();
+                
+                // If not found, try to extract payment ID from reference
+                if (!$payment && strpos($referenceNo, 'PAY-') === 0) {
+                    $paymentId = str_replace('PAY-', '', $referenceNo);
+                    $payment = \App\Models\Payment::find($paymentId);
+                }
+                
+                // If found payment record, use its payment method
+                if ($payment && $payment->payment_method) {
+                    return ucfirst($payment->payment_method);
+                }
+            } catch (\Exception $e) {
+                // Fall back to notes extraction if Payment lookup fails
+                Log::warning("Could not fetch payment method from Payment table: " . $e->getMessage());
+            }
+            
+            // Fallback: Extract from notes if Payment record not found
             $notes = strtolower($ledger->notes ?: '');
             
             if (stripos($notes, 'cash') !== false) {
