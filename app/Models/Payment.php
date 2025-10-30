@@ -41,6 +41,35 @@ class Payment extends Model
         'payment_status',
     ];
 
+    /**
+     * Default attribute values
+     */
+    protected $attributes = [
+        'cheque_status' => 'pending',
+        'payment_status' => 'completed',
+        'bank_charges' => 0.00,
+    ];
+
+    /**
+     * Boot method to handle model events
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($payment) {
+            // Don't set cheque_status to null - let default value handle it
+            if ($payment->cheque_status === null) {
+                unset($payment->cheque_status);
+            }
+            
+            // Set appropriate cheque_status based on payment method
+            if (!isset($payment->cheque_status) && isset($payment->payment_method)) {
+                $payment->cheque_status = ($payment->payment_method === 'cheque') ? 'pending' : 'pending';
+            }
+        });
+    }
+
     protected $dates = [
         'payment_date',
         'cheque_received_date',
@@ -73,6 +102,16 @@ class Payment extends Model
     public function sale()
     {
         return $this->belongsTo(Sale::class, 'reference_id', 'id');
+    }
+
+    public function purchase()
+    {
+        return $this->belongsTo(\App\Models\Purchase::class, 'reference_id', 'id');
+    }
+
+    public function purchaseReturn()
+    {
+        return $this->belongsTo(\App\Models\PurchaseReturn::class, 'reference_id', 'id');
     }
 
     public function chequeStatusHistory()
@@ -161,37 +200,109 @@ class Payment extends Model
             'changed_by' => $userId,
         ]);
 
-        // Update related sale totals
-        if ($this->sale) {
-            $sale = $this->sale;
-            
-            // Calculate new totals excluding bounced cheques
-            $totalReceived = $sale->payments()->sum('amount');
-            $bouncedCheques = $sale->payments()
-                ->where('payment_method', 'cheque')
-                ->where('cheque_status', 'bounced')
-                ->sum('amount');
-            $newTotalPaid = $totalReceived - $bouncedCheques;
-            
-            // Update payment status
-            $paymentStatus = 'Due';
-            if ($newTotalPaid >= $sale->final_total) {
-                $paymentStatus = 'Paid';
-            } elseif ($newTotalPaid > 0) {
-                $paymentStatus = 'Partial';
-            }
-            
-            // Force update the sale using direct DB update
-            // This bypasses the generated column issue
-            DB::table('sales')
-                ->where('id', $sale->id)
-                ->update([
-                    'total_paid' => $newTotalPaid,
-                    'payment_status' => $paymentStatus
-                ]);
+        // CLIENT REQUIREMENT: Handle bounced cheques differently
+        // Keep bills as PAID but update customer floating balance
+        if ($newStatus === 'bounced') {
+            $this->handleBouncedChequeFloatingBalance($bankCharges, $userId);
+        } else {
+            // For other statuses (cleared, deposited, cancelled), update sale normally
+            $this->updateRelatedSaleTotals();
         }
 
         return $this;
+    }
+
+    /**
+     * Handle bounced cheque - Create floating balance entry without affecting bill status
+     * Client requirement: Bill remains PAID, customer gets floating due balance
+     */
+    private function handleBouncedChequeFloatingBalance($bankCharges = 0, $userId = null)
+    {
+        if (!$this->sale || !$this->customer_id) return;
+
+        try {
+            DB::transaction(function () use ($bankCharges, $userId) {
+                $referenceNo = "BOUNCE-{$this->cheque_number}-{$this->id}";
+                $transactionDate = Carbon::now('Asia/Colombo');
+
+                // 1. Create bounced cheque debit entry (increases customer floating balance)
+                \App\Models\Ledger::createEntry([
+                    'user_id' => $this->customer_id,
+                    'contact_type' => 'customer',
+                    'transaction_date' => $transactionDate,
+                    'reference_no' => $referenceNo,
+                    'transaction_type' => 'cheque_bounce',
+                    'amount' => $this->amount,
+                    'notes' => "Cheque bounce - {$this->cheque_number} (Bill {$this->sale->invoice_no} remains settled)"
+                ]);
+
+                // 2. Add bank charges as separate debit entry
+                if ($bankCharges > 0) {
+                    \App\Models\Ledger::createEntry([
+                        'user_id' => $this->customer_id,
+                        'contact_type' => 'customer',
+                        'transaction_date' => $transactionDate,
+                        'reference_no' => $referenceNo . '-CHARGES',
+                        'transaction_type' => 'bank_charges',
+                        'amount' => $bankCharges,
+                        'notes' => "Bank charges for bounced cheque - {$this->cheque_number}"
+                    ]);
+                }
+
+                // 3. IMPORTANT: Do NOT update sale payment status
+                // Bill remains as "PAID" - this is the key client requirement
+                
+                \Illuminate\Support\Facades\Log::info("Cheque bounce processed - Bill status maintained", [
+                    'payment_id' => $this->id,
+                    'cheque_number' => $this->cheque_number,
+                    'bounce_amount' => $this->amount,
+                    'bank_charges' => $bankCharges,
+                    'sale_id' => $this->sale->id,
+                    'customer_id' => $this->customer_id
+                ]);
+            });
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to process cheque bounce floating balance", [
+                'payment_id' => $this->id,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Update sale totals for non-bounced status changes
+     */
+    private function updateRelatedSaleTotals()
+    {
+        if (!$this->sale) return;
+
+        $sale = $this->sale;
+        
+        // Calculate new totals excluding bounced cheques
+        $totalReceived = $sale->payments()->sum('amount');
+        $bouncedCheques = $sale->payments()
+            ->where('payment_method', 'cheque')
+            ->where('cheque_status', 'bounced')
+            ->sum('amount');
+        $newTotalPaid = $totalReceived - $bouncedCheques;
+        
+        // Update payment status
+        $paymentStatus = 'Due';
+        if ($newTotalPaid >= $sale->final_total) {
+            $paymentStatus = 'Paid';
+        } elseif ($newTotalPaid > 0) {
+            $paymentStatus = 'Partial';
+        }
+        
+        // Force update the sale using direct DB update
+        DB::table('sales')
+            ->where('id', $sale->id)
+            ->update([
+                'total_paid' => $newTotalPaid,
+                'payment_status' => $paymentStatus
+            ]);
     }
 
     public function getStatusBadgeAttribute()

@@ -340,6 +340,20 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/sales/print-recent-transaction/{id}', [SaleController::class, 'printRecentTransaction']);        
         Route::post('/pos/log-pricing-error', [SaleController::class, 'logPricingError']);
 
+        // -------------------- Floating Balance Management Routes --------------------
+        Route::prefix('floating-balance')->group(function () {
+            Route::get('/customer/{customerId}', [App\Http\Controllers\FloatingBalanceController::class, 'getCustomerBalance'])
+                ->name('floating-balance.customer');
+            Route::post('/customer/{customerId}/recovery-payment', [App\Http\Controllers\FloatingBalanceController::class, 'recordRecoveryPayment'])
+                ->name('floating-balance.recovery-payment');
+            Route::get('/customer/{customerId}/history', [App\Http\Controllers\FloatingBalanceController::class, 'getFloatingBalanceHistory'])
+                ->name('floating-balance.history');
+            Route::post('/customer/{customerId}/adjust', [App\Http\Controllers\FloatingBalanceController::class, 'adjustBalance'])
+                ->name('floating-balance.adjust');
+            Route::get('/customers-with-balance', [App\Http\Controllers\FloatingBalanceController::class, 'getCustomersWithFloatingBalance'])
+                ->name('floating-balance.customers');
+        });
+
          // -------------------- SaleReturnController Routes --------------------
         Route::get('/sale-returns', [SaleReturnController::class, 'getAllSaleReturns']);
         Route::get('/sale-return-get/{id}', [SaleReturnController::class, 'getSaleReturnById']);
@@ -586,3 +600,5 @@ Route::middleware(['auth'])->group(function () {
         // Route::delete('/customer-group-delete/{id}', [CustomerGroupController::class, 'destroy']);
     });
 });
+
+// REMOVED: Duplicate ledger routes - Ledger functionality is handled by UnifiedLedgerService

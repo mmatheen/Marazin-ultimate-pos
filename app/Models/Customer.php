@@ -7,6 +7,7 @@ use App\Models\Ledger;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\DB;
 
 class Customer extends Model
 {
@@ -250,5 +251,132 @@ public function recalculateCurrentBalance()
 
         // Recalculate balances for all entries
         Ledger::calculateBalance($this->id, 'customer');
+    }
+
+    /**
+     * Get customer's bill-wise outstanding balance (unpaid bills only)
+     * This excludes bounced cheque floating balance
+     */
+    public function getBillWiseOutstanding()
+    {
+        return Sale::where('customer_id', $this->id)
+            ->whereNotIn('payment_status', ['Paid'])
+            ->sum(DB::raw('final_total - COALESCE(total_paid, 0)'));
+    }
+
+    /**
+     * Get customer's floating balance (bounced cheques, bank charges, adjustments)
+     * This is separate from bill-wise balance
+     */
+    public function getFloatingBalance()
+    {
+        $floatingDebits = Ledger::where('user_id', $this->id)
+            ->where('contact_type', 'customer')
+            ->whereIn('transaction_type', ['cheque_bounce', 'bank_charges', 'penalty', 'adjustment_debit'])
+            ->sum('amount');
+
+        $floatingCredits = Ledger::where('user_id', $this->id)
+            ->where('contact_type', 'customer')
+            ->whereIn('transaction_type', ['bounce_recovery', 'adjustment_credit', 'refund'])
+            ->sum('amount');
+
+        return $floatingDebits - $floatingCredits;
+    }
+
+    /**
+     * Get total outstanding including both bill-wise and floating balance
+     */
+    public function getTotalOutstanding()
+    {
+        return $this->getBillWiseOutstanding() + $this->getFloatingBalance();
+    }
+
+    /**
+     * Get bounced cheques summary
+     */
+    public function getBouncedChequeSummary()
+    {
+        $bouncedPayments = Payment::where('customer_id', $this->id)
+            ->where('payment_method', 'cheque')
+            ->where('cheque_status', 'bounced')
+            ->get();
+
+        return [
+            'count' => $bouncedPayments->count(),
+            'total_amount' => $bouncedPayments->sum('amount'),
+            'total_charges' => $bouncedPayments->sum('bank_charges'),
+            'cheques' => $bouncedPayments->map(function($payment) {
+                return [
+                    'cheque_number' => $payment->cheque_number,
+                    'amount' => $payment->amount,
+                    'bounce_date' => $payment->cheque_bounce_date,
+                    'bounce_reason' => $payment->cheque_bounce_reason,
+                    'bank_charges' => $payment->bank_charges,
+                    'bill_number' => $payment->sale ? $payment->sale->invoice_no : null
+                ];
+            })
+        ];
+    }
+
+    /**
+     * Get customer risk score based on payment history
+     */
+    public function getRiskScore()
+    {
+        $totalCheques = Payment::where('customer_id', $this->id)
+            ->where('payment_method', 'cheque')
+            ->count();
+
+        $bouncedCheques = Payment::where('customer_id', $this->id)
+            ->where('payment_method', 'cheque')
+            ->where('cheque_status', 'bounced')
+            ->count();
+
+        $overdueDays = 0; // You can implement overdue calculation based on your business rules
+        
+        $riskScore = 0;
+        
+        if ($totalCheques > 0) {
+            $bounceRate = ($bouncedCheques / $totalCheques) * 100;
+            $riskScore += $bounceRate * 2; // Bounce rate contributes heavily to risk
+        }
+        
+        $riskScore += min($overdueDays * 0.5, 30); // Overdue days (max 30 points)
+        $riskScore += min($this->getTotalOutstanding() / 10000, 20); // Outstanding amount factor
+        
+        return min(round($riskScore), 100); // Cap at 100
+    }
+
+    /**
+     * Check if customer should be blocked for cheque payments
+     */
+    public function shouldBlockChequePayments()
+    {
+        $bouncedCount = Payment::where('customer_id', $this->id)
+            ->where('payment_method', 'cheque')
+            ->where('cheque_status', 'bounced')
+            ->count();
+
+        $riskScore = $this->getRiskScore();
+        
+        // Block if more than 2 bounced cheques OR risk score > 70
+        return $bouncedCount > 2 || $riskScore > 70;
+    }
+
+    /**
+     * Get detailed balance breakdown for dashboard
+     */
+    public function getBalanceBreakdown()
+    {
+        return [
+            'bill_wise_outstanding' => $this->getBillWiseOutstanding(),
+            'floating_balance' => $this->getFloatingBalance(),
+            'bounced_cheques' => $this->getBouncedChequeSummary(),
+            'total_outstanding' => $this->getTotalOutstanding(),
+            'credit_limit' => $this->credit_limit,
+            'available_credit' => max(0, $this->credit_limit - $this->getTotalOutstanding()),
+            'risk_score' => $this->getRiskScore(),
+            'cheque_payment_blocked' => $this->shouldBlockChequePayments()
+        ];
     }
 }

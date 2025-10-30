@@ -71,9 +71,15 @@
                                         <input type="date" class="form-control" id="end_date" name="end_date" value="2025-12-31" required>
                                     </div>
                                     <div class="col-md-3">
-                                        <div id="filterStatus" class="text-center mt-4">
-                                            <i class="fa fa-check-circle text-success"></i>
-                                            <small class="text-success">Ready to load</small>
+                                        <label class="form-label"><strong>View Options</strong></label>
+                                        <div class="form-check mt-2">
+                                            <input class="form-check-input" type="checkbox" id="show_full_history" name="show_full_history">
+                                            <label class="form-check-label" for="show_full_history">
+                                                <small>Show Full Audit Trail</small>
+                                            </label>
+                                            <div class="text-muted" style="font-size: 10px;">
+                                                Shows all transaction history including edits and reversals
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="col-md-3">

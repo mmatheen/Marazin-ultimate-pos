@@ -199,6 +199,169 @@ class UnifiedLedgerService
     }
 
     /**
+     * Edit sale with proper ledger management
+     * This creates reverse entries for proper audit trail
+     */
+    public function editSale($sale, $oldFinalTotal, $editReason = null)
+    {
+        return DB::transaction(function () use ($sale, $oldFinalTotal, $editReason) {
+            $newFinalTotal = $sale->final_total;
+            $difference = $newFinalTotal - $oldFinalTotal;
+
+            // Skip ledger entries for Walk-In customers or if amounts are identical
+            if ($sale->customer_id == 1 || $difference == 0) {
+                return null;
+            }
+
+            // Create reverse entry for old sale amount
+            $reverseEntry = Ledger::createEntry([
+                'user_id' => $sale->customer_id,
+                'contact_type' => 'customer',
+                'transaction_date' => Carbon::now('Asia/Colombo'),
+                'reference_no' => "EDIT-REV-{$sale->invoice_no}",
+                'transaction_type' => 'sale',
+                'amount' => $oldFinalTotal,
+                'notes' => "Sale Edit - Reverse Old Amount (Rs{$oldFinalTotal})" . 
+                          ($editReason ? " | Reason: {$editReason}" : '')
+            ]);
+
+            // Create new entry for updated sale amount
+            $newEntry = Ledger::createEntry([
+                'user_id' => $sale->customer_id,
+                'contact_type' => 'customer',
+                'transaction_date' => Carbon::now('Asia/Colombo'),
+                'reference_no' => $sale->invoice_no,
+                'transaction_type' => 'sale',
+                'amount' => $newFinalTotal,
+                'notes' => "Sale Edit - New Amount (Rs{$newFinalTotal})" . 
+                          ($difference >= 0 ? " | Increase: +Rs{$difference}" : " | Decrease: Rs{$difference}")
+            ]);
+
+            return [
+                'reverse_entry' => $reverseEntry,
+                'new_entry' => $newEntry,
+                'amount_difference' => $difference
+            ];
+        });
+    }
+
+    /**
+     * Get customer balance summary for reporting
+     */
+    public function getCustomerBalanceSummary($customerId)
+    {
+        $currentBalance = Ledger::getLatestBalance($customerId, 'customer');
+        
+        // Calculate different balance types
+        $billWiseBalance = $this->getCustomerBillWiseBalance($customerId);
+        $floatingBalance = $this->getCustomerFloatingBalance($customerId);
+        
+        return [
+            'customer_id' => $customerId,
+            'current_balance' => $currentBalance,
+            'bill_wise_balance' => $billWiseBalance,
+            'floating_balance' => $floatingBalance,
+            'bounced_cheques_amount' => $this->getCustomerBouncedChequesAmount($customerId),
+            'outstanding_amount' => max(0, $currentBalance),
+            'advance_amount' => $currentBalance < 0 ? abs($currentBalance) : 0,
+            'balance_status' => $currentBalance > 0 ? 'receivable' : ($currentBalance < 0 ? 'payable' : 'cleared'),
+            'last_updated' => Carbon::now('Asia/Colombo')->format('Y-m-d H:i:s')
+        ];
+    }
+
+    /**
+     * Get customer bill-wise outstanding balance (unpaid bills only)
+     */
+    public function getCustomerBillWiseBalance($customerId)
+    {
+        return Sale::where('customer_id', $customerId)
+            ->whereNotIn('payment_status', ['Paid'])
+            ->sum('final_total') - 
+        Sale::where('customer_id', $customerId)
+            ->whereNotIn('payment_status', ['Paid'])
+            ->sum('total_paid');
+    }
+
+    /**
+     * Get customer floating balance (bounced cheques, bank charges, etc.)
+     */
+    public function getCustomerFloatingBalance($customerId)
+    {
+        $floatingDebits = Ledger::where('user_id', $customerId)
+            ->where('contact_type', 'customer')
+            ->whereIn('transaction_type', ['cheque_bounce', 'bank_charges'])
+            ->sum('amount');
+
+        $floatingCredits = Ledger::where('user_id', $customerId)
+            ->where('contact_type', 'customer')
+            ->whereIn('transaction_type', ['bounce_recovery', 'adjustment_credit'])
+            ->sum('amount');
+
+        return $floatingDebits - $floatingCredits;
+    }
+
+    /**
+     * Get total bounced cheques amount for customer
+     */
+    public function getCustomerBouncedChequesAmount($customerId)
+    {
+        return Payment::where('customer_id', $customerId)
+            ->where('payment_method', 'cheque')
+            ->where('cheque_status', 'bounced')
+            ->sum('amount');
+    }
+
+    /**
+     * Record floating balance recovery payment
+     */
+    public function recordFloatingBalanceRecovery($customerId, $amount, $paymentMethod = 'cash', $notes = '')
+    {
+        $referenceNo = 'RECOVERY-' . $customerId . '-' . time();
+        
+        return Ledger::createEntry([
+            'user_id' => $customerId,
+            'contact_type' => 'customer',
+            'transaction_date' => Carbon::now('Asia/Colombo'),
+            'reference_no' => $referenceNo,
+            'transaction_type' => 'bounce_recovery',
+            'amount' => $amount,
+            'notes' => $notes ?: "Recovery payment for floating balance via {$paymentMethod}"
+        ]);
+    }
+
+    /**
+     * Get customer ledger statement for a date range
+     */
+    public function getCustomerStatement($customerId, $fromDate = null, $toDate = null)
+    {
+        // Get opening balance
+        $openingBalance = 0;
+        if ($fromDate) {
+            $openingBalanceEntry = Ledger::where('user_id', $customerId)
+                ->where('contact_type', 'customer')
+                ->where('transaction_date', '<', $fromDate)
+                ->orderBy('created_at', 'desc')
+                ->first();
+            
+            $openingBalance = $openingBalanceEntry ? $openingBalanceEntry->balance : 0;
+        }
+
+        // Get transactions for the period
+        $transactions = Ledger::getStatement($customerId, 'customer', $fromDate, $toDate);
+
+        return [
+            'customer_id' => $customerId,
+            'opening_balance' => $openingBalance,
+            'transactions' => $transactions,
+            'closing_balance' => $transactions->last()->balance ?? $openingBalance,
+            'period' => [
+                'from_date' => $fromDate,
+                'to_date' => $toDate
+            ]
+        ];
+    }
+
+    /**
      * Record opening balance payment
      */
     public function recordOpeningBalancePayment($payment, $contactType)
@@ -247,8 +410,9 @@ class UnifiedLedgerService
 
     /**
      * Get customer ledger with proper unified logic
+     * @param bool $showFullHistory - true to show all transactions including edit history
      */
-    public function getCustomerLedger($customerId, $startDate, $endDate, $locationId = null)
+    public function getCustomerLedger($customerId, $startDate, $endDate, $locationId = null, $showFullHistory = false)
     {
         $customer = Customer::find($customerId);
         if (!$customer) {
@@ -265,26 +429,51 @@ class UnifiedLedgerService
             $ledgerQuery = $this->applyLocationFilter($ledgerQuery, $locationId, 'customer');
         }
 
-        // **IMPORTANT: Exclude reversal and deleted entries from display**
-        // These entries are kept in database for audit trail but hidden from user view
-        // -REV, -OLD-REV, -OLD: From payment edits
-        // -DELETED, -DEL-REV: From payment deletions
-        $ledgerQuery->where(function($query) {
-            $query->where('reference_no', 'NOT LIKE', '%-REV')
-                  ->where('reference_no', 'NOT LIKE', '%-OLD-REV')
-                  ->where('reference_no', 'NOT LIKE', '%-OLD')
-                  ->where('reference_no', 'NOT LIKE', '%-DELETED')
-                  ->where('reference_no', 'NOT LIKE', '%-DEL-REV');
-        });
+        // Apply filtering based on $showFullHistory parameter
+        if (!$showFullHistory) {
+            // **IMPORTANT: Exclude reversal and deleted entries from display for clean view**
+            // These entries are kept in database for audit trail but hidden from user view
+            // -REV, -OLD-REV, -OLD: From payment edits
+            // -DELETED, -DEL-REV: From payment deletions
+            $ledgerQuery->where(function($query) {
+                $query->where('reference_no', 'NOT LIKE', '%-REV')
+                      ->where('reference_no', 'NOT LIKE', '%-OLD-REV')
+                      ->where('reference_no', 'NOT LIKE', '%-OLD')
+                      ->where('reference_no', 'NOT LIKE', '%-DELETED')
+                      ->where('reference_no', 'NOT LIKE', '%-DEL-REV')
+                      ->where('notes', 'NOT LIKE', 'REVERSAL:%'); // Exclude reversal entries
+            });
+        }
 
         $ledgerTransactions = $ledgerQuery
-            ->orderBy('transaction_date', 'asc') // Order by actual transaction date for chronological view
-            ->orderBy('id', 'asc') // Secondary sort by ID for same-date transactions
+            ->orderBy('created_at', 'asc') // Order by created_at ascending (chronological order)
+            ->orderBy('id', 'asc') // Secondary sort by ID for same-date transactions (chronological)
             ->get();
 
+        // Apply duplicate filtering only for clean view
+        if (!$showFullHistory) {
+            // Filter to show only the latest entry for each reference number to avoid showing edit history
+            $filteredTransactions = collect();
+            $seenReferences = [];
+            
+            // Process in reverse order to keep the latest entries
+            foreach ($ledgerTransactions->reverse() as $ledger) {
+                $key = $ledger->reference_no . '_' . $ledger->transaction_type;
+                
+                if (!isset($seenReferences[$key])) {
+                    $seenReferences[$key] = true;
+                    $filteredTransactions->prepend($ledger); // Add to beginning to maintain order
+                }
+            }
+            $transactionsToProcess = $filteredTransactions;
+        } else {
+            // For full history, show all transactions with enhanced information
+            $transactionsToProcess = $ledgerTransactions;
+        }
+
         // Transform ledger data for frontend display
-        $transactions = $ledgerTransactions->map(function ($ledger) {
-            // Use created_at converted to Asia/Colombo timezone for display
+        $transactions = $transactionsToProcess->map(function ($ledger) use ($showFullHistory) {
+            // Use created_at converted to Asia/Colombo timezone for display (UTC to Asia/Colombo)
             $displayDate = $ledger->created_at ? 
                 Carbon::parse($ledger->created_at)->setTimezone('Asia/Colombo')->format('d/m/Y H:i:s') : 
                 'N/A';
@@ -292,31 +481,56 @@ class UnifiedLedgerService
             // Get location information based on transaction type
             $locationName = $this->getLocationForTransaction($ledger);
             
+            // Enhanced transaction type and description for full history mode
+            if ($showFullHistory) {
+                $transactionType = $this->getDetailedTransactionType($ledger);
+                $enhancedNotes = $this->getEnhancedTransactionDescription($ledger);
+            } else {
+                $transactionType = Ledger::formatTransactionType($ledger->transaction_type);
+                $enhancedNotes = $ledger->notes ?: '';
+            }
+            
             return [
                 'date' => $displayDate,
                 'reference_no' => $ledger->reference_no,
-                'type' => Ledger::formatTransactionType($ledger->transaction_type),
+                'type' => $transactionType,
                 'location' => $locationName,
                 'payment_status' => $this->getPaymentStatus($ledger),
                 'debit' => $ledger->debit,
                 'credit' => $ledger->credit,
                 'running_balance' => $ledger->balance,
                 'payment_method' => $this->extractPaymentMethod($ledger), // Extract from notes
-                'notes' => $ledger->notes ?: '',
-                'others' => $ledger->notes ?: '', // Show ledger notes in others column
+                'notes' => $enhancedNotes,
+                'others' => $enhancedNotes, // Show enhanced notes in others column for full history
                 'created_at' => $ledger->created_at,
                 'transaction_type' => $ledger->transaction_type
             ];
         });
 
-        // Calculate totals from ledger transactions
+        // Calculate totals from actual business records (not ledger) to avoid double counting
+        // Total Invoices should be from unique sales, not multiple ledger entries from edits
+        // Get current sale amounts (after all edits), not historical ledger amounts
+        $salesInPeriod = \App\Models\Sale::where('customer_id', $customerId)
+            ->whereBetween('sales_date', [$startDate, $endDate])
+            ->when($locationId, function($query) use ($locationId) {
+                return $query->where('location_id', $locationId);
+            })
+            ->get();
+            
+        $totalInvoices = $salesInPeriod->sum('final_total');
+        
+        // Calculate total payments from actual payment records 
+        $totalPayments = \App\Models\Payment::where('customer_id', $customerId)
+            ->where('payment_type', 'sale')
+            ->whereBetween('payment_date', [$startDate, $endDate])
+            ->sum('amount');
+            
+        // Calculate returns from ledger (since returns might not have separate table)
+        $totalReturns = $ledgerTransactions->whereIn('transaction_type', ['sale_return', 'sale_return_with_bill', 'sale_return_without_bill'])->sum('credit');
+        
+        // For display totals from ledger (already filtered)  
         $totalDebits = $ledgerTransactions->sum('debit');
         $totalCredits = $ledgerTransactions->sum('credit');
-        
-        // Calculate specific totals for account summary
-        $totalInvoices = $ledgerTransactions->whereIn('transaction_type', ['sale'])->sum('debit');
-        $totalPayments = $ledgerTransactions->whereIn('transaction_type', ['payments', 'sale_payment'])->sum('credit');
-        $totalReturns = $ledgerTransactions->whereIn('transaction_type', ['sale_return', 'sale_return_with_bill', 'sale_return_without_bill'])->sum('credit');
         
         // Get current balance from ledger (most recent entry)
         $currentBalance = Ledger::getLatestBalance($customerId, 'customer');
@@ -331,15 +545,13 @@ class UnifiedLedgerService
             
         $openingBalance = $openingBalanceLedger ? $openingBalanceLedger->balance : $customer->opening_balance;
 
-        // Calculate correct outstanding due for the period
-        // Outstanding Due = Opening Balance + Total Invoices - Total Payments - Total Returns
-        $calculatedOutstanding = $openingBalance + $totalInvoices - $totalPayments - $totalReturns;
-        $totalOutstandingDue = max(0, $calculatedOutstanding);
-        $advanceAmount = $calculatedOutstanding < 0 ? abs($calculatedOutstanding) : 0;
-        
-        // Effective due should reflect the actual current balance, not period-based calculation
-        // Use the current balance from ledger which represents the true outstanding amount
+        // For accurate calculations, use the current balance from ledger system
+        // This represents the true outstanding amount considering all transactions
         $effectiveDue = max(0, $currentBalance);
+        $advanceAmount = $currentBalance < 0 ? abs($currentBalance) : 0;
+        
+        // Outstanding Due should match Effective Due for consistency in reports
+        $totalOutstandingDue = $effectiveDue;
 
         return [
             'customer' => [
@@ -353,6 +565,7 @@ class UnifiedLedgerService
             ],
             'transactions' => $transactions,
             'summary' => [
+                'total_transactions' => $totalInvoices, // Total sale transactions for display
                 'total_invoices' => $totalInvoices, // Only actual sales/invoices
                 'total_paid' => $totalPayments, // Only actual payments
                 'total_returns' => $totalReturns, // Only actual returns
@@ -376,8 +589,9 @@ class UnifiedLedgerService
 
     /**
      * Get supplier ledger with proper unified logic
+     * @param bool $showFullHistory - true to show all transactions including edit history
      */
-    public function getSupplierLedger($supplierId, $startDate, $endDate, $locationId = null)
+    public function getSupplierLedger($supplierId, $startDate, $endDate, $locationId = null, $showFullHistory = false)
     {
         $supplier = Supplier::find($supplierId);
         if (!$supplier) {
@@ -394,26 +608,51 @@ class UnifiedLedgerService
             $ledgerQuery = $this->applyLocationFilter($ledgerQuery, $locationId, 'supplier');
         }
 
-        // **IMPORTANT: Exclude reversal and deleted entries from display**
-        // These entries are kept in database for audit trail but hidden from user view
-        // -REV, -OLD-REV, -OLD: From payment edits
-        // -DELETED, -DEL-REV: From payment deletions
-        $ledgerQuery->where(function($query) {
-            $query->where('reference_no', 'NOT LIKE', '%-REV')
-                  ->where('reference_no', 'NOT LIKE', '%-OLD-REV')
-                  ->where('reference_no', 'NOT LIKE', '%-OLD')
-                  ->where('reference_no', 'NOT LIKE', '%-DELETED')
-                  ->where('reference_no', 'NOT LIKE', '%-DEL-REV');
-        });
+        // Apply filtering based on $showFullHistory parameter
+        if (!$showFullHistory) {
+            // **IMPORTANT: Exclude reversal and deleted entries from display for clean view**
+            // These entries are kept in database for audit trail but hidden from user view
+            // -REV, -OLD-REV, -OLD: From payment edits
+            // -DELETED, -DEL-REV: From payment deletions
+            $ledgerQuery->where(function($query) {
+                $query->where('reference_no', 'NOT LIKE', '%-REV')
+                      ->where('reference_no', 'NOT LIKE', '%-OLD-REV')
+                      ->where('reference_no', 'NOT LIKE', '%-OLD')
+                      ->where('reference_no', 'NOT LIKE', '%-DELETED')
+                      ->where('reference_no', 'NOT LIKE', '%-DEL-REV')
+                      ->where('notes', 'NOT LIKE', 'REVERSAL:%'); // Exclude reversal entries
+            });
+        }
 
         $ledgerTransactions = $ledgerQuery
-            ->orderBy('transaction_date', 'asc') // Order by actual transaction date
-            ->orderBy('id', 'asc') // Secondary sort by ID for same-date transactions
+            ->orderBy('created_at', 'asc') // Order by created_at ascending (chronological order)
+            ->orderBy('id', 'asc') // Secondary sort by ID for same-date transactions (chronological)
             ->get();
 
+        // Apply duplicate filtering only for clean view
+        if (!$showFullHistory) {
+            // Filter to show only the latest entry for each reference number to avoid showing edit history
+            $filteredTransactions = collect();
+            $seenReferences = [];
+            
+            // Process in reverse order to keep the latest entries
+            foreach ($ledgerTransactions->reverse() as $ledger) {
+                $key = $ledger->reference_no . '_' . $ledger->transaction_type;
+                
+                if (!isset($seenReferences[$key])) {
+                    $seenReferences[$key] = true;
+                    $filteredTransactions->prepend($ledger); // Add to beginning to maintain order
+                }
+            }
+            $transactionsToProcess = $filteredTransactions;
+        } else {
+            // For full history, show all transactions with enhanced information
+            $transactionsToProcess = $ledgerTransactions;
+        }
+
         // Transform ledger data for frontend display
-        $transactions = $ledgerTransactions->map(function ($ledger) {
-            // Use created_at converted to Asia/Colombo timezone for display
+        $transactions = $transactionsToProcess->map(function ($ledger) use ($showFullHistory) {
+            // Use created_at converted to Asia/Colombo timezone for display (UTC to Asia/Colombo)
             $displayDate = $ledger->created_at ? 
                 Carbon::parse($ledger->created_at)->setTimezone('Asia/Colombo')->format('d/m/Y H:i:s') : 
                 'N/A';
@@ -421,18 +660,27 @@ class UnifiedLedgerService
             // Get location information based on transaction type
             $locationName = $this->getLocationForTransaction($ledger);
             
+            // Enhanced transaction type and description for full history mode
+            if ($showFullHistory) {
+                $transactionType = $this->getDetailedTransactionType($ledger);
+                $enhancedNotes = $this->getEnhancedTransactionDescription($ledger);
+            } else {
+                $transactionType = Ledger::formatTransactionType($ledger->transaction_type);
+                $enhancedNotes = $ledger->notes ?: '';
+            }
+            
             return [
                 'date' => $displayDate,
                 'reference_no' => $ledger->reference_no,
-                'type' => Ledger::formatTransactionType($ledger->transaction_type),
+                'type' => $transactionType,
                 'location' => $locationName,
                 'payment_status' => $this->getPaymentStatus($ledger),
                 'debit' => $ledger->debit,
                 'credit' => $ledger->credit,
                 'running_balance' => $ledger->balance,
                 'payment_method' => $this->extractPaymentMethod($ledger), // Extract from notes
-                'notes' => $ledger->notes ?: '',
-                'others' => $ledger->notes ?: '', // Show ledger notes in others column
+                'notes' => $enhancedNotes,
+                'others' => $enhancedNotes, // Show enhanced notes in others column for full history
                 'created_at' => $ledger->created_at,
                 'transaction_type' => $ledger->transaction_type
             ];
@@ -806,26 +1054,65 @@ class UnifiedLedgerService
     }
 
     /**
-     * Update sale transaction - properly handles ledger cleanup and recreation
+     * Update sale transaction - creates proper reversal entries for audit trail
      */
     public function updateSale($sale, $oldReferenceNo = null)
     {
-        // Clean up old ledger entries for this sale
         $referenceNo = $oldReferenceNo ?: ($sale->invoice_no ?: 'INV-' . $sale->id);
         
-        Ledger::where('reference_no', $referenceNo)
+        // Find the original sale ledger entry to reverse
+        $originalEntry = Ledger::where('reference_no', $referenceNo)
             ->where('transaction_type', 'sale')
             ->where('user_id', $sale->customer_id)
-            ->delete();
+            ->where('debit', '>', 0) // Only get entries with actual amounts
+            ->orderBy('created_at', 'desc') // Get the latest sale entry
+            ->first();
             
-        // Also clean up any associated payment entries for this sale
-        Ledger::where('reference_no', $referenceNo)
+        if ($originalEntry && $originalEntry->debit != $sale->final_total) {
+            // Only create reversal if amount is actually changing
+            $reversalEntry = Ledger::create([
+                'user_id' => $sale->customer_id,
+                'contact_type' => 'customer',
+                'transaction_date' => now(),
+                'reference_no' => $referenceNo,
+                'transaction_type' => 'sale',
+                'debit' => 0,
+                'credit' => $originalEntry->debit, // Reverse the original debit
+                'balance' => 0, // Will be calculated by observer
+                'notes' => "REVERSAL: Sale Edit - Original amount Rs{$originalEntry->debit} (ID: {$originalEntry->id})",
+            ]);
+        }
+        
+        // Clean up old payment entries (these will be recreated)
+        $oldPaymentEntries = Ledger::where('reference_no', $referenceNo)
             ->where('transaction_type', 'payments')
             ->where('user_id', $sale->customer_id)
-            ->delete();
+            ->where(function($query) {
+                $query->where('debit', '>', 0)->orWhere('credit', '>', 0);
+            })
+            ->get();
             
-        // Record the updated sale
-        return $this->recordSale($sale);
+        foreach ($oldPaymentEntries as $paymentEntry) {
+            // Only create reversals for entries with meaningful amounts
+            if ($paymentEntry->credit > 0) {
+                Ledger::create([
+                    'user_id' => $sale->customer_id,
+                    'contact_type' => 'customer',
+                    'transaction_date' => now(),
+                    'reference_no' => $referenceNo,
+                    'transaction_type' => 'payments',
+                    'debit' => $paymentEntry->credit, // Reverse the payment credit
+                    'credit' => 0,
+                    'balance' => 0, // Will be calculated
+                    'notes' => "REVERSAL: Sale Edit - Payment Rs{$paymentEntry->credit} (ID: {$paymentEntry->id})",
+                ]);
+            }
+        }
+            
+        // Record the updated sale (creates new entry)
+        $newSaleEntry = $this->recordSale($sale);
+        
+        return $newSaleEntry;
     }
 
     /**
@@ -1083,7 +1370,7 @@ class UnifiedLedgerService
                 $reversalEntry->balance = 0; // Will be recalculated
                 $reversalEntry->contact_type = $contactType;
                 $reversalEntry->user_id = $userId;
-                $reversalEntry->notes = 'Reversal of deleted payment - Amount: Rs. ' . 
+                $reversalEntry->notes = 'Reversal of deleted payment - Amount: Rs ' . 
                     number_format($entry->credit > 0 ? $entry->credit : $entry->debit, 2) . 
                     ' | Original ref: ' . str_replace('-DELETED', '', $entry->reference_no);
                 $reversalEntry->save();
@@ -1278,6 +1565,61 @@ class UnifiedLedgerService
         } else {
             $supplier = \App\Models\Supplier::find($userId);
             return $supplier ? ($supplier->current_balance ?? 0) : 0;
+        }
+    }
+
+    /**
+     * Get detailed transaction type with audit trail information
+     */
+    private function getDetailedTransactionType($ledger)
+    {
+        $refNo = $ledger->reference_no;
+        $type = $ledger->transaction_type;
+        
+        // Check for audit trail markers
+        if (strpos($refNo, '-REV') !== false) {
+            return 'Reversal Entry';
+        } elseif (strpos($refNo, '-OLD-REV') !== false) {
+            return 'Old Entry Reversal';
+        } elseif (strpos($refNo, '-OLD') !== false) {
+            return 'Original Entry (Before Edit)';
+        } elseif (strpos($refNo, '-DELETED') !== false) {
+            return 'Deleted Entry';
+        } elseif (strpos($refNo, '-DEL-REV') !== false) {
+            return 'Deletion Reversal';
+        } elseif (strpos($ledger->notes ?: '', 'REVERSAL:') === 0) {
+            return 'System Reversal';
+        } else {
+            return Ledger::formatTransactionType($type) . ' (Current)';
+        }
+    }
+
+    /**
+     * Get enhanced transaction description for audit trail
+     */
+    private function getEnhancedTransactionDescription($ledger)
+    {
+        $notes = $ledger->notes ?: '';
+        $refNo = $ledger->reference_no;
+        
+        // Handle reversal entries
+        if (strpos($notes, 'REVERSAL:') === 0) {
+            return $notes; // Already formatted reversal message
+        }
+        
+        // Handle audit trail entries
+        if (strpos($refNo, '-REV') !== false) {
+            $originalRef = str_replace(['-REV', '-OLD-REV', '-DEL-REV'], '', $refNo);
+            return "Reversal entry for payment #{$originalRef}. " . $notes;
+        } elseif (strpos($refNo, '-OLD') !== false) {
+            $originalRef = str_replace('-OLD', '', $refNo);
+            return "Original entry before edit for payment #{$originalRef}. " . $notes;
+        } elseif (strpos($refNo, '-DELETED') !== false) {
+            $originalRef = str_replace('-DELETED', '', $refNo);
+            return "Entry marked as deleted for payment #{$originalRef}. " . $notes;
+        } else {
+            // Current/active entry
+            return $notes ?: "Current active entry for {$refNo}";
         }
     }
 }

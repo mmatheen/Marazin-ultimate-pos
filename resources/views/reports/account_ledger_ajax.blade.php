@@ -180,6 +180,22 @@ $(document).ready(function() {
         }
     });
 
+    // Show Full History checkbox change handler
+    $('#show_full_history').on('change', function() {
+        const contactId = $('#contact_id').val();
+        const ledgerType = $('#ledger_type').val();
+        
+        if (contactId && ledgerType) {
+            $('#loadingStatus').show();
+            $('#readyStatus').hide();
+            const isChecked = $(this).is(':checked');
+            console.log('Show full history changed:', isChecked);
+            setTimeout(function() {
+                loadLedger();
+            }, 300);
+        }
+    });
+
     function loadCustomers() {
         console.log('Loading customers...');
         $.ajax({
@@ -349,6 +365,9 @@ $(document).ready(function() {
         // Then load ledger data
         const url = ledgerType === 'customer' ? '/customer-ledger-data' : '/supplier-ledger-data';
         const dataKey = ledgerType === 'customer' ? 'customer_id' : 'supplier_id';
+        
+        // Get show_full_history parameter
+        const showFullHistory = $('#show_full_history').is(':checked');
 
         $.ajax({
             url: url,
@@ -357,7 +376,8 @@ $(document).ready(function() {
                 [dataKey]: contactId,
                 location_id: locationId,
                 start_date: startDate,
-                end_date: endDate
+                end_date: endDate,
+                show_full_history: showFullHistory
             },
             success: function(response) {
                 console.log('Ledger API Response:', response); // Debug log
@@ -394,7 +414,7 @@ $(document).ready(function() {
                     const advanceAmount = advanceApp.available_advance || summary.advance_amount || 0;
                     console.log('Available advance amount:', advanceAmount);
                     
-                    $('#advanceAmount').text(`Rs. ${formatCurrency(advanceAmount)}`);
+                    $('#advanceAmount').text(`Rs ${formatCurrency(advanceAmount)}`);
                     $('#advanceActionsSection').show();
                     
                     // Enable/disable button based on advance availability
@@ -524,10 +544,11 @@ $(document).ready(function() {
             ]);
         });
 
-        // Update totals in footer
+        // Update totals in footer - use the final running balance from the last entry
+        const finalBalance = ledgerData.length > 0 ? ledgerData[ledgerData.length - 1].running_balance : 0;
         $('#totalDebit').text(`Rs. ${formatCurrency(totalDebit)}`);
         $('#totalCredit').text(`Rs. ${formatCurrency(totalCredit)}`);
-        $('#totalBalance').text(`Rs. ${formatCurrency(totalCredit - totalDebit)}`);
+        $('#totalBalance').text(`Rs. ${formatCurrency(finalBalance)}`);
 
         // Populate account summary with detailed information
         if (summary) {

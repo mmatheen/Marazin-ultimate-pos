@@ -622,9 +622,13 @@ class SaleController extends Controller
                 if ($sale->status !== 'jobticket') {
                     $totalPaid = 0;
                     if (!empty($request->payments)) {
-                        $totalPaid = $request->has('payments')
-                            ? array_sum(array_column($request->payments, 'amount'))
-                            : $sale->final_total;
+                        // Calculate total_paid only from payments with amount > 0
+                        $totalPaid = 0;
+                        foreach ($request->payments as $paymentData) {
+                            if ($paymentData['amount'] > 0) {
+                                $totalPaid += $paymentData['amount'];
+                            }
+                        }
 
                         if ($isUpdate) {
                             Payment::where('reference_id', $sale->id)->delete();
@@ -634,29 +638,13 @@ class SaleController extends Controller
                         }
 
                         foreach ($request->payments as $paymentData) {
-                            $payment = Payment::create([
-                                'payment_date' => Carbon::parse($paymentData['payment_date'])->format('Y-m-d'),
-                                'amount' => $paymentData['amount'],
-                                'payment_method' => $paymentData['payment_method'],
-                                'reference_no' => $referenceNo,
-                                'notes' => $paymentData['notes'] ?? '',
-                                'payment_type' => 'sale',
-                                'reference_id' => $sale->id,
-                                'customer_id' => $request->customer_id,
-                                'card_number' => $paymentData['card_number'] ?? null,
-                                'card_holder_name' => $paymentData['card_holder_name'] ?? null,
-                                'card_expiry_month' => $paymentData['card_expiry_month'] ?? null,
-                                'card_expiry_year' => $paymentData['card_expiry_year'] ?? null,
-                                'card_security_code' => $paymentData['card_security_code'] ?? null,
-                                'cheque_number' => $paymentData['cheque_number'] ?? null,
-                                'cheque_bank_branch' => $paymentData['cheque_bank_branch'] ?? null,
-                                'cheque_received_date' => isset($paymentData['cheque_received_date']) ? Carbon::parse($paymentData['cheque_received_date'])->format('Y-m-d') : null,
-                                'cheque_valid_date' => isset($paymentData['cheque_valid_date']) ? Carbon::parse($paymentData['cheque_valid_date'])->format('Y-m-d') : null,
-                                'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
-                            ]);
+                            // Skip creating payment records for credit sales (amount = 0)
+                            if ($paymentData['amount'] <= 0) {
+                                continue;
+                            }
 
-                            // Record payment in unified ledger
-                            $this->unifiedLedgerService->recordSalePayment($payment);
+                            // Use PaymentService for consistent payment handling
+                            $payment = $this->paymentService->recordSalePayment($paymentData, $sale);
                         }
                     } elseif ($isUpdate) {
                         $totalPaid = $sale->total_paid;

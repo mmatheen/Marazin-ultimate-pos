@@ -18,6 +18,31 @@
         </div>
     </div>
 
+    <!-- Important Information Alert -->
+    @if(($stats['total_bounced'] ?? 0) > 0)
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                <h5 class="alert-heading"><i class="fas fa-info-circle"></i> Enhanced Cheque Bounce Management</h5>
+                <p class="mb-2">
+                    <strong>Important:</strong> When cheques are marked as bounced, the system now maintains:
+                </p>
+                <ul class="mb-2">
+                    <li><strong>Bills remain "PAID"</strong> - Original transactions are not affected</li>
+                    <li><strong>Floating Balance</strong> - Bounced amounts are tracked separately as customer debt</li>
+                    <li><strong>Recovery System</strong> - Use the recovery button to record when customers pay back bounced amounts</li>
+                    <li><strong>Customer Risk Management</strong> - System automatically tracks bounce history for future decisions</li>
+                </ul>
+                <hr>
+                <p class="mb-0">
+                    <strong>Current Status:</strong> Rs. {{ number_format($stats['total_bounced'] ?? 0, 2) }} in floating balance from {{ $cheques->where('cheque_status', 'bounced')->count() }} bounced cheques.
+                </p>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+    @endif
+
     <!-- Summary Cards -->
     <div class="row mb-4">
         <div class="col-lg-2 col-md-4 col-sm-6">
@@ -59,8 +84,7 @@
                         <div class="flex-grow-1">
                             <h6 class="card-title mb-1">Bounced</h6>
                             <h4 class="mb-0">Rs. {{ number_format($stats['total_bounced'] ?? 0, 2) }}</h4>
-                            <!-- Debug: Raw value = {{ $stats['total_bounced'] ?? 'null' }} -->
-                            <small>Lost</small>
+                            <small>Floating Balance</small>
                         </div>
                         <div class="ms-3">
                             <i class="fas fa-times-circle fa-2x"></i>
@@ -220,6 +244,8 @@
                                     <th>Received Date</th>
                                     <th>Valid Date</th>
                                     <th>Status</th>
+                                    <th>Bill Status</th>
+                                    <th>Customer Impact</th>
                                     <th>Days Until Due</th>
                                     <th>Actions</th>
                                 </tr>
@@ -259,6 +285,38 @@
                                             $color = $statusColors[$payment->cheque_status ?? 'pending'] ?? 'light';
                                         @endphp
                                         <span class="badge bg-{{ $color }}">{{ ucfirst($payment->cheque_status ?? 'pending') }}</span>
+                                        @if(($payment->cheque_status ?? 'pending') === 'bounced')
+                                            <br><small class="text-danger">Bank Charges: Rs. {{ number_format($payment->bank_charges ?? 0, 2) }}</small>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        {{-- NEW: Bill Status Column --}}
+                                        @if($payment->sale)
+                                            @php
+                                                $billStatusColor = $payment->sale->payment_status === 'Paid' ? 'success' : 
+                                                    ($payment->sale->payment_status === 'Partial' ? 'warning' : 'danger');
+                                            @endphp
+                                            <span class="badge bg-{{ $billStatusColor }}">{{ $payment->sale->payment_status }}</span>
+                                            @if(($payment->cheque_status ?? 'pending') === 'bounced' && $payment->sale->payment_status === 'Paid')
+                                                <br><small class="text-success"><i class="fas fa-info-circle"></i> Bill Remains Settled</small>
+                                            @endif
+                                        @else
+                                            <span class="text-muted">N/A</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        {{-- NEW: Customer Impact Column --}}
+                                        @if(($payment->cheque_status ?? 'pending') === 'bounced')
+                                            <span class="badge bg-warning">Floating Balance</span>
+                                            <br><small class="text-danger">+Rs. {{ number_format($payment->amount + ($payment->bank_charges ?? 0), 2) }}</small>
+                                            @if($payment->customer)
+                                                <br><a href="/floating-balance/customer/{{ $payment->customer_id }}" class="btn btn-sm btn-outline-info mt-1">
+                                                    <i class="fas fa-eye"></i> View Balance
+                                                </a>
+                                            @endif
+                                        @else
+                                            <span class="text-muted">No Impact</span>
+                                        @endif
                                     </td>
                                     <td>
                                         @if($payment->payment_method === 'cheque' && ($payment->cheque_status ?? 'pending') === 'pending' && $payment->cheque_valid_date)
@@ -289,12 +347,17 @@
                                             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="viewStatusHistory({{ $payment->id }})" title="Status History">
                                                 <i class="fas fa-history"></i>
                                             </button>
+                                            @if(($payment->cheque_status ?? 'pending') === 'bounced' && $payment->customer_id)
+                                            <button type="button" class="btn btn-sm btn-outline-success" onclick="recordRecoveryPayment({{ $payment->customer_id }}, {{ $payment->amount + ($payment->bank_charges ?? 0) }})" title="Record Recovery">
+                                                <i class="fas fa-money-bill"></i>
+                                            </button>
+                                            @endif
                                         </div>
                                     </td>
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="11" class="text-center py-4">
+                                    <td colspan="13" class="text-center py-4">
                                         <div class="text-muted">
                                             <i class="fas fa-inbox fa-3x mb-3"></i>
                                             <h5>No cheques found</h5>
@@ -353,6 +416,58 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Update Status</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Recovery Payment Modal -->
+<div class="modal fade" id="recoveryPaymentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Record Recovery Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="recoveryPaymentForm">
+                <div class="modal-body">
+                    <input type="hidden" id="recoveryCustomerId">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Recovery Payment:</strong> This payment will reduce the customer's floating balance (bounced cheques, bank charges, etc.) without affecting any specific bill.
+                    </div>
+                    <div class="mb-3">
+                        <label for="recoveryAmount" class="form-label">Recovery Amount</label>
+                        <input type="number" class="form-control" id="recoveryAmount" name="amount" step="0.01" min="0.01" required placeholder="0.00">
+                        <small class="form-text text-muted">Amount to recover from floating balance</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="recoveryPaymentMethod" class="form-label">Payment Method</label>
+                        <select class="form-control" id="recoveryPaymentMethod" name="payment_method" required>
+                            <option value="">Select Method</option>
+                            <option value="cash">Cash</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                            <option value="card">Card</option>
+                            <option value="upi">UPI</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="recoveryPaymentDate" class="form-label">Payment Date</label>
+                        <input type="date" class="form-control" id="recoveryPaymentDate" name="payment_date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="recoveryNotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="recoveryNotes" name="notes" rows="3" placeholder="Recovery payment for bounced cheque..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="recoveryReferenceNo" class="form-label">Reference Number</label>
+                        <input type="text" class="form-control" id="recoveryReferenceNo" name="reference_no" placeholder="Transaction/Receipt number (optional)">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Record Payment</button>
                 </div>
             </form>
         </div>
@@ -452,6 +567,12 @@ $(document).ready(function() {
     $('#bulkBounce').on('click', function() {
         bulkUpdateStatus('bounced');
     });
+
+    // Recovery payment form
+    $('#recoveryPaymentForm').on('submit', function(e) {
+        e.preventDefault();
+        submitRecoveryPayment();
+    });
 });
 
 function loadCustomers() {
@@ -513,6 +634,31 @@ function viewChequeDetails(paymentId) {
                 const sale = payment.sale;
                 const customer = payment.customer;
                 
+                // Enhanced details with bounce impact information
+                let bounceImpactHtml = '';
+                if (payment.cheque_status === 'bounced') {
+                    bounceImpactHtml = `
+                        <div class="col-12 mt-3">
+                            <div class="alert alert-warning">
+                                <h6 class="fw-bold"><i class="fas fa-exclamation-triangle"></i> Bounce Impact</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p><strong>Bill Status:</strong> <span class="badge bg-success">Remains PAID</span></p>
+                                        <p><strong>Bounce Amount:</strong> Rs. ${numberFormat(payment.amount)}</p>
+                                        <p><strong>Bank Charges:</strong> Rs. ${numberFormat(payment.bank_charges || 0)}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p><strong>Customer Impact:</strong> <span class="badge bg-warning">Floating Balance Added</span></p>
+                                        <p><strong>Total Added:</strong> Rs. ${numberFormat((payment.amount || 0) + (payment.bank_charges || 0))}</p>
+                                        <p><strong>Bounce Date:</strong> ${payment.cheque_bounce_date || 'N/A'}</p>
+                                    </div>
+                                </div>
+                                <p><strong>Bounce Reason:</strong> ${payment.cheque_bounce_reason || 'Not specified'}</p>
+                            </div>
+                        </div>
+                    `;
+                }
+
                 const detailsHtml = `
                     <div class="row">
                         <div class="col-md-6">
@@ -535,9 +681,10 @@ function viewChequeDetails(paymentId) {
                                 <tr><td><strong>Sale Date:</strong></td><td>${sale.sales_date}</td></tr>
                                 <tr><td><strong>Total Amount:</strong></td><td>Rs. ${numberFormat(sale.final_total)}</td></tr>
                                 <tr><td><strong>Total Paid:</strong></td><td>Rs. ${numberFormat(sale.total_paid)}</td></tr>
-                                <tr><td><strong>Total Due:</strong></td><td>Rs. ${numberFormat(sale.total_due)}</td></tr>
+                                <tr><td><strong>Payment Status:</strong></td><td><span class="badge bg-${sale.payment_status === 'Paid' ? 'success' : 'warning'}">${sale.payment_status}</span></td></tr>
                             </table>
                         </div>
+                        ${bounceImpactHtml}
                     </div>
                 `;
                 
@@ -568,7 +715,19 @@ function updateChequeStatusSubmit() {
         data: formData,
         success: function(response) {
             if (response.status === 200) {
-                alert('Cheque status updated successfully');
+                let message = response.message;
+                
+                // Enhanced message for bounced cheques
+                if (response.data && response.data.customer_impact) {
+                    const impact = response.data.customer_impact;
+                    message += `\n\nCustomer Impact:`;
+                    message += `\n• ${impact.customer_name}`;
+                    message += `\n• ${impact.bill_status}`;
+                    message += `\n• Floating Balance: Rs. ${numberFormat(impact.floating_balance)}`;
+                    message += `\n• Total Outstanding: Rs. ${numberFormat(impact.total_outstanding)}`;
+                }
+                
+                alert(message);
                 $('#updateStatusModal').modal('hide');
                 location.reload();
             } else {
@@ -577,6 +736,45 @@ function updateChequeStatusSubmit() {
         },
         error: function(xhr) {
             const errorMsg = xhr.responseJSON?.message || 'Failed to update cheque status';
+            alert(errorMsg);
+        }
+    });
+}
+
+// NEW: Record recovery payment function
+function recordRecoveryPayment(customerId, suggestedAmount) {
+    $('#recoveryCustomerId').val(customerId);
+    $('#recoveryAmount').val(suggestedAmount);
+    $('#recoveryPaymentDate').val(new Date().toISOString().split('T')[0]);
+    $('#recoveryPaymentModal').modal('show');
+}
+
+function submitRecoveryPayment() {
+    const customerId = $('#recoveryCustomerId').val();
+    const formData = $('#recoveryPaymentForm').serialize();
+    
+    $.ajax({
+        url: `/floating-balance/customer/${customerId}/recovery-payment`,
+        method: 'POST',
+        data: formData,
+        success: function(response) {
+            if (response.status === 200) {
+                const balanceUpdate = response.data.balance_update;
+                let message = 'Recovery payment recorded successfully!\n\n';
+                message += `Payment Amount: Rs. ${numberFormat(balanceUpdate.payment_amount)}\n`;
+                message += `Previous Floating Balance: Rs. ${numberFormat(balanceUpdate.old_floating_balance)}\n`;
+                message += `New Floating Balance: Rs. ${numberFormat(balanceUpdate.new_floating_balance)}\n`;
+                message += `Total Outstanding: Rs. ${numberFormat(balanceUpdate.total_outstanding)}`;
+                
+                alert(message);
+                $('#recoveryPaymentModal').modal('hide');
+                location.reload();
+            } else {
+                alert(response.message || 'Failed to record recovery payment');
+            }
+        },
+        error: function(xhr) {
+            const errorMsg = xhr.responseJSON?.message || 'Failed to record recovery payment';
             alert(errorMsg);
         }
     });

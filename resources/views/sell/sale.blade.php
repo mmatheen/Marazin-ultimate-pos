@@ -341,6 +341,7 @@
                     </div>
                     <div class="modal-body">
                         <form id="paymentForm">
+                            <input type="hidden" id="paymentId" name="payment_id">
                             <input type="hidden" id="saleId" name="reference_id">
                             <input type="hidden" id="payment_type" name="payment_type">
                             <input type="hidden" id="customer_id" name="customer_id">

@@ -80,11 +80,15 @@ class PaymentController extends Controller
         }
 
         try {
+            // Get show_full_history parameter (default false for backward compatibility)
+            $showFullHistory = $request->boolean('show_full_history', false);
+            
             $ledgerData = $this->unifiedLedgerService->getCustomerLedger(
                 $request->customer_id,
                 $request->start_date,
                 $request->end_date,
-                $request->location_id
+                $request->location_id,
+                $showFullHistory
             );
 
             return response()->json([
@@ -374,11 +378,15 @@ class PaymentController extends Controller
         }
 
         try {
+            // Get show_full_history parameter (default false for backward compatibility)
+            $showFullHistory = $request->boolean('show_full_history', false);
+            
             $ledgerData = $this->unifiedLedgerService->getSupplierLedger(
                 $request->supplier_id,
                 $request->start_date,
                 $request->end_date,
-                $request->location_id
+                $request->location_id,
+                $showFullHistory
             );
 
             return response()->json([
@@ -529,23 +537,33 @@ class PaymentController extends Controller
         }
     }
 
-    public function storeOrUpdate(Request $request, $paymentId = null)
+    public function storeOrUpdate(Request $request, Payment $payment = null)
     {
         $validator = Validator::make($request->all(), $this->getValidationRules());
         if ($validator->fails()) {
             return response()->json(['status' => 400, 'errors' => $validator->messages()]);
         }
 
-        DB::transaction(function () use ($request, $paymentId) {
+        $isUpdate = !empty($payment);
+        
+        DB::transaction(function () use ($request, $payment, $isUpdate) {
             $paymentData = $this->preparePaymentData($request);
-            $payment = $this->saveOrUpdatePayment($paymentData, $paymentId);
+            
+            if ($isUpdate) {
+                // For updates, use PaymentService which handles ledger properly
+                $updatedPayment = $this->paymentService->editSalePayment($payment, $paymentData);
+            } else {
+                // For new payments, create normally
+                $updatedPayment = $this->saveOrUpdatePayment($paymentData, null);
+            }
 
-            if ($payment) {
-                $this->processPayment($payment);
+            if ($updatedPayment) {
+                $this->processPayment($updatedPayment, $isUpdate);
             }
         });
 
-        return response()->json(['status' => 200, 'message' => 'Payment processed successfully.']);
+        $message = $isUpdate ? 'Payment updated successfully.' : 'Payment processed successfully.';
+        return response()->json(['status' => 200, 'message' => $message]);
     }
 
     private function getValidationRules()
@@ -620,11 +638,15 @@ class PaymentController extends Controller
         return null;
     }
 
-    private function processPayment(Payment $payment)
+    private function processPayment(Payment $payment, $isUpdate = false)
     {
         // Use unified ledger service for all payment processing
         if ($payment->payment_type === 'sale' && $payment->customer_id) {
-            $this->unifiedLedgerService->recordSalePayment($payment);
+            if (!$isUpdate) {
+                // For new payments, record normally
+                $this->unifiedLedgerService->recordSalePayment($payment);
+            }
+            // For updates, the ledger is already handled by the update process
             $this->updateSaleTable($payment->reference_id);
             $this->updateCustomerBalance($payment->customer_id);
         } else if ($payment->payment_type === 'purchase' && $payment->supplier_id) {
@@ -734,9 +756,9 @@ class PaymentController extends Controller
     private function getPaymentRelations($paymentType)
     {
         return match ($paymentType) {
-            'sale' => ['customer', 'reference.location'],
-            'purchase' => ['supplier', 'reference.location'],
-            'purchase_return' => ['supplier', 'reference.location'],
+            'sale' => ['customer', 'sale.location'],
+            'purchase' => ['supplier', 'purchase.location'],
+            'purchase_return' => ['supplier', 'purchaseReturn.location'],
             default => ['customer', 'supplier'],
         };
     }

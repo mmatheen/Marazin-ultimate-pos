@@ -6442,15 +6442,11 @@
                         return;
                     }
 
-                    // Add credit payment information
+                    // For credit sales, don't create any payment records
                     const totalAmount = parseFormattedAmount($('#final-total-amount')
                         .text().trim());
 
-                    saleData.payments = [{
-                        payment_method: 'credit',
-                        payment_date: new Date().toISOString().slice(0, 10),
-                        amount: 0 // No payment amount for credit sale
-                    }];
+                    saleData.payments = []; // No payment records for pure credit sales
 
                     saleData.amount_given = 0;
                     saleData.balance_amount = 0;

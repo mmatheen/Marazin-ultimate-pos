@@ -125,17 +125,17 @@ class SaleController extends Controller
             // Format error message with clear breakdown
             $errorMessage = "Credit limit exceeded for {$customer->full_name}.\n\n";
             $errorMessage .= "Credit Details:\n";
-            $errorMessage .= "• Credit Limit: Rs. " . number_format($customer->credit_limit, 2) . "\n";
-            $errorMessage .= "• Current Outstanding: Rs. " . number_format($currentBalance, 2) . "\n";
-            $errorMessage .= "• Available Credit: Rs. " . number_format($availableCredit, 2) . "\n\n";
+            $errorMessage .= "• Credit Limit: Rs " . number_format($customer->credit_limit, 2) . "\n";
+            $errorMessage .= "• Current Outstanding: Rs " . number_format($currentBalance, 2) . "\n";
+            $errorMessage .= "• Available Credit: Rs " . number_format($availableCredit, 2) . "\n\n";
             $errorMessage .= "Sale Details:\n";
-            $errorMessage .= "• Total Sale Amount: Rs. " . number_format($finalTotal, 2) . "\n";
-            $errorMessage .= "• Payment Received: Rs. " . number_format($actualPaymentAmount, 2) . "\n";
-            $errorMessage .= "• Credit Amount Required: Rs. " . number_format($remainingBalance, 2) . "\n\n";
+            $errorMessage .= "• Total Sale Amount: Rs " . number_format($finalTotal, 2) . "\n";
+            $errorMessage .= "• Payment Received: Rs " . number_format($actualPaymentAmount, 2) . "\n";
+            $errorMessage .= "• Credit Amount Required: Rs " . number_format($remainingBalance, 2) . "\n\n";
             
             if ($availableCredit > 0) {
-                $errorMessage .= "Maximum credit sale allowed: Rs. " . number_format($availableCredit, 2) . "\n";
-                $errorMessage .= "Exceeds limit by: Rs. " . number_format($remainingBalance - $availableCredit, 2);
+                $errorMessage .= "Maximum credit sale allowed: Rs " . number_format($availableCredit, 2) . "\n";
+                $errorMessage .= "Exceeds limit by: Rs " . number_format($remainingBalance - $availableCredit, 2);
             } else {
                 $errorMessage .= "No credit available. Please settle previous outstanding amount or pay full amount.";
             }
@@ -1071,6 +1071,11 @@ class SaleController extends Controller
 
                         // Create payments individually using PaymentService
                         foreach ($request->payments as $paymentData) {
+                            // Skip creating payments with zero amounts to prevent unnecessary ledger entries
+                            if (empty($paymentData['amount']) || $paymentData['amount'] <= 0) {
+                                continue;
+                            }
+                            
                             // Prepare payment data with enhanced cheque handling
                             $servicePaymentData = [
                                 'payment_date' => $paymentData['payment_date'],
@@ -1369,7 +1374,7 @@ class SaleController extends Controller
                         )
                         ->post($whatsAppApiUrl, [
                             'number' => "+94" . $mobileNo,
-                            'message' => "Dear {$customer->first_name}, your invoice #{$sale->invoice_no} has been generated successfully. Total amount: Rs. {$sale->final_total}. Thank you for your business!",
+                            'message' => "Dear {$customer->first_name}, your invoice #{$sale->invoice_no} has been generated successfully. Total amount: Rs {$sale->final_total}. Thank you for your business!",
                         ]);
 
                     if ($response->successful()) {
@@ -2233,17 +2238,48 @@ class SaleController extends Controller
                              ->where('payment_method', 'cheque')
                              ->firstOrFail();
 
+            $oldStatus = $payment->cheque_status;
+            $newStatus = $request->status;
+
             $payment->updateChequeStatus(
-                $request->status,
+                $newStatus,
                 $request->remarks,
                 $request->bank_charges ?? 0,
                 auth()->id()
             );
 
+            $responseData = [
+                'payment' => $payment->fresh(['sale', 'chequeStatusHistory']),
+                'status_change' => [
+                    'from' => $oldStatus,
+                    'to' => $newStatus,
+                    'processed_by' => auth()->user()->name,
+                    'processed_at' => now()
+                ]
+            ];
+
+            // Add customer balance info for bounced cheques
+            if ($newStatus === 'bounced' && $payment->customer_id) {
+                $customer = Customer::find($payment->customer_id);
+                if ($customer) {
+                    $responseData['customer_impact'] = [
+                        'customer_name' => $customer->full_name,
+                        'floating_balance' => $customer->getFloatingBalance(),
+                        'total_outstanding' => $customer->getTotalOutstanding(),
+                        'bill_status' => 'Bill remains PAID (floating balance created)',
+                        'follow_up_required' => true
+                    ];
+                }
+            }
+
+            $message = $newStatus === 'bounced' 
+                ? 'Cheque marked as bounced. Bill status unchanged, floating balance created for customer.'
+                : 'Cheque status updated successfully';
+
             return response()->json([
                 'status' => 200,
-                'message' => 'Cheque status updated successfully',
-                'payment' => $payment->fresh(['sale', 'chequeStatusHistory'])
+                'message' => $message,
+                'data' => $responseData
             ]);
 
         } catch (\Exception $e) {
@@ -2409,4 +2445,13 @@ class SaleController extends Controller
             ], 500);
         }
     }
+
+    // REMOVED: editBillAmount() - Use storeOrUpdate() with ID parameter instead
+    // The existing storeOrUpdate() method already handles bill editing properly
+
+    // REMOVED: getBillEditPreview() - Use existing edit() method to load sale data for editing
+
+    // REMOVED: editSalePayment() and deleteSalePayment() 
+    // Payment management should be handled by dedicated PaymentController
+    // This maintains proper separation of concerns
 }

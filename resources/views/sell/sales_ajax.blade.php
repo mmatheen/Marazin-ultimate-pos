@@ -1442,6 +1442,8 @@
                         $('#totalAmount').text(saleDetails.final_total);
                         $('#totalPaidAmount').text(saleDetails.total_paid);
 
+                        // Clear payment ID for new payment
+                        $('#paymentId').val('');
                         $('#saleId').val(saleDetails.id);
                         $('#payment_type').val('sale');
                         $('#customer_id').val(customer.id);
@@ -1579,20 +1581,57 @@
                 url: '/payments/' + paymentId,
                 type: 'GET',
                 success: function(response) {
+                    console.log('Payment edit response:', response); // Debug log
                     if (response.data) {
                         const payment = response.data;
                         const customer = payment.customer || {};
-                        const location = payment.location || {};
+                        const sale = payment.sale || {};
+                        const location = sale.location || {};
+                        
+                        console.log('Payment:', payment);
+                        console.log('Sale:', sale);
+                        console.log('Location:', location);
+
+                        // If sale data is not loaded via relationship, we'll show what we can and handle gracefully
+                        const referenceNo = payment.reference_no || 'N/A';
+                        const customerName = customer.first_name ? 
+                            `${customer.first_name} ${customer.last_name || ''}`.trim() : 'N/A';
+                        const locationName = location.name || 'N/A';
+                        const finalTotal = sale.final_total || 'Loading...';
+                        const totalPaid = sale.total_paid || 'Loading...';
 
                         // Populate edit payment modal fields
-                        $('#paymentModalLabel').text('Edit Payment - Reference No: ' + (
-                            payment.reference_no || 'N/A'));
-                        $('#paymentCustomerDetail').text((customer.first_name || 'N/A') +
-                            ' ' + (customer.last_name || ''));
-                        $('#paymentLocationDetails').text(location.name || 'N/A');
-                        $('#totalAmount').text(payment.final_total || 'N/A');
-                        $('#totalPaidAmount').text(payment.total_paid || 'N/A');
+                        $('#paymentModalLabel').text('Edit Payment - Reference No: ' + referenceNo);
+                        $('#paymentCustomerDetail').text(customerName);
+                        $('#paymentLocationDetails').text(locationName);
+                        $('#totalAmount').text(finalTotal);
+                        $('#totalPaidAmount').text(totalPaid);
 
+                        // If sale data is missing, fetch it separately
+                        if (!sale.final_total && payment.payment_type === 'sale' && payment.reference_id) {
+                            $.ajax({
+                                url: '/sale-details/' + payment.reference_id,
+                                type: 'GET',
+                                success: function(saleResponse) {
+                                    if (saleResponse.salesDetails) {
+                                        const saleData = saleResponse.salesDetails;
+                                        const saleLocation = saleData.location || {};
+                                        
+                                        $('#totalAmount').text(saleData.final_total || 'N/A');
+                                        $('#totalPaidAmount').text(saleData.total_paid || 'N/A');
+                                        $('#paymentLocationDetails').text(saleLocation.name || 'N/A');
+                                        
+                                        console.log('Sale data loaded separately:', saleData);
+                                    }
+                                },
+                                error: function(xhr, status, error) {
+                                    console.error('Error loading sale details:', error);
+                                }
+                            });
+                        }
+
+                        // Set payment ID for edit mode
+                        $('#paymentId').val(payment.id);
                         $('#saleId').val(payment.reference_id);
                         $('#payment_type').val(payment.payment_type);
                         $('#customer_id').val(payment.customer_id);
@@ -1600,6 +1639,14 @@
                         $('#paidOn').val(payment.payment_date);
                         $('#payAmount').val(payment.amount);
                         $('#paymentNotes').val(payment.notes);
+                        
+                        // Populate payment method specific fields
+                        $('#paymentMethod').val(payment.payment_method || 'cash').trigger('change');
+                        $('#cardNumber').val(payment.card_number || '');
+                        $('#chequeNumber').val(payment.cheque_number || '');
+                        $('#chequeBankBranch').val(payment.cheque_bank_branch || '');
+                        $('#chequeValidDate').val(payment.cheque_valid_date || '');
+                        $('#chequeStatus').val(payment.cheque_status || 'pending');
 
                         // Ensure the Edit Payment modal is brought to the front
                         $('#viewPaymentModal').modal('hide');
@@ -1608,7 +1655,9 @@
                         // Validate the amount input
                         $('#payAmount').off('input').on('input', function() {
                             let amount = parseFloat($(this).val());
-                            let totalDue = parseFloat(payment.total_due || 0);
+                            let totalAmount = parseFloat(sale.final_total || 0);
+                            let totalPaid = parseFloat(sale.total_paid || 0);
+                            let totalDue = totalAmount - totalPaid + parseFloat(payment.amount || 0); // Add back current payment to get due amount
                             if (amount > totalDue) {
                                 $('#amountError').text(
                                     'The given amount exceeds the total due amount.'
@@ -1621,11 +1670,14 @@
 
                         $('#paymentModal').modal('show');
                     } else {
-                        console.error('Payment data is not in the expected format.');
+                        console.error('Payment data is not in the expected format:', response);
+                        toastr.error('Invalid payment data received. Please try again.', 'Error');
                     }
                 },
                 error: function(xhr, status, error) {
                     console.error('Error fetching payment details:', error);
+                    console.error('Response:', xhr.responseText);
+                    toastr.error('Failed to load payment details. Please try again.', 'Error');
                 }
             });
         });
@@ -1685,23 +1737,44 @@
 
         $('#savePayment').click(function() {
             var formData = new FormData($('#paymentForm')[0]);
+            var paymentId = $('#paymentId').val();
+            
+            // Determine if this is an edit or create operation
+            var isEdit = paymentId && paymentId !== '';
+            var url = isEdit ? '/api/payments/' + paymentId : '/api/payments';
+            var method = isEdit ? 'PUT' : 'POST';
+            
+            console.log('Payment Save - IsEdit:', isEdit, 'PaymentID:', paymentId, 'URL:', url);
+            
+            // For PUT requests, we need to add the _method field
+            if (isEdit) {
+                formData.append('_method', 'PUT');
+            }
 
             $.ajax({
-                url: '/api/payments',
-                type: 'POST',
+                url: url,
+                type: 'POST', // Always use POST but with _method for Laravel
                 data: formData,
                 contentType: false,
                 processData: false,
                 success: function(response) {
                     $('#paymentModal').modal('hide');
                     document.getElementsByClassName('successSound')[0].play();
-                    toastr.success(response.message, 'Payment Added');
+                    
+                    var message = isEdit ? 'Payment Updated Successfully' : 'Payment Added Successfully';
+                    toastr.success(response.message || message, isEdit ? 'Payment Updated' : 'Payment Added');
 
+                    // Clear payment ID for next use (important!)
+                    $('#paymentId').val('');
+                    
                     // Refresh the DataTable to show updated payment information
                     refreshSalesTable();
                 },
                 error: function(xhr, status, error) {
-                    console.error('Error adding payment:', error);
+                    console.error('Error saving payment:', error);
+                    var errorMessage = xhr.responseJSON && xhr.responseJSON.message ? 
+                        xhr.responseJSON.message : 'Error saving payment. Please try again.';
+                    toastr.error(errorMessage, 'Error');
                 }
             });
         });

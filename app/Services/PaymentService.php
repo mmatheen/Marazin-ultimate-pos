@@ -6,6 +6,7 @@ use App\Models\Payment;
 use App\Models\Purchase;
 use App\Models\PurchaseReturn;
 use App\Models\Sale;
+use App\Models\Ledger;
 use App\Services\UnifiedLedgerService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -55,8 +56,13 @@ class PaymentService
                 'payment_status' => $paymentData['payment_status'] ?? 'completed',
             ]);
 
-            // Record payment in ledger (skip for Walk-In customers)
-            if ($sale->customer_id != 1) {
+            // Record payment in ledger (Enhanced: Include all customers for proper tracking)
+            // Skip only if explicitly requested or for specific statuses
+            $skipLedger = ($paymentData['skip_ledger'] ?? false) || 
+                          ($sale->status === 'draft') || 
+                          ($sale->status === 'quotation');
+                          
+            if (!$skipLedger) {
                 $this->unifiedLedgerService->recordSalePayment($payment, $sale);
             }
 
@@ -68,22 +74,131 @@ class PaymentService
     }
 
     /**
+     * Edit existing payment with proper ledger management
+     * 
+     * @param Payment $payment
+     * @param array $newPaymentData
+     * @return Payment
+     */
+    public function editSalePayment(Payment $payment, array $newPaymentData): Payment
+    {
+        return DB::transaction(function () use ($payment, $newPaymentData) {
+            $oldAmount = $payment->amount;
+            $newAmount = $newPaymentData['amount'];
+            $sale = Sale::findOrFail($payment->reference_id);
+
+            // Create reverse entry for old payment (if ledger tracking is enabled)
+            if ($sale->customer_id != 1) { // Skip Walk-In customers for now
+                Ledger::createEntry([
+                    'user_id' => $payment->customer_id,
+                    'contact_type' => 'customer',
+                    'transaction_date' => now(),
+                    'reference_no' => "EDIT-REV-{$payment->reference_no}",
+                    'transaction_type' => 'payments',
+                    'amount' => $oldAmount,
+                    'notes' => "Payment Edit - Reverse Old Amount (LKR {$oldAmount})"
+                ]);
+            }
+
+            // Update payment record
+            $payment->update([
+                'payment_date' => Carbon::parse($newPaymentData['payment_date']),
+                'amount' => $newAmount,
+                'payment_method' => $newPaymentData['payment_method'],
+                'reference_no' => $newPaymentData['reference_no'] ?? $payment->reference_no,
+                'notes' => $newPaymentData['notes'] ?? $payment->notes,
+                'payment_status' => $newPaymentData['payment_status'] ?? $payment->payment_status,
+                // Update payment method specific fields
+                'card_number' => $newPaymentData['card_number'] ?? $payment->card_number,
+                'cheque_number' => $newPaymentData['cheque_number'] ?? $payment->cheque_number,
+                'cheque_bank_branch' => $newPaymentData['cheque_bank_branch'] ?? $payment->cheque_bank_branch,
+                'cheque_valid_date' => $newPaymentData['cheque_valid_date'] ?? $payment->cheque_valid_date,
+                'cheque_status' => $newPaymentData['cheque_status'] ?? $payment->cheque_status,
+            ]);
+
+            // Create new entry for updated payment (if ledger tracking is enabled)
+            if ($sale->customer_id != 1) { // Skip Walk-In customers for now
+                Ledger::createEntry([
+                    'user_id' => $payment->customer_id,
+                    'contact_type' => 'customer',
+                    'transaction_date' => Carbon::parse($newPaymentData['payment_date']),
+                    'reference_no' => $payment->reference_no,
+                    'transaction_type' => 'payments',
+                    'amount' => $newAmount,
+                    'notes' => "Payment Edit - New Amount (LKR {$newAmount})"
+                ]);
+            }
+
+            // Update sale payment status
+            $this->updateSalePaymentStatus($sale);
+
+            return $payment->fresh();
+        });
+    }
+
+    /**
+     * Delete payment with proper ledger reversal
+     * 
+     * @param Payment $payment
+     * @param string $reason
+     * @return bool
+     */
+    public function deleteSalePayment(Payment $payment, string $reason = 'Payment deleted'): bool
+    {
+        return DB::transaction(function () use ($payment, $reason) {
+            $sale = Sale::findOrFail($payment->reference_id);
+
+            // Create reverse entry for the payment (if ledger tracking is enabled)
+            if ($sale->customer_id != 1) { // Skip Walk-In customers for now
+                Ledger::createEntry([
+                    'user_id' => $payment->customer_id,
+                    'contact_type' => 'customer',
+                    'transaction_date' => now(),
+                    'reference_no' => "DEL-REV-{$payment->reference_no}",
+                    'transaction_type' => 'payments',
+                    'amount' => $payment->amount,
+                    'notes' => "Payment Deleted - Reverse Entry: {$reason}"
+                ]);
+            }
+
+            // Soft delete or mark as deleted instead of hard delete
+            $payment->update([
+                'notes' => ($payment->notes ?? '') . " | DELETED: {$reason}",
+                'payment_status' => 'cancelled'
+            ]);
+
+            // Update sale payment status
+            $this->updateSalePaymentStatus($sale);
+
+            return true;
+        });
+    }
+
+    /**
      * Update sale payment status based on total paid
      * 
      * @param Sale $sale
      * @return void
      */
-    private function updateSalePaymentStatus(Sale $sale): void
+    public function updateSalePaymentStatus(Sale $sale): void
     {
+        // Calculate total paid excluding cancelled/bounced payments
         $totalPaid = Payment::where('reference_id', $sale->id)
             ->where('payment_type', 'sale')
             ->where(function($query) {
                 $query->where('payment_status', '!=', 'bounced')
+                      ->where('payment_status', '!=', 'cancelled')
                       ->orWhereNull('payment_status');
             })
             ->sum('amount');
 
-        if ($sale->final_total - $totalPaid <= 0.01) {
+        // Update sale totals
+        $sale->total_paid = $totalPaid;
+        
+        // Determine payment status
+        $totalDue = $sale->final_total - $totalPaid;
+        
+        if ($totalDue <= 0.01) {
             $sale->payment_status = 'Paid';
         } elseif ($totalPaid > 0) {
             $sale->payment_status = 'Partial';
