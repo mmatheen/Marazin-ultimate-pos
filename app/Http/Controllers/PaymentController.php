@@ -899,9 +899,19 @@ class PaymentController extends Controller
             // Create opening balance settlement payment
             $this->createOpeningBalancePayment($entity, $openingBalancePayment, $paymentMethod);
             
-            // DO NOT update opening balance - it should remain historical
-            // The opening balance is historical data and should never change
-            // Payment entries will handle the balance reduction
+            // **CRITICAL FIX**: Update opening balance when it's fully or partially paid
+            // This is essential for accurate customer balance display and reporting
+            $newOpeningBalance = $entity->opening_balance - $openingBalancePayment;
+            
+            // Update the opening balance in the customers/suppliers table
+            $entityType = $entity instanceof Customer ? 'customer' : 'supplier';
+            if ($entityType === 'customer') {
+                Customer::where('id', $entity->id)->update(['opening_balance' => $newOpeningBalance]);
+            } else {
+                Supplier::where('id', $entity->id)->update(['opening_balance' => $newOpeningBalance]);
+            }
+            
+            Log::info("Opening balance updated for {$entityType} {$entity->id}: {$entity->opening_balance} -> {$newOpeningBalance}");
             
             // Reduce remaining amount
             $remainingAmount -= $openingBalancePayment;

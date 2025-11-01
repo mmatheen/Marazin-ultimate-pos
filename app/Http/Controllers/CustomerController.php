@@ -487,14 +487,12 @@ class CustomerController extends Controller
 
                 $customer->update($customerData);
 
-                // Handle opening balance adjustment in ledger
+                // Handle opening balance adjustment with payment consideration
                 if ($oldOpeningBalance != $newOpeningBalance) {
-                    $this->unifiedLedgerService->recordOpeningBalanceAdjustment(
+                    $this->handleOpeningBalanceEditWithPayments(
                         $customer->id,
-                        'customer',
                         $oldOpeningBalance,
-                        $newOpeningBalance,
-                        'Opening balance updated via customer profile'
+                        $newOpeningBalance
                     );
                 }
 
@@ -743,6 +741,98 @@ class CustomerController extends Controller
             'total_customers' => $customers->count(),
             'message' => "Found {$customers->count()} customers (including those without city assignment)"
         ]);
+    }
+
+    /**
+     * Handle opening balance edit considering existing payments (CRITICAL SECURITY FIX)
+     * This prevents double accounting and phantom debt creation
+     */
+    private function handleOpeningBalanceEditWithPayments($customerId, $oldOpeningBalance, $newOpeningBalance)
+    {
+        // STEP 1: Calculate total opening balance payments made
+        $totalOBPaymentsMade = \App\Models\Payment::where('customer_id', $customerId)
+            ->where('payment_type', 'opening_balance')
+            ->sum('amount');
+
+        Log::info("Opening balance edit for customer {$customerId}", [
+            'old_opening_balance' => $oldOpeningBalance,
+            'new_opening_balance' => $newOpeningBalance,
+            'total_ob_payments_made' => $totalOBPaymentsMade
+        ]);
+
+        // STEP 2: Calculate what the effective balances are
+        // Effective Balance = Opening Balance - Payments Already Made
+        $oldEffectiveBalance = $oldOpeningBalance - $totalOBPaymentsMade;
+        $newEffectiveBalance = $newOpeningBalance - $totalOBPaymentsMade;
+
+        // STEP 3: Calculate the adjustment needed
+        // Adjustment = Change in effective balance
+        $adjustmentAmount = $newEffectiveBalance - $oldEffectiveBalance;
+
+        Log::info("Opening balance adjustment calculation", [
+            'old_opening_balance' => $oldOpeningBalance,
+            'new_opening_balance' => $newOpeningBalance,
+            'total_payments_made' => $totalOBPaymentsMade,
+            'old_effective_balance' => $oldEffectiveBalance,
+            'new_effective_balance' => $newEffectiveBalance,
+            'adjustment_needed' => $adjustmentAmount
+        ]);
+
+        // STEP 4: Only create adjustment if there's a real difference
+        if (abs($adjustmentAmount) > 0.01) { // Allow for floating point precision
+            
+            $adjustmentType = $adjustmentAmount > 0 ? 'increase' : 'decrease';
+            $notes = sprintf(
+                "Opening balance edit: Rs.%s -> Rs.%s (Payments made: Rs.%s, Effective change: Rs.%s)",
+                number_format($oldOpeningBalance, 2),
+                number_format($newOpeningBalance, 2),
+                number_format($totalOBPaymentsMade, 2),
+                number_format($adjustmentAmount, 2)
+            );
+
+            // Create the safe adjustment entry by passing the adjustment amount directly
+            // We need to get the current ledger balance and adjust it
+            $currentLedgerBalance = \App\Models\Ledger::where('user_id', $customerId)
+                ->where('contact_type', 'customer')
+                ->orderBy('created_at', 'desc')
+                ->value('balance') ?? 0;
+            
+            $targetLedgerBalance = $currentLedgerBalance + $adjustmentAmount;
+            
+            $ledgerEntry = $this->unifiedLedgerService->recordOpeningBalanceAdjustment(
+                $customerId,
+                'customer',
+                $currentLedgerBalance, // From current ledger balance
+                $targetLedgerBalance,  // To target ledger balance
+                $notes
+            );
+
+            // Update customer's current_balance to match the new ledger balance
+            if ($ledgerEntry) {
+                $customer = \App\Models\Customer::withoutGlobalScopes()->find($customerId);
+                $customer->current_balance = $ledgerEntry->balance;
+                $customer->save();
+                
+                Log::info("Customer current_balance updated", [
+                    'customer_id' => $customerId,
+                    'new_current_balance' => $ledgerEntry->balance
+                ]);
+            }
+
+            Log::info("Opening balance adjustment created", [
+                'customer_id' => $customerId,
+                'adjustment_amount' => $adjustmentAmount,
+                'adjustment_type' => $adjustmentType,
+                'notes' => $notes
+            ]);
+        } else {
+            Log::info("No opening balance adjustment needed - effective balance unchanged", [
+                'customer_id' => $customerId,
+                'old_opening_balance' => $oldOpeningBalance,
+                'new_opening_balance' => $newOpeningBalance,
+                'total_payments_made' => $totalOBPaymentsMade
+            ]);
+        }
     }
 
 }
