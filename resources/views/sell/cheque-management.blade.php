@@ -18,30 +18,7 @@
         </div>
     </div>
 
-    <!-- Important Information Alert -->
-    @if(($stats['total_bounced'] ?? 0) > 0)
-    <div class="row mb-3">
-        <div class="col-12">
-            <div class="alert alert-info alert-dismissible fade show" role="alert">
-                <h5 class="alert-heading"><i class="fas fa-info-circle"></i> Enhanced Cheque Bounce Management</h5>
-                <p class="mb-2">
-                    <strong>Important:</strong> When cheques are marked as bounced, the system now maintains:
-                </p>
-                <ul class="mb-2">
-                    <li><strong>Bills remain "PAID"</strong> - Original transactions are not affected</li>
-                    <li><strong>Floating Balance</strong> - Bounced amounts are tracked separately as customer debt</li>
-                    <li><strong>Recovery System</strong> - Use the recovery button to record when customers pay back bounced amounts</li>
-                    <li><strong>Customer Risk Management</strong> - System automatically tracks bounce history for future decisions</li>
-                </ul>
-                <hr>
-                <p class="mb-0">
-                    <strong>Current Status:</strong> Rs. {{ number_format($stats['total_bounced'] ?? 0, 2) }} in floating balance from {{ $cheques->where('cheque_status', 'bounced')->count() }} bounced cheques.
-                </p>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        </div>
-    </div>
-    @endif
+   
 
     <!-- Summary Cards -->
     <div class="row mb-4">
@@ -229,30 +206,30 @@
                     </div>
                 </div>
                 <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-striped table-hover" id="chequesTable">
+                    <div class="table-responsive" style="max-height: 70vh; overflow-y: auto;">
+                        <table class="table table-striped table-hover mb-0" id="chequesTable">
                             <thead class="table-dark">
                                 <tr>
-                                    <th width="40">
+                                    <th width="40" class="text-center">
                                         <input type="checkbox" id="selectAll" class="form-check-input">
                                     </th>
-                                    <th>Invoice #</th>
-                                    <th>Customer</th>
-                                    <th>Cheque #</th>
-                                    <th>Bank/Branch</th>
-                                    <th>Amount</th>
-                                    <th>Received Date</th>
-                                    <th>Valid Date</th>
-                                    <th>Status</th>
-                                    <th>Bill Status</th>
-                                    <th>Customer Impact</th>
-                                    <th>Days Until Due</th>
-                                    <th>Actions</th>
+                                    <th class="text-center">Invoice #</th>
+                                    <th class="text-center">Customer</th>
+                                    <th class="text-center">Cheque #</th>
+                                    <th class="text-center">Bank/Branch</th>
+                                    <th class="text-center">Amount</th>
+                                    <th class="text-center">Received Date</th>
+                                    <th class="text-center">Valid Date</th>
+                                    <th class="text-center">Status</th>
+                                    <th class="text-center">Bill Status</th>
+                                    <th class="text-center">Customer Impact</th>
+                                    <th class="text-center">Days Until Due</th>
+                                    <th class="text-center">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="chequesTableBody">
                                 @forelse($cheques as $payment)
-                                <tr>
+                                <tr data-status="{{ $payment->cheque_status ?? 'pending' }}">
                                     <td>
                                         <input type="checkbox" class="form-check-input cheque-checkbox" value="{{ $payment->id }}">
                                     </td>
@@ -339,9 +316,17 @@
                                             <button type="button" class="btn btn-sm btn-outline-info" onclick="viewChequeDetails({{ $payment->id }})" title="View Details">
                                                 <i class="fas fa-eye"></i>
                                             </button>
-                                            @if(in_array(($payment->cheque_status ?? 'pending'), ['pending', 'deposited']))
-                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="updateChequeStatus({{ $payment->id }})" title="Update Status">
+                                            @php
+                                                $currentStatus = $payment->cheque_status ?? 'pending';
+                                                $canUpdate = in_array($currentStatus, ['pending', 'deposited']);
+                                            @endphp
+                                            @if($canUpdate)
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="updateChequeStatus({{ $payment->id }}, '{{ $currentStatus }}')" title="Update Status">
                                                 <i class="fas fa-edit"></i>
+                                            </button>
+                                            @else
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="Status cannot be changed">
+                                                <i class="fas fa-lock"></i>
                                             </button>
                                             @endif
                                             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="viewStatusHistory({{ $payment->id }})" title="Status History">
@@ -396,12 +381,11 @@
                     <div class="mb-3">
                         <label for="newStatus" class="form-label">New Status</label>
                         <select class="form-control" id="newStatus" name="status" required>
-                            <option value="">Select Status</option>
-                            <option value="deposited">Deposited</option>
-                            <option value="cleared">Cleared</option>
-                            <option value="bounced">Bounced</option>
-                            <option value="cancelled">Cancelled</option>
+                            <!-- Options will be populated dynamically based on current status -->
                         </select>
+                        <small class="form-text text-muted">
+                            Status transitions: Pending → Deposited/Cancelled → Cleared/Bounced/Cancelled
+                        </small>
                     </div>
                     <div class="mb-3">
                         <label for="remarks" class="form-label">Remarks</label>
@@ -599,10 +583,49 @@ function updateBulkActionButtons() {
     const selectedCount = $('.cheque-checkbox:checked').length;
     $('#selectedCount').text(selectedCount);
     
+    // Disable all bulk actions initially
+    $('#bulkClear, #bulkDeposit, #bulkBounce').prop('disabled', true);
+    
     if (selectedCount > 0) {
-        $('#bulkClear, #bulkDeposit, #bulkBounce').prop('disabled', false);
-    } else {
-        $('#bulkClear, #bulkDeposit, #bulkBounce').prop('disabled', true);
+        // Get statuses of selected cheques
+        const selectedStatuses = $('.cheque-checkbox:checked').map(function() {
+            return $(this).closest('tr').data('status');
+        }).get();
+        
+        // Check if all selected cheques can be cleared (must be deposited)
+        const canClear = selectedStatuses.every(status => status === 'deposited');
+        
+        // Check if all selected cheques can be deposited (must be pending)
+        const canDeposit = selectedStatuses.every(status => status === 'pending');
+        
+        // Check if all selected cheques can be bounced (must be deposited)
+        const canBounce = selectedStatuses.every(status => status === 'deposited');
+        
+        // Enable appropriate buttons
+        if (canClear) {
+            $('#bulkClear').prop('disabled', false);
+        }
+        if (canDeposit) {
+            $('#bulkDeposit').prop('disabled', false);
+        }
+        if (canBounce) {
+            $('#bulkBounce').prop('disabled', false);
+        }
+        
+        // If no valid actions available, show a message
+        if (!canClear && !canDeposit && !canBounce) {
+            $('#selectedCount').html(selectedCount + ' <small class="text-muted">(no valid bulk actions for current selection)</small>');
+        } else {
+            // Show what actions are available
+            const availableActions = [];
+            if (canClear) availableActions.push('Clear');
+            if (canDeposit) availableActions.push('Deposit');
+            if (canBounce) availableActions.push('Bounce');
+            
+            if (availableActions.length > 0) {
+                $('#selectedCount').html(selectedCount + ' <small class="text-success">(can: ' + availableActions.join(', ') + ')</small>');
+            }
+        }
     }
 }
 
@@ -693,15 +716,51 @@ function viewChequeDetails(paymentId) {
             }
         },
         error: function() {
-            alert('Failed to load cheque details');
+            toastr.error('Failed to load cheque details', 'Loading Error', {
+                timeOut: 5000,
+                progressBar: true,
+                positionClass: 'toast-top-right'
+            });
         }
     });
 }
 
-function updateChequeStatus(paymentId) {
+function updateChequeStatus(paymentId, currentStatus = 'pending') {
     $('#paymentId').val(paymentId);
     $('#updateStatusForm')[0].reset();
     $('#bankChargesGroup').hide();
+    
+    // Define valid status transitions
+    const validTransitions = {
+        'pending': ['deposited', 'cancelled'],
+        'deposited': ['cleared', 'bounced', 'cancelled'],
+        'cleared': [], // No further transitions allowed
+        'bounced': [], // No further transitions allowed  
+        'cancelled': [] // No further transitions allowed
+    };
+    
+    // Get available options for current status
+    const availableOptions = validTransitions[currentStatus] || [];
+    
+    // Clear and populate status dropdown
+    const statusSelect = $('#newStatus');
+    statusSelect.empty();
+    statusSelect.append('<option value="">Select Status</option>');
+    
+    // Add only valid options
+    availableOptions.forEach(function(status) {
+        const label = status.charAt(0).toUpperCase() + status.slice(1);
+        statusSelect.append(`<option value="${status}">${label}</option>`);
+    });
+    
+    // Show message if no transitions available
+    if (availableOptions.length === 0) {
+        statusSelect.append('<option value="" disabled>No status changes allowed</option>');
+        statusSelect.prop('disabled', true);
+    } else {
+        statusSelect.prop('disabled', false);
+    }
+    
     $('#updateStatusModal').modal('show');
 }
 
@@ -720,23 +779,27 @@ function updateChequeStatusSubmit() {
                 // Enhanced message for bounced cheques
                 if (response.data && response.data.customer_impact) {
                     const impact = response.data.customer_impact;
-                    message += `\n\nCustomer Impact:`;
-                    message += `\n• ${impact.customer_name}`;
-                    message += `\n• ${impact.bill_status}`;
-                    message += `\n• Floating Balance: Rs. ${numberFormat(impact.floating_balance)}`;
-                    message += `\n• Total Outstanding: Rs. ${numberFormat(impact.total_outstanding)}`;
+                    const detailMessage = `Customer: ${impact.customer_name} | ${impact.bill_status} | Floating Balance: Rs. ${numberFormat(impact.floating_balance)} | Total Outstanding: Rs. ${numberFormat(impact.total_outstanding)}`;
+                    
+                    // Show success with detailed info
+                    toastr.success(message + '<br><small>' + detailMessage + '</small>', 'Cheque Status Updated', {
+                        timeOut: 8000,
+                        extendedTimeOut: 3000,
+                        allowHtml: true
+                    });
+                } else {
+                    toastr.success(message, 'Success');
                 }
                 
-                alert(message);
                 $('#updateStatusModal').modal('hide');
-                location.reload();
+                setTimeout(() => location.reload(), 1000); // Small delay to show toastr
             } else {
-                alert(response.message || 'Failed to update status');
+                toastr.error(response.message || 'Failed to update status', 'Error');
             }
         },
         error: function(xhr) {
             const errorMsg = xhr.responseJSON?.message || 'Failed to update cheque status';
-            alert(errorMsg);
+            toastr.error(errorMsg, 'Error');
         }
     });
 }
@@ -760,22 +823,23 @@ function submitRecoveryPayment() {
         success: function(response) {
             if (response.status === 200) {
                 const balanceUpdate = response.data.balance_update;
-                let message = 'Recovery payment recorded successfully!\n\n';
-                message += `Payment Amount: Rs. ${numberFormat(balanceUpdate.payment_amount)}\n`;
-                message += `Previous Floating Balance: Rs. ${numberFormat(balanceUpdate.old_floating_balance)}\n`;
-                message += `New Floating Balance: Rs. ${numberFormat(balanceUpdate.new_floating_balance)}\n`;
-                message += `Total Outstanding: Rs. ${numberFormat(balanceUpdate.total_outstanding)}`;
+                const detailMessage = `Payment: Rs. ${numberFormat(balanceUpdate.payment_amount)} | Old Balance: Rs. ${numberFormat(balanceUpdate.old_floating_balance)} | New Balance: Rs. ${numberFormat(balanceUpdate.new_floating_balance)} | Total Outstanding: Rs. ${numberFormat(balanceUpdate.total_outstanding)}`;
                 
-                alert(message);
+                toastr.success('Recovery payment recorded successfully!<br><small>' + detailMessage + '</small>', 'Payment Recorded', {
+                    timeOut: 8000,
+                    extendedTimeOut: 3000,
+                    allowHtml: true
+                });
+                
                 $('#recoveryPaymentModal').modal('hide');
-                location.reload();
+                setTimeout(() => location.reload(), 1000);
             } else {
-                alert(response.message || 'Failed to record recovery payment');
+                toastr.error(response.message || 'Failed to record recovery payment', 'Error');
             }
         },
         error: function(xhr) {
             const errorMsg = xhr.responseJSON?.message || 'Failed to record recovery payment';
-            alert(errorMsg);
+            toastr.error(errorMsg, 'Error');
         }
     });
 }
@@ -818,7 +882,11 @@ function viewStatusHistory(paymentId) {
             }
         },
         error: function() {
-            alert('Failed to load status history');
+            toastr.error('Failed to load status history', 'Loading Error', {
+                timeOut: 5000,
+                progressBar: true,
+                positionClass: 'toast-top-right'
+            });
         }
     });
 }
@@ -829,7 +897,36 @@ function bulkUpdateStatus(status) {
     }).get();
     
     if (selectedIds.length === 0) {
-        alert('Please select cheques to update');
+        toastr.warning('Please select cheques to update', 'No Selection', {
+            timeOut: 5000,
+            progressBar: true,
+            positionClass: 'toast-top-right'
+        });
+        return;
+    }
+    
+    // Validate status transitions for selected cheques
+    const selectedStatuses = $('.cheque-checkbox:checked').map(function() {
+        return $(this).closest('tr').data('status');
+    }).get();
+    
+    // Define valid transitions
+    const validTransitions = {
+        'cleared': ['deposited'],
+        'deposited': ['pending'],
+        'bounced': ['deposited']
+    };
+    
+    // Check if all selected cheques can be updated to target status
+    const requiredStatuses = validTransitions[status] || [];
+    const canUpdate = selectedStatuses.every(currentStatus => requiredStatuses.includes(currentStatus));
+    
+    if (!canUpdate) {
+        toastr.error(`Cannot update cheques to ${status}. Only ${requiredStatuses.join(' or ')} cheques can be marked as ${status}.`, 'Invalid Status Transition', {
+            timeOut: 8000,
+            progressBar: true,
+            positionClass: 'toast-top-right'
+        });
         return;
     }
     
@@ -847,14 +944,27 @@ function bulkUpdateStatus(status) {
         },
         success: function(response) {
             if (response.status === 200) {
-                alert(response.message);
-                location.reload();
+                toastr.success(response.message, 'Bulk Update Successful', {
+                    timeOut: 8000,
+                    progressBar: true,
+                    positionClass: 'toast-top-right',
+                    escapeHtml: false
+                });
+                setTimeout(() => location.reload(), 2000);
             } else {
-                alert(response.message || 'Failed to update cheques');
+                toastr.error(response.message || 'Failed to update cheques', 'Update Failed', {
+                    timeOut: 8000,
+                    progressBar: true,
+                    positionClass: 'toast-top-right'
+                });
             }
         },
         error: function() {
-            alert('Failed to perform bulk update');
+            toastr.error('Failed to perform bulk update', 'Network Error', {
+                timeOut: 8000,
+                progressBar: true,
+                positionClass: 'toast-top-right'
+            });
         }
     });
 }
@@ -911,7 +1021,63 @@ function numberFormat(number) {
 
 .table th {
     font-weight: 600;
-    background-color: #f8f9fa;
+    white-space: nowrap;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.table thead.table-dark th {
+    background-color: #343a40 !important;
+    color: white !important;
+    border-color: #454d55 !important;
+}
+
+.table th, .table td {
+    padding: 0.75rem;
+    vertical-align: middle;
+    border-top: 1px solid #dee2e6;
+}
+
+/* Ensure table text is always visible and readable */
+.table tbody td {
+    color: #212529;
+    font-size: 14px;
+}
+
+.table-responsive {
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+/* Make sure table headers are always visible */
+#chequesTable thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #343a40 !important;
+    color: white !important;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
+}
+
+/* Ensure proper contrast for all table elements */
+.table-striped > tbody > tr:nth-of-type(odd) > td {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.table-hover > tbody > tr:hover > td {
+    background-color: rgba(0, 123, 255, 0.075);
+}
+
+/* Badge and status visibility improvements */
+.badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 0.35em 0.65em;
 }
 
 .btn-group .btn {
@@ -922,6 +1088,23 @@ function numberFormat(number) {
 .form-check-input:checked {
     background-color: #007bff;
     border-color: #007bff;
+}
+
+/* Bulk action button styling */
+.btn:disabled {
+    opacity: 0.3 !important;
+    cursor: not-allowed !important;
+}
+
+.btn:disabled:hover {
+    background-color: var(--bs-secondary) !important;
+    border-color: var(--bs-secondary) !important;
+}
+
+/* Selection counter styling */
+#selectedCount .text-muted {
+    font-size: 0.85em;
+    font-style: italic;
 }
 </style>
 @endsection

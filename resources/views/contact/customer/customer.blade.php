@@ -28,6 +28,12 @@
                                 <div class="col-auto text-end float-end ms-auto download-grp">
                                     <!-- Button trigger modal -->
 
+                                    @can('export customer')
+                                        <a href="{{ route('customer.export') }}" class="btn btn-outline-success me-2" id="exportCustomerButton">
+                                            <i class="fas fa-file-excel"></i> Export Excel
+                                        </a>
+                                    @endcan
+
                                     @can('create customer')
                                         <button type="button" class="btn btn-outline-info " id="addCustomerButton">
                                             New <i class="fas fa-plus px-2"> </i>

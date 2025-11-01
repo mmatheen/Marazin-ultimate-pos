@@ -15,6 +15,7 @@ use App\Models\BulkPaymentLog;
 use Illuminate\Support\Facades\Log;
 use App\Services\PaymentService;
 use App\Services\UnifiedLedgerService;
+use App\Services\ChequeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -30,14 +31,20 @@ class PaymentController extends Controller
     {
         $this->paymentService = $paymentService;
         $this->unifiedLedgerService = $unifiedLedgerService;
-        // Temporarily disable middleware to test data loading
-        // Fixed middleware - remove duplicate permissions
+        
+        // Standard payment permissions
         $this->middleware('permission:view payments', ['only' => ['index', 'show']]);
         $this->middleware('permission:create payment', ['only' => ['store']]);
         $this->middleware('permission:edit payment', ['only' => ['edit', 'update']]);
         $this->middleware('permission:delete payment', ['only' => ['destroy']]);
+        
+        // Bulk payment permissions
         $this->middleware('permission:bulk sale payment', ['only' => ['addSaleBulkPayments', 'storeSaleBulkPayments', 'getBulkPaymentsList', 'editBulkPayment', 'updateBulkPayment', 'deleteBulkPayment', 'getBulkPaymentLogs']]);
         $this->middleware('permission:bulk purchase payment', ['only' => ['addPurchaseBulkPayments', 'storePurchaseBulkPayments', 'getBulkPaymentsList', 'editBulkPayment', 'updateBulkPayment', 'deleteBulkPayment', 'getBulkPaymentLogs']]);
+        
+        // Cheque management methods are accessible to all authenticated users for now
+        // Methods: chequeManagement, updateChequeStatus, bulkUpdateChequeStatus, chequeStatusHistory, getFloatingBalance
+        // TODO: Add specific cheque management permissions later if needed
     }
 
     public function index()
@@ -1824,5 +1831,204 @@ class PaymentController extends Controller
             'status' => 200,
             'data' => $logs
         ]);
+    }
+
+    // ===============================
+    // CHEQUE MANAGEMENT METHODS
+    // ===============================
+
+    /**
+     * Cheque management interface
+     */
+    public function chequeManagement(Request $request)
+    {
+        $query = Payment::chequePayments()->with(['customer', 'sale']);
+
+        // Filter by status
+        if ($request->filled('status') && $request->status !== '' && $request->status !== 'all') {
+            $query->where('cheque_status', $request->status);
+        }
+
+        // Filter by date range
+        if ($request->filled('from_date') && $request->from_date !== '') {
+            $query->where('cheque_valid_date', '>=', $request->from_date);
+        }
+        if ($request->filled('to_date') && $request->to_date !== '') {
+            $query->where('cheque_valid_date', '<=', $request->to_date);
+        }
+
+        // Filter by customer
+        if ($request->filled('customer_id') && $request->customer_id !== '' && $request->customer_id > 0) {
+            $query->where('customer_id', $request->customer_id);
+        }
+
+        // Filter by cheque number
+        if ($request->filled('cheque_number') && $request->cheque_number !== '') {
+            $query->where('cheque_number', 'like', '%' . $request->cheque_number . '%');
+        }
+
+        $cheques = $query->orderBy('cheque_valid_date', 'asc')->paginate(50);
+
+        // Get summary stats with proper null handling
+        $stats = [
+            'total_pending' => Payment::pendingCheques()->sum('amount') ?? 0,
+            'total_cleared' => Payment::clearedCheques()->sum('amount') ?? 0,
+            'total_bounced' => Payment::bouncedCheques()->sum('amount') ?? 0,
+            'due_soon_count' => Payment::dueSoon(7)->count() ?? 0,
+            'overdue_count' => Payment::overdue()->count() ?? 0,
+        ];
+
+        if ($request->ajax()) {
+            return response()->json([
+                'cheques' => $cheques,
+                'stats' => $stats
+            ]);
+        }
+
+        return view('sell.cheque-management', compact('cheques', 'stats'));
+    }
+
+    /**
+     * Update cheque status
+     */
+    public function updateChequeStatus(Request $request, $paymentId)
+    {
+        $request->validate([
+            'status' => 'required|in:pending,deposited,cleared,bounced,cancelled',
+            'remarks' => 'nullable|string',
+            'bank_charges' => 'nullable|numeric|min:0',
+        ]);
+
+        try {
+            $chequeService = app(\App\Services\ChequeService::class);
+            
+            $result = $chequeService->updateChequeStatus(
+                $paymentId,
+                $request->status,
+                $request->remarks,
+                $request->bank_charges ?? 0,
+                auth()->id()
+            );
+
+            $message = $request->status === 'bounced' 
+                ? 'Cheque marked as bounced. Bill status unchanged, floating balance created for customer.'
+                : 'Cheque status updated successfully';
+
+            return response()->json([
+                'status' => 200,
+                'message' => $message,
+                'data' => $result
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to update cheque status: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Bulk update cheque status
+     */
+    public function bulkUpdateChequeStatus(Request $request)
+    {
+        $request->validate([
+            'payment_ids' => 'required|array',
+            'payment_ids.*' => 'integer|exists:payments,id',
+            'status' => 'required|in:deposited,cleared,bounced,cancelled',
+            'remarks' => 'nullable|string',
+            'bank_charges' => 'nullable|numeric|min:0',
+        ]);
+
+        try {
+            $chequeService = app(\App\Services\ChequeService::class);
+            
+            $results = $chequeService->bulkUpdateChequeStatus(
+                $request->payment_ids,
+                $request->status,
+                $request->remarks,
+                auth()->id()
+            );
+
+            $successCount = count($results['success']);
+            $errors = array_column($results['failed'], 'error');
+
+            return response()->json([
+                'status' => 200,
+                'message' => "{$successCount} cheques updated successfully",
+                'success_count' => $successCount,
+                'failed_count' => count($results['failed']),
+                'errors' => $errors,
+                'results' => $results
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Bulk update failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get cheque status history
+     */
+    public function chequeStatusHistory($paymentId)
+    {
+        try {
+            $chequeService = app(\App\Services\ChequeService::class);
+            $result = $chequeService->getChequeStatusHistory($paymentId);
+
+            return response()->json([
+                'status' => 200,
+                'payment' => $result['payment'],
+                'history' => $result['history']
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 404,
+                'message' => 'Cheque payment not found: ' . $e->getMessage()
+            ], 404);
+        }
+    }
+
+    /**
+     * Get pending cheque reminders
+     */
+    public function pendingChequeReminders()
+    {
+        $reminders = \App\Models\ChequeReminder::pending()
+                    ->with(['payment.customer', 'payment.sale'])
+                    ->orderBy('reminder_date', 'asc')
+                    ->get();
+
+        return response()->json([
+            'status' => 200,
+            'reminders' => $reminders
+        ]);
+    }
+
+    /**
+     * Mark reminder as sent
+     */
+    public function markReminderSent(Request $request, $reminderId)
+    {
+        try {
+            $reminder = \App\Models\ChequeReminder::findOrFail($reminderId);
+            $reminder->markAsSent($request->sent_to);
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Reminder marked as sent'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to update reminder'
+            ], 500);
+        }
     }
 }

@@ -141,6 +141,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/customer-update/{id}', [CustomerController::class, 'update']);
         Route::delete('/customer-delete/{id}', [CustomerController::class, 'destroy']);
         Route::get('/customer-get-by-id/{id}', [CustomerController::class, 'show']);
+        Route::get('/customer-export', [CustomerController::class, 'export'])->name('customer.export');
 
 
          // Customer Ledger Routes (Redirected to Account Ledger)
@@ -366,13 +367,13 @@ Route::middleware(['auth'])->group(function () {
 
        
          // -------------------- Cheque Management Routes --------------------
-        Route::get('/cheque-management', [SaleController::class, 'chequeManagement'])->name('cheque-management');
+        Route::get('/cheque-management', [PaymentController::class, 'chequeManagement'])->name('cheque-management');
         Route::get('/cheque-guide', function() { return view('sell.cheque-guide'); })->name('cheque-guide');
-        Route::post('/cheque/update-status/{paymentId}', [SaleController::class, 'updateChequeStatus'])->name('cheque.update-status');
-        Route::get('/cheque/status-history/{paymentId}', [SaleController::class, 'chequeStatusHistory'])->name('cheque.status-history');
-        Route::get('/cheque/pending-reminders', [SaleController::class, 'pendingChequeReminders'])->name('cheque.pending-reminders');
-        Route::post('/cheque/mark-reminder-sent/{reminderId}', [SaleController::class, 'markReminderSent'])->name('cheque.mark-reminder-sent');
-        Route::post('/cheque/bulk-update-status', [SaleController::class, 'bulkUpdateChequeStatus'])->name('cheque.bulk-update-status');
+        Route::post('/cheque/update-status/{paymentId}', [PaymentController::class, 'updateChequeStatus'])->name('cheque.update-status');
+        Route::get('/cheque/status-history/{paymentId}', [PaymentController::class, 'chequeStatusHistory'])->name('cheque.status-history');
+        Route::get('/cheque/pending-reminders', [PaymentController::class, 'pendingChequeReminders'])->name('cheque.pending-reminders');
+        Route::post('/cheque/mark-reminder-sent/{reminderId}', [PaymentController::class, 'markReminderSent'])->name('cheque.mark-reminder-sent');
+        Route::post('/cheque/bulk-update-status', [PaymentController::class, 'bulkUpdateChequeStatus'])->name('cheque.bulk-update-status');
 
          // -------------------- PaymentController Routes --------------------
         Route::get('payments', [PaymentController::class, 'index']);

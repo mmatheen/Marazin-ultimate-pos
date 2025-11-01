@@ -90,6 +90,11 @@ class Customer extends Model
         return $this->hasMany(Payment::class);
     }
 
+    public function ledgerEntries()
+    {
+        return $this->hasMany(Ledger::class, 'user_id')->where('contact_type', 'customer');
+    }
+
     public function city()
     {
         return $this->belongsTo(City::class);
@@ -273,12 +278,12 @@ public function recalculateCurrentBalance()
         $floatingDebits = Ledger::where('user_id', $this->id)
             ->where('contact_type', 'customer')
             ->whereIn('transaction_type', ['cheque_bounce', 'bank_charges', 'penalty', 'adjustment_debit'])
-            ->sum('amount');
+            ->sum('debit');
 
         $floatingCredits = Ledger::where('user_id', $this->id)
             ->where('contact_type', 'customer')
             ->whereIn('transaction_type', ['bounce_recovery', 'adjustment_credit', 'refund'])
-            ->sum('amount');
+            ->sum('credit');
 
         return $floatingDebits - $floatingCredits;
     }
@@ -296,9 +301,19 @@ public function recalculateCurrentBalance()
      */
     public function getBouncedChequeSummary()
     {
+        // Get payments that have bounced status in their latest status history
         $bouncedPayments = Payment::where('customer_id', $this->id)
             ->where('payment_method', 'cheque')
-            ->where('cheque_status', 'bounced')
+            ->whereHas('chequeStatusHistory', function($query) {
+                $query->whereIn('id', function($subQuery) {
+                    $subQuery->select(DB::raw('MAX(id)'))
+                        ->from('cheque_status_histories')
+                        ->groupBy('payment_id');
+                })->where('status', 'bounced');
+            })
+            ->with(['chequeStatusHistory' => function($query) {
+                $query->orderBy('created_at', 'desc')->limit(1);
+            }, 'sale'])
             ->get();
 
         return [
@@ -306,11 +321,13 @@ public function recalculateCurrentBalance()
             'total_amount' => $bouncedPayments->sum('amount'),
             'total_charges' => $bouncedPayments->sum('bank_charges'),
             'cheques' => $bouncedPayments->map(function($payment) {
+                $latestStatus = $payment->chequeStatusHistory->first();
                 return [
+                    'id' => $payment->id,
                     'cheque_number' => $payment->cheque_number,
                     'amount' => $payment->amount,
-                    'bounce_date' => $payment->cheque_bounce_date,
-                    'bounce_reason' => $payment->cheque_bounce_reason,
+                    'bounce_date' => $latestStatus ? $latestStatus->status_date : null,
+                    'bounce_reason' => $latestStatus ? $latestStatus->remarks : null,
                     'bank_charges' => $payment->bank_charges,
                     'bill_number' => $payment->sale ? $payment->sale->invoice_no : null
                 ];
@@ -329,7 +346,13 @@ public function recalculateCurrentBalance()
 
         $bouncedCheques = Payment::where('customer_id', $this->id)
             ->where('payment_method', 'cheque')
-            ->where('cheque_status', 'bounced')
+            ->whereHas('chequeStatusHistory', function($query) {
+                $query->whereIn('id', function($subQuery) {
+                    $subQuery->select(DB::raw('MAX(id)'))
+                        ->from('cheque_status_histories')
+                        ->groupBy('payment_id');
+                })->where('status', 'bounced');
+            })
             ->count();
 
         $overdueDays = 0; // You can implement overdue calculation based on your business rules
@@ -354,7 +377,13 @@ public function recalculateCurrentBalance()
     {
         $bouncedCount = Payment::where('customer_id', $this->id)
             ->where('payment_method', 'cheque')
-            ->where('cheque_status', 'bounced')
+            ->whereHas('chequeStatusHistory', function($query) {
+                $query->whereIn('id', function($subQuery) {
+                    $subQuery->select(DB::raw('MAX(id)'))
+                        ->from('cheque_status_histories')
+                        ->groupBy('payment_id');
+                })->where('status', 'bounced');
+            })
             ->count();
 
         $riskScore = $this->getRiskScore();

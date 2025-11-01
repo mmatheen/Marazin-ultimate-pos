@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use App\Models\ChequeStatusHistory;
+use App\Models\ChequeReminder;
 
 class Payment extends Model
 {
@@ -158,117 +159,30 @@ class Payment extends Model
     }
 
     // Helper methods
+    
+    /**
+     * Update cheque status - DEPRECATED: Use ChequeService instead
+     * This method is maintained for backward compatibility only
+     * 
+     * @deprecated Use \App\Services\ChequeService::updateChequeStatus() instead
+     */
     public function updateChequeStatus($newStatus, $remarks = null, $bankCharges = 0, $userId = null)
     {
-        $oldStatus = $this->cheque_status;
-        $statusDate = Carbon::now();
-
-        // Update payment based on status
-        $updateData = [
-            'cheque_status' => $newStatus,
-            'bank_charges' => $bankCharges,
-        ];
-
-        switch ($newStatus) {
-            case 'cleared':
-                $updateData['cheque_clearance_date'] = $statusDate;
-                $updateData['payment_status'] = 'completed';
-                break;
-            case 'bounced':
-                $updateData['cheque_bounce_date'] = $statusDate;
-                $updateData['cheque_bounce_reason'] = $remarks;
-                $updateData['payment_status'] = 'failed';
-                break;
-            case 'deposited':
-                $updateData['payment_status'] = 'pending';
-                break;
-            case 'cancelled':
-                $updateData['payment_status'] = 'cancelled';
-                break;
-        }
-
-        $this->update($updateData);
-
-        // Create status history
-        ChequeStatusHistory::create([
-            'payment_id' => $this->id,
-            'old_status' => (string)$oldStatus,
-            'new_status' => (string)$newStatus,
-            'status_date' => $statusDate->toDateString(),
-            'remarks' => $remarks,
-            'bank_charges' => (float)$bankCharges,
-            'changed_by' => $userId,
-        ]);
-
-        // CLIENT REQUIREMENT: Handle bounced cheques differently
-        // Keep bills as PAID but update customer floating balance
-        if ($newStatus === 'bounced') {
-            $this->handleBouncedChequeFloatingBalance($bankCharges, $userId);
-        } else {
-            // For other statuses (cleared, deposited, cancelled), update sale normally
-            $this->updateRelatedSaleTotals();
-        }
-
+        // Delegate to ChequeService for centralized handling
+        $chequeService = app(\App\Services\ChequeService::class);
+        
+        $result = $chequeService->updateChequeStatus(
+            $this->id,
+            $newStatus,
+            $remarks,
+            $bankCharges,
+            $userId
+        );
+        
+        // Refresh the model instance to reflect changes
+        $this->refresh();
+        
         return $this;
-    }
-
-    /**
-     * Handle bounced cheque - Create floating balance entry without affecting bill status
-     * Client requirement: Bill remains PAID, customer gets floating due balance
-     */
-    private function handleBouncedChequeFloatingBalance($bankCharges = 0, $userId = null)
-    {
-        if (!$this->sale || !$this->customer_id) return;
-
-        try {
-            DB::transaction(function () use ($bankCharges, $userId) {
-                $referenceNo = "BOUNCE-{$this->cheque_number}-{$this->id}";
-                $transactionDate = Carbon::now('Asia/Colombo');
-
-                // 1. Create bounced cheque debit entry (increases customer floating balance)
-                \App\Models\Ledger::createEntry([
-                    'user_id' => $this->customer_id,
-                    'contact_type' => 'customer',
-                    'transaction_date' => $transactionDate,
-                    'reference_no' => $referenceNo,
-                    'transaction_type' => 'cheque_bounce',
-                    'amount' => $this->amount,
-                    'notes' => "Cheque bounce - {$this->cheque_number} (Bill {$this->sale->invoice_no} remains settled)"
-                ]);
-
-                // 2. Add bank charges as separate debit entry
-                if ($bankCharges > 0) {
-                    \App\Models\Ledger::createEntry([
-                        'user_id' => $this->customer_id,
-                        'contact_type' => 'customer',
-                        'transaction_date' => $transactionDate,
-                        'reference_no' => $referenceNo . '-CHARGES',
-                        'transaction_type' => 'bank_charges',
-                        'amount' => $bankCharges,
-                        'notes' => "Bank charges for bounced cheque - {$this->cheque_number}"
-                    ]);
-                }
-
-                // 3. IMPORTANT: Do NOT update sale payment status
-                // Bill remains as "PAID" - this is the key client requirement
-                
-                \Illuminate\Support\Facades\Log::info("Cheque bounce processed - Bill status maintained", [
-                    'payment_id' => $this->id,
-                    'cheque_number' => $this->cheque_number,
-                    'bounce_amount' => $this->amount,
-                    'bank_charges' => $bankCharges,
-                    'sale_id' => $this->sale->id,
-                    'customer_id' => $this->customer_id
-                ]);
-            });
-
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error("Failed to process cheque bounce floating balance", [
-                'payment_id' => $this->id,
-                'error' => $e->getMessage()
-            ]);
-            throw $e;
-        }
     }
 
     /**

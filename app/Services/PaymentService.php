@@ -10,6 +10,7 @@ use App\Models\Ledger;
 use App\Services\UnifiedLedgerService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PaymentService
 {
@@ -18,6 +19,40 @@ class PaymentService
     public function __construct(UnifiedLedgerService $unifiedLedgerService)
     {
         $this->unifiedLedgerService = $unifiedLedgerService;
+    }
+
+    /**
+     * Parse flexible date formats for cheque dates
+     * 
+     * @param string|null $dateString
+     * @return string|null
+     */
+    private function parseFlexibleDate($dateString)
+    {
+        if (empty($dateString)) {
+            return null;
+        }
+        
+        try {
+            // Handle different date formats
+            if (preg_match('/^\d{2}-\d{2}-\d{4}$/', $dateString)) {
+                // DD-MM-YYYY format
+                return Carbon::createFromFormat('d-m-Y', $dateString)->format('Y-m-d');
+            } elseif (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateString)) {
+                // YYYY-MM-DD format (already correct)
+                return $dateString;
+            } elseif (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $dateString)) {
+                // DD/MM/YYYY format
+                return Carbon::createFromFormat('d/m/Y', $dateString)->format('Y-m-d');
+            } else {
+                // Try to parse with Carbon (fallback)
+                return Carbon::parse($dateString)->format('Y-m-d');
+            }
+        } catch (\Exception $e) {
+            // If date parsing fails, return null (no validation error)
+            Log::warning('Failed to parse date: ' . $dateString . ' - ' . $e->getMessage());
+            return null;
+        }
     }
 
     /**
@@ -50,8 +85,8 @@ class PaymentService
                 'card_security_code' => $paymentData['card_security_code'] ?? null,
                 'cheque_number' => $paymentData['cheque_number'] ?? null,
                 'cheque_bank_branch' => $paymentData['cheque_bank_branch'] ?? null,
-                'cheque_received_date' => $paymentData['cheque_received_date'] ?? null,
-                'cheque_valid_date' => $paymentData['cheque_valid_date'] ?? null,
+                'cheque_received_date' => $this->parseFlexibleDate($paymentData['cheque_received_date'] ?? null),
+                'cheque_valid_date' => $this->parseFlexibleDate($paymentData['cheque_valid_date'] ?? null),
                 'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
                 'payment_status' => $paymentData['payment_status'] ?? 'completed',
             ]);
@@ -120,7 +155,8 @@ class PaymentService
                 'card_number' => $newPaymentData['card_number'] ?? $payment->card_number,
                 'cheque_number' => $newPaymentData['cheque_number'] ?? $payment->cheque_number,
                 'cheque_bank_branch' => $newPaymentData['cheque_bank_branch'] ?? $payment->cheque_bank_branch,
-                'cheque_valid_date' => $newPaymentData['cheque_valid_date'] ?? $payment->cheque_valid_date,
+                'cheque_received_date' => $this->parseFlexibleDate($newPaymentData['cheque_received_date'] ?? $payment->cheque_received_date),
+                'cheque_valid_date' => $this->parseFlexibleDate($newPaymentData['cheque_valid_date'] ?? $payment->cheque_valid_date),
                 'cheque_status' => $newPaymentData['cheque_status'] ?? $payment->cheque_status,
             ]);
 

@@ -267,6 +267,63 @@ class Ledger extends Model
                 }
                 break;
 
+            case 'cheque_bounce':
+                // Cheque bounce increases customer debt (they owe us the bounced amount)
+                if ($data['contact_type'] === 'customer') {
+                    $debit = $data['amount'];
+                } else {
+                    // Unlikely scenario for supplier cheque bounce, but handle it
+                    $credit = $data['amount'];
+                }
+                break;
+
+            case 'bank_charges':
+                // Bank charges increase customer debt (additional charges they owe us)
+                if ($data['contact_type'] === 'customer') {
+                    $debit = $data['amount'];
+                } else {
+                    // Bank charges for supplier payments reduce what we owe them
+                    $debit = $data['amount'];
+                }
+                break;
+
+            case 'penalty':
+                // Penalty increases customer debt
+                if ($data['contact_type'] === 'customer') {
+                    $debit = $data['amount'];
+                } else {
+                    $credit = $data['amount'];
+                }
+                break;
+
+            case 'adjustment_debit':
+                // Manual adjustment - debit
+                $debit = $data['amount'];
+                break;
+
+            case 'adjustment_credit':
+                // Manual adjustment - credit
+                $credit = $data['amount'];
+                break;
+
+            case 'bounce_recovery':
+                // Recovery of bounced cheque reduces customer debt
+                if ($data['contact_type'] === 'customer') {
+                    $credit = $data['amount'];
+                } else {
+                    $debit = $data['amount'];
+                }
+                break;
+
+            case 'invoice':
+                // Invoice transaction (similar to sale)
+                if ($data['contact_type'] === 'customer') {
+                    $debit = $data['amount'];
+                } else {
+                    $credit = $data['amount'];
+                }
+                break;
+
             default:
                 throw new \Exception("Unknown transaction type: {$data['transaction_type']}");
         }

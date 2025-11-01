@@ -290,12 +290,12 @@ class UnifiedLedgerService
         $floatingDebits = Ledger::where('user_id', $customerId)
             ->where('contact_type', 'customer')
             ->whereIn('transaction_type', ['cheque_bounce', 'bank_charges'])
-            ->sum('amount');
+            ->sum('debit');
 
         $floatingCredits = Ledger::where('user_id', $customerId)
             ->where('contact_type', 'customer')
             ->whereIn('transaction_type', ['bounce_recovery', 'adjustment_credit'])
-            ->sum('amount');
+            ->sum('credit');
 
         return $floatingDebits - $floatingCredits;
     }
@@ -307,7 +307,13 @@ class UnifiedLedgerService
     {
         return Payment::where('customer_id', $customerId)
             ->where('payment_method', 'cheque')
-            ->where('cheque_status', 'bounced')
+            ->whereHas('chequeStatusHistory', function($query) {
+                $query->whereIn('id', function($subQuery) {
+                    $subQuery->select(DB::raw('MAX(id)'))
+                        ->from('cheque_status_histories')
+                        ->groupBy('payment_id');
+                })->where('status', 'bounced');
+            })
             ->sum('amount');
     }
 

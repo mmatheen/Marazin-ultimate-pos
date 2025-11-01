@@ -6332,19 +6332,9 @@
                     $('#chequeNumberError').text('');
                 }
 
-                if ($('#cheque_received_date').val().trim() === '') {
-                    $('#chequeReceivedDateError').text('Cheque Received Date is required.');
-                    isValid = false;
-                } else {
-                    $('#chequeReceivedDateError').text('');
-                }
-
-                if ($('#cheque_valid_date').val().trim() === '') {
-                    $('#chequeValidDateError').text('Cheque Valid Date is required.');
-                    isValid = false;
-                } else {
-                    $('#chequeValidDateError').text('');
-                }
+                // Clear any previous error messages (dates are now optional)
+                $('#chequeReceivedDateError').text('');
+                $('#chequeValidDateError').text('');
 
                 return isValid;
             }

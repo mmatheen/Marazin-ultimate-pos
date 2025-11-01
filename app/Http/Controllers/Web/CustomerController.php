@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\Location; // Ensure Location model is imported
 use App\Models\User; // Ensure User model is imported
+use App\Exports\CustomerExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class CustomerController extends Controller
 {
@@ -23,6 +25,7 @@ class CustomerController extends Controller
         $this->middleware('permission:create customer', ['only' => ['store']]);
         $this->middleware('permission:edit customer', ['only' => ['edit', 'update']]);
         $this->middleware('permission:delete customer', ['only' => ['destroy']]);
+        $this->middleware('permission:export customer', ['only' => ['export']]);
     }
 
     public function Customer()
@@ -633,5 +636,21 @@ class CustomerController extends Controller
             'customers' => $customers,
             'total_customers' => $customers->count()
         ]);
+    }
+
+    /**
+     * Export customers to Excel
+     */
+    public function export()
+    {
+        try {
+            return Excel::download(new CustomerExport, 'customers_' . now()->format('Y-m-d_H-i-s') . '.xlsx');
+        } catch (\Exception $e) {
+            Log::error('Customer export failed: ' . $e->getMessage());
+            return response()->json([
+                'status' => 500,
+                'message' => 'Export failed. Please try again.'
+            ], 500);
+        }
     }
 }

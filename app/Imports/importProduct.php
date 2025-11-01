@@ -194,7 +194,8 @@ class importProduct implements ToCollection, WithHeadingRow
             'product_image_name',
             'description',
             'batch_no',
-            'imei_serial_no'
+            'imei_serial_no',
+            'product_type'
         ];
 
         foreach ($stringFields as $field) {
@@ -233,7 +234,8 @@ class importProduct implements ToCollection, WithHeadingRow
         
         // Handle other standard mappings
         $headerMapping = [
-            // Other field mappings
+            // Map Excel headers to expected field names
+            'stock_alert' => 'stock_alert_quantity',  // Map "Stock Alert" column to stock_alert_quantity
             'is_for_selling' => 'is_for_selling',
             'product_type' => 'product_type',
             'pax' => 'pax'
@@ -261,8 +263,18 @@ class importProduct implements ToCollection, WithHeadingRow
                 continue;
             }
 
+            // Log the row data for debugging first few rows
+            if ($excelRowNumber <= 5) {
+                Log::info("Row {$excelRowNumber} data before cleaning:", $rowArray);
+            }
+
             // Clean and validate data before processing
             $this->cleanRowData($rowArray);
+
+            // Log the row data after cleaning for debugging first few rows
+            if ($excelRowNumber <= 5) {
+                Log::info("Row {$excelRowNumber} data after cleaning:", $rowArray);
+            }
 
             // Convert expiry date to proper format if present
             if (!empty($rowArray['expiry_date'])) {
@@ -327,10 +339,10 @@ class importProduct implements ToCollection, WithHeadingRow
                 'max_retail_price' => 'nullable|numeric|min:0',
                 'qty' => 'nullable|numeric|min:0',
                 'batch_no' => 'nullable|string|max:255',
-                'expiry_date' => 'nullable|date_format:Y-m-d|after:today',
+                'expiry_date' => 'nullable|date_format:Y-m-d',
                 'is_imei_or_serial_no' => 'nullable|integer|in:0,1',
                 'is_for_selling' => 'nullable|integer|in:0,1',
-                'product_type' => 'nullable|integer',
+                'product_type' => 'nullable|string|max:255',
                 'pax' => 'nullable|numeric|min:0',
                 'imei_serial_no' => 'nullable|string',
             ], [
@@ -346,12 +358,13 @@ class importProduct implements ToCollection, WithHeadingRow
                 'whole_sale_price.required' => 'Wholesale price is required.',
                 'whole_sale_price.numeric' => 'Wholesale price must be a valid number.',
                 'expiry_date.date_format' => 'Expiry date must be in Y-m-d format (YYYY-MM-DD).',
-                'expiry_date.after' => 'Expiry date must be in the future (after today: ' . date('Y-m-d') . ').',
+                'expiry_date.date_format' => 'Expiry date must be in Y-m-d format (YYYY-MM-DD).',
                 'is_imei_or_serial_no.integer' => 'IMEI/Serial number field must be 0 or 1.',
                 'is_imei_or_serial_no.in' => 'IMEI/Serial number field must be 0 or 1.',
                 'is_for_selling.integer' => 'Is for selling field must be 0 or 1.',
                 'is_for_selling.in' => 'Is for selling field must be 0 or 1.',
-                'product_type.integer' => 'Product type must be a valid integer.',
+                'product_type.string' => 'Product type must be a valid text value.',
+                'product_type.max' => 'Product type must not exceed 255 characters.',
                 'pax.numeric' => 'Pax must be a valid number.',
                 'imei_serial_no.string' => 'IMEI/Serial number must be a valid string.',
             ]);

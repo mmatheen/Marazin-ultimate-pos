@@ -9,7 +9,7 @@ class ChequeStatusHistory extends Model
 {
     use HasFactory;
 
-    protected $table = 'cheque_status_history'; // Fix table name to match migration
+    protected $table = 'cheque_status_history'; 
 
     protected $fillable = [
         'payment_id',

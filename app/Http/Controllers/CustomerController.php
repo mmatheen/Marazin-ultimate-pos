@@ -7,10 +7,13 @@ use App\Models\Customer;
 use App\Models\City;
 use App\Models\CustomerGroup;
 use App\Models\SalesRep;
+use App\Models\User;
 use App\Services\UnifiedLedgerService;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Exports\CustomerExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class CustomerController extends Controller
 {
@@ -23,6 +26,7 @@ class CustomerController extends Controller
         $this->middleware('permission:create customer', ['only' => ['store']]);
         $this->middleware('permission:edit customer', ['only' => ['edit', 'update']]);
         $this->middleware('permission:delete customer', ['only' => ['destroy']]);
+        $this->middleware('permission:export customer', ['only' => ['export']]);
     }
 
     public function Customer()
@@ -832,6 +836,22 @@ class CustomerController extends Controller
                 'new_opening_balance' => $newOpeningBalance,
                 'total_payments_made' => $totalOBPaymentsMade
             ]);
+        }
+    }
+
+    /**
+     * Export customers to Excel
+     */
+    public function export()
+    {
+        try {
+            return Excel::download(new CustomerExport, 'customers_' . now()->format('Y-m-d_H-i-s') . '.xlsx');
+        } catch (\Exception $e) {
+            Log::error('Customer export failed: ' . $e->getMessage());
+            return response()->json([
+                'status' => 500,
+                'message' => 'Export failed. Please try again.'
+            ], 500);
         }
     }
 
