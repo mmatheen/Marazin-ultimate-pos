@@ -2031,4 +2031,279 @@ class PaymentController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Process bulk recovery payment for multiple bounced cheques
+     */
+    public function bulkRecoveryPayment(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'cheque_ids' => 'required|string', // JSON string of cheque IDs
+                'recovery_method' => 'required|string|in:cash,bank_transfer,card,new_cheque,partial_cash_cheque',
+                'recovery_date' => 'required|date',
+                'recovery_notes' => 'nullable|string|max:1000',
+                // Cash amount for partial payment
+                'cash_amount' => 'required_if:recovery_method,partial_cash_cheque|nullable|numeric|min:0',
+                // New cheque details
+                'new_cheque_number' => 'required_if:recovery_method,new_cheque,partial_cash_cheque|nullable|string',
+                'new_cheque_bank' => 'required_if:recovery_method,new_cheque,partial_cash_cheque|nullable|string',
+                'new_cheque_date' => 'required_if:recovery_method,new_cheque,partial_cash_cheque|nullable|date',
+                'new_cheque_valid_date' => 'required_if:recovery_method,new_cheque,partial_cash_cheque|nullable|date',
+                // Bank transfer details
+                'bank_account' => 'required_if:recovery_method,bank_transfer|nullable|string',
+                'reference_number' => 'nullable|string',
+                // Card details
+                'card_number' => 'required_if:recovery_method,card|nullable|string',
+                'card_type' => 'required_if:recovery_method,card|nullable|string'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 400);
+            }
+
+            // Decode cheque IDs
+            $chequeIds = json_decode($request->cheque_ids, true);
+            if (empty($chequeIds)) {
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'No cheques selected'
+                ], 400);
+            }
+
+            DB::beginTransaction();
+
+            // Get bounced cheques
+            $bouncedPayments = Payment::whereIn('id', $chequeIds)
+                ->where('payment_method', 'cheque')
+                ->where('cheque_status', 'bounced')
+                ->with(['customer', 'sale'])
+                ->get();
+
+            if ($bouncedPayments->isEmpty()) {
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'No valid bounced cheques found'
+                ], 400);
+            }
+
+            // Calculate total recovery amount
+            $totalRecoveryAmount = $bouncedPayments->sum(function($payment) {
+                return $payment->amount + ($payment->bank_charges ?? 0);
+            });
+
+            $recoveryResults = [];
+            $cashAmount = 0;
+            $chequeAmount = 0;
+
+            // Determine payment amounts
+            switch ($request->recovery_method) {
+                case 'cash':
+                case 'bank_transfer':
+                case 'card':
+                    $cashAmount = $totalRecoveryAmount;
+                    break;
+                    
+                case 'new_cheque':
+                    $chequeAmount = $totalRecoveryAmount;
+                    break;
+                    
+                case 'partial_cash_cheque':
+                    $cashAmount = floatval($request->cash_amount);
+                    $chequeAmount = $totalRecoveryAmount - $cashAmount;
+                    
+                    if ($chequeAmount < 0) {
+                        return response()->json([
+                            'status' => 400,
+                            'message' => 'Cash amount cannot exceed total recovery amount'
+                        ], 400);
+                    }
+                    break;
+            }
+
+            // Process each bounced payment
+            foreach ($bouncedPayments as $bouncedPayment) {
+                $paymentRecoveryAmount = $bouncedPayment->amount + ($bouncedPayment->bank_charges ?? 0);
+                
+                // Calculate proportional amounts for this payment
+                $paymentCashAmount = $cashAmount > 0 ? ($paymentRecoveryAmount / $totalRecoveryAmount) * $cashAmount : 0;
+                $paymentChequeAmount = $chequeAmount > 0 ? ($paymentRecoveryAmount / $totalRecoveryAmount) * $chequeAmount : 0;
+
+                // Create recovery payments
+                $recoveryPayments = [];
+
+                // Cash/Card/Bank Transfer recovery
+                if ($paymentCashAmount > 0) {
+                    $recoveryPayment = Payment::create([
+                        'customer_id' => $bouncedPayment->customer_id,
+                        'reference_id' => $bouncedPayment->reference_id, // Same sale
+                        'payment_type' => 'recovery', // New payment type
+                        'payment_method' => $request->recovery_method === 'partial_cash_cheque' ? 'cash' : $request->recovery_method,
+                        'actual_payment_method' => $request->recovery_method, // Store original recovery method
+                        'amount' => -$paymentCashAmount, // Negative to reduce floating balance
+                        'payment_date' => $request->recovery_date,
+                        'notes' => $request->recovery_notes ?? "Recovery for bounced cheque #{$bouncedPayment->cheque_number}",
+                        'payment_status' => 'completed',
+                        'recovery_for_payment_id' => $bouncedPayment->id, // Link to original bounced payment
+                        'created_by' => auth()->id(),
+                        'updated_by' => auth()->id(),
+                        // Add method-specific fields
+                        'bank_account_number' => $request->recovery_method === 'bank_transfer' ? $request->bank_account : null,
+                        'reference_no' => $request->reference_number,
+                        'card_number' => $request->recovery_method === 'card' ? $request->card_number : null,
+                        'card_type' => $request->recovery_method === 'card' ? $request->card_type : null,
+                    ]);
+                    
+                    $recoveryPayments[] = $recoveryPayment;
+                }
+
+                // New cheque recovery
+                if ($paymentChequeAmount > 0) {
+                    $chequeRecoveryPayment = Payment::create([
+                        'customer_id' => $bouncedPayment->customer_id,
+                        'reference_id' => $bouncedPayment->reference_id, // Same sale
+                        'payment_type' => 'recovery',
+                        'payment_method' => 'cheque',
+                        'actual_payment_method' => $request->recovery_method, // Store original recovery method
+                        'amount' => -$paymentChequeAmount, // Negative to reduce floating balance
+                        'payment_date' => $request->recovery_date,
+                        'notes' => $request->recovery_notes ?? "New cheque for bounced cheque #{$bouncedPayment->cheque_number}",
+                        'payment_status' => 'pending', // New cheques start as pending
+                        'recovery_for_payment_id' => $bouncedPayment->id,
+                        'created_by' => auth()->id(),
+                        'updated_by' => auth()->id(),
+                        // New cheque details
+                        'cheque_number' => $request->new_cheque_number,
+                        'cheque_bank_branch' => $request->new_cheque_bank,
+                        'cheque_received_date' => $request->new_cheque_date,
+                        'cheque_valid_date' => $request->new_cheque_valid_date,
+                        'cheque_status' => 'pending',
+                    ]);
+                    
+                    $recoveryPayments[] = $chequeRecoveryPayment;
+                }
+
+                // Record in unified ledger (only for completed payments, not pending cheques)
+                foreach ($recoveryPayments as $recoveryPayment) {
+                    if ($recoveryPayment->payment_status === 'completed') {
+                        $this->unifiedLedgerService->recordFloatingBalanceRecovery(
+                            $recoveryPayment->customer_id,
+                            $recoveryPayment->amount, // Already negative
+                            $recoveryPayment->payment_method,
+                            "Recovery payment for bounced cheque #{$bouncedPayment->cheque_number}"
+                        );
+                    }
+                }
+
+                $recoveryResults[] = [
+                    'original_payment_id' => $bouncedPayment->id,
+                    'customer_id' => $bouncedPayment->customer_id,
+                    'recovery_amount' => $paymentRecoveryAmount,
+                    'recovery_payments' => collect($recoveryPayments)->map(function($p) {
+                        return [
+                            'id' => $p->id,
+                            'method' => $p->payment_method,
+                            'amount' => abs($p->amount),
+                            'status' => $p->payment_status
+                        ];
+                    })->toArray()
+                ];
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 200,
+                'message' => "Recovery payment processed successfully for " . count($bouncedPayments) . " bounced cheques",
+                'data' => [
+                    'total_recovery_amount' => $totalRecoveryAmount,
+                    'cash_amount' => $cashAmount,
+                    'cheque_amount' => $chequeAmount,
+                    'recovery_results' => $recoveryResults
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Bulk recovery payment failed: ' . $e->getMessage(), [
+                'request_data' => $request->all(),
+                'error' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to process bulk recovery payment: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get recovery chain details for a payment
+     */
+    public function getRecoveryChain(Request $request, $paymentId)
+    {
+        try {
+            $payment = Payment::findOrFail($paymentId);
+            $chain = $payment->getRecoveryChain();
+            
+            return response()->json([
+                'status' => 200,
+                'data' => $chain
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to get recovery chain: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get customer's bounced cheques with recovery status
+     */
+    public function getBouncedChequesWithRecovery(Request $request, $customerId)
+    {
+        try {
+            $bouncedPayments = Payment::where('customer_id', $customerId)
+                ->where('payment_method', 'cheque')
+                ->where('cheque_status', 'bounced')
+                ->with(['recoveryPayments', 'sale'])
+                ->get();
+
+            $result = $bouncedPayments->map(function ($payment) {
+                $chain = $payment->getRecoveryChain();
+                return [
+                    'payment_id' => $payment->id,
+                    'sale_id' => $payment->reference_id,
+                    'cheque_number' => $payment->cheque_number,
+                    'original_amount' => $payment->amount,
+                    'bank_charges' => $payment->bank_charges ?? 0,
+                    'total_due' => $chain['total_original'],
+                    'recovered_amount' => $chain['total_recovered'],
+                    'pending_recovery' => $chain['pending_recovery'],
+                    'remaining_amount' => $payment->getRemainingRecoveryAmount(),
+                    'is_fully_recovered' => $payment->isFullyRecovered(),
+                    'bounce_date' => $payment->cheque_bounce_date,
+                    'bounce_reason' => $payment->cheque_bounce_reason,
+                    'recovery_count' => $payment->recoveryPayments->count(),
+                ];
+            });
+
+            return response()->json([
+                'status' => 200,
+                'data' => $result
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to get bounced cheques: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

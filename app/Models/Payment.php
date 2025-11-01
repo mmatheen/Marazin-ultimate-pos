@@ -40,6 +40,13 @@ class Payment extends Model
         'cheque_bounce_reason',
         'bank_charges',
         'payment_status',
+        // Recovery system fields
+        'recovery_for_payment_id',
+        'bank_account_number',
+        'card_type',
+        'actual_payment_method',
+        'created_by',
+        'updated_by',
     ];
 
     /**
@@ -125,6 +132,27 @@ class Payment extends Model
         return $this->hasMany(ChequeReminder::class);
     }
 
+    // Recovery system relationships
+    public function originalPayment()
+    {
+        return $this->belongsTo(Payment::class, 'recovery_for_payment_id');
+    }
+
+    public function recoveryPayments()
+    {
+        return $this->hasMany(Payment::class, 'recovery_for_payment_id');
+    }
+
+    public function createdBy()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'created_by');
+    }
+
+    public function updatedBy()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'updated_by');
+    }
+
     // Scopes for cheque management
     public function scopeChequePayments($query)
     {
@@ -156,6 +184,21 @@ class Payment extends Model
     {
         return $query->pendingCheques()
                     ->where('cheque_valid_date', '<', Carbon::now());
+    }
+
+    public function scopeRecoveryPayments($query)
+    {
+        return $query->where('payment_type', 'recovery');
+    }
+
+    public function scopeOriginalPayments($query)
+    {
+        return $query->whereNull('recovery_for_payment_id');
+    }
+
+    public function scopeByCustomer($query, $customerId)
+    {
+        return $query->where('customer_id', $customerId);
     }
 
     // Helper methods
@@ -284,5 +327,85 @@ class Payment extends Model
         if (!empty($reminders)) {
             DB::table('cheque_reminders')->insert($reminders);
         }
+    }
+
+    // Recovery system helper methods
+    
+    /**
+     * Get recovery chain summary for bounced payment
+     */
+    public function getRecoveryChain()
+    {
+        if ($this->payment_type === 'recovery') {
+            // For recovery payments, get the original payment's chain
+            return $this->originalPayment ? $this->originalPayment->getRecoveryChain() : [];
+        }
+
+        $recoveries = $this->recoveryPayments()->with(['createdBy', 'updatedBy'])->get();
+        
+        return [
+            'original_payment' => [
+                'id' => $this->id,
+                'amount' => $this->amount,
+                'cheque_number' => $this->cheque_number,
+                'cheque_status' => $this->cheque_status,
+                'bounce_date' => $this->cheque_bounce_date,
+                'bounce_reason' => $this->cheque_bounce_reason,
+                'bank_charges' => $this->bank_charges ?? 0,
+            ],
+            'recoveries' => $recoveries->map(function ($recovery) {
+                return [
+                    'id' => $recovery->id,
+                    'amount' => abs($recovery->amount), // Show as positive
+                    'payment_method' => $recovery->payment_method,
+                    'actual_payment_method' => $recovery->actual_payment_method,
+                    'payment_date' => $recovery->payment_date,
+                    'payment_status' => $recovery->payment_status,
+                    'created_by' => $recovery->createdBy->name ?? 'Unknown',
+                    'created_at' => $recovery->created_at,
+                    // Method specific details
+                    'card_number' => $recovery->card_number ? '****' . substr($recovery->card_number, -4) : null,
+                    'card_type' => $recovery->card_type,
+                    'bank_account' => $recovery->bank_account_number,
+                    'cheque_number' => $recovery->cheque_number,
+                    'cheque_status' => $recovery->cheque_status,
+                    'reference_no' => $recovery->reference_no,
+                    'notes' => $recovery->notes,
+                ];
+            }),
+            'total_original' => $this->amount + ($this->bank_charges ?? 0),
+            'total_recovered' => $recoveries->sum(function ($recovery) {
+                return $recovery->payment_status === 'completed' ? abs($recovery->amount) : 0;
+            }),
+            'pending_recovery' => $recoveries->where('payment_status', 'pending')->sum(function ($recovery) {
+                return abs($recovery->amount);
+            }),
+        ];
+    }
+
+    /**
+     * Check if payment is fully recovered
+     */
+    public function isFullyRecovered()
+    {
+        if ($this->payment_type === 'recovery') {
+            return false; // Recovery payments themselves can't be "recovered"
+        }
+
+        $chain = $this->getRecoveryChain();
+        return $chain['total_recovered'] >= $chain['total_original'];
+    }
+
+    /**
+     * Get remaining recovery amount needed
+     */
+    public function getRemainingRecoveryAmount()
+    {
+        if ($this->payment_type === 'recovery') {
+            return 0;
+        }
+
+        $chain = $this->getRecoveryChain();
+        return max(0, $chain['total_original'] - $chain['total_recovered']);
     }
 }

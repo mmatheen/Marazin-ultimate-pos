@@ -840,6 +840,9 @@ class SaleController extends Controller
             'balance_amount' => 'nullable|numeric',
             'advance_amount' => 'nullable|numeric|min:0', // add this
             'jobticket_description' => 'nullable|string', // add this
+            // Floating balance fields
+            'use_floating_balance' => 'nullable|boolean',
+            'floating_balance_amount' => 'nullable|numeric|min:0'
         ]);
 
         if ($validator->fails()) {
@@ -1096,13 +1099,17 @@ class SaleController extends Controller
                                     'payment_status' => 'completed',
                                 ]);
                             } elseif ($paymentData['payment_method'] === 'cheque') {
+                                // Ensure cheque_status has a default value if not provided
+                                $chequeStatus = $paymentData['cheque_status'] ?? 'pending';
+                                
                                 $servicePaymentData = array_merge($servicePaymentData, [
                                     'cheque_number' => $paymentData['cheque_number'] ?? null,
                                     'cheque_bank_branch' => $paymentData['cheque_bank_branch'] ?? null,
                                     'cheque_received_date' => $paymentData['cheque_received_date'] ?? null,
                                     'cheque_valid_date' => $paymentData['cheque_valid_date'] ?? null,
                                     'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
-                                    'payment_status' => $paymentData['cheque_status'] === 'cleared' ? 'completed' : 'pending',
+                                    'cheque_status' => $chequeStatus,
+                                    'payment_status' => $chequeStatus === 'cleared' ? 'completed' : 'pending',
                                 ]);
                             } else {
                                 // For cash, bank_transfer, etc.
@@ -1138,6 +1145,12 @@ class SaleController extends Controller
                                       });
                             })
                             ->sum('amount');
+
+                        // Handle floating balance adjustment
+                        if ($request->use_floating_balance && $request->floating_balance_amount > 0) {
+                            $this->processFloatingBalanceAdjustment($sale, $request->floating_balance_amount);
+                            $totalPaid += $request->floating_balance_amount;
+                        }
 
                         // Update sale totals
                         $sale->update([
@@ -2223,6 +2236,46 @@ class SaleController extends Controller
                 'message' => 'Failed to log pricing error'
             ], 500);
         }
+    }
+
+    /**
+     * Process floating balance adjustment against sale
+     * 
+     * @param Sale $sale
+     * @param float $adjustmentAmount
+     * @return void
+     */
+    private function processFloatingBalanceAdjustment($sale, $adjustmentAmount)
+    {
+        // Create a floating balance adjustment payment record
+        $payment = new Payment([
+            'customer_id' => $sale->customer_id,
+            'reference_id' => $sale->id,
+            'payment_type' => 'sale',
+            'payment_method' => 'floating_balance_adjustment',
+            'amount' => $adjustmentAmount,
+            'payment_date' => now(),
+            'notes' => 'Floating balance adjustment against sale #' . $sale->invoice_no,
+            'payment_status' => 'completed',
+            'created_by' => auth()->id()
+        ]);
+        
+        $payment->save();
+
+        // Record in unified ledger as floating balance recovery
+        $this->unifiedLedgerService->recordFloatingBalanceRecovery(
+            $sale->customer_id,
+            -$adjustmentAmount, // Negative amount to reduce floating balance
+            'floating_balance_adjustment',
+            'Floating balance adjustment against sale #' . $sale->invoice_no
+        );
+
+        Log::info('Floating balance adjustment processed', [
+            'sale_id' => $sale->id,
+            'customer_id' => $sale->customer_id,
+            'adjustment_amount' => $adjustmentAmount,
+            'payment_id' => $payment->id
+        ]);
     }
 
 }

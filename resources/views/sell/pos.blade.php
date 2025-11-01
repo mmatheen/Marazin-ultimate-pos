@@ -452,7 +452,7 @@
                                                     Rs. 0.00
                                                 </span>
                                             </div>
-                                            <div class="flex-fill p-2 text-center">
+                                            <div class="flex-fill border-end p-2 text-center">
                                                 <small class="text-muted d-block">Available</small>
                                                 <span id="available-credit-amount"
                                                     class="fw-bold text-success d-block">

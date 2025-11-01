@@ -142,6 +142,15 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/customer-delete/{id}', [CustomerController::class, 'destroy']);
         Route::get('/customer-get-by-id/{id}', [CustomerController::class, 'show']);
         Route::get('/customer-export', [CustomerController::class, 'export'])->name('customer.export');
+        
+        // Floating Balance Routes
+        Route::get('/customer/credit-info/{id}', [CustomerController::class, 'getCreditInfo']);
+        Route::post('/floating-balance/customer/{id}/recovery-payment', [CustomerController::class, 'recordRecoveryPayment']);
+        
+        // Cheque Management Routes
+        Route::post('/cheque/bulk-recovery-payment', [PaymentController::class, 'bulkRecoveryPayment']);
+        Route::get('/payment/{payment}/recovery-chain', [PaymentController::class, 'getRecoveryChain']);
+        Route::get('/customer/{customer}/bounced-cheques-recovery', [PaymentController::class, 'getBouncedChequesWithRecovery']);
 
 
          // Customer Ledger Routes (Redirected to Account Ledger)

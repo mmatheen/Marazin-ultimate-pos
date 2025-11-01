@@ -88,6 +88,7 @@ class PaymentService
                 'cheque_received_date' => $this->parseFlexibleDate($paymentData['cheque_received_date'] ?? null),
                 'cheque_valid_date' => $this->parseFlexibleDate($paymentData['cheque_valid_date'] ?? null),
                 'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
+                'cheque_status' => $paymentData['cheque_status'] ?? 'pending',
                 'payment_status' => $paymentData['payment_status'] ?? 'completed',
             ]);
 

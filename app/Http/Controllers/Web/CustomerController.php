@@ -653,4 +653,146 @@ class CustomerController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Get customer credit information including floating balance
+     */
+    public function getCreditInfo($id)
+    {
+        try {
+            $customer = Customer::with(['sales', 'payments'])->findOrFail($id);
+            
+            // Calculate total sales amount
+            $totalSales = $customer->sales()->sum('final_total');
+            
+            // Calculate total payments received
+            $totalPayments = $customer->payments()->sum('amount');
+            
+            // Calculate total due (sales - payments)
+            $totalDue = $totalSales - $totalPayments;
+            
+            // Calculate floating balance from bounced cheques
+            $floatingBalance = $customer->payments()
+                ->where('payment_method', 'cheque')
+                ->where('cheque_status', 'bounced')
+                ->sum(DB::raw('amount + COALESCE(bank_charges, 0)'));
+                
+            // Get credit limit from customer
+            $creditLimit = $customer->credit_limit ?? 0;
+            
+            // Calculate available credit
+            $availableCredit = $creditLimit - $totalDue;
+            
+            $data = [
+                'total_due' => $totalDue,
+                'credit_limit' => $creditLimit,
+                'available_credit' => max(0, $availableCredit),
+                'floating_balance' => $floatingBalance,
+                'total_sales' => $totalSales,
+                'total_payments' => $totalPayments,
+            ];
+            
+            return response()->json([
+                'status' => 200,
+                'message' => 'Customer credit info retrieved successfully',
+                'data' => $data
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Error fetching customer credit info: ' . $e->getMessage());
+            
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to fetch customer credit information'
+            ], 500);
+        }
+    }
+
+    /**
+     * Record recovery payment for bounced cheques (floating balance)
+     */
+    public function recordRecoveryPayment(Request $request, $customerId)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'amount' => 'required|numeric|min:0.01',
+                'payment_method' => 'required|string|in:cash,bank_transfer,card,upi',
+                'payment_date' => 'required|date',
+                'notes' => 'nullable|string|max:500',
+                'reference_no' => 'nullable|string|max:100'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 400);
+            }
+
+            $customer = Customer::findOrFail($customerId);
+            
+            // Calculate current floating balance
+            $currentFloatingBalance = $customer->payments()
+                ->where('payment_method', 'cheque')
+                ->where('cheque_status', 'bounced')
+                ->sum(DB::raw('amount + COALESCE(bank_charges, 0)'));
+
+            $recoveryAmount = $request->amount;
+            
+            // Validate recovery amount doesn't exceed floating balance
+            if ($recoveryAmount > $currentFloatingBalance) {
+                return response()->json([
+                    'status' => 400,
+                    'message' => "Recovery amount cannot exceed floating balance of Rs. " . number_format($currentFloatingBalance, 2)
+                ], 400);
+            }
+
+            DB::beginTransaction();
+
+            // Create recovery payment record
+            $payment = $customer->payments()->create([
+                'payment_method' => 'floating_balance_recovery',
+                'amount' => -$recoveryAmount, // Negative amount to reduce floating balance
+                'payment_date' => $request->payment_date,
+                'notes' => $request->notes ?? 'Recovery payment for bounced cheques',
+                'reference_no' => $request->reference_no,
+                'actual_payment_method' => $request->payment_method,
+                'created_by' => auth()->id(),
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+
+            DB::commit();
+
+            // Calculate new balances
+            $newFloatingBalance = $currentFloatingBalance - $recoveryAmount;
+            $totalDue = $customer->sales()->sum('final_total') - $customer->payments()->sum('amount');
+
+            $balanceUpdate = [
+                'payment_amount' => $recoveryAmount,
+                'old_floating_balance' => $currentFloatingBalance,
+                'new_floating_balance' => $newFloatingBalance,
+                'total_outstanding' => max(0, $totalDue + $newFloatingBalance),
+            ];
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Recovery payment recorded successfully',
+                'data' => [
+                    'payment_id' => $payment->id,
+                    'balance_update' => $balanceUpdate
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error recording recovery payment: ' . $e->getMessage());
+            
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to record recovery payment'
+            ], 500);
+        }
+    }
 }

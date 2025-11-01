@@ -194,6 +194,9 @@
                             <button type="button" class="btn btn-danger btn-sm me-2" id="bulkBounce" disabled>
                                 <i class="fas fa-times"></i> Mark as Bounced
                             </button>
+                            <button type="button" class="btn btn-warning btn-sm me-2" id="bulkRecoveryPayment" disabled>
+                                <i class="fas fa-money-bill-wave"></i> Recovery Payment
+                            </button>
                             <button type="button" class="btn btn-secondary btn-sm" id="refreshData">
                                 <i class="fas fa-sync-alt"></i> Refresh
                             </button>
@@ -335,6 +338,9 @@
                                             @if(($payment->cheque_status ?? 'pending') === 'bounced' && $payment->customer_id)
                                             <button type="button" class="btn btn-sm btn-outline-success" onclick="recordRecoveryPayment({{ $payment->customer_id }}, {{ $payment->amount + ($payment->bank_charges ?? 0) }})" title="Record Recovery">
                                                 <i class="fas fa-money-bill"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-warning" onclick="viewRecoveryChain({{ $payment->id }})" title="View Recovery Chain">
+                                                <i class="fas fa-link"></i>
                                             </button>
                                             @endif
                                         </div>
@@ -488,6 +494,97 @@
     </div>
 </div>
 
+<!-- Bulk Recovery Payment Modal -->
+<div class="modal fade" id="bulkRecoveryModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Recovery Payment for Multiple Bounced Cheques</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="bulkRecoveryForm">
+                <div class="modal-body">
+                    <!-- Selected Cheques Summary -->
+                    <div class="alert alert-info">
+                        <h6 class="fw-bold mb-2">
+                            <i class="fas fa-info-circle"></i> Selected Bounced Cheques
+                        </h6>
+                        <div id="selectedChequesInfo">
+                            <!-- Will be populated with selected cheques details -->
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Total Bounced Amount:</strong> 
+                                <span id="totalBouncedAmount" class="text-danger">Rs. 0.00</span>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Total Bank Charges:</strong> 
+                                <span id="totalBankCharges" class="text-warning">Rs. 0.00</span>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-12">
+                                <strong>Total Recovery Required:</strong> 
+                                <span id="totalRecoveryAmount" class="text-primary fs-5">Rs. 0.00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recovery Payment Options -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="recoveryMethod" class="form-label fw-bold">Recovery Payment Method</label>
+                            <select class="form-control" id="recoveryMethod" name="recovery_method" required>
+                                <option value="">Select Recovery Method</option>
+                                <option value="cash">Cash Payment</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                                <option value="card">Card Payment</option>
+                                <option value="new_cheque">New Cheque</option>
+                                <option value="partial_cash_cheque">Partial Cash + New Cheque</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="recoveryDate" class="form-label fw-bold">Recovery Date</label>
+                            <input type="date" class="form-control" id="recoveryDate" name="recovery_date" required>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Payment Fields -->
+                    <div id="recoveryPaymentFields" class="mt-3">
+                        <!-- Will be populated based on selected method -->
+                    </div>
+
+                    <!-- Recovery Notes -->
+                    <div class="mt-3">
+                        <label for="recoveryNotes" class="form-label fw-bold">Recovery Notes</label>
+                        <textarea class="form-control" id="recoveryNotes" name="recovery_notes" rows="3" 
+                                  placeholder="Notes about this recovery payment..."></textarea>
+                    </div>
+
+                    <!-- Payment Summary -->
+                    <div id="paymentSummary" class="mt-3" style="display: none;">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title">Payment Summary</h6>
+                                <div id="summaryContent">
+                                    <!-- Will be populated with payment breakdown -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check-circle"></i> Process Recovery Payment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 $(document).ready(function() {
     // CSRF token setup
@@ -552,6 +649,22 @@ $(document).ready(function() {
         bulkUpdateStatus('bounced');
     });
 
+    // Bulk Recovery Payment
+    $('#bulkRecoveryPayment').on('click', function() {
+        openBulkRecoveryModal();
+    });
+
+    // Recovery method change
+    $('#recoveryMethod').on('change', function() {
+        updateRecoveryPaymentFields();
+    });
+
+    // Bulk recovery form submission
+    $('#bulkRecoveryForm').on('submit', function(e) {
+        e.preventDefault();
+        processBulkRecoveryPayment();
+    });
+
     // Recovery payment form
     $('#recoveryPaymentForm').on('submit', function(e) {
         e.preventDefault();
@@ -584,7 +697,7 @@ function updateBulkActionButtons() {
     $('#selectedCount').text(selectedCount);
     
     // Disable all bulk actions initially
-    $('#bulkClear, #bulkDeposit, #bulkBounce').prop('disabled', true);
+    $('#bulkClear, #bulkDeposit, #bulkBounce, #bulkRecoveryPayment').prop('disabled', true);
     
     if (selectedCount > 0) {
         // Get statuses of selected cheques
@@ -601,6 +714,9 @@ function updateBulkActionButtons() {
         // Check if all selected cheques can be bounced (must be deposited)
         const canBounce = selectedStatuses.every(status => status === 'deposited');
         
+        // Check if all selected cheques are bounced (for recovery payment)
+        const canRecovery = selectedStatuses.every(status => status === 'bounced');
+        
         // Enable appropriate buttons
         if (canClear) {
             $('#bulkClear').prop('disabled', false);
@@ -611,9 +727,12 @@ function updateBulkActionButtons() {
         if (canBounce) {
             $('#bulkBounce').prop('disabled', false);
         }
+        if (canRecovery) {
+            $('#bulkRecoveryPayment').prop('disabled', false);
+        }
         
         // If no valid actions available, show a message
-        if (!canClear && !canDeposit && !canBounce) {
+        if (!canClear && !canDeposit && !canBounce && !canRecovery) {
             $('#selectedCount').html(selectedCount + ' <small class="text-muted">(no valid bulk actions for current selection)</small>');
         } else {
             // Show what actions are available
@@ -621,6 +740,7 @@ function updateBulkActionButtons() {
             if (canClear) availableActions.push('Clear');
             if (canDeposit) availableActions.push('Deposit');
             if (canBounce) availableActions.push('Bounce');
+            if (canRecovery) availableActions.push('Recovery');
             
             if (availableActions.length > 0) {
                 $('#selectedCount').html(selectedCount + ' <small class="text-success">(can: ' + availableActions.join(', ') + ')</small>');
@@ -974,6 +1094,497 @@ function numberFormat(number) {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     }).format(number);
+}
+
+// ================= BULK RECOVERY PAYMENT FUNCTIONS =================
+
+/**
+ * Open bulk recovery modal for selected bounced cheques
+ */
+function openBulkRecoveryModal() {
+    const selectedIds = $('.cheque-checkbox:checked').map(function() {
+        return this.value;
+    }).get();
+    
+    if (selectedIds.length === 0) {
+        toastr.warning('Please select bounced cheques for recovery payment', 'No Selection');
+        return;
+    }
+    
+    // Validate all selected are bounced
+    const selectedStatuses = $('.cheque-checkbox:checked').map(function() {
+        return $(this).closest('tr').data('status');
+    }).get();
+    
+    const allBounced = selectedStatuses.every(status => status === 'bounced');
+    if (!allBounced) {
+        toastr.error('Only bounced cheques can be selected for recovery payment', 'Invalid Selection');
+        return;
+    }
+    
+    // Collect selected cheque details
+    let totalBouncedAmount = 0;
+    let totalBankCharges = 0;
+    let chequesInfo = '';
+    
+    $('.cheque-checkbox:checked').each(function() {
+        const row = $(this).closest('tr');
+        const chequeNumber = row.find('.badge').text() || 'N/A';
+        const customerName = row.find('td:nth-child(3)').text() || 'Unknown';
+        const amount = parseFloat(row.find('.text-success').text().replace(/[Rs.\s,]/g, '')) || 0;
+        const bankCharges = parseFloat(row.find('.text-danger').text().replace(/[Rs.\s,]/g, '')) || 0;
+        
+        totalBouncedAmount += amount;
+        totalBankCharges += bankCharges;
+        
+        chequesInfo += `
+            <div class="border-bottom pb-2 mb-2">
+                <strong>Cheque #${chequeNumber}</strong> - ${customerName}<br>
+                <small>Amount: Rs. ${numberFormat(amount)} | Bank Charges: Rs. ${numberFormat(bankCharges)}</small>
+            </div>
+        `;
+    });
+    
+    // Update modal content
+    $('#selectedChequesInfo').html(chequesInfo);
+    $('#totalBouncedAmount').text('Rs. ' + numberFormat(totalBouncedAmount));
+    $('#totalBankCharges').text('Rs. ' + numberFormat(totalBankCharges));
+    $('#totalRecoveryAmount').text('Rs. ' + numberFormat(totalBouncedAmount + totalBankCharges));
+    
+    // Set default recovery date
+    $('#recoveryDate').val(new Date().toISOString().split('T')[0]);
+    
+    // Reset form
+    $('#bulkRecoveryForm')[0].reset();
+    $('#recoveryDate').val(new Date().toISOString().split('T')[0]);
+    $('#recoveryPaymentFields').html('');
+    $('#paymentSummary').hide();
+    
+    // Store selected data for processing
+    $('#bulkRecoveryModal').data('selectedIds', selectedIds);
+    $('#bulkRecoveryModal').data('totalAmount', totalBouncedAmount + totalBankCharges);
+    
+    // Show modal
+    $('#bulkRecoveryModal').modal('show');
+}
+
+/**
+ * Update recovery payment fields based on selected method
+ */
+function updateRecoveryPaymentFields() {
+    const method = $('#recoveryMethod').val();
+    const fieldsContainer = $('#recoveryPaymentFields');
+    const totalAmount = $('#bulkRecoveryModal').data('totalAmount') || 0;
+    
+    fieldsContainer.html('');
+    $('#paymentSummary').hide();
+    
+    if (!method) return;
+    
+    let fieldsHtml = '';
+    
+    switch(method) {
+        case 'cash':
+            fieldsHtml = `
+                <div class="alert alert-success">
+                    <h6><i class="fas fa-money-bill-wave"></i> Cash Payment</h6>
+                    <p class="mb-0">Full recovery amount will be paid in cash: <strong>Rs. ${numberFormat(totalAmount)}</strong></p>
+                </div>
+            `;
+            showPaymentSummary('Cash Payment', totalAmount, 0);
+            break;
+            
+        case 'bank_transfer':
+            fieldsHtml = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">Bank Account Number</label>
+                        <input type="text" class="form-control" name="bank_account" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Reference Number</label>
+                        <input type="text" class="form-control" name="reference_number">
+                    </div>
+                </div>
+            `;
+            showPaymentSummary('Bank Transfer', totalAmount, 0);
+            break;
+            
+        case 'card':
+            fieldsHtml = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">Card Number (Last 4 digits)</label>
+                        <input type="text" class="form-control" name="card_number" maxlength="4" placeholder="****">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Card Type</label>
+                        <select class="form-control" name="card_type">
+                            <option value="visa">Visa</option>
+                            <option value="mastercard">MasterCard</option>
+                            <option value="amex">American Express</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+            showPaymentSummary('Card Payment', totalAmount, 0);
+            break;
+            
+        case 'new_cheque':
+            fieldsHtml = `
+                <div class="alert alert-warning">
+                    <h6><i class="fas fa-exclamation-triangle"></i> New Cheque Payment</h6>
+                    <p class="mb-0">Customer will provide a new cheque for the full recovery amount</p>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">New Cheque Number</label>
+                        <input type="text" class="form-control" name="new_cheque_number" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Bank/Branch</label>
+                        <input type="text" class="form-control" name="new_cheque_bank" required>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-6">
+                        <label class="form-label">Cheque Date</label>
+                        <input type="date" class="form-control" name="new_cheque_date" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Valid Until Date</label>
+                        <input type="date" class="form-control" name="new_cheque_valid_date" required>
+                    </div>
+                </div>
+            `;
+            showPaymentSummary('New Cheque', 0, totalAmount);
+            break;
+            
+        case 'partial_cash_cheque':
+            fieldsHtml = `
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-info-circle"></i> Partial Cash + New Cheque</h6>
+                    <p class="mb-0">Customer will pay part in cash and provide a new cheque for the remaining amount</p>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">Cash Amount</label>
+                        <input type="number" class="form-control" id="partialCashAmount" name="cash_amount" 
+                               step="0.01" min="0" max="${totalAmount}" required>
+                        <small class="text-muted">Max: Rs. ${numberFormat(totalAmount)}</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Cheque Amount (Auto-calculated)</label>
+                        <input type="number" class="form-control" id="partialChequeAmount" readonly>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-6">
+                        <label class="form-label">New Cheque Number</label>
+                        <input type="text" class="form-control" name="new_cheque_number" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Bank/Branch</label>
+                        <input type="text" class="form-control" name="new_cheque_bank" required>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-6">
+                        <label class="form-label">Cheque Date</label>
+                        <input type="date" class="form-control" name="new_cheque_date" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Valid Until Date</label>
+                        <input type="date" class="form-control" name="new_cheque_valid_date" required>
+                    </div>
+                </div>
+            `;
+            break;
+    }
+    
+    fieldsContainer.html(fieldsHtml);
+    
+    // Add event listener for partial cash amount calculation
+    if (method === 'partial_cash_cheque') {
+        $('#partialCashAmount').on('input', function() {
+            const cashAmount = parseFloat($(this).val()) || 0;
+            const chequeAmount = totalAmount - cashAmount;
+            $('#partialChequeAmount').val(chequeAmount.toFixed(2));
+            
+            showPaymentSummary('Cash + Cheque', cashAmount, chequeAmount);
+        });
+    }
+}
+
+/**
+ * Show payment summary
+ */
+function showPaymentSummary(method, cashAmount, chequeAmount) {
+    let summaryHtml = `
+        <div class="row">
+            <div class="col-md-4">
+                <strong>Payment Method:</strong><br>${method}
+            </div>
+    `;
+    
+    if (cashAmount > 0) {
+        summaryHtml += `
+            <div class="col-md-4">
+                <strong>Cash Amount:</strong><br>Rs. ${numberFormat(cashAmount)}
+            </div>
+        `;
+    }
+    
+    if (chequeAmount > 0) {
+        summaryHtml += `
+            <div class="col-md-4">
+                <strong>Cheque Amount:</strong><br>Rs. ${numberFormat(chequeAmount)}
+            </div>
+        `;
+    }
+    
+    summaryHtml += `
+        </div>
+        <hr>
+        <div class="text-center">
+            <strong class="fs-5 text-primary">Total Recovery: Rs. ${numberFormat(cashAmount + chequeAmount)}</strong>
+        </div>
+    `;
+    
+    $('#summaryContent').html(summaryHtml);
+    $('#paymentSummary').show();
+}
+
+/**
+ * Process bulk recovery payment
+ */
+function processBulkRecoveryPayment() {
+    const selectedIds = $('#bulkRecoveryModal').data('selectedIds');
+    const formData = new FormData($('#bulkRecoveryForm')[0]);
+    
+    // Add selected cheque IDs to form data
+    formData.append('cheque_ids', JSON.stringify(selectedIds));
+    
+    $.ajax({
+        url: '/cheque/bulk-recovery-payment',
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+            if (response.status === 200) {
+                toastr.success(response.message, 'Recovery Payment Processed', {
+                    timeOut: 8000,
+                    progressBar: true,
+                    positionClass: 'toast-top-right'
+                });
+                
+                $('#bulkRecoveryModal').modal('hide');
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                toastr.error(response.message || 'Failed to process recovery payment', 'Error');
+            }
+        },
+        error: function(xhr) {
+            const errorMsg = xhr.responseJSON?.message || 'Failed to process recovery payment';
+            toastr.error(errorMsg, 'Error');
+        }
+    });
+}
+
+// View Recovery Chain Function
+function viewRecoveryChain(paymentId) {
+    $.ajax({
+        url: `/payment/${paymentId}/recovery-chain`,
+        type: 'GET',
+        success: function(response) {
+            if (response.status === 200) {
+                showRecoveryChainModal(response.data);
+            } else {
+                toastr.error('Failed to load recovery chain', 'Error');
+            }
+        },
+        error: function(xhr) {
+            let errorMsg = 'Network error occurred';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMsg = xhr.responseJSON.message;
+            } else if (xhr.status === 404) {
+                errorMsg = 'Payment not found';
+            }
+            toastr.error(errorMsg, 'Error');
+        }
+    });
+}
+
+function showRecoveryChainModal(data) {
+    let modalContent = `
+        <div class="modal fade" id="recoveryChainModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Recovery Chain Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Original Payment Info -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-danger text-white">
+                                <h6 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Original Bounced Payment</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <strong>Cheque Number:</strong><br>
+                                        <span class="badge bg-info">${data.original_payment.cheque_number}</span>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <strong>Amount:</strong><br>
+                                        <span class="text-danger">Rs. ${numberFormat(Math.abs(data.original_payment.amount))}</span>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <strong>Bank Charges:</strong><br>
+                                        <span class="text-warning">Rs. ${numberFormat(data.original_payment.bank_charges)}</span>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <strong>Total Due:</strong><br>
+                                        <span class="text-danger"><strong>Rs. ${numberFormat(data.total_original)}</strong></span>
+                                    </div>
+                                </div>
+                                <div class="row mt-2">
+                                    <div class="col-md-6">
+                                        <strong>Bounce Date:</strong> ${data.original_payment.bounce_date || 'N/A'}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <strong>Bounce Reason:</strong> ${data.original_payment.bounce_reason || 'N/A'}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recovery Summary -->
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <div class="card bg-success text-white">
+                                    <div class="card-body">
+                                        <h6>Total Recovered</h6>
+                                        <h4>Rs. ${numberFormat(data.total_recovered)}</h4>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-warning text-white">
+                                    <div class="card-body">
+                                        <h6>Pending Recovery</h6>
+                                        <h4>Rs. ${numberFormat(data.pending_recovery)}</h4>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card ${data.total_recovered >= data.total_original ? 'bg-success' : 'bg-danger'} text-white">
+                                    <div class="card-body">
+                                        <h6>Remaining</h6>
+                                        <h4>Rs. ${numberFormat(data.total_original - data.total_recovered - data.pending_recovery)}</h4>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recovery Payments -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="fas fa-money-bill-wave"></i> Recovery Payments (${data.recoveries.length})</h6>
+                            </div>
+                            <div class="card-body">`;
+
+    if (data.recoveries.length > 0) {
+        modalContent += `
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Method</th>
+                                                <th>Amount</th>
+                                                <th>Status</th>
+                                                <th>Details</th>
+                                                <th>Created By</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>`;
+        
+        data.recoveries.forEach(recovery => {
+            let statusBadge = recovery.payment_status === 'completed' ? 'bg-success' : 'bg-warning';
+            let methodDetails = '';
+            
+            if (recovery.payment_method === 'card') {
+                methodDetails = `Card: ${recovery.card_type} ${recovery.card_number}`;
+            } else if (recovery.payment_method === 'cheque') {
+                methodDetails = `Cheque: ${recovery.cheque_number} (${recovery.cheque_status})`;
+            } else if (recovery.payment_method === 'bank_transfer') {
+                methodDetails = `Bank: ${recovery.bank_account}`;
+            } else if (recovery.actual_payment_method === 'partial_cash_cheque') {
+                methodDetails = 'Partial: Cash + Cheque';
+            }
+            
+            modalContent += `
+                                            <tr>
+                                                <td>${recovery.payment_date}</td>
+                                                <td>
+                                                    <span class="badge bg-primary">${recovery.payment_method}</span>
+                                                    ${recovery.actual_payment_method !== recovery.payment_method ? 
+                                                        `<br><small class="text-muted">(${recovery.actual_payment_method})</small>` : ''}
+                                                </td>
+                                                <td><strong>Rs. ${numberFormat(recovery.amount)}</strong></td>
+                                                <td><span class="badge ${statusBadge}">${recovery.payment_status}</span></td>
+                                                <td>
+                                                    ${methodDetails}
+                                                    ${recovery.reference_no ? `<br><small>Ref: ${recovery.reference_no}</small>` : ''}
+                                                    ${recovery.notes ? `<br><small class="text-muted">${recovery.notes}</small>` : ''}
+                                                </td>
+                                                <td>
+                                                    ${recovery.created_by}
+                                                    <br><small class="text-muted">${recovery.created_at}</small>
+                                                </td>
+                                            </tr>`;
+        });
+        
+        modalContent += `
+                                        </tbody>
+                                    </table>
+                                </div>`;
+    } else {
+        modalContent += `
+                                <div class="text-center py-4">
+                                    <i class="fas fa-info-circle fa-3x text-muted mb-3"></i>
+                                    <h6 class="text-muted">No recovery payments recorded yet</h6>
+                                    <p class="text-muted">Use bulk recovery options to record recovery payments</p>
+                                </div>`;
+    }
+
+    modalContent += `
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+
+    // Remove any existing modal
+    $('#recoveryChainModal').remove();
+    
+    // Add new modal to body
+    $('body').append(modalContent);
+    
+    // Show modal
+    $('#recoveryChainModal').modal('show');
+    
+    // Remove modal from DOM when hidden
+    $('#recoveryChainModal').on('hidden.bs.modal', function () {
+        $(this).remove();
+    });
 }
 </script>
 

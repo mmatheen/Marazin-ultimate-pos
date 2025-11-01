@@ -123,7 +123,7 @@
             }
         });
 
-        // Listen for customer changes to update pricing
+        // Listen for customer changes to update pricing and floating balance
         $('#customer-id').on('change', function() {
             // Update pricing for existing products in billing table
             const billingBody = document.getElementById('billing-body');
@@ -138,6 +138,8 @@
 
                 // toastr.success('Product prices and discounts updated based on new customer type!');
             }
+
+            // Customer changed - no additional actions needed
         });
 
         // ---- CUSTOMER TYPE PRICING FUNCTIONS ----
@@ -510,6 +512,8 @@
 
             return null;
         }
+
+
 
         // ---- SALES REP FUNCTIONS ----
         function restoreSalesRepDisplayFromStorage() {
@@ -5743,6 +5747,8 @@
                     saleData.products.push(productData);
                 });
 
+
+
                 return saleData;
             }
 
@@ -6631,12 +6637,19 @@
                         });
 
                     if (!isNaN(amount) && amount > 0) {
-                        paymentData.push({
+                        const paymentRow = {
                             payment_method: paymentMethod,
                             payment_date: paymentDate,
                             amount: amount,
                             ...conditionalFields
-                        });
+                        };
+
+                        // Ensure cheque_status is always included for cheque payments
+                        if (paymentMethod === 'cheque' && !paymentRow.cheque_status) {
+                            paymentRow.cheque_status = 'pending';
+                        }
+
+                        paymentData.push(paymentRow);
                     }
                 });
 
