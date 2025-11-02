@@ -588,6 +588,15 @@ class SaleController extends Controller
                     }
                 }
 
+                // ----- Ledger - Record sale first -----
+                if ($isUpdate) {
+                    // For updates, use updateSale method to handle proper cleanup and recreation
+                    $this->unifiedLedgerService->updateSale($sale);
+                } else {
+                    // Record sale in unified ledger for new sales
+                    $this->unifiedLedgerService->recordSale($sale);
+                }
+
                 // ----- Handle Payments (if not jobticket) -----
                 if ($sale->status !== 'jobticket') {
                     $totalPaid = 0;
@@ -686,14 +695,7 @@ class SaleController extends Controller
                     }
                 }
 
-                // ----- Ledger -----
-                if ($isUpdate) {
-                    // For updates, use updateSale method to handle proper cleanup and recreation
-                    $this->unifiedLedgerService->updateSale($sale);
-                } else {
-                    // Record sale in unified ledger for new sales
-                    $this->unifiedLedgerService->recordSale($sale);
-                }
+                // ----- Ledger recording moved before payments -----
 
                 $this->updatePaymentStatus($sale);
                 return $sale;

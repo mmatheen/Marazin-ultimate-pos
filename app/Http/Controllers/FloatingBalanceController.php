@@ -92,6 +92,32 @@ class FloatingBalanceController extends Controller
         }
 
         try {
+            // Check if customer is valid (not walk-in customer)
+            $customer = Customer::findOrFail($customerId);
+            
+            // Check if customer is walk-in customer
+            if (strtolower($customer->full_name) === 'walk-in customer' || 
+                $customer->customer_type === 'walk_in' ||
+                $customer->id === 1) { // Assuming ID 1 is walk-in customer
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'Recovery payments cannot be processed for walk-in customers. Please select a registered customer with bounced cheques.'
+                ]);
+            }
+            
+            // Check if customer has any bounced cheques
+            $bouncedCheques = Payment::where('customer_id', $customerId)
+                ->where('payment_method', 'cheque')
+                ->where('cheque_status', 'bounced')
+                ->count();
+                
+            if ($bouncedCheques === 0) {
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'This customer has no bounced cheques. Recovery payments can only be made for customers with bounced cheques.'
+                ]);
+            }
+            
             $chequeService = app(\App\Services\ChequeService::class);
             
             $result = $chequeService->recordRecoveryPayment(

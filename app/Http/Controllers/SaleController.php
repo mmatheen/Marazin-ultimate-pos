@@ -1061,6 +1061,13 @@ class SaleController extends Controller
                     }
                 }
 
+                // ----- Ledger - Record Sale FIRST (before payments) -----
+                if ($request->customer_id != 1 && !$isUpdate) {
+                    // Record sale in unified ledger BEFORE processing payments
+                    // This ensures customer debt is established first
+                    $this->unifiedLedgerService->recordSale($sale);
+                }
+
                 // ----- Handle Payments (if not jobticket and not sale_order) -----
                 if ($sale->status !== 'jobticket' && $transactionType !== 'sale_order') {
                     $totalPaid = 0;
@@ -1240,16 +1247,12 @@ class SaleController extends Controller
                 }
 
                 // ----- Ledger (optimized) - Skip for Walk-In customers -----
-                if ($request->customer_id != 1) {
-                    if ($isUpdate) {
-                        // For updates, use updateSale method to handle proper cleanup and recreation
-                        $this->unifiedLedgerService->updateSale($sale, $referenceNo);
-                    } else {
-                        // For new sales, use regular recordSale method
-                        $this->unifiedLedgerService->recordSale($sale);
-                    }
-                    // Note: Payment ledger processing is handled in payment creation loop above
+                if ($request->customer_id != 1 && $isUpdate) {
+                    // For updates, use updateSale method to handle proper cleanup and recreation
+                    $this->unifiedLedgerService->updateSale($sale, $referenceNo);
+                    // Note: New sales are already recorded above (before payments)
                 }
+                // Note: Payment ledger processing is handled in payment creation loop above
 
                 return $sale;
             });

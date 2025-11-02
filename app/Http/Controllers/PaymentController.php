@@ -2144,7 +2144,7 @@ class PaymentController extends Controller
                         'payment_type' => 'recovery', // New payment type
                         'payment_method' => $request->recovery_method === 'partial_cash_cheque' ? 'cash' : $request->recovery_method,
                         'actual_payment_method' => $request->recovery_method, // Store original recovery method
-                        'amount' => -$paymentCashAmount, // Negative to reduce floating balance
+                        'amount' => $paymentCashAmount, // Positive amount (consistent with single recovery method)
                         'payment_date' => $request->recovery_date,
                         'notes' => $request->recovery_notes ?? "Recovery for bounced cheque #{$bouncedPayment->cheque_number}",
                         'payment_status' => 'completed',
@@ -2169,7 +2169,7 @@ class PaymentController extends Controller
                         'payment_type' => 'recovery',
                         'payment_method' => 'cheque',
                         'actual_payment_method' => $request->recovery_method, // Store original recovery method
-                        'amount' => -$paymentChequeAmount, // Negative to reduce floating balance
+                        'amount' => $paymentChequeAmount, // Positive amount (consistent with single recovery method)
                         'payment_date' => $request->recovery_date,
                         'notes' => $request->recovery_notes ?? "New cheque for bounced cheque #{$bouncedPayment->cheque_number}",
                         'payment_status' => 'pending', // New cheques start as pending
@@ -2192,7 +2192,7 @@ class PaymentController extends Controller
                     if ($recoveryPayment->payment_status === 'completed') {
                         $this->unifiedLedgerService->recordFloatingBalanceRecovery(
                             $recoveryPayment->customer_id,
-                            $recoveryPayment->amount, // Already negative
+                            $recoveryPayment->amount, // Amount is now positive, matching single recovery method
                             $recoveryPayment->payment_method,
                             "Recovery payment for bounced cheque #{$bouncedPayment->cheque_number}"
                         );
@@ -2207,7 +2207,7 @@ class PaymentController extends Controller
                         return [
                             'id' => $p->id,
                             'method' => $p->payment_method,
-                            'amount' => abs($p->amount),
+                            'amount' => $p->amount, // Amount is now positive, no need for abs()
                             'status' => $p->payment_status
                         ];
                     })->toArray()

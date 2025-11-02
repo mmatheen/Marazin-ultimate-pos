@@ -135,6 +135,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/customer', [CustomerController::class, 'customer'])->name('customer');
         Route::get('/customer-edit/{id}', [CustomerController::class, 'edit']);
         Route::get('/customer-get-all', [CustomerController::class, 'index']);
+        Route::get('/customers-with-bounced-cheques', [CustomerController::class, 'getCustomersWithBouncedCheques']);
         Route::get('/customer-get-by-route/{routeId}', [CustomerController::class, 'getCustomersByRoute']);
         Route::post('/customers/filter-by-cities', [CustomerController::class, 'filterByCities']);
         Route::post('/customer-store', [CustomerController::class, 'store']);
@@ -383,6 +384,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/cheque/pending-reminders', [PaymentController::class, 'pendingChequeReminders'])->name('cheque.pending-reminders');
         Route::post('/cheque/mark-reminder-sent/{reminderId}', [PaymentController::class, 'markReminderSent'])->name('cheque.mark-reminder-sent');
         Route::post('/cheque/bulk-update-status', [PaymentController::class, 'bulkUpdateChequeStatus'])->name('cheque.bulk-update-status');
+        
+        // Debug routes for recovery payment issues
+        Route::get('/debug/recovery-payments', [\App\Http\Controllers\RecoveryPaymentDebugController::class, 'debugRecoveryPayments'])->name('debug.recovery-payments');
+        Route::post('/debug/test-recovery-payment', [\App\Http\Controllers\RecoveryPaymentDebugController::class, 'testRecoveryPayment'])->name('debug.test-recovery-payment');
 
          // -------------------- PaymentController Routes --------------------
         Route::get('payments', [PaymentController::class, 'index']);

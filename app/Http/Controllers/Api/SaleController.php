@@ -618,6 +618,13 @@ class SaleController extends Controller
                     }
                 }
 
+                // ----- Ledger - Record Sale FIRST (before payments) -----
+                if (!$isUpdate) {
+                    // Record sale in unified ledger BEFORE processing payments
+                    // This ensures customer debt is established first
+                    $this->unifiedLedgerService->recordSale($sale);
+                }
+
                 // ----- Handle Payments (if not jobticket) -----
                 if ($sale->status !== 'jobticket') {
                     $totalPaid = 0;
@@ -704,11 +711,7 @@ class SaleController extends Controller
                     }
                 }
 
-                // ----- Ledger -----
-                if (!$isUpdate) {
-                    // Record sale in unified ledger
-                    $this->unifiedLedgerService->recordSale($sale);
-                }
+                // ----- Ledger recording moved above (before payments) -----
 
                 $this->updatePaymentStatus($sale);
                 return $sale;

@@ -125,6 +125,55 @@ class CustomerController extends Controller
         ];
     }
 
+    /**
+     * Get customers who have bounced cheques (for recovery payment dropdown)
+     */
+    public function getCustomersWithBouncedCheques()
+    {
+        try {
+            $customers = Customer::whereHas('payments', function($query) {
+                $query->where('payment_method', 'cheque')
+                      ->where('cheque_status', 'bounced');
+            })
+            ->where('full_name', '!=', 'Walk-in Customer') // Exclude walk-in customers
+            ->where('id', '!=', 1) // Exclude default walk-in customer ID
+            ->select('id', 'full_name', 'mobile_no', 'email')
+            ->orderBy('full_name')
+            ->get();
+
+            // Add bounced cheque count and floating balance for each customer
+            $customers = $customers->map(function($customer) {
+                $bouncedCount = $customer->payments()
+                    ->where('payment_method', 'cheque')
+                    ->where('cheque_status', 'bounced')
+                    ->count();
+                    
+                $floatingBalance = $customer->getFloatingBalance();
+                
+                return [
+                    'id' => $customer->id,
+                    'full_name' => $customer->full_name,
+                    'mobile_no' => $customer->mobile_no,
+                    'email' => $customer->email,
+                    'bounced_cheques_count' => $bouncedCount,
+                    'floating_balance' => $floatingBalance
+                ];
+            });
+
+            return response()->json([
+                'status' => 200,
+                'message' => $customers,
+                'total_customers' => $customers->count()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get customers with bounced cheques: ' . $e->getMessage());
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to load customers with bounced cheques'
+            ], 500);
+        }
+    }
 
     // public function store(Request $request)
     // {

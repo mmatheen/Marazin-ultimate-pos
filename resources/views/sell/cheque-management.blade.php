@@ -130,8 +130,8 @@
     <div class="row">
         <div class="col-12">
             <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title">Filter Cheques</h5>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Filter Cheques</h5>
                 </div>
                 <div class="card-body">
                     <form id="filterForm" class="row g-3">
@@ -156,20 +156,14 @@
                         </div>
                         <div class="col-md-3">
                             <label for="customerFilter" class="form-label">Customer</label>
-                            <select class="form-control" id="customerFilter" name="customer_id">
+                            <select class="form-control selectBox" id="customerFilter" name="customer_id">
                                 <option value="">All Customers</option>
                                 <!-- Will be populated via AJAX -->
                             </select>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <label for="chequeNumberFilter" class="form-label">Cheque Number</label>
                             <input type="text" class="form-control" id="chequeNumberFilter" name="cheque_number" placeholder="Search cheque...">
-                        </div>
-                        <div class="col-md-1">
-                            <label class="form-label">&nbsp;</label>
-                            <div class="d-grid">
-                                <button type="submit" class="btn btn-primary">Filter</button>
-                            </div>
                         </div>
                     </form>
                 </div>
@@ -208,31 +202,34 @@
                         </small>
                     </div>
                 </div>
-                <div class="card-body">
-                    <div class="table-responsive" style="max-height: 70vh; overflow-y: auto;">
-                        <table class="table table-striped table-hover mb-0" id="chequesTable">
-                            <thead class="table-dark">
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 70vh; overflow: auto;">
+                        <table class="table table-striped table-hover mb-0" id="chequesTable" style="min-width: 1400px;">
+                            <thead class="table-dark sticky-top">
                                 <tr>
-                                    <th width="40" class="text-center">
+                                    <th width="50" class="text-center">
                                         <input type="checkbox" id="selectAll" class="form-check-input">
                                     </th>
-                                    <th class="text-center">Invoice #</th>
-                                    <th class="text-center">Customer</th>
-                                    <th class="text-center">Cheque #</th>
-                                    <th class="text-center">Bank/Branch</th>
-                                    <th class="text-center">Amount</th>
-                                    <th class="text-center">Received Date</th>
-                                    <th class="text-center">Valid Date</th>
-                                    <th class="text-center">Status</th>
-                                    <th class="text-center">Bill Status</th>
-                                    <th class="text-center">Customer Impact</th>
-                                    <th class="text-center">Days Until Due</th>
-                                    <th class="text-center">Actions</th>
+                                    <th width="100" class="text-center">Invoice #</th>
+                                    <th width="150" class="text-center">Customer</th>
+                                    <th width="120" class="text-center">Cheque #</th>
+                                    <th width="160" class="text-center">Bank/Branch</th>
+                                    <th width="120" class="text-center">Amount</th>
+                                    <th width="120" class="text-center">Received Date</th>
+                                    <th width="120" class="text-center">Valid Date</th>
+                                    <th width="100" class="text-center">Status</th>
+                                    <th width="100" class="text-center">Bill Status</th>
+                                    <th width="130" class="text-center">Customer Impact</th>
+                                    <th width="120" class="text-center">Days Until Due</th>
+                                    <th width="160" class="text-center">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="chequesTableBody">
                                 @forelse($cheques as $payment)
-                                <tr data-status="{{ $payment->cheque_status ?? 'pending' }}">
+                                <tr data-status="{{ $payment->cheque_status ?? 'pending' }}" 
+                                    data-amount="{{ $payment->amount }}" 
+                                    data-bank-charges="{{ $payment->bank_charges ?? 0 }}"
+                                    data-customer-id="{{ $payment->customer_id }}">
                                     <td>
                                         <input type="checkbox" class="form-check-input cheque-checkbox" value="{{ $payment->id }}">
                                     </td>
@@ -290,7 +287,12 @@
                                             <span class="badge bg-warning">Floating Balance</span>
                                             <br><small class="text-danger">+Rs. {{ number_format($payment->amount + ($payment->bank_charges ?? 0), 2) }}</small>
                                             @if($payment->customer)
-                                                <br><a href="/floating-balance/customer/{{ $payment->customer_id }}" class="btn btn-sm btn-outline-info mt-1">
+                                                <br><a href="{{ route('floating-balance.customer', $payment->customer_id) }}" 
+                                                       class="btn btn-sm btn-outline-info mt-1 view-balance-btn" 
+                                                       data-customer-id="{{ $payment->customer_id }}" 
+                                                       target="_blank" 
+                                                       title="View {{ $payment->customer->full_name ?? 'Customer' }} Balance"
+                                                       style="pointer-events: auto !important; position: relative; z-index: 1000;">
                                                     <i class="fas fa-eye"></i> View Balance
                                                 </a>
                                             @endif
@@ -360,7 +362,7 @@
                             </tbody>
                         </table>
                     </div>
-
+                    
                     <!-- Pagination -->
                     @if(isset($cheques) && method_exists($cheques, 'links'))
                     <div class="d-flex justify-content-center mt-3">
@@ -595,7 +597,30 @@ $(document).ready(function() {
     });
 
     // Load customers for filter dropdown
+    console.log('Initializing customer dropdown...');
+    
+    // Test if dropdown is accessible
+    const testSelect = $('#customerFilter');
+    if (testSelect.length === 0) {
+        console.error('Customer dropdown element not found!');
+    } else {
+        console.log('Customer dropdown element found:', testSelect);
+    }
+    
     loadCustomers();
+    
+    // Pre-populate filters from URL parameters
+    populateFiltersFromURL();
+    
+    // Initialize filter status indicators
+    updateFilterIndicators();
+    
+    // Add debug info to console
+    console.log('Cheque Management Page Loaded');
+    console.log('Available debug functions:');
+    console.log('- testFloatingBalance(customerId) - Test floating balance route');
+    console.log('- $(document).find(".view-balance-btn") - Find all View Balance buttons');
+    console.log('Available View Balance buttons:', $('.view-balance-btn').length);
 
     // Select all checkbox functionality
     $('#selectAll').on('change', function() {
@@ -609,16 +634,113 @@ $(document).ready(function() {
         updateSelectAllCheckbox();
     });
 
-    // Filter form submission
-    $('#filterForm').on('submit', function(e) {
-        e.preventDefault();
+    // Filter changes - auto-apply filters on change
+    $('#statusFilter, #customerFilter, #fromDate, #toDate').on('change', function() {
+        console.log('Filter changed:', $(this).attr('id'), '=', $(this).val());
+        updateFilterIndicators();
         loadCheques();
+    });
+    
+    // Clear filters button
+    $(document).on('click', '#clearFilters', function() {
+        clearAllFilters();
+    });
+    
+    // View Balance button handler with comprehensive error handling
+    $(document).on('click', '.view-balance-btn', function(e) {
+        const $btn = $(this);
+        const customerId = $btn.data('customer-id');
+        const href = $btn.attr('href');
+        const originalText = $btn.html();
+        
+        console.log('View Balance clicked:', {
+            customerId: customerId,
+            href: href,
+            element: this
+        });
+        
+        if (!customerId) {
+            e.preventDefault();
+            alert('Error: Customer ID not found');
+            return false;
+        }
+        
+        // Prevent default and handle manually
+        e.preventDefault();
+        
+        // Show loading state
+        $btn.html('<i class="fas fa-spinner fa-spin"></i> Loading...');
+        $btn.prop('disabled', true);
+        
+        // First test if the route exists with AJAX
+        $.ajax({
+            url: href,
+            method: 'HEAD', // Just check if route exists
+            timeout: 5000,
+            success: function() {
+                console.log('Route verified, opening floating balance');
+                // Route exists, try to open it
+                const newWindow = window.open(href, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+                
+                if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+                    // Popup blocked, show message and offer alternative
+                    if (confirm('Popup was blocked. Open in current tab instead?')) {
+                        window.location.href = href;
+                    }
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Route check failed:', xhr.status, error);
+                
+                if (xhr.status === 404) {
+                    alert('Error: Floating balance page not found');
+                } else if (xhr.status === 403) {
+                    alert('Error: Access denied to floating balance');
+                } else if (xhr.status === 401) {
+                    alert('Error: Please login to view floating balance');
+                } else {
+                    // Try direct navigation as fallback
+                    console.log('Trying direct navigation...');
+                    window.open(href, '_blank');
+                }
+            },
+            complete: function() {
+                // Restore button state
+                setTimeout(() => {
+                    $btn.html(originalText);
+                    $btn.prop('disabled', false);
+                }, 1000);
+            }
+        });
+    });
+    
+    // Debounce text input filters to avoid too many requests while typing
+    let searchTimeout;
+    $('#chequeNumberFilter').on('input', function() {
+        const value = $(this).val();
+        console.log('Search input changed:', value);
+        
+        // Visual feedback while typing
+        if (value.length > 0) {
+            $(this).addClass('border-primary');
+        } else {
+            $(this).removeClass('border-primary');
+        }
+        
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(function() {
+            updateFilterIndicators();
+            loadCheques();
+        }, 800); // Wait 800ms after user stops typing
     });
 
     // Refresh data
     $('#refreshData').on('click', function() {
         location.reload();
     });
+    
+    // Enhanced table scrolling functionality
+    initializeTableScrolling();
 
     // Update status form
     $('#updateStatusForm').on('submit', function(e) {
@@ -672,22 +794,250 @@ $(document).ready(function() {
     });
 });
 
+function initializeTableScrolling() {
+    const tableWrapper = $('.table-responsive');
+    const table = $('#chequesTable');
+    
+    if (tableWrapper.length === 0 || table.length === 0) return;
+    
+    // Add scroll shadow indicators
+    function updateScrollShadows() {
+        const scrollLeft = tableWrapper.scrollLeft();
+        const scrollWidth = tableWrapper[0].scrollWidth;
+        const clientWidth = tableWrapper[0].clientWidth;
+        const maxScrollLeft = scrollWidth - clientWidth;
+        
+        // Remove existing shadows
+        tableWrapper.removeClass('scroll-left scroll-right');
+        
+        // Add shadows based on scroll position
+        if (scrollLeft > 0) {
+            tableWrapper.addClass('scroll-left');
+        }
+        if (scrollLeft < maxScrollLeft - 1) {
+            tableWrapper.addClass('scroll-right');
+        }
+    }
+    
+    // Check if table needs horizontal scrolling
+    function checkScrollNeeded() {
+        const tableWidth = table[0].scrollWidth;
+        const containerWidth = tableWrapper[0].clientWidth;
+        
+        if (tableWidth > containerWidth) {
+            tableWrapper.addClass('needs-scroll');
+            updateScrollShadows();
+        } else {
+            tableWrapper.removeClass('needs-scroll scroll-left scroll-right');
+        }
+    }
+    
+    // Event listeners
+    tableWrapper.on('scroll', updateScrollShadows);
+    $(window).on('resize', checkScrollNeeded);
+    
+    // Initial check
+    setTimeout(checkScrollNeeded, 100);
+    
+    // Add keyboard navigation
+    tableWrapper.on('keydown', function(e) {
+        if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            tableWrapper.scrollLeft(tableWrapper.scrollLeft() - 100);
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            tableWrapper.scrollLeft(tableWrapper.scrollLeft() + 100);
+        }
+    });
+    
+    // Make table focusable for keyboard navigation
+    tableWrapper.attr('tabindex', '0');
+}
+
+function populateFiltersFromURL() {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Populate each filter field from URL parameters
+    if (urlParams.has('status')) {
+        $('#statusFilter').val(urlParams.get('status'));
+    }
+    if (urlParams.has('customer_id')) {
+        $('#customerFilter').val(urlParams.get('customer_id'));
+    }
+    if (urlParams.has('from_date')) {
+        $('#fromDate').val(urlParams.get('from_date'));
+    }
+    if (urlParams.has('to_date')) {
+        $('#toDate').val(urlParams.get('to_date'));
+    }
+    if (urlParams.has('cheque_number')) {
+        $('#chequeNumberFilter').val(urlParams.get('cheque_number'));
+    }
+    
+    console.log('Filters populated from URL:', {
+        status: urlParams.get('status'),
+        customer_id: urlParams.get('customer_id'),
+        from_date: urlParams.get('from_date'),
+        to_date: urlParams.get('to_date'),
+        cheque_number: urlParams.get('cheque_number')
+    });
+}
+
+function updateFilterIndicators() {
+    const hasActiveFilters = $('#statusFilter').val() !== '' || 
+                           $('#customerFilter').val() !== '' || 
+                           $('#fromDate').val() !== '' || 
+                           $('#toDate').val() !== '' || 
+                           $('#chequeNumberFilter').val() !== '';
+    
+    // Add or remove active filter indicator
+    const filterHeader = $('.card:has(#filterForm) .card-header h5');
+    filterHeader.find('.filter-indicator').remove();
+    
+    if (hasActiveFilters) {
+        filterHeader.append(' <span class="badge bg-primary filter-indicator">Filters Active</span>');
+        
+        // Add clear filters button if not exists
+        if ($('#clearFilters').length === 0) {
+            filterHeader.parent().append(`
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="clearFilters">
+                    <i class="fas fa-times"></i> Clear Filters
+                </button>
+            `);
+        }
+    } else {
+        $('#clearFilters').remove();
+    }
+}
+
+function clearAllFilters() {
+    $('#statusFilter').val('');
+    $('#customerFilter').val('');
+    $('#fromDate').val('');
+    $('#toDate').val('');
+    $('#chequeNumberFilter').val('');
+    updateFilterIndicators();
+    loadCheques();
+}
+
 function loadCustomers() {
+    console.log('Loading customers for cheque management...');
+    console.log('CSRF Token:', $('meta[name="csrf-token"]').attr('content'));
+    
     $.ajax({
         url: '/customer-get-all',
         method: 'GET',
+        dataType: 'json',
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+            'X-Requested-With': 'XMLHttpRequest'
+        },
         success: function(response) {
+            console.log('Customer response for cheque management:', response);
             const customerSelect = $('#customerFilter');
             customerSelect.empty().append('<option value="">All Customers</option>');
             
-            if (response && response.length > 0) {
-                response.forEach(function(customer) {
-                    customerSelect.append(`<option value="${customer.id}">${customer.full_name}</option>`);
-                });
+            if (response && response.status === 200 && response.message && Array.isArray(response.message)) {
+                const customers = response.message;
+                
+                if (customers.length > 0) {
+                    customers.forEach(function(customer) {
+                        customerSelect.append(`<option value="${customer.id}">${customer.full_name}</option>`);
+                    });
+                    
+                    // Reinitialize Select2 after populating options
+                    if (customerSelect.hasClass('select2-hidden-accessible')) {
+                        customerSelect.select2('destroy');
+                    }
+                    customerSelect.select2({
+                        placeholder: 'All Customers',
+                        allowClear: true
+                    });
+                    
+                    console.log(`Successfully loaded ${customers.length} customers for cheque management`);
+                } else {
+                    console.warn('No customers found in the response');
+                }
+            } else {
+                console.warn('Invalid response format for customers:', response);
             }
         },
-        error: function() {
-            console.error('Failed to load customers');
+        error: function(xhr, status, error) {
+            console.error('Failed to load customers for cheque management:', error);
+            console.error('Status:', status);
+            console.error('XHR Status:', xhr.status);
+            console.error('Response:', xhr.responseText);
+            
+            // Show specific error message based on status
+            const customerSelect = $('#customerFilter');
+            let errorMessage = 'Error loading customers';
+            
+            if (xhr.status === 401) {
+                errorMessage = 'Authentication required';
+            } else if (xhr.status === 403) {
+                errorMessage = 'Access denied';
+            } else if (xhr.status === 404) {
+                errorMessage = 'Endpoint not found';
+            } else if (xhr.status === 500) {
+                errorMessage = 'Server error';
+            }
+            
+            customerSelect.empty().append(`<option value="">All Customers (${errorMessage})</option>`);
+            
+            // Add a manual test option for debugging
+            customerSelect.append('<option value="test">Test Customer (Manual)</option>');
+        }
+    });
+}
+
+function loadCustomersWithBouncedCheques(selectElementId = '#recoveryCustomerSelect') {
+    console.log('Loading customers with bounced cheques for recovery payment...');
+    
+    $.ajax({
+        url: '/customers-with-bounced-cheques',
+        method: 'GET',
+        dataType: 'json',
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        success: function(response) {
+            console.log('Customers with bounced cheques response:', response);
+            const customerSelect = $(selectElementId);
+            customerSelect.empty().append('<option value="">Select Customer with Bounced Cheques</option>');
+            
+            if (response && response.status === 200 && response.message && Array.isArray(response.message)) {
+                const customers = response.message;
+                
+                if (customers.length > 0) {
+                    customers.forEach(function(customer) {
+                        const displayText = `${customer.full_name} (${customer.bounced_cheques_count} bounced, ₹${customer.floating_balance.toLocaleString()} floating)`;
+                        customerSelect.append(`<option value="${customer.id}">${displayText}</option>`);
+                    });
+                    
+                    // Reinitialize Select2 if it exists
+                    if (customerSelect.hasClass('select2-hidden-accessible')) {
+                        customerSelect.select2('destroy');
+                    }
+                    customerSelect.select2({
+                        placeholder: 'Select customer with bounced cheques...',
+                        allowClear: true
+                    });
+                    
+                    console.log(`Successfully loaded ${customers.length} customers with bounced cheques`);
+                } else {
+                    customerSelect.append('<option value="" disabled>No customers with bounced cheques found</option>');
+                    console.warn('No customers with bounced cheques found');
+                }
+            } else {
+                console.warn('Invalid response format for customers with bounced cheques:', response);
+                customerSelect.append('<option value="" disabled>Error loading customers</option>');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Failed to load customers with bounced cheques:', error);
+            const customerSelect = $(selectElementId);
+            customerSelect.empty().append('<option value="" disabled>Error loading customers</option>');
         }
     });
 }
@@ -749,6 +1099,30 @@ function updateBulkActionButtons() {
     }
 }
 
+// Debug function to test floating balance route
+window.testFloatingBalance = function(customerId) {
+    customerId = customerId || 1; // Default to customer ID 1 for testing
+    const url = `/floating-balance/customer/${customerId}`;
+    console.log('Testing floating balance URL:', url);
+    
+    // Test with AJAX first
+    $.ajax({
+        url: url,
+        method: 'GET',
+        success: function(response) {
+            console.log('Floating balance route is working:', response);
+            window.open(url, '_blank');
+        },
+        error: function(xhr, status, error) {
+            console.error('Floating balance route error:', {
+                status: xhr.status,
+                error: error,
+                response: xhr.responseText
+            });
+        }
+    });
+};
+
 function updateSelectAllCheckbox() {
     const totalCheckboxes = $('.cheque-checkbox').length;
     const checkedCheckboxes = $('.cheque-checkbox:checked').length;
@@ -763,6 +1137,13 @@ function updateSelectAllCheckbox() {
 }
 
 function loadCheques() {
+    // Show loading state
+    const filterCard = $('.card:has(#filterForm)');
+    const originalContent = filterCard.html();
+    
+    // Add loading overlay
+    filterCard.find('.card-body').append('<div class="loading-overlay"><div class="text-center"><i class="fas fa-spinner fa-spin fa-2x text-primary"></i><br><small>Applying filters...</small></div></div>');
+    
     const formData = $('#filterForm').serialize();
     window.location.href = '{{ route("cheque-management") }}?' + formData;
 }
@@ -1090,10 +1471,14 @@ function bulkUpdateStatus(status) {
 }
 
 function numberFormat(number) {
-    return new Intl.NumberFormat('en-IN', {
+    // Convert to number if it's a string
+    const num = typeof number === 'string' ? parseFloat(number) : number;
+    
+    // Use standard international formatting (US locale) instead of Indian
+    return new Intl.NumberFormat('en-US', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
-    }).format(number);
+    }).format(num);
 }
 
 // ================= BULK RECOVERY PAYMENT FUNCTIONS =================
@@ -1122,25 +1507,81 @@ function openBulkRecoveryModal() {
         return;
     }
     
-    // Collect selected cheque details
+    // Check for walk-in customers
+    let hasWalkInCustomer = false;
+    $('.cheque-checkbox:checked').each(function() {
+        const row = $(this).closest('tr');
+        const customerName = row.find('td:nth-child(3)').text().trim();
+        const customerId = row.data('customer-id');
+        
+        if (customerName.toLowerCase() === 'walk-in customer' || customerId === 1) {
+            hasWalkInCustomer = true;
+            return false; // Break the loop
+        }
+    });
+    
+    if (hasWalkInCustomer) {
+        toastr.error('Recovery payments cannot be processed for walk-in customers. Please deselect walk-in customer cheques.', 'Invalid Selection');
+        return;
+    }
+    
+    // Collect selected cheque details and group by customer
     let totalBouncedAmount = 0;
     let totalBankCharges = 0;
-    let chequesInfo = '';
+    let customerGroups = {};
+    let uniqueCustomers = new Set();
     
     $('.cheque-checkbox:checked').each(function() {
         const row = $(this).closest('tr');
         const chequeNumber = row.find('.badge').text() || 'N/A';
         const customerName = row.find('td:nth-child(3)').text() || 'Unknown';
-        const amount = parseFloat(row.find('.text-success').text().replace(/[Rs.\s,]/g, '')) || 0;
-        const bankCharges = parseFloat(row.find('.text-danger').text().replace(/[Rs.\s,]/g, '')) || 0;
+        const customerId = row.data('customer-id');
+        
+        // Use data attributes for accurate amounts
+        const amount = parseFloat(row.data('amount')) || 0;
+        const bankCharges = parseFloat(row.data('bank-charges')) || 0;
+        
+        console.log(`Processing cheque: ${chequeNumber}, Customer: ${customerName} (ID: ${customerId}), Amount: ${amount}, Bank Charges: ${bankCharges}`);
         
         totalBouncedAmount += amount;
         totalBankCharges += bankCharges;
+        uniqueCustomers.add(customerId);
         
+        // Group by customer
+        if (!customerGroups[customerId]) {
+            customerGroups[customerId] = {
+                name: customerName,
+                cheques: [],
+                totalAmount: 0,
+                totalBankCharges: 0
+            };
+        }
+        
+        customerGroups[customerId].cheques.push({
+            number: chequeNumber,
+            amount: amount,
+            bankCharges: bankCharges
+        });
+        customerGroups[customerId].totalAmount += amount;
+        customerGroups[customerId].totalBankCharges += bankCharges;
+    });
+    
+    // Generate grouped display
+    let chequesInfo = '';
+    Object.keys(customerGroups).forEach(customerId => {
+        const group = customerGroups[customerId];
         chequesInfo += `
-            <div class="border-bottom pb-2 mb-2">
-                <strong>Cheque #${chequeNumber}</strong> - ${customerName}<br>
-                <small>Amount: Rs. ${numberFormat(amount)} | Bank Charges: Rs. ${numberFormat(bankCharges)}</small>
+            <div class="customer-group border rounded p-3 mb-3 bg-light">
+                <h6 class="text-primary mb-2"><i class="fas fa-user"></i> ${group.name}</h6>
+                ${group.cheques.map(cheque => `
+                    <div class="border-bottom pb-2 mb-2">
+                        <strong>Cheque #${cheque.number}</strong><br>
+                        <small>Amount: Rs. ${numberFormat(cheque.amount)} | Bank Charges: Rs. ${numberFormat(cheque.bankCharges)}</small>
+                    </div>
+                `).join('')}
+                <div class="text-end">
+                    <strong class="text-success">Customer Total: Rs. ${numberFormat(group.totalAmount + group.totalBankCharges)}</strong>
+                </div>
             </div>
         `;
     });
@@ -1658,7 +2099,107 @@ function showRecoveryChainModal(data) {
 .table-responsive {
     box-shadow: 0 0 10px rgba(0,0,0,0.1);
     border-radius: 5px;
-    overflow: hidden;
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+
+/* Custom scrollbar styling */
+.table-responsive::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Scroll shadow indicators */
+.table-responsive.needs-scroll {
+    position: relative;
+}
+
+.table-responsive.scroll-left::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 20px;
+    background: linear-gradient(to right, rgba(0,0,0,0.1), transparent);
+    z-index: 5;
+    pointer-events: none;
+}
+
+.table-responsive.scroll-right::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 20px;
+    background: linear-gradient(to left, rgba(0,0,0,0.1), transparent);
+    z-index: 5;
+    pointer-events: none;
+}
+
+/* Enhanced scroll indicator message */
+.table-responsive + .text-center {
+    background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+    border-radius: 0 0 0.375rem 0.375rem;
+    transition: all 0.3s ease;
+}
+
+.table-responsive.needs-scroll + .text-center {
+    background: linear-gradient(45deg, #fff3cd, #ffeaa7);
+    border-color: #ffc107;
+}
+
+.table-responsive.needs-scroll + .text-center small {
+    color: #856404 !important;
+    font-weight: 500;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 12px;
+    }
+    
+    #chequesTable th,
+    #chequesTable td {
+        padding: 6px 8px;
+    }
+    
+    /* Hide less important columns on mobile */
+    #chequesTable th:nth-child(5), /* Bank/Branch */
+    #chequesTable td:nth-child(5),
+    #chequesTable th:nth-child(11), /* Customer Impact */
+    #chequesTable td:nth-child(11),
+    #chequesTable th:nth-child(12), /* Days Until Due */
+    #chequesTable td:nth-child(12) {
+        display: none;
+    }
+}
+
+@media (max-width: 576px) {
+    /* Hide even more columns on very small screens */
+    #chequesTable th:nth-child(7), /* Received Date */
+    #chequesTable td:nth-child(7),
+    #chequesTable th:nth-child(10), /* Bill Status */
+    #chequesTable td:nth-child(10) {
+        display: none;
+    }
 }
 
 /* Make sure table headers are always visible */
@@ -1673,6 +2214,22 @@ function showRecoveryChainModal(data) {
     text-transform: uppercase;
     letter-spacing: 0.5px;
     box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
+    white-space: nowrap;
+    min-width: fit-content;
+}
+
+/* Ensure table cells don't break content */
+#chequesTable td {
+    white-space: nowrap;
+    padding: 8px 12px;
+}
+
+/* Allow some columns to wrap if needed */
+#chequesTable td:nth-child(3), /* Customer */
+#chequesTable td:nth-child(5)  /* Bank/Branch */ {
+    white-space: normal;
+    word-break: break-word;
+    max-width: 160px;
 }
 
 /* Ensure proper contrast for all table elements */
@@ -1701,6 +2258,30 @@ function showRecoveryChainModal(data) {
     border-color: #007bff;
 }
 
+/* View Balance button styling */
+.view-balance-btn {
+    position: relative !important;
+    z-index: 10 !important;
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
+    transition: all 0.3s ease;
+}
+
+.view-balance-btn:hover {
+    background-color: #17a2b8 !important;
+    border-color: #17a2b8 !important;
+    color: white !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.view-balance-btn:disabled {
+    opacity: 0.6 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+}
+
 /* Bulk action button styling */
 .btn:disabled {
     opacity: 0.3 !important;
@@ -1710,6 +2291,25 @@ function showRecoveryChainModal(data) {
 .btn:disabled:hover {
     background-color: var(--bs-secondary) !important;
     border-color: var(--bs-secondary) !important;
+}
+
+/* Loading overlay styling */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    border-radius: 0.375rem;
+}
+
+.loading-overlay .text-center {
+    padding: 20px;
 }
 
 /* Selection counter styling */

@@ -149,7 +149,25 @@ class ChequeService
     {
         try {
             return DB::transaction(function () use ($customerId, $amount, $paymentMethod, $paymentDate, $notes, $referenceNo) {
-                $customer = Customer::findOrFail($customerId);
+                $customer = Customer::withoutGlobalScopes()->findOrFail($customerId);
+                
+                // Check if customer is walk-in customer
+                if (strtolower($customer->full_name) === 'walk-in customer' || 
+                    $customer->customer_type === 'walk_in' ||
+                    $customer->id === 1) { // Assuming ID 1 is walk-in customer
+                    throw new Exception('Recovery payments cannot be processed for walk-in customers');
+                }
+                
+                // Check if customer has bounced cheques
+                $bouncedCheques = Payment::where('customer_id', $customerId)
+                    ->where('payment_method', 'cheque')
+                    ->where('cheque_status', 'bounced')
+                    ->count();
+                    
+                if ($bouncedCheques === 0) {
+                    throw new Exception('This customer has no bounced cheques to recover');
+                }
+                
                 $floatingBalance = $customer->getFloatingBalance();
 
                 if ($floatingBalance <= 0) {
@@ -358,13 +376,19 @@ class ChequeService
         if ($newStatus === 'bounced') {
             $ledgerEntries = $this->handleBouncedChequeLedger($payment, $bankCharges, $userId);
         }
-        // Handle cleared cheques - no additional ledger entries needed (original sale entry remains)
+        // Handle cleared cheques
         elseif ($newStatus === 'cleared') {
-            // Cheque cleared - original payment entry in ledger is valid
-            Log::info('Cheque cleared successfully', [
-                'payment_id' => $payment->id,
-                'cheque_number' => $payment->cheque_number
-            ]);
+            // Check if this is a recovery cheque (has recovery_for_payment_id)
+            if ($payment->recovery_for_payment_id && $payment->payment_type === 'recovery') {
+                // This is a recovery cheque being cleared - create ledger entry to reduce floating balance
+                $ledgerEntries = $this->handleRecoveryChequeClearedLedger($payment, $userId);
+            } else {
+                // Regular cheque cleared - original payment entry in ledger is valid
+                Log::info('Regular cheque cleared successfully', [
+                    'payment_id' => $payment->id,
+                    'cheque_number' => $payment->cheque_number
+                ]);
+            }
         }
 
         return $ledgerEntries;
@@ -429,6 +453,57 @@ class ChequeService
             'sale_id' => $payment->sale->id,
             'customer_id' => $payment->customer_id,
             'ledger_entries_created' => count($ledgerEntries)
+        ]);
+
+        return $ledgerEntries;
+    }
+
+    /**
+     * Handle ledger entries when a recovery cheque is cleared
+     */
+    private function handleRecoveryChequeClearedLedger($payment, $userId)
+    {
+        if (!$payment->customer_id || $payment->payment_type !== 'recovery') {
+            return [];
+        }
+
+        $referenceNo = "RECOVERY-CLEARED-{$payment->cheque_number}-{$payment->id}";
+        $transactionDate = Carbon::now('Asia/Colombo');
+        $ledgerEntries = [];
+
+        // Check for duplicate processing
+        $existingEntry = Ledger::where('user_id', $payment->customer_id)
+            ->where('contact_type', 'customer')
+            ->where('reference_no', $referenceNo)
+            ->where('transaction_type', 'bounce_recovery')
+            ->exists();
+
+        if ($existingEntry) {
+            Log::warning('Recovery cheque clearing already processed - skipping duplicate', [
+                'payment_id' => $payment->id,
+                'reference_no' => $referenceNo
+            ]);
+            return [];
+        }
+
+        // Create recovery entry to reduce floating balance
+        $recoveryEntry = Ledger::createEntry([
+            'user_id' => $payment->customer_id,
+            'contact_type' => 'customer',
+            'transaction_date' => $transactionDate,
+            'reference_no' => $referenceNo,
+            'transaction_type' => 'bounce_recovery',
+            'amount' => $payment->amount,
+            'notes' => "Recovery cheque cleared - {$payment->cheque_number} (reduces floating balance)"
+        ]);
+        $ledgerEntries[] = $recoveryEntry;
+
+        Log::info('Recovery cheque cleared and ledger entry created', [
+            'payment_id' => $payment->id,
+            'cheque_number' => $payment->cheque_number,
+            'recovery_amount' => $payment->amount,
+            'customer_id' => $payment->customer_id,
+            'original_bounced_payment_id' => $payment->recovery_for_payment_id
         ]);
 
         return $ledgerEntries;
