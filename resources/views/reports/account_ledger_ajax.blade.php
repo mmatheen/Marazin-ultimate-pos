@@ -7,6 +7,60 @@ $(document).ready(function() {
     // Add debug logging
     console.log('Account Ledger AJAX loaded');
     
+    // Function to clear previous ledger display data
+    function clearLedgerDisplay() {
+        console.log('🧹 AGGRESSIVELY clearing all previous ledger display data');
+        
+        // FORCE clear account summary section
+        $('#accountSummary').empty().html('');
+        
+        // Also clear individual elements if they exist
+        $('#totalTransactions, #totalPaid, #totalReturns, #outstandingDue, #effectiveDue, #advanceAmount').text('Rs. 0.00');
+        
+        // Force clear customer information with empty values
+        $('#customerName, #supplierName').text('').html('');
+        $('#customerMobile, #supplierMobile').text('').html('');
+        $('#customerEmail, #supplierEmail').text('').html('');
+        $('#customerAddress, #supplierAddress').text('').html('');
+        $('#customerOpeningBalance, #supplierOpeningBalance').text('Rs. 0.00').html('Rs. 0.00');
+        $('#customerCurrentBalance, #supplierCurrentBalance').text('Rs. 0.00').html('Rs. 0.00');
+        
+        // FORCE clear the entire contact details section
+        $('#contactDetails').empty().html('');
+        $('#contactDetailsSection').hide();
+        
+        // AGGRESSIVELY clear ledger table
+        if (ledgerDataTable) {
+            try {
+                ledgerDataTable.clear().draw();
+                ledgerDataTable.destroy();
+                ledgerDataTable = null;
+            } catch(e) {
+                console.log('DataTable clear error:', e);
+            }
+        }
+        $('#ledgerTableBody').empty().html('');
+        $('#ledgerTable tbody').empty();
+        
+        // Reset status with forced updates
+        $('#filterStatus').empty().html('<i class="fa fa-info-circle text-muted"></i> <small class="text-muted">Select customer to load ledger</small>');
+        $('#readyStatus').empty().html('<small class="text-muted">Ready to load</small>');
+        
+        // FORCE hide all sections
+        $('#customerInfo, #supplierInfo').addClass('d-none').hide();
+        $('#summaryCard').addClass('d-none').hide();
+        $('#ledgerTableContainer').addClass('d-none').hide();
+        $('#noDataMessage').hide();
+        $('#advanceActionsSection').hide();
+        
+        // Clear any cached AJAX responses
+        if (window.lastLedgerResponse) {
+            delete window.lastLedgerResponse;
+        }
+        
+        console.log('✅ Aggressive clearing completed');
+    }
+    
     // Check for URL parameters and auto-load data
     const urlParams = new URLSearchParams(window.location.search);
     const customerIdParam = urlParams.get('customer_id');
@@ -121,6 +175,9 @@ $(document).ready(function() {
     $('#contact_id').on('change', function() {
         const contactId = $(this).val();
         const ledgerType = $('#ledger_type').val();
+        
+        // Clear previous data first
+        clearLedgerDisplay();
         
         if (contactId && ledgerType) {
             // Show loading status
@@ -349,10 +406,32 @@ $(document).ready(function() {
         const startDate = $('#start_date').val();
         const endDate = $('#end_date').val();
 
+        // Debug logging for troubleshooting
+        console.log('Loading ledger with parameters:', {
+            ledgerType: ledgerType,
+            contactId: contactId,
+            locationId: locationId,
+            startDate: startDate,
+            endDate: endDate
+        });
+
         if (!ledgerType || !contactId) {
             toastr.warning('Please select ledger type and contact');
             return;
         }
+
+        // AGGRESSIVE CACHE CLEARING AND DATA RESET
+        clearLedgerDisplay(); // Clear all previous data first
+        
+        // Disable AJAX caching completely
+        $.ajaxSetup({ 
+            cache: false,
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        });
 
         // Show loading state
         $('#filterStatus').html('<i class="fa fa-spinner fa-spin text-info"></i> <small class="text-info">Loading...</small>');
@@ -370,17 +449,23 @@ $(document).ready(function() {
         const showFullHistory = $('#show_full_history').is(':checked');
 
         $.ajax({
-            url: url,
+            url: url + '?_t=' + Date.now(), // Add timestamp to force fresh request
             type: 'GET',
+            cache: false,
             data: {
                 [dataKey]: contactId,
                 location_id: locationId,
                 start_date: startDate,
                 end_date: endDate,
-                show_full_history: showFullHistory
+                show_full_history: showFullHistory,
+                '_cache_bust': Date.now() // Additional cache buster
             },
             success: function(response) {
-                console.log('Ledger API Response:', response); // Debug log
+                console.log('🔥 AJAX SUCCESS - Full API Response:', response);
+                console.log('🎯 Customer ID requested:', contactId);
+                console.log('📊 Response customer object:', response.customer);
+                console.log('💰 Response summary object:', response.summary);
+                
                 $('#filterStatus').html('<i class="fa fa-check-circle text-success"></i> <small class="text-success">Loaded</small>');
                 
                 // Hide loading and show ready status
@@ -395,15 +480,32 @@ $(document).ready(function() {
                 const summary = response.summary || {};
                 const advanceApp = response.advance_application || {};
                 
-                if (isSuccess && transactions.length > 0) {
-                    // Update customer details if available
+                console.log('🔍 Processing response for customer:', customer.name || 'Unknown', 'ID:', customer.id, 'Transactions:', transactions.length);
+                console.log('💸 Summary effective_due:', summary.effective_due, 'outstanding_due:', summary.outstanding_due);
+                
+                if (isSuccess) {
+                    // ALWAYS update customer details when response is successful
                     if (customer.id) {
                         updateContactDetailsFromResponse(customer, ledgerType);
                     }
                     
-                    populateLedgerTable(transactions, summary);
-                    $('#ledgerTableSection').show();
-                    $('#noDataMessage').hide();
+                    // Update summary even if no transactions (to show correct customer balance)
+                    updateSummaryDisplay(summary);
+                    
+                    if (transactions.length > 0) {
+                        populateLedgerTable(transactions, summary);
+                        $('#ledgerTableSection').show();
+                        $('#noDataMessage').hide();
+                    } else {
+                        // Show customer info but empty table
+                        $('#ledgerTableSection').show();
+                        if (ledgerDataTable) {
+                            ledgerDataTable.clear().draw();
+                        } else {
+                            $('#ledgerTableBody').html('<tr><td colspan="8" class="text-center text-muted">No transactions found for the selected period</td></tr>');
+                        }
+                        $('#noDataMessage').hide(); // Don't show "no data" message, show empty table instead
+                    }
                 } else {
                     $('#ledgerTableSection').hide();
                     $('#noDataMessage').show();
@@ -485,6 +587,71 @@ $(document).ready(function() {
         
         $('#contactDetails').html(contactDetailsHtml);
         $('#contactDetailsSection').show();
+    }
+
+    function updateSummaryDisplay(summary) {
+        console.log('🎯 updateSummaryDisplay called with summary:', summary);
+        
+        // Extract values with detailed logging
+        const totalTransactions = summary.total_transactions || 0;
+        const totalPaid = summary.total_paid || 0;
+        const totalReturns = summary.total_returns || 0;
+        const outstandingDue = summary.outstanding_due || 0;
+        const effectiveDue = summary.effective_due || 0;
+        const advanceAmount = summary.advance_amount || 0;
+        
+        console.log('💰 Extracted values:', {
+            totalTransactions,
+            totalPaid, 
+            totalReturns,
+            outstandingDue,
+            effectiveDue,
+            advanceAmount
+        });
+        
+        // Build the complete account summary HTML
+        const summaryHtml = `
+            <div class="row text-center">
+                <div class="col-6 mb-3">
+                    <h6 class="text-white mb-1">Total Transactions</h6>
+                    <h4 class="text-white">Rs. ${formatCurrency(totalTransactions)}</h4>
+                </div>
+                <div class="col-6 mb-3">
+                    <h6 class="text-white mb-1">Total Paid</h6>
+                    <h4 class="text-white">Rs. ${formatCurrency(totalPaid)}</h4>
+                </div>
+            </div>
+            <div class="row text-center">
+                <div class="col-6 mb-3">
+                    <h6 class="text-white mb-1">Total Returns</h6>
+                    <h4 class="text-white">Rs. ${formatCurrency(totalReturns)}</h4>
+                </div>
+                <div class="col-6 mb-3">
+                    <h6 class="text-white mb-1">Outstanding Due</h6>
+                    <h6 class="text-white small">(Inc. Opening Balance)</h6>
+                    <h4 class="text-white">Rs. ${formatCurrency(outstandingDue)}</h4>
+                </div>
+            </div>
+            <div class="row text-center">
+                <div class="col-6 mb-3">
+                    <h6 class="text-white mb-1">Advance Amount</h6>
+                    <h4 class="text-success">Rs. ${formatCurrency(advanceAmount)}</h4>
+                </div>
+                <div class="col-6 mb-3">
+                    <h6 class="text-white mb-1">Effective Due</h6>
+                    <h4 class="${effectiveDue > 0 ? 'text-danger' : 'text-success'}">Rs. ${formatCurrency(effectiveDue)}</h4>
+                </div>
+            </div>
+        `;
+        
+        // Update the account summary container
+        $('#accountSummary').html(summaryHtml);
+        
+        // Show the summary card and ensure proper styling
+        $('#summaryCard').removeClass('d-none').show();
+        $('#summaryCard .card-body').addClass('bg-info text-white'); // Ensure blue background
+        
+        console.log('✅ Summary display updated successfully with HTML');
     }
 
     function populateLedgerTable(ledgerData, summary) {
