@@ -18,6 +18,7 @@ use App\Services\UnifiedLedgerService;
 use App\Services\ChequeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -629,8 +630,8 @@ class PaymentController extends Controller
             'card_security_code' => $request->card_security_code,
             'cheque_number' => $request->cheque_number,
             'cheque_bank_branch' => $request->cheque_bank_branch,
-            'cheque_received_date' => $request->cheque_received_date ? Carbon::createFromFormat('d-m-Y', $request->cheque_received_date)->format('Y-m-d') : null,
-            'cheque_valid_date' => $request->cheque_valid_date ? Carbon::createFromFormat('d-m-Y', $request->cheque_valid_date)->format('Y-m-d') : null,
+            'cheque_received_date' => $request->cheque_received_date ? $this->parseFlexibleDate($request->cheque_received_date) : null,
+            'cheque_valid_date' => $request->cheque_valid_date ? $this->parseFlexibleDate($request->cheque_valid_date) : null,
             'cheque_given_by' => $request->cheque_given_by,
         ];
     }
@@ -647,6 +648,40 @@ class PaymentController extends Controller
             return Payment::create($paymentData);
         }
         return null;
+    }
+
+    private function parseFlexibleDate($dateString)
+    {
+        if (empty($dateString)) {
+            return null;
+        }
+
+        // Try different date formats
+        $formats = [
+            'Y-m-d',      // HTML5 date input format (2024-01-15)
+            'd-m-Y',      // Legacy format (15-01-2024)
+            'm/d/Y',      // US format (01/15/2024)
+            'd/m/Y',      // European format (15/01/2024)
+            'Y/m/d',      // ISO-like format (2024/01/15)
+        ];
+
+        foreach ($formats as $format) {
+            try {
+                $date = Carbon::createFromFormat($format, $dateString);
+                if ($date && $date->format($format) === $dateString) {
+                    return $date->format('Y-m-d');
+                }
+            } catch (Exception $e) {
+                continue;
+            }
+        }
+
+        // If no specific format works, try Carbon's general parsing
+        try {
+            return Carbon::parse($dateString)->format('Y-m-d');
+        } catch (Exception $e) {
+            return null;
+        }
     }
 
     private function processPayment(Payment $payment, $isUpdate = false)
@@ -822,20 +857,308 @@ class PaymentController extends Controller
 
             if ($paymentType === 'opening_balance') {
                 // Only settle opening balance
-                $this->reduceEntityOpeningBalance($entity, $remainingAmount, $paymentMethod);
+                $this->reduceEntityOpeningBalance($entity, $remainingAmount, $paymentMethod, $request);
             } elseif ($paymentType === 'sale_dues') {
                 // Only pay against sales/purchases
                 $this->applyGlobalAmountToReferences($entity, $remainingAmount, $data, $request);
                 $this->handleIndividualPayments($entity, $data, $request);
             } else {
                 // Both - opening balance first, then sales
-                $this->reduceEntityOpeningBalance($entity, $remainingAmount, $paymentMethod);
+                $this->reduceEntityOpeningBalance($entity, $remainingAmount, $paymentMethod, $request);
                 $this->applyGlobalAmountToReferences($entity, $remainingAmount, $data, $request);
                 $this->handleIndividualPayments($entity, $data, $request);
             }
         });
 
         return response()->json(['message' => 'Payments submitted successfully.']);
+    }
+
+    /**
+     * Enhanced flexible bulk payment for Tamil scenario
+     * Multiple payment methods for different bills in single transaction
+     * Tamil: பல payment methods-ல ஒரே transaction-ல bulk payment
+     */
+    public function submitFlexibleBulkPayment(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'customer_id' => 'required|exists:customers,id',
+            'payment_date' => 'required|date',
+            'payment_groups' => 'required|array|min:1',
+            'payment_groups.*.method' => 'required|in:cash,cheque,card,bank_transfer',
+            'payment_groups.*.bills' => 'required|array|min:1',
+            'payment_groups.*.bills.*.sale_id' => 'required|exists:sales,id',
+            'payment_groups.*.bills.*.amount' => 'required|numeric|min:0.01',
+            // Cheque specific validation
+            'payment_groups.*.cheque_number' => 'required_if:payment_groups.*.method,cheque',
+            'payment_groups.*.cheque_bank_branch' => 'required_if:payment_groups.*.method,cheque',
+            'payment_groups.*.cheque_valid_date' => 'required_if:payment_groups.*.method,cheque|date',
+            'payment_groups.*.card_number' => 'required_if:payment_groups.*.method,card',
+            'payment_groups.*.bank_account_number' => 'required_if:payment_groups.*.method,bank_transfer',
+            'notes' => 'nullable|string'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+        }
+
+        try {
+            DB::transaction(function () use ($request) {
+                $bulkReference = 'FLEX-' . date('Ymd-His') . '-' . strtoupper(substr(uniqid(), -4));
+                $totalAmount = 0;
+                $processedGroups = [];
+
+                foreach ($request->payment_groups as $groupIndex => $paymentGroup) {
+                    $groupTotal = 0;
+                    $groupPayments = [];
+
+                    foreach ($paymentGroup['bills'] as $bill) {
+                        // Validate sale belongs to customer and amount
+                        $sale = Sale::where('id', $bill['sale_id'])
+                                  ->where('customer_id', $request->customer_id)
+                                  ->first();
+                        
+                        if (!$sale) {
+                            throw new \Exception("Sale {$bill['sale_id']} not found for customer");
+                        }
+
+                        if ($bill['amount'] > $sale->total_due) {
+                            throw new \Exception("Payment amount Rs.{$bill['amount']} exceeds due Rs.{$sale->total_due} for invoice {$sale->invoice_no}");
+                        }
+
+                        // Create individual payment record
+                        $paymentData = [
+                            'payment_date' => $request->payment_date,
+                            'amount' => $bill['amount'],
+                            'payment_method' => $paymentGroup['method'],
+                            'payment_type' => 'sale',
+                            'reference_id' => $bill['sale_id'],
+                            'reference_no' => $bulkReference,
+                            'customer_id' => $request->customer_id,
+                            'notes' => ($request->notes ?? '') . " - Flexible bulk payment group " . ($groupIndex + 1),
+                        ];
+
+                        // Add method-specific fields
+                        if ($paymentGroup['method'] === 'cheque') {
+                            $paymentData = array_merge($paymentData, [
+                                'cheque_number' => $paymentGroup['cheque_number'],
+                                'cheque_bank_branch' => $paymentGroup['cheque_bank_branch'],
+                                'cheque_valid_date' => $paymentGroup['cheque_valid_date'],
+                                'cheque_received_date' => $request->payment_date,
+                                'cheque_status' => 'pending',
+                                'cheque_given_by' => $paymentGroup['cheque_given_by'] ?? null,
+                            ]);
+                        } elseif ($paymentGroup['method'] === 'card') {
+                            $paymentData = array_merge($paymentData, [
+                                'card_number' => $paymentGroup['card_number'],
+                                'card_holder_name' => $paymentGroup['card_holder_name'] ?? null,
+                                'card_expiry_month' => $paymentGroup['card_expiry_month'] ?? null,
+                                'card_expiry_year' => $paymentGroup['card_expiry_year'] ?? null,
+                            ]);
+                        } elseif ($paymentGroup['method'] === 'bank_transfer') {
+                            $paymentData['bank_account_number'] = $paymentGroup['bank_account_number'];
+                        }
+
+                        $payment = Payment::create($paymentData);
+                        
+                        // Record in unified ledger
+                        $this->unifiedLedgerService->recordSalePayment($payment);
+                        
+                        // Update sale table
+                        $this->updateSaleTable($bill['sale_id']);
+                        
+                        $groupTotal += $bill['amount'];
+                        $groupPayments[] = [
+                            'payment_id' => $payment->id,
+                            'sale_id' => $bill['sale_id'],
+                            'invoice_no' => $sale->invoice_no,
+                            'amount' => $bill['amount']
+                        ];
+                    }
+
+                    $processedGroups[] = [
+                        'method' => $paymentGroup['method'],
+                        'total_amount' => $groupTotal,
+                        'payments_count' => count($groupPayments),
+                        'payments' => $groupPayments,
+                        'cheque_number' => $paymentGroup['cheque_number'] ?? null
+                    ];
+
+                    $totalAmount += $groupTotal;
+                }
+
+                // Update customer balance
+                $this->updateCustomerBalance($request->customer_id);
+
+                // Log the multi-method bulk payment
+                BulkPaymentLog::create([
+                    'action' => 'create_flexible',
+                    'entity_type' => 'sale',
+                    'customer_id' => $request->customer_id,
+                    'reference_no' => $bulkReference,
+                    'new_data' => [
+                        'total_amount' => $totalAmount,
+                        'groups_count' => count($processedGroups),
+                        'payment_groups' => $processedGroups
+                    ],
+                    'performed_by' => auth()->id(),
+                    'performed_at' => now(),
+                    'reason' => 'Flexible multi-method bulk payment (Tamil scenario)'
+                ]);
+            });
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Multi-method bulk payment processed successfully!',
+                'bulk_reference' => $bulkReference ?? null,
+                'total_amount' => $totalAmount ?? 0
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Multi-method payment failed: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Handle selective cheque bounce - Tamil scenario
+     * Only specific cheques bounce, others remain valid
+     * Tamil: குறிப்பிட்ட காசோலை மட்டும் bounce - மற்ற payments பாதிப்பில்லை
+     */
+    public function handleSelectiveChequeBounce(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'cheque_numbers' => 'required|array|min:1',
+            'cheque_numbers.*' => 'required|string',
+            'bounce_reason' => 'required|string|max:500',
+            'bounce_date' => 'required|date',
+            'bank_charges' => 'nullable|numeric|min:0'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+        }
+
+        try {
+            DB::transaction(function () use ($request) {
+                $bouncedPayments = [];
+                $affectedSales = [];
+                $totalBouncedAmount = 0;
+
+                foreach ($request->cheque_numbers as $chequeNumber) {
+                    // Find pending cheques with this number
+                    $payments = Payment::where('cheque_number', $chequeNumber)
+                                     ->where('payment_method', 'cheque')
+                                     ->where('cheque_status', 'pending')
+                                     ->get();
+
+                    if ($payments->isEmpty()) {
+                        throw new \Exception("No pending cheques found with number: {$chequeNumber}");
+                    }
+
+                    foreach ($payments as $payment) {
+                        // Mark cheque as bounced
+                        $payment->update([
+                            'cheque_status' => 'bounced',
+                            'cheque_bounce_date' => $request->bounce_date,
+                            'cheque_bounce_reason' => $request->bounce_reason,
+                            'bank_charges' => $request->bank_charges ?? 0,
+                            'payment_status' => 'bounced'
+                        ]);
+
+                        // CRITICAL: Break sale relationship - restore due amount
+                        if ($payment->reference_id) {
+                            $sale = Sale::find($payment->reference_id);
+                            if ($sale) {
+                                // Reduce total_paid by bounced amount
+                                $sale->total_paid = max(0, $sale->total_paid - $payment->amount);
+                                $sale->save();
+                                
+                                // Refresh and update payment status
+                                $sale->refresh();
+                                if ($sale->total_due <= 0) {
+                                    $sale->payment_status = 'Paid';
+                                } elseif ($sale->total_paid > 0) {
+                                    $sale->payment_status = 'Partial';
+                                } else {
+                                    $sale->payment_status = 'Due';
+                                }
+                                $sale->save();
+
+                                $affectedSales[] = [
+                                    'sale_id' => $sale->id,
+                                    'invoice_no' => $sale->invoice_no,
+                                    'restored_amount' => $payment->amount,
+                                    'new_due_amount' => $sale->total_due,
+                                    'new_status' => $sale->payment_status
+                                ];
+                            }
+                        }
+
+                        // Create floating balance for customer (independent of sales)
+                        // Record bounced cheque in ledger
+                        Ledger::create([
+                            'user_id' => $payment->customer_id,
+                            'contact_type' => 'customer',
+                            'transaction_date' => $request->bounce_date,
+                            'transaction_type' => 'cheque_bounce',
+                            'reference_no' => 'BOUNCE-' . $payment->cheque_number,
+                            'description' => "Cheque bounce: {$payment->cheque_number} - {$request->bounce_reason}",
+                            'debit' => $payment->amount,
+                            'credit' => 0,
+                            'balance' => 0, // Will be calculated automatically if needed
+                        ]);
+
+                        $bouncedPayments[] = [
+                            'payment_id' => $payment->id,
+                            'cheque_number' => $payment->cheque_number,
+                            'amount' => $payment->amount,
+                            'customer_id' => $payment->customer_id,
+                            'sale_id' => $payment->reference_id
+                        ];
+
+                        $totalBouncedAmount += $payment->amount;
+                    }
+                }
+
+                // Update customer balance
+                $customerIds = array_unique(array_column($bouncedPayments, 'customer_id'));
+                foreach ($customerIds as $customerId) {
+                    $this->updateCustomerBalance($customerId);
+                }
+
+                // Log selective bounce
+                BulkPaymentLog::create([
+                    'action' => 'selective_cheque_bounce',
+                    'entity_type' => 'sale',
+                    'old_data' => $bouncedPayments,
+                    'new_data' => [
+                        'bounce_reason' => $request->bounce_reason,
+                        'bounce_date' => $request->bounce_date,
+                        'bank_charges' => $request->bank_charges,
+                        'affected_sales' => $affectedSales,
+                        'total_bounced_amount' => $totalBouncedAmount
+                    ],
+                    'performed_by' => auth()->id(),
+                    'performed_at' => now(),
+                    'reason' => 'Selective cheque bounce - preserving other payment methods'
+                ]);
+            });
+
+            return response()->json([
+                'status' => 200,
+                'message' => count($request->cheque_numbers) . ' cheque(s) marked as bounced. Other payments preserved.',
+                'total_bounced_amount' => $totalBouncedAmount ?? 0,
+                'affected_sales_count' => count($affectedSales ?? [])
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Selective bounce failed: ' . $e->getMessage()
+            ]);
+        }
     }
 
     private function getBulkPaymentValidationRules(Request $request)
@@ -898,13 +1221,13 @@ class PaymentController extends Controller
         };
     }
 
-    private function reduceEntityOpeningBalance($entity, &$remainingAmount, $paymentMethod = 'cash')
+    private function reduceEntityOpeningBalance($entity, &$remainingAmount, $paymentMethod = 'cash', $request = null)
     {
         if ($entity->opening_balance > 0 && $remainingAmount > 0) {
             $openingBalancePayment = min($remainingAmount, $entity->opening_balance);
             
             // Create opening balance settlement payment
-            $this->createOpeningBalancePayment($entity, $openingBalancePayment, $paymentMethod);
+            $this->createOpeningBalancePayment($entity, $openingBalancePayment, $paymentMethod, $request);
             
             // **CRITICAL FIX**: Update opening balance when it's fully or partially paid
             // This is essential for accurate customer balance display and reporting
@@ -928,13 +1251,16 @@ class PaymentController extends Controller
     /**
      * Create payment record for opening balance settlement using unified ledger
      */
-    private function createOpeningBalancePayment($entity, $amount, $paymentMethod = 'cash')
+    private function createOpeningBalancePayment($entity, $amount, $paymentMethod = 'cash', $request = null)
     {
         $entityType = $entity instanceof Customer ? 'customer' : 'supplier';
         $referenceNo = 'OB-PAYMENT-' . $entity->id . '-' . time();
 
+        // Use the request payment_date or current time if not provided
+        $paymentDate = ($request && $request->payment_date) ? $this->parseFlexibleDate($request->payment_date) . ' ' . Carbon::now()->format('H:i:s') : Carbon::now()->format('Y-m-d H:i:s');
+
         $paymentData = [
-            'payment_date' => Carbon::now()->format('Y-m-d H:i:s'),
+            'payment_date' => $paymentDate,
             'amount' => $amount,
             'payment_method' => $paymentMethod,
             'payment_type' => 'opening_balance',
@@ -1009,8 +1335,11 @@ class PaymentController extends Controller
 
     private function createBulkPayment($reference, $amount, $paymentMethod, $entityType, $entityId, $notes, $request)
     {
+        // Use the request payment_date or current time if not provided
+        $paymentDate = $request->payment_date ? $this->parseFlexibleDate($request->payment_date) . ' ' . Carbon::now()->format('H:i:s') : Carbon::now()->format('Y-m-d H:i:s');
+        
         $paymentData = [
-            'payment_date' => Carbon::now()->format('Y-m-d H:i:s'),
+            'payment_date' => $paymentDate,
             'amount' => $amount,
             'payment_method' => $paymentMethod,
             'payment_type' => $entityType === 'supplier' ? 'purchase' : 'sale',
@@ -1031,8 +1360,8 @@ class PaymentController extends Controller
         if ($paymentMethod === 'cheque') {
             $paymentData['cheque_number'] = $request->cheque_number;
             $paymentData['cheque_bank_branch'] = $request->cheque_bank_branch;
-            $paymentData['cheque_received_date'] = $request->cheque_received_date ? Carbon::createFromFormat('d-m-Y', $request->cheque_received_date)->format('Y-m-d') : null;
-            $paymentData['cheque_valid_date'] = $request->cheque_valid_date ? Carbon::createFromFormat('d-m-Y', $request->cheque_valid_date)->format('Y-m-d') : null;
+            $paymentData['cheque_received_date'] = $request->cheque_received_date ? $this->parseFlexibleDate($request->cheque_received_date) : null;
+            $paymentData['cheque_valid_date'] = $request->cheque_valid_date ? $this->parseFlexibleDate($request->cheque_valid_date) : null;
             $paymentData['cheque_given_by'] = $request->cheque_given_by;
         }
 

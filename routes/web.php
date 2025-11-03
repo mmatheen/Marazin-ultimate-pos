@@ -396,6 +396,10 @@ Route::middleware(['auth'])->group(function () {
         Route::put('payments/{payment}', [PaymentController::class, 'storeOrUpdate']);
         Route::delete('payments/{payment}', [PaymentController::class, 'destroy']);
         Route::post('/submit-bulk-payment', [PaymentController::class, 'submitBulkPayment']);
+        
+        // Enhanced Flexible Bulk Payment Routes (Tamil Scenario)
+        Route::post('/submit-flexible-bulk-payment', [PaymentController::class, 'submitFlexibleBulkPayment']);
+        Route::post('/handle-selective-cheque-bounce', [PaymentController::class, 'handleSelectiveChequeBounce']);
         Route::get('/add-sale-bulk-payments', [PaymentController::class, 'addSaleBulkPayments'])->name('add-sale-bulk-payments');
         Route::get('/add-purchase-bulk-payments', [PaymentController::class, 'addPurchaseBulkPayments'])->name('add-purchase-bulk-payments');
         Route::get('/manage-bulk-payments', function() { return view('bulk_payments.bulk_payments_list'); })->name('manage-bulk-payments');        
