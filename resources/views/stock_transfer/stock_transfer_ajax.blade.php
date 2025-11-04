@@ -709,8 +709,9 @@
         }
 
         function populateStockTransferTable(data) {
-            // Prepare DataTable data
-            const tableData = data.map((transfer, index) => {
+
+            // Add created_at data for proper sorting
+            const enhancedTableData = data.map((transfer, index) => {
                 const totalAmount = transfer.stock_transfer_products.reduce((sum, product) => {
                     return sum + (product.quantity * product.unit_price);
                 }, 0);
@@ -752,13 +753,15 @@
                     shipping_charges: transfer.shipping_charges || '0.00',
                     total_amount: totalAmount.toFixed(2),
                     note: transfer.note || '',
-                    actions: actions
+                    actions: actions,
+                    created_at: transfer.created_at, // Add created_at for sorting
+                    sort_order: index // Add original order index
                 };
             });
 
             $('#stockTransfer').DataTable({
                 destroy: true,
-                data: tableData,
+                data: enhancedTableData,
                 // Improved dom: buttons above, then length (show entries) below
                 dom: '<"row mb-3"<"col-sm-12"B>>' + // Buttons row
                     '<"row mb-3"<"col-sm-6"l><"col-sm-6"f>>' + // Show entries and search row
@@ -837,10 +840,20 @@
                         title: 'Actions',
                         orderable: false,
                         searchable: false
+                    },
+                    {
+                        data: 'created_at',
+                        title: 'Created At',
+                        visible: false // Hidden column for sorting
+                    },
+                    {
+                        data: 'sort_order',
+                        title: 'Sort Order',
+                        visible: false // Hidden column to maintain backend order
                     }
                 ],
                 order: [
-                    [1, "desc"]
+                    [11, "asc"] // Sort by sort_order (index 11) to maintain backend order
                 ]
             });
         }

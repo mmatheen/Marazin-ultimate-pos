@@ -9,6 +9,7 @@ use App\Models\LocationBatch;
 use App\Models\StockHistory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class StockTransferController extends Controller
 {
@@ -25,6 +26,7 @@ class StockTransferController extends Controller
     {
         $stockTransfers = StockTransfer::with(['fromLocation', 'toLocation', 'stockTransferProducts.product'])
             ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc') // Add secondary sort by ID for consistent ordering
             ->get();
 
         return response()->json([
@@ -45,14 +47,34 @@ class StockTransferController extends Controller
 
     private function generateReferenceNumber()
     {
-        $latestTransfer = StockTransfer::latest()->first();
-        if ($latestTransfer) {
-            $lastRefNumber = intval(substr($latestTransfer->reference_no, 3));
-            $newRefNumber = $lastRefNumber + 1;
-        } else {
-            $newRefNumber = 1;
-        }
-        return 'REF' . str_pad($newRefNumber, 3, '0', STR_PAD_LEFT);
+        // Use database transaction with locking to prevent race conditions
+        return DB::transaction(function () {
+            // Find the highest reference number to avoid duplicates
+            $maxRef = DB::table('stock_transfers')
+                ->where('reference_no', 'like', 'REF%')
+                ->lockForUpdate()
+                ->orderByRaw('CAST(REGEXP_REPLACE(reference_no, "[^0-9]", "") AS UNSIGNED) DESC')
+                ->first();
+                
+            if ($maxRef) {
+                // Extract only the numeric part from reference (REF124, REF124_DUP1 -> 124)
+                preg_match('/REF(\d+)/', $maxRef->reference_no, $matches);
+                $lastRefNumber = isset($matches[1]) ? intval($matches[1]) : 0;
+                $newRefNumber = $lastRefNumber + 1;
+            } else {
+                $newRefNumber = 1;
+            }
+            
+            $newReference = 'REF' . str_pad($newRefNumber, 3, '0', STR_PAD_LEFT);
+            
+            // Final safety check - if reference exists, keep incrementing
+            while (DB::table('stock_transfers')->where('reference_no', $newReference)->exists()) {
+                $newRefNumber++;
+                $newReference = 'REF' . str_pad($newRefNumber, 3, '0', STR_PAD_LEFT);
+            }
+            
+            return $newReference;
+        });
     }
 
     public function storeOrUpdate(Request $request, $id = null)
@@ -110,8 +132,9 @@ class StockTransferController extends Controller
                     'status' => $request->status,
                 ])->save();
 
-                // Delete existing transfer products if updating
+                // Reverse previous stock movements if updating
                 if ($id) {
+                    $this->reverseStockTransferMovements($stockTransfer);
                     $stockTransfer->stockTransferProducts()->delete();
                 }
 
@@ -140,11 +163,22 @@ class StockTransferController extends Controller
                     $fromLocationBatch->decrement('qty', $product['quantity']);
 
                     // Update destination location batch quantity or create if it doesn't exist
-                    $toLocationBatch = LocationBatch::firstOrCreate(
-                        ['batch_id' => $product['batch_id'], 'location_id' => $request->to_location_id],
-                        ['qty' => 0]
-                    );
-                    $toLocationBatch->increment('qty', $product['quantity']);
+                    // Use a transaction-safe approach to prevent duplicates
+                    $toLocationBatch = LocationBatch::where('batch_id', $product['batch_id'])
+                        ->where('location_id', $request->to_location_id)
+                        ->lockForUpdate()
+                        ->first();
+                        
+                    if ($toLocationBatch) {
+                        $toLocationBatch->increment('qty', $product['quantity']);
+                    } else {
+                        // Create new location batch
+                        $toLocationBatch = LocationBatch::create([
+                            'batch_id' => $product['batch_id'],
+                            'location_id' => $request->to_location_id,
+                            'qty' => $product['quantity']
+                        ]);
+                    }
 
                     // Create StockHistory entries
                     StockHistory::create([
@@ -189,8 +223,15 @@ class StockTransferController extends Controller
     public function destroy($id)
     {
         try {
-            $stockTransfer = StockTransfer::findOrFail($id);
-            $stockTransfer->delete();
+            DB::transaction(function () use ($id) {
+                $stockTransfer = StockTransfer::with('stockTransferProducts')->findOrFail($id);
+                
+                // Reverse all stock movements before deleting
+                $this->reverseStockTransferMovements($stockTransfer);
+                
+                // Delete the stock transfer (products will be deleted via cascade)
+                $stockTransfer->delete();
+            });
 
             return response()->json([
                 'status' => 200,
@@ -199,7 +240,7 @@ class StockTransferController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 500,
-                'message' => 'Failed to delete stock transfer.',
+                'message' => 'Failed to delete stock transfer: ' . $e->getMessage(),
             ]);
         }
     }
@@ -223,5 +264,61 @@ class StockTransferController extends Controller
             'stockTransfer' => $stockTransfer,
             'activityLogs' => $activityLogs,
         ]);
+    }
+
+    /**
+     * Reverse stock movements for a stock transfer
+     * This is used when updating or deleting a transfer
+     */
+    private function reverseStockTransferMovements(StockTransfer $stockTransfer)
+    {
+        foreach ($stockTransfer->stockTransferProducts as $transferProduct) {
+            $batchId = $transferProduct->batch_id;
+            $quantity = $transferProduct->quantity;
+            $fromLocationId = $stockTransfer->from_location_id;
+            $toLocationId = $stockTransfer->to_location_id;
+
+            // Reverse the movement: Add back to source location
+            $fromLocationBatch = LocationBatch::where('batch_id', $batchId)
+                ->where('location_id', $fromLocationId)
+                ->first();
+
+            if ($fromLocationBatch) {
+                $fromLocationBatch->increment('qty', $quantity);
+                
+                // Log the reversal
+                StockHistory::create([
+                    'loc_batch_id' => $fromLocationBatch->id,
+                    'quantity' => $quantity,
+                    'stock_type' => StockHistory::STOCK_TYPE_ADJUSTMENT,
+                ]);
+            }
+
+            // Reverse the movement: Remove from destination location
+            $toLocationBatch = LocationBatch::where('batch_id', $batchId)
+                ->where('location_id', $toLocationId)
+                ->first();
+
+            if ($toLocationBatch) {
+                // Prevent negative quantities
+                if ($toLocationBatch->qty >= $quantity) {
+                    $toLocationBatch->decrement('qty', $quantity);
+                    
+                    // Log the reversal
+                    StockHistory::create([
+                        'loc_batch_id' => $toLocationBatch->id,
+                        'quantity' => -$quantity, // Negative because it's being removed
+                        'stock_type' => StockHistory::STOCK_TYPE_ADJUSTMENT,
+                    ]);
+                    
+                    // Delete the location_batch if quantity becomes 0
+                    if ($toLocationBatch->qty == 0) {
+                        $toLocationBatch->delete();
+                    }
+                } else {
+                    Log::warning("Cannot reverse transfer: Insufficient stock at destination location. Batch ID: $batchId, Location ID: $toLocationId");
+                }
+            }
+        }
     }
 }

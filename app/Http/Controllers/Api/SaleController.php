@@ -1651,4 +1651,79 @@ class SaleController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Get customer's previous purchase price for a specific product
+     */
+    public function getCustomerPreviousPrice(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'customer_id' => 'required|integer|exists:customers,id',
+                'product_id' => 'required|integer|exists:products,id'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => 422,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $customerId = $request->customer_id;
+            $productId = $request->product_id;
+
+            // Get the last 3 sales of this product for this customer with price and date
+            $previousPrices = collect(DB::select("
+                SELECT sp.price, sp.quantity, s.created_at, s.invoice_no
+                FROM sales_products sp 
+                JOIN sales s ON sp.sale_id = s.id 
+                WHERE s.customer_id = ? AND sp.product_id = ? AND s.status = 'final'
+                ORDER BY s.created_at DESC 
+                LIMIT 3
+            ", [$customerId, $productId]))
+                ->map(function ($saleProduct) {
+                    $unitPrice = floatval($saleProduct->price);
+                    $quantity = floatval($saleProduct->quantity);
+                    $total = $unitPrice * $quantity;
+                    
+                    return [
+                        'sale_date' => \Carbon\Carbon::parse($saleProduct->created_at)->format('Y-m-d'),
+                        'invoice_no' => $saleProduct->invoice_no,
+                        'unit_price' => $unitPrice,
+                        'quantity' => $quantity,
+                        'total' => $total
+                    ];
+                });
+
+            // Calculate average price if there are previous purchases
+            $averagePrice = $previousPrices->isNotEmpty() 
+                ? $previousPrices->avg('unit_price') 
+                : null;
+
+            return response()->json([
+                'status' => 200,
+                'data' => [
+                    'has_previous_purchases' => $previousPrices->isNotEmpty(),
+                    'previous_prices' => $previousPrices,
+                    'average_price' => $averagePrice,
+                    'last_price' => $previousPrices->first()['unit_price'] ?? null,
+                    'last_purchase_date' => $previousPrices->first()['sale_date'] ?? null
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get customer previous price', [
+                'error' => $e->getMessage(),
+                'customer_id' => $request->customer_id,
+                'product_id' => $request->product_id
+            ]);
+
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to retrieve customer previous price'
+            ], 500);
+        }
+    }
 }

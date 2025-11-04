@@ -1526,29 +1526,49 @@ class SaleController extends Controller
     {
         Log::info("Deducting $quantity from batch ID $batchId at location $locationId");
 
-        // Optimized: Single update query with error handling
-        $affected = DB::table('location_batches')
-            ->where('batch_id', $batchId)
-            ->where('location_id', $locationId)
-            ->where('qty', '>=', $quantity) // Ensure sufficient stock
-            ->update(['qty' => DB::raw("qty - $quantity")]);
+        // Use database transaction with proper locking to prevent race conditions
+        return DB::transaction(function () use ($batchId, $locationId, $quantity, $stockType) {
+            // First, get current stock with row-level locking
+            $locationBatch = DB::table('location_batches')
+                ->where('batch_id', $batchId)
+                ->where('location_id', $locationId)
+                ->lockForUpdate() // This prevents concurrent modifications
+                ->first();
 
-        if ($affected === 0) {
-            throw new \Exception("Insufficient stock in batch ID $batchId at location $locationId");
-        }
+            if (!$locationBatch) {
+                throw new \Exception("Batch ID $batchId not found at location $locationId");
+            }
 
-        // Get the location batch for stock history (single query)
-        $locationBatch = LocationBatch::where('batch_id', $batchId)
-            ->where('location_id', $locationId)
-            ->first();
+            $currentStock = (float) $locationBatch->qty;
+            $requestedQuantity = (float) $quantity;
 
-        if ($locationBatch) {
-            StockHistory::create([
-                'loc_batch_id' => $locationBatch->id,
-                'quantity' => -$quantity,
-                'stock_type' => $stockType,
-            ]);
-        }
+            Log::info("Stock check - Current: $currentStock, Requested: $requestedQuantity");
+
+            if ($currentStock < $requestedQuantity) {
+                throw new \Exception("Insufficient stock in batch ID $batchId at location $locationId. Available: $currentStock, Requested: $requestedQuantity");
+            }
+
+            // Now safely deduct the stock
+            $affected = DB::table('location_batches')
+                ->where('batch_id', $batchId)
+                ->where('location_id', $locationId)
+                ->update(['qty' => DB::raw("qty - $quantity")]);
+
+            if ($affected === 0) {
+                throw new \Exception("Failed to update stock for batch ID $batchId at location $locationId");
+            }
+
+            // Create stock history record
+            if ($locationBatch) {
+                StockHistory::create([
+                    'loc_batch_id' => $locationBatch->id,
+                    'quantity' => -$quantity,
+                    'stock_type' => $stockType,
+                ]);
+            }
+
+            return $locationBatch;
+        });
     }
 
     private function processUnlimitedStockProductSale($productData, $saleId, $locationId, $stockType)
@@ -2279,6 +2299,79 @@ class SaleController extends Controller
             'adjustment_amount' => $adjustmentAmount,
             'payment_id' => $payment->id
         ]);
+    }
+
+
+     public function getCustomerPreviousPrice(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'customer_id' => 'required|integer|exists:customers,id',
+                'product_id' => 'required|integer|exists:products,id'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => 422,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $customerId = $request->customer_id;
+            $productId = $request->product_id;
+
+            // Get the last 3 sales of this product for this customer with price and date
+            $previousPrices = collect(DB::select("
+                SELECT sp.price, sp.quantity, s.created_at, s.invoice_no
+                FROM sales_products sp 
+                JOIN sales s ON sp.sale_id = s.id 
+                WHERE s.customer_id = ? AND sp.product_id = ? AND s.status = 'final'
+                ORDER BY s.created_at DESC 
+                LIMIT 3
+            ", [$customerId, $productId]))
+                ->map(function ($saleProduct) {
+                    $unitPrice = floatval($saleProduct->price);
+                    $quantity = floatval($saleProduct->quantity);
+                    $total = $unitPrice * $quantity;
+                    
+                    return [
+                        'sale_date' => \Carbon\Carbon::parse($saleProduct->created_at)->format('Y-m-d'),
+                        'invoice_no' => $saleProduct->invoice_no,
+                        'unit_price' => $unitPrice,
+                        'quantity' => $quantity,
+                        'total' => $total
+                    ];
+                });
+
+            // Calculate average price if there are previous purchases
+            $averagePrice = $previousPrices->isNotEmpty() 
+                ? $previousPrices->avg('unit_price') 
+                : null;
+
+            return response()->json([
+                'status' => 200,
+                'data' => [
+                    'has_previous_purchases' => $previousPrices->isNotEmpty(),
+                    'previous_prices' => $previousPrices,
+                    'average_price' => $averagePrice,
+                    'last_price' => $previousPrices->first()['unit_price'] ?? null,
+                    'last_purchase_date' => $previousPrices->first()['sale_date'] ?? null
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get customer previous price', [
+                'error' => $e->getMessage(),
+                'customer_id' => $request->customer_id,
+                'product_id' => $request->product_id
+            ]);
+
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to retrieve customer previous price'
+            ], 500);
+        }
     }
 
 }

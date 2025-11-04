@@ -447,6 +447,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Sales Rep Target Management
     Route::apiResource('sales-rep-targets', SalesRepTargetController::class);
 
+    // Customer Previous Price History
+    Route::get('/customer-previous-price', [SaleController::class, 'getCustomerPreviousPrice']);
+
 });
 
 // ============================================================================

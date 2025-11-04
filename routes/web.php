@@ -231,6 +231,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/save-changes', [ProductController::class, 'saveChanges']);
         Route::post('/get-product-locations', [ProductController::class, 'getProductLocations']);
         Route::post('/apply-discount', [ProductController::class, 'applyDiscount'])->name('products.applyDiscount');
+        
+        // Quick Add Product (for POS when product not found) - Use main ProductController
+        Route::post('/products/quick-add', [\App\Http\Controllers\ProductController::class, 'quickAdd'])->name('products.quickAdd');
+        
         // Batch Price Management
         Route::get('/product/{productId}/batches', [ProductController::class, 'getProductBatches'])->name('product.batches');
         Route::post('/batches/update-prices', [ProductController::class, 'updateBatchPrices'])->name('batches.updatePrices');
@@ -350,6 +354,10 @@ Route::middleware(['auth'])->group(function () {
         // Print Sales - These need to come before the generic routes
         Route::get('/sales/print-recent-transaction/{id}', [SaleController::class, 'printRecentTransaction']);        
         Route::post('/pos/log-pricing-error', [SaleController::class, 'logPricingError']);
+
+        // Customer Previous Price History
+        Route::get('/customer-previous-price', [SaleController::class, 'getCustomerPreviousPrice']);
+
 
         // -------------------- Floating Balance Management Routes --------------------
         Route::prefix('floating-balance')->group(function () {

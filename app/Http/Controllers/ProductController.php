@@ -2354,4 +2354,158 @@ class ProductController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Quick Add Product (for POS when product not found)
+     */
+    public function quickAdd(Request $request)
+    {
+        try {
+            // Validate request
+            $request->validate([
+                'sku' => 'required|string|unique:products,sku',
+                'name' => 'required|string|max:255',
+                'price' => 'required|numeric|min:0',
+                'location_id' => 'required|exists:locations,id',
+                'category' => 'nullable|string',
+                'stock_type' => 'nullable|in:unlimited,limited', // Optional: unlimited (default) or limited
+                'quantity' => 'nullable|numeric|min:1' // Only required if stock_type is limited
+            ]);
+
+            DB::beginTransaction();
+
+            // Get or create a default unit (using correct field names from migration)
+            $defaultUnit = Unit::firstOrCreate(
+                ['name' => 'Pc(s)'],
+                [
+                    'short_name' => 'Pc',
+                    'allow_decimal' => false
+                ]
+            );
+
+            // Get or create a default brand (using correct field name from migration)
+            $defaultBrand = Brand::firstOrCreate(
+                ['name' => 'Quick Add'],  // Migration uses 'name' not 'brand_name'
+                ['description' => 'Auto-created brand for quick add products']
+            );
+
+            // Get or create category (using correct field name from migration)
+            $categoryId = null;
+            if ($request->category && $request->category !== '') {
+                $category = MainCategory::firstOrCreate(
+                    ['mainCategoryName' => ucfirst($request->category)],  // Migration uses 'mainCategoryName'
+                    ['description' => 'Auto-created category for quick add products']
+                );
+                $categoryId = $category->id;
+            } else {
+                // Create default category if none provided
+                $defaultCategory = MainCategory::firstOrCreate(
+                    ['mainCategoryName' => 'General'],  // Migration uses 'mainCategoryName'
+                    ['description' => 'Default category for quick add products']
+                );
+                $categoryId = $defaultCategory->id;
+            }
+
+            // Determine stock type - default to unlimited (0), but allow override
+            $stockAlert = $request->input('stock_type', 'unlimited') === 'limited' ? 1 : 0;
+
+            // Create the product with ALL required fields - set all prices to the entered price
+            $enteredPrice = (float) $request->price;
+            
+            $product = Product::create([
+                'product_name' => $request->name,
+                'sku' => $request->sku,
+                'unit_id' => $defaultUnit->id,
+                'brand_id' => $defaultBrand->id,  // Required field
+                'main_category_id' => $categoryId,  // Required field
+                'stock_alert' => $stockAlert, // 0 = Unlimited, 1 = Limited stock
+                'original_price' => $enteredPrice,  // Required field
+                'retail_price' => $enteredPrice,    // For retailer customers
+                'whole_sale_price' => $enteredPrice,  // For wholesaler customers  
+                'special_price' => $enteredPrice,   // Alternative price option
+                'max_retail_price' => $enteredPrice, // Maximum retail price
+                'is_active' => true
+            ]);
+
+            $batch = null; // Initialize batch variable
+            
+            // Only create batch and location batch for LIMITED stock products (stock_alert = 1)
+            if ($stockAlert === 1) {
+                $quantity = $request->input('quantity', 100);
+                
+                // Create a batch for this product with ALL required fields - all prices same as entered
+                $batch = Batch::create([
+                    'batch_no' => 'QA-' . time(), // Quick Add batch number
+                    'product_id' => $product->id,
+                    'qty' => $quantity, // Default quantity for limited stock
+                    'unit_cost' => $enteredPrice, // Required field
+                    'wholesale_price' => $enteredPrice, // Required field for wholesaler pricing
+                    'special_price' => $enteredPrice, // Required field for special pricing
+                    'retail_price' => $enteredPrice, // Required field for retailer pricing
+                    'max_retail_price' => $enteredPrice // Required field for maximum pricing
+                ]);
+
+                // Create location batch for limited stock
+                $locationBatch = LocationBatch::create([
+                    'batch_id' => $batch->id,
+                    'location_id' => $request->location_id,
+                    'qty' => $quantity // Actual quantity for limited stock
+                ]);
+
+                // Create stock history record for opening stock
+                StockHistory::create([
+                    'loc_batch_id' => $locationBatch->id,
+                    'quantity' => $quantity,
+                    'stock_type' => StockHistory::STOCK_TYPE_OPENING
+                ]);
+
+                // Attach product to location with actual quantity
+                $product->locations()->attach($request->location_id, [
+                    'qty' => $quantity // Set actual quantity for this location
+                ]);
+            } else {
+                // For UNLIMITED stock products (stock_alert = 0) - Only attach to location, no batches
+                $product->locations()->attach($request->location_id, [
+                    'qty' => 0 // 0 indicates unlimited stock in location_product pivot
+                ]);
+            }
+
+            DB::commit();
+
+            // Return the created product with batch info and relationships
+            $productWithBatch = Product::with(['unit', 'mainCategory', 'batches.locationBatches'])
+                ->find($product->id);
+                
+            // Add batch information to product for frontend pricing
+            if ($batch) {
+                $productWithBatch->batch_id = $batch->id;
+                $productWithBatch->batch_no = $batch->batch_no;
+                $productWithBatch->stock_quantity = $request->input('quantity', 100);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Product created successfully',
+                'product' => $productWithBatch,
+                'batch' => $batch // Include batch data for frontend
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollback();
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('Quick Add Product Error: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create product: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

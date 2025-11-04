@@ -379,7 +379,7 @@
                     updateBillingRowPrice(row, pricingResult.price, pricingResult.source);
 
                     console.log(
-                        `Updated ${productData.product_name}: Price ₹${pricingResult.price} (${pricingResult.source}) with auto-calculated discount`
+                        `Updated ${productData.product_name}: Price Rs. ${pricingResult.price} (${pricingResult.source}) with auto-calculated discount`
                     );
                 } catch (error) {
                     console.error('Error updating billing row pricing:', error);
@@ -442,7 +442,7 @@
                 }
 
                 console.log(
-                    `Updated discounts - Fixed: ₹${newFixedDiscount.toFixed(2)}, Percentage: ${newPercentDiscount.toFixed(2)}%`
+                    `Updated discounts - Fixed: Rs. ${newFixedDiscount.toFixed(2)}, Percentage: ${newPercentDiscount.toFixed(2)}%`
                 );
             } else {
                 console.warn('MRP not found, unable to calculate discount');
@@ -2254,513 +2254,996 @@
             });
         }
 
-        // ---- AUTOCOMPLETE (server driven, optimized for your controller) ----
-        // Request management for autocomplete
-        let autocompleteRequestQueue = [];
-        let isAutocompleteRequestInProgress = false;
-        let autocompleteDebounceTimer = null;
-        
-        function processAutocompleteQueue() {
-            if (autocompleteRequestQueue.length === 0 || isAutocompleteRequestInProgress) {
-                return;
-            }
-            
-            // Get the latest request (ignore older ones)
-            const latestRequest = autocompleteRequestQueue[autocompleteRequestQueue.length - 1];
-            autocompleteRequestQueue = []; // Clear queue
-            
-            isAutocompleteRequestInProgress = true;
-            
-            // Execute the request
-            latestRequest.execute();
-        }
-        
-        function initAutocomplete() {
-            let autoAddTimeout = null;
-            let lastSearchResults = [];
-            let currentSearchTerm = '';
-            let autocompleteAdding = false; // Prevent double-add
-            let lastAddedProduct = null; // Prevent duplicate quantity increments
+        // ---- SIMPLIFIED AUTOCOMPLETE WITH BARCODE SCANNER SUPPORT ----
+        let autocompleteState = {
+            debounceTimer: null,
+            isRequesting: false,
+            lastResults: [],
+            currentTerm: '',
+            adding: false,
+            lastProduct: null,
+            autoAddTimer: null
+        };
 
-            $("#productSearchInput").autocomplete({
-                position: {
-                    my: "left top",
-                    at: "left bottom",
-                    collision: "none"
+        // Barcode Scanner Configuration (MP6300Y compatible)
+        const scannerConfig = {
+            speedThreshold: 50,        // Max milliseconds between keystrokes for scanner detection
+            minScanLength: 2,          // Minimum characters for valid scan
+            maxScanLength: 50,         // Maximum characters for valid scan
+            scanTimeout: 1000,         // Reset scanner buffer after this time
+            searchDelay: 100,          // Delay before searching scanned value
+            addDelay: 300              // Delay before adding scanned product
+        };
+
+        // Helper functions
+        function resetAutocompleteState() {
+            if (autocompleteState.autoAddTimer) clearTimeout(autocompleteState.autoAddTimer);
+            if (autocompleteState.debounceTimer) clearTimeout(autocompleteState.debounceTimer);
+            autocompleteState.adding = false;
+            autocompleteState.lastProduct = null;
+        }
+
+        function createProductSearchRequest(term, response) {
+            return $.ajax({
+                url: '/products/stocks/autocomplete',
+                data: {
+                    location_id: selectedLocationId,
+                    search: term,
+                    per_page: 15
                 },
+                timeout: 10000,
+                success: function(data) {
+                    handleSearchSuccess(data, term, response);
+                },
+                error: function(jqXHR, textStatus) {
+                    handleSearchError(jqXHR, textStatus, response);
+                }
+            });
+        }
+
+        function handleSearchSuccess(data, term, response) {
+            autocompleteState.isRequesting = false;
+            
+            if (data.status !== 200 || !Array.isArray(data.data)) {
+                autocompleteState.lastResults = [];
+                return response([{ label: "No results found", value: "" }]);
+            }
+
+            const filtered = filterStockData(data.data);
+            const results = mapSearchResults(filtered, term);
+            
+            if (results.length === 0) {
+                results.push({ label: "No results found", value: "" });
+            }
+
+            autocompleteState.lastResults = results.filter(r => r.product);
+            
+            // Check for exact match auto-add
+            checkForAutoAdd(results, term);
+            
+            response(results);
+        }
+
+        function handleSearchError(jqXHR, textStatus, response) {
+            autocompleteState.isRequesting = false;
+            console.error('Autocomplete error:', textStatus);
+            
+            if (jqXHR.status === 429) {
+                const retryAfter = parseInt(jqXHR.getResponseHeader('Retry-After') || '2', 10);
+                response([{ label: `Rate limited. Retrying in ${retryAfter}s...`, value: "" }]);
+                setTimeout(() => autocompleteState.isRequesting = false, retryAfter * 1000);
+            } else {
+                response([{ label: "Error loading results. Please try again.", value: "" }]);
+            }
+        }
+
+        function filterStockData(stockArray) {
+            return stockArray.filter(stock => {
+                if (!stock.product) return false;
+                
+                const product = stock.product;
+                if (product.stock_alert == 0) return true; // Unlimited stock
+                
+                const hasDecimal = product.unit && (product.unit.allow_decimal === true || product.unit.allow_decimal === 1);
+                const stockLevel = hasDecimal ? parseFloat(stock.total_stock) : parseInt(stock.total_stock);
+                return stockLevel > 0;
+            });
+        }
+
+        function mapSearchResults(filteredStocks, term) {
+            return filteredStocks.map(stock => {
+                const { imeiMatch, exactImeiMatch, imeiNumber } = findImeiMatch(stock, term);
+                
+                return {
+                    label: createProductLabel(stock, imeiMatch, imeiNumber),
+                    value: stock.product.product_name,
+                    product: stock.product,
+                    stockData: stock,
+                    imeiMatch: !!imeiMatch,
+                    exactImeiMatch: exactImeiMatch
+                };
+            });
+        }
+
+        function findImeiMatch(stock, term) {
+            if (!stock.imei_numbers || stock.imei_numbers.length === 0) {
+                return { imeiMatch: '', exactImeiMatch: false, imeiNumber: '' };
+            }
+
+            const matchingImei = stock.imei_numbers.find(imei =>
+                imei.imei_number.toLowerCase().includes(term.toLowerCase())
+            );
+
+            if (matchingImei) {
+                return {
+                    imeiMatch: ` 📱 IMEI: ${matchingImei.imei_number}`,
+                    exactImeiMatch: matchingImei.imei_number.toLowerCase() === term.toLowerCase(),
+                    imeiNumber: matchingImei.imei_number
+                };
+            }
+
+            return { imeiMatch: '', exactImeiMatch: false, imeiNumber: '' };
+        }
+
+        function createProductLabel(stock, imeiMatch, imeiNumber) {
+            const product = stock.product;
+            const stockDisplay = product.stock_alert == 0 ? 'Unlimited' : stock.total_stock;
+            return `${product.product_name} (${product.sku || ''})${imeiMatch} [Stock: ${stockDisplay}]`;
+        }
+
+        function checkForAutoAdd(results, term) {
+            if (term.length < 3) return;
+
+            const exactMatch = results.find(r => {
+                if (!r.product) return false;
+                const skuMatch = r.product.sku && r.product.sku.toLowerCase() === term.toLowerCase();
+                return skuMatch || r.exactImeiMatch;
+            });
+
+            if (exactMatch && !autocompleteState.adding) {
+                const matchType = exactMatch.product.sku && 
+                    exactMatch.product.sku.toLowerCase() === term.toLowerCase() ? 'SKU' : 'IMEI';
+                
+                showSearchIndicator("⚡ Auto-adding...", "orange");
+                autocompleteState.autoAddTimer = setTimeout(() => {
+                    if (!autocompleteState.adding) {
+                        autocompleteState.adding = true;
+                        $("#productSearchInput").autocomplete('close').val('');
+                        addProductFromAutocomplete(exactMatch, term, matchType);
+                        hideSearchIndicator();
+                        setTimeout(() => autocompleteState.adding = false, 50);
+                    }
+                }, 500);
+            }
+        }
+
+        function initAutocomplete() {
+            $("#productSearchInput").autocomplete({
+                position: { my: "left top", at: "left bottom", collision: "none" },
+                minLength: 1,
                 source: function(request, response) {
                     if (!selectedLocationId) return response([]);
 
-                    currentSearchTerm = request.term;
+                    autocompleteState.currentTerm = request.term;
+                    resetAutocompleteState();
 
-                    if (autoAddTimeout) {
-                        clearTimeout(autoAddTimeout);
-                        autoAddTimeout = null;
-                    }
-
-                    // Debounce autocomplete requests
-                    if (autocompleteDebounceTimer) {
-                        clearTimeout(autocompleteDebounceTimer);
-                    }
-                    
-                    autocompleteDebounceTimer = setTimeout(() => {
-                        // Add request to queue
-                        autocompleteRequestQueue.push({
-                            term: request.term,
-                            response: response,
-                            execute: function() {
-                                console.log('Executing autocomplete request for:', this.term);
-                                
-                                $.ajax({
-                                    url: '/products/stocks/autocomplete',
-                                    data: {
-                                        location_id: selectedLocationId,
-                                        search: this.term,
-                                        per_page: 15
-                                    },
-                                    timeout: 10000, // 10 second timeout
-                                    success: function(data) {
-                                        isAutocompleteRequestInProgress = false;
-                                        
-                                        // Process next request in queue if any
-                                        setTimeout(() => processAutocompleteQueue(), 100);
-                                        
-                                        if (data.status === 200 && Array.isArray(data.data)) {
-                                const filtered = data.data.filter(stock =>
-                                    stock.product &&
-                                    (
-                                        stock.product.stock_alert == 0 ||
-                                        (stock.product.unit && (stock.product.unit
-                                                .allow_decimal === true || stock
-                                                .product.unit.allow_decimal === 1) ?
-                                            parseFloat(stock.total_stock) > 0 :
-                                            parseInt(stock.total_stock) > 0
-                                        )
-                                    )
-                                );
-
-                                const results = filtered.map(stock => {
-                                    let imeiMatch = '';
-                                    let exactImeiMatch = false;
-                                    if (stock.imei_numbers && stock.imei_numbers
-                                        .length > 0) {
-                                        const matchingImei = stock.imei_numbers
-                                            .find(imei =>
-                                                imei.imei_number.toLowerCase()
-                                                .includes(this.term
-                                                    .toLowerCase())
-                                            );
-                                        if (matchingImei) {
-                                            imeiMatch =
-                                                ` 📱 IMEI: ${matchingImei.imei_number}`;
-                                            exactImeiMatch = matchingImei
-                                                .imei_number.toLowerCase() ===
-                                                this.term.toLowerCase();
-                                        }
-                                    }
-                                    return {
-                                        label: `${stock.product.product_name} (${stock.product.sku || ''})${imeiMatch} [Stock: ${stock.product.stock_alert == 0 ? 'Unlimited' : stock.total_stock}]`,
-                                        value: stock.product.product_name,
-                                        product: stock.product,
-                                        stockData: stock,
-                                        imeiMatch: imeiMatch ? true : false,
-                                        exactImeiMatch: exactImeiMatch
-                                    };
-                                });
-
-                                if (results.length === 0) results.push({
-                                    label: "No results found",
-                                    value: ""
-                                });
-
-                                lastSearchResults = results.filter(r => r.product);
-
-                                // Auto-add exact SKU or IMEI match
-                                const exactMatch = results.find(r =>
-                                    r.product && ((r.product.sku && r.product.sku
-                                        .toLowerCase() === this.term
-                                        .toLowerCase()) || r.exactImeiMatch)
-                                );
-
-                                if (exactMatch && this.term.length >= 3) {
-                                    const matchType = exactMatch.product.sku &&
-                                        exactMatch.product.sku.toLowerCase() === this
-                                        .term.toLowerCase() ? 'SKU' : 'IMEI';
-                                    showSearchIndicator("⚡ Auto-adding...", "orange");
-                                    autoAddTimeout = setTimeout(() => {
-                                        if (!autocompleteAdding) {
-                                            autocompleteAdding = true;
-                                            $("#productSearchInput")
-                                                .autocomplete('close');
-                                            addProductFromAutocomplete(
-                                                exactMatch, this.term,
-                                                matchType);
-                                            $("#productSearchInput").val('');
-                                            hideSearchIndicator();
-                                            setTimeout(() => {
-                                                autocompleteAdding =
-                                                    false;
-                                            }, 50);
-                                        }
-                                    }, 500);
-                                }
-
-                                this.response(results);
-                            } else {
-                                lastSearchResults = [];
-                                this.response([{
-                                    label: "No results found",
-                                    value: ""
-                                }]);
-                            }
-                                        }.bind(this),
-                                    error: function(jqXHR, textStatus, errorThrown) {
-                            isAutocompleteRequestInProgress = false;
-                            console.error('Autocomplete AJAX error:', textStatus, errorThrown);
-                            
-                            if (jqXHR.status === 429) {
-                                const retryAfter = parseInt(jqXHR.getResponseHeader('Retry-After') || '2', 10);
-                                console.warn(`Autocomplete rate limited. Retry after ${retryAfter} seconds`);
-                                
-                                // Retry after the specified delay
-                                setTimeout(() => {
-                                    processAutocompleteQueue();
-                                }, retryAfter * 1000);
-                                
-                                this.response([{
-                                    label: `Rate limited. Retrying in ${retryAfter}s...`,
-                                    value: ""
-                                }]);
-                            } else {
-                                // Process next request in queue on other errors too
-                                setTimeout(() => processAutocompleteQueue(), 1000);
-                                
-                                lastSearchResults = [];
-                                this.response([{
-                                    label: "Error loading results. Please try again.",
-                                    value: ""
-                                }]);
-                            }
-                                    }.bind(this)
-                                });
-                            }
-                        });
-                        
-                        // Process the queue
-                        processAutocompleteQueue();
-                    }, 300); // 300ms debounce
+                    // Debounce requests
+                    autocompleteState.debounceTimer = setTimeout(() => {
+                        if (!autocompleteState.isRequesting) {
+                            autocompleteState.isRequesting = true;
+                            createProductSearchRequest(request.term, response);
+                        }
+                    }, 300);
                 },
                 select: function(event, ui) {
-                    if (!ui.item.product || autocompleteAdding) return false;
+                    if (!ui.item.product || autocompleteState.adding) return false;
 
-                    autocompleteAdding = true;
+                    autocompleteState.adding = true;
                     $("#productSearchInput").val("");
-                    const isImeiMatch = ui.item.imeiMatch || false;
-                    addProductFromAutocomplete(ui.item, currentSearchTerm, isImeiMatch ? 'IMEI' :
-                        'MANUAL');
-                    setTimeout(() => {
-                        autocompleteAdding = false;
-                    }, 50);
-
+                    const matchType = ui.item.imeiMatch ? 'IMEI' : 'MANUAL';
+                    addProductFromAutocomplete(ui.item, autocompleteState.currentTerm, matchType);
+                    setTimeout(() => autocompleteState.adding = false, 50);
                     return false;
                 },
                 open: function() {
-                    setTimeout(() => {
-                        const autocompleteInstance = $("#productSearchInput").autocomplete(
-                            "instance");
-                        const menu = autocompleteInstance.menu;
-                        const firstItem = menu.element.find("li:first-child");
-
-                        if (firstItem.length > 0 && !firstItem.text().includes(
-                                "No results")) {
-                            // Properly set the active item using jQuery UI's method
-                            menu.element.find(".ui-state-focus").removeClass(
-                                "ui-state-focus");
-                            firstItem.addClass("ui-state-focus");
-                            menu.active = firstItem;
-                            showSearchIndicator("↵ Press Enter to add");
-                        }
-                    }, 50);
+                    setTimeout(() => setupFirstItemFocus(), 50);
                 },
                 close: function() {
                     hideSearchIndicator();
-                },
-                minLength: 1
-            }).autocomplete("instance")._renderItem = function(ul, item) {
+                }
+            });
+
+            // Setup custom rendering and events
+            setupCustomRendering();
+            setupKeyboardEvents();
+            setupInputEvents();
+            setupAutocompleteStyles();
+        }
+
+        function setupFirstItemFocus() {
+            const instance = $("#productSearchInput").autocomplete("instance");
+            const menu = instance.menu;
+            const firstItem = menu.element.find("li:first-child");
+
+            if (firstItem.length > 0 && !firstItem.text().includes("No results")) {
+                menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
+                firstItem.addClass("ui-state-focus");
+                menu.active = firstItem;
+                showSearchIndicator("↵ Press Enter to add");
+            }
+        }
+
+        function setupCustomRendering() {
+            $("#productSearchInput").autocomplete("instance")._renderItem = function(ul, item) {
                 const li = $("<li>");
+                
                 if (item.product) {
-                    // Enhanced display for IMEI products
                     if (item.imeiMatch) {
-                        const productName = item.product.product_name;
-                        const sku = item.product.sku || '';
-                        const imeiInfo = item.label.match(/📱 IMEI: ([^\[]+)/);
-                        const imeiNumber = imeiInfo ? imeiInfo[1].trim() : '';
-                        const stockInfo = item.label.match(/\[Stock: ([^\]]+)\]/);
-                        const stock = stockInfo ? stockInfo[1] : '';
-                        
-                        const html = `
-                            <div style="padding: 10px 12px; background-color: #e8f4f8; border-left: 4px solid #17a2b8;">
-                                <div style="font-weight: 600; color: #2c3e50; margin-bottom: 4px;">
-                                    ${productName} ${sku ? '<span style="color: #6c757d; font-size: 0.9em;">(' + sku + ')</span>' : ''}
-                                </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9em;">
-                                    <div style="color: #17a2b8; font-weight: 500;">
-                                        📱 IMEI: ${imeiNumber}
-                                    </div>
-                                    <div style="color: #28a745; font-weight: 500; padding-left: 10px;">
-                                        Stock: ${stock}
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                        li.append(html);
+                        li.append(createImeiItemHtml(item));
                     } else {
-                        // Regular product display
-                        const style = "padding: 8px 12px;";
-                        li.append(`<div style="${style}">${item.label}</div>`);
+                        li.append(`<div style="padding: 8px 12px;">${item.label}</div>`);
                     }
                 } else {
-                    li.append(
-                        `<div style="color: red; padding: 8px 12px; font-style: italic;">${item.label}</div>`
-                    );
+                    li.append(`<div style="color: red; padding: 8px 12px; font-style: italic;">${item.label}</div>`);
                 }
+                
                 return li.appendTo(ul);
             };
 
             $("#productSearchInput").autocomplete("instance")._resizeMenu = function() {
                 const isMobile = window.innerWidth <= 991;
-                
                 if (isMobile) {
-                    // Mobile: use viewport width minus margins
-                    const menuWidth = window.innerWidth - 10; // 5px margin on each side
                     this.menu.element.css({
-                        'width': menuWidth + 'px',
-                        'max-width': menuWidth + 'px',
-                        'left': '5px',
-                        'right': '5px'
+                        'width': (window.innerWidth - 10) + 'px',
+                        'max-width': (window.innerWidth - 10) + 'px',
+                        'left': '5px'
                     });
                 } else {
-                    // Desktop: use input width or minimum
-                    const inputWidth = this.element.outerWidth();
-                    const minWidth = 450;
-                    const menuWidth = Math.max(inputWidth, minWidth);
+                    const menuWidth = Math.max(this.element.outerWidth(), 450);
                     this.menu.element.outerWidth(menuWidth);
                 }
             };
+        }
 
-            if (!document.getElementById('autocomplete-styles')) {
-                const style = document.createElement('style');
-                style.id = 'autocomplete-styles';
-                style.textContent = `
+        function createImeiItemHtml(item) {
+            const productName = item.product.product_name;
+            const sku = item.product.sku || '';
+            const imeiInfo = item.label.match(/📱 IMEI: ([^\[]+)/);
+            const imeiNumber = imeiInfo ? imeiInfo[1].trim() : '';
+            const stockInfo = item.label.match(/\[Stock: ([^\]]+)\]/);
+            const stock = stockInfo ? stockInfo[1] : '';
+            
+            return `
+                <div style="padding: 10px 12px; background-color: #e8f4f8; border-left: 4px solid #17a2b8;">
+                    <div style="font-weight: 600; color: #2c3e50; margin-bottom: 4px;">
+                        ${productName} ${sku ? '<span style="color: #6c757d; font-size: 0.9em;">(' + sku + ')</span>' : ''}
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9em;">
+                        <div style="color: #17a2b8; font-weight: 500;">📱 IMEI: ${imeiNumber}</div>
+                        <div style="color: #28a745; font-weight: 500; padding-left: 10px;">Stock: ${stock}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function setupKeyboardEvents() {
+            // Barcode scanner detection variables
+            let scannerBuffer = '';
+            let scannerTimeout = null;
+            let lastKeyTime = 0;
+            const SCANNER_SPEED_THRESHOLD = 50; // milliseconds between keystrokes for scanner detection
+
+            $("#productSearchInput").off('keydown.autocomplete keypress.scanner input.scanner')
+                .on('keydown.autocomplete', function(event) {
+                    const currentTime = Date.now();
+                    const timeDiff = currentTime - lastKeyTime;
+                    lastKeyTime = currentTime;
+
+                    // Detect if this might be from a barcode scanner (fast typing)
+                    const isLikelyScanner = timeDiff < SCANNER_SPEED_THRESHOLD && event.key !== 'Enter';
+
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        
+                        const currentValue = $(this).val().trim();
+                        
+                        // Handle barcode scanner input (fast entry + Enter)
+                        if (scannerBuffer.length > 0 || (currentValue.length > 0 && timeDiff < 100)) {
+                            handleBarcodeScan(currentValue || scannerBuffer);
+                            scannerBuffer = '';
+                            return;
+                        }
+                        
+                        // Handle manual entry
+                        handleManualEnter($(this));
+                        event.stopImmediatePropagation();
+                    } else if (isLikelyScanner) {
+                        // Buffer scanner input
+                        if (event.key.length === 1) {
+                            scannerBuffer += event.key;
+                        }
+                        
+                        // Clear scanner buffer after delay
+                        if (scannerTimeout) clearTimeout(scannerTimeout);
+                        scannerTimeout = setTimeout(() => {
+                            scannerBuffer = '';
+                        }, 1000);
+                    }
+                })
+                .on('input.scanner', function(event) {
+                    const currentTime = Date.now();
+                    const timeDiff = currentTime - lastKeyTime;
+                    
+                    // If input is changing very fast, likely from scanner
+                    if (timeDiff < SCANNER_SPEED_THRESHOLD) {
+                        // Delay the autocomplete to let scanner finish
+                        if (autocompleteState.debounceTimer) {
+                            clearTimeout(autocompleteState.debounceTimer);
+                        }
+                        
+                        autocompleteState.debounceTimer = setTimeout(() => {
+                            const value = $(this).val().trim();
+                            if (value.length > 0) {
+                                // Force search with current value
+                                $(this).autocomplete('search', value);
+                            }
+                        }, 100); // Short delay for scanner
+                    }
+                });
+        }
+
+        function handleBarcodeScan(scannedValue) {
+            console.log('Barcode scanned:', scannedValue);
+            
+            if (!scannedValue || scannedValue.length < 2) {
+                autoFocusSearchInput();
+                return;
+            }
+            
+            // Set the input value
+            $("#productSearchInput").val(scannedValue);
+            
+            // Force immediate search for exact match
+            searchForExactMatch(scannedValue);
+        }
+
+        // Auto-focus function for continuous scanning/searching
+        function autoFocusSearchInput() {
+            setTimeout(() => {
+                const searchInput = $("#productSearchInput");
+                if (searchInput.length) {
+                    searchInput.val('').focus(); // Clear input and focus for next scan
+                    console.log('Search input cleared and auto-focused for next scan');
+                }
+            }, 100);
+        }
+
+        // Quick Add Option for Missing Products
+        function showQuickAddOption(searchTerm) {
+            // Check if modal already exists
+            if (document.getElementById('quickAddModal')) {
+                $('#quickAddModal').modal('show');
+                $('#quickAddSku').val(searchTerm);
+                return;
+            }
+
+            // Create quick add modal
+            const modalHtml = `
+                <div class="modal fade" id="quickAddModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header bg-warning">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-exclamation-triangle"></i> 
+                                    Product Not Found
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="alert alert-info">
+                                    <strong>This product is not in the system.</strong> Do you want to add it quickly?
+                                </div>
+                                
+                                <form id="quickAddForm">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label class="form-label">SKU/Barcode:</label>
+                                            <input type="text" class="form-control" id="quickAddSku" readonly>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Product Name:</label>
+                                            <input type="text" class="form-control" id="quickAddName" placeholder="Enter product name" required>
+                                        </div>
+                                    </div>
+                                    <div class="row mt-3">
+                                        <div class="col-md-4">
+                                            <label class="form-label">Price:</label>
+                                            <input type="number" class="form-control" id="quickAddPrice" placeholder="0.00" step="0.01" required>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Quantity:</label>
+                                            <input type="number" class="form-control" id="quickAddQty" value="1" min="0.01" step="0.01" required>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Total:</label>
+                                            <input type="number" class="form-control" id="quickAddTotal" readonly>
+                                        </div>
+                                    </div>
+                                    <div class="row mt-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Category:</label>
+                                            <input type="text" class="form-control" id="quickAddCategory" 
+                                                   placeholder="Type or select category" 
+                                                   list="categoryOptions">
+                                            <datalist id="categoryOptions">
+                                                <option value="General">
+                                                <option value="Grocery">
+                                                <option value="Electronics">
+                                                <option value="Clothing">
+                                                <option value="Food & Beverages">
+                                                <option value="Home & Garden">
+                                                <option value="Sports & Outdoors">
+                                                <option value="Health & Beauty">
+                                                <option value="Books & Media">
+                                                <option value="Automotive">
+                                            </datalist>
+                                            <small class="text-muted">Type a new category name or select from suggestions</small>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Stock Type:</label>
+                                            <select class="form-control" id="quickAddStockType" onchange="toggleStockQuantity()">
+                                                <option value="unlimited">Unlimited Stock</option>
+                                                <option value="limited">Limited Stock</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="row mt-3" id="stockQuantityRow" style="display: none;">
+                                        <div class="col-12">
+                                            <label class="form-label">Stock Quantity:</label>
+                                            <input type="number" class="form-control" id="quickAddStockQty" placeholder="Enter stock quantity" min="1" value="100">
+                                            <small class="text-muted">This is the inventory quantity, not the sale quantity</small>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                    Cancel
+                                </button>
+                                <button type="button" class="btn btn-success" onclick="saveAndAddProduct()">
+                                    <i class="fas fa-save"></i> Save & Add to Bill
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+            // Set up event listeners
+            setupQuickAddListeners();
+
+            // Show modal and set SKU
+            $('#quickAddModal').modal('show');
+            $('#quickAddSku').val(searchTerm);
+            
+            // Auto-focus product name field
+            setTimeout(() => {
+                $('#quickAddName').focus();
+            }, 500);
+        }
+
+        function setupQuickAddListeners() {
+            // Calculate total when price or quantity changes
+            $('#quickAddPrice, #quickAddQty').on('input', function() {
+                const price = parseFloat($('#quickAddPrice').val()) || 0;
+                const qty = parseFloat($('#quickAddQty').val()) || 0;
+                const total = (price * qty).toFixed(2);
+                $('#quickAddTotal').val(total);
+            });
+
+            // Auto-focus next field on Enter
+            $('#quickAddName').on('keypress', function(e) {
+                if (e.which === 13) {
+                    $('#quickAddPrice').focus();
+                }
+            });
+
+            $('#quickAddPrice').on('keypress', function(e) {
+                if (e.which === 13) {
+                    $('#quickAddQty').focus();
+                }
+            });
+
+            $('#quickAddQty').on('keypress', function(e) {
+                if (e.which === 13) {
+                    saveAndAddProduct();
+                }
+            });
+
+            // Clear modal when closed
+            $('#quickAddModal').on('hidden.bs.modal', function() {
+                clearQuickAddForm();
+            });
+        }
+
+        function clearQuickAddForm() {
+            // Clear all form fields
+            $('#quickAddSku').val('');
+            $('#quickAddName').val('');
+            $('#quickAddPrice').val('0.00');
+            $('#quickAddQty').val('1');
+            $('#quickAddTotal').val('0.00');
+            $('#quickAddCategory').val('').trigger('change');
+            $('#quickAddStockType').val('unlimited');
+            $('#quickAddStockQty').val('');
+            $('#stockQuantityRow').hide();
+        }
+
+        // Save product to system and add to bill
+        window.saveAndAddProduct = function saveAndAddProduct() {
+            const formData = getQuickAddFormData();
+            if (!validateQuickAddForm(formData)) return;
+
+            // Show loading
+            const saveBtn = document.querySelector('button[onclick="saveAndAddProduct()"]');
+            const originalText = saveBtn.innerHTML;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            saveBtn.disabled = true;
+
+            // Save to system (you'll need to create this API endpoint)
+            $.ajax({
+                url: '/products/quick-add',
+                method: 'POST',
+                data: {
+                    sku: formData.sku,
+                    name: formData.name,
+                    price: formData.price,
+                    category: formData.category,
+                    stock_type: formData.stock_type,
+                    quantity: formData.stock_quantity,
+                    location_id: selectedLocationId,
+                    _token: $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    if (response.success) {
+                        // Add the newly created product
+                        const newProduct = response.product;
+                        addSavedProductToBilling(newProduct, formData.qty);
+                        
+                        // Close modal and clear search input
+                        $('#quickAddModal').modal('hide');
+                        toastr.success('Product saved and added to bill', 'Success');
+                        
+                        // Clear search input immediately and focus for next scan
+                        setTimeout(() => {
+                            $("#productSearchInput").val('').focus();
+                            console.log('Search cleared after successful product addition');
+                        }, 300); // Small delay to ensure modal is fully closed
+                    } else {
+                        toastr.error('Error saving product: ' + response.message, 'Error');
+                    }
+                },
+                error: function(xhr) {
+                    console.error('Error saving product:', xhr);
+                    toastr.error('Could not save product', 'Error');
+                },
+                complete: function() {
+                    // Restore button
+                    saveBtn.innerHTML = originalText;
+                    saveBtn.disabled = false;
+                }
+            });
+        }
+
+        // Toggle stock quantity field based on stock type
+        window.toggleStockQuantity = function toggleStockQuantity() {
+            const stockType = $('#quickAddStockType').val();
+            const stockQuantityRow = $('#stockQuantityRow');
+            
+            if (stockType === 'limited') {
+                stockQuantityRow.show();
+                $('#quickAddStockQty').prop('required', true);
+            } else {
+                stockQuantityRow.hide();
+                $('#quickAddStockQty').prop('required', false);
+            }
+        }
+
+        function getQuickAddFormData() {
+            return {
+                sku: $('#quickAddSku').val().trim(),
+                name: $('#quickAddName').val().trim(),
+                price: parseFloat($('#quickAddPrice').val()) || 0,
+                qty: parseFloat($('#quickAddQty').val()) || 1,
+                total: parseFloat($('#quickAddTotal').val()) || 0,
+                category: $('#quickAddCategory').val(),
+                stock_type: $('#quickAddStockType').val(),
+                stock_quantity: $('#quickAddStockType').val() === 'limited' ? 
+                    (parseInt($('#quickAddStockQty').val()) || 100) : null
+            };
+        }
+
+        function validateQuickAddForm(data) {
+            if (!data.name) {
+                toastr.error('Product name is required', 'Validation Error');
+                $('#quickAddName').focus();
+                return false;
+            }
+            if (data.price <= 0) {
+                toastr.error('Enter valid price', 'Validation Error');
+                $('#quickAddPrice').focus();
+                return false;
+            }
+            if (data.qty <= 0) {
+                toastr.error('Enter valid quantity', 'Validation Error');
+                $('#quickAddQty').focus();
+                return false;
+            }
+            return true;
+        }
+
+
+
+        function addSavedProductToBilling(product, qty) {
+            // Get current customer information for pricing
+            const currentCustomer = getCurrentCustomer();
+            
+            // Ensure product has all required price fields (same as entered price)
+            const enteredPrice = parseFloat(product.original_price || product.retail_price || product.price || 0);
+            
+            // Make sure product object has all price fields
+            if (!product.retail_price || parseFloat(product.retail_price) <= 0) {
+                product.retail_price = enteredPrice;
+            }
+            if (!product.whole_sale_price || parseFloat(product.whole_sale_price) <= 0) {
+                product.whole_sale_price = enteredPrice;
+            }
+            if (!product.special_price) {
+                product.special_price = enteredPrice;
+            }
+            if (!product.max_retail_price) {
+                product.max_retail_price = enteredPrice;
+            }
+            
+            // Create a properly structured stock entry for the new product
+            const stockEntry = {
+                product: product,
+                total_stock: product.stock_alert === 0 ? 999999 : (product.stock_quantity || 100),
+                location_batches: [{
+                    batch_id: product.batch_id || 'all',
+                    batch_quantity: product.stock_alert === 0 ? 999999 : (product.stock_quantity || 100),
+                    unit_price: enteredPrice,
+                    batch: {
+                        id: product.batch_id || 'all',
+                        batch_no: product.batch_no || 'QA-' + Date.now(),
+                        expiry_date: null,
+                        unit_cost: enteredPrice,
+                        wholesale_price: enteredPrice,
+                        special_price: enteredPrice,
+                        retail_price: enteredPrice,
+                        max_retail_price: enteredPrice
+                    }
+                }],
+                imei_numbers: [] // Empty array for IMEI products
+            };
+            
+            // Add the new product to global stockData and allProducts arrays
+            // This ensures the product details modal will work
+            if (!stockData.find(s => s.product && s.product.id === product.id)) {
+                stockData.push(stockEntry);
+                console.log('Added new product to stockData:', product.product_name);
+            }
+            
+            if (typeof allProducts !== 'undefined' && !allProducts.find(s => s.product && s.product.id === product.id)) {
+                allProducts.push(stockEntry);
+                console.log('Added new product to allProducts:', product.product_name);
+            }
+            
+            // Add product directly to billing body with the specified quantity
+            addProductToBillingBody(
+                product,
+                stockEntry,
+                enteredPrice, // Use the entered price
+                product.batch_id || 'all',
+                product.stock_alert === 0 ? 999999 : (product.stock_quantity || 100),
+                currentCustomer.customer_type,
+                qty, // saleQuantity - this is the key parameter
+                [], // imeis
+                null, // discountType
+                null, // discountAmount
+                stockEntry.location_batches[0] // selectedBatch with all price info
+            );
+        }
+
+        function searchForExactMatch(searchTerm) {
+            if (!selectedLocationId) return;
+            
+            showSearchIndicator("🔍 Scanner searching...", "#17a2b8");
+            
+            $.ajax({
+                url: '/products/stocks/autocomplete',
+                data: {
+                    location_id: selectedLocationId,
+                    search: searchTerm,
+                    per_page: 15
+                },
+                timeout: 5000,
+                success: function(data) {
+                    hideSearchIndicator();
+                    
+                    if (data.status === 200 && Array.isArray(data.data)) {
+                        const filtered = filterStockData(data.data);
+                        const results = mapSearchResults(filtered, searchTerm);
+                        
+                        // Look for exact SKU or IMEI match
+                        const exactMatch = results.find(r => {
+                            if (!r.product) return false;
+                            return (r.product.sku && r.product.sku.toLowerCase() === searchTerm.toLowerCase()) ||
+                                   r.exactImeiMatch;
+                        });
+                        
+                        if (exactMatch) {
+                            const matchType = exactMatch.product.sku && 
+                                exactMatch.product.sku.toLowerCase() === searchTerm.toLowerCase() ? 'SCANNER_SKU' : 'SCANNER_IMEI';
+                            
+                            showSearchIndicator("⚡ Adding scanned item...", "#28a745");
+                            
+                            setTimeout(() => {
+                                addProductFromAutocomplete(exactMatch, searchTerm, matchType);
+                                $("#productSearchInput").val('');
+                                hideSearchIndicator();
+                                
+                                // Auto-focus for next scan after successful add
+                                setTimeout(() => {
+                                    autoFocusSearchInput();
+                                }, 100);
+                            }, 300);
+                        } else {
+                            // Show search results in autocomplete
+                            autocompleteState.lastResults = results.filter(r => r.product);
+                            if (results.length > 0) {
+                                $("#productSearchInput").autocomplete('close');
+                                setTimeout(() => {
+                                    $("#productSearchInput").autocomplete('search', searchTerm);
+                                }, 100);
+                            } else {
+                                showSearchIndicator("❌ No match found", "#dc3545");
+                                
+                                // Show quick add option for missing products
+                                setTimeout(() => {
+                                    showQuickAddOption(searchTerm);
+                                }, 1000);
+                                
+                                setTimeout(() => {
+                                    hideSearchIndicator();
+                                    autoFocusSearchInput(); // Focus for next scan attempt
+                                }, 3000);
+                            }
+                        }
+                    } else {
+                        showSearchIndicator("❌ No results", "#dc3545");
+                        setTimeout(() => {
+                            hideSearchIndicator();
+                            autoFocusSearchInput(); // Focus for next scan attempt
+                        }, 2000);
+                    }
+                },
+                error: function(jqXHR) {
+                    hideSearchIndicator();
+                    console.error('Scanner search error:', jqXHR.status);
+                    showSearchIndicator("❌ Search error", "#dc3545");
+                    setTimeout(() => {
+                        hideSearchIndicator();
+                        autoFocusSearchInput(); // Focus for next scan attempt
+                    }, 2000);
+                }
+            });
+        }
+
+        function handleManualEnter($input) {
+            const widget = $input.autocomplete("widget");
+            const focused = widget.find(".ui-state-focus");
+            const currentSearchTerm = $input.val().trim();
+            
+            let itemToAdd = getSelectedItem(focused) || getFirstResult();
+            
+            if (itemToAdd && itemToAdd.product && shouldAddProduct(itemToAdd)) {
+                autocompleteState.lastProduct = itemToAdd.product;
+                const matchType = itemToAdd.imeiMatch ? 'IMEI' : 'MANUAL_ENTER';
+                addProductFromAutocomplete(itemToAdd, currentSearchTerm, matchType);
+            } else {
+                // If no item to add, just clear and focus for next search
+                $input.autocomplete('close').val('');
+                autoFocusSearchInput();
+                return;
+            }
+
+            $input.autocomplete('close').val('');
+        }
+
+        function getSelectedItem(focused) {
+            if (focused.length > 0) {
+                const instance = $("#productSearchInput").autocomplete("instance");
+                if (instance && instance.menu.active) {
+                    return instance.menu.active.data("ui-autocomplete-item");
+                }
+            }
+            return null;
+        }
+
+        function getFirstResult() {
+            return autocompleteState.lastResults.length > 0 ? autocompleteState.lastResults[0] : null;
+        }
+
+        function shouldAddProduct(item) {
+            return !autocompleteState.lastProduct || autocompleteState.lastProduct.id !== item.product.id;
+        }
+
+        function setupInputEvents() {
+            let inputTimeout = null;
+            
+            $("#productSearchInput").on('input.general', function() {
+                autocompleteState.lastProduct = null;
+                
+                const inputValue = $(this).val();
+                
+                // Clear previous timeout
+                if (inputTimeout) clearTimeout(inputTimeout);
+                
+                // Reset state
+                if (inputValue.length === 0) {
+                    hideSearchIndicator();
+                    resetAutocompleteState();
+                    return;
+                }
+                
+                // For manual typing, use normal debounce
+                // Scanner input is handled separately in keydown event
+                inputTimeout = setTimeout(() => {
+                    // Only reset auto-add timer for manual input
+                    if (autocompleteState.autoAddTimer) {
+                        clearTimeout(autocompleteState.autoAddTimer);
+                        autocompleteState.autoAddTimer = null;
+                    }
+                }, 200);
+            });
+
+            // Handle paste events (some scanners simulate paste)
+            $("#productSearchInput").on('paste', function(e) {
+                setTimeout(() => {
+                    const pastedValue = $(this).val().trim();
+                    if (pastedValue.length > 0) {
+                        console.log('Paste detected, treating as scanner input:', pastedValue);
+                        handleBarcodeScan(pastedValue);
+                    }
+                }, 50);
+            });
+
+            // Handle focus events
+            $("#productSearchInput").on('focus', function() {
+                console.log('Search input focused');
+            }).on('blur', function() {
+                // Small delay before hiding indicator to allow for processing
+                setTimeout(() => {
+                    const isAutocompleteOpen = $(this).autocomplete("widget").is(":visible");
+                    if (!isAutocompleteOpen && !autocompleteState.adding) {
+                        hideSearchIndicator();
+                    }
+                }, 200);
+            });
+        }
+
+        function setupAutocompleteStyles() {
+            if (document.getElementById('autocomplete-styles')) return;
+            
+            const style = document.createElement('style');
+            style.id = 'autocomplete-styles';
+            style.textContent = `
                 .ui-autocomplete { 
-                    max-height: 400px; 
-                    overflow-y: auto; 
-                    z-index: 1000; 
-                    border: 1px solid #ddd; 
-                    border-radius: 4px; 
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
-                    min-width: 400px !important;
+                    max-height: 400px; overflow-y: auto; z-index: 1000; 
+                    border: 1px solid #ddd; border-radius: 4px; 
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 400px !important;
                 }
-                .ui-autocomplete .ui-menu-item { 
-                    border-bottom: 1px solid #f0f0f0; 
-                    list-style: none;
-                }
-                .ui-autocomplete .ui-menu-item:last-child { 
-                    border-bottom: none; 
-                }
-                .ui-autocomplete .ui-state-focus { 
-                    background: #007bff !important; 
-                    color: white !important; 
-                    margin: 0; 
-                }
-                .ui-autocomplete .ui-state-focus div { 
-                    color: white !important; 
-                    background-color: transparent !important;
-                    border-left-color: white !important;
-                }
-                .ui-autocomplete .ui-state-focus div > div { 
-                    color: white !important; 
-                }
-                .ui-autocomplete .ui-state-focus span { 
-                    color: white !important; 
-                }
-                .ui-autocomplete .ui-menu-item div { 
-                    white-space: normal; 
-                    word-wrap: break-word;
-                }
-                #productSearchInput { 
-                    position: relative; 
-                }
+                .ui-autocomplete .ui-menu-item { border-bottom: 1px solid #f0f0f0; list-style: none; }
+                .ui-autocomplete .ui-menu-item:last-child { border-bottom: none; }
+                .ui-autocomplete .ui-state-focus { background: #007bff !important; color: white !important; margin: 0; }
+                .ui-autocomplete .ui-state-focus div { color: white !important; background-color: transparent !important; border-left-color: white !important; }
+                .ui-autocomplete .ui-state-focus div > div { color: white !important; }
+                .ui-autocomplete .ui-state-focus span { color: white !important; }
+                .ui-autocomplete .ui-menu-item div { white-space: normal; word-wrap: break-word; }
+                #productSearchInput { position: relative; }
                 .search-indicator { 
-                    position: absolute; 
-                    right: 10px; 
-                    top: 50%; 
-                    transform: translateY(-50%); 
-                    font-size: 12px; 
-                    color: #28a745; 
-                    pointer-events: none; 
-                }
-                .quantity-error { 
-                    border: 2px solid #dc3545 !important; 
-                    box-shadow: 0 0 5px rgba(220, 53, 69, 0.3) !important; 
-                    background-color: #fff5f5 !important; 
-                }
-                .quantity-error:focus { 
-                    border-color: #dc3545 !important; 
-                    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important; 
-                }
-                .small-loader {
-                    background-color: rgba(248, 249, 250, 0.9);
-                    border-top: 1px solid #dee2e6;
-                    animation: fadeIn 0.3s ease-in;
-                }
-                @keyframes fadeIn {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
+                    position: absolute; right: 10px; top: 50%; transform: translateY(-50%); 
+                    font-size: 12px; color: #28a745; pointer-events: none; 
                 }
             `;
-                document.head.appendChild(style);
-            }
+            document.head.appendChild(style);
+        }
 
-            function showSearchIndicator(text, color = "#28a745") {
-                hideSearchIndicator();
-                const searchContainer = $("#productSearchInput").parent();
-                if (searchContainer.css('position') !== 'relative') searchContainer.css('position', 'relative');
-                const indicator = $(`<span class="search-indicator" style="color: ${color};">${text}</span>`);
-                searchContainer.append(indicator);
-            }
+        function showSearchIndicator(text, color = "#28a745") {
+            hideSearchIndicator();
+            const container = $("#productSearchInput").parent();
+            if (container.css('position') !== 'relative') container.css('position', 'relative');
+            container.append(`<span class="search-indicator" style="color: ${color};">${text}</span>`);
+        }
 
-            function hideSearchIndicator() {
-                $('.search-indicator').remove();
-            }
+        function hideSearchIndicator() {
+            $('.search-indicator').remove();
+        }
 
-            // In the keydown handler for Enter
-            $("#productSearchInput").off('keydown.autocomplete').on('keydown.autocomplete', function(event) {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
+        function addProductFromAutocomplete(item, searchTerm = '', matchType = '') {
+            if (!item.product) return;
 
-                    const widget = $(this).autocomplete("widget");
-                    const focused = widget.find(".ui-state-focus");
-                    const currentSearchTerm = $(this).val().trim();
-
-                    let itemToAdd = null;
-
-                    if (focused.length > 0) {
-                        // Get the item data from the autocomplete instance's active item
-                        const autocompleteInstance = $(this).autocomplete("instance");
-                        if (autocompleteInstance && autocompleteInstance.menu.active) {
-                            itemToAdd = autocompleteInstance.menu.active.data("ui-autocomplete-item");
-                        }
-                    }
-
-                    // Fallback: if no focused item found, use first item from last search results
-                    if (!itemToAdd && lastSearchResults.length > 0) {
-                        itemToAdd = lastSearchResults[0];
-                    }
-
-                    if (itemToAdd && itemToAdd.product) {
-                        // Prevent duplicate add of same product consecutively
-                        if (!lastAddedProduct || lastAddedProduct.id !== itemToAdd.product.id) {
-                            lastAddedProduct = itemToAdd.product;
-                            addProductFromAutocomplete(itemToAdd, currentSearchTerm, itemToAdd
-                                .imeiMatch ? 'IMEI' : 'ENTER');
-                        }
-                    }
-
-                    // Close autocomplete immediately
-                    $(this).autocomplete('close');
-                    $(this).val('');
-                    event.stopImmediatePropagation();
-                }
-            });
-
-            $("#productSearchInput").on('input', function() {
-                lastAddedProduct = null; // reset on new input
-                if (autoAddTimeout) {
-                    clearTimeout(autoAddTimeout);
-                    autoAddTimeout = null;
-                }
-                if ($(this).val().length === 0) hideSearchIndicator();
-            });
-
-            function addProductFromAutocomplete(item, searchTerm = '', matchType = '') {
-                if (!item.product) return;
-
-                // Prevent duplicate quantity increment for same product and matchType
-                // For IMEI products, prevent duplicate calls when same IMEI is scanned again
-                if (lastAddedProduct && lastAddedProduct.id === item.product.id) {
-                    // For IMEI products, check if this is a duplicate IMEI scan
-                    if (item.product.is_imei_or_serial_no === 1 && matchType === 'IMEI') {
-                        console.log('Preventing duplicate IMEI scan for product:', item.product.product_name);
-                        return;
-                    }
-                    // For non-IMEI products, prevent duplicate within short time frame
-                    if (matchType !== 'MANUAL') {
-                        return;
-                    }
-                }
-
-                lastAddedProduct = item.product;
-
-                console.log('Adding product from autocomplete:', item.product.product_name, 'Search term:',
-                    searchTerm, 'Match type:', matchType);
-
-                let stockEntry = stockData.find(stock => stock.product.id === item.product.id);
-                if (!stockEntry && item.stockData) {
-                    stockData.push(item.stockData);
-                    allProducts.push(item.stockData);
-                    stockEntry = item.stockData;
-                }
-
-                if (!stockEntry) {
-                    const url = `/api/products/stocks?location_id=${selectedLocationId}&product_id=${item.product.id}`;
-                    
-                    safeFetchJson(url)
-                        .then(data => {
-                            if (data.status === 200 && Array.isArray(data.data) && data.data.length > 0) {
-                                stockData.push(data.data[0]);
-                                allProducts.push(data.data[0]);
-                                addProductToTable(data.data[0].product, searchTerm, matchType);
-                            } else {
-                                toastr.error('Stock entry not found for the product', 'Error');
-                            }
-                        })
-                        .catch((err) => {
-                            console.error('Error fetching product stock data:', err);
-                            
-                            if (err.status === 429) {
-                                toastr.warning(`Rate limited. Please wait ${Math.ceil(err.retryAfter/1000)} seconds.`, 'Too Many Requests');
-                            } else if (err.text) {
-                                console.error('Response text:', err.text);
-                                toastr.error('Server error while fetching product data', 'Error');
-                            } else {
-                                toastr.error('Error fetching product stock data', 'Error');
-                            }
-                        });
+            // Prevent duplicates
+            if (autocompleteState.lastProduct && 
+                autocompleteState.lastProduct.id === item.product.id) {
+                
+                if (item.product.is_imei_or_serial_no === 1 && matchType === 'IMEI') {
+                    console.log('Preventing duplicate IMEI scan:', item.product.product_name);
+                    autoFocusSearchInput(); // Focus for next scan
                     return;
                 }
-
-                addProductToTable(item.product, searchTerm, matchType);
+                if (matchType !== 'MANUAL') {
+                    autoFocusSearchInput(); // Focus for next scan
+                    return;
+                }
             }
 
-            $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
-            $("#productSearchInput").autocomplete("instance").liveRegion.remove();
+            autocompleteState.lastProduct = item.product;
+            console.log('Adding product:', item.product.product_name, 'Term:', searchTerm, 'Type:', matchType);
 
-            $("#productSearchInput").autocomplete("instance")._move = function(direction, event) {
-                if (!this.menu.element.is(":visible")) {
-                    this.search(null, event);
-                    return;
-                }
-                if ((this.menu.isFirstItem() && /^previous/.test(direction)) || (this.menu.isLastItem() &&
-                        /^next/.test(direction))) {
-                    this._value(this.term);
-                    this.menu.blur();
-                    return;
-                }
-                this.menu[direction](event);
-                this.menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
-                this.menu.active.addClass("ui-state-focus");
-            };
+            let stockEntry = stockData.find(stock => stock.product.id === item.product.id);
+            
+            if (!stockEntry && item.stockData) {
+                stockData.push(item.stockData);
+                allProducts.push(item.stockData);
+                stockEntry = item.stockData;
+            }
+
+            if (!stockEntry) {
+                fetchProductStock(item.product.id, searchTerm, matchType);
+                return;
+            }
+
+            addProductToTable(item.product, searchTerm, matchType);
+            
+            // Auto-focus search input for next product after small delay
+            setTimeout(() => {
+                autoFocusSearchInput();
+            }, 200);
+        }
+
+        function fetchProductStock(productId, searchTerm, matchType) {
+            const url = `/api/products/stocks?location_id=${selectedLocationId}&product_id=${productId}`;
+            
+            safeFetchJson(url)
+                .then(data => {
+                    if (data.status === 200 && Array.isArray(data.data) && data.data.length > 0) {
+                        stockData.push(data.data[0]);
+                        allProducts.push(data.data[0]);
+                        addProductToTable(data.data[0].product, searchTerm, matchType);
+                        
+                        // Auto-focus for next scan after successful add
+                        setTimeout(() => {
+                            autoFocusSearchInput();
+                        }, 200);
+                    } else {
+                        toastr.error('Stock entry not found', 'Error');
+                        autoFocusSearchInput(); // Focus even on error for next attempt
+                    }
+                })
+                .catch(err => {
+                    console.error('Error fetching stock:', err);
+                    if (err.status === 429) {
+                        toastr.warning(`Rate limited. Wait ${Math.ceil(err.retryAfter/1000)}s`, 'Too Many Requests');
+                    } else {
+                        toastr.error('Error fetching product data', 'Error');
+                    }
+                    autoFocusSearchInput(); // Focus even on error for next attempt
+                });
         }
 
         // Re-init autocomplete when location changes
@@ -4095,30 +4578,49 @@
                 hasSpecial = locationBatches.some(batch => batch.special_price > 0);
             }
 
-            // Default price type based on customer type
+            // Check for previously selected price type from the row, otherwise default based on customer type
             let defaultPriceType = 'retail';
-            if (currentCustomer.customer_type === 'wholesaler' && hasWholesale) {
+            
+            // First, check if this row has a previously selected price type
+            const storedPriceType = row.querySelector('.selected-price-type');
+            if (storedPriceType && storedPriceType.textContent) {
+                const savedPriceType = storedPriceType.textContent.trim();
+                // Validate that the saved price type is available for this product
+                if (savedPriceType === 'retail' || 
+                    (savedPriceType === 'wholesale' && hasWholesale) || 
+                    (savedPriceType === 'special' && hasSpecial)) {
+                    defaultPriceType = savedPriceType;
+                    console.log('Using previously selected price type:', savedPriceType);
+                } else {
+                    console.log('Saved price type not available, falling back to default');
+                }
+            } else if (currentCustomer.customer_type === 'wholesaler' && hasWholesale) {
+                // Fall back to customer type default if no saved selection
                 defaultPriceType = 'wholesale';
+            }
+
+            // Check for previously selected batch BEFORE building options
+            let selectedBatchId = 'all'; // default to "All"
+            const storedBatchId = row.querySelector('.batch-id');
+            if (storedBatchId && storedBatchId.textContent && storedBatchId.textContent.trim() !== '') {
+                selectedBatchId = storedBatchId.textContent.trim();
+                console.log('Using previously selected batch:', selectedBatchId);
             }
 
             if (locationBatches.length > 0) {
                 // Build batch options with all available prices
                 batchOptions = locationBatches.map((batch, idx) => {
-                    let priceDisplay =
-                        `R: ${formatAmountWithSeparators(batch.retail_price.toFixed(2))}`;
+                    let priceDisplay = `R: ${formatAmountWithSeparators(batch.retail_price.toFixed(2))}`;
 
                     if (batch.wholesale_price > 0) {
-                        priceDisplay +=
-                            ` | W: ${formatAmountWithSeparators(batch.wholesale_price.toFixed(2))}`;
+                        priceDisplay += ` | W: ${formatAmountWithSeparators(batch.wholesale_price.toFixed(2))}`;
                     }
 
                     if (batch.special_price > 0) {
-                        priceDisplay +=
-                            ` | S: ${formatAmountWithSeparators(batch.special_price.toFixed(2))}`;
+                        priceDisplay += ` | S: ${formatAmountWithSeparators(batch.special_price.toFixed(2))}`;
                     }
 
-                    priceDisplay +=
-                        ` | MRP: ${formatAmountWithSeparators(batch.max_retail_price.toFixed(2))}`;
+                    priceDisplay += ` | MRP: ${formatAmountWithSeparators(batch.max_retail_price.toFixed(2))}`;
 
                     return `
                         <option value="${batch.batch_id}" 
@@ -4126,7 +4628,7 @@
                         data-wholesale-price="${batch.wholesale_price}" 
                         data-special-price="${batch.special_price}" 
                         data-max-retail-price="${batch.max_retail_price}"
-                        data-quantity="${batch.batch_quantity}">
+                        data-quantity="${batch.batch_quantity}" ${selectedBatchId === batch.batch_id ? 'selected' : ''}>
                         ${batch.batch_no} - Qty: ${formatAmountWithSeparators(batch.batch_quantity)} - ${priceDisplay}
                         </option>
                     `;
@@ -4138,9 +4640,11 @@
                 // Always show retail
                 const isRetailSelected = defaultPriceType === 'retail';
                 priceTypeButtons += `
-                    <label class="btn btn-outline-primary ${isRetailSelected ? 'active' : ''}">
+                    <label class="btn ${isRetailSelected ? 'btn-success' : 'btn-outline-success'} price-type-btn ${isRetailSelected ? 'active' : ''}" style="flex: 1; min-width: 70px; margin: 2px;">
                         <input type="radio" name="modal-price-type" value="retail" ${isRetailSelected ? 'checked' : ''} hidden> 
-                        <i class="fas fa-star"></i> R
+                        <i class="fas fa-tag d-block d-sm-inline me-sm-1"></i>
+                        <span class="fw-bold d-none d-sm-inline">Retail</span>
+                        <span class="fw-bold d-inline d-sm-none small">R</span>
                     </label>
                 `;
 
@@ -4148,9 +4652,11 @@
                 if (hasWholesale) {
                     const isWholesaleSelected = defaultPriceType === 'wholesale';
                     priceTypeButtons += `
-                        <label class="btn btn-outline-primary ${isWholesaleSelected ? 'active' : ''}">
+                        <label class="btn ${isWholesaleSelected ? 'btn-info' : 'btn-outline-info'} price-type-btn ${isWholesaleSelected ? 'active' : ''}" style="flex: 1; min-width: 70px; margin: 2px;">
                             <input type="radio" name="modal-price-type" value="wholesale" ${isWholesaleSelected ? 'checked' : ''} hidden> 
-                            <i class="fas fa-star"></i><i class="fas fa-star"></i> W
+                            <i class="fas fa-boxes d-block d-sm-inline me-sm-1"></i>
+                            <span class="fw-bold d-none d-sm-inline">Wholesale</span>
+                            <span class="fw-bold d-inline d-sm-none small">W</span>
                         </label>
                     `;
                 }
@@ -4159,9 +4665,11 @@
                 if (hasSpecial) {
                     const isSpecialSelected = defaultPriceType === 'special';
                     priceTypeButtons += `
-                        <label class="btn btn-outline-primary ${isSpecialSelected ? 'active' : ''}">
+                        <label class="btn ${isSpecialSelected ? 'btn-warning' : 'btn-outline-warning'} price-type-btn ${isSpecialSelected ? 'active' : ''}" style="flex: 1; min-width: 70px; margin: 2px;">
                             <input type="radio" name="modal-price-type" value="special" ${isSpecialSelected ? 'checked' : ''} hidden> 
-                            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i> S
+                            <i class="fas fa-star d-block d-sm-inline me-sm-1"></i>
+                            <span class="fw-bold d-none d-sm-inline">Special</span>
+                            <span class="fw-bold d-inline d-sm-none small">S</span>
                         </label>
                     `;
                 }
@@ -4174,28 +4682,94 @@
                     .max_retail_price);
 
                 modalBody.innerHTML = `
-                    <div class="d-flex align-items-center">
-                    <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;"/>
-                    <div>
-                        <div class="font-weight-bold">${product.product_name}</div>
-                        <div class="text-muted">${product.sku}</div>
-                        ${product.description ? `<div class="text-muted small">${product.description}</div>` : ''}
+                    <div class="d-flex align-items-center mb-3">
+                        <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:15px; border-radius:8px; object-fit:cover;"/>
+                        <div>
+                            <div class="fw-bold fs-5">${product.product_name}</div>
+                            <div class="text-muted">${product.sku}</div>
+                            ${product.description ? `<div class="text-muted small">${product.description}</div>` : ''}
+                        </div>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-muted small">PRICE TYPE</label>
+                        <div class="d-flex flex-wrap" style="gap: 4px;">
+                            ${priceTypeButtons}
+                        </div>
                     </div>
-                    <div class="btn-group btn-group-toggle mt-3" data-toggle="buttons">
-                    ${priceTypeButtons}
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-muted small">BATCH SELECTION</label>
+                        <select id="modalBatchDropdown" class="form-select batch-dropdown">
+                            <option value="all" 
+                                data-retail-price="${allRetailPrice}" 
+                                data-wholesale-price="${allWholesalePrice}" 
+                                data-special-price="${allSpecialPrice}" 
+                                data-max-retail-price="${allMrpPrice}"
+                                data-quantity="${totalQuantity}" ${selectedBatchId === 'all' ? 'selected' : ''}>
+                                All - Qty: ${formatAmountWithSeparators(totalQuantity)} - R: ${formatAmountWithSeparators(allRetailPrice.toFixed(2))}${allWholesalePrice > 0 ? ' | W: ' + formatAmountWithSeparators(allWholesalePrice.toFixed(2)) : ''}${allSpecialPrice > 0 ? ' | S: ' + formatAmountWithSeparators(allSpecialPrice.toFixed(2)) : ''} | MRP: ${formatAmountWithSeparators(allMrpPrice.toFixed(2))}
+                            </option>
+                            ${batchOptions}
+                        </select>
+                        <style>
+                            .batch-dropdown {
+                                font-size: 1rem;
+                            }
+                            @media (max-width: 576px) {
+                                .batch-dropdown {
+                                    font-size: 0.85em;
+                                }
+                            }
+                            
+                            /* Customer Price History Styles */
+                            .customer-price-history {
+                                background: #f8f9fa;
+                                border: 1px solid #dee2e6;
+                                border-radius: 4px;
+                                padding: 8px 12px;
+                                margin: 5px 0;
+                                font-size: 0.85em;
+                                animation: slideIn 0.3s ease-out;
+                            }
+                            
+                            .price-history-item {
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: center;
+                                margin-bottom: 4px;
+                            }
+                            
+                            .price-history-item:last-child {
+                                margin-bottom: 0;
+                            }
+                            
+                            .price-badge {
+                                background: #ffc107;
+                                color: #000;
+                                padding: 2px 6px;
+                                border-radius: 3px;
+                                font-weight: 500;
+                                font-size: 0.8em;
+                            }
+                            
+                            /* Hover tooltip enhancement */
+                            .product-image:hover,
+                            .product-name:hover {
+                                opacity: 0.8;
+                                transition: opacity 0.2s ease;
+                                cursor: help;
+                            }
+                            
+                            @keyframes slideIn {
+                                from {
+                                    opacity: 0;
+                                    transform: translateY(-10px);
+                                }
+                                to {
+                                    opacity: 1;
+                                    transform: translateY(0);
+                                }
+                            }
+                        </style>
                     </div>
-                    <select id="modalBatchDropdown" class="form-select mt-3">
-                    <option value="all" 
-                        data-retail-price="${allRetailPrice}" 
-                        data-wholesale-price="${allWholesalePrice}" 
-                        data-special-price="${allSpecialPrice}" 
-                        data-max-retail-price="${allMrpPrice}"
-                        data-quantity="${totalQuantity}" selected>
-                        All - Qty: ${formatAmountWithSeparators(totalQuantity)} - R: ${formatAmountWithSeparators(allRetailPrice.toFixed(2))}${allWholesalePrice > 0 ? ' | W: ' + formatAmountWithSeparators(allWholesalePrice.toFixed(2)) : ''}${allSpecialPrice > 0 ? ' | S: ' + formatAmountWithSeparators(allSpecialPrice.toFixed(2)) : ''} | MRP: ${formatAmountWithSeparators(allMrpPrice.toFixed(2))}
-                    </option>
-                    ${batchOptions}
-                    </select>
                 `;
             } else {
                 // No valid batches
@@ -4209,9 +4783,37 @@
             const radioButtons = document.querySelectorAll('input[name="modal-price-type"]');
             radioButtons.forEach(radio => {
                 radio.addEventListener('change', function() {
-                    document.querySelectorAll('.btn-group-toggle .btn').forEach(btn => btn
-                        .classList.remove('active'));
-                    this.parentElement.classList.add('active');
+                    // Remove active state from all price type buttons
+                    document.querySelectorAll('.price-type-btn').forEach(btn => {
+                        btn.classList.remove('active');
+                        // Reset to outline style
+                        if (btn.classList.contains('btn-success')) {
+                            btn.classList.remove('btn-success');
+                            btn.classList.add('btn-outline-success');
+                        } else if (btn.classList.contains('btn-info')) {
+                            btn.classList.remove('btn-info');
+                            btn.classList.add('btn-outline-info');
+                        } else if (btn.classList.contains('btn-warning')) {
+                            btn.classList.remove('btn-warning');
+                            btn.classList.add('btn-outline-warning');
+                        }
+                    });
+                    
+                    // Add active state to selected button
+                    const selectedBtn = this.parentElement;
+                    selectedBtn.classList.add('active');
+                    
+                    // Change to solid style for active button
+                    if (selectedBtn.classList.contains('btn-outline-success')) {
+                        selectedBtn.classList.remove('btn-outline-success');
+                        selectedBtn.classList.add('btn-success');
+                    } else if (selectedBtn.classList.contains('btn-outline-info')) {
+                        selectedBtn.classList.remove('btn-outline-info');
+                        selectedBtn.classList.add('btn-info');
+                    } else if (selectedBtn.classList.contains('btn-outline-warning')) {
+                        selectedBtn.classList.remove('btn-outline-warning');
+                        selectedBtn.classList.add('btn-warning');
+                    }
                 });
             });
 
@@ -4233,7 +4835,38 @@
             }
         }
 
-        function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType,
+        // Function to get customer's previous purchase price for a product
+        async function getCustomerPreviousPrice(customerId, productId) {
+            if (!customerId || customerId === '' || customerId === 'walk-in') {
+                return null;
+            }
+            
+            try {
+                const response = await fetch(`/customer-previous-price?customer_id=${customerId}&product_id=${productId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                    }
+                });
+                
+                if (!response.ok) {
+                    console.log('API response not ok:', response.status, response.statusText);
+                    return null;
+                }
+                
+                const data = await response.json();
+                console.log('Customer price history response:', data);
+                
+                return (data.status === 200) ? data.data : null;
+            } catch (error) {
+                console.log('Could not fetch customer previous price:', error);
+                return null;
+            }
+        }
+
+        async function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType,
             saleQuantity = 1, imeis = [], discountType = null, discountAmount = null, selectedBatch = null) {
 
             console.log('addProductToBillingBody called with:', {
@@ -4244,6 +4877,23 @@
                 saleQuantity: saleQuantity,
                 imeis: imeis
             });
+
+            // Get customer previous price data
+            let customerPriceHistory = null;
+            const currentCustomer = getCurrentCustomer();
+            console.log('Current customer for price history:', currentCustomer);
+            
+            if (currentCustomer && currentCustomer.id && currentCustomer.customer_type !== 'walk-in') {
+                try {
+                    console.log(`Fetching price history for customer ${currentCustomer.id} and product ${product.id}`);
+                    customerPriceHistory = await getCustomerPreviousPrice(currentCustomer.id, product.id);
+                    console.log('Price history result:', customerPriceHistory);
+                } catch (error) {
+                    console.log('Could not fetch customer price history:', error);
+                }
+            } else {
+                console.log('Skipping price history - walk-in customer or no customer selected');
+            }
 
             const billingBody = document.getElementById('billing-body');
             locationId = selectedLocationId || 1;
@@ -4448,11 +5098,17 @@
         <td class="text-center counter-cell" style="vertical-align: middle; font-weight: bold; color: #000;"></td>
         <td>
             <div class="d-flex align-items-start">
-            <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;" class="product-image"/>
+            <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" 
+                 style="width:50px; height:50px; margin-right:10px; border-radius:50%;" 
+                 class="product-image"
+                 title="Unit Cost: ${batch ? (batch.unit_cost || batch.purchase_price || 'N/A') : (product.unit_cost || product.purchase_price || 'N/A')} | Original Price: ${product.original_price || product.purchase_price || 'N/A'}"
+                 data-bs-toggle="tooltip" 
+                 data-bs-placement="top"/>
             <div class="product-info" style="min-width: 0; flex: 1;">
-            <div class="font-weight-bold product-name" style="word-break: break-word; max-width: 260px; line-height: 1.2;">
+            <div class="font-weight-bold product-name" style="word-break: break-word; max-width: 260px; line-height: 1.2;" title="Unit Cost: ${batch ? (batch.unit_cost || batch.purchase_price || 'N/A') : (product.unit_cost || product.purchase_price || 'N/A')} | Original Price: ${product.original_price || product.purchase_price || 'N/A'}">
             ${product.product_name}
             <span class="badge bg-info ms-1">MRP: ${product.max_retail_price}</span>
+           
             </div>
             <div class="d-flex flex-wrap align-items-center mt-1" style="gap: 10px;">
             <span class="text-muted product-sku" style="font-size: 0.95em; word-break: break-all;">
@@ -4464,6 +5120,7 @@
             ${product.is_imei_or_serial_no === 1 ? `<span class="badge bg-info ms-2">IMEI</span>
               <i class="fas fa-info-circle show-imei-btn ms-1" style="cursor: pointer;" title="View/Edit IMEI"></i>` : ''}
             </div>
+
             </div>
             </div>
         </td>
@@ -4475,18 +5132,32 @@
             </div>
             <div style="font-size: 0.85em; color: #888; text-align:center;">${unitName}</div>
         </td>
-        <td><input type="number" name="discount_fixed[]" class="form-control fixed_discount" value="${discountFixed.toFixed(2)}"></td>
-        <td><input type="number" name="discount_percent[]" class="form-control percent_discount" value="${discountPercent.toFixed(2)}"></td>
-        <td><input type="number" value="${finalPrice.toFixed(2)}" class="form-control price-input unit-price text-center" 
-            data-price="${finalPrice}"
-            data-quantity="${adjustedBatchQuantity}" 
-            data-retail-price="${batch ? batch.retail_price : product.retail_price}"
-            data-wholesale-price="${batch ? batch.wholesale_price : (stockEntry.batches?.[0]?.wholesale_price || 0)}"
-            data-special-price="${batch ? batch.special_price : (stockEntry.batches?.[0]?.special_price || 0)}"
-            data-max-retail-price="${batch ? batch.max_retail_price || product.max_retail_price : product.max_retail_price}"
-            min="0" readonly></td>
-        <td class="subtotal total-price" data-total="${(parseFloat(initialQuantityValue) * finalPrice).toFixed(2)}">${formatAmountWithSeparators((parseFloat(initialQuantityValue) * finalPrice).toFixed(2))}</td>
-        <td><button class="btn btn-danger btn-sm remove-btn">×</button></td>
+        <td class="text-center"><input type="number" name="discount_fixed[]" class="form-control fixed_discount text-center" value="${discountFixed.toFixed(2)}"></td>
+        <td class="text-center"><input type="number" name="discount_percent[]" class="form-control percent_discount text-center" value="${discountPercent.toFixed(2)}"></td>
+        <td class="text-center">
+            <input type="number" value="${finalPrice.toFixed(2)}" class="form-control price-input unit-price text-center" 
+                data-price="${finalPrice}"
+                data-quantity="${adjustedBatchQuantity}" 
+                data-retail-price="${batch ? batch.retail_price : product.retail_price}"
+                data-wholesale-price="${batch ? batch.wholesale_price : (stockEntry.batches?.[0]?.wholesale_price || 0)}"
+                data-special-price="${batch ? batch.special_price : (stockEntry.batches?.[0]?.special_price || 0)}"
+                data-max-retail-price="${batch ? batch.max_retail_price || product.max_retail_price : product.max_retail_price}"
+                min="0" readonly>
+            ${customerPriceHistory && customerPriceHistory.has_previous_purchases ? 
+                `<div class="text-center mt-1">
+                    <i class="fas fa-chart-line text-info cursor-pointer price-history-icon" 
+                       title="View price history for this customer" 
+                       data-product-id="${product.id}"
+                       data-product-name="${product.product_name}" 
+                       data-customer-name="${currentCustomer.first_name || ''} ${currentCustomer.last_name || ''}"
+                       style="font-size: 14px; cursor: pointer;">
+                    </i>
+                 </div>` : 
+                ''
+            }
+        </td>
+        <td class="subtotal total-price text-center" data-total="${(parseFloat(initialQuantityValue) * finalPrice).toFixed(2)}">${formatAmountWithSeparators((parseFloat(initialQuantityValue) * finalPrice).toFixed(2))}</td>
+        <td class="text-center"><button class="btn btn-danger btn-sm remove-btn">×</button></td>
         <td class="product-id d-none">${product.id}</td>
         <td class="location-id d-none">${locationId}</td>
         <td class="batch-id d-none">${batchId}</td>
@@ -4546,6 +5217,43 @@
             });
             
             updateTotals();
+
+            // Initialize Bootstrap tooltips for the newly added row
+            try {
+                const tooltipTriggerList = row.querySelectorAll('[data-bs-toggle="tooltip"]');
+                tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+                    new bootstrap.Tooltip(tooltipTriggerEl);
+                });
+            } catch (error) {
+                console.log('Bootstrap tooltips not available:', error);
+            }
+
+            // Add CSS for price history badge
+            if (!document.getElementById('price-history-styles')) {
+                const style = document.createElement('style');
+                style.id = 'price-history-styles';
+                style.textContent = `
+                    .price-history-badge {
+                        cursor: pointer !important;
+                        transition: all 0.2s ease;
+                    }
+                    .price-history-badge:hover {
+                        transform: scale(1.05);
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                    }
+                    .price-history-icon {
+                        cursor: pointer !important;
+                        transition: all 0.2s ease;
+                        padding: 2px 4px;
+                        border-radius: 3px;
+                    }
+                    .price-history-icon:hover {
+                        background-color: rgba(23, 162, 184, 0.1);
+                        transform: scale(1.2);
+                    }
+                `;
+                document.head.appendChild(style);
+            }
 
             // Auto-focus search input after adding product for quick next product search
             setTimeout(() => {
@@ -4762,6 +5470,37 @@
                 showProductModal(product, stockEntry, row);
             });
 
+            // Event listener for price history icon click
+            const priceHistoryIcon = row.querySelector('.price-history-icon');
+            if (priceHistoryIcon) {
+                priceHistoryIcon.addEventListener('click', async () => {
+                    const productId = priceHistoryIcon.getAttribute('data-product-id');
+                    const productName = priceHistoryIcon.getAttribute('data-product-name');
+                    const customerName = priceHistoryIcon.getAttribute('data-customer-name');
+                    
+                    // Get current customer
+                    const currentCustomer = getCurrentCustomer();
+                    if (!currentCustomer || !currentCustomer.id || currentCustomer.customer_type === 'walk-in') {
+                        toastr.warning('Price history is only available for registered customers');
+                        return;
+                    }
+                    
+                    try {
+                        // Fetch fresh price history data
+                        const priceHistoryData = await getCustomerPreviousPrice(currentCustomer.id, productId);
+                        
+                        if (priceHistoryData && priceHistoryData.has_previous_purchases) {
+                            showPriceHistoryModal(productName, JSON.stringify(priceHistoryData), customerName);
+                        } else {
+                            toastr.info('No previous purchase history found for this customer and product');
+                        }
+                    } catch (error) {
+                        console.error('Error fetching price history:', error);
+                        toastr.error('Could not load price history');
+                    }
+                });
+            }
+
             const showImeiBtn = row.querySelector('.show-imei-btn');
             if (showImeiBtn) {
                 showImeiBtn.addEventListener('click', function() {
@@ -4906,8 +5645,19 @@
                 selectedRow.querySelector('.subtotal').textContent = formatAmountWithSeparators(subtotal
                     .toFixed(2));
 
-                // Update batch ID and show stars
+                // Update batch ID and store selected price type
                 selectedRow.querySelector('.batch-id').textContent = batchId;
+                
+                // Store the selected price type for future modal opens
+                let priceTypeElement = selectedRow.querySelector('.selected-price-type');
+                if (!priceTypeElement) {
+                    // Create hidden element to store price type if it doesn't exist
+                    priceTypeElement = document.createElement('td');
+                    priceTypeElement.className = 'selected-price-type d-none';
+                    selectedRow.appendChild(priceTypeElement);
+                }
+                priceTypeElement.textContent = selectedPriceType;
+                
                 const stars = selectedPriceType === 'retail' ? '<i class="fas fa-star"></i>' :
                     selectedPriceType === 'wholesale' ?
                     '<i class="fas fa-star"></i><i class="fas fa-star"></i>' :
@@ -5011,7 +5761,9 @@
                 if (quantityInput) {
                     quantity = quantityInput.value === "" ? 0 : parseFloat(quantityInput.value);
                 }
-                const basePrice = parseFloat(priceInput.value) || 0;
+                
+                // Check if priceInput exists before accessing its value
+                const basePrice = priceInput ? (parseFloat(priceInput.value) || 0) : 0;
 
                 // Update row counter (1, 2, 3, etc.)
                 if (counterCell) {
@@ -5021,9 +5773,12 @@
                 // Recalculate subtotal based on unit price
                 const subtotal = quantity * basePrice;
 
-                // Update UI
-                row.querySelector('.subtotal').textContent = formatAmountWithSeparators(subtotal
-                    .toFixed(2));
+                // Update UI - check if subtotal element exists
+                const subtotalElement = row.querySelector('.subtotal');
+                if (subtotalElement) {
+                    subtotalElement.textContent = formatAmountWithSeparators(subtotal.toFixed(2));
+                }
+                
                 totalItems += quantity;
                 totalAmount += subtotal;
             });
@@ -6069,6 +6824,23 @@
                                         confirmButtonColor: "#d33"
                                     });
                                 }
+                                // Check if this is an insufficient stock error
+                                else if (errorMessage.includes('Insufficient stock')) {
+                                    useToastr = false;
+
+                                    // Format the error message for better display
+                                    const formattedMessage = errorMessage.replace(/\n/g,
+                                        '<br>').replace(/•/g, '&bull;');
+
+                                    swal({
+                                        title: "⚠️ Insufficient Stock",
+                                        text: formattedMessage,
+                                        html: true,
+                                        type: "warning",
+                                        confirmButtonText: "OK",
+                                        confirmButtonColor: "#f0ad4e"
+                                    });
+                                }
                             } else if (xhr.responseText) {
                                 // Try to parse responseText as JSON
                                 try {
@@ -6086,6 +6858,20 @@
                                             type: "error",
                                             confirmButtonText: "OK",
                                             confirmButtonColor: "#d33"
+                                        });
+                                    } else if (parsedResponse.message && parsedResponse.message
+                                        .includes('Insufficient stock')) {
+                                        useToastr = false;
+                                        const formattedMessage = parsedResponse.message
+                                            .replace(/\n/g, '<br>').replace(/•/g, '&bull;');
+
+                                        swal({
+                                            title: "⚠️ Insufficient Stock",
+                                            text: formattedMessage,
+                                            html: true,
+                                            type: "warning",
+                                            confirmButtonText: "OK",
+                                            confirmButtonColor: "#f0ad4e"
                                         });
                                     } else {
                                         errorMessage = parsedResponse.message || xhr
@@ -7428,5 +8214,94 @@
                 });
         });
     }
+
+    // Global function to show price history modal - SIMPLE VERSION for busy billing
+    window.showPriceHistoryModal = function(productName, priceHistoryJson, customerName) {
+        try {
+            const priceHistory = JSON.parse(priceHistoryJson);
+            
+            // Create SIMPLE modal HTML - perfect for busy billing environment
+            const modalHtml = `
+                <div class="modal fade" id="priceHistoryModal" tabindex="-1">
+                    <div class="modal-dialog modal-dialog-centered" style="max-width: 500px;">
+                        <div class="modal-content">
+                            <div class="modal-header bg-primary text-white py-2">
+                                <h6 class="modal-title mb-0">
+                                    📊 ${productName} - Price History
+                                </h6>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body p-3">
+                                <div class="text-center mb-3 pb-2 border-bottom">
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <div class="text-success">
+                                                <strong style="font-size: 1.1em;">Last: Rs. ${formatAmountWithSeparators(priceHistory.last_price.toFixed(2))}</strong>
+                                                <div style="font-size: 0.85em; color: #666;">${priceHistory.last_purchase_date}</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="text-primary">
+                                                <strong style="font-size: 1.1em;">Avg: Rs. ${formatAmountWithSeparators(priceHistory.average_price.toFixed(2))}</strong>
+                                                <div style="font-size: 0.85em; color: #666;">${priceHistory.previous_prices.length} purchases</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover" style="margin-bottom: 0;">
+                                        <thead style="background-color: #f8f9fa;">
+                                            <tr style="font-size: 0.9em;">
+                                                <th style="padding: 8px;">Date</th>
+                                                <th style="padding: 8px; text-align: center;">Price</th>
+                                                <th style="padding: 8px; text-align: center;">Qty</th>
+                                                <th style="padding: 8px;">Invoice</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${priceHistory.previous_prices.map(price => `
+                                                <tr style="font-size: 0.9em;">
+                                                    <td style="padding: 8px;">${price.sale_date}</td>
+                                                    <td style="padding: 8px; text-align: center;"><strong class="text-success">Rs. ${formatAmountWithSeparators(price.unit_price.toFixed(2))}</strong></td>
+                                                    <td style="padding: 8px; text-align: center;">${formatAmountWithSeparators(price.quantity)}</td>
+                                                    <td style="padding: 8px;"><span class="badge bg-light text-dark" style="font-size: 0.8em;">${price.invoice_no}</span></td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="modal-footer py-2">
+                                <button type="button" class="btn btn-primary btn-sm px-4" data-bs-dismiss="modal">✓ OK</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Remove existing modal if any
+            const existingModal = document.getElementById('priceHistoryModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('priceHistoryModal'));
+            modal.show();
+
+            // Remove modal from DOM when closed
+            document.getElementById('priceHistoryModal').addEventListener('hidden.bs.modal', function() {
+                this.remove();
+            });
+
+        } catch (error) {
+            console.error('Error showing price history modal:', error);
+            toastr.error('Error displaying price history');
+        }
+    };
 </script>
 
