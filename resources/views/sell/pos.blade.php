@@ -1155,8 +1155,6 @@
                             </div>
                         </div>
 
-                    
-                        </div>
 
                         <!-- Shipping Summary -->
                         <div class="row mt-3">

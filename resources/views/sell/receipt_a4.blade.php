@@ -296,6 +296,9 @@
             <tr>
                 <td style="width: 50%;">
                     <div class="customer-name">{{ $customer->first_name }} {{ $customer->last_name }}</div>
+                    @if($customer->mobile_no)
+                        <div style="font-size: 11px; color: #333;">{{ $customer->mobile_no }}</div>
+                    @endif
                     <div class="date-time">
                         [{{ date('d-m-Y', strtotime($sale->sales_date)) }}] 
                         {{ \Carbon\Carbon::now('Asia/Colombo')->format('h:i A') }}

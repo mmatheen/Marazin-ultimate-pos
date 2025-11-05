@@ -7159,14 +7159,14 @@
                     return;
                 }
 
-                // Update shipping data - simple and clean
+                // Update shipping data - simple and clean with null checks
                 shippingData = {
-                    shipping_details: $('#shippingDetails').val().trim(),
-                    shipping_address: $('#shippingAddress').val().trim(),
+                    shipping_details: ($('#shippingDetails').val() || '').trim(),
+                    shipping_address: ($('#shippingAddress').val() || '').trim(),
                     shipping_charges: shippingCharges,
-                    shipping_status: $('#shippingStatus').val(),
-                    delivered_to: $('#deliveredTo').val().trim(),
-                    delivery_person: $('#deliveryPerson').val().trim()
+                    shipping_status: $('#shippingStatus').val() || 'ordered',
+                    delivered_to: ($('#deliveredTo').val() || '').trim(),
+                    delivery_person: ($('#deliveryPerson').val() || '').trim()
                 };
 
                 // Just update totals - no complex sync logic
