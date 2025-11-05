@@ -7141,34 +7141,7 @@
                 $('#modalTotalWithShipping').text(formatCurrency(subtotalWithoutShipping + shippingCharges));
             });
 
-            // Handle use customer address button
-            $('#useCustomerAddress').on('click', function() {
-                const customerId = $('#customer-id').val();
-                if (customerId && customerId !== '1') {
-                    // Get customer data and populate address
-                    $.ajax({
-                        url: `/customer-get-by-id/${customerId}`,
-                        method: 'GET',
-                        success: function(customer) {
-                            if (customer && customer.address) {
-                                let address = customer.address;
-                                if (customer.city) address += ', ' + customer.city;
-                                if (customer.postal_code) address += ' ' + customer.postal_code;
-                                
-                                $('#shippingAddress').val(address);
-                                toastr.success('Customer address added to shipping address');
-                            } else {
-                                toastr.warning('No address found for selected customer');
-                            }
-                        },
-                        error: function() {
-                            toastr.error('Failed to fetch customer address');
-                        }
-                    });
-                } else {
-                    toastr.warning('Please select a customer first');
-                }
-            });
+
 
             // Handle update shipping button
             $('#updateShipping').on('click', function() {

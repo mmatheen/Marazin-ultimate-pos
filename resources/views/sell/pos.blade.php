@@ -1155,18 +1155,7 @@
                             </div>
                         </div>
 
-                        <!-- Additional Options -->
-                        <div class="row mt-3">
-                            <div class="col-12">
-                                <div class="d-flex gap-2">
-                                    <button type="button" class="btn btn-sm btn-outline-primary" id="useCustomerAddress">
-                                        <i class="fas fa-user me-1"></i>Use Customer Address
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="clearShippingForm">
-                                        <i class="fas fa-eraser me-1"></i>Clear Form
-                                    </button>
-                                </div>
-                            </div>
+                    
                         </div>
 
                         <!-- Shipping Summary -->
