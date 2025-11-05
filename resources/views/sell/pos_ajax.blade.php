@@ -9,6 +9,16 @@
         canDeleteProduct: @json(auth()->check() && auth()->user()->can('delete product'))
     };
 
+    // Global shipping data - available throughout the script
+    let shippingData = {
+        shipping_details: '',
+        shipping_address: '',
+        shipping_charges: 0,
+        shipping_status: 'pending',
+        delivered_to: '',
+        delivery_person: ''
+    };
+
     // Global function to clean up modal backdrops and body styles
     window.cleanupModalBackdrop = function() {
         // Remove all modal backdrops
@@ -3270,6 +3280,10 @@
             return isNaN(parsed) ? 0 : parsed;
         }
 
+        function formatCurrency(amount) {
+            return parseFloat(amount || 0).toFixed(2);
+        }
+
         // Filter products by category
         function filterProductsByCategory(categoryId) {
             showLoader();
@@ -5809,6 +5823,19 @@
             // Prevent negative totals
             totalAmountWithDiscount = Math.max(0, totalAmountWithDiscount);
 
+            // Add shipping charges to final total - SIMPLIFIED
+            const shippingCharges = (shippingData && shippingData.shipping_charges) ? shippingData.shipping_charges : 0;
+            const finalTotalWithShipping = totalAmountWithDiscount + shippingCharges;
+
+            console.log('� CALCULATION BREAKDOWN:', {
+                step1_subtotal: totalAmount,
+                step2_discount: globalDiscount,
+                step3_afterDiscount: totalAmountWithDiscount,
+                step4_shippingCharges: shippingCharges,
+                step5_FINAL_TOTAL: finalTotalWithShipping,
+                formula: `${totalAmount} - ${globalDiscount} + ${shippingCharges} = ${finalTotalWithShipping}`
+            });
+
             // Update UI with null checks
             // Calculate total quantity and build unit summary for all products in billing
             let unitSummary = {};
@@ -5881,13 +5908,14 @@
             if (itemsCountEl) itemsCountEl.textContent = unitDisplay || totalItems.toFixed(2);
             if (modalTotalItemsEl) modalTotalItemsEl.textContent = unitDisplay || totalItems.toFixed(2);
             if (totalAmountEl) totalAmountEl.textContent = formatAmountWithSeparators(totalAmount.toFixed(2));
+            // Use final total with shipping for all payment-related displays
             if (finalTotalAmountEl) finalTotalAmountEl.textContent = formatAmountWithSeparators(
-                totalAmountWithDiscount.toFixed(2));
-            if (totalEl) totalEl.textContent = formatAmountWithSeparators(totalAmountWithDiscount.toFixed(2));
+                finalTotalWithShipping.toFixed(2));
+            if (totalEl) totalEl.textContent = 'Rs ' + formatAmountWithSeparators(finalTotalWithShipping.toFixed(2));
             if (paymentAmountEl) paymentAmountEl.textContent = 'Rs ' + formatAmountWithSeparators(
-                totalAmountWithDiscount.toFixed(2));
+                finalTotalWithShipping.toFixed(2));
             if (modalTotalPayableEl) modalTotalPayableEl.textContent = formatAmountWithSeparators(
-                totalAmountWithDiscount.toFixed(2));
+                finalTotalWithShipping.toFixed(2));
 
             // Update total items counter
             const totalItemsCountEl = document.getElementById('total-items-count');
@@ -6138,7 +6166,7 @@
         if (globalDiscountInput) {
             // Input event - fires immediately as user types
             globalDiscountInput.addEventListener('input', function() {
-                updateTotals();
+                updateTotals(); // updateTotals already includes shipping
             });
             
             // Change event - fires when input loses focus and value has changed
@@ -6148,7 +6176,7 @@
                 if (discountType === 'percentage') {
                     this.value = Math.min(discountValue, 100); // Limit to 100%
                 }
-                updateTotals();
+                updateTotals(); // updateTotals already includes shipping
             });
             
             // Blur event - fires when input loses focus
@@ -6158,12 +6186,12 @@
                 if (discountType === 'percentage') {
                     this.value = Math.min(discountValue, 100); // Limit to 100%
                 }
-                updateTotals();
+                updateTotals(); // updateTotals already includes shipping
             });
             
             // Keyup event - fires when user releases a key
             globalDiscountInput.addEventListener('keyup', function() {
-                updateTotals();
+                updateTotals(); // updateTotals already includes shipping
             });
         }
         
@@ -6177,7 +6205,7 @@
                     globalDiscountInput.dispatchEvent(new Event('input', { bubbles: true }));
                     globalDiscountInput.dispatchEvent(new Event('change', { bubbles: true }));
                 }
-                updateTotals();
+                updateTotals(); // updateTotals already includes shipping
             });
         }
 
@@ -6419,6 +6447,20 @@
                 // Ensure final amount doesn't go negative
                 finalAmount = Math.max(0, finalAmount);
 
+                // Add shipping charges to final amount
+                const shippingCharges = shippingData.shipping_charges || 0;
+                finalAmount += shippingCharges;
+
+                console.log('� CRITICAL FINAL TOTAL CHECK:', {
+                    step1_subtotal: totalAmount,
+                    step2_discount: discountAmount,
+                    step3_afterDiscount: (totalAmount - discountAmount),
+                    step4_shippingCharges: shippingCharges,
+                    step5_FINAL_AMOUNT: finalAmount,
+                    calculation: `${totalAmount} - ${discountAmount} + ${shippingCharges} = ${finalAmount}`,
+                    shippingDataObject: shippingData
+                });
+
                 const saleData = {
                     customer_id: customerId,
                     sales_date: salesDate,
@@ -6430,6 +6472,8 @@
                     discount_amount: discountAmount,
                     total_amount: totalAmount,
                     final_total: finalAmount,
+                    // Include shipping information in saleData
+                    shipping_charges: shippingCharges,
                 };
 
                 const productRows = $('#billing-body tr');
@@ -6487,7 +6531,11 @@
                     saleData.products.push(productData);
                 });
 
-
+                // Add shipping data to sale
+                const shippingInfo = getShippingDataForSale();
+                if (shippingInfo.shipping_details || shippingInfo.shipping_address || shippingInfo.shipping_charges > 0) {
+                    Object.assign(saleData, shippingInfo);
+                }
 
                 return saleData;
             }
@@ -7046,6 +7094,149 @@
                     }
                 });
             });
+
+            // ==================== SHIPPING FUNCTIONALITY ====================
+            
+            // Initialize shipping modal handlers
+            $('#shippingButton').on('click', function() {
+                console.log('Shipping button clicked');
+                openShippingModal();
+            });
+
+            // Function to open shipping modal and populate current values
+            function openShippingModal() {
+                // Get current total (includes shipping) and calculate subtotal
+                const totalWithCurrentShipping = parseFormattedAmount($('#final-total-amount').text());
+                const subtotalWithoutShipping = totalWithCurrentShipping - shippingData.shipping_charges;
+                
+                // Update subtotal in modal (without shipping)
+                $('#modalSubtotal').text(formatCurrency(subtotalWithoutShipping));
+                
+                // Update shipping charges in modal
+                $('#modalShippingCharges').text(formatCurrency(shippingData.shipping_charges));
+                
+                // Calculate and display total with shipping
+                $('#modalTotalWithShipping').text(formatCurrency(totalWithCurrentShipping));
+                
+                // Populate form with current shipping data
+                $('#shippingDetails').val(shippingData.shipping_details);
+                $('#shippingAddress').val(shippingData.shipping_address);
+                $('#shippingCharges').val(shippingData.shipping_charges);
+                $('#shippingStatus').val(shippingData.shipping_status);
+                $('#deliveredTo').val(shippingData.delivered_to);
+                $('#deliveryPerson').val(shippingData.delivery_person);
+                $('#trackingNumber').val(shippingData.tracking_number);
+                
+                $('#shippingModal').modal('show');
+            }
+
+            // Handle shipping charges input change in modal
+            $('#shippingCharges').on('input', function() {
+                const shippingCharges = parseFloat($(this).val()) || 0;
+                // Get current total and subtract current shipping to get subtotal
+                const totalWithCurrentShipping = parseFormattedAmount($('#final-total-amount').text());
+                const subtotalWithoutShipping = totalWithCurrentShipping - shippingData.shipping_charges;
+                
+                $('#modalShippingCharges').text(formatCurrency(shippingCharges));
+                $('#modalTotalWithShipping').text(formatCurrency(subtotalWithoutShipping + shippingCharges));
+            });
+
+            // Handle use customer address button
+            $('#useCustomerAddress').on('click', function() {
+                const customerId = $('#customer-id').val();
+                if (customerId && customerId !== '1') {
+                    // Get customer data and populate address
+                    $.ajax({
+                        url: `/customer-get-by-id/${customerId}`,
+                        method: 'GET',
+                        success: function(customer) {
+                            if (customer && customer.address) {
+                                let address = customer.address;
+                                if (customer.city) address += ', ' + customer.city;
+                                if (customer.postal_code) address += ' ' + customer.postal_code;
+                                
+                                $('#shippingAddress').val(address);
+                                toastr.success('Customer address added to shipping address');
+                            } else {
+                                toastr.warning('No address found for selected customer');
+                            }
+                        },
+                        error: function() {
+                            toastr.error('Failed to fetch customer address');
+                        }
+                    });
+                } else {
+                    toastr.warning('Please select a customer first');
+                }
+            });
+
+            // Handle update shipping button
+            $('#updateShipping').on('click', function() {
+                updateShippingData();
+            });
+
+            // Function to update shipping data and recalculate totals
+            function updateShippingData() {
+                // Simple validation - only shipping charges required
+                const shippingCharges = parseFloat($('#shippingCharges').val()) || 0;
+
+                if (shippingCharges <= 0) {
+                    toastr.error('Please enter shipping charges');
+                    $('#shippingCharges').focus();
+                    return;
+                }
+
+                // Update shipping data - simple and clean
+                shippingData = {
+                    shipping_details: $('#shippingDetails').val().trim(),
+                    shipping_address: $('#shippingAddress').val().trim(),
+                    shipping_charges: shippingCharges,
+                    shipping_status: $('#shippingStatus').val(),
+                    delivered_to: $('#deliveredTo').val().trim(),
+                    delivery_person: $('#deliveryPerson').val().trim()
+                };
+
+                // Just update totals - no complex sync logic
+                updateTotals();
+                updateShippingButtonState();
+                
+                $('#shippingModal').modal('hide');
+                toastr.success('Shipping information updated successfully');
+            }
+
+            // Simple function to update shipping button appearance
+            function updateShippingButtonState() {
+                const shippingButton = $('#shippingButton');
+                if (shippingData.shipping_charges > 0 || shippingData.shipping_details || shippingData.shipping_address) {
+                    shippingButton.removeClass('btn-outline-info').addClass('btn-info');
+                    shippingButton.html('<i class="fas fa-shipping-fast"></i> Shipping (' + formatCurrency(shippingData.shipping_charges) + ')');
+                } else {
+                    shippingButton.removeClass('btn-info').addClass('btn-outline-info');
+                    shippingButton.html('<i class="fas fa-shipping-fast"></i> Shipping');
+                }
+            }
+
+            // Clear shipping data
+            function clearShippingData() {
+                shippingData = {
+                    shipping_details: '',
+                    shipping_address: '',
+                    shipping_charges: 0,
+                    shipping_status: 'pending',
+                    delivered_to: '',
+                    delivery_person: ''
+                };
+                
+                updateTotals();
+                updateShippingButtonState();
+            }
+
+            // Function to get shipping data for sale submission
+            function getShippingDataForSale() {
+                return shippingData;
+            }
+
+            // ==================== END SHIPPING FUNCTIONALITY ====================
 
             $('#cardButton').on('click', function() {
                 $('#cardModal').modal('show');
@@ -7638,20 +7829,29 @@
             // fetchSuspendedSales();
 
 
-            document.getElementById('quotationButton').addEventListener('click', function() {
-                const saleData = gatherSaleData('quotation');
-                if (!saleData) return;
-                sendSaleData(saleData);
-            });
+            // Add event listeners with null checks
+            const quotationButton = document.getElementById('quotationButton');
+            if (quotationButton) {
+                quotationButton.addEventListener('click', function() {
+                    const saleData = gatherSaleData('quotation');
+                    if (!saleData) return;
+                    sendSaleData(saleData);
+                });
+            }
 
-            document.getElementById('draftButton').addEventListener('click', function() {
-                const saleData = gatherSaleData('draft');
-                if (!saleData) return;
-                sendSaleData(saleData);
-            });
+            const draftButton = document.getElementById('draftButton');
+            if (draftButton) {
+                draftButton.addEventListener('click', function() {
+                    const saleData = gatherSaleData('draft');
+                    if (!saleData) return;
+                    sendSaleData(saleData);
+                });
+            }
 
             // Sale Order Button Handler
-            document.getElementById('saleOrderButton').addEventListener('click', function() {
+            const saleOrderButton = document.getElementById('saleOrderButton');
+            if (saleOrderButton) {
+                saleOrderButton.addEventListener('click', function() {
                 // Validate that there are products in the cart
                 const productRows = $('#billing-body tr');
                 if (productRows.length === 0) {
@@ -7672,9 +7872,12 @@
                 const saleOrderModal = new bootstrap.Modal(document.getElementById('saleOrderModal'));
                 saleOrderModal.show();
             });
+            }
 
             // Confirm Sale Order Button Handler
-            document.getElementById('confirmSaleOrder').addEventListener('click', function() {
+            const confirmSaleOrderButton = document.getElementById('confirmSaleOrder');
+            if (confirmSaleOrderButton) {
+                confirmSaleOrderButton.addEventListener('click', function() {
                 const expectedDeliveryDate = document.getElementById('expectedDeliveryDate').value;
                 const orderNotes = document.getElementById('orderNotes').value.trim();
 
@@ -7720,9 +7923,13 @@
                 // Clear modal fields for next use
                 document.getElementById('expectedDeliveryDate').value = '';
                 document.getElementById('orderNotes').value = '';
-            });
+                });
+            }
 
-            document.getElementById('cancelButton').addEventListener('click', resetForm);
+            const cancelButton = document.getElementById('cancelButton');
+            if (cancelButton) {
+                cancelButton.addEventListener('click', resetForm);
+            }
 
             function resetToWalkingCustomer() {
                 const customerSelect = $('#customer-id');
@@ -7801,6 +8008,9 @@
                 // Reset discount fields
                 document.getElementById('global-discount').value = '';
                 document.getElementById('discount-type').value = 'fixed';
+
+                // Reset shipping data
+                clearShippingData();
 
                 updateTotals();
             }

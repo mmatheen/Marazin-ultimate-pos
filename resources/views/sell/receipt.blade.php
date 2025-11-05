@@ -295,6 +295,14 @@
                             </td>
                         </tr>
                     @endif
+                    @if ($sale->shipping_charges > 0)
+                        <tr>
+                            <td align="right"><strong>SHIPPING</strong></td>
+                            <td width="80" align="right">
+                                {{ number_format($sale->shipping_charges, 0, '.', ',') }}
+                            </td>
+                        </tr>
+                    @endif
                     <tr>
                         <td align="right"><strong>TOTAL</strong></td>
                         <td width="80" align="right" style="font-weight: bold;">

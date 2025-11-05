@@ -525,7 +525,7 @@
                                             0.00</p>
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-2">
                                     <div class="form-group mb-0">
                                         <label
                                             style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">Global
@@ -534,10 +534,10 @@
                                             style="height: 36px; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                                             <button type="button" class="btn btn-primary active"
                                                 id="fixed-discount-btn"
-                                                style="font-size: 14px; padding: 0; font-weight: 600; height: 36px; border: none; border-radius: 0; transition: all 0.3s ease;">Fixed</button>
+                                                style="font-size: 12px; padding: 0; font-weight: 600; height: 36px; border: none; border-radius: 0; transition: all 0.3s ease;">Fixed</button>
                                             <button type="button" class="btn btn-outline-primary"
                                                 id="percentage-discount-btn"
-                                                style="font-size: 14px; padding: 0; font-weight: 600; height: 36px; border: none; border-radius: 0; background: white; transition: all 0.3s ease;">Percentage</button>
+                                                style="font-size: 12px; padding: 0; font-weight: 600; height: 36px; border: none; border-radius: 0; background: white; transition: all 0.3s ease;">%</button>
                                         </div>
                                         <input type="hidden" id="discount-type" name="discount_type"
                                             value="fixed">
@@ -566,7 +566,19 @@
                                             0.00</p>
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                <!-- Shipping Button Column -->
+                                <div class="col-md-2">
+                                    <div class="form-group mb-0">
+                                        <label
+                                            style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">Shipping</label>
+                                        <button class="btn btn-outline-info w-100" data-bs-toggle="modal"
+                                            data-bs-target="#shippingModal" id="shippingButton"
+                                            style="height: 36px; font-size: 14px; font-weight: 600;">
+                                            <i class="fas fa-shipping-fast"></i> Shipping
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
                                     <div class="form-group mb-0">
                                         <label
                                             style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">Amount
@@ -1055,6 +1067,136 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-success" id="confirmSaleOrder">Create Sale Order</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap Modal for Shipping Information -->
+    <div class="modal fade" id="shippingModal" tabindex="-1" aria-labelledby="shippingModalLabel">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="shippingModalLabel">
+                        <i class="fas fa-shipping-fast me-2"></i>Shipping Information
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="shippingForm">
+                        <div class="row">
+                            <!-- Left Column -->
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="shippingDetails" class="form-label">
+                                        <strong>Shipping Details:</strong>
+                                    </label>
+                                    <textarea class="form-control" id="shippingDetails" name="shipping_details" 
+                                        rows="4" placeholder="Enter shipping details..."></textarea>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="shippingCharges" class="form-label">
+                                        <strong>Shipping Charges:</strong>
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            Rs.
+                                        </span>
+                                        <input type="number" class="form-control" id="shippingCharges" 
+                                            name="shipping_charges" min="0" step="0.01" 
+                                            placeholder="0.00">
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="deliveredTo" class="form-label">
+                                        <strong>Delivered To:</strong>
+                                    </label>
+                                    <input type="text" class="form-control" id="deliveredTo" name="delivered_to" 
+                                        placeholder="Enter recipient name">
+                                </div>
+                            </div>
+
+                            <!-- Right Column -->
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="shippingAddress" class="form-label">
+                                        <strong>Shipping Address:</strong>
+                                    </label>
+                                    <textarea class="form-control" id="shippingAddress" name="shipping_address" 
+                                        rows="4" placeholder="Enter shipping address..."></textarea>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="shippingStatus" class="form-label">
+                                        <strong>Shipping Status:</strong>
+                                    </label>
+                                    <select class="form-select" id="shippingStatus" name="shipping_status">
+                                        <option value="ordered" selected>Ordered</option>
+                                        <option value="pending">Pending</option>
+                                        <option value="shipped">Shipped</option>
+                                        <option value="delivered">Delivered</option>
+                                        <option value="cancelled">Cancelled</option>
+                                    </select>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="deliveryPerson" class="form-label">
+                                        <strong>Delivery Person:</strong>
+                                    </label>
+                                    <select class="form-select" id="deliveryPerson" name="delivery_person">
+                                        <option value="Mr Admin" selected>Mr Admin</option>
+                                        <option value="delivery_agent_1">Delivery Agent 1</option>
+                                        <option value="delivery_agent_2">Delivery Agent 2</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Additional Options -->
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="useCustomerAddress">
+                                        <i class="fas fa-user me-1"></i>Use Customer Address
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="clearShippingForm">
+                                        <i class="fas fa-eraser me-1"></i>Clear Form
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Shipping Summary -->
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="alert alert-info">
+                                    <h6 class="alert-heading">
+                                        <i class="fas fa-info-circle me-2"></i>Shipping Summary
+                                    </h6>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p class="mb-1"><strong>Subtotal:</strong> Rs <span id="modalSubtotal">0.00</span></p>
+                                            <p class="mb-1"><strong>Shipping Charges:</strong> Rs <span id="modalShippingCharges">33.75</span></p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p class="mb-1"><strong>Total with Shipping:</strong> Rs <span id="modalTotalWithShipping" class="text-success fw-bold">0.00</span></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" id="updateShipping">
+                        <i class="fas fa-save me-1"></i>Update Shipping
+                    </button>
                 </div>
             </div>
         </div>

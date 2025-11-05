@@ -41,6 +41,13 @@ class Sale extends Model
         'order_status',
         'converted_to_sale_id',
         'order_notes',
+        // Shipping fields
+        'shipping_details',
+        'shipping_address',
+        'shipping_charges',
+        'shipping_status',
+        'delivered_to',
+        'delivery_person',
     ];
 
 
@@ -606,11 +613,18 @@ class Sale extends Model
 
     public function calculateFinalTotal()
     {
+        // Calculate base total after discount
+        $baseTotal = 0;
         if ($this->discount_type === 'percentage') {
-            return $this->subtotal - ($this->subtotal * $this->discount_amount / 100);
+            $baseTotal = $this->subtotal - ($this->subtotal * $this->discount_amount / 100);
         } else {
-            return $this->subtotal - $this->discount_amount;
+            $baseTotal = $this->subtotal - $this->discount_amount;
         }
+        
+        // Add shipping charges if present
+        $shippingCharges = $this->shipping_charges ?? 0;
+        
+        return $baseTotal + $shippingCharges;
     }
 
     public function imeis()
@@ -683,5 +697,92 @@ class Sale extends Model
             'total_due' => $this->total_due,
             'at_risk_amount' => $pendingCheques
         ];
+    }
+
+    // ==================== SHIPPING METHODS ====================
+    
+    /**
+     * Check if sale has shipping information
+     */
+    public function hasShipping()
+    {
+        return !empty($this->shipping_details) || !empty($this->shipping_address) || $this->shipping_charges > 0;
+    }
+
+    /**
+     * Get formatted shipping status
+     */
+    public function getFormattedShippingStatusAttribute()
+    {
+        return ucfirst($this->shipping_status ?? 'pending');
+    }
+
+    /**
+     * Check if order is shipped
+     */
+    public function isShipped()
+    {
+        return $this->shipping_status === 'shipped';
+    }
+
+    /**
+     * Check if order is delivered
+     */
+    public function isDelivered()
+    {
+        return $this->shipping_status === 'delivered';
+    }
+
+    /**
+     * Mark as shipped
+     */
+    public function markAsShipped($trackingNumber = null, $deliveryPerson = null)
+    {
+        $this->update([
+            'shipping_status' => 'shipped',
+            'shipped_at' => now(),
+            'tracking_number' => $trackingNumber,
+            'delivery_person' => $deliveryPerson,
+        ]);
+    }
+
+    /**
+     * Mark as delivered
+     */
+    public function markAsDelivered($deliveredTo = null)
+    {
+        $this->update([
+            'shipping_status' => 'delivered',
+            'delivered_at' => now(),
+            'delivered_to' => $deliveredTo ?? $this->delivered_to,
+        ]);
+    }
+
+    /**
+     * Get total including shipping charges
+     */
+    public function getTotalWithShippingAttribute()
+    {
+        return $this->final_total + ($this->shipping_charges ?? 0);
+    }
+
+    /**
+     * Scope: Filter by shipping status
+     */
+    public function scopeByShippingStatus($query, $status)
+    {
+        return $query->where('shipping_status', $status);
+    }
+
+    /**
+     * Scope: Get sales with shipping
+     */
+    public function scopeWithShipping($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereNotNull('shipping_details')
+              ->orWhereNotNull('shipping_address')
+              ->orWhere('shipping_charges', '>', 0);
+        });
     }
 }

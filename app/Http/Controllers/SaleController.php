@@ -846,7 +846,14 @@ class SaleController extends Controller
             'jobticket_description' => 'nullable|string', // add this
             // Floating balance fields
             'use_floating_balance' => 'nullable|boolean',
-            'floating_balance_amount' => 'nullable|numeric|min:0'
+            'floating_balance_amount' => 'nullable|numeric|min:0',
+            // Shipping validation rules  
+            'shipping_details' => 'nullable|string|max:2000',
+            'shipping_address' => 'nullable|string|max:1000',
+            'shipping_charges' => 'nullable|numeric|min:0|max:999999.99',
+            'shipping_status' => 'nullable|string|in:pending,ordered,shipped,delivered,cancelled',
+            'delivered_to' => 'nullable|string|max:255',
+            'delivery_person' => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -894,9 +901,11 @@ class SaleController extends Controller
                 $customer = Customer::withoutGlobalScopes()->findOrFail($request->customer_id);
                 $subtotal = array_reduce($request->products, fn($carry, $p) => $carry + $p['subtotal'], 0);
                 $discount = $request->discount_amount ?? 0;
+                $shippingCharges = $request->shipping_charges ?? 0; // Add shipping here too
+                
                 $finalTotal = $request->discount_type === 'percentage'
-                    ? $subtotal - ($subtotal * $discount / 100)
-                    : $subtotal - $discount;
+                    ? $subtotal - ($subtotal * $discount / 100) + $shippingCharges
+                    : $subtotal - $discount + $shippingCharges;
 
                 // Validate credit limit using centralized method
                 try {
@@ -974,9 +983,34 @@ class SaleController extends Controller
                 // ----- Amount Calculation -----
                 $subtotal = array_reduce($request->products, fn($carry, $p) => $carry + $p['subtotal'], 0);
                 $discount = $request->discount_amount ?? 0;
-                $finalTotal = $request->discount_type === 'percentage'
+                $shippingCharges = $request->shipping_charges ?? 0;
+                
+                // Debug the incoming request data
+                Log::info('🔍 SHIPPING REQUEST DATA:', [
+                    'request_shipping_charges' => $request->shipping_charges,
+                    'final_shipping_charges_used' => $shippingCharges,
+                    'request_has_shipping' => isset($request->shipping_charges)
+                ]);
+                
+                // Calculate total after discount
+                $totalAfterDiscount = $request->discount_type === 'percentage'
                     ? $subtotal - ($subtotal * $discount / 100)
                     : $subtotal - $discount;
+                
+                // Add shipping charges to get final total
+                $finalTotal = $totalAfterDiscount + $shippingCharges;
+
+                // Critical debug logging
+                Log::info('� CRITICAL SERVER CALCULATION DEBUG:', [
+                    'request_final_total' => $request->final_total,
+                    'calculated_subtotal' => $subtotal,
+                    'calculated_discount' => $discount,
+                    'calculated_afterDiscount' => $totalAfterDiscount, 
+                    'calculated_shippingCharges' => $shippingCharges,
+                    'CALCULATED_FINAL_TOTAL' => $finalTotal,
+                    'formula' => "{$subtotal} - {$discount} + {$shippingCharges} = {$finalTotal}",
+                    'will_save_to_db' => $finalTotal
+                ]);
 
                 // ----- Jobticket Payment Logic -----
                 $advanceAmount = floatval($request->advance_amount ?? 0);
@@ -1010,6 +1044,14 @@ class SaleController extends Controller
                 }
 
                 // ----- Save Sale -----
+                Log::info('🚨 RIGHT BEFORE SAVE:', [
+                    'finalTotal_variable' => $finalTotal,
+                    'finalTotal_type' => gettype($finalTotal),
+                    'subtotal' => $subtotal,
+                    'shippingCharges' => $shippingCharges,
+                    'about_to_save_final_total' => $finalTotal
+                ]);
+                
                 $sale->fill([
                     'customer_id' => $request->customer_id,
                     'location_id' => $request->location_id,
@@ -1035,7 +1077,23 @@ class SaleController extends Controller
                     'expected_delivery_date' => $request->expected_delivery_date,
                     'order_status' => $orderStatus,
                     'order_notes' => $request->order_notes,
+                    // ✨ NEW: Shipping fields
+                    'shipping_details' => $request->shipping_details,
+                    'shipping_address' => $request->shipping_address,
+                    'shipping_charges' => $request->shipping_charges ?? 0,
+                    'shipping_status' => $request->shipping_status ?? 'pending',
+                    'delivered_to' => $request->delivered_to,
+                    'delivery_person' => $request->delivery_person,
                 ])->save();
+
+                // Debug: Check if final_total was saved correctly
+                $sale->refresh();
+                Log::info('🔍 FINAL TOTAL AFTER SAVE:', [
+                    'expected_final_total' => $finalTotal,
+                    'actual_final_total_in_db' => $sale->final_total,
+                    'shipping_charges_in_db' => $sale->shipping_charges,
+                    'subtotal_in_db' => $sale->subtotal
+                ]);
 
                 // ----- Job Ticket Logic -----
                 if ($sale->status === 'jobticket') {
