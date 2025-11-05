@@ -20,7 +20,7 @@ class Kernel extends ConsoleKernel
         // $schedule->command('backup:run')->dailyAt('22:00')->timezone('Asia/Colombo');
 
         // Daily backup at 11:00 PM
-        $schedule->command('backup:run')->dailyAt('23:00')->timezone('Asia/Colombo');
+        $schedule->command('backup:run')->dailyAt('9:34')->timezone('Asia/Colombo');
 
         // Clean old backups (keep only 5 latest backups) at 11:30 PM
         $schedule->command('backup:clean --keep=5')->dailyAt('23:30')->timezone('Asia/Colombo');
