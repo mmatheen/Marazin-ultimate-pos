@@ -473,6 +473,12 @@
                         <span>Return Amount:</span>
                         <span>0.00</span>
                     </div>
+                    @if (!is_null($sale->shipping_charges) && $sale->shipping_charges > 0)
+                        <div class="summary-row">
+                            <span>Shipping Charges:</span>
+                            <span>{{ number_format($sale->shipping_charges, 2) }}</span>
+                        </div>
+                    @endif
                     <div class="summary-row">
                         <span>Amount Payable:</span>
                         <span>{{ number_format($sale->final_total, 2) }}</span>
@@ -512,6 +518,7 @@
                     CASH
                 @endif | <span>{{ number_format($sale->total_paid ?? 0, 2) }}</span>
             </div>
+
 
             <div class="footer-line">
                 <div>Prepared By: {{ strtoupper($user->user_name ?? ($user->name ?? 'CASHIER')) }}</div>

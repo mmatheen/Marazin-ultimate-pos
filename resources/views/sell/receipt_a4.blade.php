@@ -439,6 +439,13 @@
             </tr>
         @endif
         
+        @if (!is_null($sale->shipping_charges) && $sale->shipping_charges > 0)
+            <tr>
+                <td class="label">SHIPPING CHARGES</td>
+                <td class="value">Rs. {{ number_format($sale->shipping_charges, 2) }}</td>
+            </tr>
+        @endif
+        
         <tr class="grand-total">
             <td class="label">TOTAL</td>
             <td class="value">Rs. {{ number_format($sale->final_total, 2) }}</td>
@@ -522,6 +529,7 @@
             Cash
         @endif
     </div>
+    
     
     {{-- Footer --}}
     <div class="footer">
