@@ -1284,7 +1284,7 @@
         }
 
         /* Hide mobile button on desktop */
-        @media (min-width: 1200px) {
+        @media (min-width: 992px) {
             .mobile-bottom-fixed {
                 display: none !important;
             }
@@ -2777,4 +2777,12 @@
         .btn-gradient:hover {
             background: linear-gradient(85deg, #1e90ff, #1e90ff);
             color: white;
+        }
+
+        /* Ensure desktop payment buttons are visible on large screens and above */
+        @media (min-width: 992px) {
+            .bottom-fixed {
+                display: block !important;
+                visibility: visible !important;
+            }
         }

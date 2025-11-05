@@ -6461,43 +6461,28 @@
                         return;
                     }
 
+                    // ✨ PERFORMANCE FIX: Build optimized product data with minimal payload
+                    const productId = parseInt(productRow.find('.product-id').text().trim(), 10);
+                    const qtyVal = productRow.find('.quantity-input').val().trim();
+                    const quantity = isImeiProduct ? 1 : (parseFloat(qtyVal) || 0);
+                    
                     const productData = {
-                        product_id: parseInt(productRow.find('.product-id').text().trim(),
-                            10),
+                        product_id: productId,
                         location_id: parseInt(locationId, 10),
-                        quantity: isImeiProduct ?
-                            1 : (() => {
-                                // Find the product in stockData or allProducts
-                                const productId = parseInt(productRow.find(
-                                    '.product-id').text().trim(), 10);
-                                let stock = stockData.find(s => String(s.product.id) ===
-                                        String(productId)) ||
-                                    allProducts.find(s => String(s.product.id) ===
-                                        String(productId));
-                                const allowDecimal = stock && stock.product && (stock
-                                    .product.unit?.allow_decimal === true || stock
-                                    .product.unit?.allow_decimal === 1);
-                                const qtyVal = productRow.find('.quantity-input').val()
-                                    .trim();
-                                if (allowDecimal) {
-                                    const parsed = parseFloat(qtyVal);
-                                    return isNaN(parsed) ? 0 : parsed;
-                                } else {
-                                    const parsed = parseInt(qtyVal, 10);
-                                    return isNaN(parsed) ? 0 : parsed;
-                                }
-                            })(),
+                        quantity: quantity,
                         price_type: priceType,
-                        unit_price: parseFormattedAmount(productRow.find('.price-input')
-                            .val().trim()),
-                        subtotal: parseFormattedAmount(productRow.find('.subtotal').text()
-                            .trim()),
+                        unit_price: parseFormattedAmount(productRow.find('.price-input').val().trim()),
+                        subtotal: parseFormattedAmount(productRow.find('.subtotal').text().trim()),
                         discount_amount: discountAmount,
                         discount_type: discountType,
                         tax: 0,
                         batch_id: batchId === "all" ? "all" : batchId,
-                        imei_numbers: imeis,
                     };
+                    
+                    // Only add IMEI numbers if they exist (reduce payload size)
+                    if (imeis.length > 0) {
+                        productData.imei_numbers = imeis;
+                    }
 
                     saleData.products.push(productData);
                 });
@@ -6603,10 +6588,9 @@
                     }
                 }
 
+                // ✨ PERFORMANCE FIX: All sales use optimized storeOrUpdate method
                 const url = saleId ? `/sales/update/${saleId}` : '/sales/store';
                 const method = 'POST';
-
-
 
                 $.ajax({
                     url: url,
@@ -6616,12 +6600,17 @@
                         'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
                     },
                     data: JSON.stringify(saleData),
-                    timeout: 30000, // 30 second timeout to prevent infinite waiting
+                    timeout: 30000, // 30 second timeout
                     cache: false, // Prevent caching for fresh responses
                     success: function(response) {
-                        if (response.message && response.invoice_html) {
+                        // Handle sale response
+                        if (response.message && (response.invoice_html || response.sale)) {
                             // Immediate success feedback
-                            document.getElementsByClassName('successSound')[0].play();
+                            try {
+                                document.getElementsByClassName('successSound')[0].play();
+                            } catch (e) {
+                                // Ignore if sound element doesn't exist
+                            }
                             
                             // Show appropriate success message
                             if (response.sale && response.sale.transaction_type === 'sale_order') {
@@ -6668,20 +6657,22 @@
                             // Call onComplete immediately for button re-enabling
                             if (onComplete) onComplete();
 
-                            // Only print for non-suspended sales and non-sale-order transactions
+                            // Handle printing for all sales
                             if (saleData.status !== 'suspend' && saleData.transaction_type !== 'sale_order') {
                                 // Determine sale id returned from the server (fallback to local saleId)
                                 const returnedSaleId = (response.sale && response.sale.id) || response.id || saleId;
+                                console.log('Print attempt - saleId:', saleId, 'returnedSaleId:', returnedSaleId, 'response:', response);
 
                                 // Use centralized printReceipt which handles mobile vs desktop logic
                                 try {
                                     if (typeof window.printReceipt === 'function') {
                                         // Small delay to ensure UI has reset
                                         setTimeout(() => {
+                                            console.log('Opening print for sale ID:', returnedSaleId);
                                             window.printReceipt(returnedSaleId);
                                         }, 150);
-                                    } else {
-                                        // Fallback: open a hidden iframe directly if centralized function missing
+                                    } else if (response.invoice_html) {
+                                        // Use invoice HTML from response
                                         const fallbackIframe = document.createElement('iframe');
                                         fallbackIframe.style.cssText = 'position:fixed;width:0;height:0;border:none;opacity:0;';
                                         document.body.appendChild(fallbackIframe);
@@ -6693,12 +6684,46 @@
                                             try { fallbackIframe.contentWindow.print(); } catch (e) { console.warn('Fallback print error', e); }
                                             setTimeout(() => { if (document.body.contains(fallbackIframe)) document.body.removeChild(fallbackIframe); }, 1000);
                                         }, 200);
+                                    } else {
+                                        // Generate print URL directly with window close monitoring for updates
+                                        setTimeout(() => {
+                                            const printWindow = window.open(`/sales/print-recent-transaction/${returnedSaleId}`, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+                                            if (!printWindow) {
+                                                toastr.error('Print window was blocked. Please allow pop-ups and try again.');
+                                                // If print blocked and this is an update, still redirect after delay
+                                                if (saleId) {
+                                                    setTimeout(() => {
+                                                        if (window.location.pathname.includes('/edit/')) {
+                                                            window.location.href = '/pos-create';
+                                                        }
+                                                    }, 1000);
+                                                }
+                                            } else if (saleId) {
+                                                // Monitor print window closure for updates only
+                                                const checkClosed = setInterval(() => {
+                                                    if (printWindow.closed) {
+                                                        clearInterval(checkClosed);
+                                                        console.log('Print window closed, redirecting to POS immediately...');
+                                                        // Only redirect if user is still on edit page
+                                                        if (window.location.pathname.includes('/edit/')) {
+                                                            window.location.href = '/pos-create';
+                                                        }
+                                                    }
+                                                }, 100); // Check every 100ms for faster detection
+                                                
+                                                // Fallback timeout in case window detection fails (after 30 seconds)
+                                                setTimeout(() => {
+                                                    clearInterval(checkClosed);
+                                                    if (!printWindow.closed && window.location.pathname.includes('/edit/')) {
+                                                        console.log('Print window still open after 30s, redirecting anyway...');
+                                                        window.location.href = '/pos-create';
+                                                    }
+                                                }, 30000);
+                                            }
+                                        }, 150);
                                     }
 
-                                    // Redirect for edits if needed
-                                    if (saleId) {
-                                        setTimeout(() => { window.location.href = '/pos-create'; }, 700);
-                                    }
+                                    // No automatic redirect for edits - only after print window closes
                                 } catch (err) {
                                     console.warn('Error while initiating print:', err);
                                 }
@@ -7863,6 +7888,8 @@
 
     // Function to print the receipt for the sale (attached to window for global access)
     window.printReceipt = function(saleId) {
+        console.log('printReceipt called with saleId:', saleId);
+        
         // Close any open modals before printing
         const openModals = document.querySelectorAll('.modal.show');
         openModals.forEach(modal => {
@@ -7874,9 +7901,17 @@
 
         // Add a small delay to ensure modal is fully closed
         setTimeout(() => {
+            console.log('Fetching print data for sale:', saleId);
             fetch(`/sales/print-recent-transaction/${saleId}`)
-                .then(response => response.json())
+                .then(response => {
+                    console.log('Print fetch response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Print data received:', data);
                     if (data.invoice_html) {
                         // Check if mobile device
                         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -7896,6 +7931,26 @@
                                         // Don't auto-close on mobile - let user close manually
                                     }, 500);
                                 };
+                                
+                                // Monitor window closure for edit redirects (mobile)
+                                if (window.location.pathname.includes('/edit/')) {
+                                    const checkClosed = setInterval(() => {
+                                        if (printWindow.closed) {
+                                            clearInterval(checkClosed);
+                                            console.log('Mobile print window closed, redirecting to POS immediately...');
+                                            window.location.href = '/pos-create';
+                                        }
+                                    }, 100); // Faster detection for immediate redirect
+                                    
+                                    // Fallback timeout (30 seconds)
+                                    setTimeout(() => {
+                                        clearInterval(checkClosed);
+                                        if (!printWindow.closed) {
+                                            console.log('Mobile print window still open after 30s, redirecting anyway...');
+                                            window.location.href = '/pos-create';
+                                        }
+                                    }, 30000);
+                                }
                             } else {
                                 toastr.error('Please allow pop-ups to print the receipt.');
                             }
@@ -7932,6 +7987,13 @@
                                         if (iframe && document.body.contains(iframe)) {
                                             document.body.removeChild(iframe);
                                         }
+                                        
+                                        // Redirect to POS after cleanup if this is an edit
+                                        if (window.location.pathname.includes('/edit/')) {
+                                            console.log('Desktop print completed, redirecting to POS immediately...');
+                                            // Immediate redirect - no delay
+                                            window.location.href = '/pos-create';
+                                        }
                                     };
                                     
                                     // Try to cleanup after print dialog closes
@@ -7944,18 +8006,79 @@
                                         });
                                     }
                                     
-                                    // Fallback cleanup after 2 seconds
-                                    setTimeout(cleanup, 2000);
+                                    // Fallback cleanup after 3 seconds (increased for edit redirect)
+                                    setTimeout(cleanup, 3000);
                                 }, 100);
                             };
                         }
                     } else {
-                        toastr.error('Failed to fetch the receipt. Please try again.');
+                        console.log('No invoice_html found in response, trying direct print URL');
+                        // Fallback: Open print URL directly
+                        const printWindow = window.open(`/sales/print-recent-transaction/${saleId}`, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+                        if (!printWindow) {
+                            toastr.error('Print window was blocked. Please allow pop-ups and try again.');
+                        } else {
+                            toastr.success('Receipt opened in new window for printing.');
+                            
+                            // Monitor window closure for edit redirects (fallback method)
+                            if (window.location.pathname.includes('/edit/')) {
+                                const checkClosed = setInterval(() => {
+                                    if (printWindow.closed) {
+                                        clearInterval(checkClosed);
+                                        console.log('Fallback print window closed, redirecting to POS immediately...');
+                                        window.location.href = '/pos-create';
+                                    }
+                                }, 100); // Faster detection for immediate redirect
+                                
+                                // Fallback timeout (30 seconds)
+                                setTimeout(() => {
+                                    clearInterval(checkClosed);
+                                    if (!printWindow.closed) {
+                                        console.log('Fallback print window still open after 30s, redirecting anyway...');
+                                        window.location.href = '/pos-create';
+                                    }
+                                }, 30000);
+                            }
+                        }
                     }
                 })
                 .catch(error => {
                     console.error('Error fetching the receipt:', error);
-                    toastr.error('An error occurred while fetching the receipt. Please try again.');
+                    console.log('Trying direct print URL as fallback');
+                    
+                    // Fallback: Open print URL directly
+                    const printWindow = window.open(`/sales/print-recent-transaction/${saleId}`, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+                    if (!printWindow) {
+                        toastr.error('Print window was blocked. Please allow pop-ups and try again.');
+                        // Still redirect after error if this is an edit
+                        if (window.location.pathname.includes('/edit/')) {
+                            setTimeout(() => {
+                                window.location.href = '/pos-create';
+                            }, 2000);
+                        }
+                    } else {
+                        toastr.info('Opened receipt in new window (fallback method).');
+                        
+                        // Monitor window closure for edit redirects (error fallback)
+                        if (window.location.pathname.includes('/edit/')) {
+                            const checkClosed = setInterval(() => {
+                                if (printWindow.closed) {
+                                    clearInterval(checkClosed);
+                                    console.log('Error fallback print window closed, redirecting to POS immediately...');
+                                    window.location.href = '/pos-create';
+                                }
+                            }, 100); // Faster detection for immediate redirect
+                            
+                            // Fallback timeout (30 seconds)
+                            setTimeout(() => {
+                                clearInterval(checkClosed);
+                                if (!printWindow.closed) {
+                                    console.log('Error fallback print window still open after 30s, redirecting anyway...');
+                                    window.location.href = '/pos-create';
+                                }
+                            }, 30000);
+                        }
+                    }
                 });
         }, 300); // Delay to ensure modal is closed
     }

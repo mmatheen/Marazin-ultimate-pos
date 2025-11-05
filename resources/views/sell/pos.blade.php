@@ -655,7 +655,7 @@
         </div>
 
         <!-- Mobile/Tablet Bottom Fixed Button (Shows Final Total & Opens Payment Modal) -->
-        <div class="mobile-bottom-fixed d-xl-none">
+        <div class="mobile-bottom-fixed d-lg-none">
             <div class="mobile-bottom-container">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
@@ -844,7 +844,7 @@
 
 
         <!-- Bottom Fixed Section (Hidden on Mobile/Tablet) -->
-        <div class="bottom-fixed d-none d-xl-block">
+        <div class="bottom-fixed d-none d-lg-block">
             <div class="row">
                 <!-- Left Side: Total Payable and Cancel -->
                 <div class="col-md-5 d-flex align-items-center justify-content-start gap-3">
