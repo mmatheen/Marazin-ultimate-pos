@@ -61,7 +61,9 @@ return [
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
             'dump' => [
-                'dump_binary_path' => env('DB_DUMP_PATH', 'C:\\xampp\\mysql\\bin'),
+                'dump_binary_path' => env('DB_DUMP_PATH', 
+                    PHP_OS_FAMILY === 'Windows' ? 'C:\\xampp\\mysql\\bin' : '/usr/bin'
+                ),
             ],
         ],
 
@@ -83,6 +85,11 @@ return [
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
+            'dump' => [
+                'dump_binary_path' => env('DB_DUMP_PATH', 
+                    PHP_OS_FAMILY === 'Windows' ? 'C:\\xampp\\mysql\\bin' : '/usr/bin'
+                ),
+            ],
         ],
 
         'pgsql' => [
