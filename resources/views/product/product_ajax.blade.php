@@ -5,35 +5,35 @@
         border-color: #007bff !important;
         color: #fff !important;
     }
-    
+
     .btn-secondary {
         background-color: #6c757d !important;
         border-color: #6c757d !important;
         color: #fff !important;
     }
-    
+
     .btn-primary:hover {
         background-color: #0056b3 !important;
         border-color: #0056b3 !important;
         color: #fff !important;
     }
-    
+
     .btn:disabled {
         opacity: 0.6 !important;
         cursor: not-allowed !important;
     }
-    
+
     /* Validation styling */
     .is-invalidRed {
         border-color: #dc3545 !important;
         box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
     }
-    
+
     .is-validGreen {
         border-color: #28a745 !important;
         box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25) !important;
     }
-    
+
     /* Select2 styling improvements */
     .select2-container--default .select2-selection--multiple .select2-selection__choice {
         background-color: #007bff !important;
@@ -44,763 +44,765 @@
 
 <script>
     $(document).ready(function() {
-                var csrfToken = $('meta[name="csrf-token"]').attr('content'); // For CSRF token
-                let allProducts = [];
-                let categoryMap = {};
-                let brandMap = {};
-                let locationMap = {};
-                let subCategories = [];
-                const discountMap = {};
+    var csrfToken = $('meta[name="csrf-token"]').attr('content'); // For CSRF token
+    let allProducts = [];
+    let categoryMap = {};
+    let brandMap = {};
+    let locationMap = {};
+    let subCategories = [];
+    const discountMap = {};
 
-                // Validation options
-                var addAndUpdateValidationOptions = {
-                    rules: {
-                        product_name: {
-                            required: true
-                        },
-                        unit_id: {
-                            required: true
-                        },
-                        brand_id: {
-                            required: true
-                        },
-                        main_category_id: {
-                            required: true
-                        },
-                        'locations[]': {
-                            required: true
-                        },
-                        retail_price: {
-                            required: true
-                        },
-                        whole_sale_price: {
-                            required: true
-                        },
-                        original_price: {
-                            required: true
-                        },
-                        max_retail_price: {
-                            required: true
-                        },
+    // Validation options
+    var addAndUpdateValidationOptions = {
+        rules: {
+            product_name: {
+                required: true
+            },
+            unit_id: {
+                required: true
+            },
+            brand_id: {
+                required: true
+            },
+            main_category_id: {
+                required: true
+            },
+            'locations[]': {
+                required: true
+            },
+            retail_price: {
+                required: true
+            },
+            whole_sale_price: {
+                required: true
+            },
+            original_price: {
+                required: true
+            },
+            max_retail_price: {
+                required: true
+            },
 
-                    },
-                    messages: {
-                        product_name: {
-                            required: "Product Name is required"
-                        },
-                        unit_id: {
-                            required: "Product Unit is required"
-                        },
-                        brand_id: {
-                            required: "Product Brand is required"
-                        },
-                        main_category_id: {
-                            required: "Main Category is required"
-                        },
-                        'locations[]': {
-                            required: "Business Location is required"
-                        },
-                        retail_price: {
-                            required: "Retail Price is required"
-                        },
-                        whole_sale_price: {
-                            required: "Whole Sale Price is required"
-                        },
-                        original_price: {
-                            required: "Cost Price is required"
-                        },
-                        max_retail_price: {
-                            required: "Max Retail Price is required"
-                        },
-                    },
-                    errorElement: 'span',
-                    errorPlacement: function(error, element) {
-                        error.addClass('text-danger');
-                        if (element.is("select")) {
-                            error.insertAfter(element.closest('div'));
-                        } else if (element.is(":checkbox")) {
-                            error.insertAfter(element.closest('div').find('label').last());
-                        } else {
-                            error.insertAfter(element);
-                        }
-                    },
-                    highlight: function(element, errorClass, validClass) {
-                        $(element).addClass('is-invalidRed').removeClass('is-validGreen');
-                    },
-                    unhighlight: function(element, errorClass, validClass) {
-                        $(element).removeClass('is-invalidRed').addClass('is-validGreen');
-                    }
-                };
+        },
+        messages: {
+            product_name: {
+                required: "Product Name is required"
+            },
+            unit_id: {
+                required: "Product Unit is required"
+            },
+            brand_id: {
+                required: "Product Brand is required"
+            },
+            main_category_id: {
+                required: "Main Category is required"
+            },
+            'locations[]': {
+                required: "Business Location is required"
+            },
+            retail_price: {
+                required: "Retail Price is required"
+            },
+            whole_sale_price: {
+                required: "Whole Sale Price is required"
+            },
+            original_price: {
+                required: "Cost Price is required"
+            },
+            max_retail_price: {
+                required: "Max Retail Price is required"
+            },
+        },
+        errorElement: 'span',
+        errorPlacement: function(error, element) {
+            error.addClass('text-danger');
+            if (element.is("select")) {
+                error.insertAfter(element.closest('div'));
+            } else if (element.is(":checkbox")) {
+                error.insertAfter(element.closest('div').find('label').last());
+            } else {
+                error.insertAfter(element);
+            }
+        },
+        highlight: function(element, errorClass, validClass) {
+            $(element).addClass('is-invalidRed').removeClass('is-validGreen');
+        },
+        unhighlight: function(element, errorClass, validClass) {
+            $(element).removeClass('is-invalidRed').addClass('is-validGreen');
+        }
+    };
 
-                // Apply validation to forms
-                $('#addForm').validate(addAndUpdateValidationOptions);
+    // Apply validation to forms
+    $('#addForm').validate(addAndUpdateValidationOptions);
 
-                // Initialize form validation and button states after setup
-                setTimeout(function() {
-                    fetchInitialDropdowns(function() {
-                        validateFormAndUpdateButtons();
+    // Initialize form validation and button states after setup
+    setTimeout(function() {
+        fetchInitialDropdowns(function() {
+            validateFormAndUpdateButtons();
+        });
+    }, 500);
+
+    // Global button selector for easier management
+    const allButtons = $('#onlySaveProductButton, #SaveProductButtonAndAnother, #openingStockAndProduct');
+
+    // Improved form validation and button state management
+    function validateFormAndUpdateButtons() {
+        if (isSubmitting) return; // Don't change button state during submission
+
+        // Check all required fields
+        const requiredFields = [
+            'input[name="product_name"]',
+            'select[name="unit_id"]',
+            'select[name="brand_id"]',
+            'select[name="main_category_id"]',
+            'input[name="retail_price"]',
+            'input[name="whole_sale_price"]',
+            'input[name="original_price"]',
+            'input[name="max_retail_price"]'
+        ];
+
+        let isFormValid = true;
+        let missingFields = [];
+
+        // Check each required field
+        requiredFields.forEach(function(selector) {
+            const field = $(selector);
+            const fieldName = field.attr('name') || selector;
+            if (field.length && (!field.val() || field.val() === '')) {
+                isFormValid = false;
+                missingFields.push(fieldName);
+            }
+        });
+
+        // Special check for locations array
+        const selectedLocations = $('select[name="locations[]"]').val();
+        if (!selectedLocations || selectedLocations.length === 0) {
+            isFormValid = false;
+            missingFields.push('locations');
+        }
+
+        // Update button state and styling
+        if (isFormValid) {
+            allButtons.prop('disabled', false);
+            allButtons.removeClass('btn-secondary btn-outline-secondary').addClass('btn-primary');
+        } else {
+            allButtons.prop('disabled', true);
+            allButtons.removeClass('btn-primary').addClass('btn-secondary');
+        }
+
+        return isFormValid;
+    }
+
+    // Initialize buttons as disabled on page load
+    allButtons.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary');
+
+    // Monitor form changes with improved debouncing
+    let validationTimeout;
+
+    function scheduleValidation() {
+        clearTimeout(validationTimeout);
+        validationTimeout = setTimeout(validateFormAndUpdateButtons, 100);
+    }
+
+    // Attach validation to form events
+    $('#addForm').on('input change keyup blur', 'input, select, textarea', scheduleValidation);
+
+    // Special handling for Select2 dropdowns
+    $(document).on('change select2:select select2:unselect select2:clear', 'select', scheduleValidation);
+
+    // Initial validation check after page load
+    $(document).ready(function() {
+        setTimeout(validateFormAndUpdateButtons, 500);
+    });
+
+    // Helper function to populate a dropdown with improved caching and error handling
+    function fetchData(url, successCallback, errorCallback) {
+        $.ajax({
+            url: url,
+            type: 'GET',
+            dataType: 'json',
+            cache: true, // Enable browser caching for better performance
+            timeout: 10000, // 10 second timeout
+            success: function(response) {
+                // For /get-last-product endpoint, pass the response as-is
+                if (url.includes('/get-last-product')) {
+                    successCallback(response);
+                    return;
+                }
+
+                // Handle different response structures for other endpoints
+                if (response.status === true || response.status === 200) {
+                    // If response has a 'data' property, use it; otherwise use 'message'
+                    const data = response.data || response.message;
+                    successCallback({
+                        status: 200,
+                        message: data
                     });
-                }, 500);
-
-                // Global button selector for easier management
-                const allButtons = $('#onlySaveProductButton, #SaveProductButtonAndAnother, #openingStockAndProduct');
-
-                // Improved form validation and button state management
-                function validateFormAndUpdateButtons() {
-                    if (isSubmitting) return; // Don't change button state during submission
-
-                    // Check all required fields
-                    const requiredFields = [
-                        'input[name="product_name"]',
-                        'select[name="unit_id"]', 
-                        'select[name="brand_id"]',
-                        'select[name="main_category_id"]',
-                        'input[name="retail_price"]',
-                        'input[name="whole_sale_price"]',
-                        'input[name="original_price"]',
-                        'input[name="max_retail_price"]'
-                    ];
-                    
-                    let isFormValid = true;
-                    let missingFields = [];
-                    
-                    // Check each required field
-                    requiredFields.forEach(function(selector) {
-                        const field = $(selector);
-                        const fieldName = field.attr('name') || selector;
-                        if (field.length && (!field.val() || field.val() === '')) {
-                            isFormValid = false;
-                            missingFields.push(fieldName);
-                        }
-                    });
-                    
-                    // Special check for locations array
-                    const selectedLocations = $('select[name="locations[]"]').val();
-                    if (!selectedLocations || selectedLocations.length === 0) {
-                        isFormValid = false;
-                        missingFields.push('locations');
-                    }
-                    
-                    // Update button state and styling
-                    if (isFormValid) {
-                        allButtons.prop('disabled', false);
-                        allButtons.removeClass('btn-secondary btn-outline-secondary').addClass('btn-primary');
+                } else {
+                    successCallback(response);
+                }
+            },
+            error: errorCallback || function(xhr, status, error) {
+                console.error('Error fetching data from ' + url + ':', error);
+                if (typeof toastr !== 'undefined') {
+                    if (status === 'timeout') {
+                        toastr.error('Request timed out. Please try again.', 'Timeout Error');
                     } else {
-                        allButtons.prop('disabled', true);
-                        allButtons.removeClass('btn-primary').addClass('btn-secondary');
+                        toastr.error('Failed to load data. Please try again.', 'Network Error');
                     }
-                    
-                    return isFormValid;
                 }
+            }
+        });
+    }
 
-                // Initialize buttons as disabled on page load
-                allButtons.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary');
-                
-                // Monitor form changes with improved debouncing
-                let validationTimeout;
-                function scheduleValidation() {
-                    clearTimeout(validationTimeout);
-                    validationTimeout = setTimeout(validateFormAndUpdateButtons, 100);
-                }
+    function populateDropdown(selector, items, displayProperty) {
+        const selectElement = $(selector).empty();
 
-                // Attach validation to form events
-                $('#addForm').on('input change keyup blur', 'input, select, textarea', scheduleValidation);
-                
-                // Special handling for Select2 dropdowns
-                $(document).on('change select2:select select2:unselect select2:clear', 'select', scheduleValidation);
-                
-                // Initial validation check after page load
-                $(document).ready(function() {
-                    setTimeout(validateFormAndUpdateButtons, 500);
-                });
+        // Add appropriate placeholder based on selector - but NOT for location dropdown if it's multiple select
+        const placeholders = {
+            '#edit_unit_id': 'Select Unit',
+            '#edit_brand_id': 'Select Brand',
+            '#edit_main_category_id': 'Select Main Category',
+            '#edit_sub_category_id': 'Select Sub Category',
+            '#edit_location_id': 'Select Location'
+        };
 
-                // Helper function to populate a dropdown with improved caching and error handling
-                function fetchData(url, successCallback, errorCallback) {
-                    $.ajax({
-                        url: url,
-                        type: 'GET',
-                        dataType: 'json',
-                        cache: true, // Enable browser caching for better performance
-                        timeout: 10000, // 10 second timeout
-                        success: function(response) {
-                            // For /get-last-product endpoint, pass the response as-is
-                            if (url.includes('/get-last-product')) {
-                                successCallback(response);
-                                return;
-                            }
+        // Only add placeholder for non-multiple select dropdowns
+        if (!selector.includes('locations[]') && selector !== '#edit_location_id') {
+            const placeholder = placeholders[selector] || 'Select Option';
+            selectElement.append(`<option value="" disabled selected>${placeholder}</option>`);
+        }
 
-                            // Handle different response structures for other endpoints
-                            if (response.status === true || response.status === 200) {
-                                // If response has a 'data' property, use it; otherwise use 'message'
-                                const data = response.data || response.message;
-                                successCallback({
-                                    status: 200,
-                                    message: data
-                                });
-                            } else {
-                                successCallback(response);
-                            }
-                        },
-                        error: errorCallback || function(xhr, status, error) {
-                            console.error('Error fetching data from ' + url + ':', error);
-                            if (typeof toastr !== 'undefined') {
-                                if (status === 'timeout') {
-                                    toastr.error('Request timed out. Please try again.', 'Timeout Error');
-                                } else {
-                                    toastr.error('Failed to load data. Please try again.', 'Network Error');
-                                }
-                            }
-                        }
+        // Add the actual data items
+        items.forEach(item => {
+            const option = new Option(item[displayProperty], item.id);
+            if (item.selected && !selector.includes('locations[]')) {
+                option.selected = true;
+            }
+            selectElement.append(option);
+        });
+
+        // For location dropdowns, handle Select2 initialization separately
+        if (selector === '#edit_location_id' || selector.includes('locations[]')) {
+            setTimeout(function() {
+                if (!selectElement.hasClass('select2-hidden-accessible')) {
+                    selectElement.select2({
+                        placeholder: 'Select Location',
+                        allowClear: true,
+                        width: '100%',
+                        multiple: selector.includes('locations[]')
                     });
                 }
+            }, 100);
+        }
+    }
 
-                function populateDropdown(selector, items, displayProperty) {
-                    const selectElement = $(selector).empty();
-                    
-                    // Add appropriate placeholder based on selector - but NOT for location dropdown if it's multiple select
-                    const placeholders = {
-                        '#edit_unit_id': 'Select Unit',
-                        '#edit_brand_id': 'Select Brand', 
-                        '#edit_main_category_id': 'Select Main Category',
-                        '#edit_sub_category_id': 'Select Sub Category',
-                        '#edit_location_id': 'Select Location'
-                    };
-                    
-                    // Only add placeholder for non-multiple select dropdowns
-                    if (!selector.includes('locations[]') && selector !== '#edit_location_id') {
-                        const placeholder = placeholders[selector] || 'Select Option';
-                        selectElement.append(`<option value="" disabled selected>${placeholder}</option>`);
-                    }
-                    
-                    // Add the actual data items
-                    items.forEach(item => {
-                        const option = new Option(item[displayProperty], item.id);
-                        if (item.selected && !selector.includes('locations[]')) {
+    function populateInitialDropdowns(mainCategories, subCategories, brands, units, locations,
+        autoSelectSingle, callback) {
+        // Populate dropdowns with data (location dropdown will be handled specially)
+        populateDropdown('#edit_main_category_id', mainCategories, 'mainCategoryName');
+        populateDropdown('#edit_sub_category_id', subCategories, 'subCategoryname');
+        populateDropdown('#edit_brand_id', brands, 'name');
+        populateDropdown('#edit_unit_id', units, 'name');
+
+        // Handle location dropdown separately to avoid adding "Select Location" as an option
+        const $locationSelect = $('#edit_location_id, select[name="locations[]"]');
+        $locationSelect.empty(); // Clear first
+
+        // Add only the actual location options (no placeholder option)
+        locations.forEach(location => {
+            const option = new Option(location.name, location.id);
+            $locationSelect.append(option);
+        });
+
+        // Initialize Select2 for location dropdown with proper placeholder
+        setTimeout(function() {
+            $locationSelect.each(function() {
+                const $this = $(this);
+                if (!$this.hasClass('select2-hidden-accessible')) {
+                    $this.select2({
+                        placeholder: 'Select Location',
+                        allowClear: true,
+                        width: '100%',
+                        multiple: $this.attr('name') === 'locations[]'
+                    });
+                }
+            });
+        }, 100);
+
+        // Auto-select location only in edit mode
+        if (locations.length === 1 && locations[0].selected && $('#product_id').val()) {
+            setTimeout(function() {
+                $('#edit_location_id').val([locations[0].id]).trigger('change');
+                validateFormAndUpdateButtons();
+            }, 200);
+        }
+
+        // Populate location filter dropdown
+        populateLocationFilterDropdown(locations, autoSelectSingle);
+
+        // Validate form after initialization
+        setTimeout(function() {
+            validateFormAndUpdateButtons();
+            if (callback) callback();
+        }, 300);
+    }
+
+    // New function to handle location filter dropdown with "All Location" option
+    function populateLocationFilterDropdown(locations, autoSelectSingle = false) {
+        const locationFilter = $('#locationFilter');
+        locationFilter.empty();
+
+        // Add "All Location" option as default
+        locationFilter.append('<option value="">All Location</option>');
+
+        // Add individual locations
+        locations.forEach(location => {
+            const option = $(`<option value="${location.id}">${location.name}</option>`);
+            locationFilter.append(option);
+        });
+
+        // Auto-select single location if user has access to only one location
+        if (autoSelectSingle && locations.length === 1) {
+            locationFilter.val(locations[0].id);
+        }
+    }
+
+    function fetchInitialDropdowns(callback) {
+        fetchData('/initial-product-details', function(response) {
+
+            if (response.status === 200) {
+                const brands = response.message.brands;
+                const mainCategories = response.message.mainCategories;
+                subCategories = response.message.subCategories; // Store subcategories globally
+                const units = response.message.units;
+                const locations = response.message.locations;
+                const autoSelectSingle = response.message.auto_select_single_location;
+
+                populateInitialDropdowns(mainCategories, subCategories, brands, units, locations,
+                    autoSelectSingle, callback);
+
+            } else {
+                // Failed to load initial product details
+            }
+        });
+    }
+
+    function populateSubCategories(selectedMainCategoryId) {
+        const subCategorySelect = $('#edit_sub_category_id').empty();
+        subCategorySelect.append('<option selected disabled>Sub Category</option>');
+
+        subCategories
+            .filter(subCategory => subCategory.main_category_id == selectedMainCategoryId)
+            .forEach(subCategory => {
+                subCategorySelect.append(new Option(subCategory.subCategoryname, subCategory.id));
+            });
+
+        subCategorySelect.trigger('change');
+    }
+
+    $('#edit_main_category_id').change(function() {
+        const selectedMainCategoryId = $(this).val();
+        populateSubCategories(selectedMainCategoryId);
+    });
+
+    function populateProductDetails(product, mainCategories, subCategories, brands, units, locations) {
+        $('#product_id').val(product.id);
+        $('#edit_product_name').val(product.product_name);
+        $('#summernote').summernote('code', product.description || ''); // Use Summernote API to set content
+        $('#edit_sku').val(product.sku ?? '');
+        $('#edit_pax').val(product.pax || 0);
+        $('#edit_original_price').val(product.original_price || 0);
+        $('#edit_retail_price').val(product.retail_price || 0);
+        $('#edit_whole_sale_price').val(product.whole_sale_price || 0);
+        $('#edit_special_price').val(product.special_price || 0);
+        $('#edit_max_retail_price').val(product.max_retail_price || 0);
+        $('#edit_alert_quantity').val(product.alert_quantity || 0);
+        $('#edit_product_type').val(product.product_type || "").trigger('change');
+        $('#Enable_Product_description').prop('checked', product.is_imei_or_serial_no === 1);
+        $('#Not_for_selling').prop('checked', product.is_for_selling === "1");
+
+        if (product.product_image) {
+            const imagePath = `/assets/images/${product.product_image}`;
+            $('#product-selectedImage').attr('src', imagePath).show();
+        }
+
+        // Change button text for edit mode
+        updateButtonsForEditMode();
+
+        // Populate initial dropdowns with callback to set selected values
+        populateInitialDropdowns(mainCategories, subCategories, brands, units, locations, false,
+            function() {
+                $('#edit_main_category_id').val(product.main_category_id).trigger('change');
+
+                setTimeout(() => {
+                    populateSubCategories(product.main_category_id);
+                    $('#edit_sub_category_id').val(product.sub_category_id).trigger('change');
+                }, 300);
+
+                $('#edit_brand_id').val(product.brand_id).trigger('change');
+                $('#edit_unit_id').val(product.unit_id).trigger('change');
+                const locationIds = product.locations.map(location => location.id);
+                $('#edit_location_id').val(locationIds).trigger('change');
+            });
+    }
+
+    // Function to update button text for edit mode
+    function updateButtonsForEditMode() {
+        // Change button text for edit mode
+        $('#onlySaveProductButton').text('Update');
+        $('#SaveProductButtonAndAnother').text('Update & Add Another');
+        $('#openingStockAndProduct').text('Update & Opening Stock');
+
+        // Update any button titles/tooltips
+        $('#onlySaveProductButton').attr('title', 'Update the product');
+        $('#SaveProductButtonAndAnother').attr('title', 'Update product and add another');
+        $('#openingStockAndProduct').attr('title', 'Update product and manage opening stock');
+    }
+
+    // Function to reset buttons for add mode
+    function resetButtonsForAddMode() {
+        // Reset button text for add mode
+        $('#onlySaveProductButton').text('Save');
+        $('#SaveProductButtonAndAnother').text('Save & Add Another');
+        $('#openingStockAndProduct').text('Save & Opening Stock');
+
+        // Reset button titles/tooltips
+        $('#onlySaveProductButton').attr('title', 'Save the product');
+        $('#SaveProductButtonAndAnother').attr('title', 'Save product and add another');
+        $('#openingStockAndProduct').attr('title', 'Save product and manage opening stock');
+    }
+
+
+
+
+
+
+    // Collect selected product IDs
+    let selectedProductIds = [];
+
+    function toggleAddLocationButton() {
+        if (selectedProductIds.length > 0) {
+            $('#addLocationButton').show();
+        } else {
+            $('#addLocationButton').hide();
+        }
+    }
+
+    // Fetch and populate the location dropdown
+    function populateLocationDropdown() {
+        fetchData('/location-get-all', function(response) {
+            if (response.status === 200) {
+                const locations = response
+                    .message; // Ensure this is correct according to your API response
+                const locationSelect = $('#locations');
+                locationSelect.empty();
+
+                // Get current locations for selected products
+                getCurrentProductLocations(function(currentLocationIds) {
+                    locations.forEach(function(location) {
+                        const option = new Option(location.name, location.id);
+                        // Pre-select if this location is currently assigned to any selected product
+                        if (currentLocationIds.includes(location.id)) {
                             option.selected = true;
                         }
-                        selectElement.append(option);
-                    });
-                    
-                    // For location dropdowns, handle Select2 initialization separately
-                    if (selector === '#edit_location_id' || selector.includes('locations[]')) {
-                        setTimeout(function() {
-                            if (!selectElement.hasClass('select2-hidden-accessible')) {
-                                selectElement.select2({
-                                    placeholder: 'Select Location',
-                                    allowClear: true,
-                                    width: '100%',
-                                    multiple: selector.includes('locations[]')
-                                });
-                            }
-                        }, 100);
-                    }
-                }
-
-                function populateInitialDropdowns(mainCategories, subCategories, brands, units, locations,
-                    autoSelectSingle, callback) {
-                    // Populate dropdowns with data (location dropdown will be handled specially)
-                    populateDropdown('#edit_main_category_id', mainCategories, 'mainCategoryName');
-                    populateDropdown('#edit_sub_category_id', subCategories, 'subCategoryname');
-                    populateDropdown('#edit_brand_id', brands, 'name');
-                    populateDropdown('#edit_unit_id', units, 'name');
-                    
-                    // Handle location dropdown separately to avoid adding "Select Location" as an option
-                    const $locationSelect = $('#edit_location_id, select[name="locations[]"]');
-                    $locationSelect.empty(); // Clear first
-                    
-                    // Add only the actual location options (no placeholder option)
-                    locations.forEach(location => {
-                        const option = new Option(location.name, location.id);
-                        $locationSelect.append(option);
+                        locationSelect.append(option);
                     });
 
-                    // Initialize Select2 for location dropdown with proper placeholder
-                    setTimeout(function() {
-                        $locationSelect.each(function() {
-                            const $this = $(this);
-                            if (!$this.hasClass('select2-hidden-accessible')) {
-                                $this.select2({
-                                    placeholder: 'Select Location',
-                                    allowClear: true,
-                                    width: '100%',
-                                    multiple: $this.attr('name') === 'locations[]'
-                                });
-                            }
-                        });
-                    }, 100);
-
-                    // Auto-select location only in edit mode
-                    if (locations.length === 1 && locations[0].selected && $('#product_id').val()) {
-                        setTimeout(function() {
-                            $('#edit_location_id').val([locations[0].id]).trigger('change');
-                            validateFormAndUpdateButtons();
-                        }, 200);
-                    }
-
-                    // Populate location filter dropdown
-                    populateLocationFilterDropdown(locations, autoSelectSingle);
-
-                    // Validate form after initialization
-                    setTimeout(function() {
-                        validateFormAndUpdateButtons();
-                        if (callback) callback();
-                    }, 300);
-                }
-
-                // New function to handle location filter dropdown with "All Location" option
-                function populateLocationFilterDropdown(locations, autoSelectSingle = false) {
-                    const locationFilter = $('#locationFilter');
-                    locationFilter.empty();
-
-                    // Add "All Location" option as default
-                    locationFilter.append('<option value="">All Location</option>');
-
-                    // Add individual locations
-                    locations.forEach(location => {
-                        const option = $(`<option value="${location.id}">${location.name}</option>`);
-                        locationFilter.append(option);
-                    });
-
-                    // Auto-select single location if user has access to only one location
-                    if (autoSelectSingle && locations.length === 1) {
-                        locationFilter.val(locations[0].id);
-                    }
-                }
-
-                function fetchInitialDropdowns(callback) {
-                    fetchData('/initial-product-details', function(response) {
-
-                        if (response.status === 200) {
-                            const brands = response.message.brands;
-                            const mainCategories = response.message.mainCategories;
-                            subCategories = response.message.subCategories; // Store subcategories globally
-                            const units = response.message.units;
-                            const locations = response.message.locations;
-                            const autoSelectSingle = response.message.auto_select_single_location;
-
-                            populateInitialDropdowns(mainCategories, subCategories, brands, units, locations,
-                                autoSelectSingle, callback);
-
-                        } else {
-                            // Failed to load initial product details
-                        }
-                    });
-                }
-
-                function populateSubCategories(selectedMainCategoryId) {
-                    const subCategorySelect = $('#edit_sub_category_id').empty();
-                    subCategorySelect.append('<option selected disabled>Sub Category</option>');
-
-                    subCategories
-                        .filter(subCategory => subCategory.main_category_id == selectedMainCategoryId)
-                        .forEach(subCategory => {
-                            subCategorySelect.append(new Option(subCategory.subCategoryname, subCategory.id));
-                        });
-
-                    subCategorySelect.trigger('change');
-                }
-
-                $('#edit_main_category_id').change(function() {
-                    const selectedMainCategoryId = $(this).val();
-                    populateSubCategories(selectedMainCategoryId);
+                    // Trigger change to update the select2 display
+                    locationSelect.trigger('change');
                 });
+            } else {
+                console.error('Failed to fetch locations.');
+            }
+        });
+    }
 
-                function populateProductDetails(product, mainCategories, subCategories, brands, units, locations) {
-                    $('#product_id').val(product.id);
-                    $('#edit_product_name').val(product.product_name);
-                    $('#summernote').summernote('code', product.description || ''); // Use Summernote API to set content
-                    $('#edit_sku').val(product.sku ?? '');
-                    $('#edit_pax').val(product.pax || 0);
-                    $('#edit_original_price').val(product.original_price || 0);
-                    $('#edit_retail_price').val(product.retail_price || 0);
-                    $('#edit_whole_sale_price').val(product.whole_sale_price || 0);
-                    $('#edit_special_price').val(product.special_price || 0);
-                    $('#edit_max_retail_price').val(product.max_retail_price || 0);
-                    $('#edit_alert_quantity').val(product.alert_quantity || 0);
-                    $('#edit_product_type').val(product.product_type || "").trigger('change');
-                    $('#Enable_Product_description').prop('checked', product.is_imei_or_serial_no === 1);
-                    $('#Not_for_selling').prop('checked', product.is_for_selling === "1");
+    // Function to get current locations for selected products
+    function getCurrentProductLocations(callback) {
+        if (selectedProductIds.length === 0) {
+            callback([]);
+            return;
+        }
 
-                    if (product.product_image) {
-                        const imagePath = `/assets/images/${product.product_image}`;
-                        $('#product-selectedImage').attr('src', imagePath).show();
-                    }
-
-                    // Change button text for edit mode
-                    updateButtonsForEditMode();
-
-                    // Populate initial dropdowns with callback to set selected values
-                    populateInitialDropdowns(mainCategories, subCategories, brands, units, locations, false,
-                        function() {
-                            $('#edit_main_category_id').val(product.main_category_id).trigger('change');
-
-                            setTimeout(() => {
-                                populateSubCategories(product.main_category_id);
-                                $('#edit_sub_category_id').val(product.sub_category_id).trigger('change');
-                            }, 300);
-
-                            $('#edit_brand_id').val(product.brand_id).trigger('change');
-                            $('#edit_unit_id').val(product.unit_id).trigger('change');
-                            const locationIds = product.locations.map(location => location.id);
-                            $('#edit_location_id').val(locationIds).trigger('change');
+        $.ajax({
+            url: '/get-product-locations',
+            type: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            data: {
+                product_ids: selectedProductIds
+            },
+            success: function(response) {
+                if (response.status === 'success') {
+                    // Get unique location IDs from all selected products
+                    const locationIds = [];
+                    response.data.forEach(product => {
+                        product.locations.forEach(location => {
+                            if (!locationIds.includes(location.id)) {
+                                locationIds.push(location.id);
+                            }
                         });
+                    });
+                    callback(locationIds);
+                } else {
+                    console.error('Failed to fetch product locations');
+                    callback([]);
                 }
+            },
+            error: function(xhr) {
+                console.error('Error fetching product locations:', xhr);
+                callback([]);
+            }
+        });
+    }
 
-                // Function to update button text for edit mode
-                function updateButtonsForEditMode() {
-                    // Change button text for edit mode
-                    $('#onlySaveProductButton').text('Update');
-                    $('#SaveProductButtonAndAnother').text('Update & Add Another');
-                    $('#openingStockAndProduct').text('Update & Opening Stock');
+    $('#addLocationModal').on('show.bs.modal', function() {
+        populateLocationDropdown();
+    });
 
-                    // Update any button titles/tooltips
-                    $('#onlySaveProductButton').attr('title', 'Update the product');
-                    $('#SaveProductButtonAndAnother').attr('title', 'Update product and add another');
-                    $('#openingStockAndProduct').attr('title', 'Update product and manage opening stock');
-                }
+    $('#saveLocationsButton').on('click', function() {
+        const selectedLocations = $('#locations').val();
+        if (selectedLocations && selectedProductIds.length > 0) {
+            $.ajax({
+                url: '/save-changes',
 
-                // Function to reset buttons for add mode
-                function resetButtonsForAddMode() {
-                    // Reset button text for add mode
-                    $('#onlySaveProductButton').text('Save');
-                    $('#SaveProductButtonAndAnother').text('Save & Add Another');
-                    $('#openingStockAndProduct').text('Save & Opening Stock');
-
-                    // Reset button titles/tooltips
-                    $('#onlySaveProductButton').attr('title', 'Save the product');
-                    $('#SaveProductButtonAndAnother').attr('title', 'Save product and add another');
-                    $('#openingStockAndProduct').attr('title', 'Save product and manage opening stock');
-                }
-
-
-
-
-
-
-                // Collect selected product IDs
-                let selectedProductIds = [];
-
-                function toggleAddLocationButton() {
-                    if (selectedProductIds.length > 0) {
-                        $('#addLocationButton').show();
+                type: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                data: {
+                    product_ids: selectedProductIds,
+                    location_ids: selectedLocations
+                },
+                success: function(response) {
+                    if (response.status === 'success') {
+                        toastr.success(response.message, 'Success');
+                        $('#addLocationModal').modal('hide');
+                        fetchProductData();
                     } else {
-                        $('#addLocationButton').hide();
+                        toastr.error(response.message || 'Failed to save changes.',
+                            'Error');
                     }
+                },
+                error: function(xhr) {
+                    toastr.error('An error occurred while saving changes.', 'Error');
                 }
+            });
+        } else {
+            toastr.warning('Please select at least one product and one location.',
+                'Selection Required');
+        }
+    });
 
-                // Fetch and populate the location dropdown
-                function populateLocationDropdown() {
-                    fetchData('/location-get-all', function(response) {
-                        if (response.status === 200) {
-                            const locations = response
-                                .message; // Ensure this is correct according to your API response
-                            const locationSelect = $('#locations');
-                            locationSelect.empty();
 
-                            // Get current locations for selected products
-                            getCurrentProductLocations(function(currentLocationIds) {
-                                locations.forEach(function(location) {
-                                    const option = new Option(location.name, location.id);
-                                    // Pre-select if this location is currently assigned to any selected product
-                                    if (currentLocationIds.includes(location.id)) {
-                                        option.selected = true;
-                                    }
-                                    locationSelect.append(option);
-                                });
+    // Toggle both buttons when products are selected
+    function toggleActionButtons() {
+        if (selectedProductIds.length > 0) {
+            $('#addLocationButton').show();
+            $('#applyDiscountButton').show();
+        } else {
+            $('#addLocationButton').hide();
+            $('#applyDiscountButton').hide();
+        }
+    }
 
-                                // Trigger change to update the select2 display
-                                locationSelect.trigger('change');
-                            });
-                        } else {
-                            console.error('Failed to fetch locations.');
-                        }
+
+    $('#saveDiscountButton').on('click', function() {
+        const discountData = {
+            name: $('#discountName').val(), // Fixed typo (was discounTName)
+            description: $('#discountDescription').val(),
+            type: $('#discountType').val(),
+            amount: $('#discountAmount').val(),
+            start_date: $('#startDate').val(),
+            end_date: $('#endDate').val() || null,
+            is_active: $('#isActive').is(':checked') ? 1 :
+            0, // Convert to 1/0 instead of true/false
+            product_ids: selectedProductIds
+        };
+
+        // Validate required fields
+        if (!discountData.name || !discountData.type || !discountData.amount || !discountData
+            .start_date) {
+            toastr.error('Please fill all required fields', 'Error');
+            return;
+        }
+
+        $.ajax({
+            url: '/apply-discount',
+            type: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            data: discountData,
+            success: function(response) {
+                if (response.status === 'success') {
+                    toastr.success(response.message, 'Success');
+                    $('#applyDiscountModal').modal('hide');
+                    $('#discountForm')[0].reset();
+                    fetchProductData();
+                } else {
+                    toastr.error(response.message || 'Failed to apply discount',
+                        'Error');
+                }
+            },
+            error: function(xhr) {
+                const errors = xhr.responseJSON?.errors;
+                if (errors) {
+                    Object.values(errors).forEach(error => {
+                        toastr.error(error[0], 'Validation Error');
                     });
+                } else {
+                    toastr.error('An error occurred while applying discount', 'Error');
                 }
-
-                // Function to get current locations for selected products
-                function getCurrentProductLocations(callback) {
-                    if (selectedProductIds.length === 0) {
-                        callback([]);
-                        return;
-                    }
-
-                    $.ajax({
-                        url: '/get-product-locations',
-                        type: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                        },
-                        data: {
-                            product_ids: selectedProductIds
-                        },
-                        success: function(response) {
-                            if (response.status === 'success') {
-                                // Get unique location IDs from all selected products
-                                const locationIds = [];
-                                response.data.forEach(product => {
-                                    product.locations.forEach(location => {
-                                        if (!locationIds.includes(location.id)) {
-                                            locationIds.push(location.id);
-                                        }
-                                    });
-                                });
-                                callback(locationIds);
-                            } else {
-                                console.error('Failed to fetch product locations');
-                                callback([]);
-                            }
-                        },
-                        error: function(xhr) {
-                            console.error('Error fetching product locations:', xhr);
-                            callback([]);
-                        }
-                    });
-                }
-
-                $('#addLocationModal').on('show.bs.modal', function() {
-                    populateLocationDropdown();
-                });
-
-                $('#saveLocationsButton').on('click', function() {
-                    const selectedLocations = $('#locations').val();
-                    if (selectedLocations && selectedProductIds.length > 0) {
-                        $.ajax({
-                            url: '/save-changes',
-
-                            type: 'POST',
-                            headers: {
-                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                            },
-                            data: {
-                                product_ids: selectedProductIds,
-                                location_ids: selectedLocations
-                            },
-                            success: function(response) {
-                                if (response.status === 'success') {
-                                    toastr.success(response.message, 'Success');
-                                    $('#addLocationModal').modal('hide');
-                                    fetchProductData();
-                                } else {
-                                    toastr.error(response.message || 'Failed to save changes.',
-                                        'Error');
-                                }
-                            },
-                            error: function(xhr) {
-                                toastr.error('An error occurred while saving changes.', 'Error');
-                            }
-                        });
-                    } else {
-                        toastr.warning('Please select at least one product and one location.', 'Selection Required');
-                    }
-                });
-
-
-                // Toggle both buttons when products are selected
-                function toggleActionButtons() {
-                    if (selectedProductIds.length > 0) {
-                        $('#addLocationButton').show();
-                        $('#applyDiscountButton').show();
-                    } else {
-                        $('#addLocationButton').hide();
-                        $('#applyDiscountButton').hide();
-                    }
-                }
-
-
-                $('#saveDiscountButton').on('click', function() {
-                    const discountData = {
-                        name: $('#discountName').val(), // Fixed typo (was discounTName)
-                        description: $('#discountDescription').val(),
-                        type: $('#discountType').val(),
-                        amount: $('#discountAmount').val(),
-                        start_date: $('#startDate').val(),
-                        end_date: $('#endDate').val() || null,
-                        is_active: $('#isActive').is(':checked') ? 1 :
-                        0, // Convert to 1/0 instead of true/false
-                        product_ids: selectedProductIds
-                    };
-
-                    // Validate required fields
-                    if (!discountData.name || !discountData.type || !discountData.amount || !discountData
-                        .start_date) {
-                        toastr.error('Please fill all required fields', 'Error');
-                        return;
-                    }
-
-                    $.ajax({
-                        url: '/apply-discount',
-                        type: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                        },
-                        data: discountData,
-                        success: function(response) {
-                            if (response.status === 'success') {
-                                toastr.success(response.message, 'Success');
-                                $('#applyDiscountModal').modal('hide');
-                                $('#discountForm')[0].reset();
-                                fetchProductData();
-                            } else {
-                                toastr.error(response.message || 'Failed to apply discount',
-                                    'Error');
-                            }
-                        },
-                        error: function(xhr) {
-                            const errors = xhr.responseJSON?.errors;
-                            if (errors) {
-                                Object.values(errors).forEach(error => {
-                                    toastr.error(error[0], 'Validation Error');
-                                });
-                            } else {
-                                toastr.error('An error occurred while applying discount', 'Error');
-                            }
-                            console.error(xhr.responseText);
-                        }
-                    });
-                });
+                console.error(xhr.responseText);
+            }
+        });
+    });
 
 
 
-                // Toggle product status (activate/deactivate)
-                function toggleProductStatus(productId, currentStatus) {
-                    const action = currentStatus ? 'deactivate' : 'activate';
-                    const actionText = currentStatus ? 'Deactivate' : 'Activate';
-                    const actionCapitalized = action.charAt(0).toUpperCase() + action.slice(1);
+    // Toggle product status (activate/deactivate)
+    function toggleProductStatus(productId, currentStatus) {
+        const action = currentStatus ? 'deactivate' : 'activate';
+        const actionText = currentStatus ? 'Deactivate' : 'Activate';
+        const actionCapitalized = action.charAt(0).toUpperCase() + action.slice(1);
 
-                    // Use SweetAlert for confirmation
+        // Use SweetAlert for confirmation
+        swal({
+            title: "Are you sure?",
+            text: `Do you want to ${action} this product?`,
+            type: "warning",
+            showCancelButton: true,
+            confirmButtonColor: currentStatus ? "#DD6B55" : "#5cb85c",
+            confirmButtonText: `Yes, ${action} it!`,
+            cancelButtonText: "No, cancel",
+            closeOnConfirm: false,
+            closeOnCancel: true
+        }, function(isConfirm) {
+            if (isConfirm) {
+                performStatusToggle(productId, action, actionCapitalized);
+            }
+        });
+    }
+
+    // Separate function to perform the actual AJAX call
+    function performStatusToggle(productId, action, actionCapitalized) {
+        $.ajax({
+            url: '/toggle-product-status/' + productId,
+            type: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken
+            },
+            success: function(response) {
+                if (response.status === 200) {
                     swal({
-                        title: "Are you sure?",
-                        text: `Do you want to ${action} this product?`,
-                        type: "warning",
-                        showCancelButton: true,
-                        confirmButtonColor: currentStatus ? "#DD6B55" : "#5cb85c",
-                        confirmButtonText: `Yes, ${action} it!`,
-                        cancelButtonText: "No, cancel",
-                        closeOnConfirm: false,
-                        closeOnCancel: true
-                    }, function(isConfirm) {
-                        if (isConfirm) {
-                            performStatusToggle(productId, action, actionCapitalized);
-                        }
-                    });
-                }
-
-                // Separate function to perform the actual AJAX call
-                function performStatusToggle(productId, action, actionCapitalized) {
-                    $.ajax({
-                        url: '/toggle-product-status/' + productId,
-                        type: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': csrfToken
-                        },
-                        success: function(response) {
-                            if (response.status === 200) {
-                                swal({
-                                    title: "Success!",
-                                    text: response.message,
-                                    type: "success",
-                                    timer: 2000,
-                                    showConfirmButton: false
-                                });
-                                
-                                // Reload the DataTable
-                                if ($.fn.DataTable.isDataTable('#productTable')) {
-                                    $('#productTable').DataTable().ajax.reload(null, false);
-                                }
-                            } else {
-                                swal("Error!", response.message || 'Failed to update status', "error");
-                            }
-                        },
-                        error: function(xhr, status, error) {
-                            console.error('AJAX Error:', xhr.responseText);
-                            let errorMessage = 'Failed to update product status';
-                            if (xhr.responseJSON && xhr.responseJSON.message) {
-                                errorMessage = xhr.responseJSON.message;
-                            }
-                            swal("Error!", errorMessage, "error");
-                        }
-                    });
-                }
-
-
-                // Fetch and cache category, brand, location data
-                function fetchCategoriesAndBrands(callback) {
-                    let loaded = 0;
-                    fetchData('/main-category-get-all', function(response) {
-                        if (Array.isArray(response.message)) {
-                            response.message.forEach(c => {
-                                categoryMap[c.id] = c.mainCategoryName;
-                            });
-                        }
-                        if (++loaded === 3) callback();
-                    });
-                    fetchData('/brand-get-all', function(response) {
-                        if (Array.isArray(response.message)) {
-                            response.message.forEach(b => {
-                                brandMap[b.id] = b.name;
-                            });
-                        }
-                        if (++loaded === 3) callback();
-                    });
-                    fetchData('/location-get-all', function(response) {
-                        if (Array.isArray(response.message)) {
-                            response.message.forEach(l => {
-                                locationMap[l.id] = l.name;
-                            });
-                        }
-                        if (++loaded === 3) callback();
-                    });
-                }
-
-                // Populate filter dropdowns from current page data
-                function populateProductFilter(pageData) {
-                    const productNameFilter = $('#productNameFilter');
-                    const categoryFilter = $('#categoryFilter');
-                    const brandFilter = $('#brandFilter');
-                    const locationFilter = $('#locationFilter');
-
-                    const productNames = [...new Set(pageData.map(item => item.product.product_name))];
-                    const categories = [...new Set(pageData.map(item => item.product.main_category_id))];
-                    const brands = [...new Set(pageData.map(item => item.product.brand_id))];
-                    const locations = [...new Set(pageData.flatMap(item => item.locations.map(loc => loc.id)))];
-
-                    productNameFilter.empty().append('<option value="">Select Product</option>');
-                    categoryFilter.empty().append('<option value="">Select Category</option>');
-                    brandFilter.empty().append('<option value="">Select Brand</option>');
-
-                    // Don't clear location filter as it's populated from initial data
-                    // locationFilter.empty().append('<option value="">Select Location</option>');
-
-                    productNames.forEach(name => {
-                        productNameFilter.append(`<option value="${name}">${name}</option>`);
-                    });
-                    categories.forEach(category => {
-                        if (categoryMap[category]) categoryFilter.append(
-                            `<option value="${category}">${categoryMap[category]}</option>`);
-                    });
-                    brands.forEach(brand => {
-                        if (brandMap[brand]) brandFilter.append(
-                            `<option value="${brand}">${brandMap[brand]}</option>`);
+                        title: "Success!",
+                        text: response.message,
+                        type: "success",
+                        timer: 2000,
+                        showConfirmButton: false
                     });
 
-                }
-
-                function buildActionsDropdown(row) {
-                    // Ensure we have product data
-                    if (!row.product) {
-                        return '<div class="text-danger">Error: No product data</div>';
+                    // Reload the DataTable
+                    if ($.fn.DataTable.isDataTable('#productTable')) {
+                        $('#productTable').DataTable().ajax.reload(null, false);
                     }
+                } else {
+                    swal("Error!", response.message || 'Failed to update status', "error");
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX Error:', xhr.responseText);
+                let errorMessage = 'Failed to update product status';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+                swal("Error!", errorMessage, "error");
+            }
+        });
+    }
 
-                    // Determine button text and icon based on status - access from nested product object
-                    const isActive = row.product.is_active === 1 || row.product.is_active === true || row.product
-                        .is_active === "1";
 
-                    // Pass the actual boolean status to the click handler
-                    const statusButton = isActive ?
-                        `<li><a class="dropdown-item btn-toggle-status" href="#" data-product-id="${row.product.id}" data-status="true"><i class="fas fa-times-circle text-warning"></i> Deactivate</a></li>` :
-                        `<li><a class="dropdown-item btn-toggle-status" href="#" data-product-id="${row.product.id}" data-status="false"><i class="fas fa-check-circle text-success"></i> Activate</a></li>`;
+    // Fetch and cache category, brand, location data
+    function fetchCategoriesAndBrands(callback) {
+        let loaded = 0;
+        fetchData('/main-category-get-all', function(response) {
+            if (Array.isArray(response.message)) {
+                response.message.forEach(c => {
+                    categoryMap[c.id] = c.mainCategoryName;
+                });
+            }
+            if (++loaded === 3) callback();
+        });
+        fetchData('/brand-get-all', function(response) {
+            if (Array.isArray(response.message)) {
+                response.message.forEach(b => {
+                    brandMap[b.id] = b.name;
+                });
+            }
+            if (++loaded === 3) callback();
+        });
+        fetchData('/location-get-all', function(response) {
+            if (Array.isArray(response.message)) {
+                response.message.forEach(l => {
+                    locationMap[l.id] = l.name;
+                });
+            }
+            if (++loaded === 3) callback();
+        });
+    }
 
-                    return `
+    // Populate filter dropdowns from current page data
+    function populateProductFilter(pageData) {
+        const productNameFilter = $('#productNameFilter');
+        const categoryFilter = $('#categoryFilter');
+        const brandFilter = $('#brandFilter');
+        const locationFilter = $('#locationFilter');
+
+        const productNames = [...new Set(pageData.map(item => item.product.product_name))];
+        const categories = [...new Set(pageData.map(item => item.product.main_category_id))];
+        const brands = [...new Set(pageData.map(item => item.product.brand_id))];
+        const locations = [...new Set(pageData.flatMap(item => item.locations.map(loc => loc.id)))];
+
+        productNameFilter.empty().append('<option value="">Select Product</option>');
+        categoryFilter.empty().append('<option value="">Select Category</option>');
+        brandFilter.empty().append('<option value="">Select Brand</option>');
+
+        // Don't clear location filter as it's populated from initial data
+        // locationFilter.empty().append('<option value="">Select Location</option>');
+
+        productNames.forEach(name => {
+            productNameFilter.append(`<option value="${name}">${name}</option>`);
+        });
+        categories.forEach(category => {
+            if (categoryMap[category]) categoryFilter.append(
+                `<option value="${category}">${categoryMap[category]}</option>`);
+        });
+        brands.forEach(brand => {
+            if (brandMap[brand]) brandFilter.append(
+                `<option value="${brand}">${brandMap[brand]}</option>`);
+        });
+
+    }
+
+    function buildActionsDropdown(row) {
+        // Ensure we have product data
+        if (!row.product) {
+            return '<div class="text-danger">Error: No product data</div>';
+        }
+
+        // Determine button text and icon based on status - access from nested product object
+        const isActive = row.product.is_active === 1 || row.product.is_active === true || row.product
+            .is_active === "1";
+
+        // Pass the actual boolean status to the click handler
+        const statusButton = isActive ?
+            `<li><a class="dropdown-item btn-toggle-status" href="#" data-product-id="${row.product.id}" data-status="true"><i class="fas fa-times-circle text-warning"></i> Deactivate</a></li>` :
+            `<li><a class="dropdown-item btn-toggle-status" href="#" data-product-id="${row.product.id}" data-status="false"><i class="fas fa-check-circle text-success"></i> Activate</a></li>`;
+
+        return `
                 <div class="dropdown">
                     <button class="btn btn-outline-info btn-sm dropdown-toggle action-button" type="button" id="actionsDropdown-${row.product.id}" data-bs-toggle="dropdown" aria-expanded="false">
                         Actions
@@ -822,392 +824,392 @@
                     </ul>
                 </div>
             `;
-                }
+    }
 
-                function fetchProductData() {
-                    if ($.fn.DataTable.isDataTable('#productTable')) {
-                        $('#productTable').DataTable().destroy();
+    function fetchProductData() {
+        if ($.fn.DataTable.isDataTable('#productTable')) {
+            $('#productTable').DataTable().destroy();
+        }
+        $('#productTable tbody').empty();
+
+        $('#productTable').DataTable({
+            processing: true,
+            serverSide: true,
+            deferRender: true, // Improve performance for large datasets
+            stateSave: true, // Save table state (pagination, search, etc.)
+            ajax: {
+                url: '/products/stocks',
+                type: 'GET',
+                dataType: 'json', // Ensure jQuery expects JSON
+                cache: true, // Enable caching
+                data: function(d) {
+                    // DataTables sends search and paging params in 'd'
+                    const requestData = {
+                        draw: d.draw,
+                        start: d.start,
+                        length: d.length,
+                        // DataTables global search
+                        'search[value]': d.search.value,
+                        // DataTables ordering
+                        'order[0][column]': d.order && d.order.length ? d.order[0].column :
+                            0,
+                        'order[0][dir]': d.order && d.order.length ? d.order[0].dir : 'asc',
+                        // DataTables columns (for ordering)
+                        'columns': d.columns,
+                        // Custom filters
+                        product_name: $('#productNameFilter').val(),
+                        main_category_id: $('#categoryFilter').val(),
+                        brand_id: $('#brandFilter').val(),
+                        location_id: $('#locationFilter').val(),
+                        // Show all products (active and inactive) in product list
+                        show_all: true
+                    };
+                    return requestData;
+                },
+                dataSrc: function(response) {
+
+                    // DataTables expects an object with at least 'data' property as array
+                    if (!response || typeof response !== 'object') {
+                        console.error('Invalid JSON response from server');
+                        return [];
                     }
-                    $('#productTable tbody').empty();
 
-                    $('#productTable').DataTable({
-                        processing: true,
-                        serverSide: true,
-                        deferRender: true, // Improve performance for large datasets
-                        stateSave: true, // Save table state (pagination, search, etc.)
-                        ajax: {
-                            url: '/products/stocks',
-                            type: 'GET',
-                            dataType: 'json', // Ensure jQuery expects JSON
-                            cache: true, // Enable caching
-                            data: function(d) {
-                                // DataTables sends search and paging params in 'd'
-                                const requestData = {
-                                    draw: d.draw,
-                                    start: d.start,
-                                    length: d.length,
-                                    // DataTables global search
-                                    'search[value]': d.search.value,
-                                    // DataTables ordering
-                                    'order[0][column]': d.order && d.order.length ? d.order[0].column :
-                                        0,
-                                    'order[0][dir]': d.order && d.order.length ? d.order[0].dir : 'asc',
-                                    // DataTables columns (for ordering)
-                                    'columns': d.columns,
-                                    // Custom filters
-                                    product_name: $('#productNameFilter').val(),
-                                    main_category_id: $('#categoryFilter').val(),
-                                    brand_id: $('#brandFilter').val(),
-                                    location_id: $('#locationFilter').val(),
-                                    // Show all products (active and inactive) in product list
-                                    show_all: true
-                                };
-                                return requestData;
-                            },
-                            dataSrc: function(response) {
+                    // If your backend returns {status: 200, data: [...]}, convert to DataTables format
+                    if (response.status === 200 && Array.isArray(response.data)) {
+                        // Optionally update filters
+                        if (response.draw === 1) populateProductFilter(response.data);
+                        return response.data;
+                    }
 
-                                // DataTables expects an object with at least 'data' property as array
-                                if (!response || typeof response !== 'object') {
-                                    console.error('Invalid JSON response from server');
-                                    return [];
-                                }
+                    // If backend returns DataTables format, just return response.data
+                    if (Array.isArray(response.data)) {
+                        return response.data;
+                    }
 
-                                // If your backend returns {status: 200, data: [...]}, convert to DataTables format
-                                if (response.status === 200 && Array.isArray(response.data)) {
-                                    // Optionally update filters
-                                    if (response.draw === 1) populateProductFilter(response.data);
-                                    return response.data;
-                                }
+                    // If backend returns error, show message
+                    if (response.message) {
+                        toastr.error(response.message, 'Error');
+                    }
 
-                                // If backend returns DataTables format, just return response.data
-                                if (Array.isArray(response.data)) {
-                                    return response.data;
-                                }
+                    return [];
+                },
+                error: function(xhr, status, error) {
+                    console.error('DataTable AJAX error details:');
+                    console.error('Status:', status);
+                    console.error('Error:', error);
+                    console.error('Status Code:', xhr.status);
+                    console.error('Response Text:', xhr.responseText);
 
-                                // If backend returns error, show message
-                                if (response.message) {
-                                    toastr.error(response.message, 'Error');
-                                }
-
-                                return [];
-                            },
-                            error: function(xhr, status, error) {
-                                console.error('DataTable AJAX error details:');
-                                console.error('Status:', status);
-                                console.error('Error:', error);
-                                console.error('Status Code:', xhr.status);
-                                console.error('Response Text:', xhr.responseText);
-
-                                // Show a user-friendly error
-                                toastr.error(
-                                    'Failed to load product data. Please check your server response.',
-                                    'Error');
-                            }
-                        },
-                        columns: [{
-                                data: null,
-                                render: function(data, type, row) {
-                                    return `<input type="checkbox" class="product-checkbox" data-product-id="${row.product.id}" style="width: 16px; height: 16px;">`;
-                                },
-                                orderable: false
-                            },
-                            {
-                                data: null,
-                                render: function(data, type, row) {
-                                    return buildActionsDropdown(row);
-                                },
-                                orderable: false
-                            },
-                            {
-                                data: null,
-                                render: function(data, type, row) {
-                                    const productImage = row.product.product_image;
-                                    const imagePath = productImage && productImage !== 'null' &&
-                                        productImage !== null &&
-                                        productImage !== '' ?
-                                        `/assets/images/${productImage}` :
-                                        '/assets/images/No Product Image Available.png';
-                                    return `<img src="${imagePath}" alt="Product Image" style="width: 50px; height: 50px;">`;
-                                }
-                            },
-                            {
-                                data: null,
-                                render: function(data, type, row) {
-                                    return row.product.product_name;
-                                }
-                            },
-                            {
-                                data: null,
-                                render: function(data, type, row) {
-                                    return row.product.sku;
-                                }
-                            },
-                            {
-                                data: null,
-                                render: function(data, type, row) {
-                                    let locationDisplay = [];
-
-                                    if (row.batches && row.batches.length > 0) {
-                                        // Collect locations with stock from batches (already filtered by backend location scope)
-                                        const locationStocks = {};
-
-                                        row.batches.forEach(batch => {
-                                            if (batch.location_batches) {
-                                                batch.location_batches.forEach(lb => {
-                                                    if (lb.quantity > 0) {
-                                                        if (!locationStocks[lb
-                                                                .location_id]) {
-                                                            locationStocks[lb
-                                                                .location_id] = {
-                                                                name: lb
-                                                                    .location_name,
-                                                                qty: 0
-                                                            };
-                                                        }
-                                                        locationStocks[lb.location_id]
-                                                            .qty += parseFloat(lb
-                                                                .quantity);
-                                                    }
-                                                });
-                                            }
-                                        });
-
-                                        // Build display array with quantities
-                                        Object.values(locationStocks).forEach(location => {
-                                            if (location.qty > 0) {
-                                                locationDisplay.push(
-                                                    `${location.name} (${location.qty})`);
-                                            }
-                                        });
-                                    }
-
-                                    // Always show all assigned locations, regardless of stock
-                                    if (row.locations && row.locations.length > 0) {
-                                        // Get location names that are not already in locationDisplay
-                                        const existingLocationNames = locationDisplay.map(display => {
-                                            const match = display.match(/^(.+?)\s*\(/);
-                                            return match ? match[1] : display;
-                                        });
-
-                                        row.locations.forEach(location => {
-                                            const locationName = location.location_name ||
-                                                location.name;
-                                            if (locationName && !existingLocationNames.includes(
-                                                    locationName)) {
-                                                locationDisplay.push(locationName);
-                                            }
-                                        });
-                                    }
-
-                                    return locationDisplay.length > 0 ? locationDisplay.join(', ') :
-                                        'No locations';
-                                }
-                            },
-                            {
-                                data: null,
-                                render: function(data, type, row) {
-                                    // Get the latest batch retail price if batches exist, otherwise use product retail price
-                                    let displayPrice = row.product.retail_price || 0;
-                                    let priceSource =
-                                        'default'; // Track whether price is from batch or default
-
-                                    if (row.product.batches && row.product.batches.length > 0) {
-                                        // Get the latest batch (assuming they are ordered by creation date)
-                                        const latestBatch = row.product.batches[row.product.batches
-                                            .length - 1];
-                                        if (latestBatch && latestBatch.retail_price !== null &&
-                                            latestBatch.retail_price !== undefined) {
-                                            displayPrice = latestBatch.retail_price;
-                                            priceSource = 'batch';
-                                        }
-                                    }
-
-                                    const formattedPrice = parseFloat(displayPrice).toFixed(2);
-
-                                    // Add a small indicator to show price source
-                                    if (priceSource === 'batch') {
-                                        return `${formattedPrice} <small class="text-muted">(B)</small>`;
-                                    } else {
-                                        return formattedPrice;
-                                    }
-                                }
-                            },
-                            {
-                                data: "total_stock"
-                            },
-                            {
-                                data: null,
-                                render: function(data, type, row) {
-                                    return categoryMap[row.product.main_category_id] || 'N/A';
-                                }
-                            },
-                            {
-                                data: null,
-                                render: function(data, type, row) {
-                                    return brandMap[row.product.brand_id] || 'N/A';
-                                }
-                            },
-                            {
-                                data: null,
-                                render: function(data, type, row) {
-                                    // Access is_active from the nested product object
-                                    const isActive = row.product && row.product.is_active;
-                                    return isActive === 1 || isActive === true ?
-                                        '<span class="badge bg-success">Active</span>' :
-                                        '<span class="badge bg-secondary">Inactive</span>';
-                                },
-                                orderable: false,
-                                searchable: false
-                            },
-                            {
-                                data: null,
-                                render: function(data, type, row) {
-                                    return row.product.is_imei_or_serial_no === 1 ? "True" : "False";
-                                }
-                            }
-                        ],
-                        lengthMenu: [
-                            [10, 25, 50, 100],
-                            [10, 25, 50, 100]
-                        ],
-                        pageLength: 10,
-                        ordering: false,
-                        drawCallback: function() {
-                            attachEventHandlers();
-                        }
-                    });
+                    // Show a user-friendly error
+                    toastr.error(
+                        'Failed to load product data. Please check your server response.',
+                        'Error');
                 }
+            },
+            columns: [{
+                    data: null,
+                    render: function(data, type, row) {
+                        return `<input type="checkbox" class="product-checkbox" data-product-id="${row.product.id}" style="width: 16px; height: 16px;">`;
+                    },
+                    orderable: false
+                },
+                {
+                    data: null,
+                    render: function(data, type, row) {
+                        return buildActionsDropdown(row);
+                    },
+                    orderable: false
+                },
+                {
+                    data: null,
+                    render: function(data, type, row) {
+                        const productImage = row.product.product_image;
+                        const imagePath = productImage && productImage !== 'null' &&
+                            productImage !== null &&
+                            productImage !== '' ?
+                            `/assets/images/${productImage}` :
+                            '/assets/images/No Product Image Available.png';
+                        return `<img src="${imagePath}" alt="Product Image" style="width: 50px; height: 50px;">`;
+                    }
+                },
+                {
+                    data: null,
+                    render: function(data, type, row) {
+                        return row.product.product_name;
+                    }
+                },
+                {
+                    data: null,
+                    render: function(data, type, row) {
+                        return row.product.sku;
+                    }
+                },
+                {
+                    data: null,
+                    render: function(data, type, row) {
+                        let locationDisplay = [];
 
-                // Attach all event handlers for table actions (call after each draw)
-                function attachEventHandlers() {
-                    // Remove all existing event handlers first to prevent duplicates
-                    $('#productTable tbody').off('click');
-                    $('.product-checkbox').off('click change');
-                    $('.dropdown-item').off('click');
-                    $('.btn-toggle-status').off('click');
-                    $('.view-product').off('click');
-                    $('.edit-batch-prices').off('click');
-                    $('.show-imei-modal').off('click');
-                    $('.delete-product-dropdown').off('click');
-                    $('#selectAll').off('change');
+                        if (row.batches && row.batches.length > 0) {
+                            // Collect locations with stock from batches (already filtered by backend location scope)
+                            const locationStocks = {};
 
-                    // Select all checkbox
-                    $('#selectAll').on('change', function() {
-                        const isChecked = this.checked;
-                        $('.product-checkbox').prop('checked', isChecked).trigger('change');
-                    });
+                            row.batches.forEach(batch => {
+                                if (batch.location_batches) {
+                                    batch.location_batches.forEach(lb => {
+                                        if (lb.quantity > 0) {
+                                            if (!locationStocks[lb
+                                                    .location_id]) {
+                                                locationStocks[lb
+                                                    .location_id] = {
+                                                    name: lb
+                                                        .location_name,
+                                                    qty: 0
+                                                };
+                                            }
+                                            locationStocks[lb.location_id]
+                                                .qty += parseFloat(lb
+                                                    .quantity);
+                                        }
+                                    });
+                                }
+                            });
 
-                    // Checkbox click handler - prevent any modal opening
-                    $('.product-checkbox').on('click', function(e) {
-                        e.stopImmediatePropagation();
-                    });
+                            // Build display array with quantities
+                            Object.values(locationStocks).forEach(location => {
+                                if (location.qty > 0) {
+                                    locationDisplay.push(
+                                        `${location.name} (${location.qty})`);
+                                }
+                            });
+                        }
 
-                    // Checkbox change handler
-                    $('.product-checkbox').on('change', function(e) {
-                        e.stopPropagation();
-                        const productId = $(this).data('product-id');
-                        if (this.checked) {
-                            if (!selectedProductIds.includes(productId)) {
-                                selectedProductIds.push(productId);
+                        // Always show all assigned locations, regardless of stock
+                        if (row.locations && row.locations.length > 0) {
+                            // Get location names that are not already in locationDisplay
+                            const existingLocationNames = locationDisplay.map(display => {
+                                const match = display.match(/^(.+?)\s*\(/);
+                                return match ? match[1] : display;
+                            });
+
+                            row.locations.forEach(location => {
+                                const locationName = location.location_name ||
+                                    location.name;
+                                if (locationName && !existingLocationNames.includes(
+                                        locationName)) {
+                                    locationDisplay.push(locationName);
+                                }
+                            });
+                        }
+
+                        return locationDisplay.length > 0 ? locationDisplay.join(', ') :
+                            'No locations';
+                    }
+                },
+                {
+                    data: null,
+                    render: function(data, type, row) {
+                        // Get the latest batch retail price if batches exist, otherwise use product retail price
+                        let displayPrice = row.product.retail_price || 0;
+                        let priceSource =
+                            'default'; // Track whether price is from batch or default
+
+                        if (row.product.batches && row.product.batches.length > 0) {
+                            // Get the latest batch (assuming they are ordered by creation date)
+                            const latestBatch = row.product.batches[row.product.batches
+                                .length - 1];
+                            if (latestBatch && latestBatch.retail_price !== null &&
+                                latestBatch.retail_price !== undefined) {
+                                displayPrice = latestBatch.retail_price;
+                                priceSource = 'batch';
                             }
+                        }
+
+                        const formattedPrice = parseFloat(displayPrice).toFixed(2);
+
+                        // Add a small indicator to show price source
+                        if (priceSource === 'batch') {
+                            return `${formattedPrice} <small class="text-muted">(B)</small>`;
                         } else {
-                            selectedProductIds = selectedProductIds.filter(id => id !== productId);
+                            return formattedPrice;
                         }
-                        toggleActionButtons();
-                    });
+                    }
+                },
+                {
+                    data: "total_stock"
+                },
+                {
+                    data: null,
+                    render: function(data, type, row) {
+                        return categoryMap[row.product.main_category_id] || 'N/A';
+                    }
+                },
+                {
+                    data: null,
+                    render: function(data, type, row) {
+                        return brandMap[row.product.brand_id] || 'N/A';
+                    }
+                },
+                {
+                    data: null,
+                    render: function(data, type, row) {
+                        // Access is_active from the nested product object
+                        const isActive = row.product && row.product.is_active;
+                        return isActive === 1 || isActive === true ?
+                            '<span class="badge bg-success">Active</span>' :
+                            '<span class="badge bg-secondary">Inactive</span>';
+                    },
+                    orderable: false,
+                    searchable: false
+                },
+                {
+                    data: null,
+                    render: function(data, type, row) {
+                        return row.product.is_imei_or_serial_no === 1 ? "True" : "False";
+                    }
+                }
+            ],
+            lengthMenu: [
+                [10, 25, 50, 100],
+                [10, 25, 50, 100]
+            ],
+            pageLength: 10,
+            ordering: false,
+            drawCallback: function() {
+                attachEventHandlers();
+            }
+        });
+    }
 
-                    // Prevent sort on action columns
-                    $('#productTable thead th').off('click').on('click', function(event) {
-                        event.stopImmediatePropagation();
-                    });
+    // Attach all event handlers for table actions (call after each draw)
+    function attachEventHandlers() {
+        // Remove all existing event handlers first to prevent duplicates
+        $('#productTable tbody').off('click');
+        $('.product-checkbox').off('click change');
+        $('.dropdown-item').off('click');
+        $('.btn-toggle-status').off('click');
+        $('.view-product').off('click');
+        $('.edit-batch-prices').off('click');
+        $('.show-imei-modal').off('click');
+        $('.delete-product-dropdown').off('click');
+        $('#selectAll').off('change');
 
-                    // Action dropdown clicks
-                    $('.dropdown-item').on('click', function(event) {
-                        event.stopPropagation();
-                        event.preventDefault();
+        // Select all checkbox
+        $('#selectAll').on('change', function() {
+            const isChecked = this.checked;
+            $('.product-checkbox').prop('checked', isChecked).trigger('change');
+        });
 
-                        const href = $(this).attr('href');
-                        if (href && href !== '#') {
-                            window.location.href = href;
-                        }
-                    });
+        // Checkbox click handler - prevent any modal opening
+        $('.product-checkbox').on('click', function(e) {
+            e.stopImmediatePropagation();
+        });
 
-                    // View product modal - single event handler
-                    $('.view-product').on('click', function(event) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        const productId = $(this).data('product-id');
-                        if (productId) {
-                            fetchProductDetails(productId);
-                            $('#viewProductModal').modal('show');
-                        }
-                    });
+        // Checkbox change handler
+        $('.product-checkbox').on('change', function(e) {
+            e.stopPropagation();
+            const productId = $(this).data('product-id');
+            if (this.checked) {
+                if (!selectedProductIds.includes(productId)) {
+                    selectedProductIds.push(productId);
+                }
+            } else {
+                selectedProductIds = selectedProductIds.filter(id => id !== productId);
+            }
+            toggleActionButtons();
+        });
 
-                    // Toggle product status - single event handler  
-                    $('.btn-toggle-status').on('click', function(event) {
-                        event.preventDefault();
-                        event.stopPropagation();
+        // Prevent sort on action columns
+        $('#productTable thead th').off('click').on('click', function(event) {
+            event.stopImmediatePropagation();
+        });
 
-                        const productId = $(this).data('product-id');
-                        const statusData = $(this).data('status');
+        // Action dropdown clicks
+        $('.dropdown-item').on('click', function(event) {
+            event.stopPropagation();
+            event.preventDefault();
 
-                        // Convert string to boolean
-                        const currentStatus = statusData === 'true' || statusData === true || statusData ===
-                            1 || statusData === "1";
+            const href = $(this).attr('href');
+            if (href && href !== '#') {
+                window.location.href = href;
+            }
+        });
 
-                        if (productId !== undefined && productId !== null) {
-                            try {
-                                toggleProductStatus(productId, currentStatus);
-                            } catch (error) {
-                                console.error('Error in toggleProductStatus:', error);
-                                alert('Error occurred while toggling product status');
-                            }
-                        } else {
-                            console.error('Product ID is undefined or null');
-                            alert('Error: Product ID not found');
-                        }
-                    });
+        // View product modal - single event handler
+        $('.view-product').on('click', function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            const productId = $(this).data('product-id');
+            if (productId) {
+                fetchProductDetails(productId);
+                $('#viewProductModal').modal('show');
+            }
+        });
 
-                    // Batch Prices modal - single event handler
-                    $('.edit-batch-prices').on('click', function(event) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        const productId = $(this).data('product-id');
-                        loadBatchPricesModal(productId);
-                    });
+        // Toggle product status - single event handler  
+        $('.btn-toggle-status').on('click', function(event) {
+            event.preventDefault();
+            event.stopPropagation();
 
-                    // IMEI modal - single event handler
-                    $('.show-imei-modal').on('click', function(event) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        const productId = $(this).data('product-id');
-                        $('#currentProductId').val(productId);
-                        $('#imeiTableBody').empty();
+            const productId = $(this).data('product-id');
+            const statusData = $(this).data('status');
 
-                        // Show loading message
-                        $('#imeiTableBody').append(
-                            '<tr><td colspan="5" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading IMEI numbers...</td></tr>'
-                        );
-                        $('#imeiModal').modal('show');
+            // Convert string to boolean
+            const currentStatus = statusData === 'true' || statusData === true || statusData ===
+                1 || statusData === "1";
 
-                        // Get selected location from filter
-                        const selectedLocationId = $('#locationFilter').val();
+            if (productId !== undefined && productId !== null) {
+                try {
+                    toggleProductStatus(productId, currentStatus);
+                } catch (error) {
+                    console.error('Error in toggleProductStatus:', error);
+                    alert('Error occurred while toggling product status');
+                }
+            } else {
+                console.error('Product ID is undefined or null');
+                alert('Error: Product ID not found');
+            }
+        });
 
-                        // Fetch IMEI data from server
-                        $.ajax({
-                            url: `/get-imeis/${productId}`,
-                            type: 'GET',
-                            data: {
-                                location_id: selectedLocationId
-                            },
-                            success: function(response) {
-                                $('#imeiTableBody').empty();
+        // Batch Prices modal - single event handler
+        $('.edit-batch-prices').on('click', function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            const productId = $(this).data('product-id');
+            loadBatchPricesModal(productId);
+        });
 
-                                if (response.status === 200 && response.data && response.data
-                                    .length > 0) {
-                                    let counter = 1;
-                                    response.data.forEach(imei => {
-                                        $('#imeiTableBody').append(`
+        // IMEI modal - single event handler
+        $('.show-imei-modal').on('click', function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            const productId = $(this).data('product-id');
+            $('#currentProductId').val(productId);
+            $('#imeiTableBody').empty();
+
+            // Show loading message
+            $('#imeiTableBody').append(
+                '<tr><td colspan="5" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading IMEI numbers...</td></tr>'
+            );
+            $('#imeiModal').modal('show');
+
+            // Get selected location from filter
+            const selectedLocationId = $('#locationFilter').val();
+
+            // Fetch IMEI data from server
+            $.ajax({
+                url: `/get-imeis/${productId}`,
+                type: 'GET',
+                data: {
+                    location_id: selectedLocationId
+                },
+                success: function(response) {
+                    $('#imeiTableBody').empty();
+
+                    if (response.status === 200 && response.data && response.data
+                        .length > 0) {
+                        let counter = 1;
+                        response.data.forEach(imei => {
+                            $('#imeiTableBody').append(`
                             <tr>
                                 <td>${counter++}</td>
                                 <td>
@@ -1226,625 +1228,667 @@
                                 </td>
                             </tr>
                         `);
-                                    });
-
-                                    $('#imeiModalTitle').html(
-                                        `<span class="text-info">${response.product_name || 'Product'}</span> (IMEI NO: ${response.data.length})`
-                                    );
-                                } else {
-                                    $('#imeiTableBody').append(
-                                        '<tr><td colspan="5" class="text-center">No IMEI numbers found for this product in the selected location.</td></tr>'
-                                    );
-                                    $('#imeiModalTitle').html(
-                                        '<span class="text-info">Product</span> (IMEI NO: 0)');
-                                }
-                            },
-                            error: function(xhr, status, error) {
-                                console.error('Error fetching IMEI data:', error);
-                                $('#imeiTableBody').empty();
-                                $('#imeiTableBody').append(
-                                    '<tr><td colspan="5" class="text-center text-danger">Error loading IMEI numbers. Please try again.</td></tr>'
-                                );
-                            }
                         });
-                    });
 
-                    // Delete product handler - single event handler
-                    $('.delete-product-dropdown').on('click', function(event) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        
-                        const productId = $(this).data('product-id');
-                        
-                        if (!productId) {
-                            toastr.error('Product ID not found', 'Error');
-                            return;
+                        $('#imeiModalTitle').html(
+                            `<span class="text-info">${response.product_name || 'Product'}</span> (IMEI NO: ${response.data.length})`
+                        );
+                    } else {
+                        $('#imeiTableBody').append(
+                            '<tr><td colspan="5" class="text-center">No IMEI numbers found for this product in the selected location.</td></tr>'
+                        );
+                        $('#imeiModalTitle').html(
+                            '<span class="text-info">Product</span> (IMEI NO: 0)');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching IMEI data:', error);
+                    $('#imeiTableBody').empty();
+                    $('#imeiTableBody').append(
+                        '<tr><td colspan="5" class="text-center text-danger">Error loading IMEI numbers. Please try again.</td></tr>'
+                    );
+                }
+            });
+        });
+
+        // Delete product handler - single event handler
+        $('.delete-product-dropdown').on('click', function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const productId = $(this).data('product-id');
+
+            if (!productId) {
+                toastr.error('Product ID not found', 'Error');
+                return;
+            }
+
+            // Show SweetAlert confirmation dialog
+            swal({
+                title: "Are you sure?",
+                text: "Do you want to delete this product? This action cannot be undone!",
+                type: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#DD6B55",
+                confirmButtonText: "Yes, delete it!",
+                cancelButtonText: "No, cancel",
+                closeOnConfirm: false,
+                closeOnCancel: true
+            }, function(isConfirm) {
+                if (!isConfirm) return;
+
+                $.ajax({
+                    url: `/product-delete/${productId}`,
+                    type: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        if (response.status === 200 && response.can_delete) {
+                            // Product deleted successfully
+                            swal({
+                                title: "Deleted!",
+                                text: response.message,
+                                type: "success",
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+
+                            // Reload the DataTable
+                            if ($.fn.DataTable.isDataTable('#productTable')) {
+                                $('#productTable').DataTable().ajax.reload(null,
+                                    false);
+                            }
+                        } else if (response.status === 403 && !response
+                            .can_delete) {
+                            // Product cannot be deleted - show detailed message
+                            swal({
+                                title: "Cannot Delete!",
+                                text: response.message,
+                                type: "warning",
+                                showCancelButton: true,
+                                confirmButtonText: "Deactivate Instead",
+                                cancelButtonText: "Cancel",
+                                closeOnConfirm: false
+                            }, function(willDeactivate) {
+                                if (willDeactivate) {
+                                    // Toggle product status
+                                    $.ajax({
+                                        url: `/toggle-product-status/${productId}`,
+                                        type: 'POST',
+                                        headers: {
+                                            'X-CSRF-TOKEN': $(
+                                                'meta[name="csrf-token"]'
+                                                ).attr(
+                                                'content')
+                                        },
+                                        success: function(
+                                            toggleResponse
+                                            ) {
+                                            if (toggleResponse
+                                                .status ===
+                                                200) {
+                                                swal({
+                                                    title: "Success!",
+                                                    text: "Product deactivated successfully",
+                                                    type: "success",
+                                                    timer: 2000,
+                                                    showConfirmButton: false
+                                                });
+
+                                                // Reload table
+                                                if ($.fn
+                                                    .DataTable
+                                                    .isDataTable(
+                                                        '#productTable'
+                                                        )) {
+                                                    $('#productTable')
+                                                        .DataTable()
+                                                        .ajax
+                                                        .reload(
+                                                            null,
+                                                            false
+                                                            );
+                                                }
+                                            }
+                                        },
+                                        error: function(xhr) {
+                                            swal("Error!",
+                                                "Failed to deactivate product",
+                                                "error");
+                                        }
+                                    });
+                                }
+                            });
+                        } else {
+                            swal("Error!", response.message ||
+                                'Failed to delete product', "error");
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Delete error:', error);
+
+                        let errorMessage = 'Failed to delete product';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
                         }
 
-                        // Show SweetAlert confirmation dialog
-                        swal({
-                            title: "Are you sure?",
-                            text: "Do you want to delete this product? This action cannot be undone!",
-                            type: "warning",
-                            showCancelButton: true,
-                            confirmButtonColor: "#DD6B55",
-                            confirmButtonText: "Yes, delete it!",
-                            cancelButtonText: "No, cancel",
-                            closeOnConfirm: false,
-                            closeOnCancel: true
-                        }, function(isConfirm) {
-                            if (!isConfirm) return;
+                        swal("Error!", errorMessage, "error");
+                    }
+                });
+            });
+        });
 
-                            $.ajax({
-                                url: `/product-delete/${productId}`,
-                                type: 'DELETE',
-                                headers: {
-                                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                                },
-                                success: function(response) {
-                                    if (response.status === 200 && response.can_delete) {
-                                        // Product deleted successfully
-                                        swal({
-                                            title: "Deleted!",
-                                            text: response.message,
-                                            type: "success",
-                                            timer: 2000,
-                                            showConfirmButton: false
-                                        });
-                                        
-                                        // Reload the DataTable
-                                        if ($.fn.DataTable.isDataTable('#productTable')) {
-                                            $('#productTable').DataTable().ajax.reload(null, false);
-                                        }
-                                    } else if (response.status === 403 && !response.can_delete) {
-                                        // Product cannot be deleted - show detailed message
-                                        swal({
-                                            title: "Cannot Delete!",
-                                            text: response.message,
-                                            type: "warning",
-                                            showCancelButton: true,
-                                            confirmButtonText: "Deactivate Instead",
-                                            cancelButtonText: "Cancel",
-                                            closeOnConfirm: false
-                                        }, function(willDeactivate) {
-                                            if (willDeactivate) {
-                                                // Toggle product status
-                                                $.ajax({
-                                                    url: `/toggle-product-status/${productId}`,
-                                                    type: 'POST',
-                                                    headers: {
-                                                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                                                    },
-                                                    success: function(toggleResponse) {
-                                                        if (toggleResponse.status === 200) {
-                                                            swal({
-                                                                title: "Success!",
-                                                                text: "Product deactivated successfully",
-                                                                type: "success",
-                                                                timer: 2000,
-                                                                showConfirmButton: false
-                                                            });
-                                                            
-                                                            // Reload table
-                                                            if ($.fn.DataTable.isDataTable('#productTable')) {
-                                                                $('#productTable').DataTable().ajax.reload(null, false);
-                                                            }
-                                                        }
-                                                    },
-                                                    error: function(xhr) {
-                                                        swal("Error!", "Failed to deactivate product", "error");
-                                                    }
-                                                });
+        // Row click handler - only for non-interactive elements
+        $('#productTable tbody tr').on('click', function(event) {
+            // Check if click is on interactive elements
+            const target = $(event.target);
+
+            // Don't trigger modal for these elements
+            if (target.hasClass('product-checkbox') ||
+                target.is('input[type="checkbox"]') ||
+                target.hasClass('dropdown-toggle') ||
+                target.hasClass('dropdown-item') ||
+                target.hasClass('btn') ||
+                target.hasClass('action-button') ||
+                target.closest('.dropdown').length > 0 ||
+                target.closest('button').length > 0 ||
+                target.closest('.product-checkbox').length > 0 ||
+                target.closest('td:first-child').length > 0) {
+                return;
+            }
+
+            // Get product ID and show modal
+            const productId = $(this).find('.product-checkbox').data('product-id');
+            if (productId) {
+                fetchProductDetails(productId);
+                $('#viewProductModal').modal('show');
+            }
+        });
+    }
+
+    // On filter change, reload DataTable (triggers ajax with filters)
+    $('#productNameFilter, #categoryFilter, #brandFilter, #locationFilter').on('change', function() {
+        if ($.fn.DataTable.isDataTable('#productTable')) {
+            try {
+                $('#productTable').DataTable().ajax.reload(null, false);
+            } catch (error) {
+                console.error('Error reloading DataTable:', error);
+                toastr.error('Error reloading product list', 'Error');
+            }
+        }
+    });
+
+    // Fetch initial dropdown data and product data on page load
+    fetchInitialDropdowns(fetchProductData);
+
+    // On page load: fetch categories/brands/locations, then initialize DataTable
+    $(document).ready(function() {
+        fetchCategoriesAndBrands(fetchProductData);
+
+        // Initialize buttons based on current page mode
+        const isEditPage = window.location.pathname.includes('/edit-product/');
+        if (!isEditPage) {
+            // Ensure buttons are in add mode by default
+            resetButtonsForAddMode();
+        }
+    });
+
+    function resetFormAndValidation() {
+        // Reset form and validation
+        $('#addForm')[0].reset();
+        $('#addForm').validate().resetForm();
+
+        // Clear validation styling
+        $('#addForm').find('.is-invalidRed, .is-validGreen').removeClass('is-invalidRed is-validGreen');
+        $('.text-danger').html('');
+
+        // Reset product image
+        $('#product-selectedImage').attr('src', '/assets/img/No Product Image Available.png');
+
+        // Clear product ID (important for edit mode)
+        $('#product_id').val('');
+
+        // Reset buttons to add mode
+        resetButtonsForAddMode();
+
+        // Clear summernote content
+        if ($('#summernote').length) {
+            $('#summernote').summernote('code', '');
+        }
+
+        // Clear all input fields
+        $('input[type="text"], input[type="number"], input[type="email"], input[type="tel"], textarea').val(
+            '');
+
+        // Clear checkboxes and radio buttons
+        $('input[type="checkbox"], input[type="radio"]').prop('checked', false);
+
+        // Reset dropdowns first
+        resetAllDropdowns();
+
+        // Re-fetch and populate dropdown data to ensure proper options with placeholders
+        setTimeout(function() {
+            fetchInitialDropdowns(function() {
+                // After re-populating, ensure dropdowns are properly reset without selectable placeholders
+                setTimeout(function() {
+                    // Special handling for location dropdown to ensure no "Select Location" option is added
+                    const $locationSelects = $(
+                        '#edit_location_id, select[name="locations[]"]');
+                    $locationSelects.each(function() {
+                        const $this = $(this);
+                        // Clear selection but keep the actual location options
+                        $this.val(null).trigger('change');
+
+                        // Ensure Select2 shows proper placeholder without adding it as an option
+                        if ($this.hasClass('select2-hidden-accessible')) {
+                            $this.select2('destroy').select2({
+                                placeholder: 'Select Location',
+                                allowClear: true,
+                                width: '100%',
+                                multiple: $this.attr('name') ===
+                                    'locations[]'
+                            });
+                        }
+                    });
+
+                    // Reset other dropdowns normally
+                    resetAllDropdowns();
+
+                    // Disable buttons initially 
+                    allButtons.prop('disabled', true).removeClass('btn-primary')
+                        .addClass('btn-secondary');
+
+                    // Focus on first field and validate
+                    $('input[name="product_name"]').focus();
+                    validateFormAndUpdateButtons();
+                }, 200);
+            });
+        }, 100);
+    }
+
+    // Enhanced function to reset all dropdowns with proper placeholders
+    function resetAllDropdowns() {
+        // Define dropdowns with their placeholders
+        const dropdownConfig = {
+            '#edit_unit_id': 'Select Unit',
+            '#edit_brand_id': 'Select Brand',
+            '#edit_main_category_id': 'Select Main Category',
+            '#edit_sub_category_id': 'Select Sub Category',
+            '#edit_location_id': 'Select Location',
+            'select[name="locations[]"]': 'Select Location'
+        };
+
+        // Reset each dropdown with proper placeholder
+        Object.entries(dropdownConfig).forEach(function([selector, placeholder]) {
+            const $dropdown = $(selector);
+            if (!$dropdown.length) return;
+
+            try {
+                // Clear current selection
+                $dropdown.val(null);
+
+                if ($dropdown.hasClass('select2-hidden-accessible')) {
+                    // For Select2 dropdowns - destroy and reinitialize with placeholder
+                    $dropdown.select2('destroy');
+
+                    // Reset options - DO NOT add placeholder as an option for location dropdowns
+                    if (!selector.includes('locations[]') && selector !== '#edit_location_id') {
+                        // For regular single select dropdowns (unit, brand, category)
+                        $dropdown.empty().append(
+                            `<option value="" disabled selected>${placeholder}</option>`);
+                    } else {
+                        // For location dropdowns (single or multiple) - keep empty, let Select2 handle placeholder
+                        $dropdown.empty();
+                    }
+
+                    // Reinitialize Select2 with proper settings
+                    const select2Config = {
+                        placeholder: placeholder,
+                        allowClear: true,
+                        width: '100%'
+                    };
+
+                    if (selector.includes('locations[]')) {
+                        select2Config.multiple = true;
+                    }
+
+                    $dropdown.select2(select2Config);
+
+                } else {
+                    // For regular dropdowns
+                    $dropdown.empty().append(
+                        `<option value="" disabled selected>${placeholder}</option>`);
+                }
+
+            } catch (e) {
+                console.warn('Failed to reset dropdown:', selector, e);
+                // Fallback: simple reset
+                $dropdown.val('').trigger('change');
+            }
+        });
+
+        // Additional cleanup for location fields
+        setTimeout(function() {
+            // Clear any remaining Select2 visual artifacts
+            $('.select2-selection__choice').remove();
+
+            // Ensure location placeholder is properly displayed
+            const locationContainers = $('select[name="locations[]"], #edit_location_id').next(
+                '.select2-container');
+            locationContainers.find('.select2-selection__rendered').html(
+                '<span class="select2-selection__placeholder">Select Location</span>'
+            );
+
+        }, 200);
+
+        // Reset sub-category when main category changes
+        setTimeout(function() {
+            // Trigger main category change to reset sub-category with placeholder
+            const $mainCategory = $('#edit_main_category_id');
+            const $subCategory = $('#edit_sub_category_id');
+
+            // Reset sub-category to placeholder
+            $subCategory.empty().append(
+                '<option value="" disabled selected>Select Sub Category</option>');
+            if ($subCategory.hasClass('select2-hidden-accessible')) {
+                $subCategory.select2({
+                    placeholder: 'Select Sub Category',
+                    allowClear: true,
+                    width: '100%'
+                });
+            }
+        }, 300);
+    }
+
+    // Global flag to track submission state
+    let isSubmitting = false;
+
+    // Function to get the form action URL based on whether we are adding or updating
+    function getFormActionUrl() {
+        const productId = $('#product_id').val();
+        return productId ? `/product/update/${productId}` : '/product/store';
+
+    }
+
+    // Simplified form submission handler
+    function handleFormSubmit(buttonType) {
+        // Prevent double submission
+        if (isSubmitting) {
+            toastr.clear();
+            toastr.warning('Form is already being submitted. Please wait.', 'Please Wait');
+            return;
+        }
+
+        // Validate form first
+        if (!$('#addForm').valid() || !validateFormAndUpdateButtons()) {
+            // Play warning sound if available
+            if (document.getElementsByClassName('warningSound')[0]) {
+                document.getElementsByClassName('warningSound')[0].play();
+            }
+            toastr.error('Please fill all required fields correctly!', 'Validation Error');
+            return;
+        }
+
+        // Set submission state and disable buttons
+        isSubmitting = true;
+        allButtons.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary');
+
+        // Prepare form data
+        let form = $('#addForm')[0];
+        let formData = new FormData(form);
+
+        // Add Summernote content if available
+        if ($('#summernote').length) {
+            formData.append('description', $('#summernote').val());
+        }
+
+        $.ajax({
+            url: getFormActionUrl(),
+            type: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken
+            },
+            data: formData,
+            contentType: false,
+            processData: false,
+            dataType: 'json',
+            timeout: 30000, // 30 second timeout for file uploads
+            success: function(response) {
+                if (response.status == 400) {
+                    $.each(response.errors, function(key, err_value) {
+                        $('#' + key + '_error').html(err_value);
+                    });
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error('Please fix the validation errors', 'Validation Failed');
+                    }
+                } else {
+                    // Play success sound if available
+                    if (document.getElementsByClassName('successSound').length > 0) {
+                        document.getElementsByClassName('successSound')[0].play();
+                    }
+
+                    const isEditMode = $('#product_id').val(); // Check if we're editing
+                    const currentPath = window.location.pathname;
+                    const isEditPage = currentPath.includes('/edit-product');
+                    const isAddPage = currentPath.includes('/add-product');
+
+                    if (buttonType === 'onlySave') {
+                        if (isEditMode || isEditPage) {
+                            // Edit mode - show success message and navigate to list
+                            toastr.clear(); // Clear any existing notifications
+                            toastr.success('Product updated successfully!', 'Updated');
+                            // Navigate to list-product after edit
+                            window.location.href = '/list-product';
+                        } else {
+                            // Add mode - normal behavior
+                            toastr.clear(); // Clear any existing notifications
+                            toastr.success(response.message, 'Success');
+                            resetFormAndValidation();
+                            // Only fetch and add to purchase table if it exists
+                            if ($('#purchase_product').length > 0) {
+                                fetchLastAddedProducts();
+                            }
+
+                            // Navigate to list-product only when on add-product page
+                            if (isAddPage) {
+                                window.location.href = '/list-product';
+                            }
+                        }
+                        $('#new_purchase_product').modal('hide');
+                    } else if (buttonType === 'saveAndAnother') {
+                        if (isEditMode || isEditPage) {
+                            // Edit mode - redirect to add new product
+                            toastr.clear();
+                            toastr.success('Product updated successfully!', 'Updated');
+                            window.location.href = '/add-product';
+                        } else {
+                            // Add mode - reset form for next product
+                            toastr.clear();
+                            toastr.success(response.message + ' - Ready for next product',
+                                'Success');
+
+                            // Comprehensive form reset with multiple clearing approaches
+                            setTimeout(function() {
+                                // First, use the standard reset function
+                                resetFormAndValidation();
+
+                                // Additional aggressive clearing for persistent elements
+                                setTimeout(function() {
+                                    // Clear all Select2 selections thoroughly
+                                    $('.select2-hidden-accessible').each(
+                                        function() {
+                                            const $select = $(this);
+                                            try {
+                                                $select.val(null).trigger(
+                                                    'change');
+                                                if ($select.attr('name') ===
+                                                    'locations[]') {
+                                                    $select.val([]).trigger(
+                                                        'change');
+                                                    // Force clear visual elements
+                                                    $select.next(
+                                                            '.select2-container'
+                                                            )
+                                                        .find(
+                                                            '.select2-selection__choice'
+                                                            ).remove();
+                                                }
+                                            } catch (e) {
+                                                console.warn(
+                                                    'Select2 clear failed:',
+                                                    e);
                                             }
                                         });
-                                    } else {
-                                        swal("Error!", response.message || 'Failed to delete product', "error");
-                                    }
-                                },
-                                error: function(xhr, status, error) {
-                                    console.error('Delete error:', error);
-                                    
-                                    let errorMessage = 'Failed to delete product';
-                                    if (xhr.responseJSON && xhr.responseJSON.message) {
-                                        errorMessage = xhr.responseJSON.message;
-                                    }
-                                    
-                                    swal("Error!", errorMessage, "error");
-                                }
-                            });
-                        });
-                    });
 
-                    // Row click handler - only for non-interactive elements
-                    $('#productTable tbody tr').on('click', function(event) {
-                        // Check if click is on interactive elements
-                        const target = $(event.target);
+                                    // Clear any remaining visual artifacts
+                                    $('.select2-selection__choice').remove();
 
-                        // Don't trigger modal for these elements
-                        if (target.hasClass('product-checkbox') ||
-                            target.is('input[type="checkbox"]') ||
-                            target.hasClass('dropdown-toggle') ||
-                            target.hasClass('dropdown-item') ||
-                            target.hasClass('btn') ||
-                            target.hasClass('action-button') ||
-                            target.closest('.dropdown').length > 0 ||
-                            target.closest('button').length > 0 ||
-                            target.closest('.product-checkbox').length > 0 ||
-                            target.closest('td:first-child').length > 0) {
-                            return;
-                        }
+                                    // Ensure all text inputs are empty
+                                    $('#addForm input[type="text"], #addForm input[type="number"], #addForm textarea')
+                                        .val('');
 
-                        // Get product ID and show modal
-                        const productId = $(this).find('.product-checkbox').data('product-id');
-                        if (productId) {
-                            fetchProductDetails(productId);
-                            $('#viewProductModal').modal('show');
-                        }
-                    });
-                }
-
-                // On filter change, reload DataTable (triggers ajax with filters)
-                $('#productNameFilter, #categoryFilter, #brandFilter, #locationFilter').on('change', function() {
-                    if ($.fn.DataTable.isDataTable('#productTable')) {
-                        try {
-                            $('#productTable').DataTable().ajax.reload(null, false);
-                        } catch (error) {
-                            console.error('Error reloading DataTable:', error);
-                            toastr.error('Error reloading product list', 'Error');
-                        }
-                    }
-                });
-
-                // Fetch initial dropdown data and product data on page load
-                fetchInitialDropdowns(fetchProductData);
-
-                // On page load: fetch categories/brands/locations, then initialize DataTable
-                $(document).ready(function() {
-                    fetchCategoriesAndBrands(fetchProductData);
-
-                    // Initialize buttons based on current page mode
-                    const isEditPage = window.location.pathname.includes('/edit-product/');
-                    if (!isEditPage) {
-                        // Ensure buttons are in add mode by default
-                        resetButtonsForAddMode();
-                    }
-                });
-
-                function resetFormAndValidation() {
-                    // Reset form and validation
-                    $('#addForm')[0].reset();
-                    $('#addForm').validate().resetForm();
-                    
-                    // Clear validation styling
-                    $('#addForm').find('.is-invalidRed, .is-validGreen').removeClass('is-invalidRed is-validGreen');
-                    $('.text-danger').html('');
-                    
-                    // Reset product image
-                    $('#product-selectedImage').attr('src', '/assets/img/No Product Image Available.png');
-
-                    // Clear product ID (important for edit mode)
-                    $('#product_id').val('');
-
-                    // Reset buttons to add mode
-                    resetButtonsForAddMode();
-
-                    // Clear summernote content
-                    if ($('#summernote').length) {
-                        $('#summernote').summernote('code', '');
-                    }
-                    
-                    // Clear all input fields
-                    $('input[type="text"], input[type="number"], input[type="email"], input[type="tel"], textarea').val('');
-                    
-                    // Clear checkboxes and radio buttons
-                    $('input[type="checkbox"], input[type="radio"]').prop('checked', false);
-                    
-                    // Reset dropdowns first
-                    resetAllDropdowns();
-                    
-                    // Re-fetch and populate dropdown data to ensure proper options with placeholders
-                    setTimeout(function() {
-                        fetchInitialDropdowns(function() {
-                            // After re-populating, ensure dropdowns are properly reset without selectable placeholders
-                            setTimeout(function() {
-                                // Special handling for location dropdown to ensure no "Select Location" option is added
-                                const $locationSelects = $('#edit_location_id, select[name="locations[]"]');
-                                $locationSelects.each(function() {
-                                    const $this = $(this);
-                                    // Clear selection but keep the actual location options
-                                    $this.val(null).trigger('change');
-                                    
-                                    // Ensure Select2 shows proper placeholder without adding it as an option
-                                    if ($this.hasClass('select2-hidden-accessible')) {
-                                        $this.select2('destroy').select2({
-                                            placeholder: 'Select Location',
-                                            allowClear: true,
-                                            width: '100%',
-                                            multiple: $this.attr('name') === 'locations[]'
-                                        });
-                                    }
-                                });
-                                
-                                // Reset other dropdowns normally
-                                resetAllDropdowns();
-                                
-                                // Disable buttons initially 
-                                allButtons.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary');
-                                
-                                // Focus on first field and validate
-                                $('input[name="product_name"]').focus();
-                                validateFormAndUpdateButtons();
-                            }, 200);
-                        });
-                    }, 100);
-                }
-                
-                // Enhanced function to reset all dropdowns with proper placeholders
-                function resetAllDropdowns() {
-                    // Define dropdowns with their placeholders
-                    const dropdownConfig = {
-                        '#edit_unit_id': 'Select Unit',
-                        '#edit_brand_id': 'Select Brand',
-                        '#edit_main_category_id': 'Select Main Category', 
-                        '#edit_sub_category_id': 'Select Sub Category',
-                        '#edit_location_id': 'Select Location',
-                        'select[name="locations[]"]': 'Select Location'
-                    };
-                    
-                    // Reset each dropdown with proper placeholder
-                    Object.entries(dropdownConfig).forEach(function([selector, placeholder]) {
-                        const $dropdown = $(selector);
-                        if (!$dropdown.length) return;
-                        
-                        try {
-                            // Clear current selection
-                            $dropdown.val(null);
-                            
-                            if ($dropdown.hasClass('select2-hidden-accessible')) {
-                                // For Select2 dropdowns - destroy and reinitialize with placeholder
-                                $dropdown.select2('destroy');
-                                
-                                // Reset options - DO NOT add placeholder as an option for location dropdowns
-                                if (!selector.includes('locations[]') && selector !== '#edit_location_id') {
-                                    // For regular single select dropdowns (unit, brand, category)
-                                    $dropdown.empty().append(`<option value="" disabled selected>${placeholder}</option>`);
-                                } else {
-                                    // For location dropdowns (single or multiple) - keep empty, let Select2 handle placeholder
-                                    $dropdown.empty();
-                                }
-                                
-                                // Reinitialize Select2 with proper settings
-                                const select2Config = {
-                                    placeholder: placeholder,
-                                    allowClear: true,
-                                    width: '100%'
-                                };
-                                
-                                if (selector.includes('locations[]')) {
-                                    select2Config.multiple = true;
-                                }
-                                
-                                $dropdown.select2(select2Config);
-                                
-                            } else {
-                                // For regular dropdowns
-                                $dropdown.empty().append(`<option value="" disabled selected>${placeholder}</option>`);
-                            }
-                            
-                        } catch (e) {
-                            console.warn('Failed to reset dropdown:', selector, e);
-                            // Fallback: simple reset
-                            $dropdown.val('').trigger('change');
-                        }
-                    });
-                    
-                    // Additional cleanup for location fields
-                    setTimeout(function() {
-                        // Clear any remaining Select2 visual artifacts
-                        $('.select2-selection__choice').remove();
-                        
-                        // Ensure location placeholder is properly displayed
-                        const locationContainers = $('select[name="locations[]"], #edit_location_id').next('.select2-container');
-                        locationContainers.find('.select2-selection__rendered').html(
-                            '<span class="select2-selection__placeholder">Select Location</span>'
-                        );
-                        
-                    }, 200);
-                    
-                    // Reset sub-category when main category changes
-                    setTimeout(function() {
-                        // Trigger main category change to reset sub-category with placeholder
-                        const $mainCategory = $('#edit_main_category_id');
-                        const $subCategory = $('#edit_sub_category_id');
-                        
-                        // Reset sub-category to placeholder
-                        $subCategory.empty().append('<option value="" disabled selected>Select Sub Category</option>');
-                        if ($subCategory.hasClass('select2-hidden-accessible')) {
-                            $subCategory.select2({
-                                placeholder: 'Select Sub Category',
-                                allowClear: true,
-                                width: '100%'
-                            });
-                        }
-                    }, 300);
-                }
-
-                // Global flag to track submission state
-                let isSubmitting = false;
-
-                // Function to get the form action URL based on whether we are adding or updating
-                function getFormActionUrl() {
-                    const productId = $('#product_id').val();
-                    return productId ? `/product/update/${productId}` : '/product/store';
-
-                }
-
-                // Simplified form submission handler
-                function handleFormSubmit(buttonType) {
-                    // Prevent double submission
-                    if (isSubmitting) {
-                        toastr.clear();
-                        toastr.warning('Form is already being submitted. Please wait.', 'Please Wait');
-                        return;
-                    }
-
-                    // Validate form first
-                    if (!$('#addForm').valid() || !validateFormAndUpdateButtons()) {
-                        // Play warning sound if available
-                        if (document.getElementsByClassName('warningSound')[0]) {
-                            document.getElementsByClassName('warningSound')[0].play();
-                        }
-                        toastr.error('Please fill all required fields correctly!', 'Validation Error');
-                        return;
-                    }
-
-                    // Set submission state and disable buttons
-                    isSubmitting = true;
-                    allButtons.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary');
-
-                    // Prepare form data
-                    let form = $('#addForm')[0];
-                    let formData = new FormData(form);
-
-                    // Add Summernote content if available
-                    if ($('#summernote').length) {
-                        formData.append('description', $('#summernote').val());
-                    }
-
-                    $.ajax({
-                        url: getFormActionUrl(),
-                        type: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': csrfToken
-                        },
-                        data: formData,
-                        contentType: false,
-                        processData: false,
-                        dataType: 'json',
-                        timeout: 30000, // 30 second timeout for file uploads
-                        success: function(response) {
-                            if (response.status == 400) {
-                                $.each(response.errors, function(key, err_value) {
-                                    $('#' + key + '_error').html(err_value);
-                                });
-                                if (typeof toastr !== 'undefined') {
-                                    toastr.error('Please fix the validation errors', 'Validation Failed');
-                                }
-                            } else {
-                                // Play success sound if available
-                                if (document.getElementsByClassName('successSound').length > 0) {
-                                    document.getElementsByClassName('successSound')[0].play();
-                                }
-
-                                const isEditMode = $('#product_id').val(); // Check if we're editing
-                                const currentPath = window.location.pathname;
-                                const isEditPage = currentPath.includes('/edit-product');
-                                const isAddPage = currentPath.includes('/add-product');
-
-                                if (buttonType === 'onlySave') {
-                                    if (isEditMode || isEditPage) {
-                                        // Edit mode - show success message and navigate to list
-                                        toastr.clear(); // Clear any existing notifications
-                                        toastr.success('Product updated successfully!', 'Updated');
-                                        // Navigate to list-product after edit
-                                        window.location.href = '/list-product';
-                                    } else {
-                                        // Add mode - normal behavior
-                                        toastr.clear(); // Clear any existing notifications
-                                        toastr.success(response.message, 'Success');
-                                        resetFormAndValidation();
-                                        // Only fetch and add to purchase table if it exists
-                                        if ($('#purchase_product').length > 0) {
-                                            fetchLastAddedProducts();
-                                        }
-
-                                        // Navigate to list-product only when on add-product page
-                                        if (isAddPage) {
-                                            window.location.href = '/list-product';
-                                        }
-                                    }
-                                    $('#new_purchase_product').modal('hide');
-                                } else if (buttonType === 'saveAndAnother') {
-                                    if (isEditMode || isEditPage) {
-                                        // Edit mode - redirect to add new product
-                                        toastr.clear();
-                                        toastr.success('Product updated successfully!', 'Updated');
-                                        window.location.href = '/add-product';
-                                    } else {
-                                        // Add mode - reset form for next product
-                                        toastr.clear();
-                                        toastr.success(response.message + ' - Ready for next product', 'Success');
-                                        
-                                        // Comprehensive form reset with multiple clearing approaches
-                                        setTimeout(function() {
-                                            // First, use the standard reset function
-                                            resetFormAndValidation();
-                                            
-                                            // Additional aggressive clearing for persistent elements
-                                            setTimeout(function() {
-                                                // Clear all Select2 selections thoroughly
-                                                $('.select2-hidden-accessible').each(function() {
-                                                    const $select = $(this);
-                                                    try {
-                                                        $select.val(null).trigger('change');
-                                                        if ($select.attr('name') === 'locations[]') {
-                                                            $select.val([]).trigger('change');
-                                                            // Force clear visual elements
-                                                            $select.next('.select2-container')
-                                                                .find('.select2-selection__choice').remove();
-                                                        }
-                                                    } catch (e) {
-                                                        console.warn('Select2 clear failed:', e);
-                                                    }
-                                                });
-                                                
-                                                // Clear any remaining visual artifacts
-                                                $('.select2-selection__choice').remove();
-                                                
-                                                // Ensure all text inputs are empty
-                                                $('#addForm input[type="text"], #addForm input[type="number"], #addForm textarea').val('');
-                                                
-                                                // Re-validate to update button states
-                                                validateFormAndUpdateButtons();
-                                            }, 200);
-                                        }, 100);
-                                        
-                                        // Add product to purchase table if it exists
-                                        if ($('#purchase_product').length > 0) {
-                                            fetchLastAddedProducts();
-                                        }
-                                    }
-                                } else if (buttonType === 'saveAndOpeningStock') {
-                                    const productId = $('#product_id').val();
-                                    toastr.clear(); // Clear any existing notifications
-                                    toastr.success(response.message, 'Success');
-                                    if (productId) {
-                                        window.location.href =
-                                            `/edit-opening-stock/${response.product_id || productId}`;
-                                    } else {
-                                        window.location.href = `/opening-stock/${response.product_id}`;
-                                    }
-                                }
-                            }
-                        },
-                        error: function(xhr) {
-                            toastr.error('Failed to add product. Please try again.', 'Error');
-                        },
-                        complete: function() {
-                            // Reset submission flag
-                            isSubmitting = false;
-                            
-                            // Re-validate form to determine proper button state
-                            setTimeout(function() {
-                                validateFormAndUpdateButtons();
+                                    // Re-validate to update button states
+                                    validateFormAndUpdateButtons();
+                                }, 200);
                             }, 100);
-                        }
-                    });
-                }
 
-                // Button click event handlers with validation check first
-                $('#onlySaveProductButton').click(function(e) {
-                    e.preventDefault();
-                    
-                    // Only disable button AFTER validation passes (handled in handleFormSubmit)
-                    handleFormSubmit('onlySave');
-                });
-
-                $('#SaveProductButtonAndAnother').click(function(e) {
-                    e.preventDefault();
-                    
-                    // Only disable button AFTER validation passes (handled in handleFormSubmit)
-                    handleFormSubmit('saveAndAnother');
-                });
-
-                $('#openingStockAndProduct').click(function(e) {
-                    e.preventDefault();
-                    
-                    // Only disable button AFTER validation passes (handled in handleFormSubmit)
-                    handleFormSubmit('saveAndOpeningStock');
-                });
-
-
-
-                function fetchLastAddedProducts() {
-                    fetchData('/get-last-product', function(response) {
-                        if (response.status === 200) {
-                            const product = response.product;
-
-                            // Check if purchase_product table exists
-                            if ($('#purchase_product').length === 0) {
-                                console.error('Purchase product table not found');
-                                toastr.error('Purchase product table not found', 'Error');
-                                return;
+                            // Add product to purchase table if it exists
+                            if ($('#purchase_product').length > 0) {
+                                fetchLastAddedProducts();
                             }
-
-                            addProductToTable(product);
-                            // Success message already shown from main form submission
-                        } else {
-                            toastr.error(response.message || 'Unable to fetch product details.', 'Error');
                         }
-                    }, function(xhr, status, error) {
-                        console.error('Error fetching last product:', error);
-                        toastr.error('Failed to fetch last added product', 'Error');
-                    });
+                    } else if (buttonType === 'saveAndOpeningStock') {
+                        const productId = $('#product_id').val();
+                        toastr.clear(); // Clear any existing notifications
+                        toastr.success(response.message, 'Success');
+                        if (productId) {
+                            window.location.href =
+                                `/edit-opening-stock/${response.product_id || productId}`;
+                        } else {
+                            window.location.href = `/opening-stock/${response.product_id}`;
+                        }
+                    }
+                }
+            },
+            error: function(xhr) {
+                toastr.error('Failed to add product. Please try again.', 'Error');
+            },
+            complete: function() {
+                // Reset submission flag
+                isSubmitting = false;
+
+                // Re-validate form to determine proper button state
+                setTimeout(function() {
+                    validateFormAndUpdateButtons();
+                }, 100);
+            }
+        });
+    }
+
+    // Button click event handlers with validation check first
+    $('#onlySaveProductButton').click(function(e) {
+        e.preventDefault();
+
+        // Only disable button AFTER validation passes (handled in handleFormSubmit)
+        handleFormSubmit('onlySave');
+    });
+
+    $('#SaveProductButtonAndAnother').click(function(e) {
+        e.preventDefault();
+
+        // Only disable button AFTER validation passes (handled in handleFormSubmit)
+        handleFormSubmit('saveAndAnother');
+    });
+
+    $('#openingStockAndProduct').click(function(e) {
+        e.preventDefault();
+
+        // Only disable button AFTER validation passes (handled in handleFormSubmit)
+        handleFormSubmit('saveAndOpeningStock');
+    });
+
+
+
+    function fetchLastAddedProducts() {
+        fetchData('/get-last-product', function(response) {
+            if (response.status === 200) {
+                const product = response.product;
+
+                // Check if purchase_product table exists
+                if ($('#purchase_product').length === 0) {
+                    console.error('Purchase product table not found');
+                    toastr.error('Purchase product table not found', 'Error');
+                    return;
                 }
 
-                function addProductToTable(product, isEditing = false, prices = {}) {
-                    // Check if the purchase_product table exists and is initialized as DataTable
-                    if ($('#purchase_product').length === 0) {
-                        console.error('Purchase product table element not found');
-                        toastr.error('Purchase product table not found', 'Error');
-                        return;
-                    }
+                addProductToTable(product);
+                // Success message already shown from main form submission
+            } else {
+                toastr.error(response.message || 'Unable to fetch product details.', 'Error');
+            }
+        }, function(xhr, status, error) {
+            console.error('Error fetching last product:', error);
+            toastr.error('Failed to fetch last added product', 'Error');
+        });
+    }
 
-                    let table;
-                    let isDataTable = false;
+    function addProductToTable(product, isEditing = false, prices = {}) {
+        // Check if the purchase_product table exists and is initialized as DataTable
+        if ($('#purchase_product').length === 0) {
+            console.error('Purchase product table element not found');
+            toastr.error('Purchase product table not found', 'Error');
+            return;
+        }
 
-                    // Check if DataTable is initialized
-                    if ($.fn.DataTable.isDataTable('#purchase_product')) {
-                        table = $("#purchase_product").DataTable();
-                        isDataTable = true;
-                    } else {
-                        table = $("#purchase_product");
-                    }
+        let table;
+        let isDataTable = false;
 
-                    let existingRow = null;
+        // Check if DataTable is initialized
+        if ($.fn.DataTable.isDataTable('#purchase_product')) {
+            table = $("#purchase_product").DataTable();
+            isDataTable = true;
+        } else {
+            table = $("#purchase_product");
+        }
 
-                    $('#purchase_product tbody tr').each(function() {
-                        const rowProductId = $(this).data('id');
-                        if (rowProductId === product.id) {
-                            existingRow = $(this);
-                            return false;
-                        }
-                    });
+        let existingRow = null;
 
-                    // Determine if decimal is allowed for this product
-                    const allowDecimal = product.unit?.allow_decimal === 1 || product.unit?.allow_decimal === "1";
-                    const quantityStep = allowDecimal ? "0.01" : "1";
-                    const quantityMin = allowDecimal ? "0.01" : "1";
-                    const quantityPattern = allowDecimal ? "[0-9]+([.][0-9]{1,2})?" : "[0-9]+";
+        $('#purchase_product tbody tr').each(function() {
+            const rowProductId = $(this).data('id');
+            if (rowProductId === product.id) {
+                existingRow = $(this);
+                return false;
+            }
+        });
 
-                    // Get current stock quantity from locations
-                    const currentStock = product.locations && product.locations.length > 0 ? product.locations[0].pivot
-                        .qty : 0;
+        // Determine if decimal is allowed for this product
+        const allowDecimal = product.unit?.allow_decimal === 1 || product.unit?.allow_decimal === "1";
+        const quantityStep = allowDecimal ? "0.01" : "1";
+        const quantityMin = allowDecimal ? "0.01" : "1";
+        const quantityPattern = allowDecimal ? "[0-9]+([.][0-9]{1,2})?" : "[0-9]+";
 
-                    if (existingRow && !isEditing) {
-                        // Update IMEI data attribute for existing row
-                        existingRow.attr('data-imei-enabled', product.is_imei_or_serial_no || 0);
+        // Get current stock quantity from locations
+        const currentStock = product.locations && product.locations.length > 0 ? product.locations[0].pivot
+            .qty : 0;
 
-                        const quantityInput = existingRow.find('.purchase-quantity');
-                        let currentVal = parseFloat(quantityInput.val()) || 0;
-                        let newQuantity = allowDecimal ? (currentVal + 1) : (parseInt(currentVal) + 1);
-                        quantityInput.val(newQuantity).trigger('input');
-                    } else {
-                        // Use correct property names from the JSON response
-                        const wholesalePrice = parseFloat(prices.wholesale_price || product.whole_sale_price) || 0;
-                        const specialPrice = parseFloat(prices.special_price || product.special_price) || 0;
-                        const maxRetailPrice = parseFloat(prices.max_retail_price || product.max_retail_price) || 0;
-                        const retailPrice = parseFloat(prices.retail_price || product.retail_price) || 0;
-                        const unitCost = parseFloat(prices.unit_cost || product.original_price) || 0;
+        if (existingRow && !isEditing) {
+            // Update IMEI data attribute for existing row
+            existingRow.attr('data-imei-enabled', product.is_imei_or_serial_no || 0);
 
-                        const newRow = `
+            const quantityInput = existingRow.find('.purchase-quantity');
+            let currentVal = parseFloat(quantityInput.val()) || 0;
+            let newQuantity = allowDecimal ? (currentVal + 1) : (parseInt(currentVal) + 1);
+            quantityInput.val(newQuantity).trigger('input');
+        } else {
+            // Use correct property names from the JSON response
+            const wholesalePrice = parseFloat(prices.wholesale_price || product.whole_sale_price) || 0;
+            const specialPrice = parseFloat(prices.special_price || product.special_price) || 0;
+            const maxRetailPrice = parseFloat(prices.max_retail_price || product.max_retail_price) || 0;
+            const retailPrice = parseFloat(prices.retail_price || product.retail_price) || 0;
+            const unitCost = parseFloat(prices.unit_cost || product.original_price) || 0;
+
+            const newRow = `
             <tr data-id="${product.id}" data-imei-enabled="${product.is_imei_or_serial_no || 0}">
                 <td>${product.id}</td>
                 <td>${product.product_name} <br><small>Stock: ${currentStock}</small>${product.is_imei_or_serial_no ? ' <span class="badge badge-info">IMEI</span>' : ''}</td>
@@ -1870,149 +1914,149 @@
             </tr>
         `;
 
-                        try {
-                            const $newRow = $(newRow);
+            try {
+                const $newRow = $(newRow);
 
-                            if (isDataTable) {
-                                // Add to DataTable
-                                table.row.add($newRow).draw();
-                            } else {
-                                // Add to regular table
-                                $('#purchase_product tbody').append($newRow);
-                            }
-
-                            // Trigger any necessary events
-                            $newRow.find('.purchase-quantity').trigger('input');
-
-                        } catch (error) {
-                            console.error('Error adding row to table:', error);
-                            toastr.error('Failed to add product to table', 'Error');
-                        }
-                    }
+                if (isDataTable) {
+                    // Add to DataTable
+                    table.row.add($newRow).draw();
+                } else {
+                    // Add to regular table
+                    $('#purchase_product tbody').append($newRow);
                 }
 
+                // Trigger any necessary events
+                $newRow.find('.purchase-quantity').trigger('input');
+
+            } catch (error) {
+                console.error('Error adding row to table:', error);
+                toastr.error('Failed to add product to table', 'Error');
+            }
+        }
+    }
 
 
 
-                $(".show-picture").on("change", function() {
-                    const input = this;
-                    if (input.files && input.files[0]) {
-                        const file = input.files[0];
-                        const reader = new FileReader();
 
-                        if (file.type.startsWith("image/")) {
-                            reader.onload = function(e) {
-                                $("#product-selectedImage").attr("src", e.target.result);
-                                $("#product-selectedImage").show();
-                                $("#pdfViewer").hide();
-                            };
-                            reader.readAsDataURL(file);
-                        }
-                    }
-                });
+    $(".show-picture").on("change", function() {
+        const input = this;
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const reader = new FileReader();
 
-                $('#edit_main_category_id').change(function() {
-                    var main_category_id = $(this).val();
-                    $('#edit_sub_category_id').empty().append(
-                        '<option selected disabled>Sub Category</option>');
+            if (file.type.startsWith("image/")) {
+                reader.onload = function(e) {
+                    $("#product-selectedImage").attr("src", e.target.result);
+                    $("#product-selectedImage").show();
+                    $("#pdfViewer").hide();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+    });
 
-                    $.ajax({
-                        url: '/sub_category-details-get-by-main-category-id/' + main_category_id,
-                        type: 'GET',
-                        dataType: 'json',
-                        success: function(response) {
-                            if (response.status == 200) {
-                                // Check if response.message is an array before using forEach
-                                if (Array.isArray(response.message)) {
-                                    response.message.forEach(function(subCategory) {
-                                        $('#edit_sub_category_id').append(
-                                            `<option value="${subCategory.id}">${subCategory.subCategoryname}</option>`
-                                        );
-                                    });
-                                } else if (typeof response.message === 'string') {
-                                    // Handle case where response.message is a string like "No Records Found!"
-                                    console.log('No subcategories found: ', response.message);
-                                    $('#edit_sub_category_id').append(
-                                        '<option value="">No subcategories available</option>');
-                                }
-                            } else {
-                                console.log('Error: ', response.message);
-                            }
-                        },
-                        error: function(xhr, status, error) {
-                            console.log('AJAX Error: ', error);
-                            // Handle 404 or other errors gracefully
+    $('#edit_main_category_id').change(function() {
+        var main_category_id = $(this).val();
+        $('#edit_sub_category_id').empty().append(
+            '<option selected disabled>Sub Category</option>');
+
+        $.ajax({
+            url: '/sub_category-details-get-by-main-category-id/' + main_category_id,
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                if (response.status == 200) {
+                    // Check if response.message is an array before using forEach
+                    if (Array.isArray(response.message)) {
+                        response.message.forEach(function(subCategory) {
                             $('#edit_sub_category_id').append(
-                                '<option value="">Error loading subcategories</option>');
-                        }
-                    });
-                });
-
-
-                $(document).ready(function() {
-                    const productId = $('#product_id').val();
-                    const productName = $('#product_name').val();
-                    const productSku = $('#product_sku').val();
-                    const productOriginalPrice = $('#product_original_price').val();
-
-                    const currentPath = window.location.pathname;
-                    const isEditMode = currentPath.startsWith('/edit-opening-stock/');
-
-                    // Global variables for unit information
-                    let allowDecimal = false;
-                    let unitName = 'Pc(s)';
-
-                    // Initialize datetime picker for expiry date fields
-                    function initializeDateTimePicker() {
-                        $(".expiry-date-picker").datepicker({
-                            dateFormat: 'yy-mm-dd' // Set the date format as per your requirement
+                                `<option value="${subCategory.id}">${subCategory.subCategoryname}</option>`
+                            );
                         });
+                    } else if (typeof response.message === 'string') {
+                        // Handle case where response.message is a string like "No Records Found!"
+                        console.log('No subcategories found: ', response.message);
+                        $('#edit_sub_category_id').append(
+                            '<option value="">No subcategories available</option>');
                     }
+                } else {
+                    console.log('Error: ', response.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.log('AJAX Error: ', error);
+                // Handle 404 or other errors gracefully
+                $('#edit_sub_category_id').append(
+                    '<option value="">Error loading subcategories</option>');
+            }
+        });
+    });
 
-                    // Function to format quantity based on allow_decimal
-                    function formatQuantity(value) {
-                        if (!value || value === '') return '';
 
-                        if (allowDecimal) {
-                            // For decimal units, format to 2 decimal places and remove trailing zeros
-                            return parseFloat(value).toFixed(2).replace(/\.?0+$/, '');
-                        } else {
-                            // For non-decimal units, show as integer
-                            return Math.floor(parseFloat(value) || 0).toString();
-                        }
-                    }
+    $(document).ready(function() {
+        const productId = $('#product_id').val();
+        const productName = $('#product_name').val();
+        const productSku = $('#product_sku').val();
+        const productOriginalPrice = $('#product_original_price').val();
 
-                    // Function to get quantity input attributes based on unit
-                    function getQuantityInputAttributes() {
-                        if (allowDecimal) {
-                            return {
-                                step: '0.01',
-                                min: '0.01',
-                                pattern: '[0-9]+([.][0-9]{1,2})?'
-                            };
-                        } else {
-                            return {
-                                step: '1',
-                                min: '1',
-                                pattern: '[0-9]+'
-                            };
-                        }
-                    }
+        const currentPath = window.location.pathname;
+        const isEditMode = currentPath.startsWith('/edit-opening-stock/');
 
-                    // Fetch and populate data dynamically only if productId is valid
-                    if (productId && /^\d+$/.test(productId)) {
-                        fetchOpeningStockData(productId, isEditMode);
-                    }
+        // Global variables for unit information
+        let allowDecimal = false;
+        let unitName = 'Pc(s)';
 
-                    $('#addRow').click(function() {
-                        var index = $('#locationRows tr').length;
-                        var locationId = $('#locationRows tr:last').data('location-id');
-                        var locationName = $('#locationRows tr:last td:first p').text();
+        // Initialize datetime picker for expiry date fields
+        function initializeDateTimePicker() {
+            $(".expiry-date-picker").datepicker({
+                dateFormat: 'yy-mm-dd' // Set the date format as per your requirement
+            });
+        }
 
-                        // Get quantity input attributes based on unit
-                        const quantityAttrs = getQuantityInputAttributes();
+        // Function to format quantity based on allow_decimal
+        function formatQuantity(value) {
+            if (!value || value === '') return '';
 
-                        var newRow = `
+            if (allowDecimal) {
+                // For decimal units, format to 2 decimal places and remove trailing zeros
+                return parseFloat(value).toFixed(2).replace(/\.?0+$/, '');
+            } else {
+                // For non-decimal units, show as integer
+                return Math.floor(parseFloat(value) || 0).toString();
+            }
+        }
+
+        // Function to get quantity input attributes based on unit
+        function getQuantityInputAttributes() {
+            if (allowDecimal) {
+                return {
+                    step: '0.01',
+                    min: '0.01',
+                    pattern: '[0-9]+([.][0-9]{1,2})?'
+                };
+            } else {
+                return {
+                    step: '1',
+                    min: '1',
+                    pattern: '[0-9]+'
+                };
+            }
+        }
+
+        // Fetch and populate data dynamically only if productId is valid
+        if (productId && /^\d+$/.test(productId)) {
+            fetchOpeningStockData(productId, isEditMode);
+        }
+
+        $('#addRow').click(function() {
+            var index = $('#locationRows tr').length;
+            var locationId = $('#locationRows tr:last').data('location-id');
+            var locationName = $('#locationRows tr:last td:first p').text();
+
+            // Get quantity input attributes based on unit
+            const quantityAttrs = getQuantityInputAttributes();
+
+            var newRow = `
             <tr data-location-id="${locationId}">
                 <td>
                     <input type="hidden" name="locations[` + index + `][id]" value="${locationId}">
@@ -2053,70 +2097,78 @@
             </td>
             </tr>
         `;
-                        $('#locationRows').append(newRow);
-                        initializeDateTimePicker(); // Re-initialize datetime picker for new rows
-                    });
+            $('#locationRows').append(newRow);
+            initializeDateTimePicker(); // Re-initialize datetime picker for new rows
+        });
 
-                    $('#submitOpeningStock').click(function(e) {
-                        e.preventDefault();
-                        handleFormSubmission(isEditMode, productId);
-                    });
+        $('#submitOpeningStock').click(function(e) {
+            e.preventDefault();
 
-                    $('#submitOpeningStock-saveAndAddAnother').click(function(e) {
-                        e.preventDefault();
-                        handleFormSubmission(isEditMode, productId);
-                        // After successful submission, redirect to add product page
-                        setTimeout(function() {
-                            window.location.href = '/add-product';
-                        }, 1000);
-                    });
+            // Prevent multiple submissions
+            if ($(this).prop('disabled')) {
+                return false;
+            }
+
+            handleFormSubmission(isEditMode, productId, $(this));
+        });
+
+        $('#submitOpeningStock-saveAndAddAnother').click(function(e) {
+            e.preventDefault();
+
+            // Prevent multiple submissions
+            if ($(this).prop('disabled')) {
+                return false;
+            }
+
+            handleFormSubmission(isEditMode, productId, $(this), true);
+        });
 
 
-                    function fetchOpeningStockData(productId, isEditMode) {
-                        const url = isEditMode ? `/edit-opening-stock/${productId}` :
-                            `/opening-stock/${productId}`;
+        function fetchOpeningStockData(productId, isEditMode) {
+            const url = isEditMode ? `/edit-opening-stock/${productId}` :
+                `/opening-stock/${productId}`;
 
-                        $.ajax({
-                            url: url,
-                            type: 'GET',
-                            success: function(response) {
-                                if (response.status === 200) {
-                                    const product = response.product;
-                                    const locations = response.locations;
-                                    const batches = response.openingStock.batches;
+            $.ajax({
+                url: url,
+                type: 'GET',
+                success: function(response) {
+                    if (response.status === 200) {
+                        const product = response.product;
+                        const locations = response.locations;
+                        const batches = response.openingStock.batches;
 
-                                    // Set unit information globally
-                                    if (product.unit) {
-                                        allowDecimal = product.unit.allow_decimal;
-                                        unitName = product.unit.name || 'Pc(s)';
-                                    }
+                        // Set unit information globally
+                        if (product.unit) {
+                            allowDecimal = product.unit.allow_decimal;
+                            unitName = product.unit.name || 'Pc(s)';
+                        }
 
-                                    // Get quantity input attributes based on unit
-                                    const quantityAttrs = getQuantityInputAttributes();
+                        // Get quantity input attributes based on unit
+                        const quantityAttrs = getQuantityInputAttributes();
 
-                                    $('#locationRows').html(
-                                        ''); // Clear existing rows before appending
+                        $('#locationRows').html(
+                            ''); // Clear existing rows before appending
 
-                                    // Create a map of location_id to array of batches
-                                    const batchesByLocation = {};
-                                    batches.forEach(batch => {
-                                        if (!batchesByLocation[batch.location_id]) {
-                                            batchesByLocation[batch.location_id] = [];
-                                        }
-                                        batchesByLocation[batch.location_id].push(batch);
-                                    });
+                        // Create a map of location_id to array of batches
+                        const batchesByLocation = {};
+                        batches.forEach(batch => {
+                            if (!batchesByLocation[batch.location_id]) {
+                                batchesByLocation[batch.location_id] = [];
+                            }
+                            batchesByLocation[batch.location_id].push(batch);
+                        });
 
-                                    // Track row index separately since we may have multiple rows per location
-                                    let rowIndex = 0;
+                        // Track row index separately since we may have multiple rows per location
+                        let rowIndex = 0;
 
-                                    // Show all locations, with all batches for each location
-                                    locations.forEach(function(location) {
-                                        const locationBatches = batchesByLocation[location
-                                            .id] || [];
+                        // Show all locations, with all batches for each location
+                        locations.forEach(function(location) {
+                            const locationBatches = batchesByLocation[location
+                                .id] || [];
 
-                                        // If no batches exist for this location, show one empty row
-                                        if (locationBatches.length === 0) {
-                                            const newRow = `
+                            // If no batches exist for this location, show one empty row
+                            if (locationBatches.length === 0) {
+                                const newRow = `
                             <tr data-location-id="${location.id}">
                                 <td>
                                     <input type="hidden" name="locations[${rowIndex}][id]" value="${location.id}">
@@ -2153,22 +2205,22 @@
                                 </td>
                             </tr>
                         `;
-                                            $('#locationRows').append(newRow);
-                                            rowIndex++;
-                                        } else {
-                                            // Show one row for each batch in this location
-                                            locationBatches.forEach(batch => {
-                                                // Format quantity based on unit settings
-                                                const formattedQuantity =
-                                                    formatQuantity(batch.quantity);
+                                $('#locationRows').append(newRow);
+                                rowIndex++;
+                            } else {
+                                // Show one row for each batch in this location
+                                locationBatches.forEach(batch => {
+                                    // Format quantity based on unit settings
+                                    const formattedQuantity =
+                                        formatQuantity(batch.quantity);
 
-                                                // Handle null expiry date
-                                                const expiryDate = batch
-                                                    .expiry_date && batch
-                                                    .expiry_date !== 'null' ? batch
-                                                    .expiry_date : '';
+                                    // Handle null expiry date
+                                    const expiryDate = batch
+                                        .expiry_date && batch
+                                        .expiry_date !== 'null' ? batch
+                                        .expiry_date : '';
 
-                                                const newRow = `
+                                    const newRow = `
                                 <tr data-location-id="${location.id}">
                                     <td>
                                         <input type="hidden" name="locations[${rowIndex}][id]" value="${location.id}">
@@ -2206,352 +2258,393 @@
 
                                 </tr>
                             `;
-                                                $('#locationRows').append(newRow);
-                                                rowIndex++;
-                                            });
+                                    $('#locationRows').append(newRow);
+                                    rowIndex++;
+                                });
+                            }
+                        });
+
+
+                        initializeDateTimePicker
+                            (); // Initialize datetime picker for existing rows
+
+                        if (isEditMode) {
+                            $('#pageTitle').text('Edit Opening Stock for Product');
+                            $('#breadcrumbTitle').text('Edit Opening Stock');
+                            $('#submitOpeningStock').text('Update');
+                            $('#submitOpeningStock-saveAndAddAnother').text(
+                                'Update And Add Another');
+                        }
+                    } else {
+                        console.log('Failed to fetch existing stock data.', 'Error');
+                    }
+                },
+                error: function(xhr) {
+                    let errorMsg = 'Failed to fetch existing stock data.';
+                    if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMsg += ' ' + xhr.responseJSON.message;
+                    } else if (xhr && xhr.statusText) {
+                        errorMsg += ' ' + xhr.statusText;
+                    }
+                    console.error(errorMsg);
+                    toastr.error(errorMsg, 'Error');
+                }
+            });
+        }
+
+        // Remove row button handler (only for rows with the button)
+        $(document).on('click', '.removeRowBtn', function() {
+            $(this).closest('tr').remove();
+        });
+
+        // Delete product button handler with safe deletion logic
+        $(document).on('click', '.delete-product', function(e) {
+            e.preventDefault();
+
+            const button = $(this);
+            const row = button.closest('tr');
+            const productId = row.data('id');
+
+            if (!productId) {
+                toastr.error('Product ID not found', 'Error');
+                return;
+            }
+
+            // Show SweetAlert confirmation dialog
+            swal({
+                title: "Are you sure?",
+                text: "Do you want to delete this product? This action cannot be undone!",
+                type: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#DD6B55",
+                confirmButtonText: "Yes, delete it!",
+                cancelButtonText: "No, cancel",
+                closeOnConfirm: false,
+                closeOnCancel: true
+            }, function(isConfirm) {
+                if (!isConfirm) return;
+
+                // Disable button during deletion
+                button.prop('disabled', true).html(
+                    '<i class="fas fa-spinner fa-spin"></i>');
+
+                $.ajax({
+                    url: `/product-delete/${productId}`,
+                    type: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr(
+                            'content')
+                    },
+                    success: function(response) {
+                        if (response.status === 200 && response
+                            .can_delete) {
+                            // Product deleted successfully
+                            swal({
+                                title: "Deleted!",
+                                text: response.message,
+                                type: "success",
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+
+                            // Remove the row from DataTable or regular table
+                            if ($.fn.DataTable.isDataTable(
+                                    '#productTable')) {
+                                $('#productTable').DataTable().row(row)
+                                    .remove().draw();
+                            } else {
+                                row.fadeOut(300, function() {
+                                    $(this).remove();
+                                });
+                            }
+                        } else if (response.status === 403 && !response
+                            .can_delete) {
+                            // Product cannot be deleted - show detailed message
+                            swal({
+                                title: "Cannot Delete!",
+                                text: response.message,
+                                type: "warning",
+                                showCancelButton: true,
+                                confirmButtonText: "Deactivate Instead",
+                                cancelButtonText: "Cancel",
+                                closeOnConfirm: false
+                            }, function(willDeactivate) {
+                                if (willDeactivate) {
+                                    // Toggle product status
+                                    $.ajax({
+                                        url: `/toggle-product-status/${productId}`,
+                                        type: 'POST',
+                                        headers: {
+                                            'X-CSRF-TOKEN': $(
+                                                    'meta[name="csrf-token"]'
+                                                    )
+                                                .attr(
+                                                    'content'
+                                                    )
+                                        },
+                                        success: function(
+                                            toggleResponse
+                                            ) {
+                                            if (toggleResponse
+                                                .status ===
+                                                200
+                                                ) {
+                                                swal({
+                                                    title: "Success!",
+                                                    text: "Product deactivated successfully",
+                                                    type: "success",
+                                                    timer: 2000,
+                                                    showConfirmButton: false
+                                                });
+
+                                                // Reload table if exists
+                                                if ($
+                                                    .fn
+                                                    .DataTable
+                                                    .isDataTable(
+                                                        '#productTable'
+                                                        )
+                                                    ) {
+                                                    $('#productTable')
+                                                        .DataTable()
+                                                        .ajax
+                                                        .reload(
+                                                            null,
+                                                            false
+                                                            );
+                                                }
+                                            }
+                                        },
+                                        error: function(
+                                            xhr) {
+                                            swal("Error!",
+                                                "Failed to deactivate product",
+                                                "error"
+                                                );
                                         }
                                     });
-
-
-                                    initializeDateTimePicker
-                                        (); // Initialize datetime picker for existing rows
-
-                                    if (isEditMode) {
-                                        $('#pageTitle').text('Edit Opening Stock for Product');
-                                        $('#breadcrumbTitle').text('Edit Opening Stock');
-                                        $('#submitOpeningStock').text('Update');
-                                        $('#submitOpeningStock-saveAndAddAnother').text(
-                                            'Update And Add Another');
-                                    }
-                                } else {
-                                    console.log('Failed to fetch existing stock data.', 'Error');
-                                }
-                            },
-                            error: function(xhr) {
-                                let errorMsg = 'Failed to fetch existing stock data.';
-                                if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
-                                    errorMsg += ' ' + xhr.responseJSON.message;
-                                } else if (xhr && xhr.statusText) {
-                                    errorMsg += ' ' + xhr.statusText;
-                                }
-                                console.error(errorMsg);
-                                toastr.error(errorMsg, 'Error');
-                            }
-                        });
-                    }
-
-                    // Remove row button handler (only for rows with the button)
-                    $(document).on('click', '.removeRowBtn', function() {
-                        $(this).closest('tr').remove();
-                    });
-
-                    // Delete product button handler with safe deletion logic
-                    $(document).on('click', '.delete-product', function(e) {
-                        e.preventDefault();
-                        
-                        const button = $(this);
-                        const row = button.closest('tr');
-                        const productId = row.data('id');
-                        
-                        if (!productId) {
-                            toastr.error('Product ID not found', 'Error');
-                            return;
-                        }
-
-                        // Show SweetAlert confirmation dialog
-                        swal({
-                            title: "Are you sure?",
-                            text: "Do you want to delete this product? This action cannot be undone!",
-                            type: "warning",
-                            showCancelButton: true,
-                            confirmButtonColor: "#DD6B55",
-                            confirmButtonText: "Yes, delete it!",
-                            cancelButtonText: "No, cancel",
-                            closeOnConfirm: false,
-                            closeOnCancel: true
-                        }, function(isConfirm) {
-                            if (!isConfirm) return;
-
-                            // Disable button during deletion
-                            button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
-
-                            $.ajax({
-                                url: `/product-delete/${productId}`,
-                                type: 'DELETE',
-                                headers: {
-                                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                                },
-                                success: function(response) {
-                                    if (response.status === 200 && response.can_delete) {
-                                        // Product deleted successfully
-                                        swal({
-                                            title: "Deleted!",
-                                            text: response.message,
-                                            type: "success",
-                                            timer: 2000,
-                                            showConfirmButton: false
-                                        });
-                                        
-                                        // Remove the row from DataTable or regular table
-                                        if ($.fn.DataTable.isDataTable('#productTable')) {
-                                            $('#productTable').DataTable().row(row).remove().draw();
-                                        } else {
-                                            row.fadeOut(300, function() {
-                                                $(this).remove();
-                                            });
-                                        }
-                                    } else if (response.status === 403 && !response.can_delete) {
-                                        // Product cannot be deleted - show detailed message
-                                        swal({
-                                            title: "Cannot Delete!",
-                                            text: response.message,
-                                            type: "warning",
-                                            showCancelButton: true,
-                                            confirmButtonText: "Deactivate Instead",
-                                            cancelButtonText: "Cancel",
-                                            closeOnConfirm: false
-                                        }, function(willDeactivate) {
-                                            if (willDeactivate) {
-                                                // Toggle product status
-                                                $.ajax({
-                                                    url: `/toggle-product-status/${productId}`,
-                                                    type: 'POST',
-                                                    headers: {
-                                                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                                                    },
-                                                    success: function(toggleResponse) {
-                                                        if (toggleResponse.status === 200) {
-                                                            swal({
-                                                                title: "Success!",
-                                                                text: "Product deactivated successfully",
-                                                                type: "success",
-                                                                timer: 2000,
-                                                                showConfirmButton: false
-                                                            });
-                                                            
-                                                            // Reload table if exists
-                                                            if ($.fn.DataTable.isDataTable('#productTable')) {
-                                                                $('#productTable').DataTable().ajax.reload(null, false);
-                                                            }
-                                                        }
-                                                    },
-                                                    error: function(xhr) {
-                                                        swal("Error!", "Failed to deactivate product", "error");
-                                                    }
-                                                });
-                                            }
-                                        });
-                                        
-                                        button.prop('disabled', false).html('<i class="fas fa-trash"></i>');
-                                    } else {
-                                        swal("Error!", response.message || 'Failed to delete product', "error");
-                                        button.prop('disabled', false).html('<i class="fas fa-trash"></i>');
-                                    }
-                                },
-                                error: function(xhr, status, error) {
-                                    console.error('Delete error:', error);
-                                    
-                                    let errorMessage = 'Failed to delete product';
-                                    if (xhr.responseJSON && xhr.responseJSON.message) {
-                                        errorMessage = xhr.responseJSON.message;
-                                    }
-                                    
-                                    swal("Error!", errorMessage, "error");
-                                    button.prop('disabled', false).html('<i class="fas fa-trash"></i>');
                                 }
                             });
-                        });
-                    });
 
-                    // Real-time quantity formatting for opening stock inputs
-                    $(document).on('input', '.quantity-input', function() {
-                        const input = $(this);
-                        let value = input.val();
-
-                        if (value === '' || value === null) return;
-
-                        // Validate input based on unit settings
-                        if (allowDecimal) {
-                            // Allow decimal numbers with up to 2 decimal places
-                            if (!/^\d*\.?\d{0,2}$/.test(value)) {
-                                return;
-                            }
+                            button.prop('disabled', false).html(
+                                '<i class="fas fa-trash"></i>');
                         } else {
-                            // Allow only integers
-                            if (!/^\d*$/.test(value)) {
-                                value = value.replace(/[^0-9]/g, '');
-                                input.val(value);
-                                return;
-                            }
+                            swal("Error!", response.message ||
+                                'Failed to delete product', "error");
+                            button.prop('disabled', false).html(
+                                '<i class="fas fa-trash"></i>');
                         }
-                    });
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Delete error:', error);
 
-                    // Format quantity on blur (when user leaves the input field)
-                    $(document).on('blur', '.quantity-input', function() {
-                        const input = $(this);
-                        let value = input.val();
-
-                        if (value && value !== '') {
-                            const formattedValue = formatQuantity(value);
-                            input.val(formattedValue);
+                        let errorMessage = 'Failed to delete product';
+                        if (xhr.responseJSON && xhr.responseJSON
+                            .message) {
+                            errorMessage = xhr.responseJSON.message;
                         }
-                    });
 
-                    // function handleFormSubmission(isEditMode, productId) {
-                    //     let form = $('#openingStockForm')[0];
-                    //     let formData = new FormData(form);
+                        swal("Error!", errorMessage, "error");
+                        button.prop('disabled', false).html(
+                            '<i class="fas fa-trash"></i>');
+                    }
+                });
+            });
+        });
 
-                    //     let locations = [];
-                    //     formData.forEach((value, key) => {
-                    //         if (key.includes('locations') && value) {
-                    //             let parts = key.split('[');
-                    //             let index = parts[1].split(']')[0];
-                    //             if (!locations[index]) {
-                    //                 locations[index] = {};
-                    //             }
-                    //             let field = parts[2].split(']')[0];
-                    //             locations[index][field] = value;
-                    //         }
-                    //     });
+        // Real-time quantity formatting for opening stock inputs
+        $(document).on('input', '.quantity-input', function() {
+            const input = $(this);
+            let value = input.val();
 
-                    //     // Filter out locations with empty qty and ensure expiry_date is set
-                    //     locations = locations.filter(location => location.qty).map(location => {
-                    //         if (!location.expiry_date) {
-                    //             location.expiry_date = ''; // or any default value you consider
-                    //         }
-                    //         return location;
-                    //     });
+            if (value === '' || value === null) return;
 
-                    //     // if (!validateBatchNumbers(locations)) {
-                    //     //     toastr.error(
-                    //     //         'Invalid Batch Number. It should start with "BATCH" followed by at least 3 digits.',
-                    //     //         'Warning');
-                    //     //     return;
-                    //     // }
+            // Validate input based on unit settings
+            if (allowDecimal) {
+                // Allow decimal numbers with up to 2 decimal places
+                if (!/^\d*\.?\d{0,2}$/.test(value)) {
+                    return;
+                }
+            } else {
+                // Allow only integers
+                if (!/^\d*$/.test(value)) {
+                    value = value.replace(/[^0-9]/g, '');
+                    input.val(value);
+                    return;
+                }
+            }
+        });
 
-                    //     let url = isEditMode ? `/opening-stock/${productId}` : `/opening-stock/${productId}`;
-                    //     $.ajax({
-                    //         url: url,
-                    //         type: 'POST',
-                    //         headers: {
-                    //             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                    //         },
-                    //         data: JSON.stringify({ locations }),
-                    //         contentType: 'application/json',
-                    //         processData: false,
-                    //         success: function(response) {
-                    //             if (response.status === 200) {
-                    //                 toastr.success(response.message, 'Success');
-                    //                 window.location.href = '/list-product';
-                    //             } else {
-                    //                 toastr.error(response.message, 'Error');
-                    //             }
-                    //         },
-                    //         error: function(xhr) {
-                    //             if (xhr.status === 422) {
-                    //                 let errors = xhr.responseJSON.errors;
-                    //                 $.each(errors, function(key, val) {
-                    //                     $(`#${key}_error`).text(val[0]);
-                    //                 });
-                    //             } else {
-                    //                 toastr.error('Unexpected error occurred', 'Error');
-                    //             }
-                    //         }
-                    //     });
-                    // }
-                    function handleFormSubmission(isEditMode, productId) {
-                        let form = $('#openingStockForm')[0];
-                        let formData = new FormData(form);
+        // Format quantity on blur (when user leaves the input field)
+        $(document).on('blur', '.quantity-input', function() {
+            const input = $(this);
+            let value = input.val();
 
-                        let locations = [];
-                        formData.forEach((value, key) => {
-                            if (key.includes('locations') && value) {
-                                let parts = key.split('[');
-                                let index = parts[1].split(']')[0];
-                                if (!locations[index]) {
-                                    locations[index] = {};
+            if (value && value !== '') {
+                const formattedValue = formatQuantity(value);
+                input.val(formattedValue);
+            }
+        });
+
+        // function handleFormSubmission(isEditMode, productId) {
+        //     let form = $('#openingStockForm')[0];
+        //     let formData = new FormData(form);
+
+        //     let locations = [];
+        //     formData.forEach((value, key) => {
+        //         if (key.includes('locations') && value) {
+        //             let parts = key.split('[');
+        //             let index = parts[1].split(']')[0];
+        //             if (!locations[index]) {
+        //                 locations[index] = {};
+        //             }
+        //             let field = parts[2].split(']')[0];
+        //             locations[index][field] = value;
+        //         }
+        //     });
+
+        //     // Filter out locations with empty qty and ensure expiry_date is set
+        //     locations = locations.filter(location => location.qty).map(location => {
+        //         if (!location.expiry_date) {
+        //             location.expiry_date = ''; // or any default value you consider
+        //         }
+        //         return location;
+        //     });
+
+        //     // if (!validateBatchNumbers(locations)) {
+        //     //     toastr.error(
+        //     //         'Invalid Batch Number. It should start with "BATCH" followed by at least 3 digits.',
+        //     //         'Warning');
+        //     //     return;
+        //     // }
+
+        //     let url = isEditMode ? `/opening-stock/${productId}` : `/opening-stock/${productId}`;
+        //     $.ajax({
+        //         url: url,
+        //         type: 'POST',
+        //         headers: {
+        //             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        //         },
+        //         data: JSON.stringify({ locations }),
+        //         contentType: 'application/json',
+        //         processData: false,
+        //         success: function(response) {
+        //             if (response.status === 200) {
+        //                 toastr.success(response.message, 'Success');
+        //                 window.location.href = '/list-product';
+        //             } else {
+        //                 toastr.error(response.message, 'Error');
+        //             }
+        //         },
+        //         error: function(xhr) {
+        //             if (xhr.status === 422) {
+        //                 let errors = xhr.responseJSON.errors;
+        //                 $.each(errors, function(key, val) {
+        //                     $(`#${key}_error`).text(val[0]);
+        //                 });
+        //             } else {
+        //                 toastr.error('Unexpected error occurred', 'Error');
+        //             }
+        //         }
+        //     });
+        // }
+        function handleFormSubmission(isEditMode, productId, $button, saveAndAddAnother = false) {
+            let form = $('#openingStockForm')[0];
+            let formData = new FormData(form);
+
+            let locations = [];
+            formData.forEach((value, key) => {
+                if (key.includes('locations') && value) {
+                    let parts = key.split('[');
+                    let index = parts[1].split(']')[0];
+                    if (!locations[index]) {
+                        locations[index] = {};
+                    }
+                    let field = parts[2].split(']')[0];
+                    locations[index][field] = value;
+                }
+            });
+
+            locations = locations.filter(location => location.qty).map(location => {
+                if (!location.expiry_date) location.expiry_date = '';
+                return location;
+            });
+
+            let url = isEditMode ? `/opening-stock/${productId}` :
+                `/opening-stock/${productId}`;
+
+            // Disable both buttons and store original text
+            const originalText = $button.text();
+            $('#submitOpeningStock, #submitOpeningStock-saveAndAddAnother').prop('disabled', true);
+            $button.text('Please wait...');
+
+            $.ajax({
+                url: url,
+                type: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                data: JSON.stringify({
+                    locations
+                }),
+                contentType: 'application/json',
+                processData: false,
+                success: function(response) {
+                    if (response.status === 200) {
+                        const enableImei = response.product.is_imei_or_serial_no === 1;
+
+                        if (enableImei && response.batches && response.batches.length >
+                            0) {
+                            let totalQty = 0;
+                            response.batches.forEach(batch => {
+                                totalQty += parseInt(batch.qty);
+                            });
+
+                            $('#totalImeiCount').text(totalQty);
+                            $('#imeiModal').modal('show');
+
+                            // Clear previous rows
+                            $('#imeiTable tbody').empty();
+
+                            // Auto-fill from textarea if needed
+                            $('#autoFillImeis').off().on('click', function() {
+                                const imeiText = $('#imeiInput').val().trim();
+                                const imeis = imeiText.split(/\r?\n/).filter(
+                                    Boolean);
+                                $('#imeiTable tbody').empty();
+
+                                if (imeis.length === 0) {
+                                    toastr.warning("No IMEIs found to fill.");
+                                    return;
                                 }
-                                let field = parts[2].split(']')[0];
-                                locations[index][field] = value;
-                            }
-                        });
 
-                        locations = locations.filter(location => location.qty).map(location => {
-                            if (!location.expiry_date) location.expiry_date = '';
-                            return location;
-                        });
-
-                        let url = isEditMode ? `/opening-stock/${productId}` :
-                            `/opening-stock/${productId}`;
-
-
-                        $.ajax({
-                            url: url,
-                            type: 'POST',
-                            headers: {
-                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                            },
-                            data: JSON.stringify({
-                                locations
-                            }),
-                            contentType: 'application/json',
-                            processData: false,
-                            success: function(response) {
-                                if (response.status === 200) {
-                                    const enableImei = response.product.is_imei_or_serial_no === 1;
-
-                                    if (enableImei && response.batches && response.batches.length >
-                                        0) {
-                                        let totalQty = 0;
-                                        response.batches.forEach(batch => {
-                                            totalQty += parseInt(batch.qty);
-                                        });
-
-                                        $('#totalImeiCount').text(totalQty);
-                                        $('#imeiModal').modal('show');
-
-                                        // Clear previous rows
-                                        $('#imeiTable tbody').empty();
-
-                                        // Auto-fill from textarea if needed
-                                        $('#autoFillImeis').off().on('click', function() {
-                                            const imeiText = $('#imeiInput').val().trim();
-                                            const imeis = imeiText.split(/\r?\n/).filter(
-                                                Boolean);
-                                            $('#imeiTable tbody').empty();
-
-                                            if (imeis.length === 0) {
-                                                toastr.warning("No IMEIs found to fill.");
-                                                return;
-                                            }
-
-                                            imeis.forEach((imei, idx) => {
-                                                $('#imeiTable tbody').append(`
+                                imeis.forEach((imei, idx) => {
+                                    $('#imeiTable tbody').append(`
                                 <tr>
                                     <td>${idx + 1}</td>
                                     <td><input type="text" class="form-control imei-input" value="${imei}"></td>
                                     <td><button class="btn btn-sm btn-danger removeImei"><i class="fas fa-trash"></i></button></td>
                                 </tr>
                             `);
-                                            });
+                                });
 
-                                            toastr.success(
-                                                `Filled ${imeis.length} rows from pasted IMEIs`
-                                            );
-                                        });
+                                toastr.success(
+                                    `Filled ${imeis.length} rows from pasted IMEIs`
+                                );
+                            });
 
-                                        // Load existing IMEIs if editing
-                                        if (isEditMode) {
-                                            $.ajax({
-                                                url: `/get-imeis/${productId}`,
-                                                method: 'GET',
-                                                success: function(res) {
-                                                    if (res.status === 200) {
-                                                        $('#imeiTable tbody').empty();
-                                                        res.imeis.forEach((imei,
-                                                            index) => {
-                                                            $('#imeiTable tbody')
-                                                                .append(`
+                            // Load existing IMEIs if editing
+                            if (isEditMode) {
+                                $.ajax({
+                                    url: `/get-imeis/${productId}`,
+                                    method: 'GET',
+                                    success: function(res) {
+                                        if (res.status === 200) {
+                                            $('#imeiTable tbody').empty();
+                                            res.imeis.forEach((imei,
+                                                index) => {
+                                                $('#imeiTable tbody')
+                                                    .append(`
                                             <tr>
                                                 <td>${index + 1}</td>
                                                 <td><span class="form-control-plaintext">${imei.imei_number}</span></td>
@@ -2560,225 +2653,257 @@
                                                 <td><span class="badge badge-${imei.status === 'available' ? 'success' : (imei.status === 'sold' ? 'warning' : 'secondary')}">${imei.status}</span></td>
                                             </tr>
                                         `);
-                                                        });
-                                                        $('#totalImeiCount').text(res
-                                                            .imeis.length);
-                                                    }
-                                                },
-                                                error: function() {
-                                                    toastr.error(
-                                                        "Failed to load existing IMEIs",
-                                                        'Error');
-                                                }
                                             });
+                                            $('#totalImeiCount').text(res
+                                                .imeis.length);
                                         }
+                                    },
+                                    error: function() {
+                                        toastr.error(
+                                            "Failed to load existing IMEIs",
+                                            'Error');
+                                    }
+                                });
+                            }
 
-                                        // Add Row Button with qty check
-                                        $('#addImeiRow').off().on('click', function() {
-                                            const currentCount = $('#imeiTable tbody tr')
-                                                .length;
-                                            const allowedQty = totalQty;
-                                            if (currentCount + 1 > allowedQty) {
-                                                toastr.warning(
-                                                    `You cannot add more than ${allowedQty} IMEI rows (Qty limit reached).`
-                                                );
-                                                return;
-                                            }
-                                            $('#imeiTable tbody').append(`
+                            // Add Row Button with qty check
+                            $('#addImeiRow').off().on('click', function() {
+                                const currentCount = $('#imeiTable tbody tr')
+                                    .length;
+                                const allowedQty = totalQty;
+                                if (currentCount + 1 > allowedQty) {
+                                    toastr.warning(
+                                        `You cannot add more than ${allowedQty} IMEI rows (Qty limit reached).`
+                                    );
+                                    return;
+                                }
+                                $('#imeiTable tbody').append(`
                             <tr>
                                 <td>${currentCount + 1}</td>
                                 <td><input type="text" class="form-control imei-input" placeholder="Enter IMEI"></td>
                                 <td><button class="btn btn-sm btn-danger removeImei">Remove</button></td>
                             </tr>
                         `);
-                                        });
+                            });
 
-                                        // Remove Row on Click (and update count)
-                                        $(document).on('click', '.removeImei', function() {
-                                            $(this).closest('tr').remove();
-                                            // Re-number the rows after removal
-                                            $('#imeiTable tbody tr').each(function(idx) {
-                                                $(this).find('td:first').text(idx +
-                                                    1);
-                                            });
-                                        });
+                            // Remove Row on Click (and update count)
+                            $(document).on('click', '.removeImei', function() {
+                                $(this).closest('tr').remove();
+                                // Re-number the rows after removal
+                                $('#imeiTable tbody tr').each(function(idx) {
+                                    $(this).find('td:first').text(idx +
+                                        1);
+                                });
+                            });
 
-                                        // Save Button Logic
-                                        $('#saveImeiButton').off().on('click', function() {
-                                            const imeis = [];
-                                            let hasEmpty = false;
+                            // Save Button Logic
+                            $('#saveImeiButton').off().on('click', function() {
+                                const imeis = [];
+                                let hasEmpty = false;
 
-                                            $('#imeiTable tbody tr').each(function() {
-                                                let val = $(this).find(
-                                                    '.imei-input').val().trim();
-                                                if (!val) hasEmpty = true;
-                                                imeis.push(val);
-                                            });
+                                $('#imeiTable tbody tr').each(function() {
+                                    let val = $(this).find(
+                                        '.imei-input').val().trim();
+                                    if (!val) hasEmpty = true;
+                                    imeis.push(val);
+                                });
 
 
-                                            // Prepare data for IMEI save API
-                                            let saveData = {
-                                                product_id: productId,
-                                                imeis: imeis
-                                            };
+                                // Prepare data for IMEI save API
+                                let saveData = {
+                                    product_id: productId,
+                                    imeis: imeis
+                                };
 
-                                            // Check if we have valid batch data for old format
-                                            if (response.batches && Array.isArray(response.batches) && 
-                                                response.batches.length > 0 && 
-                                                response.batches[0].batch_id && 
-                                                response.batches[0].location_id) {
-                                                // Use old format with valid batch data
-                                                saveData.batches = response.batches;
-                                            } else {
-                                                // Use new format with intelligent batch selection
-                                                // Try to get location_id from the first batch or default to 1
-                                                saveData.location_id = (response.batches && response.batches[0] && response.batches[0].location_id) || 1;
-                                            }
-
-                                            $.ajax({
-                                                url: '/save-or-update-imei',
-                                                method: 'POST',
-                                                headers: {
-                                                    'X-CSRF-TOKEN': $(
-                                                        'meta[name="csrf-token"]'
-                                                    ).attr('content')
-                                                },
-                                                data: JSON.stringify(saveData),
-                                                contentType: 'application/json',
-                                                success: function(imeiRes) {
-                                                    if (imeiRes.status ===
-                                                        200) {
-                                                        toastr.success(imeiRes
-                                                            .message,
-                                                            'Success');
-                                                        $('#imeiModal').modal(
-                                                            'hide');
-                                                        window.location.href =
-                                                            '/list-product';
-                                                    } else {
-                                                        if (imeiRes.message &&
-                                                            imeiRes.message
-                                                            .toLowerCase()
-                                                            .includes(
-                                                                'duplicate')) {
-                                                            toastr.error(
-                                                                'Duplicate IMEI numbers found. Please check your entries.',
-                                                                'Error');
-                                                        } else {
-                                                            toastr.error(imeiRes
-                                                                .message,
-                                                                'Error');
-                                                        }
-                                                    }
-                                                },
-                                                error: function() {
-                                                    toastr.error(
-                                                        "Failed to save IMEIs",
-                                                        'Error');
-                                                }
-                                            });
-                                        });
-
-                                        $('#imeiModal').on('click', '[data-bs-dismiss="modal"]',
-                                            function(e) {
-                                                if (!confirm(
-                                                        "Are you sure you want to skip entering IMEIs?"
-                                                    )) {
-                                                    e.preventDefault();
-                                                    return;
-                                                }
-
-                                                $('#imeiTable tbody').empty();
-                                                $('#imeiInput').val('');
-                                                $('#imeiModal').modal('hide');
-                                                window.location.href = '/list-product';
-                                            });
-                                    } else {
-                                        toastr.success(response.message, 'Success');
-                                        setTimeout(() => {
-                                            window.location.href = '/list-product';
-                                        }, 1000);
-                                    }
+                                // Check if we have valid batch data for old format
+                                if (response.batches && Array.isArray(response
+                                        .batches) &&
+                                    response.batches.length > 0 &&
+                                    response.batches[0].batch_id &&
+                                    response.batches[0].location_id) {
+                                    // Use old format with valid batch data
+                                    saveData.batches = response.batches;
                                 } else {
-                                    toastr.error(response.message, 'Error');
+                                    // Use new format with intelligent batch selection
+                                    // Try to get location_id from the first batch or default to 1
+                                    saveData.location_id = (response.batches &&
+                                        response.batches[0] && response
+                                        .batches[0].location_id) || 1;
                                 }
-                            },
-                            error: function(xhr) {
-                                if (xhr.status === 422) {
-                                    let errors = xhr.responseJSON.errors;
-                                    $.each(errors, function(key, val) {
-                                        $(`#${key}_error`).text(val[0]);
-                                    });
-                                } else {
-                                    toastr.error('Unexpected error occurred', 'Error');
-                                }
-                            }
-                        });
-                    }
 
-                });
-                // Extract the product ID from the URL and fetch data if valid
-                $(document).ready(function() {
-                    const pathSegments = window.location.pathname.split('/');
-                    const productId = pathSegments[pathSegments.length - 1];
-
-                    // Only proceed if productId is a positive integer
-                    if (/^\d+$/.test(productId)) {
-                        // Show loading indicator
-                        if (typeof toastr !== 'undefined') {
-                            toastr.info('Loading product details...', 'Please wait');
-                        }
-
-                        fetchInitialDropdowns(() => {
-                            $.ajax({
-                                url: `/edit-product/${productId}`,
-                                type: 'GET',
-                                dataType: 'json',
-                                cache: true, // Enable caching for better performance
-                                success: function(response) {
-                                    if (response.status === 200) {
-                                        const product = response.message.product;
-                                        const mainCategories = response.message
-                                            .mainCategories;
-                                        const subCategories = response.message
-                                            .subCategories;
-                                        const brands = response.message.brands;
-                                        const units = response.message.units;
-                                        const locations = response.message.locations;
-
-                                        populateProductDetails(product, mainCategories,
-                                            subCategories, brands, units, locations);
-
-                                        // Hide loading indicator
-                                        if (typeof toastr !== 'undefined') {
-                                            toastr.clear();
-                                            toastr.success(
-                                                'Product details loaded successfully',
+                                $.ajax({
+                                    url: '/save-or-update-imei',
+                                    method: 'POST',
+                                    headers: {
+                                        'X-CSRF-TOKEN': $(
+                                            'meta[name="csrf-token"]'
+                                        ).attr('content')
+                                    },
+                                    data: JSON.stringify(saveData),
+                                    contentType: 'application/json',
+                                    success: function(imeiRes) {
+                                        if (imeiRes.status ===
+                                            200) {
+                                            toastr.success(imeiRes
+                                                .message,
                                                 'Success');
+                                            $('#imeiModal').modal(
+                                                'hide');
+
+                                            // Handle redirect based on button clicked
+                                            if (saveAndAddAnother) {
+                                                window.location
+                                                    .href =
+                                                    '/add-product';
+                                            } else {
+                                                window.location
+                                                    .href =
+                                                    '/list-product';
+                                            }
+                                        } else {
+                                            if (imeiRes.message &&
+                                                imeiRes.message
+                                                .toLowerCase()
+                                                .includes(
+                                                    'duplicate')) {
+                                                toastr.error(
+                                                    'Duplicate IMEI numbers found. Please check your entries.',
+                                                    'Error');
+                                            } else {
+                                                toastr.error(imeiRes
+                                                    .message,
+                                                    'Error');
+                                            }
                                         }
-                                    } else {
-                                        console.error('Error: ' + response.message);
-                                        if (typeof toastr !== 'undefined') {
-                                            toastr.error(
-                                                'Failed to load product details: ' +
-                                                response.message, 'Error');
-                                        }
-                                    }
-                                },
-                                error: function(xhr, status, error) {
-                                    console.error(
-                                        'An error occurred while fetching product details:',
-                                        error);
-                                    if (typeof toastr !== 'undefined') {
+                                    },
+                                    error: function() {
                                         toastr.error(
-                                            'Failed to load product details. Please try again.',
+                                            "Failed to save IMEIs",
                                             'Error');
                                     }
-                                }
+                                });
                             });
+
+                            $('#imeiModal').on('click', '[data-bs-dismiss="modal"]',
+                                function(e) {
+                                    if (!confirm(
+                                            "Are you sure you want to skip entering IMEIs?"
+                                        )) {
+                                        e.preventDefault();
+                                        return;
+                                    }
+
+                                    $('#imeiTable tbody').empty();
+                                    $('#imeiInput').val('');
+                                    $('#imeiModal').modal('hide');
+
+                                    // Handle redirect based on button clicked
+                                    if (saveAndAddAnother) {
+                                        window.location.href = '/add-product';
+                                    } else {
+                                        window.location.href = '/list-product';
+                                    }
+                                });
+                        } else {
+                            toastr.success(response.message, 'Success');
+                            setTimeout(() => {
+                                // Handle redirect based on button clicked
+                                if (saveAndAddAnother) {
+                                    window.location.href = '/add-product';
+                                } else {
+                                    window.location.href = '/list-product';
+                                }
+                            }, 1000);
+                        }
+                    } else {
+                        // Re-enable buttons on error
+                        $('#submitOpeningStock, #submitOpeningStock-saveAndAddAnother')
+                            .prop('disabled', false);
+                        $button.text(originalText);
+                        toastr.error(response.message, 'Error');
+                    }
+                },
+                error: function(xhr) {
+                    // Re-enable buttons on error
+                    $('#submitOpeningStock, #submitOpeningStock-saveAndAddAnother')
+                        .prop('disabled', false);
+                    $button.text(originalText);
+
+                    if (xhr.status === 422) {
+                        let errors = xhr.responseJSON.errors;
+                        $.each(errors, function(key, val) {
+                            $(`#${key}_error`).text(val[0]);
                         });
+                    } else {
+                        toastr.error('Unexpected error occurred', 'Error');
+                    }
+                }
+            });
+        }
+
+    });
+    // Extract the product ID from the URL and fetch data if valid
+    $(document).ready(function() {
+        const pathSegments = window.location.pathname.split('/');
+        const productId = pathSegments[pathSegments.length - 1];
+
+        // Only proceed if productId is a positive integer
+        if (/^\d+$/.test(productId)) {
+            // Show loading indicator
+            if (typeof toastr !== 'undefined') {
+                toastr.info('Loading product details...', 'Please wait');
+            }
+
+            fetchInitialDropdowns(() => {
+                $.ajax({
+                    url: `/edit-product/${productId}`,
+                    type: 'GET',
+                    dataType: 'json',
+                    cache: true, // Enable caching for better performance
+                    success: function(response) {
+                        if (response.status === 200) {
+                            const product = response.message.product;
+                            const mainCategories = response.message
+                                .mainCategories;
+                            const subCategories = response.message
+                                .subCategories;
+                            const brands = response.message.brands;
+                            const units = response.message.units;
+                            const locations = response.message.locations;
+
+                            populateProductDetails(product, mainCategories,
+                                subCategories, brands, units, locations);
+
+                            // Hide loading indicator
+                            if (typeof toastr !== 'undefined') {
+                                toastr.clear();
+                                toastr.success(
+                                    'Product details loaded successfully',
+                                    'Success');
+                            }
+                        } else {
+                            console.error('Error: ' + response.message);
+                            if (typeof toastr !== 'undefined') {
+                                toastr.error(
+                                    'Failed to load product details: ' +
+                                    response.message, 'Error');
+                            }
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error(
+                            'An error occurred while fetching product details:',
+                            error);
+                        if (typeof toastr !== 'undefined') {
+                            toastr.error(
+                                'Failed to load product details. Please try again.',
+                                'Error');
+                        }
                     }
                 });
+            });
+        }
+    });
 
 
 
@@ -2788,41 +2913,41 @@
 
 
 
-                $('#viewProductModal').on('show.bs.modal', function(event) {
-                    var button = $(event.relatedTarget);
-                    var productId = button.data('product-id');
+    $('#viewProductModal').on('show.bs.modal', function(event) {
+        var button = $(event.relatedTarget);
+        var productId = button.data('product-id');
 
-                    fetchProductDetails(productId);
-                });
+        fetchProductDetails(productId);
+    });
 
-                // Track ongoing requests to prevent duplicates
-                let isLoadingProductDetails = false;
+    // Track ongoing requests to prevent duplicates
+    let isLoadingProductDetails = false;
 
-                function fetchProductDetails(productId) {
-                    // Prevent multiple simultaneous requests
-                    if (isLoadingProductDetails) {
-                        console.log('Product details already loading, ignoring request');
-                        return;
-                    }
+    function fetchProductDetails(productId) {
+        // Prevent multiple simultaneous requests
+        if (isLoadingProductDetails) {
+            console.log('Product details already loading, ignoring request');
+            return;
+        }
 
-                    if (!productId) {
-                        console.error('No product ID provided');
-                        return;
-                    }
+        if (!productId) {
+            console.error('No product ID provided');
+            return;
+        }
 
-                    isLoadingProductDetails = true;
+        isLoadingProductDetails = true;
 
-                    $.ajax({
-                                url: '/product-get-details/' + productId,
-                                type: 'GET',
-                                dataType: 'json',
-                                success: function(response) {
-                                    if (response.status === 200) {
-                                        var product = response.message;
-                                        var imagePath = product.product_image ?
-                                            `/assets/images/${product.product_image}` :
-                                            '/assets/images/No Product Image Available.png';
-                                        var details = `
+        $.ajax({
+                url: '/product-get-details/' + productId,
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    if (response.status === 200) {
+                        var product = response.message;
+                        var imagePath = product.product_image ?
+                            `/assets/images/${product.product_image}` :
+                            '/assets/images/No Product Image Available.png';
+                        var details = `
                         <div class="table-responsive">
                             <table class="table table-bordered table-striped">
                                 <tbody>
@@ -2863,31 +2988,41 @@
                                                 }
                                             }
                                             
-                                            return `Rs.${parseFloat(displayPrice).toFixed(2)}<br><small class="text-muted">${priceSource}</small>`;
-                                        })()}</td>
-                                    </tr>
-                                    <tr>
-                                        <th scope="row">Imei is Checked</th>
-                                        <td>${product.is_imei_or_serial_no === 1 ? "True" : "False"}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>`;
-                        $('#productDetails').html(details);
-                    } else {
-                        console.error('Failed to load product details. Status: ' + response.status);
-                        toastr.error('Failed to load product details', 'Error');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error fetching product details:', error);
-                    toastr.error('Failed to load product details', 'Error');
-                },
-                complete: function() {
-                    isLoadingProductDetails = false; // Reset the loading flag
-                }
-            });
+                                            return `
+                        Rs.$ {
+                            parseFloat(displayPrice).toFixed(2)
+                        } < br > < small class = "text-muted" > $ {
+                            priceSource
+                        } < /small>`;
+                    })()
+            } < /td> <
+            /tr> <
+            tr >
+            <
+            th scope = "row" > Imei is Checked < /th> <
+            td > $ {
+                product.is_imei_or_serial_no === 1 ? "True" : "False"
+            } < /td> <
+            /tr> <
+            /tbody> <
+            /table> <
+            /div>`;
+            $('#productDetails').html(details);
         }
+        else {
+            console.error('Failed to load product details. Status: ' + response.status);
+            toastr.error('Failed to load product details', 'Error');
+        }
+    },
+    error: function(xhr, status, error) {
+            console.error('Error fetching product details:', error);
+            toastr.error('Failed to load product details', 'Error');
+        },
+        complete: function() {
+            isLoadingProductDetails = false; // Reset the loading flag
+        }
+    });
+    }
 
     });
 </script>
@@ -3459,5 +3594,4 @@
             }
         }
     }, 5000);
-
 </script>
