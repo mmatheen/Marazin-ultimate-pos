@@ -117,7 +117,7 @@ class ProductController extends Controller
                 StockHistory::STOCK_TYPE_SALE,
                 StockHistory::STOCK_TYPE_ADJUSTMENT,
                 StockHistory::STOCK_TYPE_PURCHASE_RETURN,
-                StockHistory::STOCK_TYPE_PURCHASE_REVERSAL,
+                StockHistory::STOCK_TYPE_SALE_REVERSAL,
                 StockHistory::STOCK_TYPE_PURCHASE_RETURN_REVERSAL,
                 StockHistory::STOCK_TYPE_TRANSFER_OUT,
             ];
