@@ -3,7 +3,7 @@
         let productIndex = 1;
         let locationFilteredProducts = [];
 
-        // Set default status to "pending" and date to today
+          // Set default status to "pending" and date to today
         $('#status').val('pending').trigger('change');
         let today = new Date();
         let day = String(today.getDate()).padStart(2, '0');
@@ -14,7 +14,7 @@
 
         // Initialize autocomplete to search by product name OR SKU, and only show products available in the selected "From" location
         const $productSearchInput = $('#productSearch');
-
+        
         // Add Enter key support for quick selection - Updated with working POS AJAX solution
         $productSearchInput.off('keydown.autocomplete').on('keydown.autocomplete', function(event) {
             if (event.key === 'Enter') {
@@ -36,10 +36,8 @@
                 if (itemToAdd && itemToAdd.value !== '') {
                     // Find the product by name or SKU (case-insensitive)
                     const selectedProduct = locationFilteredProducts.find(data =>
-                        (data.product.product_name && data.product.product_name.toLowerCase() ===
-                            itemToAdd.value.toLowerCase()) ||
-                        (data.product.sku && data.product.sku.toLowerCase() === itemToAdd.value
-                            .toLowerCase())
+                        (data.product.product_name && data.product.product_name.toLowerCase() === itemToAdd.value.toLowerCase()) ||
+                        (data.product.sku && data.product.sku.toLowerCase() === itemToAdd.value.toLowerCase())
                     );
                     if (selectedProduct) {
                         addProductWithBatches(selectedProduct);
@@ -55,121 +53,101 @@
         $productSearchInput.autocomplete({
             minLength: 1,
             source: function(request, response) {
-                const fromLocationId = $('#from_location_id').val();
-                if (!fromLocationId) {
-                    response([]);
-                    return;
-                }
-                $.ajax({
-                    url: '/products/stocks/autocomplete',
-                    method: 'GET',
-                    data: {
-                        search: request.term,
-                        location_id: fromLocationId, // Only fetch products for selected location
-                        per_page: 1000
-                    },
-                    success: function(res) {
-                        if (res.status === 200 && Array.isArray(res.data)) {
-                            // Filter products to only those with stock in the selected location
-                            locationFilteredProducts = res.data.filter(data => {
-                                // Check if any batch in this location has quantity > 0
-                                // Convert batches object to array if needed
-                                let batches = [];
-                                if (Array.isArray(data.batches)) {
-                                    batches = data.batches;
-                                } else if (data.batches && typeof data
-                                    .batches === 'object') {
-                                    batches = Object.values(data.batches);
-                                } else if (data.product && Array.isArray(data
-                                        .product.batches)) {
-                                    batches = data.product.batches;
-                                } else if (data.product && data.product
-                                    .batches && typeof data.product.batches ===
-                                    'object') {
-                                    batches = Object.values(data.product
-                                        .batches);
-                                }
-                                return batches.some(batch => {
-                                    const locationBatches = batch
-                                        .location_batches || batch
-                                        .locationBatches || [];
-                                    return locationBatches.some(
-                                        locBatch => locBatch
-                                        .location_id ==
-                                        fromLocationId &&
-                                        parseFloat(locBatch
-                                            .quantity ?? locBatch
-                                            .qty) > 0);
-                                });
-                            });
-                            if (locationFilteredProducts.length === 0) {
-                                response([{
-                                    label: "No products found for selected location",
-                                    value: ""
-                                }]);
-                            } else {
-                                response(locationFilteredProducts.map(data => ({
-                                    label: data.product.product_name + (
-                                            data.product.sku ? " (" +
-                                            data.product.sku + ")" : ""
-                                            ),
-                                    value: data.product.product_name,
-                                    sku: data.product.sku
-                                })));
-                            }
-                        } else {
-                            response([{
-                                label: '<span style="color:#888;">No products found for selected location</span>',
-                                value: ''
-                            }]);
-                        }
-                    },
-                    error: function() {
-                        response([{
-                            label: '<span style="color:#888;">No products found for selected location</span>',
-                            value: ''
-                        }]);
+            const fromLocationId = $('#from_location_id').val();
+            if (!fromLocationId) {
+                response([]);
+                return;
+            }
+            $.ajax({
+                url: '/products/stocks/autocomplete',
+                method: 'GET',
+                data: {
+                search: request.term,
+                location_id: fromLocationId, // Only fetch products for selected location
+                per_page: 1000
+                },
+                success: function(res) {
+                if (res.status === 200 && Array.isArray(res.data)) {
+                    // Filter products to only those with stock in the selected location
+                    locationFilteredProducts = res.data.filter(data => {
+                    // Check if any batch in this location has quantity > 0
+                    // Convert batches object to array if needed
+                    let batches = [];
+                    if (Array.isArray(data.batches)) {
+                        batches = data.batches;
+                    } else if (data.batches && typeof data.batches === 'object') {
+                        batches = Object.values(data.batches);
+                    } else if (data.product && Array.isArray(data.product.batches)) {
+                        batches = data.product.batches;
+                    } else if (data.product && data.product.batches && typeof data.product.batches === 'object') {
+                        batches = Object.values(data.product.batches);
                     }
-                });
+                    return batches.some(batch => {
+                        const locationBatches = batch.location_batches || batch.locationBatches || [];
+                        return locationBatches.some(locBatch => locBatch.location_id == fromLocationId && parseFloat(locBatch.quantity ?? locBatch.qty) > 0);
+                    });
+                    });
+                    if (locationFilteredProducts.length === 0) {
+                    response([{
+                        label: "No products found for selected location",
+                        value: ""
+                    }]);
+                    } else {
+                    response(locationFilteredProducts.map(data => ({
+                        label: data.product.product_name + (data.product.sku ? " (" + data.product.sku + ")" : ""),
+                        value: data.product.product_name,
+                        sku: data.product.sku
+                    })));
+                    }
+                } else {
+                    response([{
+                    label: '<span style="color:#888;">No products found for selected location</span>',
+                    value: ''
+                    }]);
+                }
+                },
+                error: function() {
+                response([{
+                    label: '<span style="color:#888;">No products found for selected location</span>',
+                    value: ''
+                }]);
+                }
+            });
             },
             focus: function(event, ui) {
-                // Prevent value from being inserted if it's the "no products" message
-                if (ui.item.value === '') {
-                    event.preventDefault();
-                    return false;
-                }
-                $('#productSearch').val(ui.item.label);
+            // Prevent value from being inserted if it's the "no products" message
+            if (ui.item.value === '') {
+                event.preventDefault();
                 return false;
+            }
+            $('#productSearch').val(ui.item.label);
+            return false;
             },
             select: function(event, ui) {
-                // Prevent selection if it's the "no products" message
-                if (ui.item.value === '') {
-                    event.preventDefault();
-                    return false;
-                }
-                // Find the product by name or SKU (case-insensitive)
-                const selectedProduct = locationFilteredProducts.find(data =>
-                    (data.product.product_name && data.product.product_name.toLowerCase() === ui
-                        .item.value.toLowerCase()) ||
-                    (data.product.sku && data.product.sku.toLowerCase() === ui.item.value
-                        .toLowerCase())
-                );
-                if (selectedProduct) {
-                    addProductWithBatches(selectedProduct);
-                    $(this).val('');
-                }
+            // Prevent selection if it's the "no products" message
+            if (ui.item.value === '') {
+                event.preventDefault();
                 return false;
+            }
+            // Find the product by name or SKU (case-insensitive)
+            const selectedProduct = locationFilteredProducts.find(data =>
+                (data.product.product_name && data.product.product_name.toLowerCase() === ui.item.value.toLowerCase()) ||
+                (data.product.sku && data.product.sku.toLowerCase() === ui.item.value.toLowerCase())
+            );
+            if (selectedProduct) {
+                addProductWithBatches(selectedProduct);
+                $(this).val('');
+            }
+            return false;
             },
             open: function() {
                 setTimeout(() => {
                     // Auto-focus first item for Enter key selection - Updated with working POS AJAX solution
-                    const autocompleteInstance = $productSearchInput.autocomplete(
-                        "instance");
+                    const autocompleteInstance = $productSearchInput.autocomplete("instance");
                     const menu = autocompleteInstance.menu;
                     const firstItem = menu.element.find("li:first-child");
-
-                    if (firstItem.length > 0 && !firstItem.text().includes(
-                            "No products found")) {
+                    
+                    if (firstItem.length > 0 && !firstItem.text().includes("No products found")) {
                         // Properly set the active item using jQuery UI's method
                         menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
                         firstItem.addClass("ui-state-focus");
@@ -201,8 +179,8 @@
             var ul = this.menu.element;
             ul.outerWidth(this.element.outerWidth());
             ul.css({
-                "max-height": "250px",
-                "overflow-y": "auto"
+            "max-height": "250px",
+            "overflow-y": "auto"
             });
         };
 
@@ -214,57 +192,56 @@
         // fetchDropdownData('/location-get-all?context=all_locations', $('#to_location_id'), "Select Location");
 
         // Reusable function to populate any dropdown
-        function populateDropdown($select, data, placeholder, selectedId = null) {
-            $select.empty().append(`<option selected disabled>${placeholder}</option>`);
-            data.forEach(item => {
-                const option = $('<option></option>')
-                    .val(item.id)
-                    .text(item.name || item.first_name + ' ' + item.last_name);
-                $select.append(option);
-            });
-            if (selectedId) {
-                $select.val(selectedId).trigger('change');
-            }
-        }
-
-        // Fetch all locations and filter for "From" and "To"
-        $.ajax({
-            url: '/location-get-all?context=all_locations',
-            method: 'GET',
-            dataType: 'json',
-            success: function(response) {
-                if (response.status === true && Array.isArray(response.data)) {
-                    const allLocations = response.data;
-
-                    // Populate "To Location" with ALL locations
-                    populateDropdown($('#to_location_id'), allLocations, "Select Location");
-
-                    populateDropdown($('#from_location_id'), allLocations, "Select Location");
-
-
-                    // If editing an existing transfer, restore selected values after dropdowns are populated
-                    const pathSegments = window.location.pathname.split('/');
-                    const stockTransferId = pathSegments[pathSegments.length - 1] !==
-                        'add-stock-transfer' ? pathSegments[pathSegments.length - 1] : null;
-
-                    if (stockTransferId) {
-                        const checkInterval = setInterval(() => {
-                            if ($('#from_location_id').val()) {
-                                clearInterval(checkInterval);
-                                fetchStockTransferData(stockTransferId);
-                            }
-                        }, 200);
-                    }
-                } else {
-                    console.error('Failed to load locations:', response.message);
-                    toastr.error('Could not load location data.');
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error fetching locations:', error);
-                toastr.error('Failed to connect to server.');
-            }
+    function populateDropdown($select, data, placeholder, selectedId = null) {
+        $select.empty().append(`<option selected disabled>${placeholder}</option>`);
+        data.forEach(item => {
+            const option = $('<option></option>')
+                .val(item.id)
+                .text(item.name || item.first_name + ' ' + item.last_name);
+            $select.append(option);
         });
+        if (selectedId) {
+            $select.val(selectedId).trigger('change');
+        }
+    }
+
+    // Fetch all locations and filter for "From" and "To"
+    $.ajax({
+        url: '/location-get-all?context=all_locations',
+        method: 'GET',
+        dataType: 'json',
+        success: function(response) {
+            if (response.status === true && Array.isArray(response.data)) {
+                const allLocations = response.data;
+
+                // Populate "To Location" with ALL locations
+                populateDropdown($('#to_location_id'), allLocations, "Select Location");
+
+                populateDropdown($('#from_location_id'), allLocations, "Select Location");
+
+
+                // If editing an existing transfer, restore selected values after dropdowns are populated
+                const pathSegments = window.location.pathname.split('/');
+                const stockTransferId = pathSegments[pathSegments.length - 1] !== 'add-stock-transfer' ? pathSegments[pathSegments.length - 1] : null;
+
+                if (stockTransferId) {
+                    const checkInterval = setInterval(() => {
+                        if ($('#from_location_id').val()) {
+                            clearInterval(checkInterval);
+                            fetchStockTransferData(stockTransferId);
+                        }
+                    }, 200);
+                }
+            } else {
+                console.error('Failed to load locations:', response.message);
+                toastr.error('Could not load location data.');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error fetching locations:', error);
+            toastr.error('Failed to connect to server.');
+        }
+    });
 
         $('#from_location_id').on('change', function() {
             // Clear the product search input and table when the location changes
@@ -276,11 +253,11 @@
 
         if (stockTransferId) {
             const checkLocationInterval = setInterval(() => {
-                if ($('#from_location_id').val()) {
-                    clearInterval(checkLocationInterval);
-                    fetchStockTransferData(stockTransferId);
-                    // No need to prefetch products, autocomplete will fetch as user types
-                }
+            if ($('#from_location_id').val()) {
+                clearInterval(checkLocationInterval);
+                fetchStockTransferData(stockTransferId);
+                // No need to prefetch products, autocomplete will fetch as user types
+            }
             }, 200);
         }
 
@@ -337,12 +314,12 @@
             const product = productData.product;
             const existingRow = $(`tr[data-product-id="${product.id}"]`);
             if (existingRow.length > 0) {
-                // Update the quantity if the product already exists in the table
-                const quantityInput = existingRow.find('.quantity-input');
-                const newQuantity = parseFloat(quantityInput.val()) + productData.quantity;
-                quantityInput.val(newQuantity);
-                existingRow.find('.quantity-input').trigger('change');
-                return;
+            // Update the quantity if the product already exists in the table
+            const quantityInput = existingRow.find('.quantity-input');
+            const newQuantity = parseFloat(quantityInput.val()) + productData.quantity;
+            quantityInput.val(newQuantity);
+            existingRow.find('.quantity-input').trigger('change');
+            return;
             }
 
             // Filter batches to only include those in the selected "From" location
@@ -351,39 +328,39 @@
             // --- FIX: Support batches as object or array, and location_batches as string/number ---
             let batchesArr = [];
             if (Array.isArray(productData.batches)) {
-                batchesArr = productData.batches;
+            batchesArr = productData.batches;
             } else if (productData.batches && typeof productData.batches === 'object') {
-                batchesArr = Object.values(productData.batches);
+            batchesArr = Object.values(productData.batches);
             } else if (Array.isArray(product.batches)) {
-                batchesArr = product.batches;
+            batchesArr = product.batches;
             } else if (product.batches && typeof product.batches === 'object') {
-                batchesArr = Object.values(product.batches);
+            batchesArr = Object.values(product.batches);
             }
 
             // Only use batches from the selected "From" location
             const batches = batchesArr.flatMap(batch => {
-                // Support both camelCase and snake_case for location_batches
-                const locationBatches = batch.location_batches || batch.locationBatches || [];
-                return locationBatches
-                    .filter(locBatch =>
-                        locBatch.location_id == fromLocationId &&
-                        parseFloat(locBatch.quantity ?? locBatch.qty) > 0
-                    )
-                    .map(locationBatch => ({
-                        batch_id: batch.id,
-                        batch_no: batch.batch_no,
-                        batch_price: parseFloat(batch.retail_price),
-                        batch_quantity: parseFloat(locationBatch.quantity ?? locationBatch.qty),
-                        transfer_quantity: productData.quantity
-                    }));
+            // Support both camelCase and snake_case for location_batches
+            const locationBatches = batch.location_batches || batch.locationBatches || [];
+            return locationBatches
+                .filter(locBatch => 
+                locBatch.location_id == fromLocationId && 
+                parseFloat(locBatch.quantity ?? locBatch.qty) > 0
+                )
+                .map(locationBatch => ({
+                batch_id: batch.id,
+                batch_no: batch.batch_no,
+                batch_price: parseFloat(batch.retail_price),
+                batch_quantity: parseFloat(locationBatch.quantity ?? locationBatch.qty),
+                transfer_quantity: productData.quantity
+                }));
             });
 
             if (batches.length === 0) {
-                console.error('No batches available for product:', product.product_name);
-                toastr.error(
-                    `No batches available in "${$('#from_location_id option:selected').text()}" for "${product.product_name}".`
-                );
-                return;
+            console.error('No batches available for product:', product.product_name);
+            toastr.error(
+                `No batches available in "${$('#from_location_id option:selected').text()}" for "${product.product_name}".`
+            );
+            return;
             }
 
             // Determine if decimals are allowed for this product
@@ -397,7 +374,7 @@
 
             // Format quantity for display: show decimals only if allowed
             function formatQty(qty) {
-                return allowDecimal ? parseFloat(qty).toFixed(2) : parseInt(qty);
+            return allowDecimal ? parseFloat(qty).toFixed(2) : parseInt(qty);
             }
 
             const batchOptions = batches.map(batch => `
@@ -446,31 +423,31 @@
         function addProductWithBatches(productData) {
             const fromLocationId = $('#from_location_id').val();
             if (!fromLocationId) {
-                toastr.warning("Please select a 'From' location before adding products.");
-                return;
+            toastr.warning("Please select a 'From' location before adding products.");
+            return;
             }
 
             const product = productData.product;
             const existingRow = $(`tr[data-product-id="${product.id}"]`);
 
             if (existingRow.length > 0) {
-                const quantityInput = existingRow.find('.quantity-input');
-                const newQuantity = parseFloat(quantityInput.val()) + 1;
-                quantityInput.val(newQuantity);
-                existingRow.find('.quantity-input').trigger('change');
-                return;
+            const quantityInput = existingRow.find('.quantity-input');
+            const newQuantity = parseFloat(quantityInput.val()) + 1;
+            quantityInput.val(newQuantity);
+            existingRow.find('.quantity-input').trigger('change');
+            return;
             }
 
             // --- FIX: Support batches as object or array, and location_batches as string/number ---
             let batchesArr = [];
             if (Array.isArray(productData.batches)) {
-                batchesArr = productData.batches;
+            batchesArr = productData.batches;
             } else if (productData.batches && typeof productData.batches === 'object') {
-                batchesArr = Object.values(productData.batches);
+            batchesArr = Object.values(productData.batches);
             } else if (Array.isArray(product.batches)) {
-                batchesArr = product.batches;
+            batchesArr = product.batches;
             } else if (product.batches && typeof product.batches === 'object') {
-                batchesArr = Object.values(product.batches);
+            batchesArr = Object.values(product.batches);
             }
 
             // Determine if decimals are allowed for this product
@@ -478,34 +455,33 @@
 
             // Format quantity for display: show decimals only if allowed
             function formatQty(qty) {
-                return allowDecimal ? parseFloat(qty).toFixed(2) : parseInt(qty);
+            return allowDecimal ? parseFloat(qty).toFixed(2) : parseInt(qty);
             }
 
             // Filter batches to only those in the selected "From" location with quantity > 0
             const batches = batchesArr.flatMap(batch => {
-                // Support both camelCase and snake_case for location_batches
-                const locationBatches = batch.location_batches || batch.locationBatches || [];
-                return locationBatches
-                    .filter(locBatch =>
-                        locBatch.location_id == fromLocationId &&
-                        parseFloat(locBatch.quantity ?? locBatch.qty) > 0
-                    )
-                    .map(locationBatch => ({
-                        batch_id: batch.id,
-                        batch_no: batch.batch_no,
-                        batch_price: parseFloat(batch.retail_price),
-                        batch_quantity: parseFloat(locationBatch.quantity ?? locationBatch.qty),
-                        transfer_quantity: parseFloat(locationBatch.quantity ?? locationBatch
-                            .qty)
-                    }));
+            // Support both camelCase and snake_case for location_batches
+            const locationBatches = batch.location_batches || batch.locationBatches || [];
+            return locationBatches
+                .filter(locBatch => 
+                locBatch.location_id == fromLocationId && 
+                parseFloat(locBatch.quantity ?? locBatch.qty) > 0
+                )
+                .map(locationBatch => ({
+                batch_id: batch.id,
+                batch_no: batch.batch_no,
+                batch_price: parseFloat(batch.retail_price),
+                batch_quantity: parseFloat(locationBatch.quantity ?? locationBatch.qty),
+                transfer_quantity: parseFloat(locationBatch.quantity ?? locationBatch.qty)
+                }));
             });
 
             if (batches.length === 0) {
-                console.warn(`No batches available in selected location for product: ${product.product_name}`);
-                toastr.error(
-                    `No batches available in "${$('#from_location_id option:selected').text()}" for "${product.product_name}".`
-                );
-                return;
+            console.warn(`No batches available in selected location for product: ${product.product_name}`);
+            toastr.error(
+                `No batches available in "${$('#from_location_id option:selected').text()}" for "${product.product_name}".`
+            );
+            return;
             }
 
             const quantityInput = `
@@ -609,8 +585,8 @@
         function updateTotalAmount() {
             let total = 0;
             $(".add-row").each(function() {
-                const subtotal = parseFloat($(this).find('input[name$="[sub_total]"]').val());
-                total += subtotal;
+            const subtotal = parseFloat($(this).find('input[name$="[sub_total]"]').val());
+            total += subtotal;
             });
             $('#totalRow').text(`Total : ${total.toFixed(2)}`);
         }
@@ -644,15 +620,15 @@
             submitHandler: function(form, event) {
 
                 event.preventDefault();
-
+                
                 // Get submit button
                 const $submitBtn = $(form).find('button[type="submit"]');
-
+                
                 // Prevent multiple submissions
                 if ($submitBtn.prop('disabled')) {
                     return false;
                 }
-
+                
                 const fromLocationId = $('#from_location_id').val();
                 const toLocationId = $('#to_location_id').val();
                 if (fromLocationId === toLocationId) {
@@ -672,11 +648,11 @@
                     '/stock-transfer/store';
                 const method = stockTransferId ? 'PUT' : 'POST';
                 const formData = $(form).serialize();
-
+                
                 // Disable button and change text
                 const originalText = $submitBtn.text();
                 $submitBtn.prop('disabled', true).text('Please wait...');
-
+                
                 $.ajax({
                     url: url,
                     method: method,
@@ -688,7 +664,7 @@
                     error: function(response) {
                         // Re-enable button on error
                         $submitBtn.prop('disabled', false).text(originalText);
-
+                        
                         if (response.responseJSON && response.responseJSON.errors) {
                             for (const [key, value] of Object.entries(response
                                     .responseJSON.errors)) {
@@ -900,79 +876,68 @@
             });
         }
 
-        window.printStockTransfer = function(stockTransferId, layout = '80mm') {
-                $.ajax({
-                    url: `/stock-transfer/get/${stockTransferId}`,
-                    method: 'GET',
-                    success: function(response) {
-                        if (response.status !== 200) {
-                            toastr.error('Failed to fetch stock transfer details for printing.');
-                            return;
+            window.printStockTransfer = function(stockTransferId, layout = '80mm') {
+            $.ajax({
+                url: `/stock-transfer/get/${stockTransferId}`,
+                method: 'GET',
+                success: function(response) {
+                    if (response.status !== 200) {
+                        toastr.error('Failed to fetch stock transfer details for printing.');
+                        return;
+                    }
+                    const st = response.stockTransfer;
+                    const products = st.stock_transfer_products || [];
+
+                    // Helper: Get latest batch MRP or fallback to product max_retail_price
+                    function getMRP(product) {
+                        if (product && Array.isArray(product.batches) && product.batches.length > 0) {
+                            let latest = product.batches.reduce((a, b) =>
+                                new Date(a.created_at) > new Date(b.created_at) ? a : b
+                            );
+                            if (latest.max_retail_price && +latest.max_retail_price > 0) return parseFloat(latest.max_retail_price).toLocaleString();
                         }
-                        const st = response.stockTransfer;
-                        const products = st.stock_transfer_products || [];
+                        if (product && product.max_retail_price) return parseFloat(product.max_retail_price).toLocaleString();
+                        return '';
+                    }
 
-                        // Helper: Get latest batch MRP or fallback to product max_retail_price
-                        function getMRP(product) {
-                            if (product && Array.isArray(product.batches) && product.batches
-                                .length > 0) {
-                                let latest = product.batches.reduce((a, b) =>
-                                    new Date(a.created_at) > new Date(b.created_at) ? a : b
-                                );
-                                if (latest.max_retail_price && +latest.max_retail_price > 0)
-                                return parseFloat(latest.max_retail_price).toLocaleString();
-                            }
-                            if (product && product.max_retail_price) return parseFloat(product
-                                .max_retail_price).toLocaleString();
-                            return '';
+                    function getUserName(user) {
+                        if (!user) return '';
+                        if (user.name) return user.name;
+                        if (user.first_name || user.last_name) return (user.first_name ? user.first_name : '') + ' ' + (user.last_name ? user.last_name : '');
+                        return '';
+                    }
+
+                    // Format numbers with thousand separator, show decimals only if needed (e.g., 1,000.25, 10,000, 1,200,000.50)
+                    function formatAmount(num) {
+                        if (isNaN(num) || num === null) return '';
+                        // Show up to 2 decimals if not integer, else no decimals
+                        return Number(num).toLocaleString('en-US', {
+                            minimumFractionDigits: (Math.floor(num) !== Number(num)) ? 2 : 0,
+                            maximumFractionDigits: 2
+                        });
+                    }
+
+                    let activities = [];
+                    let sources = [st.activities, window.activityLogs, window.lastStockTransferActivityLogs, st.activityLogs];
+                    for (let arr of sources) {
+                        if (Array.isArray(arr) && arr.length > 0) {
+                            activities = arr.map(log => ({
+                                date: log.date || log.created_at,
+                                action: log.action || log.description,
+                                user: log.user || log.causer,
+                                note: log.note || (log.properties && log.properties.attributes && log.properties.attributes.note ? log.properties.attributes.note : '')
+                            }));
+                            break;
                         }
+                    }
 
-                        function getUserName(user) {
-                            if (!user) return '';
-                            if (user.name) return user.name;
-                            if (user.first_name || user.last_name) return (user.first_name ? user
-                                .first_name : '') + ' ' + (user.last_name ? user.last_name :
-                                '');
-                            return '';
-                        }
+                    // Calculate total amount and shipping
+                    const netTotal = products.reduce((sum, p) => sum + (parseFloat(p.sub_total) || 0), 0);
+                    const shipping = st.shipping_charges ? parseFloat(st.shipping_charges) : 0;
+                    const total = netTotal + shipping;
 
-                        // Format numbers with thousand separator, show decimals only if needed (e.g., 1,000.25, 10,000, 1,200,000.50)
-                        function formatAmount(num) {
-                            if (isNaN(num) || num === null) return '';
-                            // Show up to 2 decimals if not integer, else no decimals
-                            return Number(num).toLocaleString('en-US', {
-                                minimumFractionDigits: (Math.floor(num) !== Number(num)) ?
-                                    2 : 0,
-                                maximumFractionDigits: 2
-                            });
-                        }
-
-                        let activities = [];
-                        let sources = [st.activities, window.activityLogs, window
-                            .lastStockTransferActivityLogs, st.activityLogs
-                        ];
-                        for (let arr of sources) {
-                            if (Array.isArray(arr) && arr.length > 0) {
-                                activities = arr.map(log => ({
-                                    date: log.date || log.created_at,
-                                    action: log.action || log.description,
-                                    user: log.user || log.causer,
-                                    note: log.note || (log.properties && log.properties
-                                        .attributes && log.properties.attributes
-                                        .note ? log.properties.attributes.note : '')
-                                }));
-                                break;
-                            }
-                        }
-
-                        // Calculate total amount and shipping
-                        const netTotal = products.reduce((sum, p) => sum + (parseFloat(p
-                            .sub_total) || 0), 0);
-                        const shipping = st.shipping_charges ? parseFloat(st.shipping_charges) : 0;
-                        const total = netTotal + shipping;
-
-                        // --- 80mm thermal layout (now like A4: name row, then below: MRP, unit price, qty, subtotal) ---
-                        let printContent80mm = `
+                    // --- 80mm thermal layout (now like A4: name row, then below: MRP, unit price, qty, subtotal) ---
+                    let printContent80mm = `
                     <div id="printArea" style="width:80mm; font-family: 'monospace', Arial, sans-serif; font-size:13px; color:#111;">
                         <div style="text-align:center; margin-bottom:6px;">
                             <strong style="font-size:18px; font-weight:900;">Stock Transfer</strong><br>
@@ -1010,18 +975,13 @@
                                     // MRP: strikethrough if different from unit price, else extra bold and clear
                                     let mrpHtml = '';
                                     if (mrp && mrp !== unitPrice) {
-                                        mrpHtml = ` < span style =
-                            "text-decoration:line-through; color:#111; font-weight:900; font-size:13px; letter-spacing:1px; background: #ffe; padding:1px 4px; border-radius:2px;" >
-                            $ {
-                                mrp
-                            } < /span>`;
-                    } else if (mrp) {
-                        mrpHtml =
-                            `<span style="font-weight:900; font-size:13px; color:#111; letter-spacing:1px; background: #ffe; padding:1px 4px; border-radius:2px;">${mrp}</span>`;
-                    }
+                                        mrpHtml = `<span style="text-decoration:line-through; color:#111; font-weight:900; font-size:13px; letter-spacing:1px; background: #ffe; padding:1px 4px; border-radius:2px;">${mrp}</span>`;
+                                    } else if (mrp) {
+                                        mrpHtml = `<span style="font-weight:900; font-size:13px; color:#111; letter-spacing:1px; background: #ffe; padding:1px 4px; border-radius:2px;">${mrp}</span>`;
+                                    }
 
-                    // Second row: MRP, unit price, qty, subtotal
-                    return `
+                                    // Second row: MRP, unit price, qty, subtotal
+                                    return `
                                     <tr>
                                         <td style="vertical-align:top; font-weight:900; font-size:13px;"><b>${i + 1}</b></td>
                                         <td colspan="4" style="vertical-align:top;">
@@ -1044,108 +1004,74 @@
                                         </td>
                                     </tr>
                                     `;
-                }).join('')
-            } <
-            /tbody> <
-            /table> <
-            div style = "border-top:2px dashed #222; margin:6px 0;" > < /div> <
-            table style = "width:100%; font-size:13px;" >
-            <
-            tr >
-            <
-            td style = "text-align:left; font-weight:bold;" > Net Total: < /td> <
-            td style = "text-align:right; font-weight:900;" > < b > Rs.$ {
-                formatAmount(netTotal)
-            } < /b></td >
-            <
-            /tr> <
-            tr >
-            <
-            td style = "text-align:left; font-weight:bold;" > Shipping: < /td> <
-            td style = "text-align:right; font-weight:900;" > Rs.$ {
-                formatAmount(shipping)
-            } < /td> <
-            /tr> <
-            tr >
-            <
-            td style = "text-align:left; font-weight:bold;" > Total: < /td> <
-            td style = "text-align:right; font-weight:900;" > < b > Rs.$ {
-                formatAmount(total)
-            } < /b></td >
-            <
-            /tr> <
-            /table> <
-            div style = "border-top:2px dashed #222; margin:6px 0;" > < /div> <
-            div style = "font-size:12px; margin-bottom:3px; font-weight:bold;" > < b > Notes: <
-            /b> <span style="font-weight:normal;">${st.note || '--'}</span > < /div> <
-            div style = "font-size:12px; margin-top:3px;" >
-            <
-            b style = "font-size:13px;" > Activities: < /b> <
-            table style = "width:100%; font-size:11px; margin-top:3px;" >
-            <
-            thead >
-            <
-            tr >
-            <
-            th style = "font-weight:bold;" > Date < /th> <
-            th style = "font-weight:bold;" > Action < /th> <
-            th style = "font-weight:bold;" > By < /th> <
-            /tr> <
-            /thead> <
-            tbody >
-            $ {
-                activities.length > 0 ?
-                    activities.map(a => `
+                                }).join('')}
+                            </tbody>
+                        </table>
+                        <div style="border-top:2px dashed #222; margin:6px 0;"></div>
+                        <table style="width:100%; font-size:13px;">
+                            <tr>
+                                <td style="text-align:left; font-weight:bold;">Net Total:</td>
+                                <td style="text-align:right; font-weight:900;"><b>Rs.${formatAmount(netTotal)}</b></td>
+                            </tr>
+                            <tr>
+                                <td style="text-align:left; font-weight:bold;">Shipping:</td>
+                                <td style="text-align:right; font-weight:900;">Rs.${formatAmount(shipping)}</td>
+                            </tr>
+                            <tr>
+                                <td style="text-align:left; font-weight:bold;">Total:</td>
+                                <td style="text-align:right; font-weight:900;"><b>Rs.${formatAmount(total)}</b></td>
+                            </tr>
+                        </table>
+                        <div style="border-top:2px dashed #222; margin:6px 0;"></div>
+                        <div style="font-size:12px; margin-bottom:3px; font-weight:bold;"><b>Notes:</b> <span style="font-weight:normal;">${st.note || '--'}</span></div>
+                        <div style="font-size:12px; margin-top:3px;">
+                            <b style="font-size:13px;">Activities:</b>
+                            <table style="width:100%; font-size:11px; margin-top:3px;">
+                                <thead>
+                                    <tr>
+                                        <th style="font-weight:bold;">Date</th>
+                                        <th style="font-weight:bold;">Action</th>
+                                        <th style="font-weight:bold;">By</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${activities.length > 0 ?
+                                        activities.map(a => `
                                             <tr>
                                                 <td>${a.date ? new Date(a.date).toLocaleDateString() : ''}</td>
                                                 <td>${a.action || ''}</td>
                                                 <td>${getUserName(a.user)}</td>
                                             </tr>
                                         `).join('') :
-                    `<tr><td colspan="3" style="text-align:center; color:#888;">No activities</td></tr>`
-            } <
-            /tbody> <
-            /table> <
-            /div> <
-            div style = "border-top:2px dashed #222; margin:6px 0 0 0;" > < /div> <
-            div style = "text-align:center; font-size:13px; margin-top:3px; font-weight:900;" > < b > Thank you!
-            < /b></div >
-            <
-            /div>
-        `;
-                    const style80mm = ` < style >
-            @media print {
-                @page {
-                    size: 80 mm auto;margin: 0.10 in !important;
-                }
-                html, body {
-                    background: #fff!important;
-                    margin: 0!important;
-                    padding: 0!important;
-                    width: 80 mm!important;
-                    max - width: 80 mm!important;
-                }
-                #printArea {
-                    width: 80 mm!important;max - width: 80 mm!important;
-                }
-                th, td {
-                    padding: 0 2 px;
-                }
-            }
-        #printArea {
-            width: 80 mm;max - width: 80 mm;margin: 0 auto;padding: 0;
-        }
-        table {
-            border - collapse: collapse;
-            width: 100 % ;
-        }
-        th, td {
-            border: none!important;padding: 0 2 px;
-        } <
-        /style>`;
+                                        `<tr><td colspan="3" style="text-align:center; color:#888;">No activities</td></tr>`
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style="border-top:2px dashed #222; margin:6px 0 0 0;"></div>
+                        <div style="text-align:center; font-size:13px; margin-top:3px; font-weight:900;"><b>Thank you!</b></div>
+                    </div>
+                    `;
+                    const style80mm = `<style>
+                        @media print {
+                            @page { size: 80mm auto; margin: 0.10in !important; }
+                            html, body {
+                                background: #fff !important;
+                                margin: 0 !important;
+                                padding: 0 !important;
+                                width: 80mm !important;
+                                max-width: 80mm !important;
+                            }
+                            #printArea { width: 80mm !important; max-width: 80mm !important; }
+                            th, td { padding: 0 2px; }
+                        }
+                        #printArea { width:80mm; max-width:80mm; margin:0 auto; padding:0; }
+                        table { border-collapse: collapse; width:100%; }
+                        th, td { border: none !important; padding: 0 2px; }
+                    </style>`;
 
-        // --- A4 layout (image-style: product name row, then below: MRP, unit price, qty, subtotal) ---
-        let printContentA4 = `
+                    // --- A4 layout (image-style: product name row, then below: MRP, unit price, qty, subtotal) ---
+                    let printContentA4 = `
                     <div id="printArea" style="width:800px; max-width:800px; margin:0 auto; font-family: Arial, sans-serif; font-size:13px; color:#111;">
                         <div style="text-align:center; margin-bottom:10px;">
                             <strong style="font-size:22px;">Stock Transfer</strong><br>
@@ -1182,15 +1108,13 @@
                                     // MRP: strikethrough if different from unit price, else normal
                                     let mrpHtml = '';
                                     if (mrp && mrp !== unitPrice) {
-                                        mrpHtml = ` < span style = "text-decoration:line-through; color:#888;" > $ {
-            mrp
-        } < /span>`;
-    } else if (mrp) {
-        mrpHtml = mrp;
-    }
+                                        mrpHtml = `<span style="text-decoration:line-through; color:#888;">${mrp}</span>`;
+                                    } else if (mrp) {
+                                        mrpHtml = mrp;
+                                    }
 
-    // Second row: MRP, unit price, qty, subtotal
-    return `
+                                    // Second row: MRP, unit price, qty, subtotal
+                                    return `
                                     <tr>
                                         <td style="vertical-align:top;"><b>${i + 1}</b></td>
                                         <td colspan="4" style="vertical-align:top;">
@@ -1213,120 +1137,86 @@
                                         </td>
                                     </tr>
                                     `;
-    }).join('')
-    } <
-    /tbody> <
-    /table> <
-    hr style = "border:1px solid #222; margin:10px 0;" >
-        <
-        table style = "width:100%; font-size:13px;" >
-        <
-        tr >
-        <
-        td style = "text-align:left;" > Net Total: < /td> <
-        td style = "text-align:right;" > < b > Rs.$ {
-            formatAmount(netTotal)
-        } < /b></td >
-        <
-        /tr> <
-        tr >
-        <
-        td style = "text-align:left;" > Shipping: < /td> <
-        td style = "text-align:right;" > Rs.$ {
-            formatAmount(shipping)
-        } < /td> <
-        /tr> <
-        tr >
-        <
-        td style = "text-align:left;" > Total: < /td> <
-        td style = "text-align:right;" > < b > Rs.$ {
-            formatAmount(total)
-        } < /b></td >
-        <
-        /tr> <
-        /table> <
-        div style = "font-size:12px; margin:10px 0;" > < b > Notes: < /b> ${st.note || '--'}</div >
-        <
-        div style = "font-size:12px; margin-top:10px;" >
-        <
-        b > Activities: < /b> <
-        table style = "width:100%; font-size:11px; margin-top:4px; border-collapse:collapse;" >
-        <
-        thead >
-        <
-        tr style = "background:#f3f3f3;" >
-        <
-        th > Date < /th> <
-        th > Action < /th> <
-        th > By < /th> <
-        /tr> <
-        /thead> <
-        tbody >
-        $ {
-            activities.length > 0 ?
-                activities.map(a => `
+                                }).join('')}
+                            </tbody>
+                        </table>
+                        <hr style="border:1px solid #222; margin:10px 0;">
+                        <table style="width:100%; font-size:13px;">
+                            <tr>
+                                <td style="text-align:left;">Net Total:</td>
+                                <td style="text-align:right;"><b>Rs.${formatAmount(netTotal)}</b></td>
+                            </tr>
+                            <tr>
+                                <td style="text-align:left;">Shipping:</td>
+                                <td style="text-align:right;">Rs.${formatAmount(shipping)}</td>
+                            </tr>
+                            <tr>
+                                <td style="text-align:left;">Total:</td>
+                                <td style="text-align:right;"><b>Rs.${formatAmount(total)}</b></td>
+                            </tr>
+                        </table>
+                        <div style="font-size:12px; margin:10px 0;"><b>Notes:</b> ${st.note || '--'}</div>
+                        <div style="font-size:12px; margin-top:10px;">
+                            <b>Activities:</b>
+                            <table style="width:100%; font-size:11px; margin-top:4px; border-collapse:collapse;">
+                                <thead>
+                                    <tr style="background:#f3f3f3;">
+                                        <th>Date</th>
+                                        <th>Action</th>
+                                        <th>By</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${activities.length > 0 ?
+                                        activities.map(a => `
                                             <tr>
                                                 <td>${a.date ? new Date(a.date).toLocaleString() : ''}</td>
                                                 <td>${a.action || ''}</td>
                                                 <td>${getUserName(a.user)}</td>
                                             </tr>
                                         `).join('') :
-                `<tr><td colspan="3" style="text-align:center; color:#888;">No activities</td></tr>`
-        } <
-        /tbody> <
-        /table> <
-        /div> <
-        hr style = "border:1px solid #222; margin:10px 0 0 0;" >
-        <
-        div style = "text-align:center; font-size:13px; margin-top:10px;" > < b > Thank you! < /b></div >
-        <
-        /div>
-    `;
-                    const styleA4 = ` < style >
-        @media print {
-            @page {
-                size: 800 px auto;margin: 0.5 in ;
-            }
-            html, body {
-                background: #fff!important;
-                margin: 0!important;
-                padding: 0!important;
-                width: 800 px!important;
-                max - width: 800 px!important;
-            }
-            #printArea {
-                width: 800 px!important;max - width: 800 px!important;
-            }
-        }
-    #printArea {
-        width: 800 px;max - width: 800 px;margin: 0 auto;padding: 0;
-    }
-    table {
-        border - collapse: collapse;
-        width: 100 % ;
-    }
-    th, td {
-        border: none!important;padding: 4 px 6 px;
-    }
-    hr {
-        border: 1 px solid #222; }
+                                        `<tr><td colspan="3" style="text-align:center; color:#888;">No activities</td></tr>`
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        <hr style="border:1px solid #222; margin:10px 0 0 0;">
+                        <div style="text-align:center; font-size:13px; margin-top:10px;"><b>Thank you!</b></div>
+                    </div>
+                    `;
+                    const styleA4 = `<style>
+                        @media print {
+                            @page { size: 800px auto; margin: 0.5in; }
+                            html, body {
+                                background: #fff !important;
+                                margin: 0 !important;
+                                padding: 0 !important;
+                                width: 800px !important;
+                                max-width: 800px !important;
+                            }
+                            #printArea { width: 800px !important; max-width: 800px !important; }
+                        }
+                        #printArea { width:800px; max-width:800px; margin:0 auto; padding:0; }
+                        table { border-collapse: collapse; width:100%; }
+                        th, td { border: none !important; padding: 4px 6px; }
+                        hr { border: 1px solid #222; }
                     </style>`;
 
                     // Print logic (restore after print)
                     const originalContent = document.body.innerHTML;
-        if (layout.toLowerCase() === 'a4') {
-            document.body.innerHTML = styleA4 + printContentA4;
-        } else {
-            document.body.innerHTML = style80mm + printContent80mm;
-        }
-        window.print();
-        document.body.innerHTML = originalContent;
-    },
-    error: function() {
-    toastr.error('An error occurred while printing. Please try again.');
-    }
-    });
-    }
+                    if (layout.toLowerCase() === 'a4') {
+                        document.body.innerHTML = styleA4 + printContentA4;
+                    } else {
+                        document.body.innerHTML = style80mm + printContent80mm;
+                    }
+                    window.print();
+                    document.body.innerHTML = originalContent;
+                },
+                error: function() {
+                    toastr.error('An error occurred while printing. Please try again.');
+                }
+            });
+          }
 
     // Make viewStockTransfer globally accessible
     window.viewStockTransfer = function(stockTransferId) {
