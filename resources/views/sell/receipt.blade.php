@@ -253,8 +253,8 @@
                     <td align="left" valign="top" style="padding: 1px 2px !important;">
                         <span>{{ number_format($item['product']->price, 0, '.', ',') }}</span>
                     </td>
-                    <td align="center" valign="top" style="padding: 1px 2px !important; font-size: 10px; white-space: nowrap;">
-                        <span>&times; {{ $item['quantity'] }} <small>PCS</small></span>
+                    <td align="center" valign="top" style="padding: 1px 2px !important; white-space: nowrap;">
+                        <span style="font-size: 8px;">&times;</span> <span style="font-size: 11px; font-weight: 500;">{{ $item['quantity'] }}</span> <small style="font-size: 7px;">PCS</small>
                     </td>
                     <td valign="top" align="right" style="padding: 1px 2px !important;">
                         <span style="font-weight: bold;">
