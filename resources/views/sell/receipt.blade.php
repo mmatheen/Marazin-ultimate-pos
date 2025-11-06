@@ -40,7 +40,7 @@
 
             .table th,
             .table td {
-                padding: 6px !important;
+                padding: 2px 4px !important;
                 font-size: 10px !important;
                 vertical-align: top;
             }
@@ -52,7 +52,7 @@
             hr {
                 border: 0 !important;
                 border-top: 1px dashed #000 !important;
-                margin: 8px 0 !important;
+                margin: 1px 0 !important;
                 width: 100% !important;
                 display: block !important;
                 opacity: 0.6 !important;
@@ -111,6 +111,7 @@
             .quantity-with-pcs {
                 display: inline-block;
             }
+            
         }
     </style>
 </head>
@@ -176,9 +177,10 @@
                     <th>AMOUNT</th>
                 </tr>
                 <tr>
-                    <th colspan="5">
-                        <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
-                    </th>
+                    <td colspan="5" style="padding: 0 !important;">
+                        <hr style="margin: 1px 0; border-top-style: dashed; border-width: 1px;">
+                    </td>
+                </tr>
                     {{-- Load IMEI data for all products --}}
                     @php
                         $products->load('imeis');
@@ -224,8 +226,8 @@
 
                     @foreach ($displayItems as $index => $item)
                 <tr>
-                    <td>{{ $loop->iteration }}</td>
-                    <td colspan="4" valign="top">
+                    <td style="padding: 1px 2px !important;">{{ $loop->iteration }}</td>
+                    <td colspan="4" valign="top" style="padding: 1px 2px !important;">
                         {{ $item['product']->product->product_name }}
                         @if ($item['type'] == 'imei')
                             <span style="font-size: 10px;">({{ $item['imei'] }})</span>
@@ -241,25 +243,32 @@
                 </tr>
 
                 <tr>
-                    <td valign="top">&nbsp;</td>
-                    <td valign="top">
+                    <td valign="top" style="padding: 1px 2px !important;">&nbsp;</td>
+                    <td valign="top" style="padding: 1px 2px !important;">
                         <span style="text-decoration: line-through">
                             {{ number_format($item['product']->product->max_retail_price, 0, '.', ',') }}
                         </span>
                         ({{ number_format($item['product']->product->max_retail_price - $item['product']->price, 0, '.', ',') }})
                     </td>
-                    <td align="left" valign="top">
+                    <td align="left" valign="top" style="padding: 1px 2px !important;">
                         <span>{{ number_format($item['product']->price, 0, '.', ',') }}</span>
                     </td>
-                    <td align="left" valign="top" class="quantity-with-pcs">
-                        <span>&times; {{ $item['quantity'] }} pcs</span>
+                    <td align="center" valign="top" style="padding: 1px 2px !important; font-size: 10px; white-space: nowrap;">
+                        <span>&times; {{ $item['quantity'] }} <small>PCS</small></span>
                     </td>
-                    <td valign="top" align="right">
+                    <td valign="top" align="right" style="padding: 1px 2px !important;">
                         <span style="font-weight: bold;">
                             {{ number_format($item['amount'], 0, '.', ',') }}
                         </span>
                     </td>
                 </tr>
+                @if (!$loop->last)
+                <tr>
+                    <td colspan="5" style="padding: 0 !important;">
+                        <hr style="margin: 1px 0; border-top-style: dashed; border-width: 1px;">
+                    </td>
+                </tr>
+                @endif
                 @endforeach
 
             </tbody>
