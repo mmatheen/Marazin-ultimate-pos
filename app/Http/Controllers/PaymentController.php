@@ -883,16 +883,20 @@ class PaymentController extends Controller
         $validator = Validator::make($request->all(), [
             'customer_id' => 'required|exists:customers,id',
             'payment_date' => 'required|date',
+            'payment_type' => 'required|in:opening_balance,sale_dues,both',
             'payment_groups' => 'required|array|min:1',
             'payment_groups.*.method' => 'required|in:cash,cheque,card,bank_transfer',
-            'payment_groups.*.bills' => 'required|array|min:1',
-            'payment_groups.*.bills.*.sale_id' => 'required|exists:sales,id',
-            'payment_groups.*.bills.*.amount' => 'required|numeric|min:0.01',
+            'payment_groups.*.bills' => 'required_unless:payment_type,opening_balance|array|min:1',
+            'payment_groups.*.bills.*.sale_id' => 'required_unless:payment_type,opening_balance|exists:sales,id',
+            'payment_groups.*.bills.*.amount' => 'required_unless:payment_type,opening_balance|numeric|min:0.01',
+            'payment_groups.*.totalAmount' => 'required_if:payment_type,opening_balance|numeric|min:0.01',
             // Cheque specific validation
             'payment_groups.*.cheque_number' => 'required_if:payment_groups.*.method,cheque',
             'payment_groups.*.cheque_bank_branch' => 'required_if:payment_groups.*.method,cheque',
             'payment_groups.*.cheque_valid_date' => 'required_if:payment_groups.*.method,cheque|date',
+            'payment_groups.*.cheque_given_by' => 'nullable|string',
             'payment_groups.*.card_number' => 'required_if:payment_groups.*.method,card',
+            'payment_groups.*.card_holder' => 'nullable|string',
             'payment_groups.*.bank_account_number' => 'required_if:payment_groups.*.method,bank_transfer',
             'notes' => 'nullable|string'
         ]);
@@ -911,68 +915,81 @@ class PaymentController extends Controller
                     $groupTotal = 0;
                     $groupPayments = [];
 
-                    foreach ($paymentGroup['bills'] as $bill) {
-                        // Validate sale belongs to customer and amount
-                        $sale = Sale::where('id', $bill['sale_id'])
-                                  ->where('customer_id', $request->customer_id)
-                                  ->first();
-                        
-                        if (!$sale) {
-                            throw new \Exception("Sale {$bill['sale_id']} not found for customer");
-                        }
-
-                        if ($bill['amount'] > $sale->total_due) {
-                            throw new \Exception("Payment amount Rs.{$bill['amount']} exceeds due Rs.{$sale->total_due} for invoice {$sale->invoice_no}");
-                        }
-
-                        // Create individual payment record
+                    // Handle opening balance payments differently
+                    if ($request->payment_type === 'opening_balance') {
+                        // Opening balance payment - no bills involved
                         $paymentData = [
                             'payment_date' => $request->payment_date,
-                            'amount' => $bill['amount'],
+                            'amount' => $paymentGroup['totalAmount'],
                             'payment_method' => $paymentGroup['method'],
-                            'payment_type' => 'sale',
-                            'reference_id' => $bill['sale_id'],
+                            'payment_type' => 'opening_balance',
+                            'reference_id' => null,
                             'reference_no' => $bulkReference,
                             'customer_id' => $request->customer_id,
-                            'notes' => ($request->notes ?? '') . " - Flexible bulk payment group " . ($groupIndex + 1),
+                            'notes' => ($request->notes ?? '') . " - Opening balance payment " . ($groupIndex + 1),
                         ];
 
                         // Add method-specific fields
-                        if ($paymentGroup['method'] === 'cheque') {
-                            $paymentData = array_merge($paymentData, [
-                                'cheque_number' => $paymentGroup['cheque_number'],
-                                'cheque_bank_branch' => $paymentGroup['cheque_bank_branch'],
-                                'cheque_valid_date' => $paymentGroup['cheque_valid_date'],
-                                'cheque_received_date' => $request->payment_date,
-                                'cheque_status' => 'pending',
-                                'cheque_given_by' => $paymentGroup['cheque_given_by'] ?? null,
-                            ]);
-                        } elseif ($paymentGroup['method'] === 'card') {
-                            $paymentData = array_merge($paymentData, [
-                                'card_number' => $paymentGroup['card_number'],
-                                'card_holder_name' => $paymentGroup['card_holder_name'] ?? null,
-                                'card_expiry_month' => $paymentGroup['card_expiry_month'] ?? null,
-                                'card_expiry_year' => $paymentGroup['card_expiry_year'] ?? null,
-                            ]);
-                        } elseif ($paymentGroup['method'] === 'bank_transfer') {
-                            $paymentData['bank_account_number'] = $paymentGroup['bank_account_number'];
-                        }
+                        $this->addMethodSpecificFields($paymentData, $paymentGroup);
 
                         $payment = Payment::create($paymentData);
                         
                         // Record in unified ledger
-                        $this->unifiedLedgerService->recordSalePayment($payment);
+                        $this->unifiedLedgerService->recordOpeningBalancePayment($payment, 'customer');
                         
-                        // Update sale table
-                        $this->updateSaleTable($bill['sale_id']);
-                        
-                        $groupTotal += $bill['amount'];
+                        $groupTotal = $paymentGroup['totalAmount'];
                         $groupPayments[] = [
                             'payment_id' => $payment->id,
-                            'sale_id' => $bill['sale_id'],
-                            'invoice_no' => $sale->invoice_no,
-                            'amount' => $bill['amount']
+                            'type' => 'opening_balance',
+                            'amount' => $paymentGroup['totalAmount']
                         ];
+                    } else {
+                        // Sale payments - process bills
+                        foreach ($paymentGroup['bills'] as $bill) {
+                            // Validate sale belongs to customer and amount
+                            $sale = Sale::where('id', $bill['sale_id'])
+                                      ->where('customer_id', $request->customer_id)
+                                      ->first();
+                            
+                            if (!$sale) {
+                                throw new \Exception("Sale {$bill['sale_id']} not found for customer");
+                            }
+
+                            if ($bill['amount'] > $sale->total_due) {
+                                throw new \Exception("Payment amount Rs.{$bill['amount']} exceeds due Rs.{$sale->total_due} for invoice {$sale->invoice_no}");
+                            }
+
+                            // Create individual payment record
+                            $paymentData = [
+                                'payment_date' => $request->payment_date,
+                                'amount' => $bill['amount'],
+                                'payment_method' => $paymentGroup['method'],
+                                'payment_type' => 'sale',
+                                'reference_id' => $bill['sale_id'],
+                                'reference_no' => $bulkReference,
+                                'customer_id' => $request->customer_id,
+                                'notes' => ($request->notes ?? '') . " - Flexible bulk payment group " . ($groupIndex + 1),
+                            ];
+
+                            // Add method-specific fields
+                            $this->addMethodSpecificFields($paymentData, $paymentGroup);
+
+                            $payment = Payment::create($paymentData);
+                            
+                            // Record in unified ledger
+                            $this->unifiedLedgerService->recordSalePayment($payment);
+                            
+                            // Update sale table
+                            $this->updateSaleTable($bill['sale_id']);
+                            
+                            $groupTotal += $bill['amount'];
+                            $groupPayments[] = [
+                                'payment_id' => $payment->id,
+                                'sale_id' => $bill['sale_id'],
+                                'invoice_no' => $sale->invoice_no,
+                                'amount' => $bill['amount']
+                            ];
+                        }
                     }
 
                     $processedGroups[] = [
@@ -989,21 +1006,8 @@ class PaymentController extends Controller
                 // Update customer balance
                 $this->updateCustomerBalance($request->customer_id);
 
-                // Log the multi-method bulk payment
-                BulkPaymentLog::create([
-                    'action' => 'create_flexible',
-                    'entity_type' => 'sale',
-                    'customer_id' => $request->customer_id,
-                    'reference_no' => $bulkReference,
-                    'new_data' => [
-                        'total_amount' => $totalAmount,
-                        'groups_count' => count($processedGroups),
-                        'payment_groups' => $processedGroups
-                    ],
-                    'performed_by' => auth()->id(),
-                    'performed_at' => now(),
-                    'reason' => 'Flexible multi-method bulk payment (Tamil scenario)'
-                ]);
+                // Note: Individual payments are already logged in the payments table
+                // Bulk reference is stored in each payment's reference_no field
             });
 
             return response()->json([
@@ -2633,6 +2637,30 @@ class PaymentController extends Controller
                 'status' => 500,
                 'message' => 'Failed to get bounced cheques: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Add method-specific fields to payment data
+     */
+    private function addMethodSpecificFields(&$paymentData, $paymentGroup)
+    {
+        if ($paymentGroup['method'] === 'cheque') {
+            $paymentData = array_merge($paymentData, [
+                'cheque_number' => $paymentGroup['cheque_number'] ?? null,
+                'cheque_bank_branch' => $paymentGroup['cheque_bank_branch'] ?? null,
+                'cheque_valid_date' => $paymentGroup['cheque_valid_date'] ?? null,
+                'cheque_received_date' => $paymentData['payment_date'],
+                'cheque_status' => 'pending',
+                'cheque_given_by' => $paymentGroup['cheque_given_by'] ?? null,
+            ]);
+        } elseif ($paymentGroup['method'] === 'card') {
+            $paymentData = array_merge($paymentData, [
+                'card_number' => $paymentGroup['card_number'] ?? null,
+                'card_holder_name' => $paymentGroup['card_holder'] ?? null,
+            ]);
+        } elseif ($paymentGroup['method'] === 'bank_transfer') {
+            $paymentData['bank_account_number'] = $paymentGroup['bank_account_number'] ?? null;
         }
     }
 }
