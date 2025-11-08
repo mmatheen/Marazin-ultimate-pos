@@ -1573,14 +1573,18 @@ class SaleController extends Controller
             ];
         } else {
             // ✨ PERFORMANCE FIX: All batches selected — apply FIFO with optimized query
-            $batches = DB::table('location_batches')
-                ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
-                ->where('batches.product_id', $productData['product_id'])
-                ->where('location_batches.location_id', $locationId)
-                ->where('location_batches.qty', '>', 0)
-                ->orderBy('batches.created_at')
-                ->select('location_batches.batch_id', 'location_batches.qty', 'location_batches.id as loc_batch_id')
-                ->get();
+            // Use lockForUpdate to prevent race conditions when reading batch quantities
+            $batches = DB::transaction(function () use ($productData, $locationId) {
+                return DB::table('location_batches')
+                    ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                    ->where('batches.product_id', $productData['product_id'])
+                    ->where('location_batches.location_id', $locationId)
+                    ->where('location_batches.qty', '>', 0)
+                    ->orderBy('batches.created_at')
+                    ->select('location_batches.batch_id', 'location_batches.qty', 'location_batches.id as loc_batch_id')
+                    ->lockForUpdate() // Lock rows to prevent concurrent reads
+                    ->get();
+            });
 
             foreach ($batches as $batch) {
                 if ($remainingQuantity <= 0) break;
@@ -1672,12 +1676,14 @@ class SaleController extends Controller
                 throw new \Exception("Batch ID $batchId not found at location $locationId");
             }
 
-            $currentStock = (float) $locationBatch->qty;
-            $requestedQuantity = (float) $quantity;
+            // Use round to handle decimal precision issues (4 decimal places)
+            $currentStock = round((float) $locationBatch->qty, 4);
+            $requestedQuantity = round((float) $quantity, 4);
 
             Log::info("Stock check - Current: $currentStock, Requested: $requestedQuantity");
 
-            if ($currentStock < $requestedQuantity) {
+            // Add small tolerance for floating point comparison (0.0001)
+            if (($currentStock + 0.0001) < $requestedQuantity) {
                 throw new \Exception("Insufficient stock in batch ID $batchId at location $locationId. Available: $currentStock, Requested: $requestedQuantity");
             }
 
@@ -1773,14 +1779,17 @@ class SaleController extends Controller
                     'quantity' => $remainingQuantity
                 ];
             } else {
-                $batches = DB::table('location_batches')
-                    ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
-                    ->where('batches.product_id', $productData['product_id'])
-                    ->where('location_batches.location_id', $locationId)
-                    ->where('location_batches.qty', '>', 0)
-                    ->orderBy('batches.created_at')
-                    ->select('location_batches.batch_id', 'location_batches.qty')
-                    ->get();
+                $batches = DB::transaction(function () use ($productData, $locationId) {
+                    return DB::table('location_batches')
+                        ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                        ->where('batches.product_id', $productData['product_id'])
+                        ->where('location_batches.location_id', $locationId)
+                        ->where('location_batches.qty', '>', 0)
+                        ->orderBy('batches.created_at')
+                        ->select('location_batches.batch_id', 'location_batches.qty')
+                        ->lockForUpdate()
+                        ->get();
+                });
 
                 foreach ($batches as $batch) {
                     if ($remainingQuantity <= 0) break;

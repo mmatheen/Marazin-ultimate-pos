@@ -874,15 +874,18 @@ class SaleController extends Controller
                 'quantity' => $remainingQuantity
             ];
         } else {
-            // All batches selected — apply FIFO
-            $batches = DB::table('location_batches')
-                ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
-                ->where('batches.product_id', $productData['product_id'])
-                ->where('location_batches.location_id', $locationId)
-                ->where('location_batches.qty', '>', 0)
-                ->orderBy('batches.created_at')
-                ->select('location_batches.batch_id', 'location_batches.qty')
-                ->get();
+            // All batches selected — apply FIFO with locking to prevent race conditions
+            $batches = DB::transaction(function () use ($productData, $locationId) {
+                return DB::table('location_batches')
+                    ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                    ->where('batches.product_id', $productData['product_id'])
+                    ->where('location_batches.location_id', $locationId)
+                    ->where('location_batches.qty', '>', 0)
+                    ->orderBy('batches.created_at')
+                    ->select('location_batches.batch_id', 'location_batches.qty')
+                    ->lockForUpdate() // Lock rows to prevent concurrent reads
+                    ->get();
+            });
 
             foreach ($batches as $batch) {
                 if ($remainingQuantity <= 0) break;
@@ -959,31 +962,51 @@ class SaleController extends Controller
     {
         Log::info("Deducting $quantity from batch ID $batchId at location $locationId");
 
-        $batch = Batch::findOrFail($batchId);
-        $locationBatch = LocationBatch::where('batch_id', $batch->id)
-            ->where('location_id', $locationId)
-            ->firstOrFail();
+        // Use database transaction with proper locking to prevent race conditions
+        return DB::transaction(function () use ($batchId, $locationId, $quantity, $stockType) {
+            // First, get current stock with row-level locking
+            $locationBatch = DB::table('location_batches')
+                ->where('batch_id', $batchId)
+                ->where('location_id', $locationId)
+                ->lockForUpdate() // This prevents concurrent modifications
+                ->first();
 
-        Log::info("Before deduction: LocationBatch qty: {$locationBatch->qty}, Batch qty: {$batch->qty}");
+            if (!$locationBatch) {
+                throw new \Exception("Batch ID $batchId not found at location $locationId");
+            }
 
-        DB::table('location_batches')
-            ->where('id', $locationBatch->id)
-            ->update(['qty' => DB::raw("GREATEST(qty - $quantity, 0)")]);
+            // Use round to handle decimal precision issues (4 decimal places)
+            $currentStock = round((float) $locationBatch->qty, 4);
+            $requestedQuantity = round((float) $quantity, 4);
 
-        // DB::table('batches')
-        //     ->where('id', $batch->id)
-        //     ->update(['qty' => DB::raw("GREATEST(qty - $quantity, 0)")]);
+            Log::info("Stock check - Current: $currentStock, Requested: $requestedQuantity");
 
-        $locationBatch->refresh();
-        $batch->refresh();
+            // Add small tolerance for floating point comparison (0.0001)
+            if (($currentStock + 0.0001) < $requestedQuantity) {
+                throw new \Exception("Insufficient stock in batch ID $batchId at location $locationId. Available: $currentStock, Requested: $requestedQuantity");
+            }
 
-        Log::info("After deduction: LocationBatch qty: {$locationBatch->qty}, Batch qty: {$batch->qty}");
+            // Now safely deduct the stock
+            $affected = DB::table('location_batches')
+                ->where('batch_id', $batchId)
+                ->where('location_id', $locationId)
+                ->update(['qty' => DB::raw("qty - $quantity")]);
 
-        StockHistory::create([
-            'loc_batch_id' => $locationBatch->id,
-            'quantity' => -$quantity,
-            'stock_type' => $stockType,
-        ]);
+            if ($affected === 0) {
+                throw new \Exception("Failed to update stock for batch ID $batchId at location $locationId");
+            }
+
+            // Create stock history record
+            StockHistory::create([
+                'loc_batch_id' => $locationBatch->id,
+                'quantity' => -$quantity,
+                'stock_type' => $stockType,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            return $locationBatch;
+        });
     }
 
     private function processUnlimitedStockProductSale($productData, $saleId, $locationId, $stockType)
@@ -1052,14 +1075,17 @@ class SaleController extends Controller
                     'quantity' => $remainingQuantity
                 ];
             } else {
-                $batches = DB::table('location_batches')
-                    ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
-                    ->where('batches.product_id', $productData['product_id'])
-                    ->where('location_batches.location_id', $locationId)
-                    ->where('location_batches.qty', '>', 0)
-                    ->orderBy('batches.created_at')
-                    ->select('location_batches.batch_id', 'location_batches.qty')
-                    ->get();
+                $batches = DB::transaction(function () use ($productData, $locationId) {
+                    return DB::table('location_batches')
+                        ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                        ->where('batches.product_id', $productData['product_id'])
+                        ->where('location_batches.location_id', $locationId)
+                        ->where('location_batches.qty', '>', 0)
+                        ->orderBy('batches.created_at')
+                        ->select('location_batches.batch_id', 'location_batches.qty')
+                        ->lockForUpdate()
+                        ->get();
+                });
 
                 foreach ($batches as $batch) {
                     if ($remainingQuantity <= 0) break;
