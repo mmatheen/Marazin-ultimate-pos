@@ -40,6 +40,115 @@
         border-color: #007bff !important;
         color: #fff !important;
     }
+
+    /* Batch Price Modal Styling */
+    #batchPricesModal .form-control {
+        background-color: #ffffff !important;
+        border: 1px solid #ced4da !important;
+        color: #495057 !important;
+        font-size: 14px !important;
+        padding: 6px 12px !important;
+    }
+
+    #batchPricesModal .form-control:focus {
+        background-color: #ffffff !important;
+        border-color: #007bff !important;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+        color: #495057 !important;
+    }
+
+    #batchPricesModal .form-control-sm {
+        font-size: 13px !important;
+        padding: 4px 8px !important;
+        min-width: 80px !important;
+    }
+
+    #batchPricesModal input[type="number"] {
+        text-align: right !important;
+        font-weight: 500 !important;
+    }
+
+    #batchPricesModal .table td {
+        vertical-align: middle !important;
+        padding: 8px !important;
+    }
+
+    #batchPricesModal .card .form-control {
+        margin-bottom: 8px !important;
+    }
+
+    /* Better contrast for readonly fields */
+    #batchPricesModal .form-control[readonly] {
+        background-color: #f8f9fa !important;
+        color: #6c757d !important;
+        border-color: #dee2e6 !important;
+    }
+
+    /* Enhanced styling for price inputs */
+    #batchPricesModal .price-input {
+        border-radius: 4px !important;
+        transition: all 0.15s ease-in-out !important;
+    }
+
+    #batchPricesModal .price-input:hover {
+        border-color: #007bff !important;
+        box-shadow: 0 1px 3px rgba(0, 123, 255, 0.1) !important;
+    }
+
+    /* Highlight retail price as it's most important */
+    #batchPricesModal input[name="retail_price"] {
+        border-color: #007bff !important;
+        font-weight: 600 !important;
+    }
+
+    #batchPricesModal input[name="retail_price"]:focus {
+        border-color: #0056b3 !important;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.3) !important;
+    }
+
+    /* Better labels styling */
+    #batchPricesModal .form-label {
+        margin-bottom: 4px !important;
+        color: #495057 !important;
+    }
+
+    /* Table header styling */
+    #batchPricesModal .table th {
+        background-color: #f8f9fa !important;
+        border-bottom: 2px solid #dee2e6 !important;
+        font-weight: 600 !important;
+        color: #495057 !important;
+        padding: 12px 8px !important;
+    }
+
+    /* Mobile card improvements */
+    #batchPricesModal .card {
+        border: 1px solid #dee2e6 !important;
+        border-radius: 8px !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    #batchPricesModal .card-header {
+        background-color: #f8f9fa !important;
+        border-bottom: 1px solid #dee2e6 !important;
+        padding: 12px 15px !important;
+    }
+
+    /* Price indicator legend */
+    .price-legend {
+        font-size: 11px;
+        color: #6c757d;
+        margin-top: 5px;
+        text-align: right;
+    }
+    
+    .price-legend .legend-item {
+        display: inline-block;
+        margin-left: 15px;
+        padding: 2px 6px;
+        background-color: #f8f9fa;
+        border-radius: 3px;
+    }
 </style>
 
 <script>
@@ -1010,23 +1119,47 @@
                     render: function(data, type, row) {
                         // Get the latest batch retail price if batches exist, otherwise use product retail price
                         let displayPrice = row.product.retail_price || 0;
-                        let priceSource =
-                            'default'; // Track whether price is from batch or default
+                        let priceSource = 'default';
 
+                        // Check if product has batches (ordered by newest first)
                         if (row.product.batches && row.product.batches.length > 0) {
-                            // Get the latest batch (assuming they are ordered by creation date)
-                            const latestBatch = row.product.batches[row.product.batches
-                                .length - 1];
-                            if (latestBatch && latestBatch.retail_price !== null &&
-                                latestBatch.retail_price !== undefined) {
-                                displayPrice = latestBatch.retail_price;
+                            // Debug: Log batch data for first product to check structure
+                            if (row.product.id === 51) { // Bajaj Ceiling Fan
+                                console.log('=== DEBUG BATCHES FOR PRODUCT 51 ===');
+                                console.log('Batches:', row.product.batches);
+                                row.product.batches.forEach((batch, index) => {
+                                    console.log(`Batch ${index}:`, {
+                                        batch_no: batch.batch_no,
+                                        retail_price: batch.retail_price,
+                                        created_at: batch.created_at,
+                                        location_batches: batch.location_batches
+                                    });
+                                });
+                            }
+
+                            // Simply find the most recent batch with a valid retail price
+                            // The batches are already ordered by created_at desc from backend
+                            const batchWithPrice = row.product.batches.find(batch => 
+                                batch.retail_price !== null && 
+                                batch.retail_price !== undefined && 
+                                batch.retail_price !== '' &&
+                                parseFloat(batch.retail_price) > 0
+                            );
+                            
+                            if (batchWithPrice) {
+                                displayPrice = batchWithPrice.retail_price;
                                 priceSource = 'batch';
+                                
+                                if (row.product.id === 51) {
+                                    console.log('Selected batch for product 51:', batchWithPrice);
+                                    console.log('Display price:', displayPrice);
+                                }
                             }
                         }
 
                         const formattedPrice = parseFloat(displayPrice).toFixed(2);
 
-                        // Add a small indicator to show price source
+                        // Add indicator to show price source
                         if (priceSource === 'batch') {
                             return `${formattedPrice} <small class="text-muted">(B)</small>`;
                         } else {
@@ -2980,33 +3113,66 @@
                                             let displayPrice = product.retail_price || 0;
                                             let priceSource = 'Default Product Price';
                                             
+                                            // Get current location filter from the main page
+                                            const selectedLocationId = $('#locationFilter').val();
+                                            
+                                            // Check if product has batches (ordered by newest first)
                                             if (product.batches && product.batches.length > 0) {
-                                                const latestBatch = product.batches[product.batches.length - 1];
-                                                if (latestBatch && latestBatch.retail_price !== null && latestBatch.retail_price !== undefined) {
-                                                    displayPrice = latestBatch.retail_price;
-                                                    priceSource = `Latest Batch Price (${latestBatch.batch_no || 'N/A'})`;
+                                                let batchWithPrice = null;
+
+                                                if (selectedLocationId) {
+                                                    // Find batches that exist in the selected location
+                                                    const locationSpecificBatches = product.batches.filter(batch => {
+                                                        return batch.location_batches && batch.location_batches.some(locBatch => 
+                                                            locBatch.location_id == selectedLocationId && 
+                                                            parseFloat(locBatch.qty || 0) > 0 // Has stock in this location
+                                                        );
+                                                    });
+
+                                                    // Find the most recent batch with valid price for this location
+                                                    batchWithPrice = locationSpecificBatches.find(batch => 
+                                                        batch.retail_price !== null && 
+                                                        batch.retail_price !== undefined && 
+                                                        batch.retail_price !== '' &&
+                                                        parseFloat(batch.retail_price) > 0
+                                                    );
+
+                                                    if (batchWithPrice) {
+                                                        const locationName = locationMap[selectedLocationId] || 'Selected Location';
+                                                        priceSource = `Latest Batch Price for ${locationName} (${batchWithPrice.batch_no || 'N/A'})`;
+                                                    }
+                                                }
+
+                                                // If no location-specific batch found or no location selected, use any batch
+                                                if (!batchWithPrice) {
+                                                    batchWithPrice = product.batches.find(batch => 
+                                                        batch.retail_price !== null && 
+                                                        batch.retail_price !== undefined && 
+                                                        batch.retail_price !== '' &&
+                                                        parseFloat(batch.retail_price) > 0
+                                                    );
+
+                                                    if (batchWithPrice) {
+                                                        priceSource = `Latest Batch Price (${batchWithPrice.batch_no || 'N/A'})`;
+                                                    }
+                                                }
+                                                
+                                                if (batchWithPrice) {
+                                                    displayPrice = batchWithPrice.retail_price;
                                                 }
                                             }
                                             
-                                            return `
-                        Rs.$ {
-                            parseFloat(displayPrice).toFixed(2)
-                        } < br > < small class = "text-muted" > $ {
-                            priceSource
-                        } < /small>`;
-                    })()
-            } < /td> <
-            /tr> <
-            tr >
-            <
-            th scope = "row" > Imei is Checked < /th> <
-            td > $ {
-                product.is_imei_or_serial_no === 1 ? "True" : "False"
-            } < /td> <
-            /tr> <
-            /tbody> <
-            /table> <
-            /div>`;
+                                            return `Rs.${parseFloat(displayPrice).toFixed(2)}<br><small class="text-muted">${priceSource}</small>`;
+                                        })()}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">IMEI is Checked</th>
+                                        <td>${product.is_imei_or_serial_no === 1 ? "True" : "False"}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>`;
             $('#productDetails').html(details);
         }
         else {
@@ -3436,10 +3602,10 @@
                     <td>${batch.batch_no || 'N/A'}</td>
                     <td>${formattedQty}</td>
                     <td class="text-muted d-none d-md-table-cell">${parseFloat(batch.original_price || 0).toFixed(2)}</td>
-                    <td><input type="number" class="form-control form-control-sm" name="wholesale_price" value="${parseFloat(batch.wholesale_price || 0).toFixed(2)}" min="0" step="0.01"></td>
-                    <td><input type="number" class="form-control form-control-sm" name="special_price" value="${parseFloat(batch.special_price || 0).toFixed(2)}" min="0" step="0.01"></td>
-                    <td><input type="number" class="form-control form-control-sm" name="retail_price" value="${parseFloat(batch.retail_price || 0).toFixed(2)}" min="0" step="0.01"></td>
-                    <td><input type="number" class="form-control form-control-sm" name="max_retail_price" value="${parseFloat(batch.max_retail_price || 0).toFixed(2)}" min="0" step="0.01"></td>
+                    <td><input type="number" class="form-control form-control-sm price-input" name="wholesale_price" value="${parseFloat(batch.wholesale_price || 0).toFixed(2)}" min="0" step="0.01" placeholder="0.00"></td>
+                    <td><input type="number" class="form-control form-control-sm price-input" name="special_price" value="${parseFloat(batch.special_price || 0).toFixed(2)}" min="0" step="0.01" placeholder="0.00"></td>
+                    <td><input type="number" class="form-control form-control-sm price-input" name="retail_price" value="${parseFloat(batch.retail_price || 0).toFixed(2)}" min="0" step="0.01" placeholder="0.00"></td>
+                    <td><input type="number" class="form-control form-control-sm price-input" name="max_retail_price" value="${parseFloat(batch.max_retail_price || 0).toFixed(2)}" min="0" step="0.01" placeholder="0.00"></td>
                     <td class="d-none d-lg-table-cell">${expiryDate}</td>
                     <td class="d-none d-lg-table-cell"><small class="text-muted">${locationsText}</small></td>
                 </tr>
@@ -3462,20 +3628,20 @@
                     <div class="card-body">
                         <div class="row g-2">
                             <div class="col-6">
-                                <label class="form-label small">Wholesale Price</label>
-                                <input type="number" class="form-control form-control-sm" name="wholesale_price" value="${parseFloat(batch.wholesale_price || 0).toFixed(2)}" min="0" step="0.01">
+                                <label class="form-label small fw-bold">Wholesale Price</label>
+                                <input type="number" class="form-control form-control-sm price-input" name="wholesale_price" value="${parseFloat(batch.wholesale_price || 0).toFixed(2)}" min="0" step="0.01" placeholder="0.00">
                             </div>
                             <div class="col-6">
-                                <label class="form-label small">Special Price</label>
-                                <input type="number" class="form-control form-control-sm" name="special_price" value="${parseFloat(batch.special_price || 0).toFixed(2)}" min="0" step="0.01">
+                                <label class="form-label small fw-bold">Special Price</label>
+                                <input type="number" class="form-control form-control-sm price-input" name="special_price" value="${parseFloat(batch.special_price || 0).toFixed(2)}" min="0" step="0.01" placeholder="0.00">
                             </div>
                             <div class="col-6">
-                                <label class="form-label small">Retail Price</label>
-                                <input type="number" class="form-control form-control-sm" name="retail_price" value="${parseFloat(batch.retail_price || 0).toFixed(2)}" min="0" step="0.01">
+                                <label class="form-label small fw-bold text-primary">Retail Price</label>
+                                <input type="number" class="form-control form-control-sm price-input border-primary" name="retail_price" value="${parseFloat(batch.retail_price || 0).toFixed(2)}" min="0" step="0.01" placeholder="0.00">
                             </div>
                             <div class="col-6">
-                                <label class="form-label small">Max Retail Price</label>
-                                <input type="number" class="form-control form-control-sm" name="max_retail_price" value="${parseFloat(batch.max_retail_price || 0).toFixed(2)}" min="0" step="0.01">
+                                <label class="form-label small fw-bold">Max Retail Price</label>
+                                <input type="number" class="form-control form-control-sm price-input" name="max_retail_price" value="${parseFloat(batch.max_retail_price || 0).toFixed(2)}" min="0" step="0.01" placeholder="0.00">
                             </div>
                         </div>
                         <div class="row mt-2">

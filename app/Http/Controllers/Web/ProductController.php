@@ -309,7 +309,25 @@ class ProductController extends Controller
     public function getProductDetails($id)
     {
         // Fetch the product details by ID
-        $product = Product::with(['locations', 'mainCategory', 'brand']) // Using the correct relationship names
+        $product = Product::with([
+            'locations', 
+            'mainCategory', 
+            'brand', 
+            'batches' => function($query) {
+                $query->select([
+                    'id',
+                    'batch_no',
+                    'product_id',
+                    'unit_cost',
+                    'wholesale_price',
+                    'special_price',
+                    'retail_price',
+                    'max_retail_price',
+                    'expiry_date',
+                    'created_at'
+                ])->orderBy('created_at', 'desc'); // Order batches by creation date (newest first)
+            }
+        ]) // Using the correct relationship names
             ->find($id);
 
         // Check if the product exists
@@ -1532,8 +1550,9 @@ class ProductController extends Controller
                             'special_price',
                             'retail_price',
                             'max_retail_price',
-                            'expiry_date'
-                        ]);
+                            'expiry_date',
+                            'created_at'
+                        ])->orderBy('created_at', 'desc'); // Order batches by creation date (newest first)
                     },
                     'batches.locationBatches' => function ($query) use ($locationId, $userLocationIds) {
                         // Always enforce user's accessible locations
