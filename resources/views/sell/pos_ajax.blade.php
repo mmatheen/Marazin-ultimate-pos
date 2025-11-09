@@ -1,6 +1,21 @@
 <script src="{{ asset('assets/js/jquery-3.6.0.min.js') }}"></script>
 
 <script>
+    // Global AJAX setup for CSRF token
+    $.ajaxSetup({
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        }
+    });
+
+    // Debug function to check CSRF token
+    window.checkCSRFToken = function() {
+        const token = $('meta[name="csrf-token"]').attr('content');
+        console.log('CSRF Token:', token);
+        console.log('Token length:', token ? token.length : 'No token');
+        return token;
+    };
+
     // Pass user permissions to JavaScript
     const userPermissions = {
         canEditSale: @json(auth()->check() && auth()->user()->can('edit sale')),
@@ -2923,11 +2938,11 @@
                 product: product,
                 total_stock: product.stock_alert === 0 ? 999999 : (product.stock_quantity || 100),
                 location_batches: [{
-                    batch_id: product.batch_id || 'all',
+                    batch_id: 'all', // Always use "all" for FIFO method
                     batch_quantity: product.stock_alert === 0 ? 999999 : (product.stock_quantity || 100),
                     unit_price: enteredPrice,
                     batch: {
-                        id: product.batch_id || 'all',
+                        id: 'all', // Always use "all" for FIFO method
                         batch_no: product.batch_no || 'QA-' + Date.now(),
                         expiry_date: null,
                         unit_cost: enteredPrice,
@@ -2957,7 +2972,7 @@
                 product,
                 stockEntry,
                 enteredPrice, // Use the entered price
-                product.batch_id || 'all',
+                'all', // Always use "all" for FIFO method unless specific batch is selected
                 product.stock_alert === 0 ? 999999 : (product.stock_quantity || 100),
                 currentCustomer.customer_type,
                 qty, // saleQuantity - this is the key parameter
@@ -4214,7 +4229,7 @@
                     // Clear the stored information
                     delete window.modalSelectedBatch;
                 } else {
-                    // Use the default logic
+                    // Use the default logic - set to "all" for FIFO method when no specific batch
                     batchId = selectedBatch ? selectedBatch.id : "all";
                     currentCustomer = getCurrentCustomer();
                     const priceResult = getCustomerTypePrice(selectedBatch, product, currentCustomer
@@ -4887,10 +4902,17 @@
                 productId: product.id,
                 productName: product.product_name,
                 batchId: batchId,
+                batchIdType: typeof batchId,
                 price: price,
                 saleQuantity: saleQuantity,
                 imeis: imeis
             });
+
+            // Warning for specific batch IDs that might cause stock issues
+            if (batchId && batchId !== 'all' && batchId !== '' && imeis.length === 0) {
+                console.warn('⚠️ NON-IMEI product using specific batch ID:', batchId, 'for product:', product.product_name);
+                console.warn('This might cause "Insufficient stock" errors. Consider using "all" for FIFO method.');
+            }
 
             // Get customer previous price data
             let customerPriceHistory = null;
@@ -5174,7 +5196,7 @@
         <td class="text-center"><button class="btn btn-danger btn-sm remove-btn">×</button></td>
         <td class="product-id d-none">${product.id}</td>
         <td class="location-id d-none">${locationId}</td>
-        <td class="batch-id d-none">${batchId}</td>
+        <td class="batch-id d-none">${batchId || 'all'}</td>
         <td class="discount-data d-none">${JSON.stringify(activeDiscount || {})}</td>
         <td class="d-none imei-data">${imeis.join(',') || ''}</td>
         `;
@@ -6332,11 +6354,24 @@
 
                             // Add product to billing with correct stock calculation
                             try {
+                                // Debug edit mode batch handling
+                                console.log('🔄 Edit Mode - Adding product with original batch_id:', saleProduct.batch_id, 'for product:', saleProduct.product.product_name);
+                                
+                                // For edit mode, use FIFO method except for IMEI products
+                                // IMEI products must keep their specific batch IDs
+                                let editModeBatchId = "all"; // Default to FIFO
+                                if (saleProduct.imei_numbers && saleProduct.imei_numbers.length > 0) {
+                                    editModeBatchId = saleProduct.batch_id; // Keep original batch for IMEI
+                                    console.log('🔄 Edit Mode - IMEI product, keeping original batch_id:', saleProduct.batch_id);
+                                } else {
+                                    console.log('🔄 Edit Mode - Non-IMEI product, using FIFO method: "all"');
+                                }
+                                
                                 addProductToBillingBody(
                                     saleProduct.product,
                                     normalizedStockEntry,
                                     price,
-                                    saleProduct.batch_id,
+                                    editModeBatchId, // Use FIFO for non-IMEI, original batch for IMEI
                                     maxAvailableStock, // Batch quantity (max available)
                                     saleProduct.price_type,
                                     saleProduct
@@ -6486,6 +6521,14 @@
                     const productRow = $(this);
                     const batchId = productRow.find('.batch-id').text().trim();
                     const locationId = productRow.find('.location-id').text().trim();
+                    
+                    console.log('Raw batchId from row:', batchId, 'Type:', typeof batchId);
+                    
+                    // Additional debugging for batch ID issues
+                    if (batchId && batchId !== 'all' && batchId !== '') {
+                        console.warn('⚠️ Specific batch ID found in billing row:', batchId, 'This might cause stock issues if not intended');
+                    }
+                    
                     const discountFixed = parseFloat(productRow.find('.fixed_discount').val()
                         .trim()) || 0;
                     const discountPercent = parseFloat(productRow.find('.percent_discount')
@@ -6510,6 +6553,33 @@
                     const qtyVal = productRow.find('.quantity-input').val().trim();
                     const quantity = isImeiProduct ? 1 : (parseFloat(qtyVal) || 0);
                     
+                    // Process batch_id to ensure proper format for backend FIFO logic
+                    // Send "all" for FIFO method when no specific batch is selected
+                    // Send specific batch_id string when a batch is selected
+                    
+                    // EMERGENCY FIX: Force all products to use FIFO method to prevent stock issues
+                    let processedBatchId = "all"; // Always use FIFO method
+                    
+                    // Only allow specific batch IDs for IMEI products (they need their specific batches)
+                    if (batchId && batchId !== "null" && batchId !== "" && batchId !== "all") {
+                        // Check if this is an IMEI product by looking at the row
+                        const isImeiProduct = productRow.find('.imei-data').text().trim() !== '';
+                        if (isImeiProduct) {
+                            processedBatchId = String(batchId); // Keep specific batch for IMEI products
+                            console.log('🔧 IMEI product keeping specific batch_id:', processedBatchId);
+                        } else {
+                            console.log('🔧 EMERGENCY FIX: Non-IMEI product forced to use FIFO method instead of batch:', batchId);
+                        }
+                    }
+                    
+                    console.log('Processed batchId:', processedBatchId, 'from original:', batchId, 'type:', typeof batchId, '(FIFO method if "all")');
+                    
+                    // Critical debugging - log every batch_id being sent to server
+                    if (processedBatchId !== "all") {
+                        console.error('🚨 ALERT: Sending specific batch_id to server:', processedBatchId, 'This may cause "Insufficient stock" errors!');
+                        console.trace('Stack trace for specific batch_id');
+                    }
+                    
                     const productData = {
                         product_id: productId,
                         location_id: parseInt(locationId, 10),
@@ -6520,7 +6590,7 @@
                         discount_amount: discountAmount,
                         discount_type: discountType,
                         tax: 0,
-                        batch_id: batchId === "all" ? "all" : batchId,
+                        batch_id: processedBatchId,
                     };
                     
                     // Only add IMEI numbers if they exist (reduce payload size)
@@ -7692,17 +7762,72 @@
 
             // Function to delete a suspended sale
             function deleteSuspendedSale(saleId) {
+                // Confirm deletion with user
+                if (!confirm('Are you sure you want to delete this suspended sale? This will restore stock and update customer balance.')) {
+                    return;
+                }
+
+                // Get fresh CSRF token
+                const csrfToken = $('meta[name="csrf-token"]').attr('content');
+                
+                if (!csrfToken) {
+                    toastr.error('Security token not found. Please refresh the page and try again.');
+                    return;
+                }
+
                 $.ajax({
                     url: `/sales/delete-suspended/${saleId}`,
                     type: 'DELETE',
+                    data: {
+                        _token: csrfToken
+                    },
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
                     success: function(response) {
-                        toastr.success(response.message);
-                        // Code to update the POS page after deletion
-                        fetchSuspendedSales(); // Refresh suspended sales list
+                        toastr.success(response.message || 'Suspended sale deleted successfully');
+                        // Refresh suspended sales list
+                        fetchSuspendedSales();
                     },
                     error: function(xhr, status, error) {
-                        toastr.error('Failed to delete suspended sale: ' + xhr
-                            .responseText);
+                        console.error('Delete suspended sale error:', {
+                            status: xhr.status,
+                            statusText: xhr.statusText,
+                            responseText: xhr.responseText,
+                            error: error
+                        });
+                        
+                        let errorMessage = 'Failed to delete suspended sale';
+                        
+                        if (xhr.status === 419) {
+                            errorMessage = 'Session expired. Please refresh the page and try again.';
+                            // Optionally reload the page
+                            setTimeout(() => {
+                                if (confirm('Session expired. Would you like to reload the page?')) {
+                                    window.location.reload();
+                                }
+                            }, 2000);
+                        } else if (xhr.status === 403) {
+                            errorMessage = 'You do not have permission to delete this sale.';
+                        } else if (xhr.status === 404) {
+                            errorMessage = 'Suspended sale not found.';
+                        } else {
+                            try {
+                                const errorResponse = JSON.parse(xhr.responseText);
+                                if (errorResponse.message) {
+                                    errorMessage = errorResponse.message;
+                                } else if (errorResponse.errors) {
+                                    errorMessage = Object.values(errorResponse.errors).flat().join(', ');
+                                }
+                            } catch (e) {
+                                // If JSON parsing fails, use a generic message
+                                errorMessage = `Error ${xhr.status}: ${xhr.statusText || 'Unknown error'}`;
+                            }
+                        }
+                        
+                        toastr.error(errorMessage);
                     }
                 });
             }
@@ -7990,17 +8115,66 @@
 
         });
     $(document).ready(function() {
-        // Initialize DataTable
-        $('#transactionTable').DataTable();
+        // Initialize DataTable with proper configuration
+        if ($.fn.DataTable.isDataTable('#transactionTable')) {
+            $('#transactionTable').DataTable().destroy();
+        }
+        
+        $('#transactionTable').DataTable({
+            responsive: true,
+            pageLength: 10,
+            order: [[0, 'desc']], // Sort by first column (ID) descending
+            columnDefs: [
+                { orderable: false, targets: [5] } // Disable sorting on Actions column
+            ]
+        });
+
+        // Setup tab event listeners for Recent Transactions
+        $('#transactionTabs a[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
+            const target = $(e.target).attr('href');
+            let status = '';
+            
+            // Extract status from href
+            switch(target) {
+                case '#final':
+                    status = 'final';
+                    break;
+                case '#quotation':
+                    status = 'quotation';
+                    break;
+                case '#draft':
+                    status = 'draft';
+                    break;
+                case '#jobticket':
+                    status = 'jobticket';
+                    break;
+                case '#suspend':
+                    status = 'suspend';
+                    break;
+                default:
+                    status = 'final';
+            }
+            
+            console.log('Tab switched to:', status);
+            loadTableData(status);
+        });
 
         // Fetch sales data on page load
         fetchSalesData();
+
+        // Setup modal event listener to refresh data when modal is shown
+        $('#recentTransactionsModal').on('shown.bs.modal', function () {
+            console.log('Recent Transactions modal opened, refreshing data...');
+            fetchSalesData();
+        });
     });
 
     let sales = [];
 
     // Function to fetch sales data from the server using AJAX
     function fetchSalesData() {
+        console.log('Fetching sales data...');
+        
         $.ajax({
             url: '/sales',
             type: 'GET',
@@ -8009,59 +8183,144 @@
                 recent_transactions: 'true' // Add parameter to get all statuses for Recent Transactions
             },
             success: function(data) {
+                console.log('Sales data received:', data);
+                
                 if (Array.isArray(data)) {
                     sales = data;
                 } else if (data.sales && Array.isArray(data.sales)) {
                     sales = data.sales;
+                } else if (data.data && Array.isArray(data.data)) {
+                    sales = data.data;
                 } else {
                     console.error('Unexpected data format:', data);
+                    sales = [];
                 }
+                
+                console.log('Processed sales array:', sales.length, 'items');
+                
                 // Load the default tab data (e.g., 'final')
                 loadTableData('final');
+                updateTabBadges();
             },
             error: function(xhr, status, error) {
                 console.error('Error fetching sales data:', error);
+                console.error('Response:', xhr.responseText);
+                
+                // Show user-friendly error message
+                if (typeof toastr !== 'undefined') {
+                    toastr.error('Failed to load recent transactions. Please try again.');
+                }
             }
         });
     }
 
     function loadTableData(status) {
+        console.log('Loading table data for status:', status);
+        console.log('Available sales:', sales.length);
+        
         const table = $('#transactionTable').DataTable();
-        table.clear().draw(); // Clear existing data
+        table.clear(); // Clear existing data
 
         // Filter by status
-        const filteredSales = sales.filter(sale => sale.status === status);
+        const filteredSales = sales.filter(sale => {
+            console.log('Checking sale:', sale.id, 'Status:', sale.status, 'Target:', status);
+            return sale.status === status;
+        });
+        
+        console.log('Filtered sales for', status, ':', filteredSales.length);
 
         if (filteredSales.length === 0) {
             table.row.add([
-                '', 'No records found', '', '', '', '', ''
-            ]).draw(false);
+                '',
+                '<div class="text-center text-muted">No records found</div>',
+                '',
+                '',
+                '',
+                ''
+            ]);
         } else {
             // Sort by id descending (latest ID first)
             const sortedSales = filteredSales.sort((a, b) => b.id - a.id);
 
             // Add each row in sorted order
             sortedSales.forEach((sale, index) => {
-                let customerName = [
-                    sale.customer?.prefix,
-                    sale.customer?.first_name,
-                    sale.customer?.last_name
-                ].filter(Boolean).join(' ');
+                let customerName = 'Walk-In Customer';
+                
+                if (sale.customer) {
+                    customerName = [
+                        sale.customer.prefix,
+                        sale.customer.first_name,
+                        sale.customer.last_name
+                    ].filter(Boolean).join(' ');
+                }
+
+                // Format the final total
+                const finalTotal = parseFloat(sale.final_total || 0).toFixed(2);
+                
+                // Create action buttons based on status and permissions
+                let actionButtons = `<button class='btn btn-outline-success btn-sm me-1' onclick="printReceipt(${sale.id})" title="Print">
+                                        <i class="fas fa-print"></i>
+                                    </button>`;
+                
+                // Add edit button based on user permissions and status
+                if (userPermissions.canEditSale && status !== 'quotation') {
+                    actionButtons += `<button class='btn btn-outline-primary btn-sm' onclick="navigateToEdit(${sale.id})" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </button>`;
+                }
 
                 table.row.add([
                     index + 1,
-                    sale.invoice_no,
-                    customerName || 'Walk-In Customer',
-                    sale.sales_date,
-                    sale.final_total,
-                    `<button class='btn btn-outline-success btn-sm' onclick="printReceipt(${sale.id})">Print</button>
-                 <button class='btn btn-outline-primary btn-sm' onclick="navigateToEdit(${sale.id})">Edit</button>`,
-                    '' // Extra column if needed
+                    sale.invoice_no || 'N/A',
+                    customerName,
+                    sale.sales_date || 'N/A',
+                    `Rs. ${formatAmountWithSeparators(finalTotal)}`,
+                    actionButtons
                 ]);
             });
-
-            table.draw(); // Draw all rows at once for performance
         }
+
+        table.draw(); // Draw all rows at once for performance
+        
+        // Update tab badge counts
+        updateTabBadges();
+    }
+
+    // Function to update tab badge counts
+    function updateTabBadges() {
+        const statusCounts = {
+            final: 0,
+            quotation: 0,
+            draft: 0,
+            jobticket: 0,
+            suspend: 0
+        };
+        
+        // Count sales by status
+        sales.forEach(sale => {
+            if (statusCounts.hasOwnProperty(sale.status)) {
+                statusCounts[sale.status]++;
+            }
+        });
+        
+        // Update badge counts on tabs
+        Object.keys(statusCounts).forEach(status => {
+            const tabLink = $(`#transactionTabs a[href="#${status}"]`);
+            
+            if (tabLink.length > 0) {
+                // Remove existing badge
+                tabLink.find('.badge').remove();
+                
+                // Add new badge if count > 0
+                if (statusCounts[status] > 0) {
+                    const tabText = tabLink.text().trim();
+                    const badge = ` <span class="badge bg-primary rounded-pill ms-1">${statusCounts[status]}</span>`;
+                    tabLink.html(tabText + badge);
+                }
+            }
+        });
+        
+        console.log('Tab badge counts updated:', statusCounts);
     }
 
     // Function to navigate to the edit page (attached to window for global access)

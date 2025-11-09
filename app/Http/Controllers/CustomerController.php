@@ -47,8 +47,8 @@ class CustomerController extends Controller
         return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
     }
 
-    // Start with bypassing location scope, but apply sales rep filtering if needed
-    $query = Customer::withoutLocationScope()->with(['sales', 'salesReturns', 'payments', 'city']);
+    // Start with bypassing all global scopes to ensure accurate balance calculations
+    $query = Customer::withoutGlobalScopes()->with(['sales', 'salesReturns', 'payments', 'city']);
     
     // Apply sales rep route filtering if user is a sales rep
     if ($user->isSalesRep()) {

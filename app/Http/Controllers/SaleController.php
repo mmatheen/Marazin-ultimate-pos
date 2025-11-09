@@ -1130,7 +1130,8 @@ class SaleController extends Controller
 
                 // ----- Ledger - Record Sale FIRST (before payments) -----
                 // ✨ PERFORMANCE FIX: Skip ledger operations for Walk-In customers (no credit tracking needed)
-                if ($request->customer_id != 1 && !$isUpdate) {
+                // ✨ ACCOUNTING FIX: Only create ledger entries for final sales, not drafts/quotations
+                if ($request->customer_id != 1 && !$isUpdate && !in_array($sale->status, ['draft', 'quotation'])) {
                     // Record sale in unified ledger BEFORE processing payments
                     // This ensures customer debt is established first
                     $this->unifiedLedgerService->recordSale($sale);
@@ -2288,20 +2289,55 @@ class SaleController extends Controller
 
     public function deleteSuspendedSale($id)
     {
-        $sale = Sale::findOrFail($id);
-        if ($sale->status !== 'suspend') {
-            return response()->json(['message' => 'Sale is not suspended.'], 400);
-        }
+        // Add debug logging
+        Log::info('Attempting to delete suspended sale', [
+            'sale_id' => $id,
+            'user_id' => auth()->id(),
+            'request_method' => request()->method(),
+            'has_csrf_token' => request()->hasHeader('X-CSRF-TOKEN'),
+            'csrf_token' => request()->header('X-CSRF-TOKEN') ? 'present' : 'missing'
+        ]);
 
-        DB::transaction(function () use ($sale) {
-            foreach ($sale->products as $product) {
-                $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
-                $product->delete();
+        try {
+            $sale = Sale::findOrFail($id);
+            if ($sale->status !== 'suspend') {
+                return response()->json(['message' => 'Sale is not suspended.'], 400);
             }
-            $sale->delete();
-        });
 
-        return response()->json(['message' => 'Suspended sale deleted and stock restored successfully.'], 200);
+            DB::transaction(function () use ($sale) {
+                // 1. Restore stock first
+                foreach ($sale->products as $product) {
+                    $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
+                    $product->delete();
+                }
+                
+                // 2. Clean up ledger entries to maintain accounting accuracy
+                // This ensures customer balance is corrected when suspended sale is deleted
+                if ($sale->customer_id && $sale->customer_id != 1) {
+                    $deletedLedgerEntries = $this->unifiedLedgerService->deleteSaleLedger($sale);
+                    Log::info("Deleted {$deletedLedgerEntries} ledger entries for suspended sale deletion", [
+                        'sale_id' => $sale->id,
+                        'customer_id' => $sale->customer_id,
+                        'invoice_no' => $sale->invoice_no
+                    ]);
+                }
+                
+                // 3. Delete the sale record
+                $sale->delete();
+            });
+
+            Log::info('Successfully deleted suspended sale', ['sale_id' => $id]);
+            return response()->json(['message' => 'Suspended sale deleted, stock restored, and customer balance updated successfully.'], 200);
+            
+        } catch (\Exception $e) {
+            Log::error('Error deleting suspended sale', [
+                'sale_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json(['message' => 'An error occurred while deleting the sale: ' . $e->getMessage()], 500);
+        }
     }
 
     public function destroy($id)
@@ -2309,16 +2345,33 @@ class SaleController extends Controller
         $sale = Sale::findOrFail($id);
 
         DB::transaction(function () use ($sale) {
+            // 1. Restore stock if it was deducted (for final/suspend sales)
             foreach ($sale->products as $product) {
                 $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
                 $product->delete();
             }
+            
+            // 2. Clean up ledger entries for non-Walk-In customers
+            // Only delete ledger entries for sales that would have created them
+            if ($sale->customer_id && $sale->customer_id != 1 && 
+                !in_array($sale->status, ['draft', 'quotation'])) {
+                
+                $deletedLedgerEntries = $this->unifiedLedgerService->deleteSaleLedger($sale);
+                Log::info("Deleted {$deletedLedgerEntries} ledger entries for sale deletion", [
+                    'sale_id' => $sale->id,
+                    'customer_id' => $sale->customer_id,
+                    'invoice_no' => $sale->invoice_no,
+                    'status' => $sale->status
+                ]);
+            }
+            
+            // 3. Delete the sale record
             $sale->delete();
         });
 
         return response()->json([
             'status' => 200,
-            'message' => 'Sale deleted and stock restored successfully.'
+            'message' => 'Sale deleted, stock restored, and customer balance updated successfully.'
         ], 200);
     }
 

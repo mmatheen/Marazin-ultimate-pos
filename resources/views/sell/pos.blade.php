@@ -955,27 +955,23 @@
                 <div class="modal-body">
                     <ul class="nav nav-tabs" id="transactionTabs">
                         <li class="nav-item">
-                            <a class="nav-link active" data-bs-toggle="tab" href="#final"
-                                onclick="loadTableData('final')">Final</a>
+                            <a class="nav-link active" data-bs-toggle="tab" href="#final">Final</a>
                         </li>
                         @can('create quotation')
                             <li class="nav-item">
-                                <a class="nav-link" data-bs-toggle="tab" href="#quotation"
-                                    onclick="loadTableData('quotation')">Quotation</a>
+                                <a class="nav-link" data-bs-toggle="tab" href="#quotation">Quotation</a>
                             </li>
                         @endcan
 
                         @can('save draft')
                             <li class="nav-item">
-                                <a class="nav-link" data-bs-toggle="tab" href="#draft"
-                                    onclick="loadTableData('draft')">Draft</a>
+                                <a class="nav-link" data-bs-toggle="tab" href="#draft">Draft</a>
                             </li>
                         @endcan
 
                         @can('create job-ticket')
                             <li class="nav-item">
-                                <a class="nav-link" data-bs-toggle="tab" href="#jobticket"
-                                    onclick="loadTableData('jobticket')">Job Tickets</a>
+                                <a class="nav-link" data-bs-toggle="tab" href="#jobticket">Job Tickets</a>
                             </li>
                         @endcan
                     </ul>
