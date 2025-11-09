@@ -2395,8 +2395,13 @@
                 return { imeiMatch: '', exactImeiMatch: false, imeiNumber: '' };
             }
 
-            const matchingImei = stock.imei_numbers.find(imei =>
-                imei.imei_number.toLowerCase().includes(term.toLowerCase())
+            // Filter only available IMEI numbers
+            const availableImeis = stock.imei_numbers.filter(imei => 
+                imei.status === 'available' || imei.status === undefined
+            );
+
+            const matchingImei = availableImeis.find(imei =>
+                imei.imei_number && imei.imei_number.toLowerCase().includes(term.toLowerCase())
             );
 
             if (matchingImei) {
@@ -3658,10 +3663,9 @@
                 const distinctPrices = [...new Set(uniquePrices)];
 
                 if (distinctPrices.length <= 1) {
-                    // Single price - use latest batch and show its IMEIs
-                    const selectedBatch = batchesArray[0];
-                    console.log('Single price for IMEI product, using latest batch:', selectedBatch.id);
-                    showImeiSelectionModal(product, stockEntry, [], searchTerm, matchType, selectedBatch.id);
+                    // Single price - show all available IMEIs from all batches
+                    console.log('Single price for IMEI product, showing all available IMEIs from all batches');
+                    showImeiSelectionModal(product, stockEntry, [], searchTerm, matchType, "all");
                 } else {
                     // Multiple prices - user needs to select batch first, then IMEIs
                     console.log('Multiple prices for IMEI product, showing batch selection first');
@@ -5793,8 +5797,8 @@
                                 imei_numbers: data.data
                             };
                             
-                            // Show IMEI modal with complete data
-                            showImeiSelectionModal(product, tempStockEntry, [], '', 'EDIT', batchId !== "all" ? batchId : null);
+                            // Show IMEI modal with complete data - Always show all IMEIs when editing
+                            showImeiSelectionModal(product, tempStockEntry, [], '', 'EDIT', "all");
                         } else {
                             console.error('Failed to fetch IMEI data:', data.message);
                             toastr.error('Failed to load IMEI data: ' + (data.message || 'Unknown error'));

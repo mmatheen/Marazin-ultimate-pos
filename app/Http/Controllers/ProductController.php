@@ -1747,29 +1747,66 @@ class ProductController extends Controller
         });
 
         if ($search) {
+            // Include IMEI search - First check if any products have matching IMEI numbers
+            $imeiQuery = ImeiNumber::where('imei_number', 'like', "%{$search}%");
+            if ($locationId) {
+                $imeiQuery->where('location_id', $locationId);
+            }
+            $productsWithMatchingImei = $imeiQuery->pluck('product_id')->toArray();
+            
             // Use ORDER BY with CASE statements to prioritize exact matches
-            $query->where(function ($q) use ($search) {
+            $query->where(function ($q) use ($search, $productsWithMatchingImei) {
                 $q->where('product_name', 'like', "%{$search}%")
                     ->orWhere('sku', 'like', "%{$search}%")
                     ->orWhere('description', 'like', "%{$search}%");
-            })->orderByRaw("
-                CASE 
-                    WHEN sku = ? THEN 1
-                    WHEN LOWER(product_name) = LOWER(?) THEN 2
-                    WHEN sku LIKE ? THEN 3
-                    WHEN LOWER(product_name) LIKE LOWER(?) THEN 4
-                    WHEN description LIKE ? THEN 5
-                    ELSE 6
-                END,
-                CHAR_LENGTH(sku) ASC,
-                product_name ASC
-            ", [
-                $search,                    // Exact SKU match (priority 1)
-                $search,                    // Exact product name match (priority 2)
-                $search . '%',              // SKU starts with search term (priority 3)
-                $search . '%',              // Product name starts with search term (priority 4)
-                '%' . $search . '%'         // Description contains search term (priority 5)
-            ]);
+                
+                // Add IMEI search condition
+                if (!empty($productsWithMatchingImei)) {
+                    $q->orWhereIn('id', $productsWithMatchingImei);
+                }
+            });
+            
+            // Build order by clause with IMEI priority if applicable
+            if (!empty($productsWithMatchingImei)) {
+                $query->orderByRaw("
+                    CASE 
+                        WHEN id IN (" . implode(',', array_fill(0, count($productsWithMatchingImei), '?')) . ") THEN 0
+                        WHEN sku = ? THEN 1
+                        WHEN LOWER(product_name) = LOWER(?) THEN 2
+                        WHEN sku LIKE ? THEN 3
+                        WHEN LOWER(product_name) LIKE LOWER(?) THEN 4
+                        WHEN description LIKE ? THEN 5
+                        ELSE 6
+                    END,
+                    CHAR_LENGTH(sku) ASC,
+                    product_name ASC
+                ", array_merge($productsWithMatchingImei, [
+                    $search,                    // Exact SKU match (priority 1)
+                    $search,                    // Exact product name match (priority 2)
+                    $search . '%',              // SKU starts with search term (priority 3)
+                    $search . '%',              // Product name starts with search term (priority 4)
+                    '%' . $search . '%'         // Description contains search term (priority 5)
+                ]));
+            } else {
+                $query->orderByRaw("
+                    CASE 
+                        WHEN sku = ? THEN 1
+                        WHEN LOWER(product_name) = LOWER(?) THEN 2
+                        WHEN sku LIKE ? THEN 3
+                        WHEN LOWER(product_name) LIKE LOWER(?) THEN 4
+                        WHEN description LIKE ? THEN 5
+                        ELSE 6
+                    END,
+                    CHAR_LENGTH(sku) ASC,
+                    product_name ASC
+                ", [
+                    $search,                    // Exact SKU match (priority 1)
+                    $search,                    // Exact product name match (priority 2)
+                    $search . '%',              // SKU starts with search term (priority 3)
+                    $search . '%',              // Product name starts with search term (priority 4)
+                    '%' . $search . '%'         // Description contains search term (priority 5)
+                ]);
+            }
         } else {
             $query->orderBy('product_name', 'ASC');
         }
@@ -1778,10 +1815,15 @@ class ProductController extends Controller
 
         // Get product IDs for IMEI filtering
         $productIds = $products->pluck('id');
-        $imeis = ImeiNumber::whereIn('product_id', $productIds)
-            ->with(['location:id,name'])
-            ->get()
-            ->groupBy('product_id');
+        $imeiQuery = ImeiNumber::whereIn('product_id', $productIds)
+            ->with(['location:id,name']);
+        
+        // Filter IMEI by location if specified
+        if ($locationId) {
+            $imeiQuery->where('location_id', $locationId);
+        }
+        
+        $imeis = $imeiQuery->get()->groupBy('product_id');
 
         $results = $products->map(function ($product) use ($locationId, $imeis) {
             $productBatches = $product->batches;
