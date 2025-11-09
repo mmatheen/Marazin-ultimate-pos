@@ -389,6 +389,35 @@
                             .menu-card:active {
                                 transform: scale(0.98);
                             }
+
+                            /* Recent Transactions Tab Styling */
+                            #transactionTabs .nav-link {
+                                color: #6c757d;
+                                background-color: #f8f9fa;
+                                border: 1px solid #dee2e6;
+                                border-bottom: none;
+                                border-radius: 0.375rem 0.375rem 0 0;
+                                padding: 0.75rem 1rem;
+                                margin-right: 2px;
+                                transition: all 0.3s ease;
+                            }
+
+                            #transactionTabs .nav-link:hover {
+                                background-color: #e9ecef;
+                                color: #495057;
+                            }
+
+                            #transactionTabs .nav-link.active {
+                                background-color: #007bff !important;
+                                color: #ffffff !important;
+                                border-color: #007bff;
+                                font-weight: 600;
+                            }
+
+                            #transactionTabs .nav-link.active:hover {
+                                background-color: #0056b3 !important;
+                                color: #ffffff !important;
+                            }
                         </style>
 
                         <!-- Invoice Number Input (Collapsible) -->

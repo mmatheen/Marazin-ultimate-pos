@@ -8534,7 +8534,7 @@
                 // Add new badge if count > 0
                 if (statusCounts[status] > 0) {
                     const tabText = tabLink.text().trim();
-                    const badge = ` <span class="badge bg-primary rounded-pill ms-1">${statusCounts[status]}</span>`;
+                    const badge = ` <span class="badge bg-warning text-dark rounded-pill ms-1 fw-bold">${statusCounts[status]}</span>`;
                     tabLink.html(tabText + badge);
                 }
             }
