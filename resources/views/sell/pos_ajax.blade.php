@@ -2446,6 +2446,7 @@
             $("#productSearchInput").autocomplete({
                 position: { my: "left top", at: "left bottom", collision: "none" },
                 minLength: 1,
+                delay: 0,
                 source: function(request, response) {
                     if (!selectedLocationId) return response([]);
 
@@ -2461,6 +2462,7 @@
                     }, 300);
                 },
                 select: function(event, ui) {
+                    console.log('Item selected:', ui.item);
                     if (!ui.item.product || autocompleteState.adding) return false;
 
                     autocompleteState.adding = true;
@@ -2470,11 +2472,37 @@
                     setTimeout(() => autocompleteState.adding = false, 50);
                     return false;
                 },
-                open: function() {
-                    setTimeout(() => setupFirstItemFocus(), 50);
+                focus: function(event, ui) {
+                    console.log('Item focused:', ui.item);
+                    // Prevent input value from changing on focus
+                    event.preventDefault();
+                    
+                    // Update indicator based on focused item
+                    if (ui.item && ui.item.product) {
+                        showSearchIndicator("↵ Press Enter to add");
+                    } else {
+                        hideSearchIndicator();
+                    }
+                    return false;
+                },
+                open: function(event, ui) {
+                    console.log('Autocomplete menu opened');
+                    const $this = $(this);
+                    const instance = $this.autocomplete("instance");
+                    
+                    // Setup custom keyboard handling immediately
+                    setupDirectKeyboardHandling($this, instance);
+                    
+                    // Setup first item focus
+                    setTimeout(() => {
+                        setupFirstItemFocus();
+                    }, 100);
                 },
                 close: function() {
+                    console.log('Autocomplete menu closed');
                     hideSearchIndicator();
+                    // Remove custom keyboard handling
+                    $("#productSearchInput").off('keydown.custom');
                 }
             });
 
@@ -2487,35 +2515,57 @@
 
         function setupFirstItemFocus() {
             const instance = $("#productSearchInput").autocomplete("instance");
+            if (!instance || !instance.menu) return;
+            
             const menu = instance.menu;
-            const firstItem = menu.element.find("li:first-child");
-
-            if (firstItem.length > 0 && !firstItem.text().includes("No results")) {
-                menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
-                firstItem.addClass("ui-state-focus");
-                menu.active = firstItem;
-                showSearchIndicator("↵ Press Enter to add");
+            const items = menu.element.find("li.ui-menu-item");
+            
+            console.log('Setting up first item focus, found', items.length, 'items');
+            
+            if (items.length > 0) {
+                const firstValidItem = items.first();
+                const itemData = firstValidItem.data("ui-autocomplete-item");
+                
+                console.log('First item data:', itemData);
+                
+                if (itemData && itemData.product) {
+                    // Clear any existing focus
+                    menu.element.find('.ui-state-focus').removeClass('ui-state-focus');
+                    
+                    // Set focus on first item
+                    firstValidItem.addClass('ui-state-focus');
+                    menu.active = firstValidItem;
+                    
+                    console.log('First item focused');
+                    showSearchIndicator("↵ Press Enter to add");
+                } else {
+                    console.log('First item is not a valid product');
+                }
             }
         }
 
         function setupCustomRendering() {
-            $("#productSearchInput").autocomplete("instance")._renderItem = function(ul, item) {
-                const li = $("<li>");
+            const instance = $("#productSearchInput").autocomplete("instance");
+            
+            instance._renderItem = function(ul, item) {
+                const li = $("<li>")
+                    .addClass("ui-menu-item")
+                    .data("ui-autocomplete-item", item);
                 
                 if (item.product) {
                     if (item.imeiMatch) {
                         li.append(createImeiItemHtml(item));
                     } else {
-                        li.append(`<div style="padding: 8px 12px;">${item.label}</div>`);
+                        li.append(`<div class="autocomplete-item" style="padding: 8px 12px;">${item.label}</div>`);
                     }
                 } else {
-                    li.append(`<div style="color: red; padding: 8px 12px; font-style: italic;">${item.label}</div>`);
+                    li.append(`<div class="autocomplete-item no-product" style="color: red; padding: 8px 12px; font-style: italic;">${item.label}</div>`);
                 }
                 
                 return li.appendTo(ul);
             };
 
-            $("#productSearchInput").autocomplete("instance")._resizeMenu = function() {
+            instance._resizeMenu = function() {
                 const isMobile = window.innerWidth <= 991;
                 if (isMobile) {
                     this.menu.element.css({
@@ -2528,6 +2578,8 @@
                     this.menu.element.outerWidth(menuWidth);
                 }
             };
+
+            // Let jQuery UI handle navigation naturally - no overrides needed
         }
 
         function createImeiItemHtml(item) {
@@ -2558,18 +2610,26 @@
             let lastKeyTime = 0;
             const SCANNER_SPEED_THRESHOLD = 50; // milliseconds between keystrokes for scanner detection
 
-            $("#productSearchInput").off('keydown.autocomplete keypress.scanner input.scanner')
-                .on('keydown.autocomplete', function(event) {
+            $("#productSearchInput").off('keydown.scanner keypress.scanner input.scanner')
+                .on('keydown.scanner', function(event) {
                     const currentTime = Date.now();
                     const timeDiff = currentTime - lastKeyTime;
                     lastKeyTime = currentTime;
 
+                    // Check if autocomplete menu is open
+                    const isMenuOpen = $(this).autocomplete("widget").is(":visible");
+
+                    // Don't interfere with arrow keys when menu is open - let custom handler deal with it
+                    if (isMenuOpen && (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Enter')) {
+                        return; // Let custom handler take care of this
+                    }
+
                     // Detect if this might be from a barcode scanner (fast typing)
                     const isLikelyScanner = timeDiff < SCANNER_SPEED_THRESHOLD && event.key !== 'Enter';
 
-                    if (event.key === 'Enter') {
+                    if (event.key === 'Enter' && !isMenuOpen) {
+                        // Handle manual entry when menu is closed
                         event.preventDefault();
-                        
                         const currentValue = $(this).val().trim();
                         
                         // Handle barcode scanner input (fast entry + Enter)
@@ -2615,6 +2675,103 @@
                         }, 100); // Short delay for scanner
                     }
                 });
+        }
+
+        // Direct keyboard handling for when autocomplete menu is open
+        function setupDirectKeyboardHandling($input, instance) {
+            console.log('Setting up direct keyboard handling');
+            
+            $input.off('keydown.custom').on('keydown.custom', function(event) {
+                const menu = instance.menu;
+                const isMenuOpen = $input.autocomplete("widget").is(":visible");
+                
+                if (!isMenuOpen || !menu) return;
+                
+                console.log('Custom keydown:', event.key, event.keyCode);
+                
+                if (event.key === 'ArrowDown' || event.keyCode === 40) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    navigateMenu('down', menu);
+                    return false;
+                } else if (event.key === 'ArrowUp' || event.keyCode === 38) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    navigateMenu('up', menu);
+                    return false;
+                } else if (event.key === 'Enter' || event.keyCode === 13) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    selectCurrentItem(menu, instance);
+                    return false;
+                } else if (event.key === 'Escape' || event.keyCode === 27) {
+                    $input.autocomplete('close');
+                    return false;
+                }
+            });
+        }
+        
+        function navigateMenu(direction, menu) {
+            const items = menu.element.find('li.ui-menu-item');
+            let currentIndex = -1;
+            
+            // Find currently focused item
+            items.each(function(index) {
+                if ($(this).hasClass('ui-state-focus')) {
+                    currentIndex = index;
+                    return false;
+                }
+            });
+            
+            console.log('Current index:', currentIndex, 'Direction:', direction);
+            
+            // Calculate next index
+            let nextIndex;
+            if (direction === 'down') {
+                nextIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
+            } else {
+                nextIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
+            }
+            
+            console.log('Next index:', nextIndex);
+            
+            // Clear all focus
+            items.removeClass('ui-state-focus');
+            
+            // Set focus on new item
+            const nextItem = items.eq(nextIndex);
+            nextItem.addClass('ui-state-focus');
+            menu.active = nextItem;
+            
+            // Update indicator
+            const itemData = nextItem.data("ui-autocomplete-item");
+            if (itemData && itemData.product) {
+                showSearchIndicator("↵ Press Enter to add");
+            } else {
+                hideSearchIndicator();
+            }
+            
+            // Scroll into view if needed
+            const menuElement = menu.element[0];
+            const itemElement = nextItem[0];
+            if (itemElement.offsetTop < menuElement.scrollTop) {
+                menuElement.scrollTop = itemElement.offsetTop;
+            } else if (itemElement.offsetTop + itemElement.offsetHeight > menuElement.scrollTop + menuElement.offsetHeight) {
+                menuElement.scrollTop = itemElement.offsetTop + itemElement.offsetHeight - menuElement.offsetHeight;
+            }
+        }
+        
+        function selectCurrentItem(menu, instance) {
+            const focusedItem = menu.element.find('li.ui-state-focus');
+            if (focusedItem.length > 0) {
+                const itemData = focusedItem.data("ui-autocomplete-item");
+                console.log('Selecting current item:', itemData);
+                
+                if (itemData && itemData.product) {
+                    // Trigger the select event manually
+                    instance._trigger("select", null, { item: itemData });
+                }
+            }
         }
 
         function handleBarcodeScan(scannedValue) {
@@ -3172,17 +3329,76 @@
                     border: 1px solid #ddd; border-radius: 4px; 
                     box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 400px !important;
                 }
-                .ui-autocomplete .ui-menu-item { border-bottom: 1px solid #f0f0f0; list-style: none; }
+                .ui-autocomplete .ui-menu-item { 
+                    border-bottom: 1px solid #f0f0f0; 
+                    list-style: none; 
+                    margin: 0;
+                    padding: 0;
+                    cursor: pointer;
+                    position: relative;
+                }
                 .ui-autocomplete .ui-menu-item:last-child { border-bottom: none; }
-                .ui-autocomplete .ui-state-focus { background: #007bff !important; color: white !important; margin: 0; }
-                .ui-autocomplete .ui-state-focus div { color: white !important; background-color: transparent !important; border-left-color: white !important; }
-                .ui-autocomplete .ui-state-focus div > div { color: white !important; }
-                .ui-autocomplete .ui-state-focus span { color: white !important; }
-                .ui-autocomplete .ui-menu-item div { white-space: normal; word-wrap: break-word; }
+                
+                /* Focus and active states */
+                .ui-autocomplete .ui-menu-item.ui-state-focus,
+                .ui-autocomplete .ui-menu-item.ui-state-active,
+                .ui-autocomplete .ui-menu-item:hover { 
+                    background: #007bff !important; 
+                    color: white !important; 
+                    margin: 0; 
+                    outline: none;
+                }
+                
+                /* Content styling for focused items */
+                .ui-autocomplete .ui-state-focus .autocomplete-item,
+                .ui-autocomplete .ui-state-active .autocomplete-item,
+                .ui-autocomplete .ui-menu-item:hover .autocomplete-item,
+                .ui-autocomplete .ui-state-focus div,
+                .ui-autocomplete .ui-state-active div,
+                .ui-autocomplete .ui-menu-item:hover div { 
+                    color: white !important; 
+                    background-color: transparent !important; 
+                    border-left-color: white !important; 
+                }
+                
+                .ui-autocomplete .ui-state-focus div > div,
+                .ui-autocomplete .ui-state-active div > div,
+                .ui-autocomplete .ui-menu-item:hover div > div { 
+                    color: white !important; 
+                }
+                
+                .ui-autocomplete .ui-state-focus span,
+                .ui-autocomplete .ui-state-active span,
+                .ui-autocomplete .ui-menu-item:hover span { 
+                    color: white !important; 
+                }
+                
+                .ui-autocomplete .ui-menu-item .autocomplete-item { 
+                    white-space: normal; 
+                    word-wrap: break-word; 
+                    transition: all 0.1s ease;
+                    display: block;
+                    width: 100%;
+                }
+                
+                .ui-autocomplete .ui-menu-item.no-product {
+                    opacity: 0.7;
+                    cursor: default;
+                }
+                
+                /* Ensure menu items are properly focusable */
+                .ui-autocomplete .ui-menu-item {
+                    outline: none;
+                }
+                .ui-autocomplete .ui-menu-item:focus {
+                    outline: none;
+                }
+                
                 #productSearchInput { position: relative; }
                 .search-indicator { 
                     position: absolute; right: 10px; top: 50%; transform: translateY(-50%); 
                     font-size: 12px; color: #28a745; pointer-events: none; 
+                    background: white; padding: 0 5px; z-index: 1001;
                 }
             `;
             document.head.appendChild(style);
