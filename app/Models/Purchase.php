@@ -11,7 +11,7 @@ class Purchase extends Model
 {
     use HasFactory, LogsActivity, CustomLogsActivity;
 
-    protected static $logName = 'purchase';
+    protected string $customLogName = 'purchase';
 
 
     protected $fillable = [
