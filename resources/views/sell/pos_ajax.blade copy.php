@@ -1,7 +1,6 @@
 <script src="{{ asset('assets/js/jquery-3.6.0.min.js') }}"></script>
 
 <script>
-  
     // Global AJAX setup for CSRF token
     $.ajaxSetup({
         headers: {
@@ -35,34 +34,6 @@
         delivery_person: ''
     };
 
-    // Customer cache to avoid repeated AJAX calls
-    let customerCache = new Map();
-    let customerCacheExpiry = 5 * 60 * 1000; // 5 minutes
-
-    // Static data cache (categories, brands, locations)
-    let staticDataCache = new Map();
-    let staticDataCacheExpiry = 10 * 60 * 1000; // 10 minutes for static data
-
-    // Debounce function to limit API calls
-    function debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func(...args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-        };
-    }
-
-    // Search results cache to avoid repeated identical searches
-    let searchCache = new Map();
-    let searchCacheExpiry = 2 * 60 * 1000; // 2 minutes for search results
-
-    // DOM element cache to avoid repeated getElementById calls
-    let domElementCache = {};
-
     // Global function to clean up modal backdrops and body styles
     window.cleanupModalBackdrop = function() {
         // Remove all modal backdrops
@@ -91,23 +62,16 @@
                 e.preventDefault();
                 return true;
             }
-            
-            // Handle Infinity/-Infinity parsing errors
-            if (e.message && (e.message.includes('Infinity') || e.message.includes('cannot be parsed'))) {
-                console.error('Numeric Parsing Error Caught:', {
-                    message: e.message,
-                    filename: e.filename,
-                    lineno: e.lineno,
-                    stack: e.error ? e.error.stack : 'No stack trace'
-                });
-                // Prevent the error from breaking the entire page
-                e.preventDefault();
-                return true;
-            }
         });
 
-        // ---- DOM ELEMENTS (will be cached after function definitions) ----
-        let posProduct, billingBody, discountInput, finalValue, categoryBtn, allProductsBtn, subcategoryBackBtn;
+        // ---- DOM ELEMENTS ----
+        const posProduct = document.getElementById('posProduct');
+        const billingBody = document.getElementById('billing-body');
+        const discountInput = document.getElementById('discount');
+        const finalValue = document.getElementById('total');
+        const categoryBtn = document.getElementById('category-btn');
+        const allProductsBtn = document.getElementById('allProductsBtn');
+        const subcategoryBackBtn = document.getElementById('subcategoryBackBtn');
 
         // ---- GLOBAL VARIABLES ----
         let selectedLocationId = null;
@@ -149,10 +113,6 @@
         }
         
         initAutocomplete();
-        initDOMElements();
-
-        // Check image health after page loads
-        setTimeout(checkImageHealth, 3000);
 
         // Auto-focus product search input for quick product search
         setTimeout(() => {
@@ -208,229 +168,8 @@
         });
 
         // ---- CUSTOMER TYPE PRICING FUNCTIONS ----
-        
         /**
-         * Check if customer data is cached and valid
-         */
-        function getCachedCustomer(customerId) {
-            const cacheKey = `customer_${customerId}`;
-            const cached = customerCache.get(cacheKey);
-            
-            if (cached && (Date.now() - cached.timestamp < customerCacheExpiry)) {
-                console.log('Using cached customer data for ID:', customerId);
-                return cached.data;
-            }
-            
-            return null;
-        }
-        
-        /**
-         * Cache customer data
-         */
-        function setCachedCustomer(customerId, customerData) {
-            const cacheKey = `customer_${customerId}`;
-            customerCache.set(cacheKey, {
-                data: customerData,
-                timestamp: Date.now()
-            });
-            console.log('Cached customer data for ID:', customerId);
-        }
-
-        /**
-         * Get cached static data (categories, brands, locations)
-         */
-        function getCachedStaticData(key) {
-            const cached = staticDataCache.get(key);
-            
-            if (cached && (Date.now() - cached.timestamp < staticDataCacheExpiry)) {
-                console.log('Using cached static data for:', key);
-                return cached.data;
-            }
-            
-            return null;
-        }
-
-        /**
-         * Set cached static data
-         */
-        function setCachedStaticData(key, data) {
-            staticDataCache.set(key, {
-                data: data,
-                timestamp: Date.now()
-            });
-            console.log('Cached static data for:', key);
-        }
-
-        /**
-         * Get DOM element with caching to avoid repeated getElementById calls
-         */
-        function getCachedElement(id) {
-            if (!domElementCache[id]) {
-                domElementCache[id] = document.getElementById(id);
-            }
-            return domElementCache[id];
-        }
-
-        /**
-         * Clear DOM cache when elements might have changed
-         */
-        function clearDOMCache() {
-            domElementCache = {};
-            console.log('DOM element cache cleared');
-        }
-
-        // Initialize DOM elements after function definitions
-        function initDOMElements() {
-            posProduct = getCachedElement('posProduct');
-            billingBody = getCachedElement('billing-body');
-            discountInput = getCachedElement('discount');
-            finalValue = getCachedElement('total');
-            categoryBtn = getCachedElement('category-btn');
-            allProductsBtn = getCachedElement('allProductsBtn');
-            subcategoryBackBtn = getCachedElement('subcategoryBackBtn');
-            console.log('DOM elements cached successfully');
-        }
-
-        /**
-         * Batch DOM updates to minimize reflows/repaints
-         */
-        function batchDOMUpdates(updates) {
-            // Use DocumentFragment for batch operations
-            const fragment = document.createDocumentFragment();
-            
-            // Execute all updates in a single frame
-            requestAnimationFrame(() => {
-                updates.forEach(update => {
-                    try {
-                        update();
-                    } catch (error) {
-                        console.error('Batch DOM update error:', error);
-                    }
-                });
-            });
-        }
-
-        /**
-         * Safely parse numeric values to prevent Infinity/-Infinity errors
-         */
-        function safeParseFloat(value, defaultValue = 0) {
-            const parsed = parseFloat(value);
-            return (isFinite(parsed) && !isNaN(parsed)) ? parsed : defaultValue;
-        }
-
-        /**
-         * Safely calculate percentage to prevent division by zero
-         */
-        function safePercentage(numerator, denominator, defaultValue = 0) {
-            if (!denominator || denominator === 0 || !isFinite(denominator)) {
-                return defaultValue;
-            }
-            const result = (numerator / denominator) * 100;
-            return isFinite(result) ? result : defaultValue;
-        }
-
-        /**
-         * Get safe image URL with fallback handling
-         */
-        function getSafeImageUrl(product) {
-            // Default fallback image
-            const fallbackImage = '/assets/images/No Product Image Available.png';
-            
-            if (!product || !product.product_image) {
-                return fallbackImage;
-            }
-            
-            // Try multiple possible image paths
-            const imagePaths = [
-                `/storage/products/${product.product_image}`,  // Laravel storage path
-                `/assets/images/${product.product_image}`,     // Current assets path
-                `/public/storage/products/${product.product_image}`, // Alternative storage path
-                `/storage/app/public/products/${product.product_image}` // Full storage path
-            ];
-            
-            return imagePaths[0]; // Return the first option, handle 404 with onerror
-        }
-
-        /**
-         * Create image element with error handling and fallback
-         */
-        function createSafeImage(product, styles = '', className = '', title = '') {
-            const fallbackImage = '/assets/images/No Product Image Available.png';
-            const primaryImage = getSafeImageUrl(product);
-            
-            const img = document.createElement('img');
-            img.src = primaryImage;
-            if (styles) img.style.cssText = styles;
-            if (className) img.className = className;
-            if (title) img.title = title;
-            img.alt = product?.product_name || 'Product Image';
-            
-            // Handle image load errors with fallback
-            img.onerror = function() {
-                if (this.src !== fallbackImage) {
-                    console.log(`Image not found: ${this.src}, using fallback`);
-                    this.src = fallbackImage;
-                    this.onerror = function() {
-                        // If even fallback fails, create a placeholder
-                        this.style.display = 'none';
-                        const placeholder = document.createElement('div');
-                        placeholder.innerHTML = '📷';
-                        placeholder.style.cssText = styles + '; display: flex; align-items: center; justify-content: center; background: #f8f9fa; color: #6c757d;';
-                        this.parentNode?.replaceChild(placeholder, this);
-                    };
-                }
-            };
-            
-            return img;
-        }
-
-        /**
-         * Check if image exists before loading (reduces 404 errors)
-         */
-        function preloadImage(src, callback) {
-            const img = new Image();
-            img.onload = () => callback(true, src);
-            img.onerror = () => callback(false, src);
-            img.src = src;
-        }
-
-        /**
-         * Image health check - scan and report missing images
-         */
-        function checkImageHealth() {
-            const images = document.querySelectorAll('img[src*="assets/images"], img[src*="storage/products"]');
-            let missingCount = 0;
-            let totalCount = images.length;
-            
-            console.log(`🖼️ Checking ${totalCount} product images...`);
-            
-            images.forEach(img => {
-                if (img.src.includes('No Product Image Available.png')) return;
-                
-                fetch(img.src, { method: 'HEAD' })
-                    .then(response => {
-                        if (!response.ok) {
-                            missingCount++;
-                            console.log(`❌ Missing: ${img.src}`);
-                        }
-                    })
-                    .catch(() => {
-                        missingCount++;
-                        console.log(`❌ Error loading: ${img.src}`);
-                    });
-            });
-            
-            setTimeout(() => {
-                console.log(`📊 Image Health Check: ${missingCount}/${totalCount} images missing`);
-                if (missingCount > 0) {
-                    console.log('💡 Tip: Upload missing images or update product records to fix 404 errors');
-                }
-            }, 2000);
-        }
-
-        /**
-         * Get the current customer's type and details (OPTIMIZED VERSION)
-         * This function now tries multiple fast methods before falling back to server calls
+         * Get the current customer's type and details
          */
         function getCurrentCustomer() {
             const customerId = $('#customer-id').val();
@@ -439,12 +178,6 @@
                     id: 1,
                     customer_type: 'retailer'
                 }; // Default walk-in customer as retailer
-            }
-
-            // Check cache first (FAST)
-            const cachedCustomer = getCachedCustomer(customerId);
-            if (cachedCustomer) {
-                return cachedCustomer;
             }
 
             // Get customer data from the select option
@@ -468,12 +201,23 @@
                 } else if (customerText.toLowerCase().includes('- retailer')) {
                     customerType = 'retailer';
                 } else {
-                    // Last resort: Use cached fallback or default
-                    console.warn('Customer type not found, using retailer as fallback for immediate response');
-                    customerType = 'retailer';
-                    
-                    // Async fetch in background for future calls (non-blocking)
-                    fetchCustomerTypeAsync(customerId);
+                    // Last resort: make AJAX call to get customer data
+                    console.warn('Customer type not found, fetching from server...');
+
+                    $.ajax({
+                        url: `/customer-get-by-id/${customerId}`,
+                        method: 'GET',
+                        async: false, // Synchronous call (not recommended but needed here)
+                        success: function(response) {
+                            if (response && response.customer_type) {
+                                customerType = response.customer_type;
+                                console.log('Fetched customer type from server:', customerType);
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('Failed to fetch customer type:', error);
+                        }
+                    });
                 }
             }
 
@@ -482,46 +226,8 @@
                 customer_type: customerType
             };
 
-            // Cache the result
-            setCachedCustomer(customerId, result);
-
             console.log('Final getCurrentCustomer result:', result);
             return result;
-        }
-
-        /**
-         * Fetch customer type asynchronously in background (non-blocking)
-         */
-        function fetchCustomerTypeAsync(customerId) {
-            console.log('Fetching customer type in background for future calls...');
-            
-            $.ajax({
-                url: `/customer-get-by-id/${customerId}`,
-                method: 'GET',
-                async: true, // ✅ Now truly asynchronous!
-                success: function(response) {
-                    if (response && response.customer_type) {
-                        const customerData = {
-                            id: parseInt(customerId),
-                            customer_type: response.customer_type
-                        };
-                        
-                        // Cache for future calls
-                        setCachedCustomer(customerId, customerData);
-                        
-                        console.log('Background fetch completed, customer type cached:', response.customer_type);
-                        
-                        // Update current pricing if this customer is still selected
-                        const currentCustomerId = $('#customer-id').val();
-                        if (currentCustomerId === customerId) {
-                            updateAllBillingRowsPricing(response.customer_type);
-                        }
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Background fetch failed for customer type:', error);
-                }
-            });
         }
 
         /**
@@ -727,7 +433,7 @@
             // Get MRP from price input data attribute or calculate it
             let mrp = 0;
             if (priceInput) {
-                mrp = safeParseFloat(priceInput.getAttribute('data-max-retail-price'), 0);
+                mrp = parseFloat(priceInput.getAttribute('data-max-retail-price')) || 0;
             }
 
             // If MRP not found, try to get it from product data
@@ -735,7 +441,7 @@
                 const productId = row.getAttribute('data-product-id');
                 const productData = getProductDataById(productId);
                 if (productData && productData.max_retail_price) {
-                    mrp = safeParseFloat(productData.max_retail_price, 0);
+                    mrp = parseFloat(productData.max_retail_price);
                 }
             }
 
@@ -746,36 +452,25 @@
             }
 
             // Calculate new discount values based on MRP and new price
-            if (mrp > 0 && !isNaN(mrp) && !isNaN(newPrice)) {
-                const newFixedDiscount = mrp - safeParseFloat(newPrice, 0);
-                const newPercentDiscount = safePercentage(newFixedDiscount, mrp, 0);
-
-                // Ensure discount values are valid numbers
-                const validFixedDiscount = safeParseFloat(newFixedDiscount, 0);
-                const validPercentDiscount = safeParseFloat(newPercentDiscount, 0);
+            if (mrp > 0) {
+                const newFixedDiscount = mrp - newPrice;
+                const newPercentDiscount = (newFixedDiscount / mrp) * 100;
 
                 // Update fixed discount field
                 if (fixedDiscountInput) {
-                    fixedDiscountInput.value = validFixedDiscount.toFixed(2);
+                    fixedDiscountInput.value = newFixedDiscount.toFixed(2);
                 }
 
                 // Update percentage discount field
                 if (percentDiscountInput) {
-                    percentDiscountInput.value = validPercentDiscount.toFixed(2);
+                    percentDiscountInput.value = newPercentDiscount.toFixed(2);
                 }
 
                 console.log(
-                    `Updated discounts - Fixed: Rs. ${validFixedDiscount.toFixed(2)}, Percentage: ${validPercentDiscount.toFixed(2)}%`
+                    `Updated discounts - Fixed: Rs. ${newFixedDiscount.toFixed(2)}, Percentage: ${newPercentDiscount.toFixed(2)}%`
                 );
             } else {
-                console.warn('MRP not valid or missing, setting discount to 0');
-                // Set discount fields to 0 when MRP is invalid
-                if (fixedDiscountInput) {
-                    fixedDiscountInput.value = '0.00';
-                }
-                if (percentDiscountInput) {
-                    percentDiscountInput.value = '0.00';
-                }
+                console.warn('MRP not found, unable to calculate discount');
             }
 
             // Update total if quantity cell exists
@@ -1994,14 +1689,8 @@
             });
         }
 
-        // ---- CATEGORY/SUBCATEGORY/BRAND (OPTIMIZED WITH CACHING) ----
+        // ---- CATEGORY/SUBCATEGORY/BRAND (unchanged) ----
         function fetchCategories() {
-            // Check cache first
-            const cachedCategories = getCachedStaticData('categories');
-            if (cachedCategories) {
-                renderCategories(cachedCategories);
-                return;
-            }
             
             fetch('/main-category-get-all')
                 .then(response => {
@@ -2009,82 +1698,87 @@
                 })
                 .then(data => {
                     const categories = data.message;
+                    const categoryContainer = document.getElementById('categoryContainer');
                     
-                    // Cache the categories
-                    setCachedStaticData('categories', categories);
                     
-                    // Render categories
-                    renderCategories(categories);
+                    // Clear existing content before adding new categories
+                    try {
+                        categoryContainer.innerHTML = '';
+                        console.log('[FETCHCATEGORIES] Container cleared successfully');
+                    } catch (clearError) {
+                        return;
+                    }
+                    
+                    if (Array.isArray(categories)) {
+                        categories.forEach((category, index) => {
+                            try {
+
+                                const card = document.createElement('div');
+                                card.classList.add('category-card');
+                                card.setAttribute('data-id', category.id);
+
+                                const cardTitle = document.createElement('h6');
+                                cardTitle.textContent = category.mainCategoryName;
+                                card.appendChild(cardTitle);
+
+                                const buttonContainer = document.createElement('div');
+                                buttonContainer.classList.add('category-footer');
+
+                                const allButton = document.createElement('button');
+                                allButton.textContent = 'All';
+                                allButton.classList.add('btn', 'btn-outline-green', 'me-2');
+                                allButton.addEventListener('click', () => {
+                                    filterProductsByCategory(category.id);
+                                    closeOffcanvas('offcanvasCategory');
+                                });
+
+                                const nextButton = document.createElement('button');
+                                nextButton.textContent = 'Next >>';
+                                nextButton.classList.add('btn', 'btn-outline-purple');
+                                nextButton.addEventListener('click', () => {
+                                    fetchSubcategories(category.id);
+                                });
+
+                                buttonContainer.appendChild(allButton);
+                                buttonContainer.appendChild(nextButton);
+                                card.appendChild(buttonContainer);
+
+                                // Triple-check container still exists and has appendChild method before appending
+                                if (categoryContainer && 
+                                    typeof categoryContainer.appendChild === 'function' && 
+                                    categoryContainer.parentNode) {
+                                    categoryContainer.appendChild(card);
+                                } else {
+                                    console.log('🔍 [FETCHCATEGORIES] Container state:', {
+                                        exists: !!categoryContainer,
+                                        hasAppendChild: categoryContainer && typeof categoryContainer.appendChild === 'function',
+                                        hasParent: categoryContainer && !!categoryContainer.parentNode
+                                    });
+                                }
+                            } catch (categoryError) {
+                                console.error('[FETCHCATEGORIES] Error processing category:', category, categoryError);
+                            }
+                        });
+                        console.log('[FETCHCATEGORIES] All categories processed successfully');
+                    } else {
+                        console.error('[FETCHCATEGORIES] Categories not found or not array:', categories);
+                    }
                 })
                 .catch(error => {
-                    console.error('Error fetching categories:', error);
+                    console.error('[FETCHCATEGORIES] Error fetching categories:', error);
+                    console.error('[FETCHCATEGORIES] Detailed error information:', {
+                        message: error.message,
+                        stack: error.stack,
+                        name: error.name,
+                        type: typeof error,
+                        toString: error.toString()
+                    });
+                    console.error('[FETCHCATEGORIES] DOM state at error time:', {
+                        categoryContainer: !!document.getElementById('categoryContainer'),
+                        documentReady: document.readyState,
+                        bodyChildren: document.body ? document.body.children.length : 'no body'
+                    });
                 });
-        }
-
-        function renderCategories(categories) {
-            const categoryContainer = getCachedElement('categoryContainer');
-            
-            // Clear existing content before adding new categories
-            try {
-                categoryContainer.innerHTML = '';
-                console.log('[FETCHCATEGORIES] Container cleared successfully');
-            } catch (clearError) {
-                return;
-            }
-            
-            if (Array.isArray(categories)) {
-                categories.forEach((category, index) => {
-                    try {
-                        const card = document.createElement('div');
-                        card.classList.add('category-card');
-                        card.setAttribute('data-id', category.id);
-
-                        const cardTitle = document.createElement('h6');
-                        cardTitle.textContent = category.mainCategoryName;
-                        card.appendChild(cardTitle);
-
-                        const buttonContainer = document.createElement('div');
-                        buttonContainer.classList.add('category-footer');
-
-                        const allButton = document.createElement('button');
-                        allButton.textContent = 'All';
-                        allButton.classList.add('btn', 'btn-outline-green', 'me-2');
-                        allButton.addEventListener('click', () => {
-                            filterProductsByCategory(category.id);
-                            closeOffcanvas('offcanvasCategory');
-                        });
-
-                        const nextButton = document.createElement('button');
-                        nextButton.textContent = 'Next >>';
-                        nextButton.classList.add('btn', 'btn-outline-purple');
-                        nextButton.addEventListener('click', () => {
-                            fetchSubcategories(category.id);
-                        });
-
-                        buttonContainer.appendChild(allButton);
-                        buttonContainer.appendChild(nextButton);
-                        card.appendChild(buttonContainer);
-
-                        // Triple-check container still exists and has appendChild method before appending
-                        if (categoryContainer && 
-                            typeof categoryContainer.appendChild === 'function' && 
-                            categoryContainer.parentNode) {
-                            categoryContainer.appendChild(card);
-                        } else {
-                            console.log('🔍 [FETCHCATEGORIES] Container state:', {
-                                exists: !!categoryContainer,
-                                hasAppendChild: categoryContainer && typeof categoryContainer.appendChild === 'function',
-                                hasParent: categoryContainer && !!categoryContainer.parentNode
-                            });
-                        }
-                    } catch (categoryError) {
-                        console.error('[FETCHCATEGORIES] Error processing category:', category, categoryError);
-                    }
-                });
-                console.log('[FETCHCATEGORIES] All categories processed successfully');
-            } else {
-                console.error('[FETCHCATEGORIES] Categories not found or not array:', categories);
-            }
         }
 
         function fetchSubcategories(categoryId) {
@@ -2140,95 +1834,88 @@
         });
 
         function fetchBrands() {
-            // Check cache first
-            const cachedBrands = getCachedStaticData('brands');
-            if (cachedBrands) {
-                renderBrands(cachedBrands);
-                return;
-            }
             
             fetch('/brand-get-all')
                 .then(response => {
                     return response.json();
                 })
                 .then(data => {
+                   
                     const brands = data.message;
+                    let brandContainer = document.getElementById('brandContainer');
+            
+                    // Validate container exists before proceeding
+                    if (!brandContainer) {
+                        console.error('[FETCHBRANDS] Brand container not found in DOM');
+                        return;
+                    }
+                 
+                    // Clear existing content before adding new brands
+                    try {
+                        brandContainer.innerHTML = '';
+                        console.log('[FETCHBRANDS] Container cleared successfully');
+                    } catch (clearError) {
+                        console.error('[FETCHBRANDS] Error clearing container:', clearError);
+                        return;
+                    }
                     
-                    // Cache the brands
-                    setCachedStaticData('brands', brands);
-                    
-                    // Render brands
-                    renderBrands(brands);
+                    if (Array.isArray(brands)) {
+                        brands.forEach((brand, index) => {
+                            try {
+                                // Re-check container exists on each iteration
+                                brandContainer = document.getElementById('brandContainer');
+                                if (!brandContainer) {
+                                    console.error('[FETCHBRANDS] Container disappeared during iteration:', index);
+                                    return;
+                                }
+                                
+                                const brandCard = document.createElement('div');
+                                brandCard.classList.add('brand-card');
+                                brandCard.setAttribute('data-id', brand.id);
+
+                                const brandName = document.createElement('h6');
+                                brandName.textContent = brand.name;
+                                brandCard.appendChild(brandName);
+
+                                brandCard.addEventListener('click', () => {
+                                    filterProductsByBrand(brand.id);
+                                    closeOffcanvas('offcanvasBrand');
+                                });
+
+                                // Triple-check container still exists and has appendChild method before appending
+                                if (brandContainer && 
+                                    typeof brandContainer.appendChild === 'function' && 
+                                    brandContainer.parentNode) {
+                                    brandContainer.appendChild(brandCard);
+                                } else {
+                                    console.log('🔍 [FETCHBRANDS] Container state during append:', {
+                                        exists: !!brandContainer,
+                                        hasAppendChild: brandContainer && typeof brandContainer.appendChild === 'function',
+                                        hasParent: brandContainer && !!brandContainer.parentNode,
+                                        brandIndex: index,
+                                        brandName: brand.name
+                                    });
+                                }
+                            } catch (brandError) {
+                                console.error('[FETCHBRANDS] Error processing brand:', brand, brandError);
+                            }
+                        });
+                        console.log('[FETCHBRANDS] All brands processed successfully');
+                    } else {
+                        console.error('[FETCHBRANDS] Brands not found or not array:', brands);
+                    }
                 })
                 .catch(error => {
-                    console.error('Error fetching brands:', error);
+                    console.error('[FETCHBRANDS] Error fetching brands:', error);
+                    console.error('🔍 [FETCHBRANDS] DOM state at error time:', {
+                        brandContainer: !!document.getElementById('brandContainer'),
+                        documentReady: document.readyState,
+                        bodyChildren: document.body ? document.body.children.length : 'no body'
+                    });
                 });
         }
 
-        function renderBrands(brands) {
-            let brandContainer = getCachedElement('brandContainer');
-            
-            // Validate container exists before proceeding
-            if (!brandContainer) {
-                console.error('[FETCHBRANDS] Brand container not found in DOM');
-                return;
-            }
-         
-            // Clear existing content before adding new brands
-            try {
-                brandContainer.innerHTML = '';
-                console.log('[FETCHBRANDS] Container cleared successfully');
-            } catch (clearError) {
-                console.error('[FETCHBRANDS] Error clearing container:', clearError);
-                return;
-            }
-            
-            if (Array.isArray(brands)) {
-                brands.forEach((brand, index) => {
-                    try {
-                        // Re-check container exists on each iteration
-                        brandContainer = document.getElementById('brandContainer');
-                        if (!brandContainer) {
-                            console.error('[FETCHBRANDS] Container disappeared during iteration:', index);
-                            return;
-                        }
-                        
-                        const brandCard = document.createElement('div');
-                        brandCard.classList.add('brand-card');
-                        brandCard.setAttribute('data-id', brand.id);
-
-                        const brandName = document.createElement('h6');
-                        brandName.textContent = brand.name;
-                        brandCard.appendChild(brandName);
-
-                        brandCard.addEventListener('click', () => {
-                            filterProductsByBrand(brand.id);
-                            closeOffcanvas('offcanvasBrand');
-                        });
-
-                        // Triple-check container still exists and has appendChild method before appending
-                        if (brandContainer && 
-                            typeof brandContainer.appendChild === 'function' && 
-                            brandContainer.parentNode) {
-                            brandContainer.appendChild(brandCard);
-                        } else {
-                            console.log('🔍 [FETCHBRANDS] Container state during append:', {
-                                exists: !!brandContainer,
-                                hasAppendChild: brandContainer && typeof brandContainer.appendChild === 'function',
-                                hasParent: brandContainer && !!brandContainer.parentNode,
-                                brandIndex: index,
-                                brandName: brand.name
-                            });
-                        }
-                    } catch (brandError) {
-                        console.error('[FETCHBRANDS] Error processing brand:', brand, brandError);
-                    }
-                });
-                console.log('[FETCHBRANDS] All brands processed successfully');
-            } else {
-                console.error('[FETCHBRANDS] Brands not found or not array:', brands);
-            }
-        }
+      
 
         // ---- LOCATION ----
         function fetchAllLocations() {
@@ -2563,34 +2250,23 @@
                 } else {
                     quantityDisplay = `${parseInt(stock.total_stock, 10)} ${unitName} in stock`;
                 }
-                // Create card element with safe image handling
-                const cardDiv = document.createElement('div');
-                cardDiv.className = 'col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-3';
-                
-                const productCard = document.createElement('div');
-                productCard.className = 'product-card';
-                productCard.setAttribute('data-id', product.id);
-                
-                // Create safe image
-                const img = createSafeImage(product, 'width: 100%; height: auto; object-fit: cover;');
-                
-                const cardBody = document.createElement('div');
-                cardBody.className = 'product-card-body';
-                cardBody.innerHTML = `
-                    <h6>${product.product_name} <br>
-                        <span class="badge text-dark">SKU: ${product.sku || 'N/A'}</span>
-                    </h6>
-                    <h6>
-                        <span class="badge ${product.stock_alert === 0 ? 'bg-info' : stock.total_stock > 0 ? 'bg-success' : 'bg-warning'}">
-                        ${quantityDisplay}
-                        </span>
-                    </h6>
-                `;
-                
-                productCard.appendChild(img);
-                productCard.appendChild(cardBody);
-                cardDiv.appendChild(productCard);
-                posProduct.appendChild(cardDiv);
+                const cardHTML = `
+            <div class="col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-3">
+            <div class="product-card" data-id="${product.id}">
+                <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" alt="${product.product_name}">
+                <div class="product-card-body">
+                <h6>${product.product_name} <br>
+                    <span class="badge text-dark">SKU: ${product.sku || 'N/A'}</span>
+                </h6>
+                <h6>
+                    <span class="badge ${product.stock_alert === 0 ? 'bg-info' : stock.total_stock > 0 ? 'bg-success' : 'bg-warning'}">
+                    ${quantityDisplay}
+                    </span>
+                </h6>
+                </div>
+            </div>
+            </div>`;
+                posProduct.insertAdjacentHTML('beforeend', cardHTML);
             });
             // Add click event to product cards
             document.querySelectorAll('.product-card').forEach(card => {
@@ -2633,17 +2309,6 @@
         }
 
         function createProductSearchRequest(term, response) {
-            // Create cache key based on search term and location
-            const cacheKey = `search_${selectedLocationId}_${term.toLowerCase()}`;
-            
-            // Check cache first
-            const cached = searchCache.get(cacheKey);
-            if (cached && (Date.now() - cached.timestamp < searchCacheExpiry)) {
-                console.log('Using cached search results for:', term);
-                autocompleteState.isRequesting = false;
-                return response(cached.results);
-            }
-            
             return $.ajax({
                 url: '/products/stocks/autocomplete',
                 data: {
@@ -2653,7 +2318,7 @@
                 },
                 timeout: 10000,
                 success: function(data) {
-                    handleSearchSuccess(data, term, response, cacheKey);
+                    handleSearchSuccess(data, term, response);
                 },
                 error: function(jqXHR, textStatus) {
                     handleSearchError(jqXHR, textStatus, response);
@@ -2661,7 +2326,7 @@
             });
         }
 
-        function handleSearchSuccess(data, term, response, cacheKey = null) {
+        function handleSearchSuccess(data, term, response) {
             autocompleteState.isRequesting = false;
             
             if (data.status !== 200 || !Array.isArray(data.data)) {
@@ -2674,15 +2339,6 @@
             
             if (results.length === 0) {
                 results.push({ label: "No results found", value: "" });
-            }
-
-            // Cache the results if cache key is provided
-            if (cacheKey && results.length > 0) {
-                searchCache.set(cacheKey, {
-                    results: results,
-                    timestamp: Date.now()
-                });
-                console.log('Cached search results for:', term);
             }
 
             autocompleteState.lastResults = results.filter(r => r.product);
@@ -5093,8 +4749,8 @@
             const basePrice = product.retail_price;
             const discountAmount = product.discount_amount || 0;
             const finalPrice = product.discount_type === 'percentage' ?
-                basePrice * (1 - (discountAmount || 0) / 100) :
-                basePrice - (discountAmount || 0);
+                basePrice * (1 - discountAmount / 100) :
+                basePrice - discountAmount;
 
             // Store product and stock entry for IMEI handling
             currentImeiProduct = product;
@@ -5276,10 +4932,7 @@
 
                 modalBody.innerHTML = `
                     <div class="d-flex align-items-center mb-3">
-                        <img src="${getSafeImageUrl(product)}" 
-                             style="width:50px; height:50px; margin-right:15px; border-radius:8px; object-fit:cover;" 
-                             alt="${product.product_name}"
-                             onerror="this.onerror=null; this.src='/assets/images/No Product Image Available.png'; console.log('Image fallback applied for: ${product.product_name}');" />
+                        <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:15px; border-radius:8px; object-fit:cover;"/>
                         <div>
                             <div class="fw-bold fs-5">${product.product_name}</div>
                             <div class="text-muted">${product.sku}</div>
@@ -5543,14 +5196,14 @@
                     if (finalPrice < 0) finalPrice = 0;
                     console.log('Fixed discount applied:', {discountFixed, finalPrice, MRP: product.max_retail_price});
                 } else if (discountType === 'percentage') {
-                    discountPercent = parseFloat(discountAmount) || 0;
-                    finalPrice = product.max_retail_price * (1 - (discountPercent || 0) / 100);
+                    discountPercent = parseFloat(discountAmount);
+                    finalPrice = product.max_retail_price * (1 - discountPercent / 100);
                     console.log('Percentage discount applied:', {discountPercent, finalPrice, MRP: product.max_retail_price});
                 }
             } else if (activeDiscount) {
                 if (activeDiscount.type === 'percentage') {
-                    discountPercent = activeDiscount.amount || 0;
-                    finalPrice = product.max_retail_price * (1 - (discountPercent || 0) / 100);
+                    discountPercent = activeDiscount.amount;
+                    finalPrice = product.max_retail_price * (1 - discountPercent / 100);
                 } else if (activeDiscount.type === 'fixed') {
                     discountFixed = activeDiscount.amount;
                     finalPrice = product.max_retail_price - discountFixed;
@@ -5701,14 +5354,12 @@
         <td class="text-center counter-cell" style="vertical-align: middle; font-weight: bold; color: #000;"></td>
         <td>
             <div class="d-flex align-items-start">
-            <img src="${getSafeImageUrl(product)}" 
+            <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" 
                  style="width:50px; height:50px; margin-right:10px; border-radius:50%;" 
                  class="product-image"
                  title="Unit Cost: ${batch ? (batch.unit_cost || batch.purchase_price || 'N/A') : (product.unit_cost || product.purchase_price || 'N/A')} | Original Price: ${product.original_price || product.purchase_price || 'N/A'}"
-                 alt="${product.product_name}"
                  data-bs-toggle="tooltip" 
-                 data-bs-placement="top"
-                 onerror="this.onerror=null; this.src='/assets/images/No Product Image Available.png'; console.log('Image fallback applied for billing row: ${product.product_name}');"/>
+                 data-bs-placement="top"/>
             <div class="product-info" style="min-width: 0; flex: 1;">
             <div class="font-weight-bold product-name" style="word-break: break-word; max-width: 260px; line-height: 1.2;" title="Unit Cost: ${batch ? (batch.unit_cost || batch.purchase_price || 'N/A') : (product.unit_cost || product.purchase_price || 'N/A')} | Original Price: ${product.original_price || product.purchase_price || 'N/A'}">
             ${product.product_name}
@@ -7316,9 +6967,7 @@
                             refreshStockDataAfterSale(saleData);
 
                             // IMMEDIATE refresh of Recent Transactions data
-                            if (!window.fetchingSalesData) {
-                                fetchSalesData();
-                            }
+                            fetchSalesData();
 
                             // IMMEDIATE form reset and UI feedback - don't wait for async operations
                             resetForm();
@@ -8685,16 +8334,7 @@
             }
 
         });
-    // Prevent multiple initialization
-    let recentTransactionsInitialized = false;
-    
     $(document).ready(function() {
-        if (recentTransactionsInitialized) {
-            console.log('Recent transactions already initialized, skipping...');
-            return;
-        }
-        recentTransactionsInitialized = true;
-        
         // Initialize DataTable with proper configuration
         if ($.fn.DataTable.isDataTable('#transactionTable')) {
             $('#transactionTable').DataTable().destroy();
@@ -8709,8 +8349,8 @@
             ]
         });
 
-        // Unbind existing tab event listeners first, then setup new ones
-        $('#transactionTabs a[data-bs-toggle="tab"]').off('shown.bs.tab').on('shown.bs.tab', function (e) {
+        // Setup tab event listeners for Recent Transactions
+        $('#transactionTabs a[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
             const target = $(e.target).attr('href');
             let status = '';
             
@@ -8736,53 +8376,23 @@
             }
             
             console.log('Tab switched to:', status);
-            debouncedLoadTableData(status);
+            loadTableData(status);
         });
 
         // Fetch sales data on page load
         fetchSalesData();
 
-        // Unbind existing modal event listeners first, then setup new one
-        $('#recentTransactionsModal').off('shown.bs.modal').on('shown.bs.modal', function () {
+        // Setup modal event listener to refresh data when modal is shown
+        $('#recentTransactionsModal').on('shown.bs.modal', function () {
             console.log('Recent Transactions modal opened, refreshing data...');
-            // Only fetch if we don't already have data or if data is stale
-            if (sales.length === 0 || shouldRefreshSalesData()) {
-                fetchSalesData();
-            } else {
-                console.log('Using cached sales data');
-                loadTableData('final'); // Just reload the table with existing data
-            }
+            fetchSalesData();
         });
     });
 
     let sales = [];
-    let lastSalesDataFetch = 0;
-    const SALES_CACHE_DURATION = 30000; // 30 seconds
-    let isLoadingTableData = false; // Prevent concurrent loading
-    let loadTableDataTimeout = null; // For debouncing
-
-    // Check if sales data should be refreshed
-    function shouldRefreshSalesData() {
-        return (Date.now() - lastSalesDataFetch) > SALES_CACHE_DURATION;
-    }
-
-    // Debounced version of loadTableData
-    function debouncedLoadTableData(status) {
-        clearTimeout(loadTableDataTimeout);
-        loadTableDataTimeout = setTimeout(() => {
-            loadTableData(status);
-        }, 100); // 100ms debounce
-    }
 
     // Function to fetch sales data from the server using AJAX
     function fetchSalesData() {
-        // Prevent multiple concurrent fetches
-        if (window.fetchingSalesData) {
-            console.log('Already fetching sales data, skipping...');
-            return;
-        }
-        
-        window.fetchingSalesData = true;
         console.log('Fetching sales data...');
         
         $.ajax({
@@ -8793,8 +8403,6 @@
                 recent_transactions: 'true' // Add parameter to get all statuses for Recent Transactions
             },
             success: function(data) {
-                window.fetchingSalesData = false;
-                lastSalesDataFetch = Date.now();
                 console.log('Sales data received:', data);
                 
                 if (Array.isArray(data)) {
@@ -8815,7 +8423,6 @@
                 updateTabBadges();
             },
             error: function(xhr, status, error) {
-                window.fetchingSalesData = false;
                 console.error('Error fetching sales data:', error);
                 console.error('Response:', xhr.responseText);
                 
@@ -8828,21 +8435,17 @@
     }
 
     function loadTableData(status) {
-        // Prevent concurrent loading
-        if (isLoadingTableData) {
-            console.log('Table data already loading, skipping...');
-            return;
-        }
-        
-        isLoadingTableData = true;
         console.log('Loading table data for status:', status);
         console.log('Available sales:', sales.length);
         
         const table = $('#transactionTable').DataTable();
         table.clear(); // Clear existing data
 
-        // Filter by status - remove excessive logging per sale
-        const filteredSales = sales.filter(sale => sale.status === status);
+        // Filter by status
+        const filteredSales = sales.filter(sale => {
+            console.log('Checking sale:', sale.id, 'Status:', sale.status, 'Target:', status);
+            return sale.status === status;
+        });
         
         console.log('Filtered sales for', status, ':', filteredSales.length);
 
@@ -8898,9 +8501,6 @@
         }
 
         table.draw(); // Draw all rows at once for performance
-        
-        // Reset loading flag
-        isLoadingTableData = false;
         
         // Update tab badge counts
         updateTabBadges();

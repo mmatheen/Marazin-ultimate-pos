@@ -431,35 +431,148 @@
 
         // When modal opens, re-initialize Select2 inside the modal
         $('#new_purchase_product').on('shown.bs.modal', function() {
-            // Destroy any previous Select2 instance to avoid duplication
-            $(this).find('.select').each(function() {
-                if ($(this).data('select2')) {
-                    $(this).select2('destroy');
+            // First, clear and reset form
+            $('#addForm')[0].reset();
+            
+            // Clear any previous error messages
+            $('.text-danger').text('');
+            
+            // Remove any validation error classes
+            $('.form-control').removeClass('is-invalid is-valid');
+            
+            // Fetch fresh dropdown data and populate dropdowns
+            $.ajax({
+                url: '/initial-product-details',
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    if (response.status === 200) {
+                        const brands = response.message.brands;
+                        const mainCategories = response.message.mainCategories;
+                        const subCategories = response.message.subCategories;
+                        const units = response.message.units;
+                        const locations = response.message.locations;
+                        
+                        // Destroy any previous Select2 instance to avoid duplication
+                        $('#new_purchase_product .select').each(function() {
+                            if ($(this).data('select2')) {
+                                $(this).select2('destroy');
+                            }
+                        });
+
+                        // Clear and populate dropdowns with fresh data
+                        // Units dropdown
+                        $('#edit_unit_id').empty().append('<option>Select Unit</option>');
+                        units.forEach(unit => {
+                            $('#edit_unit_id').append(`<option value="${unit.id}">${unit.name}</option>`);
+                        });
+
+                        // Brands dropdown
+                        $('#edit_brand_id').empty().append('<option>Select Brand</option>');
+                        brands.forEach(brand => {
+                            $('#edit_brand_id').append(`<option value="${brand.id}">${brand.name}</option>`);
+                        });
+
+                        // Main Categories dropdown
+                        $('#edit_main_category_id').empty().append('<option>Select Main Category</option>');
+                        mainCategories.forEach(category => {
+                            $('#edit_main_category_id').append(`<option value="${category.id}">${category.mainCategoryName}</option>`);
+                        });
+
+                        // Sub Categories dropdown (initially empty with proper value)
+                        $('#edit_sub_category_id').empty().append('<option value="">Select Sub Category</option>');
+                        
+                        // Locations dropdown
+                        $('#edit_location_id').empty();
+                        locations.forEach(location => {
+                            $('#edit_location_id').append(`<option value="${location.id}">${location.name}</option>`);
+                        });
+
+                        // Re-apply Select2 to dropdowns inside the modal
+                        $('#new_purchase_product .select').select2({
+                            dropdownParent: $('#new_purchase_product'),
+                            width: '100%'
+                        });
+                        
+                        // Initialize location select with multiple selection
+                        $('.multiple-location').select2({
+                            placeholder: "Select Business Locations",
+                            allowClear: true,
+                            dropdownParent: $('#new_purchase_product'),
+                            width: '100%'
+                        });
+
+                        // Optional: Focus search input after opening dropdown
+                        $('#new_purchase_product .select').on('select2:open', function() {
+                            setTimeout(() => {
+                                const allDropdowns = document.querySelectorAll(
+                                    '.select2-container--open');
+                                const lastOpenedDropdown = allDropdowns[allDropdowns.length - 1];
+                                if (lastOpenedDropdown) {
+                                    const searchInput = lastOpenedDropdown.querySelector(
+                                        '.select2-search__field');
+                                    if (searchInput) {
+                                        searchInput.focus();
+                                        searchInput.select();
+                                    }
+                                }
+                            }, 10);
+                        });
+                    }
+                },
+                error: function() {
+                    // Fallback: Just reinitialize Select2 if AJAX fails
+                    $('#new_purchase_product .select').each(function() {
+                        if ($(this).data('select2')) {
+                            $(this).select2('destroy');
+                        }
+                    });
+
+                    $('#new_purchase_product .select').select2({
+                        dropdownParent: $('#new_purchase_product'),
+                        width: '100%'
+                    });
+                    
+                    $('.multiple-location').select2({
+                        placeholder: "Select Business Locations",
+                        allowClear: true,
+                        dropdownParent: $('#new_purchase_product'),
+                        width: '100%'
+                    });
                 }
             });
+        });
 
-            // Re-apply Select2 to dropdowns inside the modal
-            $(this).find('.select').select2({
-                dropdownParent: $('#new_purchase_product'), // Important for modals
-                width: '100%'
-            });
-
-            // Optional: Focus search input after opening dropdown
-            $(this).find('.select').on('select2:open', function() {
-                setTimeout(() => {
-                    const allDropdowns = document.querySelectorAll(
-                        '.select2-container--open');
-                    const lastOpenedDropdown = allDropdowns[allDropdowns.length - 1];
-                    if (lastOpenedDropdown) {
-                        const searchInput = lastOpenedDropdown.querySelector(
-                            '.select2-search__field');
-                        if (searchInput) {
-                            searchInput.focus();
-                            searchInput.select();
+        // Handle main category change to populate sub-categories
+        $(document).on('change', '#edit_main_category_id', function() {
+            const selectedCategoryId = $(this).val();
+            
+            // Clear sub-categories
+            $('#edit_sub_category_id').empty().append('<option value="">Select Sub Category</option>');
+            
+            if (selectedCategoryId) {
+                // Fetch sub-categories for the selected main category
+                $.ajax({
+                    url: `/get-subcategories/${selectedCategoryId}`,
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.status === 200 && response.message.subCategories) {
+                            response.message.subCategories.forEach(subCategory => {
+                                $('#edit_sub_category_id').append(`<option value="${subCategory.id}">${subCategory.subCategoryname}</option>`);
+                            });
                         }
+                        // Trigger Select2 update
+                        $('#edit_sub_category_id').trigger('change.select2');
+                    },
+                    error: function() {
+                        console.log('Error loading sub-categories');
                     }
-                }, 10);
-            });
+                });
+            }
+            
+            // Trigger Select2 update
+            $('#edit_sub_category_id').trigger('change.select2');
         });
 
         // Destroy Select2 when modal is closed to prevent duplication on next open
@@ -469,6 +582,9 @@
                     $(this).select2('destroy');
                 }
             });
+            
+            // Reset form when modal is closed
+            $('#addForm')[0].reset();
         });
     });
 </script>

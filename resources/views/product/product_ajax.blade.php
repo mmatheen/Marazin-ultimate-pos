@@ -379,7 +379,7 @@
         // Only add placeholder for non-multiple select dropdowns
         if (!selector.includes('locations[]') && selector !== '#edit_location_id') {
             const placeholder = placeholders[selector] || 'Select Option';
-            selectElement.append(`<option value="" disabled selected>${placeholder}</option>`);
+            selectElement.append(`<option value="">${placeholder}</option>`);
         }
 
         // Add the actual data items
@@ -1771,6 +1771,12 @@
         let form = $('#addForm')[0];
         let formData = new FormData(form);
 
+        // Handle nullable fields - convert empty string to null for sub_category_id
+        const subCategoryValue = $('#edit_sub_category_id').val();
+        if (subCategoryValue === '' || subCategoryValue === null || subCategoryValue === 'Select Sub Category') {
+            formData.delete('sub_category_id'); // Remove the field entirely if empty
+        }
+
         // Add Summernote content if available
         if ($('#summernote').length) {
             formData.append('description', $('#summernote').val());
@@ -2091,7 +2097,7 @@
     $('#edit_main_category_id').change(function() {
         var main_category_id = $(this).val();
         $('#edit_sub_category_id').empty().append(
-            '<option selected disabled>Sub Category</option>');
+            '<option value="">Select Sub Category</option>');
 
         $.ajax({
             url: '/sub_category-details-get-by-main-category-id/' + main_category_id,
