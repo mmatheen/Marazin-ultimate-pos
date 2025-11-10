@@ -8703,8 +8703,9 @@
         $('#transactionTable').DataTable({
             responsive: true,
             pageLength: 10,
-            order: [[0, 'desc']], // Sort by first column (ID) descending
+            order: [], // Disable initial ordering since we handle it manually
             columnDefs: [
+                { orderable: true, targets: [0, 1, 2, 3, 4] }, // Enable sorting on data columns
                 { orderable: false, targets: [5] } // Disable sorting on Actions column
             ]
         });
@@ -8790,7 +8791,10 @@
             type: 'GET',
             dataType: 'json',
             data: {
-                recent_transactions: 'true' // Add parameter to get all statuses for Recent Transactions
+                recent_transactions: 'true', // Add parameter to get all statuses for Recent Transactions
+                order_by: 'created_at', // Request sorting by creation date
+                order_direction: 'desc', // Latest first
+                limit: 50 // Limit to last 50 transactions for better performance
             },
             success: function(data) {
                 window.fetchingSalesData = false;
@@ -8856,8 +8860,25 @@
                 ''
             ]);
         } else {
-            // Sort by id descending (latest ID first)
-            const sortedSales = filteredSales.sort((a, b) => b.id - a.id);
+            // Sort by date and time descending (latest first), fallback to ID if no date
+            const sortedSales = filteredSales.sort((a, b) => {
+                // First try to sort by created_at date
+                if (a.created_at && b.created_at) {
+                    const dateA = new Date(a.created_at);
+                    const dateB = new Date(b.created_at);
+                    return dateB.getTime() - dateA.getTime(); // Latest first
+                }
+                
+                // Fallback to sale_date if created_at is not available
+                if (a.sale_date && b.sale_date) {
+                    const dateA = new Date(a.sale_date);
+                    const dateB = new Date(b.sale_date);
+                    return dateB.getTime() - dateA.getTime(); // Latest first
+                }
+                
+                // Final fallback to ID (latest ID first)
+                return (b.id || 0) - (a.id || 0);
+            });
 
             // Add each row in sorted order
             sortedSales.forEach((sale, index) => {
