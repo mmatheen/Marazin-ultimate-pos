@@ -1076,6 +1076,102 @@ class UnifiedLedgerService
     }
 
     /**
+     * Handle sale edit with customer change - properly manages ledger transfers
+     */
+    public function editSaleWithCustomerChange($sale, $oldCustomerId, $newCustomerId, $oldFinalTotal, $editReason = null)
+    {
+        return DB::transaction(function () use ($sale, $oldCustomerId, $newCustomerId, $oldFinalTotal, $editReason) {
+            $referenceNo = $sale->invoice_no ?: 'INV-' . $sale->id;
+            $newFinalTotal = $sale->final_total;
+
+            // Skip if both customers are Walk-In (no ledger impact)
+            if ($oldCustomerId == 1 && $newCustomerId == 1) {
+                return null;
+            }
+
+            Log::info("Processing sale edit with customer change", [
+                'sale_id' => $sale->id,
+                'reference_no' => $referenceNo,
+                'old_customer_id' => $oldCustomerId,
+                'new_customer_id' => $newCustomerId,
+                'old_amount' => $oldFinalTotal,
+                'new_amount' => $newFinalTotal
+            ]);
+
+            // STEP 1: Remove/reverse entries from old customer (if not Walk-In)
+            if ($oldCustomerId != 1) {
+                // Find original sale entries for old customer
+                $oldSaleEntries = Ledger::where('reference_no', $referenceNo)
+                    ->where('user_id', $oldCustomerId)
+                    ->where('contact_type', 'customer')
+                    ->where('transaction_type', 'sale')
+                    ->where('debit', '>', 0) // Only actual sale entries
+                    ->get();
+
+                foreach ($oldSaleEntries as $entry) {
+                    // Create reversal entry for old customer
+                    Ledger::createEntry([
+                        'user_id' => $oldCustomerId,
+                        'contact_type' => 'customer',
+                        'transaction_date' => Carbon::now('Asia/Colombo'),
+                        'reference_no' => "EDIT-CUST-REV-{$referenceNo}",
+                        'transaction_type' => 'sale',
+                        'amount' => -$entry->debit, // Negative to create credit (reversal)
+                        'notes' => "Sale Customer Change - Removed from Customer #{$oldCustomerId} (Rs{$entry->debit})" . 
+                                  ($editReason ? " | Reason: {$editReason}" : '')
+                    ]);
+                }
+
+                // Also reverse any related payment entries from old customer
+                $oldPaymentEntries = Ledger::where('reference_no', $referenceNo)
+                    ->where('user_id', $oldCustomerId)
+                    ->where('contact_type', 'customer')
+                    ->where('transaction_type', 'payments')
+                    ->where('credit', '>', 0) // Only actual payment entries
+                    ->get();
+
+                foreach ($oldPaymentEntries as $entry) {
+                    // Create reversal entry for old customer payments
+                    Ledger::createEntry([
+                        'user_id' => $oldCustomerId,
+                        'contact_type' => 'customer',
+                        'transaction_date' => Carbon::now('Asia/Colombo'),
+                        'reference_no' => "EDIT-PAY-REV-{$referenceNo}",
+                        'transaction_type' => 'payments',
+                        'amount' => $entry->credit, // Positive to create debit (reversal of credit)
+                        'notes' => "Payment Customer Change - Removed from Customer #{$oldCustomerId} (Rs{$entry->credit})" . 
+                                  ($editReason ? " | Reason: {$editReason}" : '')
+                    ]);
+                }
+            }
+
+            // STEP 2: Add entries to new customer (if not Walk-In)
+            if ($newCustomerId != 1) {
+                // Create sale entry for new customer
+                Ledger::createEntry([
+                    'user_id' => $newCustomerId,
+                    'contact_type' => 'customer',
+                    'transaction_date' => Carbon::now('Asia/Colombo'),
+                    'reference_no' => $referenceNo,
+                    'transaction_type' => 'sale',
+                    'amount' => $newFinalTotal,
+                    'notes' => "Sale Customer Change - Added to Customer #{$newCustomerId} (Rs{$newFinalTotal})" . 
+                              ($editReason ? " | Reason: {$editReason}" : '')
+                ]);
+
+                // Note: Payment entries will be recreated by the payment processing in controller
+            }
+
+            return [
+                'old_customer_id' => $oldCustomerId,
+                'new_customer_id' => $newCustomerId,
+                'amount_transferred' => $newFinalTotal,
+                'status' => 'customer_change_completed'
+            ];
+        });
+    }
+
+    /**
      * Update sale transaction - creates proper reversal entries for audit trail
      */
     public function updateSale($sale, $oldReferenceNo = null)

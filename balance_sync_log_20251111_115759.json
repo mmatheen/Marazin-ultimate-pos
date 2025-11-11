@@ -1,0 +1,520 @@
+{
+    "timestamp": "2025-11-11 11:57:59",
+    "backup_table": "customers_balance_backup_20251111_115759",
+    "total_corrections": 73,
+    "successful_corrections": 73,
+    "total_amount_corrected": 6248005.699999999,
+    "corrections": [
+        {
+            "customer_id": 926,
+            "name": "Abtulla Multy Shop - MRM ",
+            "old_balance": "0.00",
+            "new_balance": "737422.75",
+            "correction": 737422.75
+        },
+        {
+            "customer_id": 932,
+            "name": "Elite Marketing - STR ",
+            "old_balance": "0.00",
+            "new_balance": "431270.00",
+            "correction": 431270
+        },
+        {
+            "customer_id": 913,
+            "name": "Tharindu Enterprises - Medirigiriya ",
+            "old_balance": "0.00",
+            "new_balance": "420650.00",
+            "correction": 420650
+        },
+        {
+            "customer_id": 911,
+            "name": "Anuja Super center - ADP ",
+            "old_balance": "0.00",
+            "new_balance": "359000.00",
+            "correction": 359000
+        },
+        {
+            "customer_id": 279,
+            "name": "Anver Tex - NTR ",
+            "old_balance": "0.00",
+            "new_balance": "238211.50",
+            "correction": 238211.5
+        },
+        {
+            "customer_id": 925,
+            "name": "ARB Raseek Boss ",
+            "old_balance": "0.00",
+            "new_balance": "227040.00",
+            "correction": 227040
+        },
+        {
+            "customer_id": 398,
+            "name": "Rizny Fancy House -SMT ",
+            "old_balance": "0.00",
+            "new_balance": "220692.00",
+            "correction": 220692
+        },
+        {
+            "customer_id": 381,
+            "name": "Asaly Tex & Multi Shop - NTR ",
+            "old_balance": "0.00",
+            "new_balance": "199026.40",
+            "correction": 199026.4
+        },
+        {
+            "customer_id": 575,
+            "name": "Thahi Fashion House - IRK ",
+            "old_balance": "0.00",
+            "new_balance": "185975.50",
+            "correction": 185975.5
+        },
+        {
+            "customer_id": 945,
+            "name": "Kaise Show Room - SMT ",
+            "old_balance": "0.00",
+            "new_balance": "162816.00",
+            "correction": 162816
+        },
+        {
+            "customer_id": 317,
+            "name": "RADO Traders - KLM ",
+            "old_balance": "0.00",
+            "new_balance": "149804.25",
+            "correction": 149804.25
+        },
+        {
+            "customer_id": 436,
+            "name": "Safana Shopping Center & Textiles - CC ",
+            "old_balance": "0.00",
+            "new_balance": "143920.00",
+            "correction": 143920
+        },
+        {
+            "customer_id": 927,
+            "name": "Maryam's Beutique City - AKP ",
+            "old_balance": "0.00",
+            "new_balance": "138120.45",
+            "correction": 138120.45
+        },
+        {
+            "customer_id": 64,
+            "name": "AHA Shopping Complex - KLM ",
+            "old_balance": "0.00",
+            "new_balance": "125760.00",
+            "correction": 125760
+        },
+        {
+            "customer_id": 682,
+            "name": "Your Choice -NTR ",
+            "old_balance": "0.00",
+            "new_balance": "123325.50",
+            "correction": 123325.5
+        },
+        {
+            "customer_id": 776,
+            "name": "Hamthuna Store - KLM ",
+            "old_balance": "0.00",
+            "new_balance": "118800.00",
+            "correction": 118800
+        },
+        {
+            "customer_id": 39,
+            "name": "Aboobucker & Sons' - IRK ",
+            "old_balance": "0.00",
+            "new_balance": "113025.00",
+            "correction": 113025
+        },
+        {
+            "customer_id": 258,
+            "name": "Noordeen Store -IRK ",
+            "old_balance": "0.00",
+            "new_balance": "111142.50",
+            "correction": 111142.5
+        },
+        {
+            "customer_id": 920,
+            "name": "Ismail Boss ARB - STR ",
+            "old_balance": "0.00",
+            "new_balance": "109000.00",
+            "correction": 109000
+        },
+        {
+            "customer_id": 36,
+            "name": "Abee White - NTV ",
+            "old_balance": "0.00",
+            "new_balance": "104214.00",
+            "correction": 104214
+        },
+        {
+            "customer_id": 636,
+            "name": "Uthumalebba - Store -IRK ",
+            "old_balance": "0.00",
+            "new_balance": "100515.00",
+            "correction": 100515
+        },
+        {
+            "customer_id": 915,
+            "name": "USHA Show Room - Polonaruwa ",
+            "old_balance": "0.00",
+            "new_balance": "96050.00",
+            "correction": 96050
+        },
+        {
+            "customer_id": 924,
+            "name": "New Citizen - Polannaruwa ",
+            "old_balance": "0.00",
+            "new_balance": "92700.00",
+            "correction": 92700
+        },
+        {
+            "customer_id": 934,
+            "name": "Jai Kirushnaa -TVL ",
+            "old_balance": "0.00",
+            "new_balance": "91779.00",
+            "correction": 91779
+        },
+        {
+            "customer_id": 504,
+            "name": "Siraj Store -STR ",
+            "old_balance": "0.00",
+            "new_balance": "84718.00",
+            "correction": 84718
+        },
+        {
+            "customer_id": 340,
+            "name": "ARB Home Luxery - STR ",
+            "old_balance": "0.00",
+            "new_balance": "82950.00",
+            "correction": 82950
+        },
+        {
+            "customer_id": 420,
+            "name": "S I Multy plaza -NTR ",
+            "old_balance": "0.00",
+            "new_balance": "73303.60",
+            "correction": 73303.6
+        },
+        {
+            "customer_id": 918,
+            "name": "Fathima Store - IRK ",
+            "old_balance": "0.00",
+            "new_balance": "72560.00",
+            "correction": 72560
+        },
+        {
+            "customer_id": 931,
+            "name": "Fathima Multi Shop - AKP ",
+            "old_balance": "0.00",
+            "new_balance": "72433.80",
+            "correction": 72433.8
+        },
+        {
+            "customer_id": 908,
+            "name": "Maisoon Mahal - STR ",
+            "old_balance": "0.00",
+            "new_balance": "56170.00",
+            "correction": 56170
+        },
+        {
+            "customer_id": 183,
+            "name": "Amani Multi Shop - C C ",
+            "old_balance": "0.00",
+            "new_balance": "53332.00",
+            "correction": 53332
+        },
+        {
+            "customer_id": 17,
+            "name": "AA Fashion - NTV ",
+            "old_balance": "0.00",
+            "new_balance": "52600.00",
+            "correction": 52600
+        },
+        {
+            "customer_id": 161,
+            "name": "Musthak Store -NTR ",
+            "old_balance": "0.00",
+            "new_balance": "49965.00",
+            "correction": 49965
+        },
+        {
+            "customer_id": 767,
+            "name": "Hamad Shopping Mall - C C ",
+            "old_balance": "0.00",
+            "new_balance": "47050.00",
+            "correction": 47050
+        },
+        {
+            "customer_id": 476,
+            "name": "SH Shopping Complex - NTR ",
+            "old_balance": "0.00",
+            "new_balance": "46002.00",
+            "correction": 46002
+        },
+        {
+            "customer_id": 923,
+            "name": "Liba Multi - IRK ",
+            "old_balance": "0.00",
+            "new_balance": "45650.00",
+            "correction": 45650
+        },
+        {
+            "customer_id": 946,
+            "name": "Juzlan's - SMT ",
+            "old_balance": "0.00",
+            "new_balance": "45372.25",
+            "correction": 45372.25
+        },
+        {
+            "customer_id": 496,
+            "name": "Shopping Gallery - MRM ",
+            "old_balance": "0.00",
+            "new_balance": "45115.00",
+            "correction": 45115
+        },
+        {
+            "customer_id": 374,
+            "name": "AS Multi Center - C C ",
+            "old_balance": "0.00",
+            "new_balance": "44191.50",
+            "correction": 44191.5
+        },
+        {
+            "customer_id": 917,
+            "name": "Agar Multy - IRK ",
+            "old_balance": "0.00",
+            "new_balance": "41835.00",
+            "correction": 41835
+        },
+        {
+            "customer_id": 907,
+            "name": "Farsana Shopping Center - STR ",
+            "old_balance": "0.00",
+            "new_balance": "40650.00",
+            "correction": 40650
+        },
+        {
+            "customer_id": 909,
+            "name": "AMS Galaxy - STR ",
+            "old_balance": "0.00",
+            "new_balance": "35910.00",
+            "correction": 35910
+        },
+        {
+            "customer_id": 481,
+            "name": "Sakthi Sopping Center -TKV ",
+            "old_balance": "0.00",
+            "new_balance": "35460.00",
+            "correction": 35460
+        },
+        {
+            "customer_id": 910,
+            "name": "Alisfa Fancy shop - MTV ",
+            "old_balance": "0.00",
+            "new_balance": "32940.00",
+            "correction": 32940
+        },
+        {
+            "customer_id": 751,
+            "name": "Best Selection - NTR ",
+            "old_balance": "0.00",
+            "new_balance": "29350.00",
+            "correction": 29350
+        },
+        {
+            "customer_id": 940,
+            "name": "M Brothers - VRP ",
+            "old_balance": "0.00",
+            "new_balance": "27890.00",
+            "correction": 27890
+        },
+        {
+            "customer_id": 852,
+            "name": "Home Needs - ADD ",
+            "old_balance": "0.00",
+            "new_balance": "26350.00",
+            "correction": 26350
+        },
+        {
+            "customer_id": 912,
+            "name": "Asiri Electrical - ADP ",
+            "old_balance": "0.00",
+            "new_balance": "26000.00",
+            "correction": 26000
+        },
+        {
+            "customer_id": 133,
+            "name": "Mufarees Multi Shop - IRK ",
+            "old_balance": "0.00",
+            "new_balance": "25840.00",
+            "correction": 25840
+        },
+        {
+            "customer_id": 91,
+            "name": "Modern Home - CC ",
+            "old_balance": "0.00",
+            "new_balance": "25185.00",
+            "correction": 25185
+        },
+        {
+            "customer_id": 785,
+            "name": "Happy Selection - SMT ",
+            "old_balance": "0.00",
+            "new_balance": "25000.00",
+            "correction": 25000
+        },
+        {
+            "customer_id": 128,
+            "name": "Al Fathah - C C ",
+            "old_balance": "0.00",
+            "new_balance": "20458.20",
+            "correction": 20458.2
+        },
+        {
+            "customer_id": 578,
+            "name": "Thalha Corner - IRK ",
+            "old_balance": "0.00",
+            "new_balance": "20040.00",
+            "correction": 20040
+        },
+        {
+            "customer_id": 455,
+            "name": "Samsudeen Stores-KLM ",
+            "old_balance": "0.00",
+            "new_balance": "16000.00",
+            "correction": 16000
+        },
+        {
+            "customer_id": 247,
+            "name": "Niyas Malty  Shop  - NTR ",
+            "old_balance": "0.00",
+            "new_balance": "15530.00",
+            "correction": 15530
+        },
+        {
+            "customer_id": 942,
+            "name": "Best Multi Choice - NTR ",
+            "old_balance": "0.00",
+            "new_balance": "15500.00",
+            "correction": 15500
+        },
+        {
+            "customer_id": 378,
+            "name": "Rifay Multi Shop-NTR ",
+            "old_balance": "0.00",
+            "new_balance": "14842.00",
+            "correction": 14842
+        },
+        {
+            "customer_id": 61,
+            "name": "MH Multy Shop - STR ",
+            "old_balance": "0.00",
+            "new_balance": "13500.00",
+            "correction": 13500
+        },
+        {
+            "customer_id": 336,
+            "name": "AR Selection - SMT ",
+            "old_balance": "0.00",
+            "new_balance": "10800.00",
+            "correction": 10800
+        },
+        {
+            "customer_id": 213,
+            "name": "Amsar Sales Point - PLM ",
+            "old_balance": "0.00",
+            "new_balance": "10357.50",
+            "correction": 10357.5
+        },
+        {
+            "customer_id": 929,
+            "name": "Safna Shopping Center - CC ",
+            "old_balance": "0.00",
+            "new_balance": "9890.00",
+            "correction": 9890
+        },
+        {
+            "customer_id": 948,
+            "name": "Fazeel Gift Selection - NTR ",
+            "old_balance": "0.00",
+            "new_balance": "8000.00",
+            "correction": 8000
+        },
+        {
+            "customer_id": 947,
+            "name": "FM Trades - NTR ",
+            "old_balance": "0.00",
+            "new_balance": "8000.00",
+            "correction": 8000
+        },
+        {
+            "customer_id": 941,
+            "name": "Naheetha Multi Center - IRK ",
+            "old_balance": "0.00",
+            "new_balance": "7800.00",
+            "correction": 7800
+        },
+        {
+            "customer_id": 930,
+            "name": "Fashion Choice -ADD ",
+            "old_balance": "0.00",
+            "new_balance": "6800.00",
+            "correction": 6800
+        },
+        {
+            "customer_id": 517,
+            "name": "SLM Home Center - VPC ",
+            "old_balance": "0.00",
+            "new_balance": "6790.00",
+            "correction": 6790
+        },
+        {
+            "customer_id": 922,
+            "name": "Mubarak Mini Marker - NTR ",
+            "old_balance": "0.00",
+            "new_balance": "6000.00",
+            "correction": 6000
+        },
+        {
+            "customer_id": 936,
+            "name": "Waseem Store - VLP ",
+            "old_balance": "0.00",
+            "new_balance": "4680.00",
+            "correction": 4680
+        },
+        {
+            "customer_id": 170,
+            "name": "Nafeel Tax - CC ",
+            "old_balance": "0.00",
+            "new_balance": "3200.00",
+            "correction": 3200
+        },
+        {
+            "customer_id": 943,
+            "name": "Aboosali Bakery - STR ",
+            "old_balance": "0.00",
+            "new_balance": "3000.00",
+            "correction": 3000
+        },
+        {
+            "customer_id": 938,
+            "name": "Atheeth sweet centre - VRP ",
+            "old_balance": "0.00",
+            "new_balance": "1500.00",
+            "correction": 1500
+        },
+        {
+            "customer_id": 939,
+            "name": "MA Faizeer Store - VRP ",
+            "old_balance": "0.00",
+            "new_balance": "1170.00",
+            "correction": 1170
+        },
+        {
+            "customer_id": 1,
+            "name": "Walk-in Customer",
+            "old_balance": "0.00",
+            "new_balance": "-65.00",
+            "correction": -65
+        }
+    ]
+}

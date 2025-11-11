@@ -64,6 +64,9 @@ class ChequeService
                 // Handle ledger entries based on new status
                 $ledgerResult = $this->handleLedgerEntries($payment, $oldStatus, $newStatus, $bankCharges, $userId);
 
+                // Update sale total_paid when cheque status changes
+                $this->updateSaleTotalPaid($payment);
+
                 // Prepare response data
                 $responseData = [
                     'payment' => $payment->fresh(['sale', 'customer', 'chequeStatusHistory']),
@@ -507,5 +510,68 @@ class ChequeService
         ]);
 
         return $ledgerEntries;
+    }
+
+    /**
+     * Update sale's total_paid amount based on completed payments (excluding pending cheques)
+     * 
+     * @param Payment $payment
+     * @return bool
+     */
+    private function updateSaleTotalPaid($payment)
+    {
+        if ($payment->payment_type !== 'sale' || !$payment->reference_id) {
+            return false;
+        }
+
+        try {
+            // Calculate total paid amount excluding pending cheques
+            $totalPaid = DB::table('payments')
+                ->where('reference_id', $payment->reference_id)
+                ->where('payment_type', 'sale')
+                ->where(function($query) {
+                    $query->where('payment_method', '!=', 'cheque')
+                          ->orWhere(function($subQuery) {
+                              $subQuery->where('payment_method', 'cheque')
+                                       ->whereIn('cheque_status', ['cleared', 'deposited']);
+                          });
+                })
+                ->sum('amount');
+
+            // Get the sale
+            $sale = DB::table('sales')->where('id', $payment->reference_id)->first();
+            
+            if ($sale) {
+                $totalDue = $sale->final_total - $totalPaid;
+                
+                // Update sale with correct amounts
+                DB::table('sales')
+                    ->where('id', $payment->reference_id)
+                    ->update([
+                        'total_paid' => $totalPaid,
+                        'total_due' => max(0, $totalDue),
+                        'updated_at' => now()
+                    ]);
+
+                Log::info('Updated sale total_paid after cheque status change', [
+                    'sale_id' => $payment->reference_id,
+                    'payment_id' => $payment->id,
+                    'cheque_status' => $payment->cheque_status,
+                    'total_paid' => $totalPaid,
+                    'total_due' => max(0, $totalDue)
+                ]);
+
+                return true;
+            }
+
+        } catch (Exception $e) {
+            Log::error('Failed to update sale total_paid after cheque status change', [
+                'payment_id' => $payment->id,
+                'sale_id' => $payment->reference_id,
+                'error' => $e->getMessage()
+            ]);
+        }
+
+        return false;
     }
 }

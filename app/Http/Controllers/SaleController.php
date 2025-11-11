@@ -1143,8 +1143,14 @@ class SaleController extends Controller
                     
                     // ✨ FAST PATH: Simplified payment processing for Walk-In customers
                     if ($request->customer_id == 1 && !empty($request->payments)) {
-                        // Fast payment processing for Walk-In customers
-                        $totalPaid = collect($request->payments)->sum('amount');
+                        // Fast payment processing for Walk-In customers - FIXED: Exclude pending cheques
+                        $totalPaid = collect($request->payments)->sum(function($payment) {
+                            // Only count completed payments or cleared cheques
+                            if ($payment['payment_method'] === 'cheque') {
+                                return ($payment['cheque_status'] ?? 'pending') === 'cleared' ? $payment['amount'] : 0;
+                            }
+                            return $payment['amount'];
+                        });
                         
                         foreach ($request->payments as $paymentData) {
                             if (!empty($paymentData['amount']) && $paymentData['amount'] > 0) {
@@ -1166,7 +1172,18 @@ class SaleController extends Controller
                         ]);
                         
                     } elseif (!empty($request->payments)) {
-                        $totalPaid = array_sum(array_column($request->payments, 'amount'));
+                        // FIXED: Calculate total paid excluding pending cheques
+                        $totalPaid = 0;
+                        foreach ($request->payments as $payment) {
+                            // Only count completed payments or cleared cheques
+                            if ($payment['payment_method'] === 'cheque') {
+                                if (($payment['cheque_status'] ?? 'pending') === 'cleared') {
+                                    $totalPaid += $payment['amount'];
+                                }
+                            } else {
+                                $totalPaid += $payment['amount'];
+                            }
+                        }
 
                         if ($isUpdate) {
                             // Batch delete for better performance
@@ -1221,8 +1238,14 @@ class SaleController extends Controller
                             $payment = $this->paymentService->recordSalePayment($servicePaymentData, $sale);
                         }
 
-                        // ✨ PERFORMANCE FIX: Calculate total paid in single query
-                        $totalPaid = $paymentsToCreate->sum('amount');
+                        // ✨ FIXED: Calculate total paid excluding pending cheques
+                        $totalPaid = $paymentsToCreate->sum(function($payment) {
+                            // Only count completed payments or cleared cheques
+                            if ($payment['payment_method'] === 'cheque') {
+                                return ($payment['cheque_status'] ?? 'pending') === 'cleared' ? $payment['amount'] : 0;
+                            }
+                            return $payment['amount'];
+                        });
 
                         // Handle floating balance adjustment
                         if ($request->use_floating_balance && $request->floating_balance_amount > 0) {
@@ -1328,9 +1351,33 @@ class SaleController extends Controller
 
                 // ----- Ledger (optimized) - Skip for Walk-In customers -----
                 // ✨ PERFORMANCE FIX: Skip ledger updates for Walk-In customers (no credit tracking needed)
-                if ($request->customer_id != 1 && $isUpdate) {
-                    // For updates, use updateSale method to handle proper cleanup and recreation
-                    $this->unifiedLedgerService->updateSale($sale, $referenceNo);
+                if ($isUpdate) {
+                    $oldCustomerId = $sale->getOriginal('customer_id');
+                    $newCustomerId = $request->customer_id;
+                    $oldFinalTotal = $sale->getOriginal('final_total') ?? 0;
+                    
+                    // Check if customer has changed during edit
+                    if ($oldCustomerId != $newCustomerId) {
+                        // Customer changed - use special method to handle ledger transfer
+                        Log::info('Sale edit with customer change detected', [
+                            'sale_id' => $sale->id,
+                            'old_customer_id' => $oldCustomerId,
+                            'new_customer_id' => $newCustomerId,
+                            'old_amount' => $oldFinalTotal,
+                            'new_amount' => $sale->final_total
+                        ]);
+                        
+                        $this->unifiedLedgerService->editSaleWithCustomerChange(
+                            $sale, 
+                            $oldCustomerId, 
+                            $newCustomerId, 
+                            $oldFinalTotal,
+                            'Customer changed during sale edit'
+                        );
+                    } elseif ($newCustomerId != 1) {
+                        // Same customer, just amount/details changed - use regular update
+                        $this->unifiedLedgerService->updateSale($sale, $referenceNo);
+                    }
                     // Note: New sales are already recorded above (before payments)
                 }
                 // Note: Payment ledger processing is handled in payment creation loop above
