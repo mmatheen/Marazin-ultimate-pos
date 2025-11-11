@@ -152,14 +152,424 @@
 </style>
 
 <script>
-    $(document).ready(function() {
-    var csrfToken = $('meta[name="csrf-token"]').attr('content'); // For CSRF token
+    // Global variables accessible across all pages that include this file
+    window.isSubmitting = false;
+    window.isFormResetting = false;
+    
+    // Global product-related variables
+    var csrfToken = $('meta[name="csrf-token"]').attr('content');
     let allProducts = [];
     let categoryMap = {};
     let brandMap = {};
     let locationMap = {};
     let subCategories = [];
     const discountMap = {};
+    
+    // Global cache for dropdown data to avoid redundant API calls
+    window.dropdownDataCache = {
+        data: null,
+        timestamp: null,
+        cacheTimeout: 5 * 60 * 1000, // 5 minutes cache
+        isLoading: false,
+        pendingCallbacks: []
+    };
+    
+    // Global button selector for easier management
+    const allButtons = $('#onlySaveProductButton, #SaveProductButtonAndAnother, #openingStockAndProduct');
+
+    // Global validation timeout
+    let validationTimeout;
+
+    // Global form validation and button state management function
+    window.validateFormAndUpdateButtons = function() {
+        // Don't validate during submission or form reset
+        if (window.isSubmitting || window.isFormResetting) return; 
+
+        // Check all required fields using the correct field selectors
+        const requiredFields = [
+            '#edit_product_name',
+            '#edit_unit_id',
+            '#edit_brand_id', 
+            '#edit_main_category_id',
+            '#edit_retail_price',
+            '#edit_whole_sale_price',
+            '#edit_original_price',
+            '#edit_max_retail_price'
+        ];
+
+        let isFormValid = true;
+        let missingFields = [];
+
+        // Check each required field
+        requiredFields.forEach(function(selector) {
+            const field = $(selector);
+            const fieldName = field.attr('name') || selector.replace('#edit_', '');
+            const fieldValue = field.val();
+            
+            if (field.length && (!fieldValue || fieldValue === '' || fieldValue === null)) {
+                isFormValid = false;
+                missingFields.push(fieldName);
+                console.log('Missing field:', fieldName, 'Value:', fieldValue);
+            }
+        });
+
+        // Special check for locations array - check both possible selectors
+        const selectedLocations = $('select[name="locations[]"]').val() || $('#edit_location_id').val();
+        if (!selectedLocations || (Array.isArray(selectedLocations) && selectedLocations.length === 0)) {
+            isFormValid = false;
+            missingFields.push('locations');
+            console.log('Missing locations, current value:', selectedLocations);
+        }
+
+        // Update button state and styling only if not resetting
+        if (!window.isFormResetting) {
+            console.log('Form validation result:', isFormValid, 'Missing fields:', missingFields);
+            
+            // Define buttons within the function to ensure they're always found
+            const targetButtons = $('#onlySaveProductButton, #SaveProductButtonAndAnother, #openingStockAndProduct');
+            
+            if (isFormValid) {
+                targetButtons.prop('disabled', false);
+                targetButtons.removeClass('btn-secondary btn-outline-secondary').addClass('btn-primary');
+                console.log('Buttons enabled');
+            } else {
+                // Don't disable buttons - let user attempt submission to see specific errors
+                targetButtons.prop('disabled', false);
+                targetButtons.removeClass('btn-primary').addClass('btn-outline-primary');
+                console.log('Form incomplete but buttons remain enabled for error feedback');
+            }
+        }
+
+        return isFormValid;
+    };
+
+    // Global function to schedule validation with debouncing
+    window.scheduleValidation = function() {
+        clearTimeout(validationTimeout);
+        validationTimeout = setTimeout(window.validateFormAndUpdateButtons, 100);
+    };
+
+    // Utility function to clear dropdown cache (call after adding new categories, brands, etc.)
+    window.clearDropdownCache = function() {
+        console.log('Clearing dropdown data cache');
+        window.dropdownDataCache.data = null;
+        window.dropdownDataCache.timestamp = null;
+    };
+
+    // Global function to apply purchase context to product modal
+    window.applyPurchaseContext = function() {
+        console.log('Applying purchase context to product modal...');
+        
+        // Get purchase form values
+        const supplierId = $('#supplier-id').val();
+        const locationId = $('#services').val();
+        
+        if (!supplierId && !locationId) {
+            console.log('No purchase context to apply');
+            return;
+        }
+        
+        console.log('Purchase context found:', { supplierId, locationId });
+        
+        // Apply location context to product modal
+        if (locationId) {
+            console.log('Applying location context:', locationId);
+            
+            // Target the specific multi-select location field in the product modal
+            const $locationField = $('#edit_location_id, .multiple-location');
+            
+            if ($locationField.length > 0) {
+                console.log('Found location field, setting value:', locationId);
+                
+                // Set the value for multi-select field
+                $locationField.val([locationId]);
+                
+                // Trigger change event to update Select2
+                setTimeout(function() {
+                    $locationField.trigger('change');
+                    console.log('Location field updated and change triggered');
+                    
+                    // Force Select2 refresh if it's initialized
+                    if ($locationField.hasClass('select2-hidden-accessible')) {
+                        $locationField.select2('destroy').select2({
+                            placeholder: "Select Business Locations",
+                            dropdownParent: $('#new_purchase_product')
+                        });
+                        $locationField.val([locationId]).trigger('change');
+                        console.log('Select2 re-initialized with location value');
+                    }
+                }, 100);
+            } else {
+                console.log('Location field not found in product modal');
+            }
+        }
+        
+        console.log('Purchase context application completed');
+    };
+
+    // Utility function to refresh dropdown data (force refresh from server)
+    window.refreshDropdownData = function(callback) {
+        console.log('Forcing refresh of dropdown data');
+        window.getDropdownData(callback, true);
+    };
+
+    // Centralized function to get dropdown data with caching
+    window.getDropdownData = function(callback, forceRefresh = false) {
+        const cache = window.dropdownDataCache;
+        const now = Date.now();
+        
+        // Check if we have valid cached data
+        if (!forceRefresh && cache.data && cache.timestamp && (now - cache.timestamp) < cache.cacheTimeout) {
+            console.log('Using cached dropdown data');
+            if (callback) callback(cache.data);
+            return;
+        }
+        
+        // If already loading, add callback to pending list
+        if (cache.isLoading) {
+            console.log('Dropdown data request already in progress, queuing callback');
+            if (callback) cache.pendingCallbacks.push(callback);
+            return;
+        }
+        
+        // Start loading
+        cache.isLoading = true;
+        if (callback) cache.pendingCallbacks.push(callback);
+        
+        console.log('Fetching fresh dropdown data from API');
+        
+        $.ajax({
+            url: '/initial-product-details',
+            type: 'GET',
+            dataType: 'json',
+            timeout: 15000, // 15 second timeout
+            success: function(response) {
+                cache.isLoading = false;
+                
+                if (response.status === 200) {
+                    // Cache the successful response
+                    cache.data = response.message;
+                    cache.timestamp = now;
+                    
+                    // Store global subcategories for category filtering
+                    subCategories = response.message.subCategories || [];
+                    
+                    console.log('Dropdown data cached successfully');
+                    
+                    // Execute all pending callbacks
+                    const callbacks = [...cache.pendingCallbacks];
+                    cache.pendingCallbacks = [];
+                    
+                    callbacks.forEach(cb => {
+                        if (cb) cb(cache.data);
+                    });
+                } else {
+                    cache.pendingCallbacks = [];
+                    console.error('Failed to fetch dropdown data: Invalid response status');
+                }
+            },
+            error: function(xhr, status, error) {
+                cache.isLoading = false;
+                cache.pendingCallbacks = [];
+                console.error('Failed to fetch dropdown data:', error);
+                
+                if (status === 'timeout') {
+                    toastr.error('Request timed out. Please check your connection.', 'Timeout Error');
+                } else {
+                    toastr.error('Failed to load dropdown data. Please refresh the page.', 'Network Error');
+                }
+            }
+        });
+    };
+
+    // Global function to repopulate dropdown data using cached data
+    window.repopulateDropdowns = function(callback) {
+        window.getDropdownData(function(data) {
+            const brands = data.brands || [];
+            const mainCategories = data.mainCategories || [];
+            const subCategories = data.subCategories || [];
+            const units = data.units || [];
+            const locations = data.locations || [];
+
+            // Repopulate all dropdowns
+            repopulateDropdownOptions('#edit_brand_id', brands, 'name', 'Select Brand');
+            repopulateDropdownOptions('#edit_main_category_id', mainCategories, 'mainCategoryName', 'Select Main Category');
+            repopulateDropdownOptions('#edit_unit_id', units, 'name', 'Select Unit');
+            
+            // Handle locations dropdown specially
+            repopulateLocationDropdown(locations);
+            
+            // Reset sub-category to default
+            const $subCategory = $('#edit_sub_category_id');
+            $subCategory.empty().append('<option value="" disabled selected>Select Sub Category</option>');
+            
+            // Reset product type if it exists
+            const $productType = $('#edit_product_type');
+            if ($productType.length) {
+                $productType.val('').trigger('change');
+            }
+            
+            if (callback) callback();
+        });
+    };
+
+    // Helper function to repopulate a single dropdown
+    function repopulateDropdownOptions(selector, items, displayProperty, placeholder) {
+        const $dropdown = $(selector);
+        
+        // Clear existing options
+        $dropdown.empty();
+        
+        // Add placeholder
+        $dropdown.append(`<option value="" disabled selected>${placeholder}</option>`);
+        
+        // Add items
+        items.forEach(item => {
+            const option = $('<option></option>');
+            option.val(item.id);
+            option.text(item[displayProperty]);
+            $dropdown.append(option);
+        });
+        
+        // Re-initialize Select2 if it was previously initialized
+        if ($dropdown.hasClass('select2-hidden-accessible')) {
+            $dropdown.select2('destroy');
+        }
+        
+        $dropdown.select2({
+            placeholder: placeholder,
+            allowClear: true,
+            width: '100%'
+        });
+    }
+
+    // Helper function to repopulate location dropdown  
+    function repopulateLocationDropdown(locations) {
+        const $locationSelect = $('select[name="locations[]"], #edit_location_id');
+        
+        // Clear existing options
+        $locationSelect.empty();
+        
+        // Add location options (no placeholder for locations)
+        locations.forEach(location => {
+            const option = $('<option></option>');
+            option.val(location.id);
+            option.text(location.name);
+            $locationSelect.append(option);
+        });
+        
+        // Re-initialize Select2
+        $locationSelect.each(function() {
+            const $this = $(this);
+            if ($this.hasClass('select2-hidden-accessible')) {
+                $this.select2('destroy');
+            }
+            
+            $this.select2({
+                placeholder: 'Select Location',
+                allowClear: true,
+                width: '100%',
+                multiple: $this.attr('name') === 'locations[]'
+            });
+        });
+    }
+
+    // Global form reset function
+    window.resetFormAndValidation = function() {
+        // Set flag to indicate form is being reset
+        window.isFormResetting = true;
+
+        // Reset form and validation
+        $('#addForm')[0].reset();
+        if ($('#addForm').validate) {
+            $('#addForm').validate().resetForm();
+        }
+
+        // Clear validation styling
+        $('#addForm').find('.is-invalidRed, .is-validGreen').removeClass('is-invalidRed is-validGreen');
+        $('.text-danger').html('');
+
+        // Reset product image
+        $('#product-selectedImage').attr('src', '/assets/img/No Product Image Available.png');
+
+        // Clear product ID (important for edit mode)
+        $('#product_id').val('');
+
+        // Reset buttons to add mode
+        if (typeof resetButtonsForAddMode === 'function') {
+            resetButtonsForAddMode();
+        }
+
+        // Clear summernote content completely
+        if ($('#summernote').length && $('#summernote').summernote) {
+            $('#summernote').summernote('code', '');
+            $('#summernote').summernote('reset');
+        }
+
+        // Comprehensive input clearing
+        $('#addForm input[type="text"], #addForm input[type="number"], #addForm input[type="email"], #addForm input[type="tel"], #addForm textarea').each(function() {
+            $(this).val('').trigger('input').trigger('change');
+        });
+
+        // Clear checkboxes and radio buttons
+        $('#addForm input[type="checkbox"], #addForm input[type="radio"]').prop('checked', false).trigger('change');
+
+        // Clear all Select2 dropdowns completely
+        $('.select2-hidden-accessible').each(function() {
+            const $select = $(this);
+            try {
+                // Destroy existing Select2 instance
+                if ($select.data('select2')) {
+                    $select.select2('destroy');
+                }
+                // Clear value and reset to default state
+                $select.val(null).empty();
+            } catch (e) {
+                console.warn('Select2 reset failed:', e);
+            }
+        });
+
+        // Remove any lingering Select2 visual artifacts
+        $('.select2-selection__choice').remove();
+        $('.select2-container').remove();
+
+        // Reset and re-populate dropdowns with fresh data
+        setTimeout(function() {
+            window.repopulateDropdowns(function() {
+                // After re-populating, ensure everything is properly cleared
+                setTimeout(function() {
+                    // Ensure all dropdowns are reset to their placeholder values
+                    $('#edit_main_category_id, #edit_sub_category_id, #edit_brand_id, #edit_unit_id').each(function() {
+                        $(this).val('').trigger('change');
+                    });
+                    
+                    // Clear location selection
+                    $('select[name="locations[]"], #edit_location_id').val(null).trigger('change');
+
+                    // Clear the resetting flag
+                    window.isFormResetting = false;
+
+                    // Disable buttons initially 
+                    allButtons.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary');
+
+                    // Focus on first field and validate
+                    setTimeout(function() {
+                        $('#edit_product_name').focus();
+                        
+                        // Re-attach event listeners for validation
+                        $('#addForm').off('input change keyup blur').on('input change keyup blur', 'input, select, textarea', window.scheduleValidation);
+                        $(document).off('change.validation select2:select.validation select2:unselect.validation select2:clear.validation')
+                                   .on('change.validation select2:select.validation select2:unselect.validation select2:clear.validation', 'select', window.scheduleValidation);
+                        
+                        // Validate form state
+                        window.validateFormAndUpdateButtons();
+                    }, 100);
+                }, 200);
+            });
+        }, 100);
+    };
+
+    $(document).ready(function() {
 
     // Validation options
     var addAndUpdateValidationOptions = {
@@ -247,81 +657,30 @@
     // Initialize form validation and button states after setup
     setTimeout(function() {
         fetchInitialDropdowns(function() {
-            validateFormAndUpdateButtons();
+            window.validateFormAndUpdateButtons();
         });
     }, 500);
 
     // Global button selector for easier management
     const allButtons = $('#onlySaveProductButton, #SaveProductButtonAndAnother, #openingStockAndProduct');
 
-    // Improved form validation and button state management
-    function validateFormAndUpdateButtons() {
-        if (isSubmitting) return; // Don't change button state during submission
-
-        // Check all required fields
-        const requiredFields = [
-            'input[name="product_name"]',
-            'select[name="unit_id"]',
-            'select[name="brand_id"]',
-            'select[name="main_category_id"]',
-            'input[name="retail_price"]',
-            'input[name="whole_sale_price"]',
-            'input[name="original_price"]',
-            'input[name="max_retail_price"]'
-        ];
-
-        let isFormValid = true;
-        let missingFields = [];
-
-        // Check each required field
-        requiredFields.forEach(function(selector) {
-            const field = $(selector);
-            const fieldName = field.attr('name') || selector;
-            if (field.length && (!field.val() || field.val() === '')) {
-                isFormValid = false;
-                missingFields.push(fieldName);
-            }
-        });
-
-        // Special check for locations array
-        const selectedLocations = $('select[name="locations[]"]').val();
-        if (!selectedLocations || selectedLocations.length === 0) {
-            isFormValid = false;
-            missingFields.push('locations');
-        }
-
-        // Update button state and styling
-        if (isFormValid) {
-            allButtons.prop('disabled', false);
-            allButtons.removeClass('btn-secondary btn-outline-secondary').addClass('btn-primary');
-        } else {
-            allButtons.prop('disabled', true);
-            allButtons.removeClass('btn-primary').addClass('btn-secondary');
-        }
-
-        return isFormValid;
-    }
+    // Duplicate function removed - now using global window.validateFormAndUpdateButtons
 
     // Initialize buttons as disabled on page load
     allButtons.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary');
 
     // Monitor form changes with improved debouncing
-    let validationTimeout;
-
-    function scheduleValidation() {
-        clearTimeout(validationTimeout);
-        validationTimeout = setTimeout(validateFormAndUpdateButtons, 100);
-    }
+    // Removed local validationTimeout and scheduleValidation - now using global versions
 
     // Attach validation to form events
-    $('#addForm').on('input change keyup blur', 'input, select, textarea', scheduleValidation);
+    $('#addForm').on('input change keyup blur', 'input, select, textarea', window.scheduleValidation);
 
     // Special handling for Select2 dropdowns
-    $(document).on('change select2:select select2:unselect select2:clear', 'select', scheduleValidation);
+    $(document).on('change select2:select select2:unselect select2:clear', 'select', window.scheduleValidation);
 
     // Initial validation check after page load
     $(document).ready(function() {
-        setTimeout(validateFormAndUpdateButtons, 500);
+        setTimeout(window.validateFormAndUpdateButtons, 500);
     });
 
     // Helper function to populate a dropdown with improved caching and error handling
@@ -443,7 +802,7 @@
         if (locations.length === 1 && locations[0].selected && $('#product_id').val()) {
             setTimeout(function() {
                 $('#edit_location_id').val([locations[0].id]).trigger('change');
-                validateFormAndUpdateButtons();
+                window.validateFormAndUpdateButtons();
             }, 200);
         }
 
@@ -452,7 +811,7 @@
 
         // Validate form after initialization
         setTimeout(function() {
-            validateFormAndUpdateButtons();
+            window.validateFormAndUpdateButtons();
             if (callback) callback();
         }, 300);
     }
@@ -478,22 +837,17 @@
     }
 
     function fetchInitialDropdowns(callback) {
-        fetchData('/initial-product-details', function(response) {
+        // Use centralized cached function instead of direct API call
+        window.getDropdownData(function(data) {
+            const brands = data.brands || [];
+            const mainCategories = data.mainCategories || [];
+            const subCategories = data.subCategories || [];
+            const units = data.units || [];
+            const locations = data.locations || [];
+            const autoSelectSingle = data.auto_select_single_location || false;
 
-            if (response.status === 200) {
-                const brands = response.message.brands;
-                const mainCategories = response.message.mainCategories;
-                subCategories = response.message.subCategories; // Store subcategories globally
-                const units = response.message.units;
-                const locations = response.message.locations;
-                const autoSelectSingle = response.message.auto_select_single_location;
-
-                populateInitialDropdowns(mainCategories, subCategories, brands, units, locations,
-                    autoSelectSingle, callback);
-
-            } else {
-                // Failed to load initial product details
-            }
+            populateInitialDropdowns(mainCategories, subCategories, brands, units, locations,
+                autoSelectSingle, callback);
         });
     }
 
@@ -1567,78 +1921,7 @@
         }
     });
 
-    function resetFormAndValidation() {
-        // Reset form and validation
-        $('#addForm')[0].reset();
-        $('#addForm').validate().resetForm();
-
-        // Clear validation styling
-        $('#addForm').find('.is-invalidRed, .is-validGreen').removeClass('is-invalidRed is-validGreen');
-        $('.text-danger').html('');
-
-        // Reset product image
-        $('#product-selectedImage').attr('src', '/assets/img/No Product Image Available.png');
-
-        // Clear product ID (important for edit mode)
-        $('#product_id').val('');
-
-        // Reset buttons to add mode
-        resetButtonsForAddMode();
-
-        // Clear summernote content
-        if ($('#summernote').length) {
-            $('#summernote').summernote('code', '');
-        }
-
-        // Clear all input fields
-        $('input[type="text"], input[type="number"], input[type="email"], input[type="tel"], textarea').val(
-            '');
-
-        // Clear checkboxes and radio buttons
-        $('input[type="checkbox"], input[type="radio"]').prop('checked', false);
-
-        // Reset dropdowns first
-        resetAllDropdowns();
-
-        // Re-fetch and populate dropdown data to ensure proper options with placeholders
-        setTimeout(function() {
-            fetchInitialDropdowns(function() {
-                // After re-populating, ensure dropdowns are properly reset without selectable placeholders
-                setTimeout(function() {
-                    // Special handling for location dropdown to ensure no "Select Location" option is added
-                    const $locationSelects = $(
-                        '#edit_location_id, select[name="locations[]"]');
-                    $locationSelects.each(function() {
-                        const $this = $(this);
-                        // Clear selection but keep the actual location options
-                        $this.val(null).trigger('change');
-
-                        // Ensure Select2 shows proper placeholder without adding it as an option
-                        if ($this.hasClass('select2-hidden-accessible')) {
-                            $this.select2('destroy').select2({
-                                placeholder: 'Select Location',
-                                allowClear: true,
-                                width: '100%',
-                                multiple: $this.attr('name') ===
-                                    'locations[]'
-                            });
-                        }
-                    });
-
-                    // Reset other dropdowns normally
-                    resetAllDropdowns();
-
-                    // Disable buttons initially 
-                    allButtons.prop('disabled', true).removeClass('btn-primary')
-                        .addClass('btn-secondary');
-
-                    // Focus on first field and validate
-                    $('input[name="product_name"]').focus();
-                    validateFormAndUpdateButtons();
-                }, 200);
-            });
-        }, 100);
-    }
+    // Duplicate function removed - now using global window.resetFormAndValidation
 
     // Enhanced function to reset all dropdowns with proper placeholders
     function resetAllDropdowns() {
@@ -1734,8 +2017,7 @@
         }, 300);
     }
 
-    // Global flag to track submission state
-    let isSubmitting = false;
+    // Global flag now managed via window.isSubmitting (declared above)
 
     // Function to get the form action URL based on whether we are adding or updating
     function getFormActionUrl() {
@@ -1747,14 +2029,14 @@
     // Simplified form submission handler
     function handleFormSubmit(buttonType) {
         // Prevent double submission
-        if (isSubmitting) {
+        if (window.isSubmitting) {
             toastr.clear();
             toastr.warning('Form is already being submitted. Please wait.', 'Please Wait');
             return;
         }
 
         // Validate form first
-        if (!$('#addForm').valid() || !validateFormAndUpdateButtons()) {
+        if (!$('#addForm').valid() || !window.validateFormAndUpdateButtons()) {
             // Play warning sound if available
             if (document.getElementsByClassName('warningSound')[0]) {
                 document.getElementsByClassName('warningSound')[0].play();
@@ -1764,7 +2046,7 @@
         }
 
         // Set submission state and disable buttons
-        isSubmitting = true;
+        window.isSubmitting = true;
         allButtons.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary');
 
         // Prepare form data
@@ -1823,7 +2105,7 @@
                             // Add mode - normal behavior
                             toastr.clear(); // Clear any existing notifications
                             toastr.success(response.message, 'Success');
-                            resetFormAndValidation();
+                            window.resetFormAndValidation();
                             // Only fetch and add to purchase table if it exists
                             if ($('#purchase_product').length > 0) {
                                 fetchLastAddedProducts();
@@ -1844,58 +2126,19 @@
                         } else {
                             // Add mode - reset form for next product
                             toastr.clear();
-                            toastr.success(response.message + ' - Ready for next product',
-                                'Success');
+                            toastr.success(response.message + ' - Ready for next product', 'Success');
 
-                            // Comprehensive form reset with multiple clearing approaches
+                            // Use the improved reset function without conflicting operations
                             setTimeout(function() {
-                                // First, use the standard reset function
-                                resetFormAndValidation();
-
-                                // Additional aggressive clearing for persistent elements
+                                window.resetFormAndValidation();
+                                
+                                // Add product to purchase table if it exists (after form reset completes)
                                 setTimeout(function() {
-                                    // Clear all Select2 selections thoroughly
-                                    $('.select2-hidden-accessible').each(
-                                        function() {
-                                            const $select = $(this);
-                                            try {
-                                                $select.val(null).trigger(
-                                                    'change');
-                                                if ($select.attr('name') ===
-                                                    'locations[]') {
-                                                    $select.val([]).trigger(
-                                                        'change');
-                                                    // Force clear visual elements
-                                                    $select.next(
-                                                            '.select2-container'
-                                                            )
-                                                        .find(
-                                                            '.select2-selection__choice'
-                                                            ).remove();
-                                                }
-                                            } catch (e) {
-                                                console.warn(
-                                                    'Select2 clear failed:',
-                                                    e);
-                                            }
-                                        });
-
-                                    // Clear any remaining visual artifacts
-                                    $('.select2-selection__choice').remove();
-
-                                    // Ensure all text inputs are empty
-                                    $('#addForm input[type="text"], #addForm input[type="number"], #addForm textarea')
-                                        .val('');
-
-                                    // Re-validate to update button states
-                                    validateFormAndUpdateButtons();
-                                }, 200);
+                                    if ($('#purchase_product').length > 0) {
+                                        fetchLastAddedProducts();
+                                    }
+                                }, 300);
                             }, 100);
-
-                            // Add product to purchase table if it exists
-                            if ($('#purchase_product').length > 0) {
-                                fetchLastAddedProducts();
-                            }
                         }
                     } else if (buttonType === 'saveAndOpeningStock') {
                         const productId = $('#product_id').val();
@@ -1915,11 +2158,11 @@
             },
             complete: function() {
                 // Reset submission flag
-                isSubmitting = false;
+                window.isSubmitting = false;
 
                 // Re-validate form to determine proper button state
                 setTimeout(function() {
-                    validateFormAndUpdateButtons();
+                    window.validateFormAndUpdateButtons();
                 }, 100);
             }
         });
@@ -1961,6 +2204,9 @@
                     return;
                 }
 
+                // Ensure modal form is properly cleared before adding to table
+                ensureFormIsCleared();
+                
                 addProductToTable(product);
                 // Success message already shown from main form submission
             } else {
@@ -1970,6 +2216,33 @@
             console.error('Error fetching last product:', error);
             toastr.error('Failed to fetch last added product', 'Error');
         });
+    }
+
+    // Helper function to ensure form is completely cleared
+    function ensureFormIsCleared() {
+        // Close the modal if it's open
+        if ($('#new_purchase_product').hasClass('show')) {
+            $('#new_purchase_product').modal('hide');
+        }
+        
+        // Final cleanup of any lingering product data in the modal form
+        $('#addForm input[type="text"], #addForm input[type="number"], #addForm textarea').val('');
+        $('#addForm select').val(null).trigger('change');
+        
+        // Clear product ID to prevent edit mode persistence
+        $('#product_id').val('');
+        
+        // Clear any Select2 selections
+        $('.select2-hidden-accessible').each(function() {
+            try {
+                $(this).val(null).trigger('change');
+            } catch (e) {
+                console.warn('Select2 clear failed in ensureFormIsCleared:', e);
+            }
+        });
+        
+        // Reset buttons to add mode
+        resetButtonsForAddMode();
     }
 
     function addProductToTable(product, isEditing = false, prices = {}) {
@@ -3209,86 +3482,32 @@
     });
 
     function loadUserLocations() {
-        $.ajax({
-            url: '/initial-product-details',
-            method: 'GET',
-            success: function(response) {
-                console.log('Location loading response:', response);
-                if (response.status === 200 && response.message.locations) {
-                    let locationSelect = $('#import_location');
-                    locationSelect.empty();
+        // Use cached dropdown data instead of direct API call
+        window.getDropdownData(function(data) {
+            console.log('Location loading from cache:', data);
+            if (data && data.locations) {
+                let locationSelect = $('#import_location');
+                locationSelect.empty();
+                locationSelect.append(
+                    '<option value="">Choose Location to Import Products...</option>');
+
+                data.locations.forEach(function(location) {
+                    let selected = location.selected ? 'selected' : '';
                     locationSelect.append(
-                        '<option value="">Choose Location to Import Products...</option>');
-
-                    response.message.locations.forEach(function(location) {
-                        let selected = location.selected ? 'selected' : '';
-                        locationSelect.append(
-                            `<option value="${location.id}" ${selected}>${location.name}</option>`
-                        );
-                    });
-
-                    // If only one location and auto-select is enabled, auto-select it
-                    if (response.message.auto_select_single_location && response.message.locations
-                        .length === 1) {
-                        locationSelect.val(response.message.locations[0].id);
-                    }
-
-                    console.log('Successfully loaded', response.message.locations.length,
-                        'locations for import');
-                } else {
-                    console.error('Invalid response structure:', response);
-                    toastr.error('Invalid response when loading locations.', 'Error');
-                }
-            },
-            error: function(xhr) {
-                console.error('Error loading locations:', xhr);
-                console.error('Status:', xhr.status);
-                console.error('Response:', xhr.responseText);
-
-                let errorMsg = 'Failed to load locations. Please refresh the page.';
-                if (xhr.status === 404) {
-                    errorMsg = 'Location service not found. Please contact support.';
-                } else if (xhr.status === 403) {
-                    errorMsg = 'Access denied. Please check your permissions.';
-                } else if (xhr.status === 500) {
-                    errorMsg = 'Server error while loading locations. Please try again.';
-                }
-
-                toastr.error(errorMsg, 'Error');
-
-                // Fallback: try to load using the alternative location endpoint
-                $.ajax({
-                    url: '/location-get-all',
-                    method: 'GET',
-                    success: function(fallbackResponse) {
-                        console.log('Fallback location response:', fallbackResponse);
-                        if (fallbackResponse.status === 200 && fallbackResponse.message) {
-                            let locationSelect = $('#import_location');
-                            locationSelect.empty();
-                            locationSelect.append(
-                                '<option value="">Choose Location to Import Products...</option>'
-                            );
-
-                            fallbackResponse.message.forEach(function(location) {
-                                locationSelect.append(
-                                    `<option value="${location.id}">${location.name}</option>`
-                                );
-                            });
-
-                            toastr.success(
-                                'Locations loaded successfully using fallback method.',
-                                'Success');
-                            console.log('Fallback: Successfully loaded', fallbackResponse
-                                .message.length, 'locations');
-                        }
-                    },
-                    error: function(fallbackXhr) {
-                        console.error('Fallback also failed:', fallbackXhr);
-                        toastr.error(
-                            'Both primary and fallback location loading failed. Please contact support.',
-                            'Critical Error');
-                    }
+                        `<option value="${location.id}" ${selected}>${location.name}</option>`
+                    );
                 });
+
+                // If only one location and auto-select is enabled, auto-select it
+                if (data.auto_select_single_location && data.locations.length === 1) {
+                    locationSelect.val(data.locations[0].id);
+                }
+
+                console.log('Successfully loaded', data.locations.length,
+                    'locations for import from cache');
+            } else {
+                console.error('No cached location data available');
+                toastr.error('Failed to load locations.', 'Error');
             }
         });
     }
@@ -3757,8 +3976,85 @@
         });
     });
 
+    // Modal event handlers to ensure proper form reset
+    $(document).on('show.bs.modal', '#new_purchase_product', function (e) {
+        // Reset form when modal is about to be shown but preserve purchase context
+        setTimeout(function() {
+            // Only reset if not in edit mode
+            const productId = $('#product_id').val();
+            if (!productId) {
+                console.log('Resetting form for new product modal while preserving purchase context');
+                
+                // Store purchase context values before reset
+                const supplierId = $('#supplier-id').val();
+                const locationId = $('#services').val();
+                const supplierText = $('#supplier-id option:selected').text();
+                const locationText = $('#services option:selected').text();
+                
+                console.log('Preserving purchase context:', {
+                    supplierId: supplierId,
+                    locationId: locationId,
+                    supplierText: supplierText,
+                    locationText: locationText
+                });
+                
+                // Reset the product form
+                window.resetFormAndValidation();
+                
+                // Restore purchase context in the product modal if values exist
+                if (supplierId) {
+                    // Try to find matching supplier in product modal
+                    const modalSupplierSelect = $('#new_purchase_product').find('select[name="supplier_id"], #edit_supplier_id');
+                    if (modalSupplierSelect.length) {
+                        modalSupplierSelect.val(supplierId).trigger('change');
+                        console.log('Restored supplier in product modal:', supplierId);
+                    }
+                }
+                
+                if (locationId) {
+                    // Find location dropdown in product modal and set the value
+                    const modalLocationSelects = $('#new_purchase_product').find('select[name="locations[]"], select[name="location_id"], #edit_location_id');
+                    modalLocationSelects.each(function() {
+                        const $this = $(this);
+                        // For multi-select (locations[])
+                        if ($this.attr('name') === 'locations[]') {
+                            $this.val([locationId]).trigger('change');
+                        } else {
+                            // For single select
+                            $this.val(locationId).trigger('change');
+                        }
+                        console.log('Restored location in product modal:', locationId, 'for field:', $this.attr('name'));
+                    });
+                }
+            }
+        }, 200); // Increased timeout to allow modal to fully load
+    });
+
+    $(document).on('hidden.bs.modal', '#new_purchase_product', function (e) {
+        // Ensure form is cleared when modal is closed
+        if (!$('#product_id').val()) { // Only if not in edit mode
+            console.log('Clearing form after modal close');
+            window.resetFormAndValidation();
+        }
+    });
+
+    // Handle "Add Product" button click (if exists)
+    $(document).on('click', '[data-target="#new_purchase_product"], .add-product-btn', function(e) {
+        // Clear product ID to ensure we're in add mode
+        $('#product_id').val('');
+        
+        // Reset form before opening modal
+        setTimeout(function() {
+            window.resetFormAndValidation();
+        }, 50);
+    });
+
     // Safety net - prevent buttons from being permanently disabled
     setInterval(function() {
+        if (!window.isSubmitting && !window.isFormResetting) {
+            window.validateFormAndUpdateButtons();
+        }
+        
         if ($('#product_table').length) {
             var form = $('form[id*="product_form"]');
             if (form.length && form.valid()) {

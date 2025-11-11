@@ -518,6 +518,14 @@
                                 }
                             }, 10);
                         });
+
+                        // Apply purchase context after dropdowns are loaded
+                        setTimeout(function() {
+                            if (typeof window.applyPurchaseContext === 'function') {
+                                console.log('Applying purchase context after dropdown loading...');
+                                window.applyPurchaseContext();
+                            }
+                        }, 300);
                     }
                 },
                 error: function() {
@@ -539,6 +547,14 @@
                         dropdownParent: $('#new_purchase_product'),
                         width: '100%'
                     });
+                    
+                    // Apply purchase context even if AJAX failed
+                    setTimeout(function() {
+                        if (typeof window.applyPurchaseContext === 'function') {
+                            console.log('Applying purchase context after fallback initialization...');
+                            window.applyPurchaseContext();
+                        }
+                    }, 300);
                 }
             });
         });
