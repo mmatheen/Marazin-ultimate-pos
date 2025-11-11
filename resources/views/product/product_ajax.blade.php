@@ -244,12 +244,7 @@
     // Apply validation to forms
     $('#addForm').validate(addAndUpdateValidationOptions);
 
-    // Initialize form validation and button states after setup
-    setTimeout(function() {
-        fetchInitialDropdowns(function() {
-            validateFormAndUpdateButtons();
-        });
-    }, 500);
+    // Initialize form validation and button states after setup - will be handled in main document ready
 
     // Global button selector for easier management
     const allButtons = $('#onlySaveProductButton, #SaveProductButtonAndAnother, #openingStockAndProduct');
@@ -324,14 +319,27 @@
         setTimeout(validateFormAndUpdateButtons, 500);
     });
 
+    // =============================
+    // DATA CACHING OPTIMIZATION
+    // =============================
+    // Prevents multiple redundant API calls to /initial-product-details
+    // Previously called 3+ times on page load, now cached after first call
+    
     // Simple cache object to store fetched data
     const dataCache = {};
+    
+    // Global flag to track if initial product data has been loaded
+    let initialProductDataLoaded = false;
+    let initialProductData = null;
+    let initialDataFetchTime = null;
     
     // Function to clear cache (useful for refreshing data)
     function clearDataCache() {
         Object.keys(dataCache).forEach(key => delete dataCache[key]);
         categoriesAndBrandsLoaded = false; // Reset the loaded flag
-        console.log('🗑️ Data cache cleared and reload flag reset');
+        initialProductDataLoaded = false; // Reset initial data flag
+        initialProductData = null; // Clear cached initial data
+        console.log('🗑️ Data cache cleared and reload flags reset');
     }
     
     // Make cache clearing available globally for debugging
@@ -518,21 +526,57 @@
     }
 
     function fetchInitialDropdowns(callback) {
+        // Check if data is already loaded and cached
+        if (initialProductDataLoaded && initialProductData) {
+            const cacheAge = Date.now() - initialDataFetchTime;
+            console.log(`✅ Using cached initial product data (${cacheAge}ms old) - no API call needed`);
+            const data = initialProductData;
+            populateInitialDropdowns(
+                data.mainCategories, 
+                data.subCategories, 
+                data.brands, 
+                data.units, 
+                data.locations,
+                data.autoSelectSingle, 
+                callback
+            );
+            return;
+        }
+
+        console.log('🔄 Fetching initial product details from API...');
         fetchData('/initial-product-details', function(response) {
-
             if (response.status === 200) {
-                const brands = response.message.brands;
-                const mainCategories = response.message.mainCategories;
-                subCategories = response.message.subCategories; // Store subcategories globally
-                const units = response.message.units;
-                const locations = response.message.locations;
-                const autoSelectSingle = response.message.auto_select_single_location;
-
-                populateInitialDropdowns(mainCategories, subCategories, brands, units, locations,
-                    autoSelectSingle, callback);
-
+                // Cache the data globally to prevent future API calls
+                initialProductData = {
+                    brands: response.message.brands,
+                    mainCategories: response.message.mainCategories,
+                    subCategories: response.message.subCategories,
+                    units: response.message.units,
+                    locations: response.message.locations,
+                    autoSelectSingle: response.message.auto_select_single_location
+                };
+                
+                // Store subcategories globally for compatibility
+                subCategories = initialProductData.subCategories;
+                
+                // Mark as loaded with timestamp
+                initialProductDataLoaded = true;
+                initialDataFetchTime = Date.now();
+                
+                console.log('✅ Initial product data fetched and cached successfully');
+                
+                populateInitialDropdowns(
+                    initialProductData.mainCategories, 
+                    initialProductData.subCategories, 
+                    initialProductData.brands, 
+                    initialProductData.units, 
+                    initialProductData.locations,
+                    initialProductData.autoSelectSingle, 
+                    callback
+                );
             } else {
-                // Failed to load initial product details
+                console.error('❌ Failed to load initial product details');
+                if (callback) callback();
             }
         });
     }
@@ -1648,17 +1692,23 @@
     $(document).ready(function() {
         console.log('🚀 Initializing product page...');
         
-        // Only fetch initial data once
-        fetchInitialDropdowns(function() {
-            fetchCategoriesAndBrands(fetchProductData);
-        });
-
         // Initialize buttons based on current page mode
         const isEditPage = window.location.pathname.includes('/edit-product/');
         if (!isEditPage) {
             // Ensure buttons are in add mode by default
             resetButtonsForAddMode();
         }
+        
+        // Only fetch initial data once and handle both form validation and DataTable initialization
+        fetchInitialDropdowns(function() {
+            // First validate form and update buttons
+            validateFormAndUpdateButtons();
+            
+            // Then initialize DataTable if we're on a list page
+            if (typeof fetchCategoriesAndBrands === 'function' && typeof fetchProductData === 'function') {
+                fetchCategoriesAndBrands(fetchProductData);
+            }
+        });
     });
 
     function resetFormAndValidation() {
@@ -1691,47 +1741,17 @@
         // Clear checkboxes and radio buttons
         $('input[type="checkbox"], input[type="radio"]').prop('checked', false);
 
-        // Reset dropdowns first
+        // Reset dropdowns (only clear selections, not options)
         resetAllDropdowns();
 
-        // Re-fetch and populate dropdown data to ensure proper options with placeholders
+        // Disable buttons initially 
+        allButtons.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary');
+
+        // Focus on first field and validate
         setTimeout(function() {
-            fetchInitialDropdowns(function() {
-                // After re-populating, ensure dropdowns are properly reset without selectable placeholders
-                setTimeout(function() {
-                    // Special handling for location dropdown to ensure no "Select Location" option is added
-                    const $locationSelects = $(
-                        '#edit_location_id, select[name="locations[]"]');
-                    $locationSelects.each(function() {
-                        const $this = $(this);
-                        // Clear selection but keep the actual location options
-                        $this.val(null).trigger('change');
-
-                        // Ensure Select2 shows proper placeholder without adding it as an option
-                        if ($this.hasClass('select2-hidden-accessible')) {
-                            $this.select2('destroy').select2({
-                                placeholder: 'Select Location',
-                                allowClear: true,
-                                width: '100%',
-                                multiple: $this.attr('name') ===
-                                    'locations[]'
-                            });
-                        }
-                    });
-
-                    // Reset other dropdowns normally
-                    resetAllDropdowns();
-
-                    // Disable buttons initially 
-                    allButtons.prop('disabled', true).removeClass('btn-primary')
-                        .addClass('btn-secondary');
-
-                    // Focus on first field and validate
-                    $('input[name="product_name"]').focus();
-                    validateFormAndUpdateButtons();
-                }, 200);
-            });
-        }, 100);
+            $('input[name="product_name"]').focus();
+            validateFormAndUpdateButtons();
+        }, 300);
     }
 
     // Function to reset only the product form without affecting purchase data
@@ -1764,50 +1784,25 @@
         // Clear checkboxes and radio buttons in the product form only
         $('#addForm input[type="checkbox"], #addForm input[type="radio"]').prop('checked', false);
 
-        // Reset dropdowns in the product form only
+        // Reset dropdowns in the product form only (clear selections, not options)
         resetAllDropdowns();
 
-        // Re-fetch and populate dropdown data to ensure proper options with placeholders
+        // Disable buttons initially 
+        allButtons.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary');
+
+        // Focus on first field and validate
         setTimeout(function() {
-            fetchInitialDropdowns(function() {
-                // After re-populating, ensure dropdowns are properly reset without selectable placeholders
-                setTimeout(function() {
-                    // Special handling for location dropdown to ensure no "Select Location" option is added
-                    const $locationSelects = $('#edit_location_id, select[name="locations[]"]');
-                    $locationSelects.each(function() {
-                        const $this = $(this);
-                        // Clear selection but keep the actual location options
-                        $this.val(null).trigger('change');
-
-                        // Ensure Select2 shows proper placeholder without adding it as an option
-                        if ($this.hasClass('select2-hidden-accessible')) {
-                            $this.select2('destroy').select2({
-                                placeholder: 'Select Location',
-                                allowClear: true,
-                                width: '100%',
-                                multiple: $this.attr('name') === 'locations[]'
-                            });
-                        }
-                    });
-
-                    // Reset other dropdowns normally
-                    resetAllDropdowns();
-
-                    // Disable buttons initially 
-                    allButtons.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary');
-
-                    // Focus on first field and validate
-                    $('input[name="product_name"]').focus();
-                    validateFormAndUpdateButtons();
-                }, 200);
-            });
-        }, 100);
+            $('input[name="product_name"]').focus();
+            validateFormAndUpdateButtons();
+        }, 300);
         
         console.log('✅ Product form reset without affecting purchase data');
     }
 
     // Enhanced function to reset all dropdowns with proper placeholders
     function resetAllDropdowns() {
+        console.log('🔄 Resetting dropdown selections (preserving option data)');
+        
         // Define dropdowns with their placeholders
         const dropdownConfig = {
             '#edit_unit_id': 'Select Unit',
@@ -1823,41 +1818,29 @@
             const $dropdown = $(selector);
             if (!$dropdown.length) return;
 
+            const optionsCount = $dropdown.find('option').length;
+            console.log(`📋 Dropdown ${selector}: ${optionsCount} options preserved`);
+
             try {
-                // Clear current selection
-                $dropdown.val(null);
-
                 if ($dropdown.hasClass('select2-hidden-accessible')) {
-                    // For Select2 dropdowns - destroy and reinitialize with placeholder
-                    $dropdown.select2('destroy');
-
-                    // Reset options - DO NOT add placeholder as an option for location dropdowns
-                    if (!selector.includes('locations[]') && selector !== '#edit_location_id') {
-                        // For regular single select dropdowns (unit, brand, category)
-                        $dropdown.empty().append(
-                            `<option value="" disabled selected>${placeholder}</option>`);
-                    } else {
-                        // For location dropdowns (single or multiple) - keep empty, let Select2 handle placeholder
-                        $dropdown.empty();
+                    // For Select2 dropdowns - just clear the selection, don't destroy or empty the options
+                    $dropdown.val(null).trigger('change');
+                    
+                    // Update the placeholder display
+                    const $container = $dropdown.next('.select2-container');
+                    if ($container.length) {
+                        const $rendered = $container.find('.select2-selection__rendered');
+                        if (selector.includes('locations[]')) {
+                            // For multiple select, clear all selections
+                            $rendered.empty().html(`<span class="select2-selection__placeholder">${placeholder}</span>`);
+                        } else {
+                            // For single select, show placeholder
+                            $rendered.html(`<span class="select2-selection__placeholder">${placeholder}</span>`);
+                        }
                     }
-
-                    // Reinitialize Select2 with proper settings
-                    const select2Config = {
-                        placeholder: placeholder,
-                        allowClear: true,
-                        width: '100%'
-                    };
-
-                    if (selector.includes('locations[]')) {
-                        select2Config.multiple = true;
-                    }
-
-                    $dropdown.select2(select2Config);
-
                 } else {
-                    // For regular dropdowns
-                    $dropdown.empty().append(
-                        `<option value="" disabled selected>${placeholder}</option>`);
+                    // For regular dropdowns - only clear the selected value, not the options
+                    $dropdown.val('').trigger('change');
                 }
 
             } catch (e) {
@@ -1869,35 +1852,28 @@
 
         // Additional cleanup for location fields
         setTimeout(function() {
-            // Clear any remaining Select2 visual artifacts
+            // Clear any remaining Select2 visual artifacts for multiple selections
             $('.select2-selection__choice').remove();
-
-            // Ensure location placeholder is properly displayed
-            const locationContainers = $('select[name="locations[]"], #edit_location_id').next(
-                '.select2-container');
-            locationContainers.find('.select2-selection__rendered').html(
-                '<span class="select2-selection__placeholder">Select Location</span>'
-            );
-
-        }, 200);
+        }, 100);
 
         // Reset sub-category when main category changes
         setTimeout(function() {
-            // Trigger main category change to reset sub-category with placeholder
-            const $mainCategory = $('#edit_main_category_id');
+            // Only reset sub-category selection, not the options
             const $subCategory = $('#edit_sub_category_id');
-
-            // Reset sub-category to placeholder
-            $subCategory.empty().append(
-                '<option value="" disabled selected>Select Sub Category</option>');
+            $subCategory.val('').trigger('change');
+            
+            // Update placeholder display for sub-category
             if ($subCategory.hasClass('select2-hidden-accessible')) {
-                $subCategory.select2({
-                    placeholder: 'Select Sub Category',
-                    allowClear: true,
-                    width: '100%'
-                });
+                const $container = $subCategory.next('.select2-container');
+                if ($container.length) {
+                    $container.find('.select2-selection__rendered').html(
+                        '<span class="select2-selection__placeholder">Select Sub Category</span>'
+                    );
+                }
             }
-        }, 300);
+        }, 200);
+        
+        console.log('✅ All dropdown selections reset, option data preserved');
     }
 
     // Global flag to track submission state
@@ -2021,55 +1997,13 @@
                             toastr.success(response.message + ' - Ready for next product',
                                 'Success');
 
-                            // Comprehensive form reset with multiple clearing approaches
-                            setTimeout(function() {
-                                // First, use the appropriate reset function based on context
-                                if ($('#purchase_product').length === 0) {
-                                    resetFormAndValidation();
-                                } else {
-                                    // In purchase context - only reset the product form, not the purchase data
-                                    resetProductFormOnly();
-                                }
-
-                                // Additional aggressive clearing for persistent elements
-                                setTimeout(function() {
-                                    // Clear all Select2 selections thoroughly
-                                    $('.select2-hidden-accessible').each(
-                                        function() {
-                                            const $select = $(this);
-                                            try {
-                                                $select.val(null).trigger(
-                                                    'change');
-                                                if ($select.attr('name') ===
-                                                    'locations[]') {
-                                                    $select.val([]).trigger(
-                                                        'change');
-                                                    // Force clear visual elements
-                                                    $select.next(
-                                                            '.select2-container'
-                                                            )
-                                                        .find(
-                                                            '.select2-selection__choice'
-                                                            ).remove();
-                                                }
-                                            } catch (e) {
-                                                console.warn(
-                                                    'Select2 clear failed:',
-                                                    e);
-                                            }
-                                        });
-
-                                    // Clear any remaining visual artifacts
-                                    $('.select2-selection__choice').remove();
-
-                                    // Ensure all text inputs are empty
-                                    $('#addForm input[type="text"], #addForm input[type="number"], #addForm textarea')
-                                        .val('');
-
-                                    // Re-validate to update button states
-                                    validateFormAndUpdateButtons();
-                                }, 200);
-                            }, 100);
+                            // Use the appropriate reset function based on context
+                            if ($('#purchase_product').length === 0) {
+                                resetFormAndValidation();
+                            } else {
+                                // In purchase context - only reset the product form, not the purchase data
+                                resetProductFormOnly();
+                            }
 
                             // Add product to purchase table if it exists
                             if ($('#purchase_product').length > 0) {
@@ -2228,7 +2162,7 @@
                 <td><input type="number" class="form-control retail-price" value="${retailPrice.toFixed(2)}" min="0" required></td>
                 <td><input type="date" class="form-control expiry-date" value="${product.expiry_date || ''}"></td>
                 <td><input type="text" class="form-control batch_no" value="${product.batch_no || ''}"></td>
-                <td><button class="btn btn-danger btn-sm delete-product"><i class="fas fa-trash"></i></button></td>
+                <td><button class="btn btn-danger btn-sm remove-purchase-row"><i class="fas fa-trash"></i></button></td>
             </tr>
         `;
 
@@ -2610,10 +2544,10 @@
             });
         }
 
-        // Remove row button handler (only for rows with the button)
-        $(document).on('click', '.removeRowBtn', function() {
-            $(this).closest('tr').remove();
-        });
+            // Remove row button handler (only for rows with the button)
+            $(document).on('click', '.remove-purchase-row', function() {
+                $(this).closest('tr').remove();
+            });
 
         // Delete product button handler with safe deletion logic
         $(document).on('click', '.delete-product', function(e) {
@@ -3112,6 +3046,7 @@
                 toastr.info('Loading product details...', 'Please wait');
             }
 
+            // Use cached initial data (no additional API call needed)
             fetchInitialDropdowns(() => {
                 $.ajax({
                     url: `/edit-product/${productId}`,
@@ -3322,88 +3257,36 @@
     });
 
     function loadUserLocations() {
-        $.ajax({
-            url: '/initial-product-details',
-            method: 'GET',
-            success: function(response) {
-                console.log('Location loading response:', response);
-                if (response.status === 200 && response.message.locations) {
-                    let locationSelect = $('#import_location');
-                    locationSelect.empty();
+        // Use cached initial data instead of making another API call
+        fetchInitialDropdowns(() => {
+            console.log('✅ Using cached location data for import');
+            if (initialProductData && initialProductData.locations) {
+                let locationSelect = $('#import_location');
+                locationSelect.empty();
+                locationSelect.append(
+                    '<option value="">Choose Location to Import Products...</option>');
+
+                initialProductData.locations.forEach(function(location) {
+                    let selected = location.selected ? 'selected' : '';
                     locationSelect.append(
-                        '<option value="">Choose Location to Import Products...</option>');
-
-                    response.message.locations.forEach(function(location) {
-                        let selected = location.selected ? 'selected' : '';
-                        locationSelect.append(
-                            `<option value="${location.id}" ${selected}>${location.name}</option>`
-                        );
-                    });
-
-                    // If only one location and auto-select is enabled, auto-select it
-                    if (response.message.auto_select_single_location && response.message.locations
-                        .length === 1) {
-                        locationSelect.val(response.message.locations[0].id);
-                    }
-
-                    console.log('Successfully loaded', response.message.locations.length,
-                        'locations for import');
-                } else {
-                    console.error('Invalid response structure:', response);
-                    toastr.error('Invalid response when loading locations.', 'Error');
-                }
-            },
-            error: function(xhr) {
-                console.error('Error loading locations:', xhr);
-                console.error('Status:', xhr.status);
-                console.error('Response:', xhr.responseText);
-
-                let errorMsg = 'Failed to load locations. Please refresh the page.';
-                if (xhr.status === 404) {
-                    errorMsg = 'Location service not found. Please contact support.';
-                } else if (xhr.status === 403) {
-                    errorMsg = 'Access denied. Please check your permissions.';
-                } else if (xhr.status === 500) {
-                    errorMsg = 'Server error while loading locations. Please try again.';
-                }
-
-                toastr.error(errorMsg, 'Error');
-
-                // Fallback: try to load using the alternative location endpoint
-                $.ajax({
-                    url: '/location-get-all',
-                    method: 'GET',
-                    success: function(fallbackResponse) {
-                        console.log('Fallback location response:', fallbackResponse);
-                        if (fallbackResponse.status === 200 && fallbackResponse.message) {
-                            let locationSelect = $('#import_location');
-                            locationSelect.empty();
-                            locationSelect.append(
-                                '<option value="">Choose Location to Import Products...</option>'
-                            );
-
-                            fallbackResponse.message.forEach(function(location) {
-                                locationSelect.append(
-                                    `<option value="${location.id}">${location.name}</option>`
-                                );
-                            });
-
-                            toastr.success(
-                                'Locations loaded successfully using fallback method.',
-                                'Success');
-                            console.log('Fallback: Successfully loaded', fallbackResponse
-                                .message.length, 'locations');
-                        }
-                    },
-                    error: function(fallbackXhr) {
-                        console.error('Fallback also failed:', fallbackXhr);
-                        toastr.error(
-                            'Both primary and fallback location loading failed. Please contact support.',
-                            'Critical Error');
-                    }
+                        `<option value="${location.id}" ${selected}>${location.name}</option>`
+                    );
                 });
+
+                // If only one location and auto-select is enabled, auto-select it
+                if (initialProductData.autoSelectSingle && initialProductData.locations.length === 1) {
+                    locationSelect.val(initialProductData.locations[0].id);
+                }
+
+                console.log('✅ Successfully loaded', initialProductData.locations.length,
+                    'locations for import from cache');
+            } else {
+                console.error('❌ No cached location data available');
+                toastr.error('Error loading locations. Please refresh the page.', 'Error');
             }
         });
+    }
+</script>
     }
 </script>
 

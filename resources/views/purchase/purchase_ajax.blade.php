@@ -599,85 +599,35 @@
                     
                     const productName = $newRow.find('td:nth-child(2)').text().trim();
                     const quantity = $newRow.find('.purchase-quantity').val() || '0';
+                    const productId = $newRow.data('id');
                     
-                    // Show confirmation dialog for removing row from purchase table
-                    if (typeof swal !== 'undefined') {
-                        swal({
-                            title: "Remove from Purchase?",
-                            text: `Remove "${productName}" (Qty: ${quantity}) from this purchase list?`,
-                            type: "warning",
-                            showCancelButton: true,
-                            confirmButtonColor: "#DD6B55",
-                            confirmButtonText: "Yes, Remove",
-                            cancelButtonText: "Cancel",
-                            closeOnConfirm: true
-                        }, function(isConfirm) {
-                            if (isConfirm) {
-                                const productId = $newRow.data('id');
-                                
-                                // Remove from DataTable
-                                table.row($newRow).remove().draw();
-                                
-                                // CRITICAL FIX: Clean up ALL tracking arrays to prevent re-adding
-                                const originalPendingLength = pendingImeiProducts.length;
-                                pendingImeiProducts = pendingImeiProducts.filter(product => 
-                                    product.productId != productId // Use != for loose comparison
-                                );
-                                
-                                // Clear any cached product data
-                                if (typeof allProducts !== 'undefined') {
-                                    const originalAllLength = allProducts.length;
-                                    allProducts = allProducts.filter(product => 
-                                        product.id != productId // Use != for loose comparison
-                                    );
-                                    console.log(`🗑️ Removed from allProducts: ${originalAllLength} -> ${allProducts.length}`);
-                                }
-                                
-                                console.log(`🗑️ Removed from pendingImeiProducts: ${originalPendingLength} -> ${pendingImeiProducts.length}`);
-                                
-                                updateFooter();
-                                
-                                if (typeof toastr !== 'undefined') {
-                                    toastr.info(`${productName} removed from purchase list`, 'Row Removed');
-                                }
-                                
-                                console.log(`✅ Cleaned up product ${productId} from all tracking arrays`);
-                            }
-                        });
-                    } else {
-                        // Fallback to native confirm if SweetAlert is not available
-                        if (confirm(`Remove "${productName}" (Qty: ${quantity}) from this purchase list?`)) {
-                            const productId = $newRow.data('id');
-                            
-                            // Remove from DataTable
-                            table.row($newRow).remove().draw();
-                            
-                            // CRITICAL FIX: Clean up ALL tracking arrays to prevent re-adding
-                            const originalPendingLength = pendingImeiProducts.length;
-                            pendingImeiProducts = pendingImeiProducts.filter(product => 
-                                product.productId != productId // Use != for loose comparison
-                            );
-                            
-                            // Clear any cached product data
-                            if (typeof allProducts !== 'undefined') {
-                                const originalAllLength = allProducts.length;
-                                allProducts = allProducts.filter(product => 
-                                    product.id != productId // Use != for loose comparison
-                                );
-                                console.log(`🗑️ Removed from allProducts: ${originalAllLength} -> ${allProducts.length}`);
-                            }
-                            
-                            console.log(`🗑️ Removed from pendingImeiProducts: ${originalPendingLength} -> ${pendingImeiProducts.length}`);
-                            
-                            updateFooter();
-                            
-                            if (typeof toastr !== 'undefined') {
-                                toastr.info(`${productName} removed from purchase list`, 'Row Removed');
-                            }
-                            
-                            console.log(`✅ Cleaned up product ${productId} from all tracking arrays`);
-                        }
+                    // Remove from DataTable directly without confirmation
+                    table.row($newRow).remove().draw();
+                    
+                    // CRITICAL FIX: Clean up ALL tracking arrays to prevent re-adding
+                    const originalPendingLength = pendingImeiProducts.length;
+                    pendingImeiProducts = pendingImeiProducts.filter(product => 
+                        product.productId != productId // Use != for loose comparison
+                    );
+                    
+                    // Clear any cached product data
+                    if (typeof allProducts !== 'undefined') {
+                        const originalAllLength = allProducts.length;
+                        allProducts = allProducts.filter(product => 
+                            product.id != productId // Use != for loose comparison
+                        );
+                        console.log(`🗑️ Removed from allProducts: ${originalAllLength} -> ${allProducts.length}`);
                     }
+                    
+                    console.log(`🗑️ Removed from pendingImeiProducts: ${originalPendingLength} -> ${pendingImeiProducts.length}`);
+                    
+                    updateFooter();
+                    
+                    if (typeof toastr !== 'undefined') {
+                        toastr.info(`${productName} removed from purchase list`, 'Row Removed');
+                    }
+                    
+                    console.log(`✅ Cleaned up product ${productId} from all tracking arrays`);
                 });
             }
         }
