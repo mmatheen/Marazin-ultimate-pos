@@ -110,119 +110,62 @@
         // Apply validation to forms
         $('#addForm').validate(addAndUpdateValidationOptions);
 
-        // Use the global validation system if available, otherwise fallback to local validation
+        // Add real-time validation feedback to re-enable buttons when errors are fixed
         function checkFormValidityAndEnableButtons() {
-            console.log('checkFormValidityAndEnableButtons called');
-            
-            // Always ensure buttons are enabled first
-            const buttons = $('#onlySaveProductButton, #SaveProductButtonAndAnother, #openingStockAndProduct');
-            buttons.prop('disabled', false);
-            
-            // Check if global validation is available
-            if (typeof window.validateFormAndUpdateButtons === 'function') {
-                console.log('Using global validation system');
-                // Use the global validation system - it handles button updates internally
-                const isValid = window.validateFormAndUpdateButtons();
-                // Force buttons to stay enabled regardless of validation result
-                buttons.prop('disabled', false);
-                return isValid;
-            }
-            
-            // Fallback to local validation if global is not available
+            // Custom validation check including locations array
             let isFormValid = true;
             
-            // Check required fields manually (using both naming conventions)
+            // Check required fields manually
             const requiredFields = [
-                'input[name="product_name"]', '#edit_product_name',
-                'select[name="unit_id"]', '#edit_unit_id',
-                'select[name="brand_id"]', '#edit_brand_id',
-                'select[name="main_category_id"]', '#edit_main_category_id',
-                'select[name="sub_category_id"]', '#edit_sub_category_id',
-                'input[name="retail_price"]', '#edit_retail_price',
-                'input[name="whole_sale_price"]', '#edit_whole_sale_price',
-                'input[name="special_price"]', '#edit_special_price',
-                'input[name="original_price"]', '#edit_original_price'
+                'input[name="product_name"]',
+                'select[name="unit_id"]', 
+                'select[name="brand_id"]',
+                'select[name="main_category_id"]',
+                'select[name="sub_category_id"]',
+                'input[name="retail_price"]',
+                'input[name="whole_sale_price"]',
+                'input[name="special_price"]',
+                'input[name="original_price"]'
             ];
             
-            // Check each required field (try both selectors)
-            for (let i = 0; i < requiredFields.length; i += 2) {
-                const field1 = $(requiredFields[i]);
-                const field2 = $(requiredFields[i + 1]);
-                const field = field1.length > 0 ? field1 : field2;
-                
+            // Check each required field
+            requiredFields.forEach(function(selector) {
+                const field = $(selector);
                 if (field.length && (!field.val() || field.val() === '')) {
                     isFormValid = false;
-                    break;
                 }
-            }
+            });
             
-            // Special check for locations array (try both selectors)
-            const selectedLocations = $('select[name="locations[]"]').val() || $('#edit_location_id').val();
-            if (!selectedLocations || (Array.isArray(selectedLocations) && selectedLocations.length === 0)) {
+            // Special check for locations array
+            const selectedLocations = $('select[name="locations[]"]').val();
+            if (!selectedLocations || selectedLocations.length === 0) {
                 isFormValid = false;
             }
             
             const buttons = $('#onlySaveProductButton, #SaveProductButtonAndAnother, #openingStockAndProduct');
             
-            // Always keep buttons enabled - validation errors will be shown on submit
-            buttons.prop('disabled', false);
-            
             if (isFormValid && !isSubmitting) {
-                buttons.removeClass('btn-secondary btn-outline-primary').addClass('btn-primary');
-                console.log('Form is valid, buttons styled as primary');
+                buttons.prop('disabled', false);
+                buttons.removeClass('btn-secondary').addClass('btn-primary');
             } else if (!isSubmitting) {
-                buttons.removeClass('btn-primary').addClass('btn-outline-primary');
-                console.log('Form incomplete, buttons remain enabled with outline styling');
+                // Don't disable if user is actively filling the form
+                // buttons.prop('disabled', true);
             }
         }
 
-        // Ensure buttons are enabled by default on page load and setup validation
+        // Ensure buttons are enabled by default on page load
         const allButtons = $('#onlySaveProductButton, #SaveProductButtonAndAnother, #openingStockAndProduct');
         allButtons.prop('disabled', false);
         
-        // Initialize validation after DOM is ready
-        setTimeout(function() {
-            checkFormValidityAndEnableButtons();
-        }, 500);
-        
-        // Listen for modal show events and trigger validation
-        $(document).on('shown.bs.modal', function(e) {
-            // Check if this modal contains our form
-            if ($(e.target).find('#addForm').length > 0) {
-                console.log('Add product modal opened, triggering validation...');
-                setTimeout(function() {
-                    // Force buttons to be enabled initially
-                    $('#onlySaveProductButton, #SaveProductButtonAndAnother, #openingStockAndProduct').prop('disabled', false);
-                    
-                    // Apply purchase context if available
-                    if (typeof window.applyPurchaseContext === 'function') {
-                        window.applyPurchaseContext();
-                    }
-                    
-                    // Then run validation
-                    checkFormValidityAndEnableButtons();
-                }, 300); // Increased timeout to allow dropdown loading
-            }
-        });
-        
         // Monitor key fields for changes to re-enable buttons
         $('#addForm').on('change keyup blur input', 'input, select, textarea', function() {
-            // Use global validation scheduler if available
-            if (typeof window.scheduleValidation === 'function') {
-                window.scheduleValidation();
-            } else {
-                // Fallback to local validation
-                setTimeout(checkFormValidityAndEnableButtons, 50);
-            }
+            // Small delay to let validation complete
+            setTimeout(checkFormValidityAndEnableButtons, 50);
         });
 
         // Monitor location field specifically with multiple event types
         $(document).on('change select2:select select2:unselect', 'select[name="locations[]"], #edit_location_id', function() {
-            if (typeof window.scheduleValidation === 'function') {
-                window.scheduleValidation();
-            } else {
-                setTimeout(checkFormValidityAndEnableButtons, 50);
-            }
+            setTimeout(checkFormValidityAndEnableButtons, 50);
         });
 
         // Aggressive button re-enabling - check every time any field changes
@@ -230,8 +173,6 @@
             if (!isSubmitting) {
                 setTimeout(function() {
                     allButtons.prop('disabled', false);
-                    // Also trigger validation to check if form is complete
-                    checkFormValidityAndEnableButtons();
                 }, 100);
             }
         });
@@ -240,39 +181,7 @@
         $('#addForm').on('click focus', 'input, select, textarea', function() {
             if (!isSubmitting) {
                 allButtons.prop('disabled', false);
-                // Trigger validation after a short delay
-                setTimeout(checkFormValidityAndEnableButtons, 150);
             }
-        });
-        
-        // Periodic check to ensure buttons stay enabled when form is filled
-        setInterval(function() {
-            if (!isSubmitting) {
-                // Check if form has data and buttons are disabled
-                const hasData = $('#edit_product_name').val() || $('input[name="product_name"]').val();
-                if (hasData && allButtons.prop('disabled')) {
-                    console.log('Form has data but buttons disabled, re-enabling...');
-                    allButtons.prop('disabled', false);
-                }
-                checkFormValidityAndEnableButtons();
-            }
-        }, 2000); // Check every 2 seconds
-
-        // Specific handler for purchase product modal
-        $(document).on('shown.bs.modal', '#new_purchase_product', function() {
-            console.log('Purchase product modal fully loaded');
-            setTimeout(function() {
-                // Apply purchase context
-                if (typeof window.applyPurchaseContext === 'function') {
-                    window.applyPurchaseContext();
-                }
-                
-                // Ensure buttons are enabled
-                $('#onlySaveProductButton, #SaveProductButtonAndAnother, #openingStockAndProduct').prop('disabled', false);
-                
-                // Run validation
-                checkFormValidityAndEnableButtons();
-            }, 500); // Longer timeout for modal initialization
         });
 
         // add form and update validation rules code end
@@ -510,44 +419,54 @@
                 return;
             }
 
-            // Use global validation if available, otherwise use custom validation
+            // Custom validation check
             let isValid = true;
             let errorMessages = [];
             
-            // Try global validation first
-            if (typeof window.validateFormAndUpdateButtons === 'function') {
-                isValid = window.validateFormAndUpdateButtons();
-                if (!isValid) {
-                    errorMessages.push('Please fill in all required fields');
-                }
-            } else {
-                // Fallback to custom validation - check both field naming conventions
-                const requiredFieldChecks = [
-                    { selector: 'input[name="product_name"], #edit_product_name', message: 'Product Name is required' },
-                    { selector: 'select[name="unit_id"], #edit_unit_id', message: 'Unit is required' },
-                    { selector: 'select[name="brand_id"], #edit_brand_id', message: 'Brand is required' },
-                    { selector: 'select[name="main_category_id"], #edit_main_category_id', message: 'Main Category is required' },
-                    { selector: 'select[name="sub_category_id"], #edit_sub_category_id', message: 'Sub Category is required' },
-                    { selector: 'input[name="retail_price"], #edit_retail_price', message: 'Retail Price is required' },
-                    { selector: 'input[name="whole_sale_price"], #edit_whole_sale_price', message: 'Whole Sale Price is required' },
-                    { selector: 'input[name="special_price"], #edit_special_price', message: 'Special Price is required' },
-                    { selector: 'input[name="original_price"], #edit_original_price', message: 'Cost Price is required' }
-                ];
-                
-                requiredFieldChecks.forEach(function(check) {
-                    const field = $(check.selector);
-                    if (field.length && (!field.val() || field.val() === '')) {
-                        errorMessages.push(check.message);
-                        isValid = false;
-                    }
-                });
-                
-                // Check locations array - try both selectors
-                const locations = $('select[name="locations[]"]').val() || $('#edit_location_id').val();
-                if (!locations || (Array.isArray(locations) && locations.length === 0)) {
-                    errorMessages.push('Business Location is required');
-                    isValid = false;
-                }
+            // Check required fields
+            if (!$('input[name="product_name"]').val()) {
+                errorMessages.push('Product Name is required');
+                isValid = false;
+            }
+            if (!$('select[name="unit_id"]').val()) {
+                errorMessages.push('Unit is required');
+                isValid = false;
+            }
+            if (!$('select[name="brand_id"]').val()) {
+                errorMessages.push('Brand is required');
+                isValid = false;
+            }
+            if (!$('select[name="main_category_id"]').val()) {
+                errorMessages.push('Main Category is required');
+                isValid = false;
+            }
+            if (!$('select[name="sub_category_id"]').val()) {
+                errorMessages.push('Sub Category is required');
+                isValid = false;
+            }
+            
+            // Check locations array
+            const locations = $('select[name="locations[]"]').val();
+            if (!locations || locations.length === 0) {
+                errorMessages.push('Business Location is required');
+                isValid = false;
+            }
+            
+            if (!$('input[name="retail_price"]').val()) {
+                errorMessages.push('Retail Price is required');
+                isValid = false;
+            }
+            if (!$('input[name="whole_sale_price"]').val()) {
+                errorMessages.push('Whole Sale Price is required');
+                isValid = false;
+            }
+            if (!$('input[name="special_price"]').val()) {
+                errorMessages.push('Special Price is required');
+                isValid = false;
+            }
+            if (!$('input[name="original_price"]').val()) {
+                errorMessages.push('Cost Price is required');
+                isValid = false;
             }
             
             if (!isValid) {
@@ -628,81 +547,77 @@
         });
 
 
-      // Use cached dropdown data instead of making redundant API call
-        if (typeof window.getDropdownData === 'function') {
-            window.getDropdownData().then(function(response) {
-                if (response.status === 200) {
-                    const brandSelect = $('#edit_brand_id');
-                    const mainCategorySelect = $('#edit_main_category_id');
-                    const subCategorySelect = $('#edit_sub_category_id');
-                    const unitSelect = $('#edit_unit_id');
-                    const locationSelect = $('#edit_location_id');
+      // Fetch main category, sub category, location, unit, brand details to select box code start
+            $.ajax({
+                url: '/api/initial-product-details', // Replace with your endpoint URL
 
-                    brandSelect.empty();
-                    mainCategorySelect.empty();
-                    subCategorySelect.empty();
-                    unitSelect.empty();
-                    locationSelect.empty();
+                type: 'GET',
+                success: function(response) {
+                    if (response.status === 200) {
 
-                    const brands = response.message.brands;
-                    const mainCategories = response.message.mainCategories;
-                    const subCategories = response.message.subCategories;
-                    const units = response.message.units;
-                    const locations = response.message.locations;
+                        const brandSelect = $('#edit_brand_id');
+                        const mainCategorySelect = $('#edit_main_category_id');
+                        const subCategorySelect = $('#edit_sub_category_id');
+                        const unitSelect = $('#edit_unit_id');
+                        const locationSelect = $('#edit_location_id');
 
-                    if ((brands && brands.length > 0) || (mainCategories && mainCategories.length > 0) || 
-                        (subCategories && subCategories.length > 0) || (units && units.length > 0) || 
-                        (locations && locations.length > 0)) {
 
-                        brandSelect.append('<option value="" selected disabled>Select Product Brand</option>');
-                        mainCategorySelect.append('<option value="" selected disabled>Select Main Category</option>');
-                        subCategorySelect.append('<option value="" selected disabled>Select Sub Category</option>');
-                        unitSelect.append('<option value="" selected disabled>Select Unit</option>');
-                        locationSelect.append('<option value="" selected disabled>Select Location</option>');
+                        brandSelect.empty(); // Clear existing options
+                        mainCategorySelect.empty(); // Clear existing options
+                        subCategorySelect.empty(); // Clear existing options
+                        unitSelect.empty(); // Clear existing options
+                        locationSelect.empty(); // Clear existing options
 
-                        brands.forEach(brand => {
-                            brandSelect.append(`<option value="${brand.id}">${brand.name}</option>`);
-                        });
+                        // Access brands and subcategories from response data
+                        const brands = response.message.brands;
+                        const mainCategories = response.message.mainCategories;
+                        const subCategories = response.message.subCategories;
+                        const units = response.message.units;
+                        const locations = response.message.locations;
 
-                        mainCategories.forEach(mainCategory => {
-                            mainCategorySelect.append(`<option value="${mainCategory.id}">${mainCategory.mainCategoryName}</option>`);
-                        });
+                        if ((brands && brands.length > 0) || (mainCategories && mainCategories.length > 0) || (subCategories && subCategories.length > 0) || (units && units.length > 0) || (locations && locations.length > 0)) {
 
-                        subCategories.forEach(subCategory => {
-                            subCategorySelect.append(`<option value="${subCategory.id}">${subCategory.subCategoryname}</option>`);
-                        });
+                            // If there are brands or subcategories, add the default options and populate with data
+                            brandSelect.append('<option value="" selected disabled>Select Product Brand</option>');
+                            mainCategorySelect.append('<option value="" selected disabled>Select Main Category</option>');
+                            subCategorySelect.append('<option value="" selected disabled>Select Sub Category</option>');
+                            unitSelect.append('<option value="" selected disabled>Select Unit</option>');
+                            locationSelect.append('<option value="" selected disabled>Select Location</option>');
 
-                        units.forEach(unit => {
-                            unitSelect.append(`<option value="${unit.id}">${unit.name}</option>`);
-                        });
+                            brands.forEach(brand => {
+                                brandSelect.append(`<option value="${brand.id}">${brand.name}</option>`);
+                            });
 
-                        locations.forEach(location => {
-                            locationSelect.append(`<option value="${location.id}">${location.name}</option>`);
-                        });
-                    } else {
-                        brandSelect.append('<option value="" selected disabled>No brands available</option>');
-                        mainCategorySelect.append('<option value="" selected disabled>No main categories available</option>');
-                        subCategorySelect.append('<option value="" selected disabled>No sub categories available</option>');
-                        unitSelect.append('<option value="" selected disabled>No units available</option>');
-                        locationSelect.append('<option value="" selected disabled>No locations available</option>');
-                    }
-                    
-                    // Trigger validation after dropdowns are populated
-                    setTimeout(function() {
-                        console.log('Dropdowns populated, triggering validation...');
-                        
-                        // Apply purchase context if available
-                        if (typeof window.applyPurchaseContext === 'function') {
-                            window.applyPurchaseContext();
+                            mainCategories.forEach(mainCategory => {
+                                mainCategorySelect.append(`<option value="${mainCategory.id}">${mainCategory.mainCategoryName}</option>`);
+                            });
+
+                            subCategories.forEach(subCategory => {
+                                subCategorySelect.append(`<option value="${subCategory.id}">${subCategory.subCategoryname}</option>`);
+                            });
+
+                            units.forEach(unit => {
+                                unitSelect.append(`<option value="${unit.id}">${unit.name}</option>`);
+                            });
+
+                            locations.forEach(location => {
+                                locationSelect.append(`<option value="${location.id}">${location.name}</option>`);
+                            });
+                        } else {
+                            // If no records are found, show appropriate message
+                            brandSelect.append('<option value="" selected disabled>No brands available</option>');
+                            mainCategorySelect.append('<option value="" selected disabled>No main categories available</option>');
+                            subCategorySelect.append('<option value="" selected disabled>No sub categories available</option>');
+                            unitSelect.append('<option value="" selected disabled>No units available</option>');
+                            locationSelect.append('<option value="" selected disabled>No locations available</option>');
                         }
-                        
-                        checkFormValidityAndEnableButtons();
-                    }, 200);
+                    }
+                },
+                error: function(error) {
+                    // Handle error silently or show user-friendly message
                 }
-            }).catch(function(error) {
-                console.error('Error loading dropdown data:', error);
             });
-        }
+          // Fetch main category, sub category, location, unit, brand details to select box code start
 
 
 
@@ -733,44 +648,54 @@
                 return;
             }
 
-            // Use global validation if available, otherwise use custom validation
+            // Custom validation check
             let isValid = true;
             let errorMessages = [];
             
-            // Try global validation first
-            if (typeof window.validateFormAndUpdateButtons === 'function') {
-                isValid = window.validateFormAndUpdateButtons();
-                if (!isValid) {
-                    errorMessages.push('Please fill in all required fields');
-                }
-            } else {
-                // Fallback to custom validation - check both field naming conventions
-                const requiredFieldChecks = [
-                    { selector: 'input[name="product_name"], #edit_product_name', message: 'Product Name is required' },
-                    { selector: 'select[name="unit_id"], #edit_unit_id', message: 'Unit is required' },
-                    { selector: 'select[name="brand_id"], #edit_brand_id', message: 'Brand is required' },
-                    { selector: 'select[name="main_category_id"], #edit_main_category_id', message: 'Main Category is required' },
-                    { selector: 'select[name="sub_category_id"], #edit_sub_category_id', message: 'Sub Category is required' },
-                    { selector: 'input[name="retail_price"], #edit_retail_price', message: 'Retail Price is required' },
-                    { selector: 'input[name="whole_sale_price"], #edit_whole_sale_price', message: 'Whole Sale Price is required' },
-                    { selector: 'input[name="special_price"], #edit_special_price', message: 'Special Price is required' },
-                    { selector: 'input[name="original_price"], #edit_original_price', message: 'Cost Price is required' }
-                ];
-                
-                requiredFieldChecks.forEach(function(check) {
-                    const field = $(check.selector);
-                    if (field.length && (!field.val() || field.val() === '')) {
-                        errorMessages.push(check.message);
-                        isValid = false;
-                    }
-                });
-                
-                // Check locations array - try both selectors
-                const locations = $('select[name="locations[]"]').val() || $('#edit_location_id').val();
-                if (!locations || (Array.isArray(locations) && locations.length === 0)) {
-                    errorMessages.push('Business Location is required');
-                    isValid = false;
-                }
+            // Check required fields
+            if (!$('input[name="product_name"]').val()) {
+                errorMessages.push('Product Name is required');
+                isValid = false;
+            }
+            if (!$('select[name="unit_id"]').val()) {
+                errorMessages.push('Unit is required');
+                isValid = false;
+            }
+            if (!$('select[name="brand_id"]').val()) {
+                errorMessages.push('Brand is required');
+                isValid = false;
+            }
+            if (!$('select[name="main_category_id"]').val()) {
+                errorMessages.push('Main Category is required');
+                isValid = false;
+            }
+            if (!$('select[name="sub_category_id"]').val()) {
+                errorMessages.push('Sub Category is required');
+                isValid = false;
+            }
+            
+            // Check locations array
+            const locations = $('select[name="locations[]"]').val();
+            if (!locations || locations.length === 0) {
+                errorMessages.push('Business Location is required');
+                isValid = false;
+            }
+            
+            if (!$('input[name="retail_price"]').val()) {
+                errorMessages.push('Retail Price is required');
+                isValid = false;
+            }
+            if (!$('input[name="whole_sale_price"]').val()) {
+                errorMessages.push('Whole Sale Price is required');
+                isValid = false;
+            }
+            if (!$('input[name="special_price"]').val()) {
+                errorMessages.push('Special Price is required');
+                isValid = false;
+            }
+            if (!$('input[name="original_price"]').val()) {
+                errorMessages.push('Cost Price is required');
+                isValid = false;
             }
             
             if (!isValid) {

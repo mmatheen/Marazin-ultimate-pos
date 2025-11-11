@@ -518,14 +518,6 @@
                                 }
                             }, 10);
                         });
-
-                        // Apply purchase context after dropdowns are loaded
-                        setTimeout(function() {
-                            if (typeof window.applyPurchaseContext === 'function') {
-                                console.log('Applying purchase context after dropdown loading...');
-                                window.applyPurchaseContext();
-                            }
-                        }, 300);
                     }
                 },
                 error: function() {
@@ -547,49 +539,10 @@
                         dropdownParent: $('#new_purchase_product'),
                         width: '100%'
                     });
-                    
-                    // Apply purchase context even if AJAX failed
-                    setTimeout(function() {
-                        if (typeof window.applyPurchaseContext === 'function') {
-                            console.log('Applying purchase context after fallback initialization...');
-                            window.applyPurchaseContext();
-                        }
-                    }, 300);
                 }
             });
         });
 
-        // Handle main category change to populate sub-categories
-        $(document).on('change', '#edit_main_category_id', function() {
-            const selectedCategoryId = $(this).val();
-            
-            // Clear sub-categories
-            $('#edit_sub_category_id').empty().append('<option value="">Select Sub Category</option>');
-            
-            if (selectedCategoryId) {
-                // Fetch sub-categories for the selected main category
-                $.ajax({
-                    url: `/get-subcategories/${selectedCategoryId}`,
-                    type: 'GET',
-                    dataType: 'json',
-                    success: function(response) {
-                        if (response.status === 200 && response.message.subCategories) {
-                            response.message.subCategories.forEach(subCategory => {
-                                $('#edit_sub_category_id').append(`<option value="${subCategory.id}">${subCategory.subCategoryname}</option>`);
-                            });
-                        }
-                        // Trigger Select2 update
-                        $('#edit_sub_category_id').trigger('change.select2');
-                    },
-                    error: function() {
-                        console.log('Error loading sub-categories');
-                    }
-                });
-            }
-            
-            // Trigger Select2 update
-            $('#edit_sub_category_id').trigger('change.select2');
-        });
 
         // Destroy Select2 when modal is closed to prevent duplication on next open
         $('#new_purchase_product').on('hidden.bs.modal', function() {
@@ -599,8 +552,12 @@
                 }
             });
             
-            // Reset form when modal is closed
+            // Reset form when modal is closed (only reset the product form, not purchase data)
             $('#addForm')[0].reset();
+            // Clear validation errors and styling
+            $('#addForm').find('.is-invalidRed, is-validGreen').removeClass('is-invalidRed is-validGreen');
+            $('.text-danger').html('');
+            console.log('✅ Product modal closed - form reset without affecting purchase data');
         });
     });
 </script>

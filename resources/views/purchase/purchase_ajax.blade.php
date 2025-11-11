@@ -239,6 +239,21 @@
         let currentPage = 1;
         let hasMore = true;
 
+        // CRITICAL FIX: Add cleanup function to prevent re-adding removed products
+        function cleanupProductTrackingArrays() {
+            console.log('🧹 Cleaning up product tracking arrays...');
+            
+            // Clear all tracking arrays
+            pendingImeiProducts.length = 0;
+            allProducts.length = 0;
+            
+            // Reset pagination
+            currentPage = 1;
+            hasMore = true;
+            
+            console.log('✅ Product tracking arrays cleaned');
+        }
+
         function normalizeString(str) {
             return (str || '').toString().toLowerCase().replace(/[^a-z0-9]/gi, '');
         }
@@ -456,13 +471,26 @@
             const table = purchaseProductTable || $('#purchase_product').DataTable();
             let existingRow = null;
 
-            $('#purchase_product tbody tr').each(function() {
-                const rowProductId = $(this).data('id');
-                if (rowProductId === product.id) {
-                    existingRow = $(this);
-                    return false;
-                }
-            });
+            // ENHANCED DUPLICATE CHECKING: Use DataTable API for more reliable checking
+            if ($.fn.DataTable.isDataTable('#purchase_product')) {
+                table.rows().every(function() {
+                    const rowData = this.node();
+                    const rowProductId = $(rowData).data('id');
+                    if (rowProductId && rowProductId == product.id) {
+                        existingRow = $(rowData);
+                        return false;
+                    }
+                });
+            } else {
+                // Fallback: check visible rows
+                $('#purchase_product tbody tr').each(function() {
+                    const rowProductId = $(this).data('id');
+                    if (rowProductId && rowProductId == product.id) {
+                        existingRow = $(this);
+                        return false;
+                    }
+                });
+            }
 
             // Determine if decimal is allowed for this product
             const allowDecimal = product.allow_decimal === true || product.allow_decimal === "true";
@@ -471,11 +499,13 @@
             const quantityPattern = allowDecimal ? "[0-9]+([.][0-9]{1,2})?" : "[0-9]+";
 
             if (existingRow && !isEditing) {
+                console.log(`📋 Product ${product.id} (${product.name}) already exists - incrementing quantity`);
                 const quantityInput = existingRow.find('.purchase-quantity');
                 let currentVal = parseFloat(quantityInput.val());
                 let newQuantity = allowDecimal ? (currentVal + 1) : (parseInt(currentVal) + 1);
                 quantityInput.val(newQuantity).trigger('input');
             } else {
+                console.log(`➕ Adding new product ${product.id} (${product.name}) to table. IsEditing: ${isEditing}`);
                 // Get latest batch prices using helper function
                 const latestPrices = getLatestBatchPrices(product);
 
@@ -537,7 +567,7 @@
             <td><input type="number" class="form-control retail-price" value="${retailPrice.toFixed(2)}" min="0" max="${maxRetailPrice}" required title="Maximum allowed: ${maxRetailPrice.toFixed(2)} (MRP)" placeholder="Max: ${maxRetailPrice.toFixed(2)}"></td>
             <td><input type="date" class="form-control expiry-date" value="${latestPrices.expiry_date}"></td>
             <td><input type="text" class="form-control batch_no" value="${latestPrices.batch_no}"></td>
-            <td><button class="btn btn-danger btn-sm delete-product"><i class="fas fa-trash"></i></button></td>
+            <td><button class="btn btn-danger btn-sm remove-purchase-row"><i class="fas fa-trash"></i></button></td>
             </tr>
         `;
 
@@ -562,9 +592,92 @@
                     updateFooter();
                 });
 
-                $newRow.find(".delete-product").on("click", function() {
-                    table.row($newRow).remove().draw();
-                    updateFooter();
+                // Handle row removal for newly added products (NOT product deletion)
+                // Uses .remove-purchase-row class to avoid conflict with product_ajax.blade.php
+                $newRow.find(".remove-purchase-row").on("click", function(e) {
+                    e.preventDefault();
+                    
+                    const productName = $newRow.find('td:nth-child(2)').text().trim();
+                    const quantity = $newRow.find('.purchase-quantity').val() || '0';
+                    
+                    // Show confirmation dialog for removing row from purchase table
+                    if (typeof swal !== 'undefined') {
+                        swal({
+                            title: "Remove from Purchase?",
+                            text: `Remove "${productName}" (Qty: ${quantity}) from this purchase list?`,
+                            type: "warning",
+                            showCancelButton: true,
+                            confirmButtonColor: "#DD6B55",
+                            confirmButtonText: "Yes, Remove",
+                            cancelButtonText: "Cancel",
+                            closeOnConfirm: true
+                        }, function(isConfirm) {
+                            if (isConfirm) {
+                                const productId = $newRow.data('id');
+                                
+                                // Remove from DataTable
+                                table.row($newRow).remove().draw();
+                                
+                                // CRITICAL FIX: Clean up ALL tracking arrays to prevent re-adding
+                                const originalPendingLength = pendingImeiProducts.length;
+                                pendingImeiProducts = pendingImeiProducts.filter(product => 
+                                    product.productId != productId // Use != for loose comparison
+                                );
+                                
+                                // Clear any cached product data
+                                if (typeof allProducts !== 'undefined') {
+                                    const originalAllLength = allProducts.length;
+                                    allProducts = allProducts.filter(product => 
+                                        product.id != productId // Use != for loose comparison
+                                    );
+                                    console.log(`🗑️ Removed from allProducts: ${originalAllLength} -> ${allProducts.length}`);
+                                }
+                                
+                                console.log(`🗑️ Removed from pendingImeiProducts: ${originalPendingLength} -> ${pendingImeiProducts.length}`);
+                                
+                                updateFooter();
+                                
+                                if (typeof toastr !== 'undefined') {
+                                    toastr.info(`${productName} removed from purchase list`, 'Row Removed');
+                                }
+                                
+                                console.log(`✅ Cleaned up product ${productId} from all tracking arrays`);
+                            }
+                        });
+                    } else {
+                        // Fallback to native confirm if SweetAlert is not available
+                        if (confirm(`Remove "${productName}" (Qty: ${quantity}) from this purchase list?`)) {
+                            const productId = $newRow.data('id');
+                            
+                            // Remove from DataTable
+                            table.row($newRow).remove().draw();
+                            
+                            // CRITICAL FIX: Clean up ALL tracking arrays to prevent re-adding
+                            const originalPendingLength = pendingImeiProducts.length;
+                            pendingImeiProducts = pendingImeiProducts.filter(product => 
+                                product.productId != productId // Use != for loose comparison
+                            );
+                            
+                            // Clear any cached product data
+                            if (typeof allProducts !== 'undefined') {
+                                const originalAllLength = allProducts.length;
+                                allProducts = allProducts.filter(product => 
+                                    product.id != productId // Use != for loose comparison
+                                );
+                                console.log(`🗑️ Removed from allProducts: ${originalAllLength} -> ${allProducts.length}`);
+                            }
+                            
+                            console.log(`🗑️ Removed from pendingImeiProducts: ${originalPendingLength} -> ${pendingImeiProducts.length}`);
+                            
+                            updateFooter();
+                            
+                            if (typeof toastr !== 'undefined') {
+                                toastr.info(`${productName} removed from purchase list`, 'Row Removed');
+                            }
+                            
+                            console.log(`✅ Cleaned up product ${productId} from all tracking arrays`);
+                        }
+                    }
                 });
             }
         }
@@ -787,6 +900,8 @@
             }
 
             if (productTable) {
+                // CRITICAL FIX: Clean up tracking arrays before loading existing purchase
+                cleanupProductTrackingArrays();
                 productTable.clear().draw();
             }
 
@@ -861,7 +976,8 @@
         });
 
         function collectImeiProducts(productTableRows) {
-            pendingImeiProducts = [];
+            // CRITICAL FIX: Clear the array completely to prevent re-adding removed products
+            pendingImeiProducts.length = 0; // More thorough cleanup
             console.log('=== IMEI Collection Debug ===');
 
             // CRITICAL FIX: Get ALL rows from DataTable (including paginated ones)
@@ -1882,6 +1998,10 @@
         function resetFormAndValidation() {
             $('#purchaseForm')[0].reset();
             $('#purchaseForm').validate().resetForm();
+            
+            // CRITICAL FIX: Clean up all product tracking arrays
+            cleanupProductTrackingArrays();
+            
             // Use global variable or get existing instance (don't reinitialize!)
             if (purchaseProductTable) {
                 purchaseProductTable.clear().draw();
@@ -2086,11 +2206,47 @@
             updateFooter();
         });
 
-        // Event listener for deleting a row
-        $('#purchase_product').on('click', '.delete-product', function() {
-            $(this).closest('tr').remove();
-            updateFooter();
-            toastr.info('Product removed from the table.', 'Info');
+        // Event listener for removing a row from purchase table (NOT deleting the product permanently)
+        // Uses .remove-purchase-row class to avoid conflict with product deletion in product_ajax.blade.php
+        $('#purchase_product').on('click', '.remove-purchase-row', function(e) {
+            e.preventDefault();
+            
+            const $row = $(this).closest('tr');
+            const productName = $row.find('td:nth-child(2)').text().trim();
+            const quantity = $row.find('.purchase-quantity').val() || '0';
+            
+            // Show confirmation dialog for removing row from purchase table
+            if (typeof swal !== 'undefined') {
+                swal({
+                    title: "Remove from Purchase?",
+                    text: `Remove "${productName}" (Qty: ${quantity}) from this purchase list?`,
+                    type: "warning",
+                    showCancelButton: true,
+                    confirmButtonColor: "#DD6B55",
+                    confirmButtonText: "Yes, Remove",
+                    cancelButtonText: "Cancel",
+                    closeOnConfirm: true
+                }, function(isConfirm) {
+                    if (isConfirm) {
+                        $row.remove();
+                        updateFooter();
+                        
+                        if (typeof toastr !== 'undefined') {
+                            toastr.info(`${productName} removed from purchase list`, 'Row Removed');
+                        }
+                    }
+                });
+            } else {
+                // Fallback to native confirm if SweetAlert is not available
+                if (confirm(`Remove "${productName}" (Qty: ${quantity}) from this purchase list?`)) {
+                    $row.remove();
+                    updateFooter();
+                    
+                    if (typeof toastr !== 'undefined') {
+                        toastr.info(`${productName} removed from purchase list`, 'Row Removed');
+                    }
+                }
+            }
         });
 
         // Fetch suppliers using AJAX
