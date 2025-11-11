@@ -2165,37 +2165,12 @@
             const productName = $row.find('td:nth-child(2)').text().trim();
             const quantity = $row.find('.purchase-quantity').val() || '0';
             
-            // Show confirmation dialog for removing row from purchase table
-            if (typeof swal !== 'undefined') {
-                swal({
-                    title: "Remove from Purchase?",
-                    text: `Remove "${productName}" (Qty: ${quantity}) from this purchase list?`,
-                    type: "warning",
-                    showCancelButton: true,
-                    confirmButtonColor: "#DD6B55",
-                    confirmButtonText: "Yes, Remove",
-                    cancelButtonText: "Cancel",
-                    closeOnConfirm: true
-                }, function(isConfirm) {
-                    if (isConfirm) {
-                        $row.remove();
-                        updateFooter();
-                        
-                        if (typeof toastr !== 'undefined') {
-                            toastr.info(`${productName} removed from purchase list`, 'Row Removed');
-                        }
-                    }
-                });
-            } else {
-                // Fallback to native confirm if SweetAlert is not available
-                if (confirm(`Remove "${productName}" (Qty: ${quantity}) from this purchase list?`)) {
-                    $row.remove();
-                    updateFooter();
-                    
-                    if (typeof toastr !== 'undefined') {
-                        toastr.info(`${productName} removed from purchase list`, 'Row Removed');
-                    }
-                }
+            // Remove row directly without confirmation
+            $row.remove();
+            updateFooter();
+            
+            if (typeof toastr !== 'undefined') {
+            toastr.info(`${productName} removed from purchase list`, 'Row Removed');
             }
         });
 
