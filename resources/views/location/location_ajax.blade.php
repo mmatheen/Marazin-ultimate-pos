@@ -35,6 +35,10 @@
                 $('#address_error, #province_error, #district_error, #city_error, #email_error, #mobile_error, #telephone_no_error')
                     .text('');
 
+                // Update labels to indicate these can be different for sublocation
+                $('#edit_logo_image').closest('.form-group').find('label').html('Sublocation Logo <span class="text-muted">(Optional - can be different from parent)</span>');
+                $('#edit_invoice_layout_pos').closest('.form-group').find('label').html('Receipt Layout for POS <span class="login-danger">*</span> <span class="text-muted">(Can be different from parent)</span>');
+
                 // Fetch and display parent location details
                 fetchParentLocationDetails(parentId);
             } else {
@@ -49,6 +53,10 @@
 
                 // Show required asterisks for contact fields
                 $('#address_required, #province_required, #district_required').show();
+
+                // Restore original labels for main location
+                $('#edit_logo_image').closest('.form-group').find('label').html('Location Logo<span class="login-danger"></span>');
+                $('#edit_invoice_layout_pos').closest('.form-group').find('label').html('Receipt Layout for POS <span class="login-danger">*</span>');
 
                 // Clear vehicle validation errors
                 $('#vehicle_number_error, #vehicle_type_error').text('');
@@ -174,6 +182,9 @@
                         // Vehicle type is required only for sublocations (has parent)
                         return $('#edit_parent_id').val() !== '';
                     }
+                },
+                invoice_layout_pos: {
+                    required: true  // Receipt layout is required for both main locations and sublocations
                 }
             },
             messages: {
@@ -197,6 +208,9 @@
                 },
                 vehicle_type: {
                     required: "Vehicle type is required for sublocations",
+                },
+                invoice_layout_pos: {
+                    required: "Receipt layout is required",
                 }
             },
             errorElement: 'span',
@@ -239,8 +253,14 @@
             $('#edit_vehicle_number').val('').prop('required', false);
             $('#edit_vehicle_type').val('').prop('required', false);
 
-            // Reset invoice layout to default
+            // Reset logo and receipt layout fields
+            $('#edit_logo_image').val('');
+            $('#logo_preview').html('');
             $('#edit_invoice_layout_pos').val('80mm');
+            
+            // Reset field labels to original state
+            $('#edit_logo_image').closest('.form-group').find('label').html('Location Logo<span class="login-danger"></span>');
+            $('#edit_invoice_layout_pos').closest('.form-group').find('label').html('Receipt Layout for POS <span class="login-danger">*</span>');
 
             // Hide parent details section and reset parent info
             $('#parentLocationDetails').hide();
@@ -419,7 +439,7 @@
                         $('#edit_vehicle_type').val(d.vehicle_type || '');
                         $('#edit_invoice_layout_pos').val(d.invoice_layout_pos || '80mm');
 
-                        // Display existing logo if available
+                        // Display existing logo if available (for both main locations and sublocations)
                         if (d.logo_url) {
                             $('#logo_preview').html('<img src="' + d.logo_url +
                                 '" alt="Current Logo" style="width: 80px; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">'
@@ -454,6 +474,8 @@
             }
 
             let formData = new FormData(this);
+            
+            // Note: Both main locations and sublocations can have their own logo and invoice layout
             let id = $('#edit_id').val(); // for edit
             let url = id ? 'location-update/' + id : 'location-store';
             let type = id ? 'post' : 'post';

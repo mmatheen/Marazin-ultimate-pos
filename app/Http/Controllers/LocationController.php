@@ -175,7 +175,7 @@ class LocationController extends Controller
         ];
 
         if ($isSubLocation) {
-            // For sublocations - only vehicle details are required, others inherited from parent
+            // For sublocations - vehicle details are required, logo and invoice layout are optional but can be different from parent
             $validationRules += [
                 'vehicle_number' => [
                     'required',
@@ -189,6 +189,8 @@ class LocationController extends Controller
                     'string',
                     'in:Van,Truck,Bike,Car,Three Wheeler,Lorry,Other'
                 ],
+                'logo_image' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:2048',
+                'invoice_layout_pos' => 'required|string|in:80mm,a4,dot_matrix',
             ];
         } else {
             // For main locations - all contact and address details are required
@@ -262,10 +264,11 @@ class LocationController extends Controller
             ];
 
             if ($isSubLocation) {
-                // For sublocations - inherit parent details and add vehicle info
+                // For sublocations - inherit parent contact details but allow different logo and invoice layout
                 $parentLocation = Location::find($request->parent_id);
                 
                 $locationData += [
+                    // Inherited from parent
                     'address' => $parentLocation->address,
                     'province' => $parentLocation->province,
                     'district' => $parentLocation->district,
@@ -273,10 +276,12 @@ class LocationController extends Controller
                     'email' => $parentLocation->email,
                     'mobile' => $parentLocation->mobile,
                     'telephone_no' => $parentLocation->telephone_no,
-                    'logo_image' => $parentLocation->logo_image,
+                    
+                    // Sublocation specific
                     'vehicle_number' => $request->vehicle_number,
                     'vehicle_type' => $request->vehicle_type,
-                    'invoice_layout_pos' => $request->invoice_layout_pos ?? $parentLocation->invoice_layout_pos ?? '80mm',
+                    'logo_image' => $logoImagePath, // Use uploaded logo or null
+                    'invoice_layout_pos' => $request->invoice_layout_pos ?? '80mm',
                 ];
             } else {
                 // For main locations - use provided details
@@ -428,7 +433,7 @@ class LocationController extends Controller
             ];
 
             if ($isSubLocation) {
-                // For sublocations - only vehicle details are required, others inherited from parent
+                // For sublocations - vehicle details are required, logo and invoice layout are optional but can be different from parent
                 $validationRules += [
                     'vehicle_number' => [
                         'required',
@@ -442,6 +447,8 @@ class LocationController extends Controller
                         'string',
                         'in:Van,Truck,Bike,Car,Three Wheeler,Lorry,Other'
                     ],
+                    'logo_image' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:2048',
+                    'invoice_layout_pos' => 'required|string|in:80mm,a4,dot_matrix',
                 ];
             } else {
                 // For main locations - all contact and address details are required
@@ -547,10 +554,11 @@ class LocationController extends Controller
                 ];
 
                 if ($isSubLocation) {
-                    // For sublocations - inherit parent details and update vehicle info
+                    // For sublocations - inherit parent contact details but allow different logo and invoice layout
                     $parentLocation = Location::find($request->parent_id);
                     
                     $updateData += [
+                        // Inherited from parent
                         'address' => $parentLocation->address,
                         'province' => $parentLocation->province,
                         'district' => $parentLocation->district,
@@ -558,10 +566,12 @@ class LocationController extends Controller
                         'email' => $parentLocation->email,
                         'mobile' => $parentLocation->mobile,
                         'telephone_no' => $parentLocation->telephone_no,
-                        'logo_image' => $parentLocation->logo_image,
+                        
+                        // Sublocation specific
                         'vehicle_number' => $request->vehicle_number,
                         'vehicle_type' => $request->vehicle_type,
-                        'invoice_layout_pos' => $request->invoice_layout_pos ?? $parentLocation->invoice_layout_pos ?? '80mm',
+                        'logo_image' => $logoImagePath, // Use uploaded logo or keep existing
+                        'invoice_layout_pos' => $request->invoice_layout_pos ?? '80mm',
                     ];
                 } else {
                     // For main locations - use provided details

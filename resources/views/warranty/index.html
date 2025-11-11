@@ -1,333 +1,513 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jasra Hardware Invoice</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Courier New', monospace;
-            background-color: #f0f0f0;
-            padding: 20px;
-        }
-
-        .invoice-container {
-            max-width: 900px;
-            margin: 0 auto;
-            background-color: #e8e8e8;
-            border: 2px solid #333;
-            padding: 30px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.3);
-        }
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-            border-bottom: 2px solid #000;
-            padding-bottom: 15px;
-            margin-bottom: 20px;
-        }
-
-        .company-info {
-            flex: 1;
-        }
-
-        .company-name {
-            font-size: 28px;
-            font-weight: bold;
-            margin-bottom: 5px;
-            letter-spacing: 2px;
-        }
-
-        .company-details {
-            font-size: 11px;
-            line-height: 1.4;
-        }
-
-        .customer-info {
-            border: 2px solid #000;
-            padding: 10px;
-            min-width: 400px;
-            font-size: 11px;
-        }
-
-        .customer-info table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .customer-info td {
-            padding: 3px 5px;
-        }
-
-        .customer-info td:first-child {
-            font-weight: bold;
-            width: 100px;
-        }
-
-        .invoice-title {
-            text-align: center;
-            font-size: 32px;
-            font-weight: bold;
-            margin: 20px 0;
-            letter-spacing: 3px;
-        }
-
-        .invoice-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-            font-size: 12px;
-        }
-
-        .invoice-table th {
-            background-color: #d0d0d0;
-            border: 2px solid #000;
-            padding: 8px;
-            text-align: center;
-            font-weight: bold;
-        }
-
-        .invoice-table td {
-            border: 1px solid #666;
-            padding: 8px;
-            text-align: right;
-        }
-
-        .invoice-table td:first-child,
-        .invoice-table td:nth-child(2) {
-            text-align: left;
-        }
-
-        .invoice-table tbody tr:nth-child(even) {
-            background-color: #f5f5f5;
-        }
-
-        .summary-section {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 20px;
-            font-size: 11px;
-        }
-
-        .summary-left,
-        .summary-right {
-            flex: 1;
-        }
-
-        .summary-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 5px 0;
-            border-bottom: 1px dotted #666;
-        }
-
-        .summary-row.bold {
-            font-weight: bold;
-            font-size: 13px;
-            border-bottom: 2px solid #000;
-            margin-top: 5px;
-        }
-
-        .summary-row.total {
-            font-weight: bold;
-            font-size: 15px;
-            border-bottom: 3px double #000;
-            margin-top: 10px;
-            padding-top: 10px;
-        }
-
-        .footer {
-            margin-top: 30px;
-            padding-top: 15px;
-            border-top: 2px solid #000;
-            display: flex;
-            justify-content: space-between;
-            font-size: 10px;
-        }
-
-        .status-badge {
-            position: absolute;
-            top: 160px;
-            right: 50px;
-            background-color: #fff;
-            border: 2px solid #000;
-            padding: 5px 15px;
-            font-weight: bold;
-            font-size: 12px;
-        }
-
-        .reg-no {
-            text-align: right;
-            font-size: 11px;
-            margin-bottom: 10px;
-        }
-
-        .type-credit {
-            font-weight: bold;
-            color: #c00;
-        }
-    </style>
+<meta charset="utf-8" />
+<title>MiniFort — weapons + stylized models</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  html,body{height:100%;margin:0;overflow:hidden;background:#0f1720;color:#eee;font-family:system-ui,Segoe UI,Roboto,Arial}
+  #overlay{position:absolute;left:12px;top:12px;z-index:10;background:rgba(0,0,0,0.45);padding:12px;border-radius:10px;max-width:360px}
+  #startBtn{display:inline-block;margin-top:8px;padding:8px 12px;background:#06b6d4;color:#042; border-radius:6px;cursor:pointer}
+  canvas{display:block}
+  #crosshair{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:18px;height:18px;pointer-events:none;z-index:9}
+  #crosshair:before,#crosshair:after{content:'';position:absolute;background:#fff;opacity:0.85}
+  #crosshair:before{left:50%;top:0;width:2px;height:100%;transform:translateX(-50%)}
+  #crosshair:after{top:50%;left:0;height:2px;width:100%;transform:translateY(-50%)}
+  #hud{position:absolute;right:12px;top:12px;z-index:11;background:rgba(0,0,0,0.35);padding:10px;border-radius:10px;text-align:right;min-width:140px}
+  #pickupMsg{position:absolute;left:50%;bottom:110px;transform:translateX(-50%);z-index:12;background:rgba(0,0,0,0.5);padding:6px 10px;border-radius:6px;display:none}
+  button.small{padding:6px 8px;border-radius:6px;background:#2563eb;color:white;border:0;cursor:pointer}
+  kbd{background:#222;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.06)}
+</style>
 </head>
 <body>
-    <div class="invoice-container">
-        <div class="reg-no">Reg No: KDS662</div>
-        
-        <div class="header">
-            <div class="company-info">
-                <div class="company-name">JASRA HARDWARE</div>
-                <div class="company-details">
-                    118E, MAIN STREET, KALMUNAI<br>
-                    Mobile: 0777112566, 0771919862, 0773067008<br>
-                    Phone: 0672226699
-                </div>
-            </div>
-            
-            <div class="customer-info">
-                <table>
-                    <tr>
-                        <td>Customer</td>
-                        <td>: Athambawa Construction</td>
-                    </tr>
-                    <tr>
-                        <td>Phone</td>
-                        <td>: 0773554375</td>
-                    </tr>
-                    <tr>
-                        <td>Date</td>
-                        <td>: 2025-08-09 16:10:29</td>
-                    </tr>
-                    <tr>
-                        <td>Invoice No</td>
-                        <td>: 2025-4742 <span class="type-credit">Type: Credit</span></td>
-                    </tr>
-                </table>
-            </div>
-        </div>
+  <div id="overlay">
+    <strong>MiniFort — weapons + stylized models</strong>
+    <div style="margin-top:6px">WASD: move • Space: jump • Mouse: look</div>
+    <div style="margin-top:6px">Left click: fire • 1/2/3: switch weapon • F: pump (shotgun) • R: reload • G: pick up</div>
+    <div style="margin-top:8px">E: place block • Q: remove block • R: reset</div>
+    <div id="startBtn">Click to lock mouse & start</div>
+    <small style="display:block;margin-top:6px">Tip: open devtools to view debug logs.</small>
+  </div>
 
-        <div class="status-badge">Delivered</div>
+  <div id="hud">
+    <div id="weaponName">Weapon: —</div>
+    <div id="ammo">Ammo: —</div>
+    <div id="pumpStatus" style="color:#ffd;margin-top:6px"></div>
+    <div style="margin-top:6px;font-size:12px;color:#cbd5e1">Pickup a crate to get guns • Pump shotgun after firing (press F)</div>
+  </div>
 
-        <div class="invoice-title">INVOICE</div>
+  <div id="crosshair"></div>
+  <div id="pickupMsg">Press G to pick up the crate</div>
 
-        <table class="invoice-table">
-            <thead>
-                <tr>
-                    <th>SN</th>
-                    <th>Item</th>
-                    <th>Qty</th>
-                    <th>Price</th>
-                    <th>Discount</th>
-                    <th>Rate</th>
-                    <th>Amount</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>1</td>
-                    <td>Lanwa Steel 12mm</td>
-                    <td>154</td>
-                    <td>1530.00</td>
-                    <td>0.00</td>
-                    <td>1530.00</td>
-                    <td>235,620.00</td>
-                </tr>
-                <tr>
-                    <td>2</td>
-                    <td>Lanwa Steel 10mm</td>
-                    <td>45</td>
-                    <td>1035.00</td>
-                    <td>0.00</td>
-                    <td>1035.00</td>
-                    <td>46,575.00</td>
-                </tr>
-                <tr>
-                    <td>3</td>
-                    <td>1/4in Bar 5.5mm (Original)</td>
-                    <td>134</td>
-                    <td>350.00</td>
-                    <td>0.00</td>
-                    <td>350.00</td>
-                    <td>46,900.00</td>
-                </tr>
-                <tr>
-                    <td>4</td>
-                    <td>Binding Wire Kg</td>
-                    <td>30</td>
-                    <td>350.00</td>
-                    <td>0.00</td>
-                    <td>350.00</td>
-                    <td>10,500.00</td>
-                </tr>
-            </tbody>
-        </table>
+<script type="module">
+import * as THREE from 'https://unpkg.com/three@0.152.2/build/three.module.js';
+import { PointerLockControls } from 'https://unpkg.com/three@0.152.2/examples/jsm/controls/PointerLockControls.js';
 
-        <div class="summary-section">
-            <div class="summary-left">
-                <div class="summary-row">
-                    <span>Total Items:</span>
-                    <span>4</span>
-                </div>
-                <div class="summary-row">
-                    <span>Total Quantity:</span>
-                    <span>363</span>
-                </div>
-                <div class="summary-row">
-                    <span>Previous Outstanding:</span>
-                    <span>0.00</span>
-                </div>
-            </div>
+// ---------- scene setup ----------
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x9fd2ff);
 
-            <div class="summary-right">
-                <div class="summary-row">
-                    <span>Total Discounts:</span>
-                    <span>0.00</span>
-                </div>
-                <div class="summary-row">
-                    <span>Return Amount:</span>
-                    <span>0.00</span>
-                </div>
-                <div class="summary-row">
-                    <span>Amount Payable:</span>
-                    <span>339,595.00</span>
-                </div>
-                <div class="summary-row">
-                    <span>Discount:</span>
-                    <span>0.00</span>
-                </div>
-                <div class="summary-row bold">
-                    <span>Bill Total:</span>
-                    <span>339,595.00</span>
-                </div>
-                <div class="summary-row">
-                    <span>Amount Paid:</span>
-                    <span>0.00</span>
-                </div>
-                <div class="summary-row">
-                    <span>Balance:</span>
-                    <span>339595.00</span>
-                </div>
-                <div class="summary-row total">
-                    <span>*Current Credit:</span>
-                    <span>339,595.00</span>
-                </div>
-            </div>
-        </div>
+const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
+camera.position.set(0, 1.6, 5);
 
-        <div class="footer">
-            <div>Prepared By:</div>
-            <div>Checked By:</div>
-            <div>Customer Acceptance:</div>
-        </div>
-        
-        <div style="text-align: center; margin-top: 15px; font-size: 10px;">
-            Software: Synilaka Shopman 0778791656
-        </div>
-    </div>
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = false;
+document.body.appendChild(renderer.domElement);
+
+const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+hemi.position.set(0, 20, 0);
+scene.add(hemi);
+
+const dir = new THREE.DirectionalLight(0xffffff, 0.7);
+dir.position.set(-5, 10, 5);
+scene.add(dir);
+
+// ground
+const groundGeo = new THREE.PlaneGeometry(200,200);
+const groundMat = new THREE.MeshStandardMaterial({color:0x2b7a2b});
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI/2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// stylized horizon elements (simple hills)
+for(let i=0;i<8;i++){
+  const g = new THREE.CylinderGeometry(30, 30, 8, 6, 1);
+  const m = new THREE.MeshStandardMaterial({color: 0x184b2a});
+  const mesh = new THREE.Mesh(g, m);
+  mesh.position.set((i-4)*30, -2, -60 - i*10);
+  mesh.rotation.x = Math.PI/2;
+  scene.add(mesh);
+}
+
+// ---------- simple world blocks (platform) ----------
+const blocks = new Map();
+function blockKey(x,y,z){ return `${x},${y},${z}`; }
+function addBlockAt(x,y,z, color=0x8B4513){
+  const key = blockKey(x,y,z);
+  if(blocks.has(key)) return;
+  const geo = new THREE.BoxGeometry(1,1,1);
+  // slightly bevel look: add thin edge spheres — visually softer
+  const mat = new THREE.MeshStandardMaterial({ color });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, y, z);
+  scene.add(mesh);
+  blocks.set(key, mesh);
+}
+for(let xi=-4; xi<=4; xi++){
+  for(let zi=-4; zi<=4; zi++){
+    addBlockAt(xi, 0.5, zi, 0x8b5a2b);
+  }
+}
+
+// ---------- player + controls ----------
+const controls = new PointerLockControls(camera, document.body);
+scene.add(controls.getObject());
+
+const startBtn = document.getElementById('startBtn');
+startBtn.addEventListener('click', ()=> controls.lock());
+controls.addEventListener('lock', ()=> document.getElementById('overlay').style.display='none');
+controls.addEventListener('unlock', ()=> document.getElementById('overlay').style.display='');
+
+const move = { forward:false, back:false, left:false, right:false };
+let canJump=true; let velocity=new THREE.Vector3();
+const speed = 6.0; const gravity = 20.0;
+
+// input
+document.addEventListener('keydown', (e)=>{
+  if(e.code==='KeyW') move.forward=true;
+  if(e.code==='KeyS') move.back=true;
+  if(e.code==='KeyA') move.left=true;
+  if(e.code==='KeyD') move.right=true;
+  if(e.code==='Space' && canJump){ velocity.y = 8; canJump=false; }
+  if(e.code==='KeyE') placeBlockInFront();
+  if(e.code==='KeyQ') removeBlockInFront();
+  if(e.code==='KeyR') { reloadCurrentWeapon(); } // reload
+  if(e.code==='KeyF') { pumpShotgun(); } // pump
+  if(e.code==='KeyG') { tryPickupCrate(); }
+  if(e.code==='Digit1') switchWeapon('pistol');
+  if(e.code==='Digit2') switchWeapon('ar');
+  if(e.code==='Digit3') switchWeapon('pump');
+});
+document.addEventListener('keyup', (e)=>{
+  if(e.code==='KeyW') move.forward=false;
+  if(e.code==='KeyS') move.back=false;
+  if(e.code==='KeyA') move.left=false;
+  if(e.code==='KeyD') move.right=false;
+});
+
+// ---------- helper: grid snap & build ----------
+function snap(v){ return Math.round(v); }
+function getCameraForwardPoint(range=3){
+  const dir = new THREE.Vector3();
+  camera.getWorldDirection(dir);
+  const point = camera.position.clone().add(dir.multiplyScalar(range));
+  return point;
+}
+function placeBlockInFront(){
+  const p = getCameraForwardPoint(3);
+  const x = snap(p.x), y = snap(p.y), z = snap(p.z);
+  addBlockAt(x, y, z);
+}
+function removeBlockInFront(){
+  const p = getCameraForwardPoint(3);
+  const x = snap(p.x), y = snap(p.y), z = snap(p.z);
+  const key = blockKey(x,y,z);
+  if(blocks.has(key)){
+    const m = blocks.get(key);
+    scene.remove(m);
+    m.geometry.dispose(); m.material.dispose();
+    blocks.delete(key);
+  }
+}
+
+// ---------- PROJECTILES ----------
+const projectiles = [];
+const projectileGeo = new THREE.SphereGeometry(0.08,8,8);
+const projectileMat = new THREE.MeshStandardMaterial({color:0xffee66});
+
+// ---------- WEAPON SYSTEM ----------
+const hudWeapon = document.getElementById('weaponName');
+const hudAmmo = document.getElementById('ammo');
+const hudPump = document.getElementById('pumpStatus');
+
+class Weapon {
+  constructor(name, opts){
+    this.name = name;
+    this.fireRate = opts.fireRate || 0.2; // seconds between shots
+    this.auto = !!opts.auto;
+    this.pellets = opts.pellets || 1;
+    this.spread = opts.spread || 0.02;
+    this.damage = opts.damage || 10;
+    this.mag = opts.mag || 12;
+    this.ammo = this.mag;
+    this.reloadTime = opts.reloadTime || 1.4;
+    this.lastShot = -999;
+    this.mesh = opts.mesh || null;
+    this.isPump = !!opts.isPump; // pump shotgun flag
+    this.needsPump = false; // whether needs pump to fire again
+  }
+  canFire(time){
+    if(this.isPump && this.needsPump) return false;
+    return (time - this.lastShot) >= this.fireRate && this.ammo>0;
+  }
+  fire(time){
+    if(!this.canFire(time)) return false;
+    this.lastShot = time;
+    this.ammo--;
+    if(this.isPump){
+      // pump shotgun: after shot, must pump; allow visual delay
+      this.needsPump = true;
+      hudPump.innerText = 'Pump: required (press F)';
+    }
+    // spawn pellets
+    for(let i=0;i<this.pellets;i++){
+      const dir = new THREE.Vector3();
+      camera.getWorldDirection(dir);
+      // add spread
+      const spreadX = (Math.random()-0.5) * this.spread;
+      const spreadY = (Math.random()-0.5) * this.spread;
+      dir.x += spreadX; dir.y += spreadY;
+      dir.normalize();
+      const pos = camera.position.clone().add(dir.clone().multiplyScalar(1.0));
+      const mesh = new THREE.Mesh(projectileGeo, projectileMat.clone());
+      mesh.position.copy(pos);
+      scene.add(mesh);
+      projectiles.push({mesh, vel: dir.clone().multiplyScalar(28 + Math.random()*6), life: 2.0, damage: this.damage / this.pellets});
+    }
+    updateHUD();
+    return true;
+  }
+  reload(){
+    // simple instant-ish reload after reloadTime
+    const self = this;
+    const missing = this.mag - this.ammo;
+    if(missing<=0) return;
+    hudAmmo.innerText = 'Reloading...';
+    setTimeout(()=>{
+      self.ammo = self.mag;
+      updateHUD();
+    }, Math.round(this.reloadTime*1000));
+  }
+  pumpAction(){
+    if(!this.isPump) return;
+    if(!this.needsPump) { hudPump.innerText = 'Pump: already ready'; return; }
+    // pump animation placeholder: short delay then ready
+    hudPump.innerText = 'Pumping...';
+    setTimeout(()=>{
+      this.needsPump = false;
+      hudPump.innerText = '';
+    }, 450);
+  }
+}
+
+// create stylized weapon meshes (simple low-poly shapes)
+function makeStylizedPistolMesh(){
+  const group = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.5,0.15,0.15), new THREE.MeshStandardMaterial({color:0x111827}));
+  body.position.set(0,-0.05,0);
+  group.add(body);
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.9,8), new THREE.MeshStandardMaterial({color:0x374151}));
+  barrel.rotation.z = Math.PI/2;
+  barrel.position.set(0.6,-0.05,0);
+  group.add(barrel);
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.12,0.25,0.08), new THREE.MeshStandardMaterial({color:0x2b2b2b}));
+  grip.position.set(-0.15,-0.2,0);
+  grip.rotation.z = -0.15;
+  group.add(grip);
+  return group;
+}
+function makeStylizedARMesh(){
+  const group = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.9,0.18,0.18), new THREE.MeshStandardMaterial({color:0x0f172a}));
+  group.add(body);
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.045,0.045,1.0,8), new THREE.MeshStandardMaterial({color:0x111827}));
+  barrel.rotation.z = Math.PI/2; barrel.position.set(0.85,0,0);
+  group.add(barrel);
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.4,0.12,0.12), new THREE.MeshStandardMaterial({color:0x1f2937}));
+  stock.position.set(-0.6,0,0);
+  group.add(stock);
+  const mag = new THREE.Mesh(new THREE.BoxGeometry(0.12,0.28,0.06), new THREE.MeshStandardMaterial({color:0x111827}));
+  mag.position.set(0.0,-0.18,0);
+  mag.rotation.x = 0.2;
+  group.add(mag);
+  return group;
+}
+function makeStylizedPumpMesh(){
+  const group = new THREE.Group();
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.7,0.18,0.18), new THREE.MeshStandardMaterial({color:0x271b0b}));
+  stock.position.set(-0.4,0,0);
+  group.add(stock);
+  const pump = new THREE.Mesh(new THREE.BoxGeometry(0.35,0.12,0.14), new THREE.MeshStandardMaterial({color:0x3b2b1b}));
+  pump.position.set(0, -0.02, 0.14);
+  group.add(pump);
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,1.1,8), new THREE.MeshStandardMaterial({color:0x111827}));
+  barrel.rotation.z = Math.PI/2; barrel.position.set(0.6,0,0);
+  group.add(barrel);
+  const sight = new THREE.Mesh(new THREE.BoxGeometry(0.06,0.04,0.02), new THREE.MeshStandardMaterial({color:0xeeeeee}));
+  sight.position.set(0.9,0.05,0);
+  group.add(sight);
+  return group;
+}
+
+// instantiate weapons
+const weapons = {
+  pistol: new Weapon('Pistol', { fireRate:0.3, auto:false, pellets:1, spread:0.01, damage:18, mag:12, reloadTime:1.0, mesh: makeStylizedPistolMesh() }),
+  ar: new Weapon('Assault Rifle', { fireRate:0.09, auto:true, pellets:1, spread:0.015, damage:9, mag:30, reloadTime:1.6, mesh: makeStylizedARMesh() }),
+  pump: new Weapon('Pump Shotgun', { fireRate:0.6, auto:false, pellets:7, spread:0.14, damage:56, mag:5, reloadTime:2.2, mesh: makeStylizedPumpMesh(), isPump:true })
+};
+
+let currentWeapon = weapons.pistol;
+
+function switchWeapon(key){
+  if(!weapons[key]) return;
+  currentWeapon = weapons[key];
+  updateHUD();
+  // attach mesh to camera as first-person "gun"
+  attachWeaponMesh(currentWeapon.mesh);
+}
+
+// attach simple weapon mesh near camera (no animated recoil, basic offset)
+let attachedMesh = null;
+function attachWeaponMesh(mesh){
+  if(attachedMesh) camera.remove(attachedMesh);
+  attachedMesh = mesh ? mesh.clone() : null;
+  if(attachedMesh){
+    attachedMesh.scale.set(0.9,0.9,0.9);
+    attachedMesh.position.set(0.5, -0.45, -0.8);
+    attachedMesh.rotation.set(-0.3, 0.2, 0);
+    camera.add(attachedMesh);
+  }
+}
+
+// pickups (crates)
+const crates = [];
+function spawnGunCrate(x,y,z, weaponKey){
+  const g = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.9,0.6,0.9), new THREE.MeshStandardMaterial({color:0x8b5a2b}));
+  base.position.set(0,0.3,0);
+  g.add(base);
+  const label = new THREE.Mesh(new THREE.PlaneGeometry(0.6,0.3), new THREE.MeshStandardMaterial({color:0xffffaa}));
+  label.position.set(0,0.65,0.46);
+  g.add(label);
+  g.userData = {weaponKey};
+  g.position.set(x,y,z);
+  scene.add(g);
+  crates.push(g);
+}
+
+// spawn a few crates
+spawnGunCrate(3,0.5,2,'pump');
+spawnGunCrate(-3,0.5,4,'ar');
+spawnGunCrate(6,0.5,-2,'pistol');
+
+function tryPickupCrate(){
+  // find closest crate within 2 units
+  let best = null; let bestD = 999;
+  for(const c of crates){
+    const d = c.position.distanceTo(controls.getObject().position);
+    if(d < 2 && d < bestD){ best = c; bestD = d; }
+  }
+  if(best){
+    const key = best.userData.weaponKey;
+    // give weapon: fill mag for simplicity
+    if(weapons[key]){ weapons[key].ammo = weapons[key].mag; switchWeapon(key); }
+    // remove crate
+    scene.remove(best);
+    crates.splice(crates.indexOf(best),1);
+  }
+}
+
+// ---------- shooting & projectile collision ----------
+function projectileStep(dt){
+  for(let i=projectiles.length-1;i>=0;i--){
+    const p = projectiles[i];
+    p.life -= dt;
+    if(p.life <= 0){
+      scene.remove(p.mesh);
+      projectiles.splice(i,1);
+      continue;
+    }
+    p.mesh.position.addScaledVector(p.vel, dt);
+    // detect collision against blocks (simple center distance)
+    for(const [k, mesh] of blocks){
+      const d = p.mesh.position.distanceTo(mesh.position);
+      if(d < 0.9){
+        // remove block
+        scene.remove(mesh);
+        mesh.geometry.dispose(); mesh.material.dispose();
+        blocks.delete(k);
+        // remove projectile
+        scene.remove(p.mesh);
+        projectiles.splice(i,1);
+        break;
+      }
+    }
+  }
+}
+
+// ---------- gun firing loop (handles auto fire) ----------
+let mouseDown = false;
+window.addEventListener('mousedown', (e)=> { if(e.button===0) mouseDown=true; });
+window.addEventListener('mouseup', (e)=> { if(e.button===0) mouseDown=false; });
+
+function tryFire(time){
+  if(!controls.isLocked) return;
+  if(currentWeapon.auto && mouseDown){
+    if(currentWeapon.canFire(time)) currentWeapon.fire(time);
+  } else {
+    // non-auto: only fire on click (handled by event)
+  }
+}
+window.addEventListener('click', (e)=> {
+  // left click handled here for single-shot weapons (auto handled in loop)
+  if(e.button===0){
+    const now = performance.now()/1000;
+    if(!currentWeapon.auto) currentWeapon.fire(now);
+    updateHUD();
+  }
+});
+
+// reload & pump functions used by key handlers
+function reloadCurrentWeapon(){ if(currentWeapon) currentWeapon.reload(); }
+function pumpShotgun(){ if(currentWeapon && currentWeapon.isPump) currentWeapon.pumpAction(); }
+
+// ---------- HUD update ----------
+function updateHUD(){
+  hudWeapon.innerText = `Weapon: ${currentWeapon.name}`;
+  hudAmmo.innerText = `Ammo: ${currentWeapon.ammo} / ${currentWeapon.mag}`;
+  if(currentWeapon.isPump){
+    hudPump.innerText = currentWeapon.needsPump ? 'Pump: required (press F)' : '';
+  } else hudPump.innerText = '';
+}
+switchWeapon('pistol'); // default
+
+// ---------- pickups UI hint ----------
+const pickupMsg = document.getElementById('pickupMsg');
+function pickupHintStep(){
+  let near = false;
+  for(const c of crates){
+    if(c.position.distanceTo(controls.getObject().position) < 2){
+      near = true; break;
+    }
+  }
+  pickupMsg.style.display = near ? 'block' : 'none';
+}
+
+// ---------- reset helper ----------
+function resetScene(){
+  for(const [k,m] of blocks){
+    scene.remove(m); m.geometry.dispose(); m.material.dispose();
+  }
+  blocks.clear();
+  for(let xi=-4; xi<=4; xi++){
+    for(let zi=-4; zi<=4; zi++){
+      addBlockAt(xi, 0.5, zi, 0x8b5a2b);
+    }
+  }
+  // respawn crates
+  crates.slice().forEach(c=>{ scene.remove(c); crates.splice(crates.indexOf(c),1); });
+  spawnGunCrate(3,0.5,2,'pump');
+  spawnGunCrate(-3,0.5,4,'ar');
+  spawnGunCrate(6,0.5,-2,'pistol');
+
+  controls.getObject().position.set(0,1.6,5);
+  velocity.set(0,0,0);
+}
+
+// ---------- main loop ----------
+let prev = performance.now()/1000;
+function animate(){
+  const now = performance.now()/1000;
+  const dt = Math.min(0.05, now - prev);
+  prev = now;
+
+  if(controls.isLocked){
+    // movement physics
+    velocity.y -= gravity * dt;
+    const dir = new THREE.Vector3();
+    if(move.forward) dir.z -= 1;
+    if(move.back) dir.z += 1;
+    if(move.left) dir.x -= 1;
+    if(move.right) dir.x += 1;
+    if(dir.lengthSq()>0) dir.normalize();
+    const yaw = controls.getObject().rotation.y;
+    const cos = Math.cos(yaw), sin = Math.sin(yaw);
+    const vx = dir.x * cos - dir.z * sin;
+    const vz = dir.x * sin + dir.z * cos;
+    controls.getObject().position.x += vx * speed * dt;
+    controls.getObject().position.z += vz * speed * dt;
+
+    controls.getObject().position.y += velocity.y * dt;
+    if(controls.getObject().position.y < 1.6){
+      velocity.y = 0; controls.getObject().position.y = 1.6; canJump = true;
+    }
+
+    if(mouseDown && currentWeapon.auto){
+      tryFire(now);
+    }
+    projectileStep(dt);
+    pickupHintStep();
+  }
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+animate();
+
+window.addEventListener('resize', ()=> {
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);
+});
+
+// ---------- simple interaction UI updates ----------
+setInterval(updateHUD, 200);
+
+// ---------- small debug helper: show crates in console (optional) ----------
+console.log('MiniFort with weapons loaded. Use 1/2/3 to switch.');
+
+// Prevent right click menu
+window.addEventListener('contextmenu', (e)=> e.preventDefault());
+</script>
 </body>
 </html>

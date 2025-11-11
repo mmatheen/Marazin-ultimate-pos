@@ -412,8 +412,13 @@
                                                     </div>
                                                 </div>
                                             </div>
+                                        </div>
+                                    </div>
 
-                                            <div class="col-md-4">
+                                    <!-- Logo and Invoice Layout Section (Always Visible) -->
+                                    <div id="logoAndLayoutSection" class="col-12">
+                                        <div class="row">
+                                            <div class="col-md-6">
                                                 <div class="mb-3">
                                                     <div class="form-group local-forms">
                                                         <label>Location Logo<span class="login-danger"></span></label>
@@ -428,7 +433,7 @@
                                             </div>
 
                                             <!-- Invoice Layout Selection -->
-                                            <div class="col-md-4">
+                                            <div class="col-md-6">
                                                 <div class="mb-3">
                                                     <div class="form-group local-forms">
                                                         <label>Receipt Layout for POS <span

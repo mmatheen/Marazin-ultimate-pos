@@ -1,319 +1,759 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html><!--ohn29NbW_KpkfUprZRwrA-->
+<html lang="en" dir="ltr">
+
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Dot Matrix Bill (9.5in × 5.5in)</title>
-<style>
-  /* Page size and print margins for 9.5 x 5.5 inches.
-     We reserve 0.5in left & right for tractor feed holes (non-printable area). */
-  @page {
-    size: 9.5in 5.5in;         /* width height */
-    margin: 0.25in 0.5in;      /* top/bottom 0.25in, left/right 0.5in (holes) */
-  }
-
-  /* Ensure body uses full printable area */
-  html, body {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-    font-family: "Courier New", Courier, monospace; /* dot-matrix friendly */
-    font-size: 11px; /* adjust to taste (9-12 typical) */
-    color: #000;
-    background: #fff;
-  }
-
-  /* Page container sized to the page */
-  .page {
-    width: calc(9.5in - 1in);   /* total width minus left+right hole area */
-    height: calc(5.5in - 0.5in);/* top+bottom margins removed */
-    box-sizing: border-box;
-    padding: 6px 8px;           /* inner padding */
-    position: relative;
-  }
-
-  /* Visual guide for hole areas (only visible on screen, not print) */
-  @media screen {
-    body { background: #f2f2f2; padding: 24px; }
-    .hole-guides {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 100%;
-      pointer-events: none;
-    }
-    .hole-left, .hole-right {
-      position: absolute;
-      top: 0;
-      width: 0.5in;             /* hole width area */
-      height: 100%;
-      border-left: 1px dashed #bbb;
-      border-right: 1px dashed #bbb;
-      opacity: 0.6;
-    }
-    .hole-left { left: -0.5in; }
-    .hole-right { right: -0.5in; border-left: none; border-right: 1px dashed #bbb; }
-  }
-
-  /* Print-specific adjustments */
-  @media print {
-    body { background: #fff; margin: 0; }
-    .hole-guides { display: none; }
-    /* Try to force exact 100% scale, but user may need to set scale in dialog */
-    @page { /* keep same as above */ }
-    .no-print { display: none !important; }
-  }
-
-  /* Header */
-  header {
-    display:flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 8px;
-  }
-  .company {
-    font-size: 14px;
-    font-weight: bold;
-  }
-  .company small { display:block; font-weight:normal; font-size:10px; }
-
-  /* Bill meta */
-  .meta {
-    text-align: right;
-    font-size: 11px;
-  }
-  .meta div { margin-bottom: 2px; }
-
-  /* Items table */
-  table.items {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 6px;
-    margin-bottom: 6px;
-    font-size: 11px;
-  }
-  table.items th, table.items td {
-    padding: 4px 6px;
-    border-bottom: 1px dotted #000; /* dot-matrix style */
-    text-align: left;
-    vertical-align: top;
-  }
-  table.items th {
-    font-weight: bold;
-    font-size: 11px;
-  }
-  table.items .qty, table.items .unit, table.items .amount {
-    text-align: right;
-    white-space: nowrap;
-  }
-
-  /* Totals block */
-  .totals {
-    margin-top: 6px;
-    width: 100%;
-    display: flex;
-    justify-content: flex-end;
-  }
-  .totals table {
-    border-collapse: collapse;
-    font-size: 11px;
-    width: 46%;
-  }
-  .totals td {
-    padding: 4px 6px;
-    border-bottom: 1px dotted #000;
-  }
-  .right { text-align: right; }
-
-  /* Footer */
-  footer {
-    margin-top: 12px;
-    font-size: 10px;
-  }
-
-  /* Signature area */
-  .sign {
-    margin-top: 12px;
-    display:flex;
-    justify-content: space-between;
-  }
-  .sign .line {
-    width: 40%;
-    border-top: 1px solid #000;
-    text-align: center;
-    padding-top: 6px;
-    font-size: 10px;
-  }
-
-  /* Buttons (screen only) */
-  .controls {
-    margin: 12px 0;
-  }
-  .btn {
-    display:inline-block;
-    padding:8px 12px;
-    border-radius:4px;
-    border:1px solid #333;
-    background:#fff;
-    cursor:pointer;
-    text-decoration:none;
-    font-family: inherit;
-    font-size: 13px;
-  }
-
-  /* Avoid page breaks inside the main bill when printing */
-  .page, table.items, .totals, header, footer {
-    page-break-inside: avoid;
-  }
-
-</style>
+  <meta charSet="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://ummulqura.lk/_next/static/css/9468c63d5d5149c4.css" >
+  <link rel="stylesheet" href="https://ummulqura.lk/_next/static/css/fcfe99944afccbb7.css" />
+  <link rel="stylesheet" href="https://ummulqura.lk/_next/static/css/78cb4637c109b1a4.css" />
+  <link rel="preload" as="script" fetchPriority="low" href="https://ummulqura.lk/_next/static/chunks/webpack-98021b5e703100e4.js" />
+  <script src="https://ummulqura.lk/_next/static/chunks/4bd1b696-cf72ae8a39fa05aa.js"></script>
+  <script src="https://ummulqura.lk/_next/static/chunks/964-7a34cadcb7695cec.js"></script>
+  <script src="https://ummulqura.lk/_next/static/chunks/main-app-26b8ca9522632790.js"></script>
+  <script src="https://ummulqura.lk/_next/static/chunks/app/layout-7f8e2a982913a1da.js"></script>
+  <script src="https://ummulqura.lk/_next/static/chunks/809-4a2ef707900909d0.js"></script>
+  <script src="https://ummulqura.lk/_next/static/chunks/app/page-d06bd2a6e6960590.js"></script>
+  <link rel="preload" href="https://www.googletagmanager.com/gtag/js?id=G-Q81D54ZVR6"/>
+  <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js" />
+  <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"/>
+  <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" />
+  <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"/>
+  <link rel="preload" href="https://ummulqura.lk/assets/js/main.js"/>
+  <!-- <link rel="preload" href="/assets/js/main.js" as="script" /> -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+  <link rel="icon"
+    href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;🕋&lt;/text&gt;&lt;/svg&gt;" />
+  <link rel="canonical" href="https://ummulqura.lk/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="description"
+    content="Experience the sacred journey of Hajj and Umrah with Ummul Qura Services. Expert guidance, premium packages, and spiritual support for your pilgrimage to Mecca." />
+  <meta name="keywords"
+    content="Hajj, Umrah, Mecca, Pilgrimage, Islamic Travel, Ummul Qura, Saudi Arabia, Spiritual Journey, Muslim Travel, Premium Packages" />
+  <meta property="og:title" content="Ummul Qura Hajj &amp; Umrah Services - Sacred Journey to Mecca" />
+  <meta property="og:description" content="Sacred journey to Mecca with expert guidance and premium services." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://ummulqura.lk/" />
+  <meta property="og:site_name" content="Ummul Qura" />
+  <meta property="og:image" content="/assets/img/gallery/gallery1.jpeg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Ummul Qura - Hajj &amp; Umrah Services" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Ummul Qura Hajj &amp; Umrah Services - Sacred Journey to Mecca" />
+  <meta name="twitter:description" content="Sacred journey to Mecca with expert guidance and premium services." />
+  <meta name="twitter:image" content="/assets/img/gallery/gallery1.jpeg" />
+  <title>Ummul Qura Hajj &amp; Umrah Services - Sacred Journey to Mecca</title>
+  <meta name="description"
+    content="Experience the sacred journey of Hajj and Umrah with Ummul Qura Services. Expert guidance, premium packages, and spiritual support for your pilgrimage to Mecca." />
+  <meta property="og:title" content="Ummul Qura Hajj &amp; Umrah Services" />
+  <meta property="og:description" content="Sacred journey to Mecca with expert guidance and premium services." />
+  <meta property="og:url" content="https://ummulqura.lk" />
+  <meta property="og:site_name" content="Ummul Qura" />
+  <meta property="og:image" content="http://localhost:3000/assets/img/og-image.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Ummul Qura - Hajj &amp; Umrah Services" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Ummul Qura Hajj &amp; Umrah Services" />
+  <meta name="twitter:description" content="Sacred journey to Mecca with expert guidance and premium services." />
+  <meta name="twitter:image" content="http://localhost:3000/assets/img/og-image.jpg" />
+  <meta name="twitter:image:width" content="1200" />
+  <meta name="twitter:image:height" content="630" />
+  <meta name="twitter:image:alt" content="Ummul Qura - Hajj &amp; Umrah Services" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" sizes="16x16" />
+  <link rel="icon" href="/assets/img/favicon.svg" />
+  <script
+    type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Ummul Qura Hajj & Umrah Services","url":"https://ummulqura.lk","logo":"/assets/img/gallery/gallery1.jpeg","sameAs":["https://www.facebook.com/","https://www.instagram.com/","https://twitter.com/"]}</script>
+  <script
+    type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://ummulqura.lk/"}]}</script>
+  <script src="/_next/static/chunks/polyfills-42372ed130431b0a.js" noModule=""></script>
 </head>
-<body>
 
-<!-- Screen-only controls -->
-<div class="controls no-print">
-  <button class="btn" onclick="window.print()">Print this bill</button>
-  <button class="btn" onclick="downloadAsText()">Download text copy</button>
-  <small style="margin-left:8px;color:#666;">Tip: In Print dialog set Scale = 100%, disable headers & footers.</small>
-</div>
-
-<!-- Visual hole guides (screen only) -->
-<div class="hole-guides no-print" aria-hidden="true">
-  <div class="hole-left"></div>
-  <div class="hole-right"></div>
-</div>
-
-<!-- Printable page -->
-<article class="page" role="document" aria-label="Bill">
-
-  <!-- Header -->
+<body class="font-inter">
+  <div hidden=""><!--$--><!--/$--></div><a href="#main-content" class="skip-link">Skip to main content</a>
   <header>
-    <div class="company">
-      ACME STORES
-      <small>123 Market St, Colombo • Tel: +94 11 234 5678</small>
-    </div>
-    <div class="meta">
-      <div><strong>Tax Invoice</strong></div>
-      <div>Invoice #: <strong>INV-2025-0012</strong></div>
-      <div>Date: <strong>2025-10-09</strong></div>
-      <div>Cashier: <strong>Kasun</strong></div>
-    </div>
+    <nav class="navbar navbar-expand-lg fixed-top islamic-nav" id="main-navbar" aria-label="Main Navigation">
+      <div class="container"><a class="navbar-brand d-flex align-items-center" href="#home"
+          aria-label="Ummul Qura Home"><i class="fas fa-kaaba me-2 brand-icon"></i>
+          <div class="brand-text"><span class="brand-name">Ummul Qura</span><small class="brand-subtitle d-block">Hajj
+              &amp; Umrah Services</small></div>
+        </a><button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+          aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"><span
+            class="navbar-toggler-icon"></span></button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav mx-auto mb-2 mb-lg-0" role="menubar">
+            <li class="nav-item" role="none"><a class="nav-link" href="#home" role="menuitem" aria-label="Home">Home</a>
+            </li>
+            <li class="nav-item" role="none"><a class="nav-link" href="#services" role="menuitem"
+                aria-label="Services">Services</a></li>
+            <li class="nav-item" role="none"><a class="nav-link" href="#packages" role="menuitem"
+                aria-label="Packages">Packages</a></li>
+            <li class="nav-item" role="none"><a class="nav-link" href="#journey" role="menuitem"
+                aria-label="Journey">Journey</a></li>
+            <li class="nav-item" role="none"><a class="nav-link" href="#contact" role="menuitem"
+                aria-label="Contact">Contact</a></li>
+            <li class="nav-item" role="none"><a class="nav-link" href="#gallery" role="menuitem"
+                aria-label="Gallery">Gallery</a></li>
+          </ul>
+          <div class="d-flex"><a href="#booking" class="btn btn-primary islamic-btn"><i
+                class="fas fa-calendar-plus me-2"></i>Book Now</a></div>
+        </div>
+      </div>
+    </nav>
   </header>
-
-  <!-- Billing / Customer area -->
-  <section style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:6px;">
-    <div>
-      <div><strong>BILL TO:</strong></div>
-      <div>Mr. R. Perera</div>
-      <div>12 Lake Road, Colombo</div>
-      <div>GSTIN: 9876543210</div>
+  <main id="main-content">
+    <section class="hero-section" id="home">
+      <div class="hero-parallax-bg">
+        <div class="hero-layer hero-mecca"></div>
+        <div class="hero-layer hero-kaaba"></div>
+        <div class="hero-layer hero-overlay"></div>
+      </div>
+      <div class="hero-pattern"></div>
+      <div class="container h-100">
+        <div class="row h-100 align-items-center">
+          <div class="col-lg-8 mx-auto text-center">
+            <div class="hero-content">
+              <div class="hero-bismillah mb-4"><span class="arabic-text">بِسْمِ اللَّهِ الرَّحْمَنِ
+                  الرَّحِيم</span><span class="translation">In the name of Allah, the Most Gracious, the Most
+                  Merciful</span></div>
+              <h1 class="hero-title mb-4"><span class="hero-line">Sacred Journey to</span><span
+                  class="hero-line hero-highlight">The Holy Kaaba</span></h1>
+              <p class="hero-subtitle mb-5">Embark on the spiritual journey of a lifetime with our expertly guided Hajj
+                and Umrah services. Experience the peace and blessing of the sacred pilgrimage.</p>
+              <div class="hero-actions"><a href="#packages" class="btn btn-primary btn-lg me-3 hero-cta"><i
+                    class="fas fa-route me-2"></i>Start Your Journey</a><a href="#services"
+                  class="btn btn-outline-light btn-lg"><i class="fas fa-info-circle me-2"></i>Learn More</a></div>
+              <div class="hero-stats mt-5">
+                <div class="row g-4">
+                  <div class="col-md-4">
+                    <div class="stat-item">
+                      <div class="stat-number">36+</div>
+                      <div class="stat-label">Years Experience</div>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="stat-item">
+                      <div class="stat-number">10,000+</div>
+                      <div class="stat-label">Pilgrims Served</div>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="stat-item">
+                      <div class="stat-number">100%</div>
+                      <div class="stat-label">Satisfaction Rate</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-4">
+            <div class="hero-carousel-container">
+              <div class="premium-carousel">
+                <div class="carousel-slide active 
+                    ">
+                  <div class="slide-image" style="background-image:url(/assets/img/hero-section/hero1.jpeg)">
+                    <div class="slide-overlay"></div>
+                    <div class="slide-content">
+                      <h3 class="slide-title">The Sacred Kaaba in Mecca</h3>
+                    </div>
+                  </div>
+                </div>
+                <div class="carousel-slide  
+                    next">
+                  <div class="slide-image" style="background-image:url(/assets/img/hero-section/hero2.jpeg)">
+                    <div class="slide-overlay"></div>
+                    <div class="slide-content">
+                      <h3 class="slide-title">Pilgrims in Sacred Prayer</h3>
+                    </div>
+                  </div>
+                </div>
+                <div class="carousel-slide  prev
+                    ">
+                  <div class="slide-image" style="background-image:url(/assets/img/hero-section/hero3.jpeg)">
+                    <div class="slide-overlay"></div>
+                    <div class="slide-content">
+                      <h3 class="slide-title">The Holy Sanctuary</h3>
+                    </div>
+                  </div>
+                </div><button class="carousel-nav carousel-prev" aria-label="Previous image"><i
+                    class="fas fa-chevron-left"></i>
+                  <div class="nav-ripple"></div>
+                </button><button class="carousel-nav carousel-next" aria-label="Next image"><i
+                    class="fas fa-chevron-right"></i>
+                  <div class="nav-ripple"></div>
+                </button>
+                <div class="carousel-indicators"><button class="indicator active" aria-label="Go to slide 1">
+                    <div class="indicator-progress"></div>
+                  </button><button class="indicator " aria-label="Go to slide 2">
+                    <div class="indicator-progress"></div>
+                  </button><button class="indicator " aria-label="Go to slide 3">
+                    <div class="indicator-progress"></div>
+                  </button></div>
+              </div>
+              <div class="thumbnail-preview">
+                <div class="thumbnail active" style="background-image:url(/assets/img/hero-section/hero1.jpeg)">
+                  <div class="thumbnail-overlay"></div>
+                </div>
+                <div class="thumbnail " style="background-image:url(/assets/img/hero-section/hero2.jpeg)">
+                  <div class="thumbnail-overlay"></div>
+                </div>
+                <div class="thumbnail " style="background-image:url(/assets/img/hero-section/hero3.jpeg)">
+                  <div class="thumbnail-overlay"></div>
+                </div>
+              </div>
+              <div class="islamic-ornaments">
+                <div class="ornament crescent-1"><i class="fas fa-moon"></i></div>
+                <div class="ornament star-1"><i class="fas fa-star"></i></div>
+                <div class="ornament star-2"><i class="far fa-star"></i></div>
+                <div class="ornament mosque-1"><i class="fas fa-mosque"></i></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="scroll-indicator">
+        <div class="scroll-arrow"><i class="fas fa-chevron-down"></i></div><span class="scroll-text">Discover
+          More</span>
+      </div>
+    </section>
+    <section class="services-section py-6" id="services">
+      <div class="container">
+        <div class="row">
+          <div class="col-lg-8 mx-auto text-center mb-5">
+            <div class="section-badge mb-3"><i class="fas fa-hands-praying me-2"></i>Our Services</div>
+            <h2 class="section-title mb-4">Comprehensive Pilgrimage Services</h2>
+            <p class="section-subtitle">We provide complete support for your spiritual journey, ensuring comfort,
+              guidance, and peace of mind.</p>
+          </div>
+        </div>
+        <div class="row g-4">
+          <div class="col-lg-4 col-md-6">
+            <div class="service-card fade-in-card" data-delay="0">
+              <div class="service-icon"><i class="fas fa-kaaba"></i></div>
+              <h3 class="service-title">Hajj Services</h3>
+              <p class="service-description">Complete Hajj packages with expert guidance, comfortable accommodation, and
+                spiritual support throughout your pilgrimage.</p>
+              <ul class="service-features">
+                <li><i class="fas fa-check"></i> Expert religious guidance</li>
+                <li><i class="fas fa-check"></i> Premium accommodations</li>
+                <li><i class="fas fa-check"></i> Transportation included</li>
+                <li><i class="fas fa-check"></i> 24/7 support</li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-lg-4 col-md-6">
+            <div class="service-card fade-in-card" data-delay="200">
+              <div class="service-icon"><i class="fas fa-mosque"></i></div>
+              <h3 class="service-title">Umrah Services</h3>
+              <p class="service-description">Year-round Umrah packages designed for spiritual enrichment with flexible
+                dates and premium services.</p>
+              <ul class="service-features">
+                <li><i class="fas fa-check"></i> Flexible scheduling</li>
+                <li><i class="fas fa-check"></i> Spiritual mentorship</li>
+                <li><i class="fas fa-check"></i> Group &amp; individual packages</li>
+                <li><i class="fas fa-check"></i> Visa assistance</li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-lg-4 col-md-6">
+            <div class="service-card fade-in-card" data-delay="400">
+              <div class="service-icon"><i class="fas fa-plane-departure"></i></div>
+              <h3 class="service-title">Travel &amp; Logistics</h3>
+              <p class="service-description">Complete travel arrangements including flights, visas, accommodation, and
+                ground transportation.</p>
+              <ul class="service-features">
+                <li><i class="fas fa-check"></i> Flight bookings</li>
+                <li><i class="fas fa-check"></i> Visa processing</li>
+                <li><i class="fas fa-check"></i> Hotel reservations</li>
+                <li><i class="fas fa-check"></i> Airport transfers</li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-lg-4 col-md-6">
+            <div class="service-card fade-in-card" data-delay="600">
+              <div class="service-icon"><i class="fas fa-book-quran"></i></div>
+              <h3 class="service-title">Spiritual Guidance</h3>
+              <p class="service-description">Experienced Islamic scholars provide guidance on rituals, prayers, and
+                spiritual preparation.</p>
+              <ul class="service-features">
+                <li><i class="fas fa-check"></i> Pre-departure training</li>
+                <li><i class="fas fa-check"></i> Ritual guidance</li>
+                <li><i class="fas fa-check"></i> Islamic lectures</li>
+                <li><i class="fas fa-check"></i> Spiritual counseling</li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-lg-4 col-md-6">
+            <div class="service-card fade-in-card" data-delay="800">
+              <div class="service-icon"><i class="fas fa-heart"></i></div>
+              <h3 class="service-title">Health &amp; Safety</h3>
+              <p class="service-description">Comprehensive health support and safety measures to ensure your well-being
+                throughout the journey.</p>
+              <ul class="service-features">
+                <li><i class="fas fa-check"></i> Medical assistance</li>
+                <li><i class="fas fa-check"></i> Health insurance</li>
+                <li><i class="fas fa-check"></i> Emergency support</li>
+                <li><i class="fas fa-check"></i> Safety protocols</li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-lg-4 col-md-6">
+            <div class="service-card fade-in-card" data-delay="1000">
+              <div class="service-icon"><i class="fas fa-users"></i></div>
+              <h3 class="service-title">Group Management</h3>
+              <p class="service-description">Professional group coordination ensuring smooth experiences for families
+                and community groups.</p>
+              <ul class="service-features">
+                <li><i class="fas fa-check"></i> Group coordination</li>
+                <li><i class="fas fa-check"></i> Family packages</li>
+                <li><i class="fas fa-check"></i> Community groups</li>
+                <li><i class="fas fa-check"></i> Custom arrangements</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="packages-section py-6" id="packages">
+      <div class="container">
+        <div class="row">
+          <div class="col-lg-8 mx-auto text-center mb-5">
+            <div class="section-badge mb-3"><i class="fas fa-gift me-2"></i>Our Packages</div>
+            <h2 class="section-title mb-4">Choose Your Sacred Journey</h2>
+            <p class="section-subtitle">Carefully crafted packages to suit different needs and budgets, all designed for
+              a meaningful pilgrimage.</p>
+          </div>
+        </div>
+        <div class="row g-4">
+          <div class="col-lg-4">
+            <div class="package-card">
+              <div class="package-header">
+                <div class="package-icon"><i class="fas fa-star"></i></div>
+                <h3 class="package-title">Best Standard Umrah Package</h3>
+              </div>
+              <div class="package-features">
+                <ul>
+                  <li><i class="fas fa-check"></i> 9 days / 8 nights</li>
+                  <li><i class="fas fa-check"></i> Makkah 5 nights </li>
+                  <li><i class="fas fa-check"></i> Madheena 3 nights</li>
+                  <li><i class="fas fa-check"></i> Best Accommodation</li>
+                  <li><i class="fas fa-check"></i> Round trip flight</li>
+                  <li><i class="fas fa-check"></i> Visa processing</li>
+                  <li><i class="fas fa-check"></i> Islamic tours ( ziyaraths) in both Makkah and Madheena</li>
+                  <li><i class="fas fa-check"></i> Group will be accompanied by a religious scholar.</li>
+                  <li><i class="fas fa-check"></i> Food : Sri Lankan cuisine</li>
+                </ul>
+                <div class="section-badge mb-3">Rs. 375,000/-</div>
+              </div><a href="#booking" class="btn btn-outline-primary">Choose Package</a>
+            </div>
+          </div>
+          <div class="col-lg-4">
+            <div class="package-card featured">
+              <div class="package-badge">Most Popular</div>
+              <div class="package-header">
+                <div class="package-icon"><i class="fas fa-crown"></i></div>
+                <h3 class="package-title">Explore Quality Packages</h3>
+              </div>
+              <div class="package-features">
+                <ul>
+                  <li><i class="fas fa-check"></i> 10days / 9 nights </li>
+                  <li><i class="fas fa-check"></i> Makkah nights</li>
+                  <li><i class="fas fa-check"></i> Madheena 3 nights</li>
+                  <li><i class="fas fa-check"></i> Short Distance Star class Accommodation in Makkah and Madheena</li>
+                  <li><i class="fas fa-check"></i> Return ticket, Short transit</li>
+                  <li><i class="fas fa-check"></i> Visa processing</li>
+                  <li><i class="fas fa-check"></i> Islamic tours ( ziyaraths ) in both Makkah and Madheena.</li>
+                  <li><i class="fas fa-check"></i> Group will be accompanied by a religious scholar.</li>
+                  <li><i class="fas fa-check"></i> Food : Sri Lankan cuisine.</li>
+                </ul>
+                <div class="section-badge mb-3 premium-badge" data-animate="premium">Rs. 475,000/-</div>
+              </div><a href="#booking" class="btn btn-primary">Choose Package</a>
+            </div>
+          </div>
+          <div class="col-lg-4">
+            <div class="package-card">
+              <div class="package-header">
+                <div class="package-icon"><i class="fas fa-kaaba"></i></div>
+                <h3 class="package-title">Best Economy Umrah Package</h3>
+              </div>
+              <div class="package-features">
+                <ul>
+                  <li><i class="fas fa-check"></i>10 days / 9 Nights </li>
+                  <li><i class="fas fa-check"></i>Bets Accommodation near Haram Shariff</li>
+                  <li><i class="fas fa-check"></i>Umra visa with insurance </li>
+                  <li><i class="fas fa-check"></i>Return Air Ticket </li>
+                  <li><i class="fas fa-check"></i>Guided by experienced Ulamas</li>
+                  <li><i class="fas fa-check"></i>Round Trip Transfers</li>
+                  <li><i class="fas fa-check"></i>2 Jummah In Makkah &amp; Madheena</li>
+                  <li><i class="fas fa-check"></i>2 Umrah</li>
+                  <li><i class="fas fa-check"></i>Srilankan style buffet</li>
+                </ul>
+                <div class="section-badge mb-3">Rs. 350,000/-</div>
+              </div><a href="#booking" class="btn btn-outline-primary">Choose Package</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="journey-section py-6" id="journey">
+      <div class="container">
+        <div class="row">
+          <div class="col-lg-8 mx-auto text-center mb-5">
+            <div class="section-badge mb-3"><i class="fas fa-route me-2"></i>Your Journey</div>
+            <h2 class="section-title mb-4">The Sacred Path to Mecca</h2>
+            <p class="section-subtitle">Follow the blessed journey from preparation to completion, guided every step of
+              the way.</p>
+          </div>
+        </div>
+        <div class="journey-roadmap">
+          <div class="roadmap-line" id="roadmap-line"></div>
+          <div class="roadmap-steps">
+            <div class="roadmap-step" data-step="1">
+              <div class="step-marker">
+                <div class="step-number">1</div>
+                <div class="step-icon"><i class="fas fa-user-plus"></i></div>
+              </div>
+              <div class="step-content">
+                <h3 class="step-title">Registration &amp; Consultation</h3>
+                <p class="step-description">Begin your journey with our expert consultation. We&#x27;ll help you choose
+                  the right package and prepare all necessary documentation.</p>
+                <ul class="step-features">
+                  <li>Personal consultation</li>
+                  <li>Package selection</li>
+                  <li>Document preparation</li>
+                </ul>
+              </div>
+            </div>
+            <div class="roadmap-step" data-step="2">
+              <div class="step-marker">
+                <div class="step-number">2</div>
+                <div class="step-icon"><i class="fas fa-passport"></i></div>
+              </div>
+              <div class="step-content">
+                <h3 class="step-title">Visa &amp; Travel Arrangements</h3>
+                <p class="step-description">We handle all visa processing and travel arrangements, ensuring smooth
+                  departure and arrival.</p>
+                <ul class="step-features">
+                  <li>Visa processing</li>
+                  <li>Flight bookings</li>
+                  <li>Travel insurance</li>
+                </ul>
+              </div>
+            </div>
+            <div class="roadmap-step" data-step="3">
+              <div class="step-marker">
+                <div class="step-number">3</div>
+                <div class="step-icon"><i class="fas fa-book-open"></i></div>
+              </div>
+              <div class="step-content">
+                <h3 class="step-title">Pre-Departure Training</h3>
+                <p class="step-description">Comprehensive training sessions to prepare you spiritually and practically
+                  for your pilgrimage.</p>
+                <ul class="step-features">
+                  <li>Ritual training</li>
+                  <li>Spiritual preparation</li>
+                  <li>Practical guidance</li>
+                </ul>
+              </div>
+            </div>
+            <div class="roadmap-step" data-step="4">
+              <div class="step-marker">
+                <div class="step-number">4</div>
+                <div class="step-icon"><i class="fas fa-plane"></i></div>
+              </div>
+              <div class="step-content">
+                <h3 class="step-title">Departure &amp; Arrival</h3>
+                <p class="step-description">Smooth departure with group coordination and warm welcome upon arrival in
+                  the Holy Land.</p>
+                <ul class="step-features">
+                  <li>Group departure</li>
+                  <li>Airport assistance</li>
+                  <li>Welcome reception</li>
+                </ul>
+              </div>
+            </div>
+            <div class="roadmap-step" data-step="5">
+              <div class="step-marker">
+                <div class="step-number">5</div>
+                <div class="step-icon"><i class="fas fa-mosque"></i></div>
+              </div>
+              <div class="step-content">
+                <h3 class="step-title">Sacred Rituals</h3>
+                <p class="step-description">Perform your Hajj or Umrah rituals with expert guidance, ensuring proper
+                  completion of all sacred rites.</p>
+                <ul class="step-features">
+                  <li>Tawaf guidance</li>
+                  <li>Sa&#x27;i assistance</li>
+                  <li>Prayer sessions</li>
+                </ul>
+              </div>
+            </div>
+            <div class="roadmap-step final-step" data-step="6">
+              <div class="step-marker kaaba-marker">
+                <div class="kaaba-icon"><i class="fas fa-kaaba"></i></div>
+              </div>
+              <div class="step-content">
+                <h3 class="step-title">Sacred Completion</h3>
+                <p class="step-description">Complete your pilgrimage with final prayers at the Kaaba and return home
+                  with blessed memories and spiritual fulfillment.</p>
+                <ul class="step-features">
+                  <li>Final Tawaf</li>
+                  <li>Farewell prayers</li>
+                  <li>Blessed return</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="gallery-section" id="gallery" aria-label="Photo Gallery of Hajj &amp; Umrah Journeys">
+      <h2 class="gallery-title section-title">Sacred Moments</h2>
+      <p class="section-subtitle">A glimpse into the spiritual journeys we’ve honored to facilitate.</p>
+      <div class="gallery-grid">
+        <div class="gallery-item" role="button" tabindex="0" aria-label="View full image: Pilgrims at Kaaba"><img
+            alt="Pilgrims at Kaaba" aria-describedby="caption-0" loading="lazy" width="400" height="300"
+            decoding="async" data-nimg="1" class="gallery-img"
+            style="color:transparent;object-fit:cover;width:100%;height:auto" sizes="(max-width: 600px) 100vw, 400px"
+            srcSet="/_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery1.jpeg&amp;w=640&amp;q=75 640w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery1.jpeg&amp;w=750&amp;q=75 750w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery1.jpeg&amp;w=828&amp;q=75 828w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery1.jpeg&amp;w=1080&amp;q=75 1080w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery1.jpeg&amp;w=1200&amp;q=75 1200w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery1.jpeg&amp;w=1920&amp;q=75 1920w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery1.jpeg&amp;w=2048&amp;q=75 2048w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery1.jpeg&amp;w=3840&amp;q=75 3840w"
+            src="/_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery1.jpeg&amp;w=3840&amp;q=75" />
+          <div class="gallery-overlay"></div>
+          <div class="gallery-caption" id="caption-0">Pilgrims at Kaaba</div>
+        </div>
+        <div class="gallery-item" role="button" tabindex="0" aria-label="View full image: Beautiful Mosque Interior">
+          <img alt="Beautiful Mosque Interior" aria-describedby="caption-1" loading="lazy" width="400" height="300"
+            decoding="async" data-nimg="1" class="gallery-img"
+            style="color:transparent;object-fit:cover;width:100%;height:auto" sizes="(max-width: 600px) 100vw, 400px"
+            srcSet="/_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery2.jpeg&amp;w=640&amp;q=75 640w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery2.jpeg&amp;w=750&amp;q=75 750w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery2.jpeg&amp;w=828&amp;q=75 828w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery2.jpeg&amp;w=1080&amp;q=75 1080w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery2.jpeg&amp;w=1200&amp;q=75 1200w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery2.jpeg&amp;w=1920&amp;q=75 1920w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery2.jpeg&amp;w=2048&amp;q=75 2048w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery2.jpeg&amp;w=3840&amp;q=75 3840w"
+            src="/_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery2.jpeg&amp;w=3840&amp;q=75" />
+          <div class="gallery-overlay"></div>
+          <div class="gallery-caption" id="caption-1">Beautiful Mosque Interior</div>
+        </div>
+        <div class="gallery-item" role="button" tabindex="0" aria-label="View full image: Group Journey"><img
+            alt="Group Journey" aria-describedby="caption-2" loading="lazy" width="400" height="300" decoding="async"
+            data-nimg="1" class="gallery-img" style="color:transparent;object-fit:cover;width:100%;height:auto"
+            sizes="(max-width: 600px) 100vw, 400px"
+            srcSet="/_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery3.jpeg&amp;w=640&amp;q=75 640w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery3.jpeg&amp;w=750&amp;q=75 750w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery3.jpeg&amp;w=828&amp;q=75 828w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery3.jpeg&amp;w=1080&amp;q=75 1080w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery3.jpeg&amp;w=1200&amp;q=75 1200w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery3.jpeg&amp;w=1920&amp;q=75 1920w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery3.jpeg&amp;w=2048&amp;q=75 2048w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery3.jpeg&amp;w=3840&amp;q=75 3840w"
+            src="/_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery3.jpeg&amp;w=3840&amp;q=75" />
+          <div class="gallery-overlay"></div>
+          <div class="gallery-caption" id="caption-2">Group Journey</div>
+        </div>
+        <div class="gallery-item" role="button" tabindex="0" aria-label="View full image: Spiritual Gathering"><img
+            alt="Spiritual Gathering" aria-describedby="caption-3" loading="lazy" width="400" height="300"
+            decoding="async" data-nimg="1" class="gallery-img"
+            style="color:transparent;object-fit:cover;width:100%;height:auto" sizes="(max-width: 600px) 100vw, 400px"
+            srcSet="/_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery4.jpeg&amp;w=640&amp;q=75 640w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery4.jpeg&amp;w=750&amp;q=75 750w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery4.jpeg&amp;w=828&amp;q=75 828w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery4.jpeg&amp;w=1080&amp;q=75 1080w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery4.jpeg&amp;w=1200&amp;q=75 1200w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery4.jpeg&amp;w=1920&amp;q=75 1920w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery4.jpeg&amp;w=2048&amp;q=75 2048w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery4.jpeg&amp;w=3840&amp;q=75 3840w"
+            src="/_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery4.jpeg&amp;w=3840&amp;q=75" />
+          <div class="gallery-overlay"></div>
+          <div class="gallery-caption" id="caption-3">Spiritual Gathering</div>
+        </div>
+        <div class="gallery-item" role="button" tabindex="0" aria-label="View full image: Evening Prayer at Masjid"><img
+            alt="Evening Prayer at Masjid" aria-describedby="caption-4" loading="lazy" width="400" height="300"
+            decoding="async" data-nimg="1" class="gallery-img"
+            style="color:transparent;object-fit:cover;width:100%;height:auto" sizes="(max-width: 600px) 100vw, 400px"
+            srcSet="/_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery5.jpeg&amp;w=640&amp;q=75 640w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery5.jpeg&amp;w=750&amp;q=75 750w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery5.jpeg&amp;w=828&amp;q=75 828w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery5.jpeg&amp;w=1080&amp;q=75 1080w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery5.jpeg&amp;w=1200&amp;q=75 1200w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery5.jpeg&amp;w=1920&amp;q=75 1920w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery5.jpeg&amp;w=2048&amp;q=75 2048w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery5.jpeg&amp;w=3840&amp;q=75 3840w"
+            src="/_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery5.jpeg&amp;w=3840&amp;q=75" />
+          <div class="gallery-overlay"></div>
+          <div class="gallery-caption" id="caption-4">Evening Prayer at Masjid</div>
+        </div>
+        <div class="gallery-item" role="button" tabindex="0" aria-label="View full image: Tawaf Around Kaaba"><img
+            alt="Tawaf Around Kaaba" aria-describedby="caption-5" loading="lazy" width="400" height="300"
+            decoding="async" data-nimg="1" class="gallery-img"
+            style="color:transparent;object-fit:cover;width:100%;height:auto" sizes="(max-width: 600px) 100vw, 400px"
+            srcSet="/_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery6.jpeg&amp;w=640&amp;q=75 640w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery6.jpeg&amp;w=750&amp;q=75 750w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery6.jpeg&amp;w=828&amp;q=75 828w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery6.jpeg&amp;w=1080&amp;q=75 1080w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery6.jpeg&amp;w=1200&amp;q=75 1200w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery6.jpeg&amp;w=1920&amp;q=75 1920w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery6.jpeg&amp;w=2048&amp;q=75 2048w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery6.jpeg&amp;w=3840&amp;q=75 3840w"
+            src="/_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery6.jpeg&amp;w=3840&amp;q=75" />
+          <div class="gallery-overlay"></div>
+          <div class="gallery-caption" id="caption-5">Tawaf Around Kaaba</div>
+        </div>
+        <div class="gallery-item" role="button" tabindex="0" aria-label="View full image: Tawaf Around Kaaba"><img
+            alt="Tawaf Around Kaaba" aria-describedby="caption-6" loading="lazy" width="400" height="300"
+            decoding="async" data-nimg="1" class="gallery-img"
+            style="color:transparent;object-fit:cover;width:100%;height:auto" sizes="(max-width: 600px) 100vw, 400px"
+            srcSet="/_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery7.jpeg&amp;w=640&amp;q=75 640w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery7.jpeg&amp;w=750&amp;q=75 750w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery7.jpeg&amp;w=828&amp;q=75 828w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery7.jpeg&amp;w=1080&amp;q=75 1080w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery7.jpeg&amp;w=1200&amp;q=75 1200w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery7.jpeg&amp;w=1920&amp;q=75 1920w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery7.jpeg&amp;w=2048&amp;q=75 2048w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery7.jpeg&amp;w=3840&amp;q=75 3840w"
+            src="/_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery7.jpeg&amp;w=3840&amp;q=75" />
+          <div class="gallery-overlay"></div>
+          <div class="gallery-caption" id="caption-6">Tawaf Around Kaaba</div>
+        </div>
+        <div class="gallery-item" role="button" tabindex="0" aria-label="View full image: Tawaf Around Kaaba"><img
+            alt="Tawaf Around Kaaba" aria-describedby="caption-7" loading="lazy" width="400" height="300"
+            decoding="async" data-nimg="1" class="gallery-img"
+            style="color:transparent;object-fit:cover;width:100%;height:auto" sizes="(max-width: 600px) 100vw, 400px"
+            srcSet="/_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery8.jpeg&amp;w=640&amp;q=75 640w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery8.jpeg&amp;w=750&amp;q=75 750w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery8.jpeg&amp;w=828&amp;q=75 828w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery8.jpeg&amp;w=1080&amp;q=75 1080w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery8.jpeg&amp;w=1200&amp;q=75 1200w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery8.jpeg&amp;w=1920&amp;q=75 1920w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery8.jpeg&amp;w=2048&amp;q=75 2048w, /_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery8.jpeg&amp;w=3840&amp;q=75 3840w"
+            src="/_next/image?url=%2Fassets%2Fimg%2Fgallery%2Fgallery8.jpeg&amp;w=3840&amp;q=75" />
+          <div class="gallery-overlay"></div>
+          <div class="gallery-caption" id="caption-7">Tawaf Around Kaaba</div>
+        </div>
+      </div>
+    </section>
+    <section class="booking-section py-6" id="booking">
+      <div class="container">
+        <div class="row">
+          <div class="col-lg-8 mx-auto text-center mb-5">
+            <div class="section-badge mb-3"><i class="fas fa-calendar-plus me-2"></i> Start Your Journey</div>
+            <h2 class="section-title mb-4">Begin Your Sacred Pilgrimage</h2>
+            <p class="section-subtitle">Ready to embark on the journey of a lifetime? Contact us today for consultation
+              and booking.</p>
+          </div>
+        </div>
+        <div class="row g-5">
+          <div class="col-lg-6">
+            <div class="contact-info">
+              <h3 class="contact-title mb-4">Get in Touch</h3>
+              <div class="contact-item">
+                <div class="contact-icon"><i class="fas fa-phone"></i></div>
+                <div class="contact-details">
+                  <h5>Phone</h5>
+                  <p>+94(77) 727-4279<br />+94(77) 366-2120<br />+94(77) 263-4086</p>
+                </div>
+              </div>
+              <div class="contact-item">
+                <div class="contact-icon"><i class="fas fa-envelope"></i></div>
+                <div class="contact-details">
+                  <h5>Email</h5>
+                  <p><a href="mailto:ummulquratravelsandtours@gmail.com">ummulquratravelsandtours@gmail.com</a><br /><a
+                      href="mailto:hmhumaiz@gmail.com">hmhumaiz@gmail.com</a></p>
+                </div>
+              </div>
+              <div class="contact-item">
+                <div class="contact-icon"><i class="fas fa-map-marker-alt"></i></div>
+                <div class="contact-details">
+                  <h5>Office</h5>
+                  <p>307A Makkamady Road<br />Maruthamunai-03</p>
+                </div>
+              </div>
+              <div class="contact-item">
+                <div class="contact-icon"><i class="fas fa-clock"></i></div>
+                <div class="contact-details">
+                  <h5>Hours</h5>
+                  <p>Mon - Fri: 9:00 AM - 6:00 PM<br />Sat: 10:00 AM - 4:00 PM</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="booking-form-container">
+              <form class="booking-form" id="booking-form">
+                <div class="row g-3">
+                  <div class="col-md-6"><label for="firstName" class="form-label">First Name</label><input type="text"
+                      class="form-control" id="firstName" required="" name="firstName" /></div>
+                  <div class="col-md-6"><label for="lastName" class="form-label">Last Name</label><input type="text"
+                      class="form-control" id="lastName" required="" name="lastName" /></div>
+                  <div class="col-12"><label for="email" class="form-label">Email</label><input type="email"
+                      class="form-control" id="email" required="" name="email" /></div>
+                  <div class="col-12"><label for="phone" class="form-label">Phone Number</label><input type="tel"
+                      class="form-control" id="phone" required="" name="phone" /></div>
+                  <div class="col-md-6"><label for="pilgrimage" class="form-label">Packages</label><select
+                      class="form-select" id="pilgrimage" name="pilgrimage" required="">
+                      <option value="">Choose...</option>
+                      <option value="Essential Umrah">Essential Umrah</option>
+                      <option value="Premium Umrah">Premium Umrah</option>
+                      <option value="Complete Hajj">Complete Hajj</option>
+                    </select></div>
+                  <div class="col-md-6"><label for="travelers" class="form-label">Number of Travelers</label><select
+                      class="form-select" id="travelers" name="travelers" required="">
+                      <option value="">Choose...</option>
+                      <option value="1">1 Person</option>
+                      <option value="2">2 People</option>
+                      <option value="3">3 People</option>
+                      <option value="4">4 People</option>
+                      <option value="5+">5+ People</option>
+                    </select></div>
+                  <div class="col-12"><label for="message" class="form-label">Message (Optional)</label><textarea
+                      class="form-control" id="message" name="message" rows="4"
+                      placeholder="Tell us about your requirements or ask any questions..."></textarea></div>
+                  <div class="col-12">
+                    <div class="form-check"><input class="form-check-input" type="checkbox" id="terms"
+                        required="" /><label class="form-check-label" for="terms">I agree to the <a href="#"
+                          class="text-primary">Terms &amp; Conditions</a> and <a href="#" class="text-primary">Privacy
+                          Policy</a></label></div>
+                  </div>
+                </div><button type="submit" class="btn btn-primary w-100 mt-4">Request Consultation</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+      <section class="Toastify" aria-live="polite" aria-atomic="false" aria-relevant="additions text"
+        aria-label="Notifications Alt+T"></section>
+    </section>
+  </main>
+  <footer class="footer py-5" id="contact" aria-label="Site Footer">
+    <div class="container">
+      <div class="row g-4">
+        <div class="col-lg-4">
+          <div class="footer-brand mb-4">
+            <div class="d-flex align-items-center mb-3"><i class="fas fa-kaaba me-2 footer-icon"></i>
+              <div>
+                <h5 class="footer-title mb-0">Ummul Qura</h5><small class="footer-subtitle">Hajj &amp; Umrah
+                  Services</small>
+              </div>
+            </div>
+            <p class="footer-description">Guiding pilgrims on their sacred journey to the Holy Kaaba with expertise,
+              care, and spiritual support for over 15 years.</p>
+            <div class="social-links"><a href="#" class="social-link" aria-label="Facebook"><i
+                  class="fab fa-facebook-f"></i></a><a href="#" class="social-link" aria-label="Twitter"><i
+                  class="fab fa-twitter"></i></a><a href="#" class="social-link" aria-label="Instagram"><i
+                  class="fab fa-instagram"></i></a><a href="#" class="social-link" aria-label="YouTube"><i
+                  class="fab fa-youtube"></i></a></div>
+          </div>
+        </div>
+        <div class="col-lg-2 col-md-6">
+          <h6 class="footer-section-title mb-3">Services</h6>
+          <ul class="footer-links" aria-label="Service Links">
+            <li><a href="#services">Hajj Packages</a></li>
+            <li><a href="#services">Umrah Services</a></li>
+            <li><a href="#services">Travel Arrangements</a></li>
+            <li><a href="#services">Spiritual Guidance</a></li>
+            <li><a href="#services">Group Management</a></li>
+          </ul>
+        </div>
+        <div class="col-lg-2 col-md-6">
+          <h6 class="footer-section-title mb-3">Quick Links</h6>
+          <ul class="footer-links" aria-label="Quick Links">
+            <li><a href="#packages">Our Packages</a></li>
+            <li><a href="#journey">Journey Guide</a></li>
+            <li><a href="#testimonials">Testimonials</a></li>
+            <li><a href="#booking">Book Now</a></li>
+            <li><a href="#contact">Contact Us</a></li>
+          </ul>
+        </div>
+        <div class="col-lg-4">
+          <h6 class="footer-section-title mb-3">Newsletter</h6>
+          <p class="footer-newsletter-text mb-3">Subscribe to receive updates about Hajj and Umrah seasons, special
+            offers, and spiritual insights.</p>
+          <form class="newsletter-form" id="newsletter-form" aria-label="Newsletter Subscription">
+            <div class="input-group"><input type="email" class="form-control" placeholder="Enter your email"
+                aria-label="Email address" required="" /><button class="btn btn-primary" type="submit"><i
+                  class="fas fa-paper-plane"></i></button></div>
+            <div class="form-feedback mt-2"></div>
+          </form>
+        </div>
+      </div>
+      <hr class="footer-divider my-4" />
+      <div class="row align-items-center">
+        <div class="col-md-6">
+          <p class="footer-copyright mb-0">© 2024 Ummul Qura Hajj &amp; Umrah Services. All rights reserved.</p>
+        </div>
+        <div class="col-md-6 text-md-end"><a href="#" class="footer-legal-link me-3">Privacy Policy</a><a href="#"
+            class="footer-legal-link me-3">Terms of Service</a><a href="#" class="footer-legal-link">Disclaimer</a>
+        </div>
+      </div>
     </div>
-    <div style="text-align:right;">
-      <div><strong>Terms:</strong> Cash</div>
-      <div><strong>Due:</strong> On Receipt</div>
-    </div>
-  </section>
-
-  <!-- Items -->
-  <table class="items" role="table" aria-label="Items">
-    <thead>
-      <tr>
-        <th style="width:56%;">Description</th>
-        <th style="width:12%;" class="qty">Qty</th>
-        <th style="width:16%;" class="unit">Unit</th>
-        <th style="width:16%;" class="amount">Amount</th>
-      </tr>
-    </thead>
-    <tbody>
-      <!-- sample rows -->
-      <tr>
-        <td>Widget A - Model X (blue) - 1 year warranty</td>
-        <td class="qty">2</td>
-        <td class="unit">1,200.00</td>
-        <td class="amount">2,400.00</td>
-      </tr>
-      <tr>
-        <td>Service charge (installation)</td>
-        <td class="qty">1</td>
-        <td class="unit">300.00</td>
-        <td class="amount">300.00</td>
-      </tr>
-      <tr>
-        <td>Spare part - Ribbon</td>
-        <td class="qty">1</td>
-        <td class="unit">150.00</td>
-        <td class="amount">150.00</td>
-      </tr>
-      <!-- filler rows to show layout -->
-      <tr>
-        <td>Discount (loyalty)</td>
-        <td class="qty">1</td>
-        <td class="unit">-50.00</td>
-        <td class="amount">-50.00</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <!-- Totals -->
-  <div class="totals" aria-hidden="false">
-    <table role="presentation">
-      <tbody>
-        <tr>
-          <td>Subtotal</td>
-          <td class="right">2,800.00</td>
-        </tr>
-        <tr>
-          <td>VAT 8%</td>
-          <td class="right">224.00</td>
-        </tr>
-        <tr>
-          <td><strong>Total</strong></td>
-          <td class="right"><strong>3,024.00</strong></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- Notes & footer -->
-  <footer>
-    <div><strong>Notes:</strong> Goods once sold will not be taken back. Please check goods at the time of delivery.</div>
-
-    <div class="sign">
-      <div class="line">Received By</div>
-      <div class="line">Authorised Signature</div>
-    </div>
-
-    <div style="margin-top:8px;font-size:10px;">
-      <div>Thank you for your purchase!</div>
-    </div>
-  </footer>
-
-</article>
-
-<script>
-  /* Download a plain-text copy (simple utility) */
-  function downloadAsText() {
-    const lines = [];
-    lines.push("ACME STORES");
-    lines.push("123 Market St, Colombo | Tel: +94 11 234 5678");
-    lines.push("Invoice #: INV-2025-0012  Date: 2025-10-09");
-    lines.push("");
-    lines.push("Items:");
-    lines.push("  1) Widget A - Model X  x2   2,400.00");
-    lines.push("  2) Service charge           300.00");
-    lines.push("  3) Ribbon                   150.00");
-    lines.push("");
-    lines.push("Subtotal: 2,800.00");
-    lines.push("VAT 8%:   224.00");
-    lines.push("Total:    3,024.00");
-    const blob = new Blob([lines.join("\\n")], {type:'text/plain'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'bill_INV-2025-0012.txt';
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }
-</script>
+  </footer><!--$--><!--/$-->
+  <script src="/_next/static/chunks/webpack-98021b5e703100e4.js" id="_R_" async=""></script>
+  <script>(self.__next_f = self.__next_f || []).push([0])</script>
+  <script>self.__next_f.push([1, "1:\"$Sreact.fragment\"\n2:I[9243,[\"177\",\"static/chunks/app/layout-7f8e2a982913a1da.js\"],\"\"]\n3:I[7555,[],\"\"]\n4:I[1295,[],\"\"]\nf:I[8393,[],\"\"]\n:HL[\"/_next/static/css/9468c63d5d5149c4.css\",\"style\"]\n:HL[\"/_next/static/css/fcfe99944afccbb7.css\",\"style\"]\n:HL[\"/_next/static/css/78cb4637c109b1a4.css\",\"style\"]\n"])</script>
+  <script>self.__next_f.push([1, "0:{\"P\":null,\"b\":\"ohn29NbW_KpkfUprZRwrA\",\"p\":\"\",\"c\":[\"\",\"\"],\"i\":false,\"f\":[[[\"\",{\"children\":[\"__PAGE__\",{}]},\"$undefined\",\"$undefined\",true],[\"\",[\"$\",\"$1\",\"c\",{\"children\":[[[\"$\",\"link\",\"0\",{\"rel\":\"stylesheet\",\"href\":\"/_next/static/css/9468c63d5d5149c4.css\",\"precedence\":\"next\",\"crossOrigin\":\"$undefined\",\"nonce\":\"$undefined\"}],[\"$\",\"link\",\"1\",{\"rel\":\"stylesheet\",\"href\":\"/_next/static/css/fcfe99944afccbb7.css\",\"precedence\":\"next\",\"crossOrigin\":\"$undefined\",\"nonce\":\"$undefined\"}]],[\"$\",\"html\",null,{\"lang\":\"en\",\"dir\":\"ltr\",\"children\":[[\"$\",\"head\",null,{\"children\":[[\"$\",\"$L2\",null,{\"src\":\"https://www.googletagmanager.com/gtag/js?id=G-Q81D54ZVR6\",\"strategy\":\"afterInteractive\"}],[\"$\",\"$L2\",null,{\"id\":\"ga-gtag-init\",\"strategy\":\"afterInteractive\",\"children\":\"\\n            window.dataLayer = window.dataLayer || [];\\n            function gtag(){dataLayer.push(arguments);}\\n            gtag('js', new Date());\\n            gtag('config', 'G-Q81D54ZVR6');\\n          \"}],[\"$\",\"script\",null,{\"type\":\"application/ld+json\",\"dangerouslySetInnerHTML\":{\"__html\":\"{\\\"@context\\\":\\\"https://schema.org\\\",\\\"@type\\\":\\\"Organization\\\",\\\"name\\\":\\\"Ummul Qura Hajj \u0026 Umrah Services\\\",\\\"url\\\":\\\"https://ummulqura.lk\\\",\\\"logo\\\":\\\"/assets/img/gallery/gallery1.jpeg\\\",\\\"sameAs\\\":[\\\"https://www.facebook.com/\\\",\\\"https://www.instagram.com/\\\",\\\"https://twitter.com/\\\"]}\"}}],[\"$\",\"script\",null,{\"type\":\"application/ld+json\",\"dangerouslySetInnerHTML\":{\"__html\":\"{\\\"@context\\\":\\\"https://schema.org\\\",\\\"@type\\\":\\\"BreadcrumbList\\\",\\\"itemListElement\\\":[{\\\"@type\\\":\\\"ListItem\\\",\\\"position\\\":1,\\\"name\\\":\\\"Home\\\",\\\"item\\\":\\\"https://ummulqura.lk/\\\"}]}\"}}],[\"$\",\"link\",null,{\"rel\":\"preconnect\",\"href\":\"https://fonts.googleapis.com\"}],[\"$\",\"link\",null,{\"rel\":\"preconnect\",\"href\":\"https://fonts.gstatic.com\",\"crossOrigin\":\"anonymous\"}],[\"$\",\"link\",null,{\"rel\":\"icon\",\"href\":\"data:image/svg+xml,\u003csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22\u003e\u003ctext y=%22.9em%22 font-size=%2290%22\u003e🕋\u003c/text\u003e\u003c/svg\u003e\"}],[\"$\",\"link\",null,{\"rel\":\"canonical\",\"href\":\"https://ummulqura.lk/\"}],[\"$\",\"meta\",null,{\"name\":\"robots\",\"content\":\"index, follow\"}],[\"$\",\"meta\",null,{\"name\":\"description\",\"content\":\"Experience the sacred journey of Hajj and Umrah with Ummul Qura Services. Expert guidance, premium packages, and spiritual support for your pilgrimage to Mecca.\"}],[\"$\",\"meta\",null,{\"name\":\"keywords\",\"content\":\"Hajj, Umrah, Mecca, Pilgrimage, Islamic Travel, Ummul Qura, Saudi Arabia, Spiritual Journey, Muslim Travel, Premium Packages\"}],[\"$\",\"meta\",null,{\"property\":\"og:title\",\"content\":\"Ummul Qura Hajj \u0026 Umrah Services - Sacred Journey to Mecca\"}],[\"$\",\"meta\",null,{\"property\":\"og:description\",\"content\":\"Sacred journey to Mecca with expert guidance and premium services.\"}],[\"$\",\"meta\",null,{\"property\":\"og:type\",\"content\":\"website\"}],[\"$\",\"meta\",null,{\"property\":\"og:url\",\"content\":\"https://ummulqura.lk/\"}],[\"$\",\"meta\",null,{\"property\":\"og:site_name\",\"content\":\"Ummul Qura\"}],[\"$\",\"meta\",null,{\"property\":\"og:image\",\"content\":\"/assets/img/gallery/gallery1.jpeg\"}],[\"$\",\"meta\",null,{\"property\":\"og:image:width\",\"content\":\"1200\"}],[\"$\",\"meta\",null,{\"property\":\"og:image:height\",\"content\":\"630\"}],[\"$\",\"meta\",null,{\"property\":\"og:image:alt\",\"content\":\"Ummul Qura - Hajj \u0026 Umrah Services\"}],[\"$\",\"meta\",null,{\"name\":\"twitter:card\",\"content\":\"summary_large_image\"}],[\"$\",\"meta\",null,{\"name\":\"twitter:title\",\"content\":\"Ummul Qura Hajj \u0026 Umrah Services - Sacred Journey to Mecca\"}],[\"$\",\"meta\",null,{\"name\":\"twitter:description\",\"content\":\"Sacred journey to Mecca with expert guidance and premium services.\"}],[\"$\",\"meta\",null,{\"name\":\"twitter:image\",\"content\":\"/assets/img/gallery/gallery1.jpeg\"}]]}],[\"$\",\"body\",null,{\"className\":\"font-inter\",\"children\":[[\"$\",\"$L3\",null,{\"parallelRouterKey\":\"children\",\"error\":\"$undefined\",\"errorStyles\":\"$undefined\",\"errorScripts\":\"$undefined\",\"template\":[\"$\",\"$L4\",null,{}],\"templateStyles\":\"$undefined\",\"templateScripts\":\"$undefined\",\"notFound\":[[[\"$\",\"title\",null,{\"children\":\"404: This page could not be found.\"}],[\"$\",\"div\",null,{\"style\":{\"fontFamily\":\"system-ui,\\\"Segoe UI\\\",Roboto,Helvetica,Arial,sans-serif,\\\"Apple Color Emoji\\\",\\\"Segoe UI Emoji\\\"\",\"height\":\"100vh\",\"textAlign\":\"center\",\"display\":\"flex\",\"flexDirection\":\"column\",\"alignItems\":\"center\",\"justifyContent\":\"center\"},\"children\":[\"$\",\"div\",null,{\"children\":[\"$L5\",\"$L6\",\"$L7\"]}]}]],[]],\"forbidden\":\"$undefined\",\"unauthorized\":\"$undefined\"}],\"$L8\",\"$L9\",\"$La\",\"$Lb\",\"$Lc\"]}]]}]]}],{\"children\":[\"__PAGE__\",\"$Ld\",{},null,false]},null,false],\"$Le\",false]],\"m\":\"$undefined\",\"G\":[\"$f\",[]],\"s\":false,\"S\":true}\n"])</script>
+  <script>self.__next_f.push([1, "10:I[4055,[\"809\",\"static/chunks/809-4a2ef707900909d0.js\",\"974\",\"static/chunks/app/page-d06bd2a6e6960590.js\"],\"default\"]\n11:I[7745,[\"809\",\"static/chunks/809-4a2ef707900909d0.js\",\"974\",\"static/chunks/app/page-d06bd2a6e6960590.js\"],\"default\"]\n12:I[1140,[\"809\",\"static/chunks/809-4a2ef707900909d0.js\",\"974\",\"static/chunks/app/page-d06bd2a6e6960590.js\"],\"default\"]\n13:I[3687,[\"809\",\"static/chunks/809-4a2ef707900909d0.js\",\"974\",\"static/chunks/app/page-d06bd2a6e6960590.js\"],\"default\"]\n14:I[7939,[\"809\",\"static/chunks/809-4a2ef707900909d0.js\",\"974\",\"static/chunks/app/page-d06bd2a6e6960590.js\"],\"default\"]\n15:I[8729,[\"809\",\"static/chunks/809-4a2ef707900909d0.js\",\"974\",\"static/chunks/app/page-d06bd2a6e6960590.js\"],\"default\"]\n16:I[9027,[\"809\",\"static/chunks/809-4a2ef707900909d0.js\",\"974\",\"static/chunks/app/page-d06bd2a6e6960590.js\"],\"default\"]\n17:I[3237,[\"809\",\"static/chunks/809-4a2ef707900909d0.js\",\"974\",\"static/chunks/app/page-d06bd2a6e6960590.js\"],\"default\"]\n18:I[9665,[],\"OutletBoundary\"]\n1a:I[4911,[],\"AsyncMetadataOutlet\"]\n1c:I[9665,[],\"ViewportBoundary\"]\n1e:I[9665,[],\"MetadataBoundary\"]\n1f:\"$Sreact.suspense\"\n5:[\"$\",\"style\",null,{\"dangerouslySetInnerHTML\":{\"__html\":\"body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}\"}}]\n6:[\"$\",\"h1\",null,{\"className\":\"next-error-h1\",\"style\":{\"display\":\"inline-block\",\"margin\":\"0 20px 0 0\",\"padding\":\"0 23px 0 0\",\"fontSize\":24,\"fontWeight\":500,\"verticalAlign\":\"top\",\"lineHeight\":\"49px\"},\"children\":404}]\n7:[\"$\",\"div\",null,{\"style\":{\"display\":\"inline-block\"},\"children\":[\"$\",\"h2\",null,{\"style\":{\"fontSize\":14,\"fontWeight\":400,\"lineHeight\":\"49px\",\"margin\":0},\"children\":\"This page could not be found.\"}]}]\n8:[\"$\",\"$L2\",null,{\"src\":\"https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js\",\"strategy\":\"afterInteractive\"}]\n9:[\"$\",\"$L2\",null,{\"src\":\"https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js\",\"strategy\":\""])</script>
+  <script>self.__next_f.push([1, "afterInteractive\"}]\na:[\"$\",\"$L2\",null,{\"src\":\"https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js\",\"strategy\":\"afterInteractive\"}]\nb:[\"$\",\"$L2\",null,{\"src\":\"https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js\",\"strategy\":\"afterInteractive\"}]\nc:[\"$\",\"$L2\",null,{\"src\":\"/assets/js/main.js\",\"strategy\":\"afterInteractive\"}]\nd:[\"$\",\"$1\",\"c\",{\"children\":[[null,[\"$\",\"a\",null,{\"href\":\"#main-content\",\"className\":\"skip-link\",\"children\":\"Skip to main content\"}],[\"$\",\"$L10\",null,{}],[\"$\",\"main\",null,{\"id\":\"main-content\",\"children\":[[\"$\",\"$L11\",null,{}],[\"$\",\"$L12\",null,{}],[\"$\",\"$L13\",null,{}],[\"$\",\"$L14\",null,{}],[\"$\",\"$L15\",null,{}],[\"$\",\"$L16\",null,{}]]}],[\"$\",\"$L17\",null,{}]],[[\"$\",\"link\",\"0\",{\"rel\":\"stylesheet\",\"href\":\"/_next/static/css/78cb4637c109b1a4.css\",\"precedence\":\"next\",\"crossOrigin\":\"$undefined\",\"nonce\":\"$undefined\"}]],[\"$\",\"$L18\",null,{\"children\":[\"$L19\",[\"$\",\"$L1a\",null,{\"promise\":\"$@1b\"}]]}]]}]\ne:[\"$\",\"$1\",\"h\",{\"children\":[null,[[\"$\",\"$L1c\",null,{\"children\":\"$L1d\"}],null],[\"$\",\"$L1e\",null,{\"children\":[\"$\",\"div\",null,{\"hidden\":true,\"children\":[\"$\",\"$1f\",null,{\"fallback\":null,\"children\":\"$L20\"}]}]}]]}]\n"])</script>
+  <script>self.__next_f.push([1, "1d:[[\"$\",\"meta\",\"0\",{\"charSet\":\"utf-8\"}],[\"$\",\"meta\",\"1\",{\"name\":\"viewport\",\"content\":\"width=device-width, initial-scale=1\"}]]\n19:null\n"])</script>
+  <script>self.__next_f.push([1, "21:I[8175,[],\"IconMark\"]\n"])</script>
+  <script>self.__next_f.push([1, "1b:{\"metadata\":[[\"$\",\"title\",\"0\",{\"children\":\"Ummul Qura Hajj \u0026 Umrah Services - Sacred Journey to Mecca\"}],[\"$\",\"meta\",\"1\",{\"name\":\"description\",\"content\":\"Experience the sacred journey of Hajj and Umrah with Ummul Qura Services. Expert guidance, premium packages, and spiritual support for your pilgrimage to Mecca.\"}],[\"$\",\"meta\",\"2\",{\"property\":\"og:title\",\"content\":\"Ummul Qura Hajj \u0026 Umrah Services\"}],[\"$\",\"meta\",\"3\",{\"property\":\"og:description\",\"content\":\"Sacred journey to Mecca with expert guidance and premium services.\"}],[\"$\",\"meta\",\"4\",{\"property\":\"og:url\",\"content\":\"https://ummulqura.lk\"}],[\"$\",\"meta\",\"5\",{\"property\":\"og:site_name\",\"content\":\"Ummul Qura\"}],[\"$\",\"meta\",\"6\",{\"property\":\"og:image\",\"content\":\"http://localhost:3000/assets/img/og-image.jpg\"}],[\"$\",\"meta\",\"7\",{\"property\":\"og:image:width\",\"content\":\"1200\"}],[\"$\",\"meta\",\"8\",{\"property\":\"og:image:height\",\"content\":\"630\"}],[\"$\",\"meta\",\"9\",{\"property\":\"og:image:alt\",\"content\":\"Ummul Qura - Hajj \u0026 Umrah Services\"}],[\"$\",\"meta\",\"10\",{\"property\":\"og:type\",\"content\":\"website\"}],[\"$\",\"meta\",\"11\",{\"name\":\"twitter:card\",\"content\":\"summary_large_image\"}],[\"$\",\"meta\",\"12\",{\"name\":\"twitter:title\",\"content\":\"Ummul Qura Hajj \u0026 Umrah Services\"}],[\"$\",\"meta\",\"13\",{\"name\":\"twitter:description\",\"content\":\"Sacred journey to Mecca with expert guidance and premium services.\"}],[\"$\",\"meta\",\"14\",{\"name\":\"twitter:image\",\"content\":\"http://localhost:3000/assets/img/og-image.jpg\"}],[\"$\",\"meta\",\"15\",{\"name\":\"twitter:image:width\",\"content\":\"1200\"}],[\"$\",\"meta\",\"16\",{\"name\":\"twitter:image:height\",\"content\":\"630\"}],[\"$\",\"meta\",\"17\",{\"name\":\"twitter:image:alt\",\"content\":\"Ummul Qura - Hajj \u0026 Umrah Services\"}],[\"$\",\"link\",\"18\",{\"rel\":\"icon\",\"href\":\"/favicon.ico\",\"type\":\"image/x-icon\",\"sizes\":\"16x16\"}],[\"$\",\"link\",\"19\",{\"rel\":\"icon\",\"href\":\"/assets/img/favicon.svg\"}],[\"$\",\"$L21\",\"20\",{}]],\"error\":null,\"digest\":\"$undefined\"}\n"])</script>
+  <script>self.__next_f.push([1, "20:\"$1b:metadata\"\n"])</script>
 </body>
+
 </html>
