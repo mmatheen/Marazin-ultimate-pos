@@ -618,11 +618,31 @@ class SaleController extends Controller
                     }
                 }
 
-                // ----- Ledger - Record Sale FIRST (before payments) -----
+                // ----- Store customer change information before updating sale -----
+                $oldCustomerId = $isUpdate ? $sale->getOriginal('customer_id') : null;
+                $oldFinalTotal = $isUpdate ? $sale->getOriginal('final_total') : null;
+                $customerChanged = $isUpdate && ($oldCustomerId != $request->customer_id);
+
+                // ----- Ledger - Handle Sale Recording -----
                 if (!$isUpdate) {
                     // Record sale in unified ledger BEFORE processing payments
                     // This ensures customer debt is established first
                     $this->unifiedLedgerService->recordSale($sale);
+                } else {
+                    // Handle sale updates with potential customer changes
+                    if ($customerChanged) {
+                        // Customer changed - use special handling method
+                        $this->unifiedLedgerService->editSaleWithCustomerChange(
+                            $sale, 
+                            $oldCustomerId, 
+                            $request->customer_id, 
+                            $oldFinalTotal,
+                            'Customer changed during sale edit'
+                        );
+                    } else {
+                        // Same customer - use existing editSale method  
+                        $this->unifiedLedgerService->editSale($sale, $oldFinalTotal, 'Sale amount updated');
+                    }
                 }
 
                 // ----- Handle Payments (if not jobticket) -----
@@ -638,10 +658,20 @@ class SaleController extends Controller
                         }
 
                         if ($isUpdate) {
-                            Payment::where('reference_id', $sale->id)->delete();
-                            Ledger::where('reference_no', $referenceNo)
-                                ->where('transaction_type', 'payments')
-                                ->delete();
+                            // Get old payments before deletion for proper ledger reversal
+                            $oldPayments = Payment::where('reference_id', $sale->id)->get();
+                            
+                            // Handle payment ledger entries properly for customer changes
+                            if ($customerChanged) {
+                                // Customer changed - payment ledger entries already handled by editSaleWithCustomerChange
+                                // Just delete the payment records since ledger reversals are already done
+                                Payment::where('reference_id', $sale->id)->delete();
+                            } else {
+                                // Same customer - use payment service to properly handle ledger reversal
+                                foreach ($oldPayments as $oldPayment) {
+                                    $this->paymentService->deleteSalePayment($oldPayment, 'Payment updated during sale edit');
+                                }
+                            }
                         }
 
                         foreach ($request->payments as $paymentData) {

@@ -1052,6 +1052,11 @@ class SaleController extends Controller
                     'about_to_save_final_total' => $finalTotal
                 ]);
                 
+                // ----- Store customer change information before updating sale -----
+                $oldCustomerId = $isUpdate ? $sale->getOriginal('customer_id') : null;
+                $oldFinalTotal = $isUpdate ? $sale->getOriginal('final_total') : null;
+                $customerChanged = $isUpdate && ($oldCustomerId != $request->customer_id);
+                
                 $sale->fill([
                     'customer_id' => $request->customer_id,
                     'location_id' => $request->location_id,
@@ -1186,8 +1191,19 @@ class SaleController extends Controller
                         }
 
                         if ($isUpdate) {
-                            // Batch delete for better performance
-                            Payment::where('reference_id', $sale->id)->delete();
+                            // Handle payment updates properly for customer changes
+                            $oldPayments = Payment::where('reference_id', $sale->id)->get();
+                            
+                            if ($customerChanged) {
+                                // Customer changed - payment ledger entries already handled by editSaleWithCustomerChange
+                                // Just delete the payment records since ledger reversals are already done
+                                Payment::where('reference_id', $sale->id)->delete();
+                            } else {
+                                // Same customer - use payment service to properly handle ledger reversal
+                                foreach ($oldPayments as $oldPayment) {
+                                    $this->paymentService->deleteSalePayment($oldPayment, 'Payment updated during sale edit');
+                                }
+                            }
                         }
 
                         // ✨ PERFORMANCE FIX: Optimized payment processing
@@ -1352,17 +1368,13 @@ class SaleController extends Controller
                 // ----- Ledger (optimized) - Skip for Walk-In customers -----
                 // ✨ PERFORMANCE FIX: Skip ledger updates for Walk-In customers (no credit tracking needed)
                 if ($isUpdate) {
-                    $oldCustomerId = $sale->getOriginal('customer_id');
-                    $newCustomerId = $request->customer_id;
-                    $oldFinalTotal = $sale->getOriginal('final_total') ?? 0;
-                    
-                    // Check if customer has changed during edit
-                    if ($oldCustomerId != $newCustomerId) {
+                    // Check if customer has changed during edit (use pre-stored values)
+                    if ($customerChanged) {
                         // Customer changed - use special method to handle ledger transfer
                         Log::info('Sale edit with customer change detected', [
                             'sale_id' => $sale->id,
                             'old_customer_id' => $oldCustomerId,
-                            'new_customer_id' => $newCustomerId,
+                            'new_customer_id' => $request->customer_id,
                             'old_amount' => $oldFinalTotal,
                             'new_amount' => $sale->final_total
                         ]);
@@ -1370,11 +1382,11 @@ class SaleController extends Controller
                         $this->unifiedLedgerService->editSaleWithCustomerChange(
                             $sale, 
                             $oldCustomerId, 
-                            $newCustomerId, 
+                            $request->customer_id, 
                             $oldFinalTotal,
                             'Customer changed during sale edit'
                         );
-                    } elseif ($newCustomerId != 1) {
+                    } elseif ($request->customer_id != 1) {
                         // Same customer, just amount/details changed - use regular update
                         $this->unifiedLedgerService->updateSale($sale, $referenceNo);
                     }

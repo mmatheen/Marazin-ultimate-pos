@@ -1,125 +1,91 @@
- <?php
-require 'vendor/autoload.php';
-$app = require 'bootstrap/app.php';
-$app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
+<?php
 
-use App\Models\Sale;
+require_once 'vendor/autoload.php';
+
+// Bootstrap Laravel
+$app = require_once 'bootstrap/app.php';
+$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+$kernel->bootstrap();
+
+use Illuminate\Support\Facades\DB;
 use App\Models\Ledger;
 use App\Models\Customer;
-use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
+use App\Models\Sale;
+use App\Services\UnifiedLedgerService;
 
-echo "🧹 ORPHANED LEDGER ENTRIES CLEANUP\n";
-echo "==================================\n\n";
+echo "=== Analyzing Orphaned Ledger Entries ===\n\n";
 
-// Get the problematic references
-$problematicRefs = ['ATF-017', 'ATF-020', 'ATF-027', 'MLX-050'];
+// Step 1: Find all orphaned/mismatched entries
+$orphanedEntries = DB::select('
+    SELECT l.*, s.customer_id as sale_customer_id, s.id as sale_id 
+    FROM ledgers l 
+    LEFT JOIN sales s ON l.reference_no = s.invoice_no 
+    WHERE l.contact_type = "customer" 
+    AND l.transaction_type != "payments" 
+    AND (s.id IS NULL OR s.customer_id != l.user_id)
+    ORDER BY l.user_id, l.created_at
+');
 
-echo "⚠️  CRITICAL ISSUE DETECTED:\n";
-echo "These ledger entries exist but their corresponding sales have been deleted!\n";
-echo "This causes incorrect customer balances.\n\n";
+echo "Found " . count($orphanedEntries) . " orphaned/mismatched entries:\n\n";
 
-$totalOrphanedAmount = 0;
 $affectedCustomers = [];
 
-foreach ($problematicRefs as $refNo) {
-    echo "🔍 CHECKING INVOICE: $refNo\n";
-    echo str_repeat("-", 40) . "\n";
+foreach($orphanedEntries as $entry) {
+    echo "ID: {$entry->id} | Customer: {$entry->user_id} | Ref: {$entry->reference_no} | Type: {$entry->transaction_type} | Debit: {$entry->debit} | Credit: {$entry->credit} | Sale Customer: " . ($entry->sale_customer_id ?? 'NULL') . "\n";
     
-    // Verify sale doesn't exist
-    $sale = Sale::where('invoice_no', $refNo)->first();
-    echo "Sale exists: " . ($sale ? "YES" : "NO") . "\n";
-    
-    // Get all ledger entries for this reference
-    $ledgerEntries = Ledger::where('reference_no', $refNo)
-        ->where('contact_type', 'customer')
-        ->get();
-    
-    echo "Orphaned Ledger Entries: {$ledgerEntries->count()}\n";
-    
-    foreach ($ledgerEntries as $entry) {
-        $customer = Customer::find($entry->user_id);
-        $customerName = $customer ? $customer->full_name : "Unknown Customer";
-        $amount = $entry->debit + $entry->credit;
-        
-        echo "  - Customer: {$entry->user_id} ($customerName)\n";
-        echo "    Amount: Rs " . number_format($amount, 2) . "\n";
-        echo "    Type: {$entry->transaction_type}\n";
-        echo "    Date: " . $entry->created_at->format('Y-m-d H:i:s') . "\n";
-        
-        $totalOrphanedAmount += $amount;
-        $affectedCustomers[$entry->user_id] = ($affectedCustomers[$entry->user_id] ?? 0) + $entry->debit - $entry->credit;
+    if (!in_array($entry->user_id, $affectedCustomers)) {
+        $affectedCustomers[] = $entry->user_id;
     }
-    
-    echo "\n";
 }
 
-echo "💰 FINANCIAL IMPACT:\n";
-echo "Total Orphaned Amount: Rs " . number_format($totalOrphanedAmount, 2) . "\n\n";
-
-echo "👥 AFFECTED CUSTOMERS:\n";
-foreach ($affectedCustomers as $customerId => $incorrectBalance) {
+echo "\n=== Affected Customers ===\n";
+foreach($affectedCustomers as $customerId) {
     $customer = Customer::find($customerId);
-    $customerName = $customer ? $customer->full_name : "Unknown Customer";
-    $currentLedgerBalance = Ledger::getLatestBalance($customerId, 'customer');
-    
-    echo "Customer $customerId ($customerName):\n";
-    echo "  Current Ledger Balance: Rs " . number_format($currentLedgerBalance, 2) . "\n";
-    echo "  Incorrect Amount: Rs " . number_format($incorrectBalance, 2) . "\n";
-    echo "  Should be: Rs " . number_format($currentLedgerBalance - $incorrectBalance, 2) . "\n\n";
-}
-
-echo "🔧 RECOMMENDED ACTIONS:\n";
-echo "1. BACKUP your database before any cleanup\n";
-echo "2. Remove orphaned ledger entries for deleted sales\n";  
-echo "3. Recalculate customer balances\n";
-echo "4. Verify customer balance accuracy\n\n";
-
-echo "Would you like to proceed with the SAFE CLEANUP? This will:\n";
-echo "✅ Create reversal entries to cancel out orphaned transactions\n";
-echo "✅ Maintain complete audit trail\n";
-echo "✅ Fix customer balances safely\n\n";
-
-// Create the cleanup SQL for manual review
-$cleanupSQL = "-- SAFE CLEANUP SQL FOR ORPHANED LEDGER ENTRIES\n";
-$cleanupSQL .= "-- Generated on: " . date('Y-m-d H:i:s') . "\n\n";
-
-foreach ($problematicRefs as $refNo) {
-    $entries = Ledger::where('reference_no', $refNo)
-        ->where('contact_type', 'customer')
-        ->get();
-    
-    $cleanupSQL .= "-- Cleanup for invoice: $refNo\n";
-    foreach ($entries as $entry) {
-        // Create reversal entry SQL
-        $reversalDebit = $entry->credit; // Swap to reverse
-        $reversalCredit = $entry->debit; // Swap to reverse
-        $notes = "CLEANUP: Reversal of orphaned entry for deleted sale $refNo";
-        
-        $cleanupSQL .= "INSERT INTO ledgers (transaction_date, reference_no, transaction_type, debit, credit, balance, contact_type, user_id, notes, created_at, updated_at) VALUES (\n";
-        $cleanupSQL .= "  '" . Carbon::now()->format('Y-m-d H:i:s') . "',\n";
-        $cleanupSQL .= "  'CLEANUP-REV-$refNo',\n";
-        $cleanupSQL .= "  'adjustment_credit',\n";
-        $cleanupSQL .= "  $reversalDebit,\n";
-        $cleanupSQL .= "  $reversalCredit,\n";
-        $cleanupSQL .= "  0,  -- Will be recalculated\n";
-        $cleanupSQL .= "  'customer',\n";
-        $cleanupSQL .= "  {$entry->user_id},\n";
-        $cleanupSQL .= "  '$notes',\n";
-        $cleanupSQL .= "  '" . Carbon::now()->format('Y-m-d H:i:s') . "',\n";
-        $cleanupSQL .= "  '" . Carbon::now()->format('Y-m-d H:i:s') . "'\n";
-        $cleanupSQL .= ");\n\n";
+    if ($customer) {
+        $currentBalance = Ledger::getLatestBalance($customerId, 'customer');
+        echo "Customer {$customerId}: {$customer->first_name} {$customer->last_name} | Current Balance: {$currentBalance}\n";
+    } else {
+        echo "Customer {$customerId}: NOT FOUND in customers table\n";
     }
 }
 
-// Save cleanup SQL to file
-file_put_contents('ledger_cleanup.sql', $cleanupSQL);
+echo "\n=== Specific Analysis for Customer ID 3 ===\n";
+$customer3Entries = DB::select('
+    SELECT * FROM ledgers 
+    WHERE user_id = 3 AND contact_type = "customer" 
+    ORDER BY created_at
+');
 
-echo "📄 CLEANUP SQL GENERATED: ledger_cleanup.sql\n";
-echo "Review this file before executing to ensure safety.\n\n";
+foreach($customer3Entries as $entry) {
+    echo "ID: {$entry->id} | Date: {$entry->transaction_date} | Ref: {$entry->reference_no} | Type: {$entry->transaction_type} | Debit: {$entry->debit} | Credit: {$entry->credit} | Balance: {$entry->balance}\n";
+}
 
-echo "🎯 NEXT STEPS:\n";
-echo "1. Backup your database\n";
-echo "2. Review ledger_cleanup.sql\n";
-echo "3. Execute the SQL to fix customer balances\n";
-echo "4. Run recalculateAllBalances for each affected customer\n";
+echo "\n=== Specific Analysis for Customer ID 871 ===\n";
+$customer871Entries = DB::select('
+    SELECT * FROM ledgers 
+    WHERE user_id = 871 AND contact_type = "customer" 
+    ORDER BY created_at
+');
+
+foreach($customer871Entries as $entry) {
+    echo "ID: {$entry->id} | Date: {$entry->transaction_date} | Ref: {$entry->reference_no} | Type: {$entry->transaction_type} | Debit: {$entry->debit} | Credit: {$entry->credit} | Balance: {$entry->balance}\n";
+}
+
+echo "\n=== Check if sales exist for these references ===\n";
+$checkSales = [
+    'MLX-050' => 871,
+    'ATF-017' => 3,
+    'ATF-020' => 3,
+    'ATF-027' => 3
+];
+
+foreach($checkSales as $invoiceNo => $expectedCustomer) {
+    $sale = Sale::where('invoice_no', $invoiceNo)->first();
+    if ($sale) {
+        echo "Sale {$invoiceNo}: EXISTS | Customer: {$sale->customer_id} | Expected: {$expectedCustomer} | Match: " . ($sale->customer_id == $expectedCustomer ? 'YES' : 'NO') . "\n";
+    } else {
+        echo "Sale {$invoiceNo}: NOT FOUND\n";
+    }
+}
+
+echo "\nAnalysis complete.\n";

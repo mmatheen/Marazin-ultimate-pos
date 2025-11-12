@@ -200,7 +200,12 @@ class Ledger extends Model
 
             case 'sale':
                 // Sale increases what customer owes us (debit)
-                $debit = $data['amount'];
+                // Handle negative amounts for reversals (negative sale = credit)
+                if ($data['amount'] > 0) {
+                    $debit = $data['amount'];
+                } else {
+                    $credit = abs($data['amount']); // Negative sale becomes credit
+                }
                 break;
 
             case 'purchase':
@@ -210,22 +215,42 @@ class Ledger extends Model
 
             case 'sale_payment':
             case 'payments':
+                // Handle negative amounts for payment reversals
+                $amount = abs($data['amount']); // Work with positive amount
+                $isReversal = $data['amount'] < 0; // Check if this is a reversal
+                
                 // Check if this is a return payment based on notes
                 if (isset($data['notes']) && strpos(strtolower($data['notes']), 'return') !== false) {
                     // Return payment: when we pay customer for returns, it's a debit (money flowing out to customer)
                     if ($data['contact_type'] === 'customer') {
-                        $debit = $data['amount'];
+                        if ($isReversal) {
+                            $credit = $amount; // Reversal of return payment becomes credit
+                        } else {
+                            $debit = $amount;
+                        }
                     } else {
                         // Return payment from supplier (money coming in from supplier) reduces what we owe them = DEBIT
-                        $debit = $data['amount'];
+                        if ($isReversal) {
+                            $credit = $amount; // Reversal becomes credit
+                        } else {
+                            $debit = $amount;
+                        }
                     }
                 } else {
                     // Regular payment: customer paying us reduces what they owe (credit)
                     // Supplier payment: we pay supplier, reduces what we owe them (debit)
                     if ($data['contact_type'] === 'customer') {
-                        $credit = $data['amount'];
+                        if ($isReversal) {
+                            $debit = $amount; // Reversal of customer payment becomes debit
+                        } else {
+                            $credit = $amount;
+                        }
                     } else {
-                        $debit = $data['amount'];
+                        if ($isReversal) {
+                            $credit = $amount; // Reversal of supplier payment becomes credit
+                        } else {
+                            $debit = $amount;
+                        }
                     }
                 }
                 break;

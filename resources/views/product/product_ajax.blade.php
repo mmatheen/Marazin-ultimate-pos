@@ -152,6 +152,11 @@
 </style>
 
 <script>
+    // Global variables for initial product data - accessible across different script blocks
+    window.initialProductDataLoaded = false;
+    window.initialProductData = null;
+    window.initialDataFetchTime = null;
+
     $(document).ready(function() {
     var csrfToken = $('meta[name="csrf-token"]').attr('content'); // For CSRF token
     let allProducts = [];
@@ -328,17 +333,14 @@
     // Simple cache object to store fetched data
     const dataCache = {};
     
-    // Global flag to track if initial product data has been loaded
-    let initialProductDataLoaded = false;
-    let initialProductData = null;
-    let initialDataFetchTime = null;
+    // Use global variables for initial product data
     
     // Function to clear cache (useful for refreshing data)
     function clearDataCache() {
         Object.keys(dataCache).forEach(key => delete dataCache[key]);
         categoriesAndBrandsLoaded = false; // Reset the loaded flag
-        initialProductDataLoaded = false; // Reset initial data flag
-        initialProductData = null; // Clear cached initial data
+        window.initialProductDataLoaded = false; // Reset initial data flag
+        window.initialProductData = null; // Clear cached initial data
         console.log('🗑️ Data cache cleared and reload flags reset');
     }
     
@@ -527,10 +529,10 @@
 
     function fetchInitialDropdowns(callback) {
         // Check if data is already loaded and cached
-        if (initialProductDataLoaded && initialProductData) {
-            const cacheAge = Date.now() - initialDataFetchTime;
+        if (window.initialProductDataLoaded && window.initialProductData) {
+            const cacheAge = Date.now() - window.initialDataFetchTime;
             console.log(`✅ Using cached initial product data (${cacheAge}ms old) - no API call needed`);
-            const data = initialProductData;
+            const data = window.initialProductData;
             populateInitialDropdowns(
                 data.mainCategories, 
                 data.subCategories, 
@@ -547,7 +549,7 @@
         fetchData('/initial-product-details', function(response) {
             if (response.status === 200) {
                 // Cache the data globally to prevent future API calls
-                initialProductData = {
+                window.initialProductData = {
                     brands: response.message.brands,
                     mainCategories: response.message.mainCategories,
                     subCategories: response.message.subCategories,
@@ -557,21 +559,21 @@
                 };
                 
                 // Store subcategories globally for compatibility
-                subCategories = initialProductData.subCategories;
+                subCategories = window.initialProductData.subCategories;
                 
                 // Mark as loaded with timestamp
-                initialProductDataLoaded = true;
-                initialDataFetchTime = Date.now();
+                window.initialProductDataLoaded = true;
+                window.initialDataFetchTime = Date.now();
                 
                 console.log('✅ Initial product data fetched and cached successfully');
                 
                 populateInitialDropdowns(
-                    initialProductData.mainCategories, 
-                    initialProductData.subCategories, 
-                    initialProductData.brands, 
-                    initialProductData.units, 
-                    initialProductData.locations,
-                    initialProductData.autoSelectSingle, 
+                    window.initialProductData.mainCategories, 
+                    window.initialProductData.subCategories, 
+                    window.initialProductData.brands, 
+                    window.initialProductData.units, 
+                    window.initialProductData.locations,
+                    window.initialProductData.autoSelectSingle, 
                     callback
                 );
             } else {
@@ -3245,6 +3247,80 @@
     }
 
     });
+
+    // Global function to fetch initial dropdowns - moved outside document.ready for global access
+    window.fetchInitialDropdowns = function(callback) {
+        // Check if data is already loaded and cached
+        if (window.initialProductDataLoaded && window.initialProductData) {
+            const cacheAge = Date.now() - window.initialDataFetchTime;
+            console.log(`✅ Using cached initial product data (${cacheAge}ms old) - no API call needed`);
+            const data = window.initialProductData;
+            if (typeof populateInitialDropdowns === 'function') {
+                populateInitialDropdowns(
+                    data.mainCategories, 
+                    data.subCategories, 
+                    data.brands, 
+                    data.units, 
+                    data.locations,
+                    data.autoSelectSingle, 
+                    callback
+                );
+            } else if (callback) {
+                callback();
+            }
+            return;
+        }
+
+        console.log('🔄 Fetching initial product details from API...');
+        $.ajax({
+            url: '/initial-product-details',
+            type: 'GET',
+            dataType: 'json',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(response) {
+                if (response.status === 200) {
+                    // Cache the data globally to prevent future API calls
+                    window.initialProductData = {
+                        brands: response.message.brands,
+                        mainCategories: response.message.mainCategories,
+                        subCategories: response.message.subCategories,
+                        units: response.message.units,
+                        locations: response.message.locations,
+                        autoSelectSingle: response.message.auto_select_single_location
+                    };
+                    
+                    // Mark as loaded with timestamp
+                    window.initialProductDataLoaded = true;
+                    window.initialDataFetchTime = Date.now();
+                    
+                    console.log('✅ Initial product data fetched and cached successfully');
+                    
+                    if (typeof populateInitialDropdowns === 'function') {
+                        populateInitialDropdowns(
+                            window.initialProductData.mainCategories, 
+                            window.initialProductData.subCategories, 
+                            window.initialProductData.brands, 
+                            window.initialProductData.units, 
+                            window.initialProductData.locations,
+                            window.initialProductData.autoSelectSingle, 
+                            callback
+                        );
+                    } else if (callback) {
+                        callback();
+                    }
+                } else {
+                    console.error('❌ Failed to load initial product details');
+                    if (callback) callback();
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('❌ Failed to load initial product details:', error);
+                if (callback) callback();
+            }
+        });
+    };
 </script>
 
 <!-- Load user locations for import form -->
@@ -3258,35 +3334,38 @@
 
     function loadUserLocations() {
         // Use cached initial data instead of making another API call
-        fetchInitialDropdowns(() => {
-            console.log('✅ Using cached location data for import');
-            if (initialProductData && initialProductData.locations) {
-                let locationSelect = $('#import_location');
-                locationSelect.empty();
-                locationSelect.append(
-                    '<option value="">Choose Location to Import Products...</option>');
-
-                initialProductData.locations.forEach(function(location) {
-                    let selected = location.selected ? 'selected' : '';
+        if (typeof window.fetchInitialDropdowns === 'function') {
+            window.fetchInitialDropdowns(() => {
+                console.log('✅ Using cached location data for import');
+                if (window.initialProductData && window.initialProductData.locations) {
+                    let locationSelect = $('#import_location');
+                    locationSelect.empty();
                     locationSelect.append(
-                        `<option value="${location.id}" ${selected}>${location.name}</option>`
-                    );
-                });
+                        '<option value="">Choose Location to Import Products...</option>');
 
-                // If only one location and auto-select is enabled, auto-select it
-                if (initialProductData.autoSelectSingle && initialProductData.locations.length === 1) {
-                    locationSelect.val(initialProductData.locations[0].id);
+                    window.initialProductData.locations.forEach(function(location) {
+                        let selected = location.selected ? 'selected' : '';
+                        locationSelect.append(
+                            `<option value="${location.id}" ${selected}>${location.name}</option>`
+                        );
+                    });
+
+                    // If only one location and auto-select is enabled, auto-select it
+                    if (window.initialProductData.autoSelectSingle && window.initialProductData.locations.length === 1) {
+                        locationSelect.val(window.initialProductData.locations[0].id);
+                    }
+
+                    console.log('✅ Successfully loaded', window.initialProductData.locations.length,
+                        'locations for import from cache');
+                } else {
+                    console.error('❌ No cached location data available');
+                    toastr.error('Error loading locations. Please refresh the page.', 'Error');
                 }
-
-                console.log('✅ Successfully loaded', initialProductData.locations.length,
-                    'locations for import from cache');
-            } else {
-                console.error('❌ No cached location data available');
-                toastr.error('Error loading locations. Please refresh the page.', 'Error');
-            }
-        });
-    }
-</script>
+            });
+        } else {
+            console.error('❌ fetchInitialDropdowns function not available');
+            toastr.error('Error: Required function not loaded. Please refresh the page.', 'Error');
+        }
     }
 </script>
 
