@@ -1401,6 +1401,7 @@ class ProductController extends Controller
             // Custom filters (from filter dropdowns)
             $filterProductName = $request->input('product_name');
             $filterCategory = $request->input('main_category_id');
+            $filterSubCategory = $request->input('sub_category_id');
             $filterBrand = $request->input('brand_id');
             $locationId = $request->input('location_id'); // Add location filtering
 
@@ -1484,6 +1485,9 @@ class ProductController extends Controller
             }
             if (!empty($filterCategory)) {
                 $query->where('main_category_id', $filterCategory);
+            }
+            if (!empty($filterSubCategory)) {
+                $query->where('sub_category_id', $filterSubCategory);
             }
             if (!empty($filterBrand)) {
                 $query->where('brand_id', $filterBrand);

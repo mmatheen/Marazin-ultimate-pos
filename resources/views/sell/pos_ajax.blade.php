@@ -122,6 +122,12 @@
         let salesRepCustomersFiltered = false; // Track if sales rep customer filtering has been applied
         let salesRepCustomersLoaded = false; // Track if customers have been loaded for this session
         const perPage = 24;
+        
+        // Filter state tracking
+        let currentFilter = {
+            type: null,  // 'category', 'subcategory', 'brand', or null for no filter
+            id: null     // the ID of the filter being applied
+        };
 
         // ---- INIT ----
         // Check if user is sales rep and handle vehicle/route selection
@@ -2430,7 +2436,13 @@
                     data.data.forEach(stock => allProducts.push(stock));
                     // Always keep stockData in sync with allProducts
                     stockData = [...allProducts];
-                    displayProducts(allProducts);
+                    
+                    // Display products with proper append logic
+                    if (reset) {
+                        displayProducts(allProducts, false);
+                    } else {
+                        displayProducts(data.data, true);
+                    }
 
                     if (data.data.length === 0 || data.data.length < perPage) {
                         hasMoreProducts = false;
@@ -2488,8 +2500,14 @@
                         !isLoadingProducts &&
                         posProduct.scrollTop + posProduct.clientHeight >= posProduct.scrollHeight - 120
                     ) {
-                        // Fetch next page without reset
-                        fetchPaginatedProducts(false);
+                        // Check if we have an active filter
+                        if (currentFilter.type && currentFilter.id) {
+                            // Fetch next page of filtered products
+                            fetchFilteredProducts(currentFilter.type, currentFilter.id, false);
+                        } else {
+                            // Fetch next page without reset
+                            fetchPaginatedProducts(false);
+                        }
                     }
                 }, throttleDelay);
             }, { passive: true }); // passive for better performance
@@ -2497,20 +2515,22 @@
         // Call setupLazyLoad after posProduct is initialized
         setupLazyLoad();
         allProductsBtn.onclick = function() {
-            currentProductsPage = 1;
-            hasMoreProducts = true;
-            allProducts = [];
-            posProduct.innerHTML = '';
-            fetchPaginatedProducts(true);
+            showAllProducts();
         };
 
         // ---- DISPLAY PRODUCTS ----
-        function displayProducts(products) {
-            posProduct.innerHTML = '';
+        function displayProducts(products, append = false) {
+            if (!append) {
+                posProduct.innerHTML = '';
+            }
+            
             if (!selectedLocationId || products.length === 0) {
-                posProduct.innerHTML = '<p class="text-center">No products found.</p>';
+                if (!append) {
+                    posProduct.innerHTML = '<p class="text-center">No products found.</p>';
+                }
                 return;
             }
+            
             // Only show products with stock in selected location, or unlimited stock
             const filteredProducts = products.filter(stock => {
                 // Use the existing normalizeBatches function to handle both array and object formats
@@ -3866,32 +3886,202 @@
 
         // Filter products by category
         function filterProductsByCategory(categoryId) {
+            if (!selectedLocationId) {
+                toastr.error('Please select a location first', 'Location Required');
+                return;
+            }
+            
+            console.log('Filtering products by category:', categoryId);
             showLoader();
-            setTimeout(() => {
-                const filteredProducts = stockData.filter(stock => stock.product.main_category_id ===
-                    categoryId);
-                displayProducts(filteredProducts);
-            }, 500);
+            
+            // Set current filter state
+            currentFilter = {
+                type: 'category',
+                id: categoryId
+            };
+            
+            // Reset pagination and fetch filtered products from server
+            currentProductsPage = 1;
+            hasMoreProducts = true;
+            allProducts = [];
+            
+            fetchFilteredProducts('category', categoryId);
         }
 
         // Filter products by subcategory
         function filterProductsBySubCategory(subCategoryId) {
+            if (!selectedLocationId) {
+                toastr.error('Please select a location first', 'Location Required');
+                return;
+            }
+            
+            console.log('Filtering products by subcategory:', subCategoryId);
             showLoader();
-            setTimeout(() => {
-                const filteredProducts = stockData.filter(stock => stock.product.sub_category_id ===
-                    subCategoryId);
-                displayProducts(filteredProducts);
-            }, 500);
+            
+            // Set current filter state
+            currentFilter = {
+                type: 'subcategory',
+                id: subCategoryId
+            };
+            
+            // Reset pagination and fetch filtered products from server
+            currentProductsPage = 1;
+            hasMoreProducts = true;
+            allProducts = [];
+            
+            fetchFilteredProducts('subcategory', subCategoryId);
         }
 
         // Filter products by brand
         function filterProductsByBrand(brandId) {
+            if (!selectedLocationId) {
+                toastr.error('Please select a location first', 'Location Required');
+                return;
+            }
+            
+            console.log('Filtering products by brand:', brandId);
             showLoader();
-            setTimeout(() => {
-                const filteredProducts = stockData.filter(stock => stock.product.brand_id === brandId);
-                displayProducts(filteredProducts);
-            }, 500);
+            
+            // Set current filter state
+            currentFilter = {
+                type: 'brand',
+                id: brandId
+            };
+            
+            // Reset pagination and fetch filtered products from server
+            currentProductsPage = 1;
+            hasMoreProducts = true;
+            allProducts = [];
+            
+            fetchFilteredProducts('brand', brandId);
         }
+
+        // New function to fetch filtered products from server
+        function fetchFilteredProducts(filterType, filterId, reset = true) {
+            if (isLoadingProducts || !selectedLocationId) return;
+            
+            isLoadingProducts = true;
+            const perPage = 24;
+            
+            if (reset) {
+                currentProductsPage = 1;
+                posProduct.innerHTML = '';
+                showLoader();
+            } else {
+                // Show small loader for pagination
+                if (typeof showLoaderSmall === 'function') {
+                    showLoaderSmall();
+                } else {
+                    showLoader();
+                }
+            }
+
+            // Build filter URL based on filter type
+            let url = `/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=${perPage}`;
+            
+            switch(filterType) {
+                case 'category':
+                    url += `&main_category_id=${filterId}`;
+                    break;
+                case 'subcategory':
+                    url += `&sub_category_id=${filterId}`;
+                    break;
+                case 'brand':
+                    url += `&brand_id=${filterId}`;
+                    break;
+            }
+            
+            console.log(`Fetching filtered products (${filterType}): ${url}`);
+            
+            const fetchOptions = {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                }
+            };
+
+            fetch(url, fetchOptions)
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    console.log(`Filtered products response (${filterType}):`, data);
+                    
+                    if (data.status === 200 && Array.isArray(data.data)) {
+                        if (reset) {
+                            allProducts = [];
+                            posProduct.innerHTML = '';
+                        }
+                        
+                        // Add new products to allProducts array
+                        data.data.forEach(stock => allProducts.push(stock));
+                        
+                        // Update pagination flags
+                        hasMoreProducts = data.data.length === perPage;
+                        currentProductsPage++;
+                        
+                        // Display the filtered products
+                        if (reset) {
+                            displayProducts(allProducts, false);
+                        } else {
+                            // For pagination, append new products
+                            displayProducts(data.data, true);
+                        }
+                        
+                        console.log(`Loaded ${data.data.length} filtered products. Has more: ${hasMoreProducts}`);
+                        
+                        if (data.data.length === 0 && reset) {
+                            posProduct.innerHTML = `<div class="text-center p-4">
+                                <p class="text-muted">No products found for selected ${filterType}</p>
+                                <button onclick="showAllProducts()" class="btn btn-primary btn-sm">Show All Products</button>
+                            </div>`;
+                        }
+                    } else {
+                        console.error('Invalid filtered products response:', data);
+                        posProduct.innerHTML = `<div class="text-center p-4">
+                            <p class="text-danger">Failed to load filtered products</p>
+                            <button onclick="showAllProducts()" class="btn btn-primary btn-sm">Show All Products</button>
+                        </div>`;
+                    }
+                })
+                .catch(err => {
+                    console.error(`Error fetching filtered products (${filterType}):`, err);
+                    posProduct.innerHTML = `<div class="text-center p-4">
+                        <p class="text-danger">Failed to load filtered products</p>
+                        <button onclick="showAllProducts()" class="btn btn-primary btn-sm">Try Again</button>
+                    </div>`;
+                })
+                .finally(() => {
+                    isLoadingProducts = false;
+                    hideLoader();
+                });
+        }
+
+        // Helper function to show all products (reset filters)
+        function showAllProducts() {
+            console.log('Showing all products (resetting filters)');
+            
+            // Clear current filter state
+            currentFilter = {
+                type: null,
+                id: null
+            };
+            
+            currentProductsPage = 1;
+            hasMoreProducts = true;
+            allProducts = [];
+            posProduct.innerHTML = '';
+            fetchPaginatedProducts(true);
+        }
+        
+        // Make showAllProducts available globally for error button clicks
+        window.showAllProducts = showAllProducts;
 
         // Function to close the offcanvas
         function closeOffcanvas(offcanvasId) {
