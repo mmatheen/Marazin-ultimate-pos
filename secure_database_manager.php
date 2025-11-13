@@ -25,23 +25,19 @@ class SecureDatabaseManager
     
     private function loadConfiguration() 
     {
-        // Check if .env file exists
-        if (!file_exists('.env')) {
-            throw new Exception("❌ .env file not found! Please create .env file with database configuration.\n" .
-                              "🔧 Solution: cp .env.example .env (then edit with your database credentials)");
-        }
-        
         // Load from Laravel's .env file
-        $envContent = file_get_contents('.env');
-        $lines = explode("\n", $envContent);
-        
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if (empty($line) || strpos($line, '#') === 0) continue;
+        if (file_exists('.env')) {
+            $envContent = file_get_contents('.env');
+            $lines = explode("\n", $envContent);
             
-            if (strpos($line, '=') !== false) {
-                list($key, $value) = explode('=', $line, 2);
-                $_ENV[trim($key)] = trim($value, '"\'');
+            foreach ($lines as $line) {
+                $line = trim($line);
+                if (empty($line) || strpos($line, '#') === 0) continue;
+                
+                if (strpos($line, '=') !== false) {
+                    list($key, $value) = explode('=', $line, 2);
+                    $_ENV[trim($key)] = trim($value);
+                }
             }
         }
         
@@ -52,21 +48,6 @@ class SecureDatabaseManager
             'password' => $_ENV['DB_PASSWORD'] ?? '',
             'port' => $_ENV['DB_PORT'] ?? '3306'
         ];
-        
-        // Validate required configuration
-        $required = ['database', 'username'];
-        $missing = [];
-        
-        foreach ($required as $key) {
-            if (empty($this->config[$key])) {
-                $missing[] = "DB_" . strtoupper($key);
-            }
-        }
-        
-        if (!empty($missing)) {
-            throw new Exception("❌ Missing database configuration in .env file: " . implode(', ', $missing) . "\n" .
-                              "🔧 Solution: Edit .env file and set these values with your database credentials");
-        }
     }
     
     public function getConnection() 
