@@ -1346,10 +1346,18 @@ class ProductController extends Controller
             $startTime = microtime(true);
             $now = now();
 
-            // DataTable params
-            $perPage = $request->input('length', 100); // DataTable uses 'length'
-            $start = $request->input('start', 0);
-            $page = intval($start / $perPage) + 1;
+            // DataTable params (legacy support)
+            $perPageDataTable = $request->input('length', 100); // DataTable uses 'length'
+            $startDataTable = $request->input('start', 0);
+            $pageDataTable = intval($startDataTable / $perPageDataTable) + 1;
+            
+            // Standard pagination params (for POS)
+            $perPageStandard = $request->input('per_page', 24);
+            $pageStandard = $request->input('page', 1);
+            
+            // Use standard pagination if 'per_page' or 'page' parameters are provided
+            $perPage = $request->has('per_page') || $request->has('page') ? $perPageStandard : $perPageDataTable;
+            $page = $request->has('per_page') || $request->has('page') ? $pageStandard : $pageDataTable;
 
             // DataTable search and ordering
             $search = $request->input('search.value'); // DataTables sends global search as 'search.value'

@@ -2420,6 +2420,7 @@
                     retryCount = 0; // Reset on successful fetch
 
                     console.log('Products fetched successfully:', data);
+                    console.log(`Pagination: page=${currentProductsPage}, reset=${reset}, received=${data.data ? data.data.length : 0} products`);
 
                     if (!data || data.status !== 200 || !Array.isArray(data.data)) {
                         console.warn('Invalid data structure received:', data);
@@ -2431,16 +2432,22 @@
                         allProducts = [];
                         stockData = [];
                         posProduct.innerHTML = '';
+                        console.log('Reset mode: Cleared allProducts array and posProduct HTML');
                     }
 
+                    console.log(`Before adding: allProducts.length = ${allProducts.length}`);
                     data.data.forEach(stock => allProducts.push(stock));
+                    console.log(`After adding: allProducts.length = ${allProducts.length}`);
+                    
                     // Always keep stockData in sync with allProducts
                     stockData = [...allProducts];
                     
                     // Display products with proper append logic
                     if (reset) {
+                        console.log('Displaying all products (reset mode)');
                         displayProducts(allProducts, false);
                     } else {
+                        console.log(`Displaying ${data.data.length} new products (append mode)`);
                         displayProducts(data.data, true);
                     }
 
@@ -2531,6 +2538,9 @@
                 return;
             }
             
+            // Track newly added cards for event listener attachment
+            const newlyAddedCards = [];
+            
             // Only show products with stock in selected location, or unlimited stock
             const filteredProducts = products.filter(stock => {
                 // Use the existing normalizeBatches function to handle both array and object formats
@@ -2556,8 +2566,16 @@
                     )
                 );
             });
+            
             filteredProducts.forEach(stock => {
                 const product = stock.product;
+                
+                // Check if this product already exists in the DOM (to prevent duplicates)
+                if (append && document.querySelector(`[data-id="${product.id}"]`)) {
+                    console.log(`Product ${product.id} already exists in DOM, skipping...`);
+                    return;
+                }
+                
                 let locationQty = 0;
 
                 // Use the existing normalizeBatches function to handle both array and object formats
@@ -2577,7 +2595,7 @@
                 if (product.stock_alert === 0) {
                     quantityDisplay = `Unlimited`;
                 } else if (product.unit && (product.unit.allow_decimal === true || product.unit
-                        .allow_decimal === 1)) {
+                            .allow_decimal === 1)) {
                     quantityDisplay =
                         `${parseFloat(stock.total_stock).toFixed(4).replace(/\.?0+$/, '')} ${unitName} in stock`;
                 } else {
@@ -2585,7 +2603,7 @@
                 }
                 // Create card element with safe image handling
                 const cardDiv = document.createElement('div');
-                cardDiv.className = 'col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-3';
+                cardDiv.className = 'col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-6 col-12';
                 
                 const productCard = document.createElement('div');
                 productCard.className = 'product-card';
@@ -2611,16 +2629,21 @@
                 productCard.appendChild(cardBody);
                 cardDiv.appendChild(productCard);
                 posProduct.appendChild(cardDiv);
+                
+                // Track this newly added card
+                newlyAddedCards.push(productCard);
             });
-            // Add click event to product cards
-            document.querySelectorAll('.product-card').forEach(card => {
+            
+            // Add click event only to newly added product cards
+            newlyAddedCards.forEach(card => {
                 card.addEventListener('click', () => {
                     const productId = card.getAttribute('data-id');
-                    const productStock = allProducts.find(stock => String(stock.product.id) ===
-                        productId);
+                    const productStock = allProducts.find(stock => String(stock.product.id) === productId);
                     if (productStock) addProductToTable(productStock.product);
                 });
             });
+            
+            console.log(`DisplayProducts: Added ${newlyAddedCards.length} new product cards, append mode: ${append}`);
         }
 
         // ---- SIMPLIFIED AUTOCOMPLETE WITH BARCODE SCANNER SUPPORT ----

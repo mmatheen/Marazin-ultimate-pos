@@ -356,8 +356,8 @@
                 </li>
                 @endcanany
 
-                @canany(['view daily-report', 'view sales-report', 'view purchase-report', 'view stock-report', 'view profit-loss-report'])
-                    <li class="submenu {{ set_active(['sales-report', 'purchase-report', 'stock-report', 'daily-report', 'profit-loss.report']) }}">
+                @canany(['view daily-report', 'view sales-report', 'view purchase-report', 'view stock-report', 'view profit-loss-report', 'view payment-report'])
+                    <li class="submenu {{ set_active(['sales-report', 'purchase-report', 'stock-report', 'daily-report', 'profit-loss.report', 'payment.report']) }}">
                         <a href="#">
                             <i class="fas fa-file-invoice-dollar"></i>
                             <span class="sidebar-text">Reports</span>
@@ -374,6 +374,10 @@
                             
                             @can('view profit-loss-report')
                                 <li><a href="{{ route('profit-loss.report') }}" class="{{ set_active(['profit-loss.report']) }}">Profit & Loss Report</a></li>
+                            @endcan
+
+                            @can('view payment-report')
+                                <li><a href="{{ route('payment.report') }}" class="{{ set_active(['payment.report']) }}">Payment Report</a></li>
                             @endcan
 
                             <li><a href="{{ route('due.report') }}" class="{{ set_active(['due-report']) }}">Due Report</a></li>

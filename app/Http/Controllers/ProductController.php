@@ -1159,8 +1159,13 @@ class ProductController extends Controller
     /**
      * Intelligently assign IMEIs to batches based on available capacity
      * Fills batches sequentially (FIFO - First In, First Out)
+     * 
+     * @param int $productId
+     * @param int $locationId
+     * @param array $imeis
+     * @return array
      */
-    private function getIntelligentBatchAssignments($productId, $locationId, $imeis)
+    private function getIntelligentBatchAssignments(int $productId, int $locationId, array $imeis): array
     {
         Log::info("Starting intelligent batch assignment", [
             'product_id' => $productId,
@@ -1170,6 +1175,7 @@ class ProductController extends Controller
         ]);
 
         // Get all batches for this product at the specified location, ordered by batch ID (FIFO)
+        /** @var \Illuminate\Support\Collection $batches */
         $batches = DB::table('location_batches')
             ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
             ->where('batches.product_id', $productId)
@@ -1200,19 +1206,30 @@ class ProductController extends Controller
         $assignments = [];
         $remainingImeis = $imeis;
 
+        /** @var \stdClass $batch */
         foreach ($batches as $batch) {
+            // Cast to ensure proper typing
+            $batchObj = (object) [
+                /** @noinspection PhpPossiblePolymorphicInvocationInspection */
+                'batch_id' => (int) $batch->batch_id,
+                /** @noinspection PhpPossiblePolymorphicInvocationInspection */
+                'batch_no' => (string) $batch->batch_no,
+                /** @noinspection PhpPossiblePolymorphicInvocationInspection */
+                'available_qty' => (int) $batch->available_qty,
+            ];
+            
             if (empty($remainingImeis)) {
                 break; // All IMEIs have been assigned
             }
 
             // Calculate how many IMEIs are already assigned to this batch
             $existingImeiCount = ImeiNumber::where('product_id', $productId)
-                ->where('batch_id', $batch->batch_id)
+                ->where('batch_id', $batchObj->batch_id)
                 ->where('location_id', $locationId)
                 ->count();
 
             // Calculate available capacity for this batch
-            $availableCapacity = $batch->available_qty - $existingImeiCount;
+            $availableCapacity = $batchObj->available_qty - $existingImeiCount;
 
             if ($availableCapacity <= 0) {
                 continue; // This batch is full, try next batch
@@ -1221,19 +1238,12 @@ class ProductController extends Controller
             // Assign IMEIs to this batch up to its available capacity
             $imeisToAssign = array_slice($remainingImeis, 0, $availableCapacity);
             
-            Log::info("Assigning IMEIs to batch", [
-                'batch_id' => $batch->batch_id,
-                'batch_no' => $batch->batch_no,
-                'available_capacity' => $availableCapacity,
-                'existing_imei_count' => $existingImeiCount,
-                'imeis_to_assign' => $imeisToAssign
-            ]);
             
             foreach ($imeisToAssign as $imei) {
                 $assignments[] = [
                     'imei' => $imei,
-                    'batch_id' => $batch->batch_id,
-                    'batch_no' => $batch->batch_no
+                    'batch_id' => $batchObj->batch_id,
+                    'batch_no' => $batchObj->batch_no
                 ];
             }
 
@@ -1387,10 +1397,18 @@ class ProductController extends Controller
             $startTime = microtime(true);
             $now = now();
 
-            // DataTable params
-            $perPage = $request->input('length', 100); // DataTable uses 'length'
-            $start = $request->input('start', 0);
-            $page = intval($start / $perPage) + 1;
+            // DataTable params (legacy support)
+            $perPageDataTable = $request->input('length', 100); // DataTable uses 'length'
+            $startDataTable = $request->input('start', 0);
+            $pageDataTable = intval($startDataTable / $perPageDataTable) + 1;
+            
+            // Standard pagination params (for POS)
+            $perPageStandard = $request->input('per_page', 24);
+            $pageStandard = $request->input('page', 1);
+            
+            // Use standard pagination if 'per_page' or 'page' parameters are provided
+            $perPage = $request->has('per_page') || $request->has('page') ? $perPageStandard : $perPageDataTable;
+            $page = $request->has('per_page') || $request->has('page') ? $pageStandard : $pageDataTable;
 
             // DataTable search and ordering
             $search = $request->input('search.value'); // DataTables sends global search as 'search.value'

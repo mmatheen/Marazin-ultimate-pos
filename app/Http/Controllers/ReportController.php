@@ -921,4 +921,317 @@ public function fetchActivityLog(Request $request)
         
         return Excel::download(new \App\Exports\DueReportExport($data, $reportType), $filename, \Maatwebsite\Excel\Excel::CSV);
     }
+
+    /**
+     * Payment Report
+     */
+    public function paymentReport(Request $request)
+    {
+        // Calculate summary data
+        $summaryData = $this->calculatePaymentSummary($request);
+
+        // If AJAX request for summary update
+        if ($request->has('ajax_summary')) {
+            return response()->json(['summaryData' => $summaryData]);
+        }
+
+        // Get all locations for filter dropdown
+        $locations = Location::all();
+        
+        // Get all customers and suppliers for filter dropdown
+        $customers = \App\Models\Customer::select('id', 'first_name', 'last_name')
+            ->orderBy('first_name')
+            ->get();
+            
+        $suppliers = \App\Models\Supplier::select('id', 'first_name', 'last_name')
+            ->orderBy('first_name')
+            ->get();
+
+        return view('reports.payment_report', compact('locations', 'customers', 'suppliers', 'summaryData'));
+    }
+
+    /**
+     * Get payment data for DataTables
+     */
+    public function paymentReportData(Request $request)
+    {
+        $query = \App\Models\Payment::with(['customer', 'supplier', 'sale', 'purchase', 'purchaseReturn'])
+            ->select('payments.*');
+
+        // Apply filters
+        if ($request->has('customer_id') && $request->customer_id != '') {
+            $query->where('customer_id', $request->customer_id);
+        }
+
+        if ($request->has('supplier_id') && $request->supplier_id != '') {
+            $query->where('supplier_id', $request->supplier_id);
+        }
+
+        if ($request->has('location_id') && $request->location_id != '') {
+            // Filter by location through sale or purchase
+            $query->where(function($q) use ($request) {
+                $q->whereHas('sale', function($saleQuery) use ($request) {
+                    $saleQuery->where('location_id', $request->location_id);
+                })
+                ->orWhereHas('purchase', function($purchaseQuery) use ($request) {
+                    $purchaseQuery->where('location_id', $request->location_id);
+                })
+                ->orWhereHas('purchaseReturn', function($returnQuery) use ($request) {
+                    $returnQuery->where('location_id', $request->location_id);
+                });
+            });
+        }
+
+        if ($request->has('payment_method') && $request->payment_method != '') {
+            $query->where('payment_method', $request->payment_method);
+        }
+
+        if ($request->has('payment_type') && $request->payment_type != '') {
+            $query->where('payment_type', $request->payment_type);
+        }
+
+        if ($request->has('start_date') && $request->start_date != '') {
+            $query->whereDate('payment_date', '>=', $request->start_date);
+        }
+
+        if ($request->has('end_date') && $request->end_date != '') {
+            $query->whereDate('payment_date', '<=', $request->end_date);
+        }
+
+        $payments = $query->orderBy('payment_date', 'desc')->get();
+
+        $data = $payments->map(function($payment) {
+            $locationName = '';
+            $invoiceNo = '';
+            
+            if ($payment->sale) {
+                $locationName = optional($payment->sale->location)->name ?? '';
+                $invoiceNo = $payment->sale->invoice_no ?? '';
+            } elseif ($payment->purchase) {
+                $locationName = optional($payment->purchase->location)->name ?? '';
+                $invoiceNo = $payment->purchase->invoice_no ?? '';
+            } elseif ($payment->purchaseReturn) {
+                $locationName = optional($payment->purchaseReturn->location)->name ?? '';
+                $invoiceNo = $payment->purchaseReturn->invoice_no ?? '';
+            }
+
+            return [
+                'id' => $payment->id,
+                'payment_date' => $payment->payment_date ? \Carbon\Carbon::parse($payment->payment_date)->format('Y-m-d') : '',
+                'amount' => number_format($payment->amount, 2),
+                'payment_method' => ucfirst($payment->payment_method),
+                'payment_type' => ucfirst($payment->payment_type),
+                'reference_no' => $payment->reference_no ?? '',
+                'invoice_no' => $invoiceNo,
+                'customer_name' => $payment->customer ? $payment->customer->full_name : '',
+                'supplier_name' => $payment->supplier ? $payment->supplier->full_name : '',
+                'location' => $locationName,
+                'cheque_number' => $payment->cheque_number ?? '',
+                'cheque_status' => $payment->cheque_status ? ucfirst($payment->cheque_status) : '',
+                'notes' => $payment->notes ?? '',
+                'created_at' => $payment->created_at ? $payment->created_at->format('Y-m-d H:i:s') : '',
+            ];
+        });
+
+        return response()->json(['data' => $data]);
+    }
+
+    /**
+     * Get payment detail
+     */
+    public function paymentDetail($id)
+    {
+        $payment = \App\Models\Payment::with([
+            'customer', 
+            'supplier', 
+            'sale.location', 
+            'purchase.location',
+            'purchaseReturn.location',
+            'createdBy',
+            'updatedBy'
+        ])->findOrFail($id);
+
+        return response()->json([
+            'payment' => $payment,
+            'formatted_amount' => number_format($payment->amount, 2),
+            'formatted_date' => $payment->payment_date ? \Carbon\Carbon::parse($payment->payment_date)->format('d/m/Y') : '',
+            'location_name' => $this->getPaymentLocationName($payment),
+            'invoice_no' => $this->getPaymentInvoiceNo($payment),
+        ]);
+    }
+
+    /**
+     * Calculate payment summary data
+     */
+    private function calculatePaymentSummary($request)
+    {
+        $query = \App\Models\Payment::query();
+
+        // Apply same filters as in paymentReportData
+        if ($request->has('customer_id') && $request->customer_id != '') {
+            $query->where('customer_id', $request->customer_id);
+        }
+
+        if ($request->has('supplier_id') && $request->supplier_id != '') {
+            $query->where('supplier_id', $request->supplier_id);
+        }
+
+        if ($request->has('location_id') && $request->location_id != '') {
+            // Filter by location through sale or purchase
+            $query->where(function($q) use ($request) {
+                $q->whereHas('sale', function($saleQuery) use ($request) {
+                    $saleQuery->where('location_id', $request->location_id);
+                })
+                ->orWhereHas('purchase', function($purchaseQuery) use ($request) {
+                    $purchaseQuery->where('location_id', $request->location_id);
+                })
+                ->orWhereHas('purchaseReturn', function($returnQuery) use ($request) {
+                    $returnQuery->where('location_id', $request->location_id);
+                });
+            });
+        }
+
+        if ($request->has('payment_method') && $request->payment_method != '') {
+            $query->where('payment_method', $request->payment_method);
+        }
+
+        if ($request->has('payment_type') && $request->payment_type != '') {
+            $query->where('payment_type', $request->payment_type);
+        }
+
+        if ($request->has('start_date') && $request->start_date != '') {
+            $query->whereDate('payment_date', '>=', $request->start_date);
+        }
+
+        if ($request->has('end_date') && $request->end_date != '') {
+            $query->whereDate('payment_date', '<=', $request->end_date);
+        }
+
+        // Calculate totals by payment method
+        $cashTotal = (clone $query)->where('payment_method', 'cash')->sum('amount');
+        $cardTotal = (clone $query)->where('payment_method', 'card')->sum('amount');
+        $chequeTotal = (clone $query)->where('payment_method', 'cheque')->sum('amount');
+        $totalAmount = $query->sum('amount');
+
+        // Calculate totals by payment type
+        $salePayments = (clone $query)->where('payment_type', 'sale')->sum('amount');
+        $purchasePayments = (clone $query)->where('payment_type', 'purchase')->sum('amount');
+
+        return [
+            'total_amount' => $totalAmount,
+            'cash_total' => $cashTotal,
+            'card_total' => $cardTotal,
+            'cheque_total' => $chequeTotal,
+            'sale_payments' => $salePayments,
+            'purchase_payments' => $purchasePayments,
+        ];
+    }
+
+    /**
+     * Get payment location name helper
+     */
+    private function getPaymentLocationName($payment)
+    {
+        if ($payment->sale && $payment->sale->location) {
+            return $payment->sale->location->name;
+        } elseif ($payment->purchase && $payment->purchase->location) {
+            return $payment->purchase->location->name;
+        } elseif ($payment->purchaseReturn && $payment->purchaseReturn->location) {
+            return $payment->purchaseReturn->location->name;
+        }
+        return '';
+    }
+
+    /**
+     * Get payment invoice number helper
+     */
+    private function getPaymentInvoiceNo($payment)
+    {
+        if ($payment->sale) {
+            return $payment->sale->invoice_no;
+        } elseif ($payment->purchase) {
+            return $payment->purchase->invoice_no;
+        } elseif ($payment->purchaseReturn) {
+            return $payment->purchaseReturn->invoice_no;
+        }
+        return '';
+    }
+
+    /**
+     * Export payment report as PDF
+     */
+    public function paymentReportExportPdf(Request $request)
+    {
+        $data = $this->getPaymentReportDataArray($request);
+        $summaryData = $this->calculatePaymentSummary($request);
+        
+        $pdf = Pdf::loadView('reports.payment_report_pdf', compact('data', 'summaryData', 'request'))
+            ->setPaper('a4', 'landscape');
+        
+        $filename = 'payment-report-' . date('Y-m-d-H-i-s') . '.pdf';
+        
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Export payment report as Excel
+     */
+    public function paymentReportExportExcel(Request $request)
+    {
+        $data = $this->getPaymentReportDataArray($request);
+        
+        $filename = 'payment-report-' . date('Y-m-d-H-i-s') . '.xlsx';
+        
+        return Excel::download(new \App\Exports\PaymentReportExport($data), $filename);
+    }
+
+    /**
+     * Get payment report data as array for export
+     */
+    private function getPaymentReportDataArray($request)
+    {
+        $query = \App\Models\Payment::with(['customer', 'supplier', 'sale', 'purchase', 'purchaseReturn'])
+            ->select('payments.*');
+
+        // Apply same filters as paymentReportData method
+        if ($request->has('customer_id') && $request->customer_id != '') {
+            $query->where('customer_id', $request->customer_id);
+        }
+
+        if ($request->has('supplier_id') && $request->supplier_id != '') {
+            $query->where('supplier_id', $request->supplier_id);
+        }
+
+        if ($request->has('location_id') && $request->location_id != '') {
+            $query->where(function($q) use ($request) {
+                $q->whereHas('sale', function($saleQuery) use ($request) {
+                    $saleQuery->where('location_id', $request->location_id);
+                })
+                ->orWhereHas('purchase', function($purchaseQuery) use ($request) {
+                    $purchaseQuery->where('location_id', $request->location_id);
+                })
+                ->orWhereHas('purchaseReturn', function($returnQuery) use ($request) {
+                    $returnQuery->where('location_id', $request->location_id);
+                });
+            });
+        }
+
+        if ($request->has('payment_method') && $request->payment_method != '') {
+            $query->where('payment_method', $request->payment_method);
+        }
+
+        if ($request->has('payment_type') && $request->payment_type != '') {
+            $query->where('payment_type', $request->payment_type);
+        }
+
+        if ($request->has('start_date') && $request->start_date != '') {
+            $query->whereDate('payment_date', '>=', $request->start_date);
+        }
+
+        if ($request->has('end_date') && $request->end_date != '') {
+            $query->whereDate('payment_date', '<=', $request->end_date);
+        }
+
+        return $query->orderBy('payment_date', 'desc')->get();
+    }
 }

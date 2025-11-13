@@ -539,6 +539,13 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/due-report-export-excel', [ReportController::class, 'dueReportExportExcel'])->name('due.report.export.excel');
         Route::get('/due-report-export-csv', [ReportController::class, 'dueReportExportCsv'])->name('due.report.export.csv');
 
+        // Payment Reports
+        Route::get('/payment-report', [ReportController::class, 'paymentReport'])->name('payment.report');
+        Route::post('/payment-report-data', [ReportController::class, 'paymentReportData'])->name('payment.report.data');
+        Route::get('/payment-detail/{id}', [ReportController::class, 'paymentDetail'])->name('payment.detail');
+        Route::post('/payment-report-export-pdf', [ReportController::class, 'paymentReportExportPdf'])->name('payment.report.export.pdf');
+        Route::post('/payment-report-export-excel', [ReportController::class, 'paymentReportExportExcel'])->name('payment.report.export.excel');
+
        // -------------------- LocationController Routes --------------------
         Route::get('/location', [LocationController::class, 'location'])->name('location');
         Route::get('/location-edit/{id}', [LocationController::class, 'edit']);

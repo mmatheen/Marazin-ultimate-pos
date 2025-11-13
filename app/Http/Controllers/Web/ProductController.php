@@ -1461,12 +1461,20 @@ class ProductController extends Controller
             $startTime = microtime(true);
             $now = now();
 
-            // DataTable params with validation
-            $perPage = min((int)$request->input('length', 50), 100); // Limit max per page for hosting
-            $start = max(0, (int)$request->input('start', 0));
-            $page = intval($start / $perPage) + 1;
+            // DataTable params with validation (legacy support)
+            $perPageDataTable = min((int)$request->input('length', 50), 100); // Limit max per page for hosting
+            $startDataTable = max(0, (int)$request->input('start', 0));
+            $pageDataTable = intval($startDataTable / $perPageDataTable) + 1;
+            
+            // Standard pagination params (for POS)
+            $perPageStandard = min((int)$request->input('per_page', 24), 100);
+            $pageStandard = max(1, (int)$request->input('page', 1));
+            
+            // Use standard pagination if 'per_page' or 'page' parameters are provided
+            $perPage = $request->has('per_page') || $request->has('page') ? $perPageStandard : $perPageDataTable;
+            $page = $request->has('per_page') || $request->has('page') ? $pageStandard : $pageDataTable;
 
-            Log::info('Pagination params:', ['page' => $page, 'perPage' => $perPage, 'start' => $start]);
+            Log::info('Pagination params:', ['page' => $page, 'perPage' => $perPage, 'useStandard' => ($request->has('per_page') || $request->has('page'))]);
 
             // DataTable search and ordering
             $search = $request->input('search.value'); // DataTables sends global search as 'search.value'
