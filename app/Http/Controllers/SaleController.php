@@ -1159,10 +1159,20 @@ class SaleController extends Controller
                         
                         foreach ($request->payments as $paymentData) {
                             if (!empty($paymentData['amount']) && $paymentData['amount'] > 0) {
+                                // Ensure payment_date is in proper format
+                                $paymentDate = $paymentData['payment_date'] ?? now();
+                                if (is_string($paymentDate)) {
+                                    try {
+                                        $paymentDate = Carbon::parse($paymentDate);
+                                    } catch (\Exception $e) {
+                                        $paymentDate = now();
+                                    }
+                                }
+                                
                                 Payment::create([
                                     'reference_id' => $sale->id,
                                     'payment_type' => 'sale',
-                                    'payment_date' => $paymentData['payment_date'] ?? now(),
+                                    'payment_date' => $paymentDate,
                                     'amount' => $paymentData['amount'],
                                     'payment_method' => $paymentData['payment_method'] ?? 'cash',
                                     'payment_status' => 'completed',
@@ -1213,9 +1223,19 @@ class SaleController extends Controller
 
                         // Create payments individually using PaymentService (optimized)
                         foreach ($paymentsToCreate as $paymentData) {
+                            // Ensure payment_date is in proper format
+                            $paymentDate = $paymentData['payment_date'] ?? now();
+                            if (is_string($paymentDate)) {
+                                try {
+                                    $paymentDate = Carbon::parse($paymentDate);
+                                } catch (\Exception $e) {
+                                    $paymentDate = now();
+                                }
+                            }
+                            
                             // Prepare payment data with enhanced cheque handling
                             $servicePaymentData = [
-                                'payment_date' => $paymentData['payment_date'],
+                                'payment_date' => $paymentDate,
                                 'amount' => $paymentData['amount'],
                                 'payment_method' => $paymentData['payment_method'],
                                 'reference_no' => $referenceNo,

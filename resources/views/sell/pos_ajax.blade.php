@@ -6767,6 +6767,22 @@
             const paymentButtons = ['#cashButton', '#cardButton', '#chequeButton', '#creditSaleButton',
                 '#multiplePayButton'
             ];
+            
+            // Enhanced double-click prevention for all payment buttons
+            paymentButtons.forEach(buttonSelector => {
+                $(document).off('click.payment-protection', buttonSelector);
+                $(document).on('click.payment-protection', buttonSelector, function(e) {
+                    const button = this;
+                    
+                    // Check if button is already processing
+                    if (button.dataset.isProcessing === "true" || $(button).prop('disabled')) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Payment button click prevented - already processing');
+                        return false;
+                    }
+                });
+            });
 
             paymentButtons.forEach(buttonId => {
                 if (isQuantityValid) {
@@ -8454,7 +8470,16 @@
                 const paymentData = [];
                 document.querySelectorAll('.payment-row').forEach(row => {
                     const paymentMethod = row.querySelector('.payment-method').value;
-                    const paymentDate = row.querySelector('.payment-date').value;
+                    let paymentDate = row.querySelector('.payment-date').value;
+                    
+                    // Convert date from DD-MM-YYYY or DD/MM/YYYY to YYYY-MM-DD format for database
+                    if (paymentDate && paymentDate.match(/^\d{2}[\-\/]\d{2}[\-\/]\d{4}$/)) {
+                        const parts = paymentDate.split(/[\-\/]/);
+                        paymentDate = parts[2] + '-' + parts[1] + '-' + parts[0]; // Convert to YYYY-MM-DD
+                    } else if (!paymentDate) {
+                        paymentDate = new Date().toISOString().slice(0, 10); // Default to today
+                    }
+                    
                     const amountInput = row.querySelector('.payment-amount').value;
                     let amount = parseFormattedAmount(amountInput);
 
@@ -9384,18 +9409,10 @@
 
 {{-- For jQuery --}}
 <script src="{{ asset('assets/js/jquery-3.6.0.min.js') }}"></script>
-<!-- Include Mousetrap library -->
-{{-- <script src="{{ asset('assets/js/mousetrap.js') }}"></script> --}}
-<script src="https://unpkg.com/hotkeys-js/dist/hotkeys.min.js"></script>
 
 <script type="text/javascript">
-    document.addEventListener('DOMContentLoaded', function() {
+    $(document).ready(function() {
         let currentRowIndex = 0;
-
-        // Enable hotkeys inside input, textarea, and select fields
-        hotkeys.filter = function(event) {
-            return true; // Allow shortcuts in any element
-        };
 
         function focusQuantityInput() {
             const quantityInputs = document.querySelectorAll('.quantity-input');
@@ -9406,69 +9423,71 @@
             }
         }
 
-        // F2 - Focus next quantity input
-        hotkeys('f2', function(event) {
-            event.preventDefault();
-            focusQuantityInput();
-        });
-
-        // F4 - Focus product search
-        hotkeys('f4', function(event) {
-            event.preventDefault();
-            const productSearchInput = document.getElementById('productSearchInput');
-            if (productSearchInput) {
-                productSearchInput.focus();
-                productSearchInput.select();
+        // Pure JavaScript hotkey handler - no external library needed
+        document.addEventListener('keydown', function(event) {
+            // Check if any modifier keys are pressed (Ctrl, Alt, Shift)
+            if (event.ctrlKey || event.altKey || event.shiftKey) {
+                return;
             }
-        });
 
-        // F5 - Refresh page
-        hotkeys('f5', function(event) {
-            event.preventDefault();
-            if (confirm('Are you sure you want to refresh the page?')) {
-                location.reload();
+            switch(event.key) {
+                case 'F2':
+                    event.preventDefault();
+                    focusQuantityInput();
+                    break;
 
-            }
-        });
+                case 'F4':
+                    event.preventDefault();
+                    const productSearchInput = document.getElementById('productSearchInput');
+                    if (productSearchInput) {
+                        productSearchInput.focus();
+                        productSearchInput.select();
+                    }
+                    break;
 
-        // F6 - Click cash button
-        hotkeys('f6', function(event) {
-            event.preventDefault();
-            const cashBtn = document.querySelector('#cashButton');
-            if (cashBtn) {
-                cashBtn.click();
-            }
-        });
+                case 'F5':
+                    event.preventDefault();
+                    if (confirm('Are you sure you want to refresh the page?')) {
+                        location.reload();
+                    }
+                    break;
 
-        // F7 - Focus amount given input
-        hotkeys('f7', function(event) {
-            event.preventDefault();
-            const amountInput = document.querySelector('#amount-given');
-            if (amountInput) {
-                amountInput.focus();
-                amountInput.select();
-            }
-        });
+                case 'F6':
+                    event.preventDefault();
+                    const cashBtn = document.querySelector('#cashButton');
+                    if (cashBtn) {
+                        cashBtn.click();
+                    }
+                    break;
 
-        // F8 - Focus discount input
-        hotkeys('f8', function(event) {
-            event.preventDefault();
-            const discountInput = document.querySelector('#global-discount');
-            if (discountInput) {
-                discountInput.focus();
-                discountInput.select();
-            }
-        });
+                case 'F7':
+                    event.preventDefault();
+                    const amountInput = document.querySelector('#amount-given');
+                    if (amountInput) {
+                        amountInput.focus();
+                        amountInput.select();
+                    }
+                    break;
 
-        // F9 - Open customer Select2 and focus search
-        hotkeys('f9', function(event) {
-            event.preventDefault();
-            const customerSelect = $('#customer-id');
-            if (customerSelect.length) {
-                customerSelect.select2('open');
-                setTimeout(() => {
-                    $('.select2-search__field').focus();
-                }, 100);
+                case 'F8':
+                    event.preventDefault();
+                    const discountInput = document.querySelector('#global-discount');
+                    if (discountInput) {
+                        discountInput.focus();
+                        discountInput.select();
+                    }
+                    break;
+
+                case 'F9':
+                    event.preventDefault();
+                    const customerSelect = $('#customer-id');
+                    if (customerSelect.length) {
+                        customerSelect.select2('open');
+                        setTimeout(() => {
+                            $('.select2-search__field').focus();
+                        }, 100);
+                    }
+                    break;
             }
         });
 
@@ -9624,7 +9643,28 @@
                     if (options.done) options.done(response);
                 })
                 .fail(function(xhr, status, error) {
-                    toastr.error('An error occurred: ' + xhr.responseText);
+                    let errorMessage = 'An error occurred during payment processing.';
+                    
+                    try {
+                        const errorResponse = JSON.parse(xhr.responseText);
+                        if (errorResponse.message) {
+                            errorMessage = errorResponse.message;
+                        } else if (errorResponse.error) {
+                            errorMessage = errorResponse.error;
+                        }
+                    } catch (e) {
+                        // If parsing fails, try to extract SQL error message
+                        if (xhr.responseText.includes('SQLSTATE')) {
+                            if (xhr.responseText.includes('Invalid datetime format')) {
+                                errorMessage = 'Invalid date format. Please check the payment date.';
+                            } else {
+                                errorMessage = 'Database error occurred. Please try again.';
+                            }
+                        }
+                    }
+                    
+                    toastr.error(errorMessage);
+                    console.error('Payment error:', xhr.responseText);
                     if (options.fail) options.fail(xhr, status, error);
                 })
                 .always(function() {
