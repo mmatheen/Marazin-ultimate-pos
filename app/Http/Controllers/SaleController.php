@@ -1363,6 +1363,11 @@ class SaleController extends Controller
                         throw new \Exception("Product ID {$productData['product_id']} not found");
                     }
                     
+                    // *** CRITICAL SECURITY FIX: Validate price integrity during edit mode ***
+                    if ($isUpdate) {
+                        $this->validateEditModePrice($productData, $sale);
+                    }
+                    
                     if ($product->stock_alert === 0) {
                         $this->processUnlimitedStockProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
                     } else {
@@ -1411,6 +1416,11 @@ class SaleController extends Controller
                         $this->unifiedLedgerService->updateSale($sale, $referenceNo);
                     }
                     // Note: New sales are already recorded above (before payments)
+                }
+                
+                // *** CRITICAL FIX: Always recalculate customer balance after sale edits ***
+                if ($isUpdate && $request->customer_id != 1) {
+                    $this->recalculateCustomerBalance($request->customer_id);
                 }
                 // Note: Payment ledger processing is handled in payment creation loop above
 
@@ -2336,7 +2346,8 @@ class SaleController extends Controller
                     'address',
                     'opening_balance',
                     'current_balance',
-                    'location_id'
+                    'location_id',
+                    'customer_type' // Include customer type for price validation
                 ]),
                 'location' => optional($sale->location)->only([
                     'id',
@@ -2649,6 +2660,136 @@ class SaleController extends Controller
                 'status' => 500,
                 'message' => 'Failed to retrieve customer previous price'
             ], 500);
+        }
+    }
+
+    /**
+     * Validate price integrity during edit mode to prevent manipulation
+     * 
+     * @param array $productData
+     * @param Sale $sale
+     * @throws \Exception
+     */
+    private function validateEditModePrice($productData, $sale)
+    {
+        try {
+            // Find the original sale product for this product_id and batch_id
+            $originalSaleProduct = $sale->products()
+                ->where('product_id', $productData['product_id'])
+                ->where('batch_id', $productData['batch_id'] ?? 'all')
+                ->first();
+
+            if (!$originalSaleProduct) {
+                // This is a new product being added during edit - allow normal pricing logic
+                Log::info('New product added during sale edit', [
+                    'sale_id' => $sale->id,
+                    'product_id' => $productData['product_id'],
+                    'batch_id' => $productData['batch_id'] ?? 'all'
+                ]);
+                return;
+            }
+
+            // Compare incoming price with original sale price
+            $originalPrice = (float) $originalSaleProduct->price;
+            $incomingPrice = (float) $productData['unit_price'];
+            $priceDifference = abs($originalPrice - $incomingPrice);
+            $allowedVariance = 0.01; // Allow 1 cent variance for floating point precision
+
+            if ($priceDifference > $allowedVariance) {
+                Log::warning('Price manipulation attempt detected during sale edit', [
+                    'sale_id' => $sale->id,
+                    'invoice_no' => $sale->invoice_no,
+                    'product_id' => $productData['product_id'],
+                    'batch_id' => $productData['batch_id'] ?? 'all',
+                    'original_price' => $originalPrice,
+                    'attempted_price' => $incomingPrice,
+                    'difference' => $priceDifference,
+                    'user_id' => auth()->id(),
+                    'user_email' => auth()->user()->email ?? 'unknown'
+                ]);
+
+                throw new \Exception(
+                    "Price modification detected for product ID {$productData['product_id']}. " .
+                    "Original price: Rs {$originalPrice}, attempted price: Rs {$incomingPrice}. " .
+                    "Price changes during edit are not allowed for data integrity."
+                );
+            }
+
+            // Validate discount integrity as well
+            $originalDiscountAmount = (float) ($originalSaleProduct->discount_amount ?? 0);
+            $incomingDiscountAmount = (float) ($productData['discount_amount'] ?? 0);
+            $discountDifference = abs($originalDiscountAmount - $incomingDiscountAmount);
+
+            if ($discountDifference > $allowedVariance) {
+                Log::warning('Discount manipulation attempt detected during sale edit', [
+                    'sale_id' => $sale->id,
+                    'product_id' => $productData['product_id'],
+                    'original_discount' => $originalDiscountAmount,
+                    'attempted_discount' => $incomingDiscountAmount,
+                    'difference' => $discountDifference
+                ]);
+
+                throw new \Exception(
+                    "Discount modification detected for product ID {$productData['product_id']}. " .
+                    "Discount changes during edit are not allowed."
+                );
+            }
+
+            Log::info('Price validation passed for edit mode', [
+                'sale_id' => $sale->id,
+                'product_id' => $productData['product_id'],
+                'validated_price' => $originalPrice
+            ]);
+
+        } catch (\Exception $e) {
+            // Re-throw validation errors
+            if (strpos($e->getMessage(), 'modification detected') !== false) {
+                throw $e;
+            }
+
+            // Log unexpected errors but don't block the edit
+            Log::error('Unexpected error during edit mode price validation', [
+                'sale_id' => $sale->id,
+                'product_id' => $productData['product_id'],
+                'error' => $e->getMessage()
+            ]);
+
+            throw new \Exception('Price validation failed. Please try again or contact administrator.');
+        }
+    }
+
+    /**
+     * Recalculate and update customer balance based on actual outstanding dues
+     * This prevents balance discrepancies after sale edits
+     * 
+     * @param int $customerId
+     */
+    private function recalculateCustomerBalance($customerId)
+    {
+        try {
+            // Calculate total outstanding dues from all final sales
+            $totalDue = Sale::withoutGlobalScopes()
+                ->where('customer_id', $customerId)
+                ->where('status', 'final')
+                ->sum('total_due');
+            
+            // Update customer balance
+            Customer::withoutGlobalScopes()
+                ->where('id', $customerId)
+                ->update(['current_balance' => $totalDue]);
+            
+            Log::info('Customer balance recalculated after sale edit', [
+                'customer_id' => $customerId,
+                'new_balance' => $totalDue,
+                'recalculated_by' => auth()->id()
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to recalculate customer balance', [
+                'customer_id' => $customerId,
+                'error' => $e->getMessage()
+            ]);
+            // Don't throw exception to avoid blocking sale edit, just log the error
         }
     }
 

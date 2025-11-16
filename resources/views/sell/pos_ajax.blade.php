@@ -704,7 +704,8 @@
         function updateAllBillingRowsPricing(newCustomerType) {
             // Skip price updates during edit mode to preserve original sale data
             if (isEditing) {
-                console.log('Edit mode active: Skipping automatic price updates to preserve original sale data');
+                console.log('🔒 Edit mode active: Preserving original sale prices. Customer type pricing updates disabled.');
+                toastr.info('Edit Mode: Original sale prices preserved. Customer pricing not applied.', 'Edit Mode Active');
                 return;
             }
             
@@ -1906,7 +1907,7 @@
             console.log('Sales rep display hidden immediately (desktop and mobile)');
         }
 
-        // Modify sale submission to check access rights
+        // Modify sale submission to check access rights and payment method compatibility
         function checkSalesAccess() {
             // Only check access for sales rep users
             if (!isSalesRep) {
@@ -1933,6 +1934,45 @@
                 return false;
             }
 
+            return true;
+        }
+        
+        // Function to validate payment method compatibility with sale history
+        function validatePaymentMethodCompatibility(paymentMethod, saleData) {
+            if (!isEditing || !currentEditingSaleId) {
+                return true; // Not in edit mode, allow any payment method
+            }
+            
+            // Get original sale payment status
+            const originalPaymentStatus = saleData?.payment_status || 'pending';
+            const originalTotalPaid = parseFloat(saleData?.total_paid || 0);
+            const originalFinalTotal = parseFloat(saleData?.final_total || 0);
+            const originalDue = originalFinalTotal - originalTotalPaid;
+            
+            // If original sale was credit (has due amount)
+            if (originalDue > 0 && originalPaymentStatus !== 'paid') {
+                if (paymentMethod === 'cash' || paymentMethod === 'card') {
+                    const confirmChange = confirm(
+                        `⚠️ PAYMENT METHOD CHANGE WARNING\n\n` +
+                        `Original Sale: Credit Sale (Due: Rs ${originalDue.toFixed(2)})\n` +
+                        `New Payment: ${paymentMethod.toUpperCase()} Payment\n\n` +
+                        `This will change the sale from CREDIT to CASH payment.\n` +
+                        `Are you sure you want to proceed?\n\n` +
+                        `This action will:\n` +
+                        `• Remove the credit from customer ledger\n` +
+                        `• Mark sale as fully paid\n` +
+                        `• Update payment records`
+                    );
+                    
+                    if (!confirmChange) {
+                        console.log('Payment method change cancelled by user');
+                        return false;
+                    }
+                    
+                    console.log('✅ Payment method change confirmed: Credit → ' + paymentMethod.toUpperCase());
+                }
+            }
+            
             return true;
         }
 
@@ -5767,21 +5807,35 @@
             // Use selectedBatch if provided; fallback to stockEntry batch
             const batch = selectedBatch || normalizeBatches(stockEntry).find(b => b.id === parseInt(batchId));
 
-            // The price parameter is already calculated based on customer type in the calling function
-            // So we use it directly instead of recalculating
-            price = parseFloat(price);
+            // *** CRITICAL FIX: In edit mode, preserve original sale price ***
+            if (isEditing && currentEditingSaleId) {
+                // In edit mode, the price parameter contains the original sale price
+                // Do NOT recalculate based on current customer type
+                price = parseFloat(price);
+                console.log(`🔒 Edit Mode: Using original sale price Rs ${price} for ${product.product_name}`);
+            } else {
+                // In normal mode, price is calculated based on customer type in calling function
+                price = parseFloat(price);
+            }
 
             if (isNaN(price) || price <= 0) {
-                console.error('Invalid price for product:', product.product_name, 'Price:', price);
+                const errorContext = isEditing ? 'original sale data' : 'current customer pricing';
+                console.error('Invalid price for product:', product.product_name, 'Price:', price, 'Context:', errorContext);
 
-                // Get customer type for error message
-                const currentCustomer = getCurrentCustomer();
-                toastr.error(
-                    `This product has no valid price configured for ${currentCustomer.customer_type} customers. Please contact admin to fix pricing.`,
-                    'Pricing Error');
-
-                // Log the error
-                logPricingError(product, currentCustomer.customer_type, batch);
+                if (isEditing) {
+                    toastr.error(
+                        `Invalid price data in original sale for product: ${product.product_name}. Cannot edit this product.`,
+                        'Edit Error');
+                } else {
+                    // Get customer type for error message
+                    const currentCustomer = getCurrentCustomer();
+                    toastr.error(
+                        `This product has no valid price configured for ${currentCustomer.customer_type} customers. Please contact admin to fix pricing.`,
+                        'Pricing Error');
+                    
+                    // Log the error
+                    logPricingError(product, currentCustomer.customer_type, batch);
+                }
                 return;
             }
 
@@ -5794,35 +5848,54 @@
             // Helper: Calculate default discount using MRP - customer type price
             const defaultFixedDiscount = product.max_retail_price - price;
 
-            // Priority order:
-            // 1. Manual discount
-            // 2. Active discount
-            // 3. Default (MRP - customer type price)
-            if (discountType && discountAmount !== null) {
-                console.log('Applying manual discount:', {discountType, discountAmount, productName: product.product_name});
+            // *** EDIT MODE FIX: Preserve original discount structure ***
+            if (isEditing && currentEditingSaleId && (discountType && discountAmount !== null)) {
+                // In edit mode with original discount data, preserve exact original pricing
+                console.log('🔒 Edit Mode: Preserving original discount:', {discountType, discountAmount, productName: product.product_name});
+                
                 if (discountType === 'fixed') {
                     discountFixed = parseFloat(discountAmount);
-                    finalPrice = product.max_retail_price - discountFixed;
-                    if (finalPrice < 0) finalPrice = 0;
-                    console.log('Fixed discount applied:', {discountFixed, finalPrice, MRP: product.max_retail_price});
+                    // In edit mode, final price should be the original sale price
+                    finalPrice = price; // Use original sale price, not calculated from MRP
+                    console.log('Edit Mode - Original fixed discount preserved:', {discountFixed, finalPrice: finalPrice});
                 } else if (discountType === 'percentage') {
                     discountPercent = parseFloat(discountAmount) || 0;
-                    finalPrice = product.max_retail_price * (1 - (discountPercent || 0) / 100);
-                    console.log('Percentage discount applied:', {discountPercent, finalPrice, MRP: product.max_retail_price});
-                }
-            } else if (activeDiscount) {
-                if (activeDiscount.type === 'percentage') {
-                    discountPercent = activeDiscount.amount || 0;
-                    finalPrice = product.max_retail_price * (1 - (discountPercent || 0) / 100);
-                } else if (activeDiscount.type === 'fixed') {
-                    discountFixed = activeDiscount.amount;
-                    finalPrice = product.max_retail_price - discountFixed;
-                    if (finalPrice < 0) finalPrice = 0;
+                    // In edit mode, final price should be the original sale price
+                    finalPrice = price; // Use original sale price, not calculated from MRP
+                    console.log('Edit Mode - Original percentage discount preserved:', {discountPercent, finalPrice: finalPrice});
                 }
             } else {
-                discountFixed = defaultFixedDiscount;
-                discountPercent = (discountFixed / product.max_retail_price) * 100;
-                finalPrice = price; // Use customer type-specific price
+                // Normal mode or edit mode without original discount - use standard logic
+                // Priority order:
+                // 1. Manual discount
+                // 2. Active discount  
+                // 3. Default (MRP - customer type price)
+                if (discountType && discountAmount !== null) {
+                    console.log('Applying manual discount:', {discountType, discountAmount, productName: product.product_name});
+                    if (discountType === 'fixed') {
+                        discountFixed = parseFloat(discountAmount);
+                        finalPrice = product.max_retail_price - discountFixed;
+                        if (finalPrice < 0) finalPrice = 0;
+                        console.log('Fixed discount applied:', {discountFixed, finalPrice, MRP: product.max_retail_price});
+                    } else if (discountType === 'percentage') {
+                        discountPercent = parseFloat(discountAmount) || 0;
+                        finalPrice = product.max_retail_price * (1 - (discountPercent || 0) / 100);
+                        console.log('Percentage discount applied:', {discountPercent, finalPrice, MRP: product.max_retail_price});
+                    }
+                } else if (activeDiscount) {
+                    if (activeDiscount.type === 'percentage') {
+                        discountPercent = activeDiscount.amount || 0;
+                        finalPrice = product.max_retail_price * (1 - (discountPercent || 0) / 100);
+                    } else if (activeDiscount.type === 'fixed') {
+                        discountFixed = activeDiscount.amount;
+                        finalPrice = product.max_retail_price - discountFixed;
+                        if (finalPrice < 0) finalPrice = 0;
+                    }
+                } else {
+                    discountFixed = defaultFixedDiscount;
+                    discountPercent = (discountFixed / product.max_retail_price) * 100;
+                    finalPrice = price; // Use customer type-specific price
+                }
             }
 
             console.log('Final discount values for product:', product.product_name, {
@@ -7114,6 +7187,17 @@
                 .then(data => {
                     if (data.status === 200) {
                         const saleDetails = data.sale_details;
+                        
+                        // *** NEW: Store original sale data for payment method validation ***
+                        window.originalSaleData = {
+                            payment_status: saleDetails.sale.payment_status,
+                            total_paid: saleDetails.sale.total_paid,
+                            final_total: saleDetails.sale.final_total,
+                            total_due: saleDetails.sale.total_due,
+                            customer_id: saleDetails.sale.customer_id,
+                            invoice_no: saleDetails.sale.invoice_no
+                        };
+                        console.log('🔒 Original sale data stored for edit validation:', window.originalSaleData);
 
                         // Update invoice number
                         const saleInvoiceElement = document.getElementById('sale-invoice-no');
@@ -7146,7 +7230,14 @@
 
                         // Populate sale products
                         saleDetails.sale_products.forEach(saleProduct => {
-                            const price = saleProduct.price || saleProduct.product.retail_price;
+                            // *** CRITICAL FIX: Always use original sale price in edit mode ***
+                            const price = parseFloat(saleProduct.price); // Use original sale price, NOT current customer type price
+                            
+                            if (!price || price <= 0) {
+                                console.error('Invalid original sale price for product:', saleProduct.product.product_name, 'Price:', saleProduct.price);
+                                toastr.error(`Invalid price data for product: ${saleProduct.product.product_name}. Cannot load for editing.`, 'Edit Error');
+                                return; // Skip this product
+                            }
 
                             // Use the corrected total_quantity from backend as the max available stock
                             const maxAvailableStock = saleProduct.total_quantity;
@@ -7920,6 +8011,20 @@
                     'disabled', true);
 
                 preventDoubleClick(button, () => {
+                    // *** NEW: Validate payment method compatibility in edit mode ***
+                    if (isEditing) {
+                        const saleData = {
+                            payment_status: window.originalSaleData?.payment_status,
+                            total_paid: window.originalSaleData?.total_paid,
+                            final_total: window.originalSaleData?.final_total
+                        };
+                        
+                        if (!validatePaymentMethodCompatibility('cash', saleData)) {
+                            enableButton(button);
+                            return;
+                        }
+                    }
+
                     // Validate quantities before processing
                     if (!validateAllQuantities()) {
                         toastr.error(
@@ -8160,6 +8265,20 @@
             $('#confirmCardPayment').on('click', function() {
                 const button = this;
                 preventDoubleClick(button, () => {
+                    // *** NEW: Validate payment method compatibility in edit mode ***
+                    if (isEditing) {
+                        const saleData = {
+                            payment_status: window.originalSaleData?.payment_status,
+                            total_paid: window.originalSaleData?.total_paid,
+                            final_total: window.originalSaleData?.final_total
+                        };
+                        
+                        if (!validatePaymentMethodCompatibility('card', saleData)) {
+                            enableButton(button);
+                            return;
+                        }
+                    }
+
                     // Validate quantities before processing
                     if (!validateAllQuantities()) {
                         toastr.error(
