@@ -157,8 +157,11 @@
         initAutocomplete();
         initDOMElements();
 
-        // Check image health after page loads
-        setTimeout(checkImageHealth, 3000);
+        // Check image health after page loads and refresh if needed
+        setTimeout(() => {
+            checkImageHealth();
+            refreshProductImages();
+        }, 3000);
 
         // Auto-focus product search input for quick product search
         setTimeout(() => {
@@ -179,6 +182,12 @@
 
                 console.log('Product search input auto-focused for quick searching');
             }
+            
+            // Debug: Log current image configuration
+            console.log('🖼️ Image Configuration:');
+            console.log('- Primary path: /assets/images/');
+            console.log('- Fallback path: /storage/products/');
+            console.log('- Fallback image: /assets/images/No Product Image Available.png');
         }, 500); // Small delay to ensure all elements are loaded
 
         // Auto-focus when page becomes visible (e.g., switching browser tabs back to POS)
@@ -342,19 +351,19 @@
             // Default fallback image
             const fallbackImage = '/assets/images/No Product Image Available.png';
             
-            if (!product || !product.product_image) {
+            if (!product || !product.product_image || product.product_image.trim() === '') {
                 return fallbackImage;
             }
             
-            // Try multiple possible image paths
-            const imagePaths = [
-                `/storage/products/${product.product_image}`,  // Laravel storage path
-                `/assets/images/${product.product_image}`,     // Current assets path
-                `/public/storage/products/${product.product_image}`, // Alternative storage path
-                `/storage/app/public/products/${product.product_image}` // Full storage path
-            ];
+            const imageName = product.product_image.trim();
             
-            return imagePaths[0]; // Return the first option, handle 404 with onerror
+            // If it's already a full URL (starts with http or /), use it as is
+            if (imageName.startsWith('http') || imageName.startsWith('/')) {
+                return imageName;
+            }
+            
+            // For relative filenames, prioritize assets/images path (where images actually are)
+            return `/assets/images/${imageName}`;
         }
 
         /**
@@ -371,17 +380,34 @@
             if (title) img.title = title;
             img.alt = product?.product_name || 'Product Image';
             
-            // Handle image load errors with fallback
+            // Handle image load errors with fallback and retry logic
             img.onerror = function() {
                 if (this.src !== fallbackImage) {
-                    console.log(`Image not found: ${this.src}, using fallback`);
+                    console.log(`Image not found: ${this.src}, trying alternatives`);
+                    
+                    // Try alternative paths before using fallback
+                    const originalImage = product?.product_image?.trim();
+                    if (originalImage && !this.dataset.triedAlternatives) {
+                        this.dataset.triedAlternatives = 'true';
+                        
+                        // Try storage path as alternative (in case some images are there)
+                        const alternativePath = `/storage/products/${originalImage}`;
+                        if (this.src !== alternativePath) {
+                            console.log(`Trying storage path: ${alternativePath}`);
+                            this.src = alternativePath;
+                            return;
+                        }
+                    }
+                    
+                    // Use fallback image
                     this.src = fallbackImage;
                     this.onerror = function() {
                         // If even fallback fails, create a placeholder
+                        console.warn('Fallback image also failed, using text placeholder');
                         this.style.display = 'none';
                         const placeholder = document.createElement('div');
-                        placeholder.innerHTML = '📷';
-                        placeholder.style.cssText = styles + '; display: flex; align-items: center; justify-content: center; background: #f8f9fa; color: #6c757d;';
+                        placeholder.innerHTML = '<div style="font-size: 24px;">📷</div><div style="font-size: 10px; margin-top: 4px;">No Image</div>';
+                        placeholder.style.cssText = styles + '; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8f9fa; color: #6c757d; border: 1px solid #dee2e6;';
                         this.parentNode?.replaceChild(placeholder, this);
                     };
                 }
@@ -417,7 +443,9 @@
                     .then(response => {
                         if (!response.ok) {
                             missingCount++;
-                            console.log(`❌ Missing: ${img.src}`);
+                            console.log(`❌ Missing: ${img.src} - Response: ${response.status}`);
+                        } else {
+                            console.log(`✅ Found: ${img.src}`);
                         }
                     })
                     .catch(() => {
@@ -429,9 +457,31 @@
             setTimeout(() => {
                 console.log(`📊 Image Health Check: ${missingCount}/${totalCount} images missing`);
                 if (missingCount > 0) {
-                    console.log('💡 Tip: Upload missing images or update product records to fix 404 errors');
+                    console.log('💡 Tip: Check if images exist in /public/assets/images/ directory');
+                } else {
+                    console.log('🎉 All product images are loading correctly!');
                 }
             }, 2000);
+        }
+
+        /**
+         * Force refresh product images by clearing cache and reloading
+         */
+        function refreshProductImages() {
+            console.log('🔄 Refreshing product images...');
+            
+            // Clear any cached image data
+            const productCards = document.querySelectorAll('.product-card img');
+            productCards.forEach(img => {
+                if (img.src && !img.src.includes('No Product Image Available.png')) {
+                    const product = {
+                        product_image: img.alt || img.dataset.originalName || ''
+                    };
+                    img.src = getSafeImageUrl(product);
+                }
+            });
+            
+            console.log(`Refreshed ${productCards.length} product images`);
         }
 
         /**
