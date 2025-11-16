@@ -68,7 +68,17 @@ class AnalyzeLedger extends Command
 
     private function analyzeCustomerData($customer, $detailed = true)
     {
-        // Calculate correct balance
+        // Get the actual ledger balance (should be the source of truth)
+        $ledgerBalance = DB::table('ledgers')
+                          ->where('user_id', $customer->id)
+                          ->where('contact_type', 'customer')
+                          ->orderBy('transaction_date', 'desc')
+                          ->orderBy('id', 'desc')
+                          ->value('balance');
+        
+        $ledgerBalance = $ledgerBalance ?? 0;
+
+        // Calculate what balance should be based on transactions
         $totalSales = DB::table('sales')
                        ->where('customer_id', $customer->id)
                        ->whereIn('status', ['final', 'suspend'])
@@ -83,8 +93,13 @@ class AnalyzeLedger extends Command
                          ->where('customer_id', $customer->id)
                          ->sum('return_total');
 
-        $correctBalance = ($customer->opening_balance ?? 0) + $totalSales - $totalPayments - $totalReturns;
-        $hasMismatch = abs($customer->current_balance - $correctBalance) > 0.01;
+        $calculatedBalance = ($customer->opening_balance ?? 0) + $totalSales - $totalPayments - $totalReturns;
+        
+        // Check if customer table balance matches ledger balance
+        $customerBalanceMismatch = abs($customer->current_balance - $ledgerBalance) > 0.01;
+        $ledgerCalculationMismatch = abs($ledgerBalance - $calculatedBalance) > 0.01;
+        
+        $hasMismatch = $customerBalanceMismatch || $ledgerCalculationMismatch;
 
         if ($detailed) {
             $this->info("👤 Customer: {$customer->first_name} {$customer->last_name} (ID: {$customer->id})");
@@ -93,11 +108,18 @@ class AnalyzeLedger extends Command
             $this->info("💳 Total Payments: {$totalPayments}");
             $this->info("🔄 Total Returns: {$totalReturns}");
             $this->info("🏦 Current Balance (DB): {$customer->current_balance}");
-            $this->info("🧮 Calculated Balance: {$correctBalance}");
+            $this->info("📖 Ledger Balance: {$ledgerBalance}");
+            $this->info("🧮 Calculated Balance: {$calculatedBalance}");
 
             if ($hasMismatch) {
-                $difference = $customer->current_balance - $correctBalance;
-                $this->warn("⚠️  MISMATCH DETECTED! Difference: {$difference}");
+                if ($customerBalanceMismatch) {
+                    $difference = $customer->current_balance - $ledgerBalance;
+                    $this->warn("⚠️  CUSTOMER TABLE MISMATCH! DB: {$customer->current_balance} vs Ledger: {$ledgerBalance} (Diff: {$difference})");
+                }
+                if ($ledgerCalculationMismatch) {
+                    $difference = $ledgerBalance - $calculatedBalance;
+                    $this->warn("⚠️  LEDGER CALCULATION MISMATCH! Ledger: {$ledgerBalance} vs Calculated: {$calculatedBalance} (Diff: {$difference})");
+                }
                 
                 // Check sales table consistency
                 $salesWithIncorrectPaid = DB::table('sales')
@@ -108,14 +130,25 @@ class AnalyzeLedger extends Command
                 if ($salesWithIncorrectPaid > 0 && $totalPayments == 0) {
                     $this->warn("🚨 Sales table shows payments but no actual payment records found!");
                 }
+                
+                // Check sales total_due consistency
+                $salesWithIncorrectDue = DB::table('sales')
+                    ->where('customer_id', $customer->id)
+                    ->whereRaw('ABS(final_total - total_paid - total_due) > 0.01')
+                    ->count();
+                
+                if ($salesWithIncorrectDue > 0) {
+                    $this->warn("🚨 Sales table total_due not calculated correctly!");
+                }
+                
             } else {
-                $this->info("✅ Balance is correct");
+                $this->info("✅ All balances are correct");
             }
             $this->info(str_repeat('-', 50));
         } else {
             if ($hasMismatch) {
-                $difference = $customer->current_balance - $correctBalance;
-                $this->warn("⚠️  {$customer->first_name} {$customer->last_name}: Difference {$difference}");
+                $difference = $customer->current_balance - $ledgerBalance;
+                $this->warn("⚠️  {$customer->first_name} {$customer->last_name}: DB vs Ledger Difference {$difference}");
             }
         }
 

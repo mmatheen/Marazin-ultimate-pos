@@ -426,13 +426,22 @@ class RecalculateCustomerBalance extends Command
                                  ->where('customer_id', $customer->id)
                                  ->delete();
                 
-                // Update sales table to reset payment status
-                $updatedSales = DB::table('sales')
-                              ->where('customer_id', $customer->id)
-                              ->update([
-                                  'total_paid' => 0,
-                                  'payment_status' => 'Due'
-                              ]);
+                // Update sales table to reset payment status and manually fix total_due
+                $salesRecords = DB::table('sales')->where('customer_id', $customer->id)->get();
+                $updatedSales = 0;
+                
+                foreach ($salesRecords as $sale) {
+                    $correctTotalDue = $sale->final_total; // Since total_paid will be 0
+                    
+                    DB::table('sales')
+                      ->where('id', $sale->id)
+                      ->update([
+                          'total_paid' => 0,
+                          'total_due' => $correctTotalDue,
+                          'payment_status' => 'Due'
+                      ]);
+                    $updatedSales++;
+                }
                 
                 $this->info("  ✓ Deleted {$deletedCount} payment record(s)");
                 $this->info("  ✓ Updated {$updatedSales} sale record(s) - reset payment status");
@@ -680,13 +689,22 @@ class RecalculateCustomerBalance extends Command
                           ->where('contact_type', 'customer')
                           ->delete();
 
-        // Update all sales to reset payment status since all payments are removed
-        $updatedSales = DB::table('sales')
-                          ->where('customer_id', $customer->id)
-                          ->update([
-                              'total_paid' => 0,
-                              'payment_status' => 'Due'
-                          ]);
+        // Update all sales to reset payment status and manually fix total_due
+        $salesRecords = DB::table('sales')->where('customer_id', $customer->id)->get();
+        $updatedSales = 0;
+        
+        foreach ($salesRecords as $sale) {
+            $correctTotalDue = $sale->final_total; // Since total_paid will be 0
+            
+            DB::table('sales')
+              ->where('id', $sale->id)
+              ->update([
+                  'total_paid' => 0,
+                  'total_due' => $correctTotalDue,
+                  'payment_status' => 'Due'
+              ]);
+            $updatedSales++;
+        }
         
         $this->info("  ✓ Deleted {$deletedPayments} payment record(s)");
         $this->info("  ✓ Deleted {$deletedReturns} return record(s)");

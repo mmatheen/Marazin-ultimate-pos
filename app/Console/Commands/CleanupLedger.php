@@ -126,18 +126,30 @@ class CleanupLedger extends Command
                               ->where('contact_type', 'customer')
                               ->delete();
 
-            // Update sales table
-            $updatedSales = DB::table('sales')
-                             ->where('customer_id', $customer->id)
-                             ->update([
-                                 'total_paid' => 0,
-                                 'payment_status' => 'Due'
-                             ]);
+            // Update sales table - manually set total_due since generated column may not work
+            $salesRecords = DB::table('sales')->where('customer_id', $customer->id)->get();
+            $updatedSales = 0;
+            
+            foreach ($salesRecords as $sale) {
+                $correctTotalDue = $sale->final_total - 0; // Since we're setting total_paid to 0
+                
+                DB::table('sales')
+                  ->where('id', $sale->id)
+                  ->update([
+                      'total_paid' => 0,
+                      'total_due' => $correctTotalDue,
+                      'payment_status' => 'Due'
+                  ]);
+                $updatedSales++;
+            }
 
-            // Update customer balance
+            // Rebuild ledger first to get correct balance
+            $finalLedgerBalance = $this->rebuildLedgerForSales($customer, $correctBalance);
+
+            // Update customer balance to match final ledger balance
             DB::table('customers')
               ->where('id', $customer->id)
-              ->update(['current_balance' => $correctBalance]);
+              ->update(['current_balance' => $finalLedgerBalance]);
 
             // Rebuild ledger with only sales
             $this->rebuildLedgerForSales($customer, $correctBalance);
@@ -200,5 +212,8 @@ class CleanupLedger extends Command
                 'updated_at' => now()
             ]);
         }
+
+        // Return final balance so customer table can be updated
+        return $balance;
     }
 }
