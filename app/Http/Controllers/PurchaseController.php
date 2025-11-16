@@ -231,68 +231,101 @@ class PurchaseController extends Controller
     {
         $existingProducts = $purchase->purchaseProducts->keyBy('product_id');
 
-        collect($request->products)->chunk(100)->each(function ($productsChunk) use ($purchase, $existingProducts, $request) {
-            foreach ($productsChunk as $productData) {
-                $productId = $productData['product_id'];
+        // CRITICAL FIX: Add transaction and validation to prevent double processing
+        DB::transaction(function () use ($request, $purchase, $existingProducts) {
+            
+            collect($request->products)->chunk(100)->each(function ($productsChunk) use ($purchase, $existingProducts, $request) {
+                foreach ($productsChunk as $productData) {
+                    $productId = $productData['product_id'];
 
-                if ($existingProducts->has($productId)) {
-                    // Update existing product
-                    $existingProduct = $existingProducts->get($productId);
-                    $quantityDifference = $productData['quantity'] - $existingProduct->quantity;
-                    
-                    // Update stock quantity
-                    $this->updateProductStock($existingProduct, $quantityDifference, $request->location_id);
+                    // Validate product data before processing
+                    if (!isset($productData['quantity']) || $productData['quantity'] < 0) {
+                        throw new \Exception("Invalid quantity for product ID {$productId}");
+                    }
 
-                    // Update purchase product record
-                    $existingProduct->update([
-                        'quantity' => $productData['quantity'],
-                        'price' => $productData['price'] ?? $productData['unit_cost'],
-                        'discount_percent' => $productData['discount_percent'] ?? 0,
-                        'unit_cost' => $productData['unit_cost'],
-                        'wholesale_price' => $productData['wholesale_price'],
-                        'special_price' => $productData['special_price'],
-                        'retail_price' => $productData['retail_price'],
-                        'max_retail_price' => $productData['max_retail_price'],
-                        'total' => $productData['total'],
-                    ]);
+                    if ($existingProducts->has($productId)) {
+                        // Update existing product - CRITICAL FIX for double stock addition
+                        $existingProduct = $existingProducts->get($productId);
+                        $oldQuantity = $existingProduct->quantity;
+                        $newQuantity = $productData['quantity'];
+                        $quantityDifference = $newQuantity - $oldQuantity;
+                        
+                        Log::info('Purchase edit: Updating existing product stock', [
+                            'product_id' => $productId,
+                            'old_quantity' => $oldQuantity,
+                            'new_quantity' => $newQuantity,
+                            'quantity_difference' => $quantityDifference,
+                            'purchase_id' => $purchase->id
+                        ]);
 
-                    // IMPORTANT: Also update batch prices when purchasing existing products
-                    $batch = Batch::find($existingProduct->batch_id);
-                    if ($batch) {
-                        $batch->update([
+                        // ONLY update stock if there's actually a quantity change
+                        if ($quantityDifference != 0) {
+                            $this->updateProductStock($existingProduct, $quantityDifference, $request->location_id);
+                        }
+
+                        // Update purchase product record with all new data
+                        $existingProduct->update([
+                            'quantity' => $newQuantity,
+                            'price' => $productData['price'] ?? $productData['unit_cost'],
+                            'discount_percent' => $productData['discount_percent'] ?? 0,
+                            'unit_cost' => $productData['unit_cost'],
                             'wholesale_price' => $productData['wholesale_price'],
                             'special_price' => $productData['special_price'],
                             'retail_price' => $productData['retail_price'],
                             'max_retail_price' => $productData['max_retail_price'],
-                            // Note: We don't update unit_cost as it should remain the original purchase cost
+                            'total' => $productData['total'],
+                        ]);
+
+                        // Update batch prices (but NOT quantity - that's handled by updateProductStock)
+                        $batch = Batch::find($existingProduct->batch_id);
+                        if ($batch) {
+                            $batch->update([
+                                'wholesale_price' => $productData['wholesale_price'],
+                                'special_price' => $productData['special_price'],
+                                'retail_price' => $productData['retail_price'],
+                                'max_retail_price' => $productData['max_retail_price'],
+                                // IMPORTANT: Do NOT update batch qty here - it's handled by updateProductStock
+                            ]);
+                            
+                            Log::info('Updated batch prices for existing product', [
+                                'batch_id' => $batch->id,
+                                'product_id' => $productId,
+                                'wholesale_price' => $productData['wholesale_price'],
+                                'retail_price' => $productData['retail_price'],
+                            ]);
+                        } else {
+                            Log::error('Batch not found for existing product', [
+                                'batch_id' => $existingProduct->batch_id,
+                                'product_id' => $productId
+                            ]);
+                        }
+                    } else {
+                        // Add new product to purchase
+                        Log::info('Purchase edit: Adding new product', [
+                            'product_id' => $productId,
+                            'quantity' => $productData['quantity'],
+                            'purchase_id' => $purchase->id
                         ]);
                         
-                        Log::info('Updated batch prices for existing product', [
-                            'batch_id' => $batch->id,
-                            'product_id' => $productData['product_id'],
-                            'wholesale_price' => $productData['wholesale_price'],
-                            'retail_price' => $productData['retail_price'],
-                        ]);
-                    } else {
-                        Log::error('Batch not found for existing product', [
-                            'batch_id' => $existingProduct->batch_id,
-                            'product_id' => $productData['product_id']
-                        ]);
+                        $this->addNewProductToPurchase($purchase, $productData, $request->location_id);
                     }
-                } else {
-                    // Add new product
-                    $this->addNewProductToPurchase($purchase, $productData, $request->location_id);
                 }
+            });
+
+            // Remove products not present in the request
+            $requestProductIds = collect($request->products)->pluck('product_id')->toArray();
+            $productsToRemove = $existingProducts->whereNotIn('product_id', $requestProductIds);
+
+            foreach ($productsToRemove as $productToRemove) {
+                Log::info('Purchase edit: Removing product', [
+                    'product_id' => $productToRemove->product_id,
+                    'quantity' => $productToRemove->quantity,
+                    'purchase_id' => $purchase->id
+                ]);
+                
+                $this->removeProductFromPurchase($productToRemove, $request->location_id);
             }
         });
-
-        // Remove products not present in the request
-        $requestProductIds = collect($request->products)->pluck('product_id')->toArray();
-        $productsToRemove = $existingProducts->whereNotIn('product_id', $requestProductIds);
-
-        foreach ($productsToRemove as $productToRemove) {
-            $this->removeProductFromPurchase($productToRemove, $request->location_id);
-        }
     }
 
     private function generateReferenceNo()
@@ -323,27 +356,65 @@ class PurchaseController extends Controller
 
     private function updateProductStock($existingProduct, $quantityDifference, $locationId)
     {
+        // CRITICAL FIX: Add validation to prevent double processing
+        if ($quantityDifference == 0) {
+            Log::info('No stock update needed - quantity difference is zero', [
+                'product_id' => $existingProduct->product_id,
+                'batch_id' => $existingProduct->batch_id
+            ]);
+            return;
+        }
+
         $batch = Batch::find($existingProduct->batch_id);
+        if (!$batch) {
+            throw new \Exception("Batch not found for product stock update: {$existingProduct->batch_id}");
+        }
+
         $locationBatch = LocationBatch::firstOrCreate(
             ['batch_id' => $batch->id, 'location_id' => $locationId],
             ['qty' => 0]
         );
 
-        if ($locationBatch->qty + $quantityDifference < 0) {
-            throw new Exception("Stock quantity cannot be reduced below zero");
-        }
-        $locationBatch->increment('qty', $quantityDifference);
+        // Store original quantities for logging
+        $originalLocationQty = $locationBatch->qty;
+        $originalBatchQty = $batch->qty;
 
-        if ($batch->qty + $quantityDifference < 0) {
-            throw new Exception("Batch stock quantity cannot be reduced below zero");
+        // Validate stock reduction
+        if ($originalLocationQty + $quantityDifference < 0) {
+            throw new \Exception("Stock quantity cannot be reduced below zero. Location stock: {$originalLocationQty}, trying to change by: {$quantityDifference}");
         }
-        $batch->increment('qty', $quantityDifference);
+        
+        if ($originalBatchQty + $quantityDifference < 0) {
+            throw new \Exception("Batch stock quantity cannot be reduced below zero. Batch stock: {$originalBatchQty}, trying to change by: {$quantityDifference}");
+        }
 
-        StockHistory::create([
-            'loc_batch_id' => $locationBatch->id,
-            'quantity' => $quantityDifference,
-            'stock_type' => StockHistory::STOCK_TYPE_PURCHASE,
-        ]);
+        // CRITICAL: Use DB transaction to ensure atomicity
+        DB::transaction(function () use ($locationBatch, $batch, $quantityDifference, $originalLocationQty, $originalBatchQty, $existingProduct) {
+            // Update location batch quantity
+            $locationBatch->increment('qty', $quantityDifference);
+            
+            // Update batch quantity
+            $batch->increment('qty', $quantityDifference);
+
+            // Create stock history record
+            StockHistory::create([
+                'loc_batch_id' => $locationBatch->id,
+                'quantity' => $quantityDifference,
+                'stock_type' => StockHistory::STOCK_TYPE_PURCHASE,
+                'reference_id' => $existingProduct->purchase_id,
+                'reference_type' => 'purchase_edit'
+            ]);
+
+            Log::info('Stock updated successfully', [
+                'product_id' => $existingProduct->product_id,
+                'batch_id' => $batch->id,
+                'quantity_difference' => $quantityDifference,
+                'location_stock_before' => $originalLocationQty,
+                'location_stock_after' => $locationBatch->qty,
+                'batch_stock_before' => $originalBatchQty,
+                'batch_stock_after' => $batch->qty
+            ]);
+        });
     }
 
     private function addNewProductToPurchase($purchase, $productData, $locationId)

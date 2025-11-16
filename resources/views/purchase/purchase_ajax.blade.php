@@ -889,14 +889,26 @@
             updateFooter();
         }
 
+        // CRITICAL FIX: Add duplicate submission protection
+        let isSubmitting = false;
+        
         $('#purchaseButton').on('click', function(event) {
             event.preventDefault();
+            
+            // Prevent double-click/double submission
+            if (isSubmitting) {
+                console.warn('Purchase submission already in progress, ignoring duplicate click');
+                return;
+            }
+            
+            isSubmitting = true;
             $('#purchaseButton').prop('disabled', true).html('Processing...');
 
             if (!$('#purchaseForm').valid()) {
                 document.getElementsByClassName('errorSound')[0].play();
                 toastr.error('Invalid inputs, Check & try again!!', 'Warning');
-                $('#purchaseButton').prop('disabled', false).html('Save Purchase');
+                $('#purchaseButton').prop('disabled', false).html(purchaseId ? 'Update Purchase' : 'Save Purchase');
+                isSubmitting = false;
                 return;
             }
 
@@ -1879,6 +1891,9 @@
         });
 
         function handleAjaxSuccess(response) {
+            // CRITICAL FIX: Reset submission flag regardless of response status
+            isSubmitting = false;
+            
             if (response.status === 400) {
                 document.getElementsByClassName('errorSound')[0].play();
 
@@ -1913,6 +1928,9 @@
 
         function handleAjaxError(action) {
             return function(xhr, status, error) {
+                // CRITICAL FIX: Reset submission flag on error
+                isSubmitting = false;
+                
                 // Handle validation errors returned as JSON
                 if (xhr.status === 400 && xhr.responseJSON && xhr.responseJSON.errors) {
                     document.getElementsByClassName('errorSound')[0].play();
