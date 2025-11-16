@@ -1,2 +1,0 @@
-[2025-11-13 16:08:55] ANALYSIS_STARTED - {"host":"127.0.0.1","database":"marazin_pos_db","username":"root","password_set":false}
-[2025-11-13 16:08:55] ANALYSIS_COMPLETED - {"issues_found":2,"customers_affected":2,"suppliers_affected":0,"report_file":"ledger_analysis_20251113_160855.json"}
