@@ -1165,6 +1165,157 @@ class PaymentController extends Controller
         }
     }
 
+    /**
+     * Submit flexible multi-method purchase payment
+     * Similar to sales but for supplier purchases
+     */
+    public function submitFlexibleBulkPurchasePayment(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'supplier_id' => 'required|exists:suppliers,id',
+            'payment_date' => 'required|date',
+            'payment_type' => 'required|in:flexible,purchase_dues',
+            'payment_groups' => 'required|array|min:1',
+            'payment_groups.*.method' => 'required|in:cash,cheque,card,bank_transfer',
+            'payment_groups.*.bills' => 'required_unless:payment_type,opening_balance|array|min:1',
+            'payment_groups.*.bills.*.purchase_id' => 'required_unless:payment_type,opening_balance|exists:purchases,id',
+            'payment_groups.*.bills.*.amount' => 'required_unless:payment_type,opening_balance|numeric|min:0.01',
+            'payment_groups.*.totalAmount' => 'required_if:payment_type,opening_balance|numeric|min:0.01',
+            // Cheque specific validation
+            'payment_groups.*.cheque_number' => 'required_if:payment_groups.*.method,cheque',
+            'payment_groups.*.cheque_bank_branch' => 'required_if:payment_groups.*.method,cheque',
+            'payment_groups.*.cheque_valid_date' => 'required_if:payment_groups.*.method,cheque|date',
+            'payment_groups.*.cheque_given_by' => 'nullable|string',
+            'payment_groups.*.card_number' => 'required_if:payment_groups.*.method,card',
+            'payment_groups.*.card_holder' => 'nullable|string',
+            'payment_groups.*.bank_account_number' => 'required_if:payment_groups.*.method,bank_transfer',
+            'notes' => 'nullable|string'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+        }
+
+        try {
+            DB::transaction(function () use ($request) {
+                $bulkReference = 'PURCH-FLEX-' . date('Ymd-His') . '-' . strtoupper(substr(uniqid(), -4));
+                $totalAmount = 0;
+                $processedGroups = [];
+
+                foreach ($request->payment_groups as $groupIndex => $paymentGroup) {
+                    $groupTotal = 0;
+                    $groupPayments = [];
+
+                    // Handle opening balance payments differently
+                    if ($request->payment_type === 'opening_balance') {
+                        // Opening balance payment - no bills involved
+                        $paymentData = [
+                            'payment_date' => $request->payment_date,
+                            'amount' => $paymentGroup['totalAmount'],
+                            'payment_method' => $paymentGroup['method'],
+                            'payment_type' => 'opening_balance',
+                            'reference_id' => null,
+                            'reference_no' => $bulkReference,
+                            'supplier_id' => $request->supplier_id,
+                            'notes' => ($request->notes ?? '') . " - Opening balance payment " . ($groupIndex + 1),
+                        ];
+
+                        // Add method-specific fields
+                        $this->addMethodSpecificFields($paymentData, $paymentGroup);
+
+                        $payment = Payment::create($paymentData);
+                        
+                        // Record in unified ledger
+                        $this->unifiedLedgerService->recordOpeningBalancePayment($payment, 'supplier');
+                        
+                        $groupTotal = $paymentGroup['totalAmount'];
+                        $groupPayments[] = [
+                            'payment_id' => $payment->id,
+                            'type' => 'opening_balance',
+                            'amount' => $paymentGroup['totalAmount']
+                        ];
+                    } else {
+                        // Purchase payments - process bills
+                        foreach ($paymentGroup['bills'] as $bill) {
+                            // Validate purchase belongs to supplier and amount
+                            $purchase = Purchase::where('id', $bill['purchase_id'])
+                                      ->where('supplier_id', $request->supplier_id)
+                                      ->first();
+                            
+                            if (!$purchase) {
+                                throw new \Exception("Purchase {$bill['purchase_id']} not found for supplier");
+                            }
+
+                            if ($bill['amount'] > $purchase->total_due) {
+                                throw new \Exception("Payment amount Rs.{$bill['amount']} exceeds due Rs.{$purchase->total_due} for invoice {$purchase->invoice_no}");
+                            }
+
+                            // Create individual payment record
+                            $paymentData = [
+                                'payment_date' => $request->payment_date,
+                                'amount' => $bill['amount'],
+                                'payment_method' => $paymentGroup['method'],
+                                'payment_type' => 'purchase',
+                                'reference_id' => $bill['purchase_id'],
+                                'reference_no' => $bulkReference,
+                                'supplier_id' => $request->supplier_id,
+                                'notes' => ($request->notes ?? '') . " - Flexible bulk payment group " . ($groupIndex + 1),
+                            ];
+
+                            // Add method-specific fields
+                            $this->addMethodSpecificFields($paymentData, $paymentGroup);
+
+                            $payment = Payment::create($paymentData);
+                            
+                            // Record in unified ledger
+                            $this->unifiedLedgerService->recordPurchasePayment($payment);
+                            
+                            // Update purchase table
+                            $this->updatePurchaseTable($bill['purchase_id']);
+                            
+                            $groupTotal += $bill['amount'];
+                            $groupPayments[] = [
+                                'payment_id' => $payment->id,
+                                'purchase_id' => $bill['purchase_id'],
+                                'invoice_no' => $purchase->invoice_no,
+                                'amount' => $bill['amount']
+                            ];
+                        }
+                    }
+
+                    $processedGroups[] = [
+                        'method' => $paymentGroup['method'],
+                        'total_amount' => $groupTotal,
+                        'payments_count' => count($groupPayments),
+                        'payments' => $groupPayments,
+                        'cheque_number' => $paymentGroup['cheque_number'] ?? null
+                    ];
+
+                    $totalAmount += $groupTotal;
+                }
+
+                // Update supplier balance
+                $this->updateSupplierBalance($request->supplier_id);
+
+                // Note: Individual payments are already logged in the payments table
+                // Bulk reference is stored in each payment's reference_no field
+            });
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Multi-method bulk purchase payment processed successfully!',
+                'bulk_reference' => $bulkReference ?? null,
+                'total_amount' => $totalAmount ?? 0
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Multi-method purchase payment failed: ' . $e->getMessage()
+            ]);
+        }
+    }
+
     private function getBulkPaymentValidationRules(Request $request)
     {
         return [

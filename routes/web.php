@@ -407,6 +407,7 @@ Route::middleware(['auth'])->group(function () {
         
         // Enhanced Flexible Bulk Payment Routes (Tamil Scenario)
         Route::post('/submit-flexible-bulk-payment', [PaymentController::class, 'submitFlexibleBulkPayment']);
+        Route::post('/submit-flexible-bulk-purchase-payment', [PaymentController::class, 'submitFlexibleBulkPurchasePayment']);
         Route::post('/handle-selective-cheque-bounce', [PaymentController::class, 'handleSelectiveChequeBounce']);
         Route::get('/add-sale-bulk-payments', [PaymentController::class, 'addSaleBulkPayments'])->name('add-sale-bulk-payments');
         Route::get('/add-purchase-bulk-payments', [PaymentController::class, 'addPurchaseBulkPayments'])->name('add-purchase-bulk-payments');

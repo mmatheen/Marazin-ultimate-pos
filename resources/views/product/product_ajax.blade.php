@@ -3803,6 +3803,13 @@
                     toastr.success(response.message, 'Success');
                     $('#batchPricesModal').modal('hide');
 
+                    // Notify all browser tabs that product data has been updated
+                    // This will clear caches in POS and other product-related pages
+                    localStorage.setItem('product_cache_invalidate', Date.now());
+                    setTimeout(() => {
+                        localStorage.removeItem('product_cache_invalidate');
+                    }, 1000);
+
                     // Reload DataTable if it exists
                     if ($.fn.DataTable.isDataTable('#productTable')) {
                         $('#productTable').DataTable().ajax.reload(null, false);

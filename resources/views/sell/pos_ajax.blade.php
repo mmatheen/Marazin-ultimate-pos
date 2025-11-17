@@ -56,14 +56,66 @@
         };
     }
 
-    // Search results cache to avoid repeated identical searches
-    let searchCache = new Map();
-    let searchCacheExpiry = 2 * 60 * 1000; // 2 minutes for search results
+        // Search results cache to avoid repeated identical searches
+        let searchCache = new Map();
+        let searchCacheExpiry = 2 * 60 * 1000; // 2 minutes for search results
 
-    // DOM element cache to avoid repeated getElementById calls
-    let domElementCache = {};
+        // DOM element cache to avoid repeated getElementById calls
+        let domElementCache = {};
 
-    // Global function to clean up modal backdrops and body styles
+        // Cache invalidation function for when product data changes
+        function clearAllCaches() {
+            customerCache.clear();
+            staticDataCache.clear();
+            searchCache.clear();
+            domElementCache = {};
+            console.log('🗑️ All caches cleared due to data update');
+        }
+
+        // Listen for storage events from other tabs/windows
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'product_cache_invalidate') {
+                clearAllCaches();
+                // Refresh current product display
+                if (selectedLocationId) {
+                    console.log('🔄 Refreshing products due to cache invalidation');
+                    fetchPaginatedProducts(true);
+                }
+            }
+        });
+
+        // Function to notify other tabs about cache invalidation
+        function notifyOtherTabsOfCacheInvalidation() {
+            localStorage.setItem('product_cache_invalidate', Date.now());
+            setTimeout(() => {
+                localStorage.removeItem('product_cache_invalidate');
+            }, 1000);
+        }
+
+        // Global function for manual cache refresh (can be called from console)
+        window.refreshPOSCache = function() {
+            clearAllCaches();
+            
+            // Reinitialize autocomplete to ensure fresh data
+            if (typeof initAutocomplete === 'function') {
+                try {
+                    $("#productSearchInput").autocomplete('destroy');
+                    initAutocomplete();
+                    console.log('🔄 Autocomplete reinitialized');
+                } catch (e) {
+                    console.warn('Could not reinitialize autocomplete:', e.message);
+                }
+            }
+            
+            if (selectedLocationId) {
+                console.log('🔄 Manual cache refresh initiated');
+                fetchPaginatedProducts(true);
+                toastr.info('Cache refreshed! Product data updated.', 'Cache Refresh');
+            } else {
+                console.log('ℹ️ No location selected, only cache cleared');
+                toastr.info('Cache cleared. Select a location to refresh products.', 'Cache Cleared');
+            }
+        };    // Global function to clean up modal backdrops and body styles
     window.cleanupModalBackdrop = function() {
         // Remove all modal backdrops
         const backdrops = document.querySelectorAll('.modal-backdrop');

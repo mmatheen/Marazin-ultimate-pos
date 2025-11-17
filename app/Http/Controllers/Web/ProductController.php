@@ -23,6 +23,7 @@ use App\Exports\ExportProductTemplate;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 use App\Events\StockUpdated;
 use App\Models\Discount;
@@ -2759,9 +2760,13 @@ class ProductController extends Controller
                 }
             });
 
+            // Clear product-related caches after batch prices update
+            $this->clearProductCaches();
+
             return response()->json([
                 'status' => 200,
-                'message' => 'Batch prices updated successfully!'
+                'message' => 'Batch prices updated successfully!',
+                'cache_cleared' => true
             ]);
         } catch (\Exception $e) {
             Log::error('Error updating batch prices: ' . $e->getMessage());
@@ -2769,6 +2774,46 @@ class ProductController extends Controller
                 'status' => 500,
                 'message' => 'Error updating batch prices'
             ], 500);
+        }
+    }
+
+    /**
+     * Clear all product-related caches
+     */
+    private function clearProductCaches()
+    {
+        try {
+            // Clear specific cache patterns
+            $patterns = [
+                'product_dropdown_data_user_*',
+                'product_stocks_*', 
+                'autocomplete_stock_*'
+            ];
+            
+            // Get all current users to clear their specific caches
+            $userIds = DB::table('users')->pluck('id');
+            
+            foreach ($userIds as $userId) {
+                Cache::forget("product_dropdown_data_user_{$userId}");
+            }
+            
+            // Clear other product-related caches
+            Cache::forget('all_products');
+            Cache::forget('all_categories');
+            Cache::forget('all_brands');
+            
+            // If using cache tags (Redis, Memcached)
+            try {
+                if (method_exists(Cache::getStore(), 'tags')) {
+                    Cache::tags(['products', 'batches', 'stocks'])->flush();
+                }
+            } catch (\Exception $e) {
+                // Ignore if tags are not supported
+            }
+            
+            Log::info('Product caches cleared after batch price update');
+        } catch (\Exception $e) {
+            Log::warning('Could not clear product caches: ' . $e->getMessage());
         }
     }
 }
