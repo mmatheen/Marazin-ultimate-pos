@@ -703,13 +703,19 @@ class PurchaseController extends Controller
         }
     }
 
-    public function getAllPurchase()
+    public function getAllPurchase(Request $request)
     {
         try {
-            // Fetch all purchases with related products and payment info
-            $purchases = Purchase::with(['supplier', 'location', 'purchaseProducts', 'payments', 'user'])->get();
-
-            // $purchases = Purchase::with(['purchaseProducts'])->get();
+            // Start with base query
+            $query = Purchase::with(['supplier', 'location', 'purchaseProducts', 'payments', 'user']);
+            
+            // Filter by supplier_id if provided (like sales controller)
+            if ($request->has('supplier_id') && $request->supplier_id) {
+                $query->where('supplier_id', $request->supplier_id);
+            }
+            
+            // Fetch purchases with related products and payment info
+            $purchases = $query->get();
 
             // Check if purchases are found
             if ($purchases->isEmpty()) {
