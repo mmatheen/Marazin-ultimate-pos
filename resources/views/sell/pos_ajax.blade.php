@@ -5857,7 +5857,24 @@
             locationId = selectedLocationId || 1;
 
             // Use selectedBatch if provided; fallback to stockEntry batch
-            const batch = selectedBatch || normalizeBatches(stockEntry).find(b => b.id === parseInt(batchId));
+            let batch = selectedBatch || normalizeBatches(stockEntry).find(b => b.id === parseInt(batchId));
+            
+            // If batchId is "all" or batch not found, use the latest available batch for MRP
+            if (!batch && (batchId === "all" || batchId === "" || batchId === null)) {
+                const batchesArray = normalizeBatches(stockEntry);
+                batch = batchesArray.length > 0 ? batchesArray[0] : null; // Use first/latest batch
+            }
+            
+            // Debug logging for batch MRP
+            console.log('🔍 Batch MRP Debug:', {
+                productName: product.product_name,
+                productMRP: product.max_retail_price,
+                batchId: batchId,
+                batchData: batch,
+                batchMRP: batch ? batch.max_retail_price : 'No batch',
+                selectedBatch: selectedBatch,
+                availableBatches: normalizeBatches(stockEntry).length
+            });
 
             // *** CRITICAL FIX: In edit mode, preserve original sale price ***
             if (isEditing && currentEditingSaleId) {
@@ -5897,8 +5914,16 @@
             let discountFixed = 0;
             let discountPercent = 0;
 
-            // Helper: Calculate default discount using MRP - customer type price
-            const defaultFixedDiscount = product.max_retail_price - price;
+            // 🔧 FIX: Use batch MRP for discount calculations, fallback to product MRP
+            const effectiveMRP = (batch && batch.max_retail_price) ? parseFloat(batch.max_retail_price) : parseFloat(product.max_retail_price);
+            console.log('Using MRP for discount calculations:', {
+                productMRP: product.max_retail_price,
+                batchMRP: batch ? batch.max_retail_price : 'No batch',
+                effectiveMRP: effectiveMRP
+            });
+
+            // Helper: Calculate default discount using effective MRP - customer type price
+            const defaultFixedDiscount = effectiveMRP - price;
 
             // *** EDIT MODE FIX: Preserve original discount structure ***
             if (isEditing && currentEditingSaleId && (discountType && discountAmount !== null)) {
@@ -5923,29 +5948,29 @@
                 // 2. Active discount  
                 // 3. Default (MRP - customer type price)
                 if (discountType && discountAmount !== null) {
-                    console.log('Applying manual discount:', {discountType, discountAmount, productName: product.product_name});
+                    console.log('Applying manual discount:', {discountType, discountAmount, productName: product.product_name, effectiveMRP});
                     if (discountType === 'fixed') {
                         discountFixed = parseFloat(discountAmount);
-                        finalPrice = product.max_retail_price - discountFixed;
+                        finalPrice = effectiveMRP - discountFixed;
                         if (finalPrice < 0) finalPrice = 0;
-                        console.log('Fixed discount applied:', {discountFixed, finalPrice, MRP: product.max_retail_price});
+                        console.log('Fixed discount applied:', {discountFixed, finalPrice, MRP: effectiveMRP});
                     } else if (discountType === 'percentage') {
                         discountPercent = parseFloat(discountAmount) || 0;
-                        finalPrice = product.max_retail_price * (1 - (discountPercent || 0) / 100);
-                        console.log('Percentage discount applied:', {discountPercent, finalPrice, MRP: product.max_retail_price});
+                        finalPrice = effectiveMRP * (1 - (discountPercent || 0) / 100);
+                        console.log('Percentage discount applied:', {discountPercent, finalPrice, MRP: effectiveMRP});
                     }
                 } else if (activeDiscount) {
                     if (activeDiscount.type === 'percentage') {
                         discountPercent = activeDiscount.amount || 0;
-                        finalPrice = product.max_retail_price * (1 - (discountPercent || 0) / 100);
+                        finalPrice = effectiveMRP * (1 - (discountPercent || 0) / 100);
                     } else if (activeDiscount.type === 'fixed') {
                         discountFixed = activeDiscount.amount;
-                        finalPrice = product.max_retail_price - discountFixed;
+                        finalPrice = effectiveMRP - discountFixed;
                         if (finalPrice < 0) finalPrice = 0;
                     }
                 } else {
                     discountFixed = defaultFixedDiscount;
-                    discountPercent = (discountFixed / product.max_retail_price) * 100;
+                    discountPercent = (discountFixed / effectiveMRP) * 100;
                     finalPrice = price; // Use customer type-specific price
                 }
             }
@@ -6100,7 +6125,7 @@
             <div class="product-info" style="min-width: 0; flex: 1;">
             <div class="font-weight-bold product-name" style="word-break: break-word; max-width: 260px; line-height: 1.2;" title="Unit Cost: ${batch ? (batch.unit_cost || batch.purchase_price || 'N/A') : (product.unit_cost || product.purchase_price || 'N/A')} | Original Price: ${product.original_price || product.purchase_price || 'N/A'}">
             ${product.product_name}
-            <span class="badge bg-info ms-1">MRP: ${product.max_retail_price}</span>
+            <span class="badge bg-info ms-1">MRP: ${batch && batch.max_retail_price ? batch.max_retail_price : product.max_retail_price}</span>
            
             </div>
             <div class="d-flex flex-wrap align-items-center mt-1" style="gap: 10px;">
@@ -6704,10 +6729,9 @@
             const percentDiscountInput = row.querySelector('.percent_discount');
             const priceInput = row.querySelector('.price-input');
 
-            // Get MRP
-            const mrpElement = row.querySelector('.product-name .badge.bg-info');
-            const mrpText = mrpElement ? mrpElement.textContent.trim() : '0';
-            const mrp = parseFloat(mrpText.replace(/[^0-9.-]/g, '')) || 0;
+            // 🔧 FIX: Get MRP from price input's data attribute (batch MRP if available, otherwise product MRP)
+            const mrp = parseFloat(priceInput.getAttribute('data-max-retail-price')) || 0;
+            console.log('handleDiscountToggle using MRP:', mrp);
 
             // Disable conflicting inputs
             if (fixedDiscountInput === input && fixedDiscountInput.value !== '') {
