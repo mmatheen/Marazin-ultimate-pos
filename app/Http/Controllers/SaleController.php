@@ -1489,6 +1489,12 @@ class SaleController extends Controller
             $location = null;
         }
 
+            // Calculate customer's total outstanding balance from ledger for non-walk-in customers
+            $customerOutstandingBalance = 0;
+            if ($customer && $customer->id != 1) {
+                $customerOutstandingBalance = $customer->calculateBalanceFromLedger();
+            }
+            
             $viewData = [
                 'sale' => $sale,
                 'customer' => $customer,
@@ -1497,6 +1503,7 @@ class SaleController extends Controller
                 'total_discount' => $request->discount_amount ?? 0,
                 'amount_given' => $sale->amount_given,
                 'balance_amount' => $sale->balance_amount,
+                'customer_outstanding_balance' => $customerOutstandingBalance,
                 'user' => $user,
                 'location' => $location,
             ];
@@ -1589,6 +1596,13 @@ class SaleController extends Controller
                 $whatsAppApiUrl = env('WHATSAPP_API_URL');
 
                 if (!empty($mobileNo) && !empty($whatsAppApiUrl)) {
+                    // Add customer outstanding balance to viewData for WhatsApp receipt
+                    $customerOutstandingBalance = 0;
+                    if ($customer && $customer->id != 1) {
+                        $customerOutstandingBalance = $customer->calculateBalanceFromLedger();
+                    }
+                    $viewData['customer_outstanding_balance'] = $customerOutstandingBalance;
+                    
                     // Get location from sale for receipt template selection
                     $location = $sale->location;
                     $receiptView = $location ? $location->getReceiptViewName() : 'sell.receipt';
@@ -2482,6 +2496,12 @@ class SaleController extends Controller
             // Use the location from the sale, not from user's first location
             $location = $sale->location;
 
+            // Calculate customer's total outstanding balance from ledger for non-walk-in customers
+            $customerOutstandingBalance = 0;
+            if ($customer && $customer->id != 1) {
+                $customerOutstandingBalance = $customer->calculateBalanceFromLedger();
+            }
+
             $viewData = [
                 'sale' => $sale,
                 'customer' => $customer,
@@ -2490,6 +2510,7 @@ class SaleController extends Controller
                 'total_discount' => 0, // Fix: use 0 instead of undefined $request variable
                 'amount_given' => $sale->amount_given,
                 'balance_amount' => $sale->balance_amount,
+                'customer_outstanding_balance' => $customerOutstandingBalance,
                 'user' => $user,
                 'location' => $location,
             ];
