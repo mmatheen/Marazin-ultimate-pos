@@ -344,17 +344,17 @@
                         </tr>
                     @endif
                     {{-- Show total outstanding balance for non-walk-in customers with credit --}}
-                    @if ($customer && $customer->id != 1 && isset($customer_outstanding_balance) && $customer_outstanding_balance > 0)
+                    @if ($customer && isset($customer_outstanding_balance) && $customer_outstanding_balance > 0)
                         <tr>
                             <td colspan="2" style="padding: 2px 0 !important;">
                                 <hr style="margin: 2px 0; border-top-style: dashed; border-width: 1px;">
                             </td>
                         </tr>
-                        <tr style="background-color: #f5f5f5;">
-                            <td align="right"><strong style="color: #d32f2f; font-size: 11px;">TOTAL OUTSTANDING DUE</strong></td>
+                         <tr>
+                            <td align="right"><strong>TOTAL OUTSTANDING DUE</strong></td>
                             <td width="80" align="right">
-                                <div style="padding: 4px; display: inline-block; min-width: 60px; text-align: right; color: #d32f2f; font-weight: bold; font-size: 12px; border: 1px dashed #d32f2f;">
-                                    Rs {{ number_format($customer_outstanding_balance, 0, '.', ',') }}
+                                <div style="padding: 4px; display: inline-block; min-width: 60px; text-align: right;">
+                                   Rs {{ number_format($customer_outstanding_balance, 0, '.', ',') }}
                                 </div>
                             </td>
                         </tr>
