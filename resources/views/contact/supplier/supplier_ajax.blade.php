@@ -92,7 +92,7 @@
                         row.append('<td>' + item.address + '</td>');
                         row.append('<td>' + (item.location_id || 'N/A') + '</td>');
                         row.append('<td>Rs ' + item.opening_balance + '</td>');
-                        row.append('<td>Rs ' + item.current_balance + '</td>');
+                        row.append('<td>Rs ' + (item.balance || 0) + '</td>');
                         row.append('<td>Rs ' + item.total_purchase_due + '</td>');
                         row.append('<td>Rs ' + item.total_return_due + '</td>');
                         

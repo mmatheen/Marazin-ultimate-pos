@@ -12,6 +12,7 @@ use App\Models\SalesReturn;
 use App\Models\PurchaseReturn;
 use App\Models\Location;
 use App\Models\BulkPaymentLog;
+use App\Helpers\BalanceHelper;
 use Illuminate\Support\Facades\Log;
 use App\Services\PaymentService;
 use App\Services\UnifiedLedgerService;
@@ -240,45 +241,11 @@ class PaymentController extends Controller
     }
 
     /**
-     * Calculate customer's available advance balance for manual application
+     * Calculate customer's available advance balance - DELEGATES to BalanceHelper
      */
     private function calculateCustomerAdvanceBalance($customerId)
     {
-        // Get customer opening balance
-        $customer = Customer::find($customerId);
-        $openingBalance = $customer ? floatval($customer->opening_balance) : 0;
-        
-        // Get total customer payments
-        $totalPayments = Payment::where('customer_id', $customerId)->sum('amount');
-        
-        // Get total sales amount - respecting location scope
-        $totalSales = Sale::where('customer_id', $customerId)
-            ->sum('final_total');
-            
-        // Get total sales returns - respecting location scope
-        $totalReturns = SalesReturn::where('customer_id', $customerId)
-            ->sum('return_total');
-            
-        // Manual advance calculation - only available amounts for manual application
-        $manualAdvanceAvailable = 0;
-        
-        // Opening balance advance (if negative, we owe customer)
-        if ($openingBalance < 0) {
-            $manualAdvanceAvailable += abs($openingBalance);
-        }
-        
-        // Return amounts can be used as advance
-        if ($totalReturns > 0) {
-            $manualAdvanceAvailable += $totalReturns;
-        }
-        
-        // Check for overpayments
-        $overpayment = max(0, $totalPayments - ($totalSales - $totalReturns));
-        if ($overpayment > 0) {
-            $manualAdvanceAvailable += $overpayment;
-        }
-        
-        return $manualAdvanceAvailable;
+        return BalanceHelper::getCustomerAdvance($customerId);
     }
 
     // ==================== UNIFIED LEDGER METHODS ====================
@@ -748,35 +715,17 @@ class PaymentController extends Controller
     {
         $customer = Customer::find($customerId);
         if ($customer) {
-            // Use the ledger system for consistent balance calculation
-            // This ensures current_balance field matches the ledger balance
-            $customer->recalculateCurrentBalance();
+            // Balance is automatically updated through ledger system
         }
     }
 
     private function updateSupplierBalance($supplierId)
     {
-        $supplier = Supplier::find($supplierId);
-        if ($supplier) {
-            // Use ledger system for consistent balance calculation
-            // Get the latest balance from ledger entries
-            $latestEntry = \App\Models\Ledger::where('user_id', $supplierId)
-                ->where('contact_type', 'supplier')
-                ->orderBy('created_at', 'desc')
-                ->orderBy('id', 'desc')
-                ->first();
-            
-            if ($latestEntry) {
-                $supplier->current_balance = $latestEntry->balance;
-                $supplier->saveQuietly(); // Use saveQuietly to prevent triggering observers
-                
-                Log::info("Supplier balance updated from ledger", [
-                    'supplier_id' => $supplierId,
-                    'new_balance' => $supplier->current_balance,
-                    'ledger_entry_id' => $latestEntry->id
-                ]);
-            }
-        }
+        // Balance is automatically updated through ledger system
+        Log::info("Supplier balance managed through centralized ledger system", [
+            'supplier_id' => $supplierId,
+            'current_balance' => BalanceHelper::getSupplierBalance($supplierId)
+        ]);
     }
 
     private function calculateSupplierBalance($supplierId)

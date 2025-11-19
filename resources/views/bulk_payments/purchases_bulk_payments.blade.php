@@ -703,7 +703,7 @@ $(document).ready(function() {
                     // Use the correct field names from SupplierController
                     var openingBalance = parseFloat(supplier.opening_balance) || 0;
                     var purchaseDue = parseFloat(supplier.total_purchase_due) || 0;
-                    var currentBalance = parseFloat(supplier.current_balance) || 0;
+                    var currentBalance = parseFloat(supplier.balance) || 0;
                     
                     // Calculate total due - current balance represents what we owe the supplier
                     var totalDue = currentBalance > 0 ? currentBalance : 0;

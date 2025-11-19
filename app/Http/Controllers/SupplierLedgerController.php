@@ -203,7 +203,7 @@ class SupplierLedgerController extends Controller
             $toDate = Carbon::parse($request->to_date);
 
             // Get opening balance (balance before from_date)
-            $openingBalanceEntry = Ledger::where('user_id', $supplierId)
+            $openingBalanceEntry = Ledger::where('contact_id', $supplierId)
                 ->where('contact_type', 'supplier')
                 ->where('transaction_date', '<', $fromDate)
                 ->orderBy('transaction_date', 'desc')

@@ -18,8 +18,6 @@ class Supplier extends Model
         'email',
         'address',
         'opening_balance',
-        'current_balance',
-
     ];
 
     /**
@@ -111,7 +109,7 @@ class Supplier extends Model
 
     public function ledgerEntries()
     {
-        return $this->hasMany(\App\Models\Ledger::class, 'user_id')->where('contact_type', 'supplier');
+        return $this->hasMany(\App\Models\Ledger::class, 'contact_id')->where('contact_type', 'supplier');
     }
 
     // Total Purchase Due for the supplier
@@ -322,7 +320,7 @@ class Supplier extends Model
             'opening_balance' => $this->opening_balance ?? 0,
             'total_credits' => $logs->where('debit_credit', 'credit')->sum('amount'),
             'total_debits' => abs($logs->where('debit_credit', 'debit')->sum('amount')),
-            'current_balance' => $this->expense_balance,
+            'balance' => $this->expense_balance,
             'total_transactions' => $logs->count(),
             'last_transaction_date' => $logs->max('created_at')
         ];

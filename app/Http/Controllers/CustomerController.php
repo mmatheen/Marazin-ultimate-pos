@@ -9,6 +9,7 @@ use App\Models\CustomerGroup;
 use App\Models\SalesRep;
 use App\Models\User;
 use App\Services\UnifiedLedgerService;
+use App\Helpers\BalanceHelper;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -355,6 +356,13 @@ class CustomerController extends Controller
         } catch (\Illuminate\Database\QueryException $e) {
             DB::rollBack();
             
+            Log::error('Customer creation QueryException', [
+                'error_message' => $e->getMessage(),
+                'error_code' => $e->errorInfo[1] ?? 'Unknown',
+                'sql_state' => $e->errorInfo[0] ?? 'Unknown',
+                'request_data' => $request->all()
+            ]);
+            
             // Handle specific database constraint violations
             if ($e->errorInfo[1] == 1062) { // Duplicate entry error code
                 $errorMessage = $e->getMessage();
@@ -404,7 +412,13 @@ class CustomerController extends Controller
             ], 400);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Customer creation error: ' . $e->getMessage());
+            Log::error('Customer creation Exception', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString(),
+                'request_data' => $request->all()
+            ]);
             
             // Check if this is a duplicate entry error that wasn't caught above
             $errorMessage = $e->getMessage();
@@ -784,7 +798,7 @@ class CustomerController extends Controller
                     'city_name' => $customer->city?->name ?? 'No City',
                     'customer_type' => $customer->customer_type,
                     'credit_limit' => (float)$customer->credit_limit,
-                    'current_balance' => (float)$customer->current_balance,
+                    'current_balance' => (float)BalanceHelper::getCustomerBalance($customer->id),
                 ];
             });
 
@@ -845,7 +859,7 @@ class CustomerController extends Controller
 
             // Create the safe adjustment entry by passing the adjustment amount directly
             // We need to get the current ledger balance and adjust it
-            $currentLedgerBalance = \App\Models\Ledger::where('user_id', $customerId)
+            $currentLedgerBalance = \App\Models\Ledger::where('contact_id', $customerId)
                 ->where('contact_type', 'customer')
                 ->orderBy('created_at', 'desc')
                 ->value('balance') ?? 0;

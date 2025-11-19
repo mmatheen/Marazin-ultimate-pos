@@ -561,7 +561,7 @@ $(document).ready(function() {
                 <p><strong>Email:</strong> ${contactData.email || 'N/A'}</p>
                 <p><strong>Address:</strong> ${contactData.address || 'N/A'}</p>
                 <p><strong>Opening Balance:</strong> Rs. ${formatCurrency(contactData.opening_balance || 0)}</p>
-                <p><strong>Current Balance:</strong> Rs. ${formatCurrency(contactData.current_balance || 0)}</p>
+                <p><strong>Current Balance:</strong> Rs. ${formatCurrency(contactData.balance || 0)}</p>
             `;
             
             $('#contactDetails').html(contactDetailsHtml);
@@ -582,7 +582,7 @@ $(document).ready(function() {
             <p><strong>Email:</strong> ${customer.email || 'N/A'}</p>
             <p><strong>Address:</strong> ${customer.address || 'N/A'}</p>
             <p><strong>Opening Balance:</strong> Rs. ${formatCurrency(customer.opening_balance || 0)}</p>
-            <p><strong>Current Balance:</strong> Rs. ${formatCurrency(customer.current_balance || 0)}</p>
+            <p><strong>Current Balance:</strong> Rs. ${formatCurrency(customer.balance || 0)}</p>
         `;
         
         $('#contactDetails').html(contactDetailsHtml);

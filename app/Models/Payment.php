@@ -47,6 +47,14 @@ class Payment extends Model
         'actual_payment_method',
         'created_by',
         'updated_by',
+        // Status tracking fields
+        'status',
+        'original_amount',
+        'edited_by',
+        'edited_at',
+        'deleted_by',
+        'deleted_at',
+        'edit_reason',
     ];
 
     /**
@@ -56,6 +64,7 @@ class Payment extends Model
         'cheque_status' => 'pending',
         'payment_status' => 'completed',
         'bank_charges' => 0.00,
+        'status' => 'active',
     ];
 
     /**
@@ -84,11 +93,16 @@ class Payment extends Model
         'cheque_valid_date',
         'cheque_clearance_date',
         'cheque_bounce_date',
+        'edited_at',
+        'deleted_at',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
         'bank_charges' => 'decimal:2',
+        'original_amount' => 'decimal:2',
+        'edited_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
 
     // Relationships
@@ -151,6 +165,33 @@ class Payment extends Model
     public function updatedBy()
     {
         return $this->belongsTo(\App\Models\User::class, 'updated_by');
+    }
+
+    // Status tracking relationships
+    public function editedBy()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'edited_by');
+    }
+
+    public function deletedBy()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'deleted_by');
+    }
+
+    // Status scopes
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'active');
+    }
+
+    public function scopeEdited($query)
+    {
+        return $query->where('status', 'edited');
+    }
+
+    public function scopeDeleted($query)
+    {
+        return $query->where('status', 'deleted');
     }
 
     // Scopes for cheque management
@@ -407,5 +448,69 @@ class Payment extends Model
 
         $chain = $this->getRecoveryChain();
         return max(0, $chain['total_original'] - $chain['total_recovered']);
+    }
+
+    /**
+     * Mark payment as edited
+     */
+    public function markAsEdited($newAmount, $editReason = '', $editedBy = null)
+    {
+        $this->update([
+            'original_amount' => $this->original_amount ?: $this->amount,
+            'amount' => $newAmount,
+            'status' => 'edited',
+            'edit_reason' => $editReason,
+            'edited_by' => $editedBy,
+            'edited_at' => now(),
+        ]);
+
+        return $this;
+    }
+
+    /**
+     * Mark payment as deleted
+     */
+    public function markAsDeleted($deleteReason = '', $deletedBy = null)
+    {
+        $this->update([
+            'status' => 'deleted',
+            'edit_reason' => $deleteReason,
+            'deleted_by' => $deletedBy,
+            'deleted_at' => now(),
+        ]);
+
+        return $this;
+    }
+
+    /**
+     * Check if payment is active (not edited or deleted)
+     */
+    public function isActive()
+    {
+        return $this->status === 'active';
+    }
+
+    /**
+     * Check if payment has been edited
+     */
+    public function isEdited()
+    {
+        return $this->status === 'edited';
+    }
+
+    /**
+     * Check if payment has been deleted
+     */
+    public function isDeleted()
+    {
+        return $this->status === 'deleted';
+    }
+
+    /**
+     * Get the amount that was originally paid (before any edits)
+     */
+    public function getOriginalAmountAttribute($value)
+    {
+        return $value ?: $this->amount;
     }
 }

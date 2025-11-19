@@ -5,13 +5,32 @@ namespace App\Models;
 use App\Traits\LocationTrait;
 use App\Models\Ledger;
 use Carbon\Carbon;
-use Illuminate\Database\Eloquent\Model;
+use App\Helpers\BalanceHelper;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 class Customer extends Model
 {
     use HasFactory,LocationTrait;
+
+    /*
+     * BALANCE CALCULATION ARCHITECTURE
+     * ================================
+     * This model uses a unified approach for all customer balance calculations:
+     * 
+     * 1. SINGLE SOURCE OF TRUTH: BalanceHelper::getCustomerBalance() 
+     * 2. STATUS FILTERING: Only 'active' ledger entries are considered (excludes 'reversed')
+     * 3. UNIFIED LEDGER: All transactions flow through UnifiedLedgerService
+     * 
+     * Key Methods:
+     * - getCurrentBalance(): Main balance calculation method
+     * - getCurrentBalanceAttribute(): Laravel accessor for API responses
+     * - getCurrentDueAttribute(): Positive balance only (customer owes money)
+     * - getTotalOutstanding(): Same as getCurrentBalance but with max(0, balance)
+     * - getFloatingBalance(): Specific floating transactions (bounced cheques, etc.)
+     * - getBillWiseOutstanding(): Sale-related balance from ledger
+     */
 
     protected $table = 'customers';
 
@@ -23,13 +42,12 @@ class Customer extends Model
         'email',
         'address',
         'opening_balance',
-        'current_balance',
         'credit_limit',
         'city_id',
         'customer_type',
     ];
 
-    protected $appends = ['full_name', 'total_sale_due', 'total_return_due', 'current_due', 'available_credit'];
+    protected $appends = ['full_name', 'total_sale_due', 'total_return_due', 'current_due', 'current_balance', 'available_credit'];
 
     /* ============================
      * Boot events
@@ -40,8 +58,6 @@ class Customer extends Model
         parent::boot();
 
         static::creating(function ($customer) {
-            $customer->current_balance = $customer->opening_balance;
-
             if ($customer->city_id && !$customer->credit_limit) {
                 $customer->credit_limit = self::calculateCreditLimitForCity($customer->city_id);
             }
@@ -58,15 +74,10 @@ class Customer extends Model
 
         static::saved(function ($customer) {
             if ($customer->id != 1) {
-                $customer->recalculateCurrentBalance();
-                
                 // Sync opening balance to ledger if it was changed OR if it's a new customer with opening balance
                 if ($customer->wasChanged('opening_balance') || ($customer->wasRecentlyCreated && $customer->opening_balance != 0)) {
                     $customer->syncOpeningBalanceToLedger();
                 }
-            } else {
-                $customer->current_balance = 0;
-                $customer->saveQuietly();
             }
         });
     }
@@ -92,7 +103,7 @@ class Customer extends Model
 
     public function ledgerEntries()
     {
-        return $this->hasMany(Ledger::class, 'user_id')->where('contact_type', 'customer');
+        return $this->hasMany(Ledger::class, 'contact_id')->where('contact_type', 'customer');
     }
 
     public function city()
@@ -125,56 +136,31 @@ class Customer extends Model
     public function getCurrentDueAttribute()
     {
         if ($this->id == 1) return 0;
-
-        // Use the latest ledger balance for consistency with the ledger system
-        // This ensures POS customer due matches the ledger due calculation
-        $latestEntry = Ledger::where('user_id', $this->id)
-            ->where('contact_type', 'customer')
-            ->orderBy('created_at', 'desc')
-            ->orderBy('id', 'desc')
-            ->first();
-
-        $currentBalance = $latestEntry ? $latestEntry->balance : ($this->opening_balance ?? 0);
         
-        // Return only positive balances as "due" (customer owes money)
-        return max(0, $currentBalance);
+        // Use BalanceHelper - the ONLY place for balance calculations
+        return BalanceHelper::getCustomerDue($this->id);
     }
 
     public function getAvailableCreditAttribute()
     {
         if ($this->id == 1) return 0;
-        return max(0, $this->credit_limit - $this->current_balance);
+        return max(0, $this->credit_limit - $this->getTotalOutstanding());
     }
 
-
-
-public function recalculateCurrentBalance()
-{
-    if ($this->id == 1) {
-        $this->current_balance = 0;
-    } else {
-        // Calculate balance from ledger entries for accuracy
-        $this->current_balance = $this->calculateBalanceFromLedger();
+    public function getCurrentBalanceAttribute()
+    {
+        if ($this->id == 1) return 0; // Walk-in customer
+        return BalanceHelper::getCustomerBalance($this->id);
     }
-    $this->saveQuietly();
-}
 
     /**
-     * Calculate current balance directly from ledger entries
+     * Calculate balance from ledger entries - delegates to BalanceHelper
+     * This method is called by POS system for credit limit validation
      */
     public function calculateBalanceFromLedger()
     {
-        if ($this->id == 1) return 0;
-
-        // Get the latest balance using created_at for proper chronological order
-        // This ensures we get the most recently created ledger entry
-        $latestEntry = Ledger::where('user_id', $this->id)
-            ->where('contact_type', 'customer')
-            ->orderBy('created_at', 'desc')
-            ->orderBy('id', 'desc')
-            ->first();
-
-        return $latestEntry ? $latestEntry->balance : ($this->opening_balance ?? 0);
+        if ($this->id == 1) return 0; // Walk-in customer
+        return BalanceHelper::getCustomerBalance($this->id);
     }
 
     /**
@@ -217,71 +203,60 @@ public function recalculateCurrentBalance()
     public function syncOpeningBalanceToLedger()
     {
         // Check if opening balance entry already exists
-        $existingEntry = Ledger::where('user_id', $this->id)
+        $existingEntry = Ledger::where('contact_id', $this->id)
             ->where('contact_type', 'customer')
             ->where('transaction_type', 'opening_balance')
+            ->where('status', 'active')
             ->first();
 
         if ($this->opening_balance == 0) {
-            // If opening balance is 0, remove existing entry
+            // If opening balance is 0, mark existing entry as reversed
             if ($existingEntry) {
-                $existingEntry->delete();
-                // Recalculate balances for remaining entries
-                Ledger::calculateBalance($this->id, 'customer');
+                $existingEntry->update([
+                    'status' => 'reversed',
+                    'notes' => $existingEntry->notes . ' [REVERSED: Opening balance set to zero]'
+                ]);
             }
             return;
         }
 
-        $data = [
-            'user_id' => $this->id,
-            'contact_type' => 'customer',
-            'transaction_date' => $this->created_at ? 
-                Carbon::parse($this->created_at)->setTimezone('Asia/Colombo') : 
-                Carbon::now('Asia/Colombo'),
-            'reference_no' => 'OPENING-' . $this->id,
-            'transaction_type' => 'opening_balance',
-            'debit' => $this->opening_balance > 0 ? $this->opening_balance : 0,
-            'credit' => $this->opening_balance < 0 ? abs($this->opening_balance) : 0,
-            'balance' => $this->opening_balance,
-            'notes' => 'Opening Balance for Customer: ' . $this->first_name . ' ' . $this->last_name,
-        ];
-
+        // Use the UnifiedLedgerService to create proper opening balance entries
+        $unifiedLedgerService = app(\App\Services\UnifiedLedgerService::class);
+        
         if ($existingEntry) {
-            // Update existing entry
-            $existingEntry->update($data);
-        } else {
-            // Create new entry
-            Ledger::create($data);
+            // If there's an existing entry, mark it as reversed and create a new one
+            $existingEntry->update([
+                'status' => 'reversed',
+                'notes' => $existingEntry->notes . ' [REVERSED: Opening balance updated]'
+            ]);
         }
-
-        // Recalculate balances for all entries
-        Ledger::calculateBalance($this->id, 'customer');
+        
+        // Create new opening balance entry using the service
+        $unifiedLedgerService->recordOpeningBalance(
+            $this->id, 
+            'customer', 
+            $this->opening_balance, 
+            'Opening Balance for Customer: ' . $this->full_name
+        );
     }
 
     /**
-     * Get customer's bill-wise outstanding balance (unpaid bills only)
-     * This excludes bounced cheque floating balance
-     */
-    public function getBillWiseOutstanding()
-    {
-        return Sale::where('customer_id', $this->id)
-            ->whereNotIn('payment_status', ['Paid'])
-            ->sum(DB::raw('final_total - COALESCE(total_paid, 0)'));
-    }
-
-    /**
-     * Get customer's floating balance (bounced cheques, bank charges, adjustments)
-     * This is separate from bill-wise balance
+     * Get customer's floating balance - DELEGATES to BalanceHelper
+     * (bounced cheques, bank charges, adjustments)
      */
     public function getFloatingBalance()
     {
-        $floatingDebits = Ledger::where('user_id', $this->id)
+        // This is a specialized calculation, keep it here for now
+        // But ideally this should move to BalanceHelper too
+        $floatingDebits = Ledger::where('contact_id', $this->id)
             ->where('contact_type', 'customer')
+            ->where('status', 'active')
             ->whereIn('transaction_type', ['cheque_bounce', 'bank_charges', 'penalty', 'adjustment_debit'])
             ->sum('debit');
 
-        $floatingCredits = Ledger::where('user_id', $this->id)
+        $floatingCredits = Ledger::where('contact_id', $this->id)
             ->where('contact_type', 'customer')
+            ->where('status', 'active')
             ->whereIn('transaction_type', ['bounce_recovery', 'adjustment_credit', 'refund'])
             ->sum('credit');
 
@@ -289,11 +264,13 @@ public function recalculateCurrentBalance()
     }
 
     /**
-     * Get total outstanding including both bill-wise and floating balance
+     * Get total outstanding balance (positive balances only)
+     * Uses BalanceHelper for consistency
      */
     public function getTotalOutstanding()
     {
-        return $this->getBillWiseOutstanding() + $this->getFloatingBalance();
+        if ($this->id == 1) return 0;
+        return BalanceHelper::getCustomerDue($this->id);
     }
 
     /**

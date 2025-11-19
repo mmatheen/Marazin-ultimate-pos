@@ -11,6 +11,7 @@ use App\Models\CustomerGroup;
 use App\Models\SalesRep;
 use App\Models\User;
 use App\Services\UnifiedLedgerService;
+use App\Helpers\BalanceHelper;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -61,7 +62,7 @@ class CustomerController extends Controller
             'address' => $customer->address,
             'location_id' => $customer->location_id,
             'opening_balance' => (float)$customer->opening_balance,
-            'current_balance' => (float)$customer->current_balance,
+            'current_balance' => (float)BalanceHelper::getCustomerBalance($customer->id),
             'total_sale_due' => (float)$customer->total_sale_due,
             'total_return_due' => (float)$customer->total_return_due,
             'current_due' => (float)$customer->current_due,

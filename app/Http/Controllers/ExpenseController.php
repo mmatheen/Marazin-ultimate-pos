@@ -1071,7 +1071,7 @@ class ExpenseController extends Controller
                     'supplier' => [
                         'id' => $supplier->id,
                         'name' => $supplier->full_name,
-                        'current_balance' => $supplier->formatted_expense_balance,
+                        'balance' => $supplier->formatted_expense_balance,
                         'summary' => $supplier->getBalanceSummary()
                     ],
                     'history' => $balanceHistory

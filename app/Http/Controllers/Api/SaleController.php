@@ -26,6 +26,7 @@ use App\Models\User;
 use App\Models\JobTicket;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Services\UnifiedLedgerService;
+use App\Helpers\BalanceHelper;
 use App\Services\PaymentService;
 
 
@@ -903,7 +904,8 @@ class SaleController extends Controller
 
         // Credit limit alert
         $customer = $sale->customer;
-        if ($customer && $customer->current_balance > $customer->credit_limit) {
+        $customerBalance = BalanceHelper::getCustomerBalance($customer->id);
+        if ($customer && $customerBalance > $customer->credit_limit) {
             Log::warning("Customer {$customer->id} exceeded credit limit.");
         }
     }
@@ -1549,7 +1551,7 @@ class SaleController extends Controller
                     'email',
                     'address',
                     'opening_balance',
-                    'current_balance',
+                    'opening_balance',
                     'location_id'
                 ]),
                 'location' => optional($sale->location)->only([

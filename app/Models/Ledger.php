@@ -8,34 +8,59 @@ use Carbon\Carbon;
 
 class Ledger extends Model
 {
+    /*
+     * LEDGER MODEL ARCHITECTURE
+     * ==========================
+     * This model handles individual ledger entries with the new status-based system.
+     * 
+     * IMPORTANT: For balance calculations, use BalanceHelper class instead of 
+     * methods in this model to ensure consistency across the application.
+     * 
+     * Key Principles:
+     * 1. STATUS FILTERING: Only 'active' entries count towards balances
+     * 2. UNIFIED APPROACH: BalanceHelper provides consistent calculations
+     * 3. DEBIT/CREDIT LOGIC: Proper accounting principles maintained
+     * 4. REVERSALS: Use status='reversed' instead of deleting entries
+     * 
+     * Core Methods:
+     * - createEntry(): Create new ledger entries
+     * - reverseEntry(): Mark entries as reversed
+     * - Scopes: active(), reversed(), byDateRange(), etc.
+     */
+
     protected $fillable = [
         'transaction_date',
         'reference_no',
         'transaction_type',
         'debit',
         'credit',
-        'balance',
+        'status',
         'contact_type',
-        'user_id',
-        'notes'
+        'contact_id',
+        'notes',
+        'created_by'
     ];
 
     protected $casts = [
         'transaction_date' => 'datetime',
         'debit' => 'decimal:2',
-        'credit' => 'decimal:2',
-        'balance' => 'decimal:2'
+        'credit' => 'decimal:2'
     ];
 
     // Relationships
     public function supplier()
     {
-        return $this->belongsTo(Supplier::class, 'user_id')->where('contact_type', 'supplier');
+        return $this->belongsTo(Supplier::class, 'contact_id')->where('contact_type', 'supplier');
     }
 
     public function customer()
     {
-        return $this->belongsTo(Customer::class, 'user_id')->where('contact_type', 'customer');
+        return $this->belongsTo(Customer::class, 'contact_id')->where('contact_type', 'customer');
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'created_by');
     }
 
     // Scopes
@@ -49,9 +74,19 @@ class Ledger extends Model
         return $query->where('contact_type', 'customer');
     }
 
-    public function scopeForUser($query, $userId)
+    public function scopeForContact($query, $contactId)
     {
-        return $query->where('user_id', $userId);
+        return $query->where('contact_id', $contactId);
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'active');
+    }
+
+    public function scopeReversed($query)
+    {
+        return $query->where('status', 'reversed');
     }
 
     public function scopeByDateRange($query, $fromDate = null, $toDate = null)
@@ -86,80 +121,134 @@ class Ledger extends Model
         return number_format($this->credit, 2);
     }
 
-    public function getFormattedBalanceAttribute()
+    public function getStatusBadgeAttribute()
     {
-        return number_format($this->balance, 2);
-    }
-
-    // Calculate balance cumulatively for each transaction using unified ledger logic
-    public static function calculateBalance($user_id, $contact_type)
-    {
-        // Get all ledgers for the given user and contact type, ordered by creation time in Asia/Colombo timezone
-        // Opening balance should be first, then chronological order by created_at timestamps in Colombo time
-        $ledgers = self::where('user_id', $user_id)
-                        ->where('contact_type', $contact_type)
-                        ->orderByRaw("
-                            CASE 
-                                WHEN transaction_type = 'opening_balance' THEN 1
-                                ELSE 2
-                            END
-                        ")
-                        ->orderByRaw("CONVERT_TZ(created_at, 'UTC', 'Asia/Colombo') ASC")
-                        ->orderBy('id', 'asc')
-                        ->get();
-
-        $running_balance = 0;
-
-        foreach ($ledgers as $ledger) {
-            // Balance calculation depends on contact type:
-            // CUSTOMERS: Debit increases what they owe us, Credit reduces it
-            // SUPPLIERS: Credit increases what we owe them, Debit reduces it
-            if ($contact_type === 'customer') {
-                // Customer balance: debit increases, credit decreases
-                $running_balance = $running_balance + $ledger->debit - $ledger->credit;
-            } else {
-                // Supplier balance: credit increases, debit decreases
-                $running_balance = $running_balance + $ledger->credit - $ledger->debit;
-            }
-        }
-
-        // Return the final calculated balance without updating any records
-        return $running_balance;
+        return $this->status === 'active' ? 'Active' : 'Reversed';
     }
 
     /**
-     * Get the latest balance for a specific user and contact type
+     * Calculate balance using SQL window function for optimal performance
+     * 
+     * @deprecated This method is deprecated. Use BalanceHelper::getCustomerBalance() 
+     * or BalanceHelper::getSupplierBalance() for consistent balance calculations
+     * across the application. This method is kept for backward compatibility only.
      */
-    public static function getLatestBalance($user_id, $contact_type)
+    public static function calculateBalance($contact_id, $contact_type)
     {
-        $latestEntry = self::where('user_id', $user_id)
-            ->where('contact_type', $contact_type)
-            ->orderBy('created_at', 'desc') // Use created_at for latest entry
-            ->orderBy('id', 'desc')
-            ->first();
+        $result = DB::selectOne("
+            SELECT 
+                COALESCE(
+                    CASE 
+                        WHEN ? = 'customer' THEN 
+                            SUM(debit - credit)
+                        ELSE 
+                            SUM(credit - debit)
+                    END, 
+                    0
+                ) as current_balance
+            FROM ledgers 
+            WHERE contact_id = ? 
+                AND contact_type = ? 
+                AND status = 'active'
+        ", [$contact_type, $contact_id, $contact_type]);
 
-        return $latestEntry ? $latestEntry->balance : 0;
+        return $result ? (float) $result->current_balance : 0.0;
     }
 
     /**
-     * Get ledger statement for a specific period
+     * Get running balance with history using SQL window function
      */
-    public static function getStatement($user_id, $contact_type, $fromDate = null, $toDate = null)
+    public static function getRunningBalanceHistory($contact_id, $contact_type, $limit = null)
     {
-        $query = self::where('user_id', $user_id)
-            ->where('contact_type', $contact_type)
-            ->orderBy('transaction_date', 'asc')
-            ->orderBy('id', 'asc');
+        $limitClause = $limit ? "LIMIT {$limit}" : '';
+        
+        $results = DB::select("
+            SELECT 
+                *,
+                CASE 
+                    WHEN ? = 'customer' THEN 
+                        SUM(debit - credit) OVER (
+                            ORDER BY 
+                                CASE WHEN transaction_type = 'opening_balance' THEN 1 ELSE 2 END,
+                                CONVERT_TZ(created_at, 'UTC', 'Asia/Colombo'),
+                                id
+                            ROWS UNBOUNDED PRECEDING
+                        )
+                    ELSE 
+                        SUM(credit - debit) OVER (
+                            ORDER BY 
+                                CASE WHEN transaction_type = 'opening_balance' THEN 1 ELSE 2 END,
+                                CONVERT_TZ(created_at, 'UTC', 'Asia/Colombo'),
+                                id
+                            ROWS UNBOUNDED PRECEDING
+                        )
+                END as running_balance
+            FROM ledgers 
+            WHERE contact_id = ? 
+                AND contact_type = ? 
+                AND status = 'active'
+            ORDER BY 
+                CASE WHEN transaction_type = 'opening_balance' THEN 1 ELSE 2 END,
+                CONVERT_TZ(created_at, 'UTC', 'Asia/Colombo'),
+                id
+            {$limitClause}
+        ", [$contact_type, $contact_id, $contact_type]);
 
+        return collect($results);
+    }
+
+    /**
+     * Get running balance with history using SQL window function
+     */
+    public static function getStatement($contact_id, $contact_type, $fromDate = null, $toDate = null, $includeReversed = false)
+    {
+        $statusCondition = $includeReversed ? '' : "AND status = 'active'";
+        $dateConditions = '';
+        $params = [$contact_type, $contact_id, $contact_type];
+        
         if ($fromDate) {
-            $query->where('transaction_date', '>=', Carbon::parse($fromDate));
+            $dateConditions .= " AND transaction_date >= ?";
+            $params[] = $fromDate;
         }
-
+        
         if ($toDate) {
-            $query->where('transaction_date', '<=', Carbon::parse($toDate));
+            $dateConditions .= " AND transaction_date <= ?";
+            $params[] = $toDate;
         }
 
-        return $query->get();
+        $results = DB::select("
+            SELECT 
+                *,
+                CASE 
+                    WHEN ? = 'customer' THEN 
+                        SUM(debit - credit) OVER (
+                            ORDER BY 
+                                CASE WHEN transaction_type = 'opening_balance' THEN 1 ELSE 2 END,
+                                transaction_date,
+                                id
+                            ROWS UNBOUNDED PRECEDING
+                        )
+                    ELSE 
+                        SUM(credit - debit) OVER (
+                            ORDER BY 
+                                CASE WHEN transaction_type = 'opening_balance' THEN 1 ELSE 2 END,
+                                transaction_date,
+                                id
+                            ROWS UNBOUNDED PRECEDING
+                        )
+                END as running_balance
+            FROM ledgers 
+            WHERE contact_id = ? 
+                AND contact_type = ? 
+                {$statusCondition}
+                {$dateConditions}
+            ORDER BY 
+                CASE WHEN transaction_type = 'opening_balance' THEN 1 ELSE 2 END,
+                transaction_date,
+                id
+        ", $params);
+
+        return collect($results);
     }
 
     /**
@@ -168,7 +257,7 @@ class Ledger extends Model
     public static function createEntry($data)
     {
         // Validate required fields
-        $required = ['user_id', 'contact_type', 'transaction_date', 'reference_no', 'transaction_type', 'amount'];
+        $required = ['contact_id', 'contact_type', 'transaction_date', 'reference_no', 'transaction_type', 'amount'];
         foreach ($required as $field) {
             if (!isset($data[$field])) {
                 throw new \Exception("Required field {$field} is missing");
@@ -214,7 +303,7 @@ class Ledger extends Model
                 break;
 
             case 'sale_payment':
-            case 'payments':
+            case 'payment':
                 // Handle negative amounts for payment reversals
                 $amount = abs($data['amount']); // Work with positive amount
                 $isReversal = $data['amount'] < 0; // Check if this is a reversal
@@ -353,75 +442,108 @@ class Ledger extends Model
                 throw new \Exception("Unknown transaction type: {$data['transaction_type']}");
         }
 
-        // Create the ledger entry first without balance
+        // Create the ledger entry with new structure
         $ledger = self::create([
-            'user_id' => $data['user_id'],
+            'contact_id' => $data['contact_id'],
             'contact_type' => $data['contact_type'],
             'transaction_date' => $data['transaction_date'],
             'reference_no' => $data['reference_no'],
             'transaction_type' => $data['transaction_type'],
             'debit' => $debit,
             'credit' => $credit,
-            'balance' => 0, // Temporary, will be recalculated
-            'notes' => $data['notes'] ?? ''
+            'status' => $data['status'] ?? 'active',
+            'notes' => $data['notes'] ?? '',
+            'created_by' => $data['created_by'] ?? null
         ]);
-
-        // Now recalculate all balance fields for this user/contact_type to ensure chronological order
-        self::recalculateAllBalances($data['user_id'], $data['contact_type']);
-
-        // Refresh the ledger model to get the updated balance
-        $ledger->refresh();
 
         return $ledger;
     }
 
     /**
-     * Recalculate all balance fields for a specific user and contact type in chronological order
-     * This ensures that balance fields are always correct regardless of entry creation order
+     * Get balances for multiple contacts - DELEGATES to BalanceHelper
+     * @deprecated Use BalanceHelper::getBulkCustomerBalances() instead
      */
-    public static function recalculateAllBalances($user_id, $contact_type)
+    public static function getBulkBalances($contactIds, $contactType)
     {
-        // Get all entries in chronological order based on created_at timestamps
-        $entries = self::where('user_id', $user_id)
-                      ->where('contact_type', $contact_type)
-                      ->orderByRaw("
-                          CASE 
-                              WHEN transaction_type = 'opening_balance' THEN 1
-                              ELSE 2
-                          END
-                      ")
-                      ->orderBy('created_at', 'asc') // Use created_at without timezone conversion
-                      ->orderBy('id', 'asc')
-                      ->get();
+        return \App\Helpers\BalanceHelper::getBulkBalances($contactIds, $contactType);
+    }    /**
+     * Get summary balances by contact type
+     */
+    public static function getBalanceSummary($contactType = null)
+    {
+        $contactCondition = $contactType ? "AND contact_type = ?" : '';
+        $params = $contactType ? [$contactType] : [];
 
-        $running_balance = 0;
+        $results = DB::select("
+            SELECT 
+                contact_type,
+                COUNT(DISTINCT contact_id) as total_contacts,
+                CASE 
+                    WHEN contact_type = 'customer' THEN 
+                        COALESCE(SUM(debit - credit), 0)
+                    ELSE 
+                        COALESCE(SUM(credit - debit), 0)
+                END as total_balance,
+                CASE 
+                    WHEN contact_type = 'customer' THEN 
+                        COALESCE(SUM(CASE WHEN (debit - credit) > 0 THEN (debit - credit) ELSE 0 END), 0)
+                    ELSE 
+                        COALESCE(SUM(CASE WHEN (credit - debit) > 0 THEN (credit - debit) ELSE 0 END), 0)
+                END as positive_balance,
+                CASE 
+                    WHEN contact_type = 'customer' THEN 
+                        COALESCE(SUM(CASE WHEN (debit - credit) < 0 THEN ABS(debit - credit) ELSE 0 END), 0)
+                    ELSE 
+                        COALESCE(SUM(CASE WHEN (credit - debit) < 0 THEN ABS(credit - debit) ELSE 0 END), 0)
+                END as negative_balance
+            FROM (
+                SELECT 
+                    contact_id,
+                    contact_type,
+                    SUM(debit) as debit,
+                    SUM(credit) as credit
+                FROM ledgers 
+                WHERE status = 'active' {$contactCondition}
+                GROUP BY contact_id, contact_type
+            ) as contact_totals
+            GROUP BY contact_type
+        ", $params);
 
-        foreach ($entries as $entry) {
-            // Balance calculation depends on contact type:
-            // CUSTOMERS: Debit increases what they owe us, Credit reduces it
-            // SUPPLIERS: Credit increases what we owe them, Debit reduces it
-            if ($contact_type === 'customer') {
-                // Customer balance: debit increases, credit decreases
-                $running_balance = $running_balance + $entry->debit - $entry->credit;
-            } else {
-                // Supplier balance: credit increases, debit decreases  
-                $running_balance = $running_balance + $entry->credit - $entry->debit;
-            }
-            
-            // Update only the balance field without changing created_at/updated_at
-            self::where('id', $entry->id)
-                ->update(['balance' => $running_balance]);
+        return collect($results);
+    }
+
+    /**
+     * Reverse a ledger entry (mark as reversed instead of deleting)
+     */
+    public static function reverseEntry($entryId, $reason = '', $reversedBy = null)
+    {
+        $entry = self::find($entryId);
+        if (!$entry) {
+            throw new \Exception("Ledger entry not found");
         }
+
+        $entry->update([
+            'status' => 'reversed',
+            'notes' => $entry->notes . "\n[REVERSED: " . $reason . "]",
+            'created_by' => $reversedBy
+        ]);
+
+        return $entry;
     }
 
     /**
      * Get unified ledger view (customers and suppliers combined)
      */
-    public static function getUnifiedLedger($fromDate = null, $toDate = null, $contactType = null)
+    public static function getUnifiedLedger($fromDate = null, $toDate = null, $contactType = null, $includeReversed = false)
     {
         $query = self::with(['customer', 'supplier'])
             ->orderBy('transaction_date', 'asc')
             ->orderBy('id', 'asc');
+
+        // By default, exclude reversed entries unless specifically requested
+        if (!$includeReversed) {
+            $query->where('status', 'active');
+        }
 
         if ($fromDate) {
             $query->where('transaction_date', '>=', Carbon::parse($fromDate));
@@ -446,11 +568,14 @@ class Ledger extends Model
                 'transaction_type' => $ledger->transaction_type,
                 'debit' => $ledger->debit,
                 'credit' => $ledger->credit,
-                'balance' => $ledger->balance,
+                'status' => $ledger->status,
                 'contact_type' => $ledger->contact_type,
                 'contact_name' => $contactName,
                 'notes' => $ledger->notes,
-                'formatted_type' => self::formatTransactionType($ledger->transaction_type)
+                'formatted_type' => self::formatTransactionType($ledger->transaction_type),
+                'current_balance' => $ledger->contact_type === 'customer' 
+                    ? \App\Helpers\BalanceHelper::getCustomerBalance($ledger->contact_id)
+                    : \App\Helpers\BalanceHelper::getSupplierBalance($ledger->contact_id)
             ];
         });
     }
@@ -477,32 +602,30 @@ class Ledger extends Model
 
     /**
      * Get current outstanding balance for a contact
+     * @deprecated Use BalanceHelper::getCustomerDue() instead
      */
-    public static function getCurrentOutstanding($user_id, $contact_type)
+    public static function getCurrentOutstanding($contact_id, $contact_type)
     {
-        $currentBalance = self::getLatestBalance($user_id, $contact_type);
-        
+        // Use BalanceHelper for consistent calculation
         if ($contact_type === 'customer') {
-            // For customers: positive balance = they owe us
-            return max(0, $currentBalance);
+            return \App\Helpers\BalanceHelper::getCustomerDue($contact_id);
         } else {
-            // For suppliers: positive balance = we owe them
+            $currentBalance = \App\Helpers\BalanceHelper::getSupplierBalance($contact_id);
             return max(0, $currentBalance);
         }
     }
 
     /**
-     * Get advance balance for a contact
+     * Get advance balance for a contact  
+     * @deprecated Use BalanceHelper::getCustomerAdvance() instead
      */
-    public static function getAdvanceBalance($user_id, $contact_type)
+    public static function getAdvanceBalance($contact_id, $contact_type)
     {
-        $currentBalance = self::getLatestBalance($user_id, $contact_type);
-        
+        // Use BalanceHelper for consistent calculation
         if ($contact_type === 'customer') {
-            // For customers: negative balance = we owe them (advance)
-            return $currentBalance < 0 ? abs($currentBalance) : 0;
+            return \App\Helpers\BalanceHelper::getCustomerAdvance($contact_id);
         } else {
-            // For suppliers: negative balance = they owe us (advance)
+            $currentBalance = \App\Helpers\BalanceHelper::getSupplierBalance($contact_id);
             return $currentBalance < 0 ? abs($currentBalance) : 0;
         }
     }

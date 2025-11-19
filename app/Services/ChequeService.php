@@ -408,7 +408,7 @@ class ChequeService
         $ledgerEntries = [];
 
         // Check for duplicate bounce processing
-        $existingBounce = Ledger::where('user_id', $payment->customer_id)
+        $existingBounce = Ledger::where('contact_id', $payment->customer_id)
             ->where('contact_type', 'customer')
             ->where('reference_no', $referenceNo)
             ->where('transaction_type', 'cheque_bounce')
@@ -475,7 +475,7 @@ class ChequeService
         $ledgerEntries = [];
 
         // Check for duplicate processing
-        $existingEntry = Ledger::where('user_id', $payment->customer_id)
+        $existingEntry = Ledger::where('contact_id', $payment->customer_id)
             ->where('contact_type', 'customer')
             ->where('reference_no', $referenceNo)
             ->where('transaction_type', 'bounce_recovery')

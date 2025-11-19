@@ -28,7 +28,7 @@ class WalkInCustomerSeeder extends Seeder
                 'email' => '',
                 'address' => 'N/A',
                 'opening_balance' => 0.00,
-                'current_balance' => 0.00,
+                'opening_balance' => 0.00,
                 'customer_type' => 'retailer',
                 'location_id' => null,  // No specific location
                 'created_at' => now(),

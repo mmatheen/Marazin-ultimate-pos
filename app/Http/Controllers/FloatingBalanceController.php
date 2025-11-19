@@ -151,7 +151,7 @@ class FloatingBalanceController extends Controller
         try {
             $customer = Customer::findOrFail($customerId);
             
-            $floatingTransactions = \App\Models\Ledger::where('user_id', $customerId)
+            $floatingTransactions = \App\Models\Ledger::where('contact_id', $customerId)
                 ->where('contact_type', 'customer')
                 ->whereIn('transaction_type', [
                     'cheque_bounce', 
