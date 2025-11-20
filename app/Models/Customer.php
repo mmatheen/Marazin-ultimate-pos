@@ -198,46 +198,38 @@ class Customer extends Model
     }
 
     /**
-     * Create or update opening balance entry in ledger table
+     * Delegate opening balance sync to UnifiedLedgerService
+     * CENTRALIZED: All ledger operations go through UnifiedLedgerService
      */
     public function syncOpeningBalanceToLedger()
     {
-        // Check if opening balance entry already exists
-        $existingEntry = Ledger::where('contact_id', $this->id)
-            ->where('contact_type', 'customer')
-            ->where('transaction_type', 'opening_balance')
-            ->where('status', 'active')
-            ->first();
-
-        if ($this->opening_balance == 0) {
-            // If opening balance is 0, mark existing entry as reversed
-            if ($existingEntry) {
-                $existingEntry->update([
-                    'status' => 'reversed',
-                    'notes' => $existingEntry->notes . ' [REVERSED: Opening balance set to zero]'
-                ]);
-            }
-            return;
-        }
-
-        // Use the UnifiedLedgerService to create proper opening balance entries
+        // ✅ CENTRALIZED APPROACH: Delegate everything to UnifiedLedgerService
         $unifiedLedgerService = app(\App\Services\UnifiedLedgerService::class);
+        $unifiedLedgerService->handleCustomerOpeningBalance($this->id, $this->opening_balance);
+    }
+
+    /**
+     * Get current balance from ledger (for display in bulk payment selectors)
+     * This shows the TOTAL current amount due, not just opening balance portion
+     * This is what should be displayed as "Opening Balance" in bulk payments
+     */
+    public function getOpeningBalanceFromLedger()
+    {
+        // Return the current total balance using BalanceHelper (SINGLE SOURCE OF TRUTH)
+        // This includes opening balance + sales - payments - returns = current due
+        $currentBalance = BalanceHelper::getCustomerBalance($this->id);
         
-        if ($existingEntry) {
-            // If there's an existing entry, mark it as reversed and create a new one
-            $existingEntry->update([
-                'status' => 'reversed',
-                'notes' => $existingEntry->notes . ' [REVERSED: Opening balance updated]'
-            ]);
-        }
-        
-        // Create new opening balance entry using the service
-        $unifiedLedgerService->recordOpeningBalance(
-            $this->id, 
-            'customer', 
-            $this->opening_balance, 
-            'Opening Balance for Customer: ' . $this->full_name
-        );
+        // Return only positive balance (amount customer owes)
+        return max(0, $currentBalance);
+    }
+
+    /**
+     * Get current total due amount (alias for clarity)
+     * This is the actual amount the customer currently owes
+     */
+    public function getCurrentDueAmount()
+    {
+        return $this->getOpeningBalanceFromLedger();
     }
 
     /**

@@ -57,7 +57,7 @@ class UnifiedLedgerService
             'transaction_type' => 'opening_balance',
             'amount' => $amount,
             'notes' => $notes ?: "Opening balance for {$contactType}",
-            'created_by' => $createdBy
+            'created_by' => $createdBy ?? auth()->id() ?? 1
         ]);
     }
 
@@ -82,7 +82,7 @@ class UnifiedLedgerService
             'transaction_type' => 'sale',
             'amount' => $sale->final_total,
             'notes' => "Sale invoice #{$referenceNo}",
-            'created_by' => $createdBy
+            'created_by' => $createdBy ?? auth()->id() ?? 1
         ]);
     }
 
@@ -246,13 +246,15 @@ class UnifiedLedgerService
                 return null;
             }
 
-            // CORRECT APPROACH: Proper double-entry accounting for sale edit
-            // 1. Mark original sale entry as reversed (for audit trail)
-            // 2. Create credit entry to offset the reversed debit (shows the cancellation)
-            // 3. Create new debit entry for the updated amount
-            // This shows the complete accounting sequence: +4800, -4800, +4500 = +4500
+            // 🔥 PERFECT REVERSAL ACCOUNTING APPROACH:
+            // 1. Mark original sale entry as REVERSED (for audit trail)
+            // 2. Create CREDIT entry to reverse the old DEBIT amount
+            // 3. Create NEW DEBIT entry for the correct amount
+            // Example: Edit 5800 → 4000: +5800(reversed), -5800(reversal), +4000(new) = +4000 ✅
             
             $reversalNote = '[REVERSED: Sale edited on ' . now()->format('Y-m-d H:i:s') . ']';
+            
+            // Step 1: Mark original sale entry as reversed
             Ledger::where('reference_no', $sale->invoice_no)
                 ->where('contact_id', $sale->customer_id)
                 ->where('contact_type', 'customer')
@@ -263,34 +265,48 @@ class UnifiedLedgerService
                     'notes' => DB::raw("CONCAT(notes, ' " . addslashes($reversalNote) . "')")
                 ]);
 
-            // Create credit entry to offset the reversed debit (shows the accounting reversal)
-            $creditEntry = Ledger::createEntry([
+            // Step 2: Create REVERSAL entry (CREDIT to cancel old DEBIT)
+            $reversalEntry = Ledger::createEntry([
                 'contact_id' => $sale->customer_id,
-                'contact_type' => 'customer', 
+                'contact_type' => 'customer',
                 'transaction_date' => Carbon::now('Asia/Colombo'),
-                'reference_no' => $sale->invoice_no . '-REV',
-                'transaction_type' => 'adjustment_credit', // Use proper adjustment type for credit
-                'amount' => $oldFinalTotal, // Positive amount for adjustment_credit type
-                'notes' => 'Sale Edit - Credit to offset reversed amount (Rs' . number_format($oldFinalTotal, 2) . ')'
+                'reference_no' => $sale->invoice_no . '-REV-' . time(),
+                'transaction_type' => 'sale_adjustment',
+                'amount' => -$oldFinalTotal, // Negative amount creates CREDIT to reverse old DEBIT
+                'notes' => 'REVERSAL: Sale Edit - Cancel previous amount Rs.' . number_format($oldFinalTotal, 2) . ($editReason ? ' | Reason: ' . $editReason : '')
             ]);
 
-            // Create new entry for updated sale amount
-            $newEntry = Ledger::createEntry([
+            // Step 3: Create NEW sale entry with correct amount
+            $newSaleEntry = Ledger::createEntry([
                 'contact_id' => $sale->customer_id,
                 'contact_type' => 'customer',
                 'transaction_date' => Carbon::now('Asia/Colombo'),
                 'reference_no' => $sale->invoice_no,
                 'transaction_type' => 'sale',
                 'amount' => $newFinalTotal,
-                'notes' => 'Sale Edit - New Amount (Rs' . number_format($newFinalTotal, 2) . ')' . 
-                          ($difference >= 0 ? ' | Increase: +Rs' . number_format($difference, 2) : ' | Decrease: Rs' . number_format($difference, 2))
+                'notes' => 'Sale Edit - New Amount Rs.' . number_format($newFinalTotal, 2) . 
+                          ($difference >= 0 ? ' | Increase: +Rs' . number_format($difference, 2) : ' | Decrease: Rs' . number_format(abs($difference), 2)) .
+                          ($editReason ? ' | Reason: ' . $editReason : '')
+            ]);
+
+            Log::info("Perfect reversal accounting completed for sale edit", [
+                'sale_id' => $sale->id,
+                'customer_id' => $sale->customer_id,
+                'reference_no' => $sale->invoice_no,
+                'old_amount' => $oldFinalTotal,
+                'new_amount' => $newFinalTotal,
+                'difference' => $difference,
+                'reversal_entry_id' => $reversalEntry->id,
+                'new_entry_id' => $newSaleEntry->id
             ]);
 
             return [
-                'credit_entry' => $creditEntry,
-                'new_entry' => $newEntry,
+                'reversal_entry' => $reversalEntry,
+                'new_entry' => $newSaleEntry,
+                'old_amount' => $oldFinalTotal,
+                'new_amount' => $newFinalTotal,
                 'amount_difference' => $difference,
-                'method' => 'proper_double_entry'
+                'method' => 'perfect_reversal_accounting'
             ];
         });
     }
@@ -421,9 +437,9 @@ class UnifiedLedgerService
         return Ledger::createEntry([
             'contact_id' => $contactType === 'customer' ? $payment->customer_id : $payment->supplier_id,
             'contact_type' => $contactType,
-            'transaction_date' => $transactionDate, // Use normalized date
+            'transaction_date' => $transactionDate,
             'reference_no' => $payment->reference_no,
-            'transaction_type' => 'payments',
+            'transaction_type' => 'opening_balance_payment', // Use specific opening balance payment type
             'amount' => $payment->amount,
             'notes' => $payment->notes ?: "Opening balance payment"
         ]);
@@ -435,66 +451,107 @@ class UnifiedLedgerService
      */
     public function recordOpeningBalanceAdjustment($contactId, $contactType, $oldAmount, $newAmount, $notes = '')
     {
-        // Only create ledger entry if there's an actual change
-        if ($oldAmount == $newAmount) {
-            return null;
-        }
-        
-        $referenceBase = 'OB-' . strtoupper($contactType) . '-' . $contactId;
-        
-        // Step 1: Create balancing credit entry to cancel the old opening balance
-        if ($oldAmount != 0) {
-            $balancingReferenceNo = $referenceBase . '-BAL-' . time();
+        return DB::transaction(function () use ($contactId, $contactType, $oldAmount, $newAmount, $notes) {
+            // Only create ledger entries if there's an actual change
+            if ($oldAmount == $newAmount) {
+                return null;
+            }
             
-            if ($contactType === 'customer') {
-                // For customers: Credit to cancel the old debit opening balance
-                $balancingEntry = Ledger::createEntry([
+            $referenceBase = 'OB-' . strtoupper($contactType) . '-' . $contactId;
+            
+            // 🔥 THREE-RECORD REVERSAL ACCOUNTING:
+            // Step 1: Find and mark existing opening balance as 'reversed'
+            $oldEntry = null;
+            if ($oldAmount != 0) {
+                $oldEntry = Ledger::where('contact_id', $contactId)
+                    ->where('contact_type', $contactType)
+                    ->whereIn('transaction_type', ['opening_balance', 'opening_balance_adjustment']) // ✅ Check both types
+                    ->where('status', 'active')
+                    ->orderBy('id', 'desc') // Use id for reliable ordering when created_at is same
+                    ->first();
+                    
+                // Mark the old entry as reversed (for audit trail)
+                if ($oldEntry) {
+                    $oldEntry->update([
+                        'status' => 'reversed',
+                        'notes' => ($oldEntry->notes ?: '') . ' [REVERSED: Opening balance edited on ' . now()->format('Y-m-d H:i:s') . ']'
+                    ]);
+                }
+            }
+
+            // Step 2: Create REVERSAL entry to mathematically cancel the old amount
+            $reversalEntry = null;
+            if ($oldAmount != 0) {
+                $reversalReferenceNo = $referenceBase . '-REV-' . time();
+                
+                if ($contactType === 'customer') {
+                    // For customers: Old opening was DEBIT, so create CREDIT to reverse it
+                    $reversalEntry = Ledger::createEntry([
+                        'contact_id' => $contactId,
+                        'contact_type' => $contactType,
+                        'transaction_date' => Carbon::now('Asia/Colombo'),
+                        'reference_no' => $reversalReferenceNo,
+                        'transaction_type' => 'opening_balance_adjustment',
+                        'amount' => -$oldAmount, // Negative amount creates CREDIT to reverse old DEBIT
+                        'notes' => 'REVERSAL: Opening Balance Edit - Cancel previous amount Rs.' . number_format($oldAmount, 2) . ($oldEntry ? ' [Cancels Entry ID: ' . $oldEntry->id . ']' : '')
+                    ]);
+                } else {
+                    // For suppliers: Old opening was CREDIT, so create DEBIT to reverse it  
+                    $reversalEntry = Ledger::createEntry([
+                        'contact_id' => $contactId,
+                        'contact_type' => $contactType,
+                        'transaction_date' => Carbon::now('Asia/Colombo'),
+                        'reference_no' => $reversalReferenceNo,
+                        'transaction_type' => 'opening_balance_adjustment',
+                        'amount' => $oldAmount, // Positive amount creates DEBIT to reverse old CREDIT
+                        'notes' => 'REVERSAL: Opening Balance Edit - Cancel previous amount Rs.' . number_format($oldAmount, 2) . ($oldEntry ? ' [Cancels Entry ID: ' . $oldEntry->id . ']' : '')
+                    ]);
+                }
+            }
+            
+            // Step 3: Create NEW opening balance entry with the correct amount
+            $newOpeningEntry = null;
+            if ($newAmount != 0) {
+                $newReferenceNo = $referenceBase;
+                
+                $newOpeningEntry = Ledger::createEntry([
                     'contact_id' => $contactId,
                     'contact_type' => $contactType,
                     'transaction_date' => Carbon::now('Asia/Colombo'),
-                    'reference_no' => $balancingReferenceNo,
-                    'transaction_type' => 'opening_balance_adjustment',
-                    'amount' => -$oldAmount, // Negative amount creates credit entry to balance
-                    'notes' => 'Opening Balance Correction - Balancing entry for previous opening balance Rs.' . number_format($oldAmount, 2)
-                ]);
-            } else {
-                // For suppliers: Debit to cancel the old credit opening balance  
-                $balancingEntry = Ledger::createEntry([
-                    'contact_id' => $contactId,
-                    'contact_type' => $contactType,
-                    'transaction_date' => Carbon::now('Asia/Colombo'),
-                    'reference_no' => $balancingReferenceNo,
-                    'transaction_type' => 'opening_balance_adjustment',
-                    'amount' => $oldAmount, // Positive amount creates debit entry to balance
-                    'notes' => 'Opening Balance Correction - Balancing entry for previous opening balance Rs.' . number_format($oldAmount, 2)
+                    'reference_no' => $newReferenceNo,
+                    'transaction_type' => 'opening_balance',
+                    'amount' => $newAmount,
+                    'notes' => $notes ?: 'Opening Balance for ' . ucfirst($contactType) . ': ' . ($contactType === 'customer' ? Customer::find($contactId)->name ?? 'Unknown' : Supplier::find($contactId)->name ?? 'Unknown')
                 ]);
             }
-        }
-        
-        // Step 2: Create new opening balance entry with the correct amount
-        if ($newAmount != 0) {
-            $newReferenceNo = $referenceBase;
             
-            $newOpeningEntry = Ledger::createEntry([
+            // **IMPORTANT: Update the customer/supplier table to keep opening_balance field in sync**
+            // This ensures UI consistency between customer info panel and ledger calculations
+            if ($contactType === 'customer') {
+                Customer::where('id', $contactId)->update(['opening_balance' => $newAmount]);
+            } elseif ($contactType === 'supplier') {
+                \App\Models\Supplier::where('id', $contactId)->update(['opening_balance' => $newAmount]);
+            }
+            
+            Log::info("Three-record reversal accounting completed for opening balance", [
                 'contact_id' => $contactId,
                 'contact_type' => $contactType,
-                'transaction_date' => Carbon::now('Asia/Colombo'),
-                'reference_no' => $newReferenceNo,
-                'transaction_type' => 'opening_balance',
-                'amount' => $newAmount,
-                'notes' => $notes ?: 'Opening Balance for ' . ucfirst($contactType) . ': ' . Customer::find($contactId)->name ?? 'Unknown'
+                'old_amount' => $oldAmount,
+                'new_amount' => $newAmount,
+                'old_entry_id' => $oldEntry ? $oldEntry->id : null,
+                'reversal_entry_id' => $reversalEntry ? $reversalEntry->id : null,
+                'new_entry_id' => $newOpeningEntry ? $newOpeningEntry->id : null
             ]);
-        }
-        
-        // **IMPORTANT: Update the customer/supplier table to keep opening_balance field in sync**
-        // This ensures UI consistency between customer info panel and ledger calculations
-        if ($contactType === 'customer') {
-            Customer::where('id', $contactId)->update(['opening_balance' => $newAmount]);
-        } elseif ($contactType === 'supplier') {
-            \App\Models\Supplier::where('id', $contactId)->update(['opening_balance' => $newAmount]);
-        }
-        
-        return isset($newOpeningEntry) ? $newOpeningEntry : (isset($balancingEntry) ? $balancingEntry : null);
+            
+            return [
+                'old_entry' => $oldEntry,
+                'reversal_entry' => $reversalEntry,
+                'new_entry' => $newOpeningEntry,
+                'old_amount' => $oldAmount,
+                'new_amount' => $newAmount,
+                'method' => 'three_record_reversal'
+            ];
+        });
     }
 
     /**
@@ -541,12 +598,20 @@ class UnifiedLedgerService
             });
         
         // Calculate running balance for audit trail display
-        // Show progressive balance at each step but reset when opening balance is corrected
-        $runningBalanceForAudit = 0;
-        $hasActiveOpeningBalance = false;
+        // Show progressive balance at each step starting from the correct historical balance
+        
+        // Get the balance before the start date for accurate running balance calculation
+        $balanceBeforeStartDate = Ledger::where('contact_id', $customerId)
+            ->where('contact_type', 'customer')
+            ->where('transaction_date', '<', Carbon::parse($startDate)->startOfDay())
+            ->where('status', 'active') // Only active transactions for balance calculation
+            ->sum(DB::raw('debit - credit'));
+        
+        $runningBalanceForAudit = (float)$balanceBeforeStartDate; // Start from the correct historical balance
         
         // First pass: check if there's an active opening balance to determine reset point
         $activeOpeningBalance = 0;
+        $hasActiveOpeningBalance = false;
         foreach($ledgerTransactions as $ledger) {
             if ($ledger->transaction_type === 'opening_balance' && $ledger->status === 'active') {
                 $activeOpeningBalance = $ledger->debit - $ledger->credit;
@@ -559,25 +624,24 @@ class UnifiedLedgerService
             // For audit trail transparency, show progressive balance for each transaction
             
             if ($ledger->transaction_type === 'opening_balance' && $ledger->status === 'active' && $hasActiveOpeningBalance) {
-                // When we reach the active opening balance, reset to show correct amount
+                // For opening balance, set the running balance to the opening balance amount
+                // This ensures the opening balance shows the correct starting point
                 $runningBalanceForAudit = $activeOpeningBalance;
             } else {
-                // For all other entries, show progressive change
-                $runningBalanceForAudit += ($ledger->debit - $ledger->credit);
+                // For all other entries, add the transaction effect to running balance
+                // Skip reversed entries to maintain clean business logic
+                if ($ledger->status === 'active') {
+                    $runningBalanceForAudit += ($ledger->debit - $ledger->credit);
+                }
+                // For reversed entries, we still calculate but mark them
             }
             
             // Check if this is a reversal for business logic (but still show in progressive balance)
             $isReversalEntry = false;
-            if ($ledger->status !== 'active' ||
-                strpos(strtolower($ledger->reference_no ?? ''), 'rev') !== false ||
-                strpos(strtolower($ledger->reference_no ?? ''), 'edit') !== false ||
-                strpos(strtolower($ledger->reference_no ?? ''), 'reversal') !== false ||
-                strpos(strtolower($ledger->notes ?? ''), 'reversal') !== false ||
-                strpos(strtolower($ledger->notes ?? ''), '[reversed') !== false ||
-                strpos(strtolower($ledger->notes ?? ''), 'edit') !== false ||
-                strpos(strtolower($ledger->notes ?? ''), 'correction') !== false ||
-                strpos(strtolower($ledger->notes ?? ''), 'removed') !== false) {
+            if ($ledger->status !== 'active') {
                 $isReversalEntry = true;
+                // For reversed entries, don't change the running balance but show them in audit trail
+                // The running balance should reflect the business state (excluding reversals)
             }
             
             $ledger->calculated_running_balance = $runningBalanceForAudit;
@@ -588,34 +652,20 @@ class UnifiedLedgerService
 
         // Apply filtering based on $showFullHistory parameter
         if (!$showFullHistory) {
-            // **CLEAN VIEW: Hide technical reversal entries for better user experience**
-            // Hide entries with status='reversed' and other technical reversal indicators
-            // These are kept in database for audit trail but hidden from normal business view
+            // **CLEAN VIEW: Filter out technical reversal entries for opening balance edits**
             $transactionsToProcess = $ledgerTransactions->filter(function ($ledger) {
-                // Hide entries with status='reversed'
-                if (isset($ledger->status) && $ledger->status === 'reversed') {
+                // Only show active entries
+                if (!isset($ledger->status) || $ledger->status !== 'active') {
                     return false;
                 }
                 
-                // Hide entries with EDIT-REV or EDIT-CUST-REV in reference number (edit reversals)
-                if (strpos($ledger->reference_no, 'EDIT-REV') !== false || 
-                    strpos($ledger->reference_no, 'EDIT-CUST-REV') !== false) {
+                // Filter out opening balance adjustment (reversal) entries
+                // These are technical entries created when editing opening balances
+                if ($ledger->transaction_type === 'opening_balance_adjustment' ||
+                    (isset($ledger->notes) && str_contains(strtolower($ledger->notes), 'cancel previous amount'))) {
                     return false;
                 }
                 
-                // Hide technical reversal entries (these are system-generated corrections)
-                // Hide if notes contain "[REVERSED:" (system reversal marker)
-                if (strpos($ledger->notes, '[REVERSED:') !== false) {
-                    return false;
-                }
-                
-                // Hide edit reversal entries that are purely technical
-                // These have "REVERSAL: Sale Edit" pattern and are system corrections
-                if (strpos($ledger->notes, 'REVERSAL: Sale Edit') !== false) {
-                    return false;
-                }
-                
-                // Show all other entries including opening balance and legitimate business transactions
                 return true;
             });
         } else {
@@ -714,9 +764,8 @@ class UnifiedLedgerService
             $totalPayments = $ledgerTransactions
                 ->whereIn('transaction_type', ['sale_payment', 'payment'])
                 ->filter(function($entry) {
-                    // Only count active payments, exclude reversed entries
-                    return ($entry->status === 'active' || !isset($entry->status)) &&
-                           !str_contains(strtolower($entry->notes ?? ''), '[reversed');
+                    // Only count active payments
+                    return $entry->status === 'active';
                 })
                 ->sum('credit');
         }
@@ -725,9 +774,8 @@ class UnifiedLedgerService
         $totalReturns = $ledgerTransactions
             ->whereIn('transaction_type', ['sale_return', 'sale_return_with_bill', 'sale_return_without_bill'])
             ->filter(function($entry) {
-                // Only count active returns, exclude reversed entries
-                return ($entry->status === 'active' || !isset($entry->status)) &&
-                       !str_contains(strtolower($entry->notes ?? ''), '[reversed');
+                // Only count active returns
+                return $entry->status === 'active';
             })
             ->sum('credit');
         
@@ -755,10 +803,48 @@ class UnifiedLedgerService
             
         $openingBalance = $openingBalanceLedger ? $openingBalanceLedger->balance : $customer->opening_balance;
 
-        // For accurate calculations, use the current balance from ledger system
-        // This represents the true outstanding amount considering all transactions
-        $effectiveDue = max(0, $currentBalance);
-        $advanceAmount = $currentBalance < 0 ? abs($currentBalance) : 0;
+        // CRITICAL FIX: When showing full audit trail, the effective due should match the final running balance
+        // This ensures consistency between what's displayed and the effective due amount
+        if ($showFullHistory && !$transactionsToProcess->isEmpty()) {
+            // Use the final running balance from the displayed transactions
+            $finalTransaction = $transactionsToProcess->last();
+            if ($finalTransaction && isset($finalTransaction->calculated_running_balance)) {
+                // For full audit trail, the effective due should match the displayed running balance
+                $auditTrailFinalBalance = (float) $finalTransaction->calculated_running_balance;
+                
+                // IMPORTANT: For advance calculation, we should still use business logic
+                // Even in full audit mode, advances should be calculated correctly
+                // The customer should have 0 advance since they owe Rs. 8,000
+                
+                $effectiveDue = max(0, $auditTrailFinalBalance);
+                $advanceAmount = $auditTrailFinalBalance < 0 ? abs($auditTrailFinalBalance) : 0;
+                
+                // However, if the audit trail shows a positive balance (customer owes money),
+                // then advance amount should be 0
+                if ($auditTrailFinalBalance > 0) {
+                    $advanceAmount = 0; // No advance when customer owes money
+                }
+                
+                // Store both values for comparison
+                $currentBalanceForDisplay = $auditTrailFinalBalance; // Use audit trail balance for display
+                $auditTrailBalance = $auditTrailFinalBalance; // Audit trail balance
+            } else {
+                // Fallback to BalanceHelper calculation
+                $effectiveDue = max(0, $currentBalance);
+                $advanceAmount = $currentBalance < 0 ? abs($currentBalance) : 0;
+                $currentBalanceForDisplay = $currentBalance;
+                $auditTrailBalance = $currentBalance;
+            }
+        } else {
+            // For normal view, ALWAYS use BalanceHelper for consistency
+            // This ensures POS, ledger, and all other places show the same balance
+            $filteredBalance = BalanceHelper::getCustomerBalance($customerId);
+            
+            $effectiveDue = max(0, $filteredBalance);
+            $advanceAmount = $filteredBalance < 0 ? abs($filteredBalance) : 0;
+            $currentBalanceForDisplay = $filteredBalance;
+            $auditTrailBalance = $filteredBalance;
+        }
         
         // Outstanding Due should match Effective Due for consistency in reports
         $totalOutstandingDue = $effectiveDue;
@@ -771,7 +857,7 @@ class UnifiedLedgerService
                 'email' => $customer->email,
                 'address' => $customer->address,
                 'opening_balance' => $customer->opening_balance,
-                'current_balance' => $currentBalance,
+                'current_balance' => isset($currentBalanceForDisplay) ? $currentBalanceForDisplay : $currentBalance,
             ],
             'transactions' => $transactions,
             'summary' => [
@@ -784,6 +870,10 @@ class UnifiedLedgerService
                 'effective_due' => $effectiveDue,
                 'outstanding_due' => $totalOutstandingDue,
                 'opening_balance' => $openingBalance,
+                // Debug information for troubleshooting
+                'current_balance_from_helper' => $currentBalance, // From BalanceHelper (business logic)
+                'audit_trail_final_balance' => isset($auditTrailBalance) ? $auditTrailBalance : null, // From audit trail
+                'show_full_history' => $showFullHistory, // Mode indicator
             ],
             'period' => [
                 'start_date' => $startDate,
@@ -819,19 +909,9 @@ class UnifiedLedgerService
         }
 
         // Apply filtering based on $showFullHistory parameter
+        // Apply status-based filtering only (clean and simple)
         if (!$showFullHistory) {
-            // **IMPORTANT: Exclude reversal and deleted entries from display for clean view**
-            // These entries are kept in database for audit trail but hidden from user view
-            // -REV, -OLD-REV, -OLD: From payment edits
-            // -DELETED, -DEL-REV: From payment deletions
-            $ledgerQuery->where(function($query) {
-                $query->where('reference_no', 'NOT LIKE', '%-REV')
-                      ->where('reference_no', 'NOT LIKE', '%-OLD-REV')
-                      ->where('reference_no', 'NOT LIKE', '%-OLD')
-                      ->where('reference_no', 'NOT LIKE', '%-DELETED')
-                      ->where('reference_no', 'NOT LIKE', '%-DEL-REV')
-                      ->where('notes', 'NOT LIKE', 'REVERSAL:%'); // Exclude reversal entries
-            });
+            $ledgerQuery->where('status', 'active');
         }
 
         $ledgerTransactions = $ledgerQuery
@@ -2013,28 +2093,139 @@ class UnifiedLedgerService
     }
 
     /**
-     * Handle payment edit - create reversal entries and new entries
+     * 🔥 PERFECT REVERSAL ACCOUNTING: Payment Edit
+     * Creates reversal entry and new entry for payment edits
      */
     public function editPayment($payment, $oldAmount, $newAmount, $editReason = '', $editedBy = null)
     {
-        // First, reverse the original payment entry
-        $this->reversePaymentEntry($payment, "Payment edited: " . $editReason, $editedBy);
-
-        // Create new payment entry with updated amount
-        $payment->amount = $newAmount;
-        if ($payment->customer_id) {
-            return $this->recordSalePayment($payment, null, $editedBy);
-        } else {
-            return $this->recordPurchasePayment($payment, null, $editedBy);
-        }
+        return DB::transaction(function () use ($payment, $oldAmount, $newAmount, $editReason, $editedBy) {
+            // Skip if amounts are identical
+            if ($oldAmount == $newAmount) {
+                return null;
+            }
+            
+            $referenceNo = $payment->reference_no ?: 'PAY-' . $payment->id;
+            $contactType = $payment->customer_id ? 'customer' : 'supplier';
+            $contactId = $payment->customer_id ?: $payment->supplier_id;
+            
+            // Step 1: Mark original payment entry as REVERSED
+            $originalEntry = Ledger::where('reference_no', $referenceNo)
+                ->where('contact_id', $contactId)
+                ->where('contact_type', $contactType)
+                ->where('transaction_type', 'payments')
+                ->where('status', 'active')
+                ->orderBy('created_at', 'desc')
+                ->first();
+                
+            if ($originalEntry) {
+                $originalEntry->update([
+                    'status' => 'reversed',
+                    'notes' => $originalEntry->notes . ' [REVERSED: Payment edited on ' . now()->format('Y-m-d H:i:s') . ']'
+                ]);
+            }
+            
+            // Step 2: Create REVERSAL entry to cancel old payment
+            $reversalEntry = Ledger::createEntry([
+                'contact_id' => $contactId,
+                'contact_type' => $contactType,
+                'transaction_date' => Carbon::now('Asia/Colombo'),
+                'reference_no' => $referenceNo . '-REV-' . time(),
+                'transaction_type' => 'payment_adjustment',
+                'amount' => $oldAmount, // Positive amount creates DEBIT to reverse old CREDIT
+                'notes' => 'REVERSAL: Payment Edit - Cancel previous amount Rs.' . number_format($oldAmount, 2) . ($editReason ? ' | Reason: ' . $editReason : ''),
+                'created_by' => $editedBy
+            ]);
+            
+            // Step 3: Create NEW payment entry with correct amount
+            $newPaymentEntry = Ledger::createEntry([
+                'contact_id' => $contactId,
+                'contact_type' => $contactType,
+                'transaction_date' => Carbon::now('Asia/Colombo'),
+                'reference_no' => $referenceNo,
+                'transaction_type' => 'payments',
+                'amount' => $newAmount,
+                'notes' => 'Payment Edit - New Amount Rs.' . number_format($newAmount, 2) . 
+                          ($editReason ? ' | Reason: ' . $editReason : ''),
+                'created_by' => $editedBy
+            ]);
+            
+            Log::info("Perfect reversal accounting completed for payment edit", [
+                'payment_id' => $payment->id,
+                'contact_id' => $contactId,
+                'contact_type' => $contactType,
+                'reference_no' => $referenceNo,
+                'old_amount' => $oldAmount,
+                'new_amount' => $newAmount,
+                'reversal_entry_id' => $reversalEntry->id,
+                'new_entry_id' => $newPaymentEntry->id
+            ]);
+            
+            return [
+                'reversal_entry' => $reversalEntry,
+                'new_entry' => $newPaymentEntry,
+                'old_amount' => $oldAmount,
+                'new_amount' => $newAmount,
+                'method' => 'perfect_reversal_accounting'
+            ];
+        });
     }
 
     /**
-     * Handle payment deletion - create reversal entry
+     * 🔥 PERFECT REVERSAL ACCOUNTING: Payment Delete
+     * Creates reversal entry for payment deletions
      */
     public function deletePayment($payment, $deleteReason = '', $deletedBy = null)
     {
-        return $this->reversePaymentEntry($payment, "Payment deleted: " . $deleteReason, $deletedBy);
+        return DB::transaction(function () use ($payment, $deleteReason, $deletedBy) {
+            $referenceNo = $payment->reference_no ?: 'PAY-' . $payment->id;
+            $contactType = $payment->customer_id ? 'customer' : 'supplier';
+            $contactId = $payment->customer_id ?: $payment->supplier_id;
+            
+            // Step 1: Mark original payment entry as REVERSED
+            $originalEntry = Ledger::where('reference_no', $referenceNo)
+                ->where('contact_id', $contactId)
+                ->where('contact_type', $contactType)
+                ->where('transaction_type', 'payments')
+                ->where('status', 'active')
+                ->orderBy('created_at', 'desc')
+                ->first();
+                
+            if ($originalEntry) {
+                $originalEntry->update([
+                    'status' => 'reversed',
+                    'notes' => $originalEntry->notes . ' [REVERSED: Payment deleted on ' . now()->format('Y-m-d H:i:s') . ']'
+                ]);
+                
+                // Step 2: Create REVERSAL entry to cancel the deleted payment
+                $reversalEntry = Ledger::createEntry([
+                    'contact_id' => $contactId,
+                    'contact_type' => $contactType,
+                    'transaction_date' => Carbon::now('Asia/Colombo'),
+                    'reference_no' => $referenceNo . '-DEL-' . time(),
+                    'transaction_type' => 'payment_adjustment',
+                    'amount' => $payment->amount, // Positive amount creates DEBIT to reverse old CREDIT
+                    'notes' => 'REVERSAL: Payment Deleted - Cancel amount Rs.' . number_format($payment->amount, 2) . ($deleteReason ? ' | Reason: ' . $deleteReason : ''),
+                    'created_by' => $deletedBy
+                ]);
+                
+                Log::info("Perfect reversal accounting completed for payment deletion", [
+                    'payment_id' => $payment->id,
+                    'contact_id' => $contactId,
+                    'contact_type' => $contactType,
+                    'reference_no' => $referenceNo,
+                    'amount' => $payment->amount,
+                    'reversal_entry_id' => $reversalEntry->id
+                ]);
+                
+                return [
+                    'reversal_entry' => $reversalEntry,
+                    'deleted_amount' => $payment->amount,
+                    'method' => 'perfect_reversal_accounting'
+                ];
+            }
+            
+            return null;
+        });
     }
 
     /**
@@ -2147,6 +2338,56 @@ class UnifiedLedgerService
                 'current_balance' => $balance,
                 'balance_type' => $balance > 0 ? 'payable' : 'receivable'
             ];
+        });
+    }
+
+    /**
+     * ===================================================================
+     * 🎯 CENTRALIZED OPENING BALANCE HANDLER
+     * ===================================================================
+     * 
+     * Handles all opening balance operations for customers/suppliers
+     * This centralizes logic that was scattered in Customer model
+     */
+    public function handleCustomerOpeningBalance($customerId, $newOpeningBalance)
+    {
+        return DB::transaction(function () use ($customerId, $newOpeningBalance) {
+            
+            // Find existing opening balance entry (if any)
+            $existingEntry = Ledger::where('contact_id', $customerId)
+                ->where('contact_type', 'customer')
+                ->where('transaction_type', 'opening_balance')
+                ->where('status', 'active')
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if ($existingEntry) {
+                // Customer already has opening balance - need to adjust
+                $oldAmount = $existingEntry->amount ?? ($existingEntry->debit - $existingEntry->credit);
+                
+                if ($oldAmount != $newOpeningBalance) {
+                    // Use proper reversal accounting for adjustment
+                    return $this->recordOpeningBalanceAdjustment(
+                        $customerId,
+                        'customer',
+                        $oldAmount,
+                        $newOpeningBalance,
+                        'Opening Balance Update via Customer Model'
+                    );
+                }
+            } else {
+                // No existing entry - create new opening balance
+                if ($newOpeningBalance != 0) {
+                    return $this->recordOpeningBalance(
+                        $customerId, 
+                        'customer', 
+                        $newOpeningBalance, 
+                        'Opening Balance for Customer ID: ' . $customerId
+                    );
+                }
+            }
+            
+            return null; // No changes needed
         });
     }
 }

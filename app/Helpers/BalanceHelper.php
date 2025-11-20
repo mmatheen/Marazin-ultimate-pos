@@ -26,57 +26,51 @@ use Illuminate\Support\Facades\DB;
  */
 class BalanceHelper
 {
-    /**
-     * ===================================================================
-     * 🏆 MAIN CUSTOMER BALANCE METHOD
-     * ===================================================================
-     * 
-     * Used everywhere: Customer model, API, POS system, reports
-     * 
-     * Simple Logic:
-     * - Debits (sales, opening balance) = Customer owes us
-     * - Credits (payments, returns) = Customer paid us
-     * - Balance = Debits - Credits
-     * - Positive = Customer owes money
-     * - Negative = Customer has advance
-     * 
-     * IMPORTANT: Includes only ACTIVE entries excluding reversals
-     * This ensures proper accounting where reversal entries
-     * (marked as 'active' but containing reversal indicators)
-     * are properly excluded from balance calculations.
-     * 
-     * Reversal indicators include:
-     * - Reference numbers with: 'rev', 'edit', 'reversal'
-     * - Notes containing: 'reversal', '[reversed', 'edit', 'correction', 'removed'
-     */
+   
     public static function getCustomerBalance($customerId)
     {
         if ($customerId == 1) {
             return 0.0; // Walk-in customer always 0
         }
         
-        $result = DB::selectOne("
-            SELECT 
-                COALESCE(SUM(debit), 0) as total_debits,
-                COALESCE(SUM(credit), 0) as total_credits,
-                COALESCE(SUM(debit) - SUM(credit), 0) as balance
-            FROM ledgers 
-            WHERE contact_id = ? 
-                AND contact_type = 'customer'
-                AND status = 'active'
-                AND reference_no NOT LIKE '%rev%'
-                AND reference_no NOT LIKE '%edit%'
-                AND reference_no NOT LIKE '%reversal%'
-                AND (notes IS NULL OR (
-                    notes NOT LIKE '%reversal%' 
-                    AND notes NOT LIKE '%[reversed%'
-                    AND notes NOT LIKE '%edit%'
-                    AND notes NOT LIKE '%correction%'
-                    AND notes NOT LIKE '%removed%'
-                ))
-        ", [$customerId]);
+        // Get customer's current opening balance (this reflects final corrected amount)
+        $customer = \App\Models\Customer::find($customerId);
+        if (!$customer) {
+            return 0.0;
+        }
         
-        return $result ? (float) $result->balance : 0.0;
+        // Check if there are opening balance corrections
+        $hasOpeningBalanceCorrections = \App\Models\Ledger::where('contact_id', $customerId)
+            ->where('contact_type', 'customer')
+            ->where('transaction_type', 'opening_balance_adjustment')
+            ->exists();
+            
+        if ($hasOpeningBalanceCorrections) {
+            // When opening balance has been corrected, use smart calculation
+            // Use customer's current opening balance + non-opening-balance transactions
+            $nonOpeningBalanceSum = \App\Models\Ledger::where('contact_id', $customerId)
+                ->where('contact_type', 'customer')
+                ->where('status', 'active')
+                ->where('transaction_type', '!=', 'opening_balance')
+                ->where('transaction_type', '!=', 'opening_balance_adjustment')
+                ->sum(DB::raw('debit - credit'));
+                
+            return (float)($customer->opening_balance + $nonOpeningBalanceSum);
+        } else {
+            // Normal calculation when no opening balance corrections
+            $result = DB::selectOne("
+                SELECT 
+                    COALESCE(SUM(debit), 0) as total_debits,
+                    COALESCE(SUM(credit), 0) as total_credits,
+                    COALESCE(SUM(debit) - SUM(credit), 0) as balance
+                FROM ledgers 
+                WHERE contact_id = ? 
+                    AND contact_type = 'customer'
+                    AND status = 'active'
+            ", [$customerId]);
+            
+            return $result ? (float) $result->balance : 0.0;
+        }
     }
     
     /**
@@ -100,16 +94,6 @@ class BalanceHelper
             WHERE contact_id = ? 
                 AND contact_type = 'supplier'
                 AND status = 'active'
-                AND reference_no NOT LIKE '%rev%'
-                AND reference_no NOT LIKE '%edit%'
-                AND reference_no NOT LIKE '%reversal%'
-                AND (notes IS NULL OR (
-                    notes NOT LIKE '%reversal%' 
-                    AND notes NOT LIKE '%[reversed%'
-                    AND notes NOT LIKE '%edit%'
-                    AND notes NOT LIKE '%correction%'
-                    AND notes NOT LIKE '%removed%'
-                ))
         ", [$supplierId]);
         
         return $result ? (float) $result->balance : 0.0;
@@ -230,16 +214,6 @@ class BalanceHelper
             WHERE contact_id IN ({$placeholders})
                 AND contact_type = 'customer'
                 AND status = 'active'
-                AND reference_no NOT LIKE '%rev%'
-                AND reference_no NOT LIKE '%edit%'
-                AND reference_no NOT LIKE '%reversal%'
-                AND (notes IS NULL OR (
-                    notes NOT LIKE '%reversal%' 
-                    AND notes NOT LIKE '%[reversed%'
-                    AND notes NOT LIKE '%edit%'
-                    AND notes NOT LIKE '%correction%'
-                    AND notes NOT LIKE '%removed%'
-                ))
             GROUP BY contact_id
         ", $customerIds);
 

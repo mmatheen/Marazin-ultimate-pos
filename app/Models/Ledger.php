@@ -381,6 +381,26 @@ class Ledger extends Model
                 }
                 break;
 
+            case 'opening_balance_adjustment':
+                // Opening balance adjustment for reversal accounting
+                // This handles the reversal entry in perfect reversal accounting
+                if ($data['contact_type'] === 'customer') {
+                    // For customers: positive amount = debit, negative amount = credit (reversal)
+                    if ($data['amount'] > 0) {
+                        $debit = $data['amount'];
+                    } else {
+                        $credit = abs($data['amount']);
+                    }
+                } else {
+                    // For suppliers: positive amount = credit, negative amount = debit (reversal)
+                    if ($data['amount'] > 0) {
+                        $credit = $data['amount'];
+                    } else {
+                        $debit = abs($data['amount']);
+                    }
+                }
+                break;
+
             case 'cheque_bounce':
                 // Cheque bounce increases customer debt (they owe us the bounced amount)
                 if ($data['contact_type'] === 'customer') {
@@ -453,7 +473,7 @@ class Ledger extends Model
             'credit' => $credit,
             'status' => $data['status'] ?? 'active',
             'notes' => $data['notes'] ?? '',
-            'created_by' => $data['created_by'] ?? null
+            'created_by' => $data['created_by'] ?? auth()->id() ?? 1 // Auto-set to authenticated user or default to admin
         ]);
 
         return $ledger;
@@ -596,6 +616,7 @@ class Ledger extends Model
             'purchase_return' => 'Purchase Return',
             'return_payment' => 'Return Payment',
             'opening_balance_payment' => 'Opening Balance Payment',
+            'opening_balance_adjustment' => 'Opening Balance Adjustment',
             default => ucfirst(str_replace('_', ' ', $type))
         };
     }

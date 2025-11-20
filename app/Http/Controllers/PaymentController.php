@@ -1327,25 +1327,21 @@ class PaymentController extends Controller
 
     private function reduceEntityOpeningBalance($entity, &$remainingAmount, $paymentMethod = 'cash', $request = null)
     {
-        if ($entity->opening_balance > 0 && $remainingAmount > 0) {
-            $openingBalancePayment = min($remainingAmount, $entity->opening_balance);
+        // Calculate available opening balance from ledger, not customer table
+        $currentOpeningBalance = $this->calculateCurrentOpeningBalanceFromLedger($entity);
+        
+        if ($currentOpeningBalance > 0 && $remainingAmount > 0) {
+            $openingBalancePayment = min($remainingAmount, $currentOpeningBalance);
             
             // Create opening balance settlement payment
             $this->createOpeningBalancePayment($entity, $openingBalancePayment, $paymentMethod, $request);
             
-            // **CRITICAL FIX**: Update opening balance when it's fully or partially paid
-            // This is essential for accurate customer balance display and reporting
-            $newOpeningBalance = $entity->opening_balance - $openingBalancePayment;
-            
-            // Update the opening balance in the customers/suppliers table
+            // **IMPORTANT**: DO NOT update customer table opening_balance field during payments
+            // Customer table opening_balance should only change during edits via CustomerController
+            // Current balance is calculated from ledger entries, not customer table field
             $entityType = $entity instanceof Customer ? 'customer' : 'supplier';
-            if ($entityType === 'customer') {
-                Customer::where('id', $entity->id)->update(['opening_balance' => $newOpeningBalance]);
-            } else {
-                Supplier::where('id', $entity->id)->update(['opening_balance' => $newOpeningBalance]);
-            }
             
-            Log::info("Opening balance updated for {$entityType} {$entity->id}: {$entity->opening_balance} -> {$newOpeningBalance}");
+            Log::info("Opening balance payment recorded for {$entityType} {$entity->id}: Payment amount {$openingBalancePayment}");
             
             // Reduce remaining amount
             $remainingAmount -= $openingBalancePayment;
@@ -1392,6 +1388,42 @@ class PaymentController extends Controller
         }
 
         return $payment;
+    }
+
+    /**
+     * Calculate current opening balance available for payment from ledger entries
+     * This ensures we don't rely on customer table field, but actual ledger state
+     */
+    private function calculateCurrentOpeningBalanceFromLedger($entity)
+    {
+        $entityType = $entity instanceof Customer ? 'customer' : 'supplier';
+        
+        // Get the latest active opening balance entry (after all edits and reversals)
+        $latestOpeningBalance = Ledger::where('contact_id', $entity->id)
+            ->where('contact_type', $entityType)
+            ->where('transaction_type', 'opening_balance') // Only the actual opening balance, not adjustment entries
+            ->where('status', 'active')
+            ->orderBy('id', 'desc') // Use id for reliable ordering when created_at is same
+            ->first();
+        
+        $currentOpeningBalance = 0;
+        if ($latestOpeningBalance) {
+            if ($entityType === 'customer') {
+                $currentOpeningBalance = $latestOpeningBalance->debit - $latestOpeningBalance->credit;
+            } else {
+                $currentOpeningBalance = $latestOpeningBalance->credit - $latestOpeningBalance->debit;
+            }
+        }
+        
+        // Get total payments made towards opening balance
+        $totalPayments = Ledger::where('contact_id', $entity->id)
+            ->where('contact_type', $entityType)
+            ->where('transaction_type', 'opening_balance_payment')
+            ->where('status', 'active')
+            ->sum($entityType === 'customer' ? 'debit' : 'credit');
+        
+        // Return remaining unpaid opening balance
+        return max(0, $currentOpeningBalance - $totalPayments);
     }
 
     private function applyGlobalAmountToReferences($entity, &$remainingAmount, $data, $request)

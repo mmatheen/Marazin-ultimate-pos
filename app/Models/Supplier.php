@@ -5,6 +5,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Services\UnifiedLedgerService;
 use Illuminate\Support\Facades\Log;
+use App\Models\Ledger;
 
 class Supplier extends Model
 {
@@ -48,6 +49,33 @@ class Supplier extends Model
     public function getFullNameAttribute()
     {
         return $this->first_name . ' ' . $this->last_name;
+    }
+
+    /**
+     * Get opening balance from ledger (for display in bulk payment selectors)
+     * This is the actual current opening balance considering all payments
+     */
+    public function getOpeningBalanceFromLedger()
+    {
+        // Get the latest active opening balance entry (after all edits and reversals)
+        $latestOpeningBalance = Ledger::where('contact_id', $this->id)
+            ->where('contact_type', 'supplier')
+            ->where('transaction_type', 'opening_balance') // Only the actual opening balance, not adjustment entries
+            ->where('status', 'active')
+            ->orderBy('id', 'desc') // Use id for reliable ordering when created_at is same
+            ->first();
+        
+        $currentOpeningBalance = $latestOpeningBalance ? $latestOpeningBalance->credit - $latestOpeningBalance->debit : 0;
+        
+        // Get total payments made towards opening balance
+        $totalPayments = Ledger::where('contact_id', $this->id)
+            ->where('contact_type', 'supplier')
+            ->where('transaction_type', 'opening_balance_payment')
+            ->where('status', 'active')
+            ->sum('credit'); // For suppliers, payments are credits to reduce what we owe
+        
+        // Return remaining unpaid opening balance
+        return max(0, $currentOpeningBalance - $totalPayments);
     }
 
     /**

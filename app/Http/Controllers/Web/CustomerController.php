@@ -68,7 +68,7 @@ class CustomerController extends Controller
             'email' => $customer->email,
             'address' => $customer->address,
             'location_id' => $customer->location_id,
-            'opening_balance' => (float)$customer->opening_balance,
+             'opening_balance' => (float)$customer->getOpeningBalanceFromLedger(), // ✅ Fetch from ledger
             'current_balance' => (float)$customer->current_balance,
             'total_sale_due' => (float)$customer->total_sale_due,
             'total_return_due' => (float)$customer->total_return_due,
