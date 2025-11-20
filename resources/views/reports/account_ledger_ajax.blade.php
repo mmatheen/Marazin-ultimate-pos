@@ -861,7 +861,7 @@ $(document).ready(function() {
     function getTypeClass(type) {
         if (!type) return 'bg-secondary';
         switch(type.toLowerCase()) {
-            case 'sale': return 'bg-primary';
+            case 'sale': return 'bg-secondary';
             case 'payment': case 'payments': return 'bg-success';
             case 'return': case 'sale_return': return 'bg-warning';
             case 'purchase': return 'bg-info';
