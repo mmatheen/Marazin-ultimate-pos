@@ -196,24 +196,12 @@
             <div class="card-body">
                 <div class="form-group">
                     <label for="supplierSelect">Choose Supplier with Due Bills</label>
-                    <select id="supplierSelect" class="form-control select2">
-                        <option value="">🔄 Loading suppliers...</option>
-                    </select>
-                    <small class="form-text text-muted">Select a supplier to see their due bills and payment options</small>
-                    <div class="mt-2">
-                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="loadSuppliersForBulkPayment()">
-                            <i class="fas fa-refresh"></i> Reload Suppliers
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-info" onclick="debugSupplierData()">
-                            <i class="fas fa-bug"></i> Debug Supplier
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-success" onclick="window.testAPIs()">
-                            <i class="fas fa-flask"></i> Test APIs
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-warning" onclick="window.testAutoAllocation()">
-                            <i class="fas fa-magic"></i> Test Auto-Apply
-                        </button>
+                    <div class="input-group">
+                        <select id="supplierSelect" class="form-control select2">
+                            <option value="">🔄 Loading suppliers...</option>
+                        </select>
                     </div>
+                    <small class="form-text text-muted">Select a supplier to see their due bills and payment options</small>
                 </div>
                 
                 <!-- Supplier Summary (Hidden by default) -->
@@ -282,12 +270,6 @@
                 </div>
 
                 <div id="purchasesListContainer" class="mt-4">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h6>Purchase Bills</h6>
-                        <button type="button" class="btn btn-sm btn-outline-info" onclick="reloadPurchases()" id="reloadPurchasesBtn" style="display: none;">
-                            <i class="fas fa-refresh"></i> Reload Purchases
-                        </button>
-                    </div>
                     <table id="purchasesList" class="table table-striped" style="margin-bottom: 70px; margin-top: 30px">
                         <thead>
                             <tr>
@@ -700,10 +682,10 @@ $(document).ready(function() {
                 var suppliersWithDue = 0;
                 
                 suppliers.forEach(function(supplier) {
-                    // Use the correct field names from SupplierController
+                    // Use the correct field names from the JSON response
                     var openingBalance = parseFloat(supplier.opening_balance) || 0;
                     var purchaseDue = parseFloat(supplier.total_purchase_due) || 0;
-                    var currentBalance = parseFloat(supplier.balance) || 0;
+                    var currentBalance = parseFloat(supplier.current_balance) || 0; // Fixed field name
                     
                     // Calculate total due - current balance represents what we owe the supplier
                     var totalDue = currentBalance > 0 ? currentBalance : 0;
@@ -712,8 +694,18 @@ $(document).ready(function() {
                     var lastName = supplier.last_name ? supplier.last_name : '';
                     var fullName = supplier.full_name || (supplier.first_name + (lastName ? ' ' + lastName : ''));
                     
-                    // Show suppliers who have due amounts OR opening balance
-                    if (totalDue > 0.01 || openingBalance > 0.01) {
+                    console.log('Processing supplier:', {
+                        id: supplier.id,
+                        name: fullName,
+                        openingBalance: openingBalance,
+                        purchaseDue: purchaseDue,
+                        currentBalance: currentBalance,
+                        totalDue: totalDue,
+                        willShow: (totalDue > 0.01 || openingBalance > 0.01 || purchaseDue > 0.01)
+                    });
+                    
+                    // Show suppliers who have due amounts OR opening balance OR purchase due
+                    if (totalDue > 0.01 || openingBalance > 0.01 || purchaseDue > 0.01) {
                         var displayText = fullName;
                         
                         // Add due amount if exists
@@ -804,57 +796,7 @@ $(document).ready(function() {
     let billPaymentAllocations = {};
     let availableSupplierPurchases = [];
     
-    // Define debug function globally
-    window.debugSupplierData = function() {
-        var supplierId = $('#supplierSelect').val();
-        var selectedOption = $('#supplierSelect').find(':selected');
-        
-        console.log('=== SUPPLIER DEBUG INFO ===');
-        console.log('Selected supplier ID:', supplierId);
-        console.log('Selected option text:', selectedOption.text());
-        console.log('Selected option data attributes:', {
-            'opening-balance': selectedOption.data('opening-balance'),
-            'purchase-due': selectedOption.data('purchase-due'), 
-            'total-due': selectedOption.data('total-due'),
-            'current-balance': selectedOption.data('current-balance')
-        });
-        console.log('Global variables:', {
-            originalOpeningBalance: window.originalOpeningBalance,
-            purchaseDueAmount: window.purchaseDueAmount,
-            selectedSupplierId: window.selectedSupplierId
-        });
-        
-        if (supplierId) {
-            loadSupplierPurchases(supplierId);
-        } else {
-            alert('Please select a supplier first');
-        }
-    };
-
-    // Additional initialization
-    console.log('Purchase bulk payment page initialization...');
-    console.log('jQuery version:', $.fn.jquery);
-    console.log('Select2 available:', typeof $.fn.select2 !== 'undefined');
-    console.log('CSRF token present:', $('meta[name="csrf-token"]').length > 0);
-    console.log('CSRF token value:', $('meta[name="csrf-token"]').attr('content'));
-    console.log('Supplier select element found:', $('#supplierSelect').length);
-    console.log('Current URL:', window.location.href);
     
-    // Test a simple AJAX call to verify connectivity
-    setTimeout(function() {
-        console.log('Testing basic connectivity...');
-        $.ajax({
-            url: '/dashboard-data',
-            method: 'GET',
-            timeout: 5000,
-            success: function(response) {
-                console.log('✅ Basic AJAX connectivity working');
-            },
-            error: function(xhr) {
-                console.log('❌ Basic AJAX failed:', xhr.status, xhr.statusText);
-            }
-        });
-    }, 1000);
     
     // Initialize select2 with proper settings  
     if (typeof $.fn.select2 !== 'undefined') {
@@ -864,7 +806,7 @@ $(document).ready(function() {
             width: '100%',
             dropdownAutoWidth: true
         });
-        console.log('Select2 initialized on purchase bulk payment page');
+        
         
         // Add event listener to ensure search input gets focus when dropdown opens
         $('#supplierSelect').on('select2:open', function() {
@@ -904,12 +846,7 @@ $(document).ready(function() {
         console.log('DataTable initialized for purchases list');
     }
     
-    // Load suppliers immediately
-    console.log('Page ready, starting supplier load...');
-    console.log('DOM Ready - checking elements:');
-    console.log('- supplierSelect exists:', $('#supplierSelect').length);
-    console.log('- CSRF token:', $('meta[name="csrf-token"]').attr('content'));
-    console.log('- jQuery version:', $.fn.jquery);
+
     
     loadSuppliersForBulkPayment();
     
@@ -932,90 +869,7 @@ $(document).ready(function() {
         }
     };
     
-    // Debug function - can be called from console: testAPIs()
-    window.testAPIs = function() {
-        console.log('=== TESTING API ENDPOINTS ===');
-        
-        // Test suppliers API
-        console.log('1. Testing suppliers API...');
-        $.ajax({
-            url: '/supplier-get-all',
-            type: 'GET',
-            success: function(response) {
-                console.log('Suppliers API Response:', response);
-                console.log('Number of suppliers:', (response.message || []).length);
-            },
-            error: function(xhr, status, error) {
-                console.error('Suppliers API Error:', {status, error, response: xhr.responseText});
-            }
-        });
-        
-        // Test purchases API  
-        console.log('2. Testing purchases API...');
-        $.ajax({
-            url: '/get-all-purchases',
-            type: 'GET',
-            success: function(response) {
-                console.log('Purchases API Response:', response);
-                console.log('Number of purchases:', (response.purchases || []).length);
-                if (response.purchases && response.purchases.length > 0) {
-                    console.log('Sample purchase:', response.purchases[0]);
-                    console.log('Suppliers in purchases:', [...new Set(response.purchases.map(p => p.supplier_id))]);
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Purchases API Error:', {status, error, response: xhr.responseText});
-            }
-        });
-        
-        console.log('API tests started. Check console for results...');
-    };
-    
-    // Debug function to test auto-allocation
-    window.testAutoAllocation = function() {
-        console.log('=== TESTING AUTO-ALLOCATION ===');
-        
-        // Check current payment method
-        var paymentMethod = $('#paymentMethod').val();
-        console.log('Current payment method:', paymentMethod);
-        
-        if (paymentMethod === 'multiple') {
-            alert('Auto-allocation testing works with single payment methods. Please select Cash, Cheque, or Bank Transfer first, then try again.');
-            return;
-        }
-        
-        // Check if purchase dues are selected
-        var paymentType = $('input[name="paymentType"]:checked').val();
-        console.log('Current payment type:', paymentType);
-        
-        if (!paymentType) {
-            alert('Please select a payment option (Opening Balance, Purchase Dues, or Both) first.');
-            return;
-        }
-        
-        // Test with a small amount
-        var testAmount = '1000';
-        console.log('Setting test amount:', testAmount);
-        $('#globalPaymentAmount').val(testAmount).trigger('input');
-        
-        setTimeout(function() {
-            var appliedAmounts = [];
-            $('.reference-amount').each(function() {
-                var val = $(this).val();
-                if (val && parseFloat(val) > 0) {
-                    appliedAmounts.push(parseFloat(val));
-                }
-            });
-            
-            if (appliedAmounts.length > 0) {
-                console.log('✅ Auto-allocation working! Applied amounts:', appliedAmounts);
-                alert('✅ Auto-allocation is working! Check console for details. Applied to ' + appliedAmounts.length + ' bills.');
-            } else {
-                console.log('❌ Auto-allocation not working. No amounts applied to bills.');
-                alert('❌ Auto-allocation not working. Check console for debugging information.');
-            }
-        }, 500);
-    };
+
 });
 
 // Supplier selection change handler
@@ -1092,20 +946,6 @@ $(document).on('change', '#supplierSelect', function() {
     $('#reloadPurchasesBtn').show();
 });
 
-// Function to reload purchases (for debugging)
-function reloadPurchases() {
-    var supplierId = $('#supplierSelect').val() || window.selectedSupplierId;
-    if (supplierId) {
-        console.log('Manual reload of purchases for supplier:', supplierId);
-        console.log('Clearing table and reloading...');
-        $('#purchasesList tbody').empty();
-        $('#purchasesList tbody').append('<tr><td colspan="5" class="text-center">Loading purchases...</td></tr>');
-        loadSupplierPurchases(supplierId);
-    } else {
-        console.log('No supplier selected for reload');
-        alert('Please select a supplier first');
-    }
-}
 
 // Removed duplicate debugSupplierData function - now defined globally above
 
