@@ -474,6 +474,7 @@ class UnifiedLedgerService
                         'reference_no' => $reversalReferenceNo,
                         'transaction_type' => 'opening_balance_adjustment',
                         'amount' => -$oldAmount, // Negative amount creates CREDIT to reverse old DEBIT
+                        'status' => 'reversed', // ✅ FIXED: Reversal entries should have status='reversed'
                         'notes' => 'REVERSAL: Opening Balance Edit - Cancel previous amount Rs.' . number_format($oldAmount, 2) . ($oldEntry ? ' [Cancels Entry ID: ' . $oldEntry->id . ']' : '')
                     ]);
                 } else {
@@ -485,6 +486,7 @@ class UnifiedLedgerService
                         'reference_no' => $reversalReferenceNo,
                         'transaction_type' => 'opening_balance_adjustment',
                         'amount' => $oldAmount, // Positive amount creates DEBIT to reverse old CREDIT
+                        'status' => 'reversed', // ✅ FIXED: Reversal entries should have status='reversed'
                         'notes' => 'REVERSAL: Opening Balance Edit - Cancel previous amount Rs.' . number_format($oldAmount, 2) . ($oldEntry ? ' [Cancels Entry ID: ' . $oldEntry->id . ']' : '')
                     ]);
                 }
