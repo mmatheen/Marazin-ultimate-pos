@@ -127,32 +127,19 @@ class Ledger extends Model
     }
 
     /**
-     * Calculate balance using SQL window function for optimal performance
+     * Calculate balance using BalanceHelper (CENTRALIZED APPROACH)
      * 
      * @deprecated This method is deprecated. Use BalanceHelper::getCustomerBalance() 
-     * or BalanceHelper::getSupplierBalance() for consistent balance calculations
-     * across the application. This method is kept for backward compatibility only.
+     * or BalanceHelper::getSupplierBalance() directly for consistent balance calculations.
      */
     public static function calculateBalance($contact_id, $contact_type)
     {
-        $result = DB::selectOne("
-            SELECT 
-                COALESCE(
-                    CASE 
-                        WHEN ? = 'customer' THEN 
-                            SUM(debit - credit)
-                        ELSE 
-                            SUM(credit - debit)
-                    END, 
-                    0
-                ) as current_balance
-            FROM ledgers 
-            WHERE contact_id = ? 
-                AND contact_type = ? 
-                AND status = 'active'
-        ", [$contact_type, $contact_id, $contact_type]);
-
-        return $result ? (float) $result->current_balance : 0.0;
+        // Delegate to BalanceHelper for consistency
+        if ($contact_type === 'customer') {
+            return \App\Helpers\BalanceHelper::getCustomerBalance($contact_id);
+        } else {
+            return \App\Helpers\BalanceHelper::getSupplierBalance($contact_id);
+        }
     }
 
     /**
@@ -480,12 +467,18 @@ class Ledger extends Model
     }
 
     /**
-     * Get balances for multiple contacts - DELEGATES to BalanceHelper
-     * @deprecated Use BalanceHelper::getBulkCustomerBalances() instead
+     * Get balances for multiple contacts - DELEGATES to BalanceHelper (CENTRALIZED)
+     * @deprecated Use BalanceHelper::getBulkCustomerBalances() directly instead
      */
     public static function getBulkBalances($contactIds, $contactType)
     {
-        return \App\Helpers\BalanceHelper::getBulkBalances($contactIds, $contactType);
+        if ($contactType === 'customer') {
+            return \App\Helpers\BalanceHelper::getBulkCustomerBalances($contactIds);
+        }
+        // For suppliers, return individual calculations (can be optimized later)
+        return collect($contactIds)->mapWithKeys(function($id) {
+            return [$id => \App\Helpers\BalanceHelper::getSupplierBalance($id)];
+        });
     }    /**
      * Get summary balances by contact type
      */

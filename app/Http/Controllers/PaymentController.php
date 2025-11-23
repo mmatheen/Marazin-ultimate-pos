@@ -760,28 +760,32 @@ class PaymentController extends Controller
 
     public function destroy(Payment $payment)
     {
-        DB::transaction(function () use ($payment) {
-            $payment->delete();
-
-            if ($payment->payment_type === 'purchase') {
-                $this->updateSupplierBalance($payment->supplier_id);
-                $this->updatePurchaseTable($payment->reference_id);
-            } elseif ($payment->payment_type === 'purchase_return') {
-                $this->updateSupplierBalance($payment->supplier_id);
-                $this->updatePurchaseReturnTable($payment->reference_id);
-            } else {
-                $this->updateCustomerBalance($payment->customer_id);
-                $this->updateSaleTable($payment->reference_id);
+        return DB::transaction(function () use ($payment) {
+            // ✅ FIXED: Use UnifiedLedgerService for proper reversal accounting
+            try {
+                // Use the proper delete method from UnifiedLedgerService
+                $this->unifiedLedgerService->deletePayment($payment, 'Manual deletion via destroy method');
+                
+                // Now safe to delete the payment record since ledger is handled
+                $payment->delete();
+                
+                Log::info('Payment deleted successfully with proper reversal accounting', [
+                    'payment_id' => $payment->id,
+                    'payment_type' => $payment->payment_type,
+                    'amount' => $payment->amount,
+                    'reference_no' => $payment->reference_no
+                ]);
+                
+            } catch (\Exception $e) {
+                Log::error('Failed to delete payment with proper accounting', [
+                    'payment_id' => $payment->id,
+                    'error' => $e->getMessage()
+                ]);
+                throw $e;
             }
-
-            Ledger::where('transaction_date', $payment->payment_date)
-                ->where('reference_no', $payment->reference_no)
-                ->where('transaction_type', 'payments')
-                ->where('user_id', $payment->supplier_id ?? $payment->customer_id)
-                ->delete();
         });
 
-        return response()->json(['status' => 200, 'message' => 'Payment deleted and balances restored successfully.']);
+        return response()->json(['status' => 200, 'message' => 'Payment deleted successfully with proper audit trail.']);
     }
 
     // Bulk payment functions for sales (customer) and purchases (supplier)

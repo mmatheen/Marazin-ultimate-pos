@@ -79,50 +79,37 @@ class Supplier extends Model
     }
 
     /**
-     * Calculate current balance for the supplier.
-     * Formula: (Purchases - Purchase_Payments) - (Returns - Return_Payments)
-     * This represents: What I owe supplier - What supplier owes me
+     * Calculate current balance for the supplier using BalanceHelper (SINGLE SOURCE OF TRUTH)
+     * @deprecated This method is deprecated. Use BalanceHelper::getSupplierBalance() directly.
      */
     public function getCurrentBalanceAttribute()
     {
-        $openingBalance = $this->opening_balance ?? 0;
-        $totalPurchases = $this->purchases()->sum('final_total') ?? 0;
-        $totalPurchasePayments = \App\Models\Payment::where('supplier_id', $this->id)->where('payment_type', 'purchase')->sum('amount') ?? 0;
-        $totalReturns = $this->purchaseReturns()->sum('return_total') ?? 0;
-        $totalReturnPayments = \App\Models\Payment::where('supplier_id', $this->id)->where('payment_type', 'purchase_return')->sum('amount') ?? 0;
-        
-        // What I owe supplier
-        $iOweSupplier = $totalPurchases - $totalPurchasePayments;
-        
-        // What supplier owes me  
-        $supplierOwesMe = $totalReturns - $totalReturnPayments;
-        
-        // Net balance = What I owe - What they owe me
-        return $openingBalance + $iOweSupplier - $supplierOwesMe;
+        // Use BalanceHelper for consistent calculation with the unified ledger system
+        return \App\Helpers\BalanceHelper::getSupplierBalance($this->id);
     }
 
     /**
-     * Calculate total due for the supplier.
-     * This includes purchases minus purchase payments, minus returns minus return payments
+     * Calculate total due for the supplier using BalanceHelper (SINGLE SOURCE OF TRUTH)
+     * @deprecated This method is deprecated. Use BalanceHelper::getSupplierBalance() directly.
      */
     public function getTotalDue()
     {
-        $totalPurchases = \App\Models\Purchase::where('supplier_id', $this->id)->sum('final_total');
-        $totalPurchasePayments = \App\Models\Payment::where('supplier_id', $this->id)->where('payment_type', 'purchase')->sum('amount');
-        $totalReturns = \App\Models\PurchaseReturn::where('supplier_id', $this->id)->sum('return_total');
-        $totalReturnPayments = \App\Models\Payment::where('supplier_id', $this->id)->where('payment_type', 'purchase_return')->sum('amount');
-        
-        return $totalPurchases - $totalPurchasePayments - $totalReturns - $totalReturnPayments;
+        // Use BalanceHelper for consistency with unified ledger system
+        return max(0, \App\Helpers\BalanceHelper::getSupplierBalance($this->id));
     }
 
     /**
-     * Calculate total paid for the supplier (includes both purchase and return payments).
+     * Calculate total paid for the supplier based on ledger entries (for consistency)
+     * @deprecated This method is deprecated. Calculate from ledger entries instead.
      */
     public function getTotalPaid()
     {
-        $purchasePayments = \App\Models\Payment::where('supplier_id', $this->id)->where('payment_type', 'purchase')->sum('amount');
-        $returnPayments = \App\Models\Payment::where('supplier_id', $this->id)->where('payment_type', 'purchase_return')->sum('amount');
-        return $purchasePayments + $returnPayments;
+        // Calculate total payments from ledger entries for consistency
+        return \App\Models\Ledger::where('contact_id', $this->id)
+            ->where('contact_type', 'supplier')
+            ->where('transaction_type', 'payments')
+            ->where('status', 'active')
+            ->sum('debit');
     }
 
     public function purchases()
@@ -140,20 +127,45 @@ class Supplier extends Model
         return $this->hasMany(\App\Models\Ledger::class, 'contact_id')->where('contact_type', 'supplier');
     }
 
-    // Total Purchase Due for the supplier
+    // Total Purchase Due for the supplier (using ledger for consistency)
+    // @deprecated This method is deprecated. Use BalanceHelper::getSupplierBalance() instead.
     public function getTotalPurchaseDueAttribute()
     {
-        $totalPurchases = $this->purchases()->sum('final_total') ?? 0;
-        $totalPayments = \App\Models\Payment::where('supplier_id', $this->id)->where('payment_type', 'purchase')->sum('amount') ?? 0;
-        return $totalPurchases - $totalPayments;
+        // Calculate from ledger entries for consistency
+        $totalPurchases = \App\Models\Ledger::where('contact_id', $this->id)
+            ->where('contact_type', 'supplier')
+            ->where('transaction_type', 'purchase')
+            ->where('status', 'active')
+            ->sum('credit');
+            
+        $totalPayments = \App\Models\Ledger::where('contact_id', $this->id)
+            ->where('contact_type', 'supplier')
+            ->where('transaction_type', 'payments')
+            ->where('status', 'active')
+            ->sum('debit');
+            
+        return max(0, $totalPurchases - $totalPayments);
     }
 
-    // Total Return Due for the supplier
+    // Total Return Due for the supplier (using ledger for consistency)
+    // @deprecated This method is deprecated. Calculate returns from ledger entries instead.
     public function getTotalReturnDueAttribute()
     {
-        $totalReturns = $this->purchaseReturns()->sum('return_total') ?? 0;
-        $totalReturnPayments = \App\Models\Payment::where('supplier_id', $this->id)->where('payment_type', 'purchase_return')->sum('amount') ?? 0;
-        return $totalReturns - $totalReturnPayments;
+        // Calculate from ledger entries for consistency
+        $totalReturns = \App\Models\Ledger::where('contact_id', $this->id)
+            ->where('contact_type', 'supplier')
+            ->where('transaction_type', 'purchase_return')
+            ->where('status', 'active')
+            ->sum('debit');
+            
+        $totalReturnPayments = \App\Models\Ledger::where('contact_id', $this->id)
+            ->where('contact_type', 'supplier')
+            ->where('transaction_type', 'payments')
+            ->where('status', 'active')
+            ->whereRaw('notes LIKE "%return%"') // Only return-related payments
+            ->sum('debit');
+            
+        return max(0, $totalReturns - $totalReturnPayments);
     }
 
     // ==================== EXPENSE BALANCE TRACKING METHODS ====================
