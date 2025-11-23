@@ -199,7 +199,7 @@
                     <div class="input-group">
                         <select id="supplierSelect" class="form-control select2">
                             <option value="">🔄 Loading suppliers...</option>
-                        </select>wegb
+                        </select>
                     </div>
                     <small class="form-text text-muted">Select a supplier to see their due bills and payment options</small>
                 </div>
