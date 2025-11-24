@@ -209,11 +209,10 @@ class Customer extends Model
     }
 
     /**
-     * Get current balance from ledger (for display in bulk payment selectors)
-     * This shows the TOTAL current amount due, not just opening balance portion
-     * This is what should be displayed as "Opening Balance" in bulk payments
+     * Get current total due amount (CLEAR METHOD NAME)
+     * This is the actual amount the customer currently owes from ledger
      */
-    public function getOpeningBalanceFromLedger()
+    public function getCurrentTotalBalance()
     {
         // Return the current total balance using BalanceHelper (SINGLE SOURCE OF TRUTH)
         // This includes opening balance + sales - payments - returns = current due
@@ -224,12 +223,12 @@ class Customer extends Model
     }
 
     /**
-     * Get current total due amount (alias for clarity)
+     * Get current total due amount (alias for compatibility)
      * This is the actual amount the customer currently owes
      */
     public function getCurrentDueAmount()
     {
-        return $this->getOpeningBalanceFromLedger();
+        return $this->getCurrentTotalBalance();
     }
 
     /**

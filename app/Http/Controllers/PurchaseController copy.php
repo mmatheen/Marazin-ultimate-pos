@@ -8,7 +8,6 @@ use App\Models\Batch;
 use App\Models\Ledger;
 use App\Models\ImeiNumber;
 use App\Services\UnifiedLedgerService;
-use App\Services\PaymentService;
 use Illuminate\Http\Request;
 use App\Models\LocationBatch;
 use App\Models\Payment;
@@ -22,12 +21,10 @@ use Carbon\Carbon;
 class PurchaseController extends Controller
 {
     protected $unifiedLedgerService;
-    protected $paymentService;
 
-    function __construct(UnifiedLedgerService $unifiedLedgerService, PaymentService $paymentService)
+    function __construct(UnifiedLedgerService $unifiedLedgerService)
     {
         $this->unifiedLedgerService = $unifiedLedgerService;
-        $this->paymentService = $paymentService;
         $this->middleware('permission:view purchase', ['only' => ['listPurchase', 'index', 'show']]);
         $this->middleware('permission:create purchase', ['only' => ['AddPurchase', 'store', 'storeOrUpdate']]);
         $this->middleware('permission:edit purchase', ['only' => ['editPurchase', 'update', 'storeOrUpdate']]);
@@ -53,7 +50,7 @@ class PurchaseController extends Controller
 
         $validator = Validator::make($request->all(), [
             'supplier_id' => 'required|integer|exists:suppliers,id',
-            'purchase_date' => 'required|string', // Allow string format, we'll parse it
+            'purchase_date' => 'required|date',
             'purchasing_status' => 'required|in:Received,Pending,Ordered',
             'location_id' => 'required|integer|exists:locations,id',
             'pay_term' => 'nullable|integer|min:0',
@@ -77,13 +74,8 @@ class PurchaseController extends Controller
                         $productData = $request->input("products.$index");
                         if ($productData && isset($productData['product_id'])) {
                             $product = \App\Models\Product::find($productData['product_id']);
-                            // ✅ FIX: Improved decimal validation - allow valid decimal numbers like 5.00
-                            if ($product && $product->unit && !$product->unit->allow_decimal) {
-                                // Check if the value is actually a decimal (has non-zero decimal places)
-                                $hasDecimals = (float)$value != (int)$value;
-                                if ($hasDecimals) {
-                                    $fail("The quantity must be a whole number for this unit type.");
-                                }
+                            if ($product && $product->unit && !$product->unit->allow_decimal && floor($value) != $value) {
+                                $fail("The quantity must be an integer for this unit.");
                             }
                         }
                     }
@@ -117,7 +109,7 @@ class PurchaseController extends Controller
             'payment_method' => 'nullable|string',
             'payment_account' => 'nullable|string',
             'payment_note' => 'nullable|string',
-            'paid_date' => 'nullable|string', // Allow string format, we'll parse it flexibly
+            'paid_date' => 'nullable|date',
             // Cheque specific fields - use string validation since we handle multiple date formats
             'cheque_number' => 'nullable|string|max:255',
             'cheque_bank_branch' => 'nullable|string|max:255',
@@ -151,7 +143,7 @@ class PurchaseController extends Controller
                     'supplier_id' => $request->supplier_id,
                     'user_id' => auth()->id(),
                     'reference_no' => $purchaseId ? Purchase::find($purchaseId)->reference_no : $this->generateReferenceNo(),
-                    'purchase_date' => $request->purchase_date ? Carbon::parse($request->purchase_date)->format('Y-m-d') : now()->format('Y-m-d'),
+                    'purchase_date' => $request->purchase_date,
                     'purchasing_status' => $request->purchasing_status,
                     'location_id' => $request->location_id,
                     'pay_term' => $request->pay_term,
@@ -238,43 +230,18 @@ class PurchaseController extends Controller
 
             // Handle payment if paid_amount is provided
             if ($request->paid_amount > 0) {
-                // ✅ CLEAN: Use PaymentService to handle all payment logic
-                $paymentData = $this->preparePaymentData($request);
-                $this->paymentService->handlePurchasePayment($paymentData, $purchase);
+                // ✅ CRITICAL FIX: Add safety flag for payments too
+                $paymentKey = 'payment_' . $purchase->id . '_' . $request->paid_amount;
+                if (!isset($processedPurchases[$paymentKey])) {
+                    $this->handlePayment($request, $purchase);
+                    $processedPurchases[$paymentKey] = true;
+                }
             }
 
             // Note: UnifiedLedgerService automatically handles balance calculations
         });
 
         return response()->json(['status' => 200, 'message' => 'Purchase ' . ($purchaseId ? 'updated' : 'recorded') . ' successfully!']);
-    }
-
-    /**
-     * Prepare payment data array from request
-     * 
-     * @param Request $request
-     * @return array
-     */
-    private function preparePaymentData(Request $request): array
-    {
-        return [
-            'amount' => $request->paid_amount,
-            'payment_method' => $request->payment_method ?? 'cash',
-            'payment_date' => $request->paid_date,
-            'notes' => $request->payment_note,
-            // Card details
-            'card_number' => $request->card_number,
-            'card_holder_name' => $request->card_holder_name,
-            'card_expiry_month' => $request->card_expiry_month,
-            'card_expiry_year' => $request->card_expiry_year,
-            'card_security_code' => $request->card_security_code,
-            // Cheque details
-            'cheque_number' => $request->cheque_number,
-            'cheque_bank_branch' => $request->cheque_bank_branch,
-            'cheque_received_date' => $request->cheque_received_date,
-            'cheque_valid_date' => $request->cheque_valid_date,
-            'cheque_given_by' => $request->cheque_given_by,
-        ];
     }
 
     // Helper method to update supplier's current balance
@@ -301,18 +268,19 @@ class PurchaseController extends Controller
                     }
 
                     if ($existingProducts->has($productId)) {
-                        // Update existing product - CRITICAL FIX for double stock addition
+                        // ✅ ENHANCED: Update existing product with better handling
                         $existingProduct = $existingProducts->get($productId);
                         $oldQuantity = $existingProduct->quantity;
                         $newQuantity = $productData['quantity'];
                         $quantityDifference = $newQuantity - $oldQuantity;
                         
-                        Log::info('Purchase edit: Updating existing product stock', [
+                        Log::info('Purchase edit: Processing existing product', [
                             'product_id' => $productId,
                             'old_quantity' => $oldQuantity,
                             'new_quantity' => $newQuantity,
                             'quantity_difference' => $quantityDifference,
-                            'purchase_id' => $purchase->id
+                            'purchase_id' => $purchase->id,
+                            'batch_id' => $existingProduct->batch_id
                         ]);
 
                         // ONLY update stock if there's actually a quantity change
@@ -333,7 +301,7 @@ class PurchaseController extends Controller
                             'total' => $productData['total'],
                         ]);
 
-                        // Update batch prices (but NOT quantity - that's handled by updateProductStock)
+                        // ✅ ENHANCED: Update batch prices (but NOT quantity - that's handled by updateProductStock)
                         $batch = Batch::find($existingProduct->batch_id);
                         if ($batch) {
                             $batch->update([
@@ -341,27 +309,32 @@ class PurchaseController extends Controller
                                 'special_price' => $productData['special_price'],
                                 'retail_price' => $productData['retail_price'],
                                 'max_retail_price' => $productData['max_retail_price'],
-                                // IMPORTANT: Do NOT update batch qty here - it's handled by updateProductStock
+                                // Update batch number and expiry date if provided
+                                'batch_no' => $productData['batch_no'] ?? $batch->batch_no,
+                                'expiry_date' => $productData['expiry_date'] ?? $batch->expiry_date,
                             ]);
                             
-                            Log::info('Updated batch prices for existing product', [
+                            Log::info('Updated batch prices and details for existing product', [
                                 'batch_id' => $batch->id,
                                 'product_id' => $productId,
-                                'wholesale_price' => $productData['wholesale_price'],
+                                'new_batch_no' => $productData['batch_no'] ?? $batch->batch_no,
                                 'retail_price' => $productData['retail_price'],
+                                'expiry_date' => $productData['expiry_date'] ?? $batch->expiry_date,
                             ]);
                         } else {
-                            Log::error('Batch not found for existing product', [
+                            Log::error('Batch not found for existing product during edit', [
                                 'batch_id' => $existingProduct->batch_id,
-                                'product_id' => $productId
+                                'product_id' => $productId,
+                                'purchase_id' => $purchase->id
                             ]);
                         }
                     } else {
-                        // Add new product to purchase
-                        Log::info('Purchase edit: Adding new product', [
+                        // ✅ ENHANCED: Add new product to purchase with unique batch creation
+                        Log::info('Purchase edit: Adding new product to existing purchase', [
                             'product_id' => $productId,
                             'quantity' => $productData['quantity'],
-                            'purchase_id' => $purchase->id
+                            'purchase_id' => $purchase->id,
+                            'purchase_reference_no' => $purchase->reference_no
                         ]);
                         
                         $this->addNewProductToPurchase($purchase, $productData, $request->location_id);
@@ -476,80 +449,64 @@ class PurchaseController extends Controller
 
     private function addNewProductToPurchase($purchase, $productData, $locationId)
     {
-        // First check if batch already exists with same batch_no and product_id
-        $batchNo = $productData['batch_no'] ?? Batch::generateNextBatchNo();
+        // ✅ CRITICAL FIX: Always create NEW batch for each purchase to maintain proper inventory tracking
+        // This ensures proper batch separation and traceability
         
-        $batch = Batch::where([
-            'batch_no' => $batchNo,
-            'product_id' => $productData['product_id'],
-        ])->first();
-
-        if ($batch) {
-            // Update existing batch with new prices and add quantity
-            $batch->update([
-                'wholesale_price' => $productData['wholesale_price'],
-                'special_price' => $productData['special_price'],
-                'retail_price' => $productData['retail_price'],
-                'max_retail_price' => $productData['max_retail_price'],
-                // Note: Don't update unit_cost and expiry_date as they should remain from original batch
-            ]);
-            $batch->increment('qty', $productData['quantity']);
-            
-            Log::info('Updated existing batch with new prices and quantity', [
-                'batch_id' => $batch->id,
-                'batch_no' => $batchNo,
-                'product_id' => $productData['product_id'],
-                'added_quantity' => $productData['quantity'],
-                'new_total_qty' => $batch->qty,
-                'retail_price' => $productData['retail_price'],
-            ]);
-        } else {
-            // Create new batch with all prices
-            $batch = Batch::create([
-                'batch_no' => $batchNo,
-                'product_id' => $productData['product_id'],
-                'unit_cost' => $productData['unit_cost'],
-                'expiry_date' => $productData['expiry_date'],
-                'qty' => $productData['quantity'],
-                'wholesale_price' => $productData['wholesale_price'],
-                'special_price' => $productData['special_price'],
-                'retail_price' => $productData['retail_price'],
-                'max_retail_price' => $productData['max_retail_price'],
-            ]);
-            
-            Log::info('Created new batch with all prices', [
-                'batch_id' => $batch->id,
-                'batch_no' => $batchNo,
-                'product_id' => $productData['product_id'],
-                'quantity' => $productData['quantity'],
-                'unit_cost' => $productData['unit_cost'],
-                'retail_price' => $productData['retail_price'],
-                'wholesale_price' => $productData['wholesale_price'],
-            ]);
+        $batchNo = $productData['batch_no'] ?? null;
+        
+        // If no batch number provided, generate a unique one
+        if (empty($batchNo)) {
+            $batchNo = Batch::generateNextBatchNo();
         }
+        
+        // ✅ ALWAYS CREATE NEW BATCH - Do not reuse existing batches
+        // This prevents stock mixing and ensures proper purchase tracking
+        $batch = Batch::create([
+            'batch_no' => $batchNo . '-' . $purchase->reference_no, // Make it unique per purchase
+            'product_id' => $productData['product_id'],
+            'unit_cost' => $productData['unit_cost'],
+            'expiry_date' => $productData['expiry_date'],
+            'qty' => $productData['quantity'],
+            'wholesale_price' => $productData['wholesale_price'],
+            'special_price' => $productData['special_price'], 
+            'retail_price' => $productData['retail_price'],
+            'max_retail_price' => $productData['max_retail_price'],
+        ]);
+        
+        Log::info('✅ Created NEW batch for purchase', [
+            'batch_id' => $batch->id,
+            'batch_no' => $batch->batch_no,
+            'product_id' => $productData['product_id'],
+            'quantity' => $productData['quantity'],
+            'purchase_ref' => $purchase->reference_no,
+            'unit_cost' => $productData['unit_cost'],
+            'retail_price' => $productData['retail_price'],
+        ]);
 
-        $locationBatch = LocationBatch::firstOrCreate(
-            ['batch_id' => $batch->id, 'location_id' => $locationId],
-            ['qty' => 0]
-        );
-        $locationBatch->increment('qty', $productData['quantity']);
+        // Create location batch entry
+        $locationBatch = LocationBatch::create([
+            'batch_id' => $batch->id, 
+            'location_id' => $locationId,
+            'qty' => $productData['quantity']
+        ]);
 
-        $purchase->purchaseProducts()->updateOrCreate(
-            ['product_id' => $productData['product_id'], 'batch_id' => $batch->id, 'purchase_id' => $purchase->id],
-            [
-                'quantity' => $productData['quantity'],
-                'price' => $productData['price'] ?? $productData['unit_cost'],
-                'discount_percent' => $productData['discount_percent'] ?? 0,
-                'unit_cost' => $productData['unit_cost'],
-                'wholesale_price' => $productData['wholesale_price'],
-                'special_price' => $productData['special_price'],
-                'retail_price' => $productData['retail_price'],
-                'max_retail_price' => $productData['max_retail_price'],
-                'total' => $productData['total'],
-                'location_id' => $locationId,
-            ]
-        );
+        // Create purchase product entry
+        $purchase->purchaseProducts()->create([
+            'product_id' => $productData['product_id'],
+            'batch_id' => $batch->id,
+            'quantity' => $productData['quantity'],
+            'price' => $productData['price'] ?? $productData['unit_cost'],
+            'discount_percent' => $productData['discount_percent'] ?? 0,
+            'unit_cost' => $productData['unit_cost'],
+            'wholesale_price' => $productData['wholesale_price'],
+            'special_price' => $productData['special_price'],
+            'retail_price' => $productData['retail_price'],
+            'max_retail_price' => $productData['max_retail_price'],
+            'total' => $productData['total'],
+            'location_id' => $locationId,
+        ]);
 
+        // Create stock history entry
         StockHistory::create([
             'loc_batch_id' => $locationBatch->id,
             'quantity' => $productData['quantity'],
@@ -560,6 +517,13 @@ class PurchaseController extends Controller
         if (isset($productData['imei_numbers']) && !empty($productData['imei_numbers'])) {
             $this->processImeiNumbers($productData, $batch->id, $locationId);
         }
+        
+        Log::info('✅ Successfully added new product to purchase with new batch', [
+            'product_id' => $productData['product_id'],
+            'batch_id' => $batch->id,
+            'quantity' => $productData['quantity'],
+            'location_batch_qty' => $locationBatch->qty
+        ]);
     }
 
     private function removeProductFromPurchase($productToRemove, $locationId)
@@ -610,11 +574,106 @@ class PurchaseController extends Controller
         }
     }
 
-    // ✅ REMOVED: handlePayment method moved to PaymentService to eliminate duplication
+    private function handlePayment($request, $purchase)
+    {
+        // Calculate the total due and total paid for the purchase
+        $totalPaid = Payment::where('reference_id', $purchase->id)
+            ->where('payment_type', 'purchase')
+            ->sum('amount');
+        $totalDue = $purchase->final_total - $totalPaid;
 
-    // ✅ REMOVED: validatePaymentAmount method moved to PaymentService to eliminate duplication
+        // Validate payment amount
+        if ($request->paid_amount <= 0) {
+            throw new Exception('Payment amount must be greater than zero.');
+        }
 
-    // ✅ REMOVED: updatePurchasePaymentStatus method moved to PaymentService to eliminate duplication
+        // Handle overpayment scenario
+        $paidAmount = $this->validatePaymentAmount($request->paid_amount, $totalDue, $purchase);
+
+        $paymentDate = $request->paid_date ? Carbon::parse($request->paid_date) : now();
+
+        // Parse cheque dates properly using the same flexible date parser as PaymentController
+        $chequeReceivedDate = $request->cheque_received_date ? $this->parseFlexibleDate($request->cheque_received_date) : null;
+        $chequeValidDate = $request->cheque_valid_date ? $this->parseFlexibleDate($request->cheque_valid_date) : null;
+
+        $payment = Payment::create([
+            'payment_date' => $paymentDate,
+            'amount' => $paidAmount,
+            'payment_method' => $request->payment_method,
+            'reference_no' => $purchase->reference_no,
+            'notes' => $request->payment_note,
+            'payment_type' => 'purchase',
+            'reference_id' => $purchase->id,
+            'supplier_id' => $purchase->supplier_id,
+            'card_number' => $request->card_number,
+            'card_holder_name' => $request->card_holder_name,
+            'card_expiry_month' => $request->card_expiry_month,
+            'card_expiry_year' => $request->card_expiry_year,
+            'card_security_code' => $request->card_security_code,
+            'cheque_number' => $request->cheque_number,
+            'cheque_bank_branch' => $request->cheque_bank_branch,
+            'cheque_received_date' => $chequeReceivedDate,
+            'cheque_valid_date' => $chequeValidDate,
+            'cheque_given_by' => $request->cheque_given_by,
+        ]);
+
+        // Record payment in ledger using the unified service
+        $this->unifiedLedgerService->recordPurchasePayment($payment, $purchase);
+
+        // Update the total_paid field and recalculate payment status
+        $purchase->updateTotalDue();
+        
+        // Refresh the purchase to get updated total_paid
+        $purchase->refresh();
+        
+        // Update payment status based on the updated total_paid
+        $this->updatePurchasePaymentStatus($purchase);
+    }
+
+    /**
+     * Validate payment amount and handle overpayment scenarios
+     */
+    private function validatePaymentAmount($requestedAmount, $totalDue, $purchase)
+    {
+        // Configuration option - you can change this behavior
+        $allowOverpayment = true; // Set to false to restrict overpayments
+        
+        if ($requestedAmount > $totalDue) {
+            if ($allowOverpayment) {
+                // Log a warning about overpayment but allow the transaction
+                Log::warning("Overpayment detected for purchase {$purchase->reference_no}. Total due: {$totalDue}, Payment amount: {$requestedAmount}");
+                return $requestedAmount; // Allow full amount
+            } else {
+                // Restrict to total due amount
+                Log::info("Payment amount restricted to total due for purchase {$purchase->reference_no}. Requested: {$requestedAmount}, Limited to: {$totalDue}");
+                return $totalDue;
+            }
+        }
+        
+        return $requestedAmount;
+    }
+
+    /**
+     * Update purchase payment status based on total paid
+     */
+    private function updatePurchasePaymentStatus($purchase)
+    {
+        $totalPaid = $purchase->total_paid;
+        $finalTotal = $purchase->final_total;
+        
+        // Use small tolerance for floating point comparison
+        $tolerance = 0.01;
+        
+        if (($finalTotal - $totalPaid) <= $tolerance) {
+            $purchase->payment_status = 'Paid';
+        } elseif ($totalPaid > $tolerance) {
+            $purchase->payment_status = 'Partial';
+        } else {
+            $purchase->payment_status = 'Due';
+        }
+
+        $purchase->save();
+    }
 
     /**
      * Recalculate total_paid for a specific purchase
@@ -629,7 +688,7 @@ class PurchaseController extends Controller
             }
 
             $purchase->updateTotalDue();
-            $this->paymentService->updatePurchasePaymentStatus($purchase);
+            $this->updatePurchasePaymentStatus($purchase);
 
             return response()->json([
                 'status' => 200, 
@@ -655,7 +714,7 @@ class PurchaseController extends Controller
 
             foreach ($purchases as $purchase) {
                 $purchase->updateTotalDue();
-                $this->paymentService->updatePurchasePaymentStatus($purchase);
+                $this->updatePurchasePaymentStatus($purchase);
                 $updated++;
             }
 
@@ -710,13 +769,103 @@ class PurchaseController extends Controller
 
     public function getPurchase($id)
     {
-        $purchase = Purchase::with('supplier', 'location', 'payments')->find($id);
+        // ✅ OPTIMIZED: Fast purchase data for AJAX calls
+        $purchase = Purchase::with([
+            'supplier:id,first_name,last_name,mobile_no,email', // Fix: Use actual supplier table columns
+            'location:id,name',
+            'payments:id,reference_id,payment_method,amount,reference_no' // Fix: Use correct payment columns
+        ])->select([
+            'id', 'reference_no', 'supplier_id', 'location_id', 
+            'purchase_date', 'total_amount', 'discount_amount', 
+            'final_total', 'payment_status', 'notes'
+        ])->find($id);
 
         if (!$purchase) {
             return response()->json(['message' => 'Purchase not found.'], 404);
         }
 
-        return response()->json($purchase);
+        return response()->json([
+            'status' => 200,
+            'purchase' => $purchase,
+            'meta' => ['load_time' => microtime(true) - LARAVEL_START]
+        ]);
+    }
+
+    /**
+     * ✅ NEW: Fast AJAX endpoint for getting purchase products for editing
+     * Optimized for speed with minimal database queries
+     */
+    public function getPurchaseProductsForEdit($id)
+    {
+        $startTime = microtime(true);
+        
+        // Get purchase with only essential data
+        $purchase = Purchase::select(['id', 'reference_no', 'location_id'])->find($id);
+        
+        if (!$purchase) {
+            return response()->json(['message' => 'Purchase not found.'], 404);
+        }
+
+        // ✅ SINGLE OPTIMIZED QUERY: Get all purchase products with necessary relations
+        $purchaseProducts = \App\Models\PurchaseProduct::with([
+            'product:id,product_name,sku', // Fix: Use actual product table column
+            'product.unit:id,short_name,allow_decimal',
+            'batch:id,batch_no,expiry_date'
+        ])->where('purchase_id', $id)
+        ->select([
+            'id', 'purchase_id', 'product_id', 'batch_id', 'quantity',
+            'price', 'unit_cost', 'discount_percent', 'total',
+            'wholesale_price', 'special_price', 'retail_price', 'max_retail_price'
+        ])->get();
+
+        // ✅ BATCH QUERY: Get all location batch quantities at once
+        $batchIds = $purchaseProducts->pluck('batch_id')->unique()->toArray();
+        $locationBatches = [];
+        
+        if (!empty($batchIds)) {
+            $locationBatches = \App\Models\LocationBatch::where('location_id', $purchase->location_id)
+                ->whereIn('batch_id', $batchIds)
+                ->pluck('qty', 'batch_id')
+                ->toArray();
+        }
+
+        // ✅ ENHANCE DATA: Add computed fields efficiently
+        $enhancedProducts = $purchaseProducts->map(function($product) use ($locationBatches) {
+            return [
+                'id' => $product->id,
+                'product_id' => $product->product_id,
+                'product_name' => $product->product?->product_name, // Fix: Use actual column name
+                'product_sku' => $product->product?->sku,
+                'batch_id' => $product->batch_id,
+                'batch_number' => $product->batch?->batch_no ?? '',
+                'expiry_date' => $product->batch?->expiry_date ? 
+                    \Carbon\Carbon::parse($product->batch->expiry_date)->format('Y-m-d') : null,
+                'quantity' => $product->quantity,
+                'price' => $product->price,
+                'unit_cost' => $product->unit_cost,
+                'discount_percent' => $product->discount_percent,
+                'wholesale_price' => $product->wholesale_price,
+                'special_price' => $product->special_price,
+                'retail_price' => $product->retail_price,
+                'max_retail_price' => $product->max_retail_price,
+                'total' => $product->total,
+                'current_stock' => $locationBatches[$product->batch_id] ?? 0,
+                'allow_decimal' => $product->product?->unit?->allow_decimal ?? true,
+                'unit_name' => $product->product?->unit?->short_name
+            ];
+        });
+
+        $loadTime = microtime(true) - $startTime;
+
+        return response()->json([
+            'status' => 200,
+            'products' => $enhancedProducts,
+            'meta' => [
+                'count' => $enhancedProducts->count(),
+                'load_time' => round($loadTime, 4),
+                'purchase_reference' => $purchase->reference_no
+            ]
+        ]);
     }
 
     public function getPurchaseProductsBySupplier($supplierId, Request $request)
@@ -793,31 +942,105 @@ class PurchaseController extends Controller
 
     public function editPurchase($id)
     {
-        $purchase = Purchase::with([
-            'supplier',
-            'location',
-            'purchaseProducts.batch', // Corrected relationship
-            'purchaseProducts.product', // Load the product relationship
-            'payments'
-        ])->find($id);
+        try {
+            // ✅ OPTIMIZED: Single query with all necessary eager loading
+            $purchase = Purchase::with([
+                'supplier:id,first_name,last_name,mobile_no,email', // Fix: Use actual supplier table columns
+                'location:id,name', // Only load needed location fields
+                'purchaseProducts.batch:id,batch_no,expiry_date,product_id',
+                'purchaseProducts.product:id,product_name,sku', // Fix: Use actual product table column
+                'purchaseProducts.product.unit:id,short_name,allow_decimal', // Unit information
+                'payments:id,reference_id,payment_method,amount,reference_no' // Fix: Use correct payment columns
+            ])->find($id);
 
-        if (!$purchase) {
-            return response()->json(['message' => 'Purchase not found.'], 404);
+            if (!$purchase) {
+                return response()->json(['message' => 'Purchase not found.'], 404);
+            }
+
+        // ✅ PERFORMANCE FIX: Single query to get all location batches at once
+        $batchIds = $purchase->purchaseProducts->pluck('batch_id')->unique()->toArray();
+        $locationBatches = [];
+        
+        if (!empty($batchIds)) {
+            $locationBatches = \App\Models\LocationBatch::where('location_id', $purchase->location_id)
+                ->whereIn('batch_id', $batchIds)
+                ->pluck('qty', 'batch_id') // Create array with batch_id as key
+                ->toArray();
         }
 
+        // ✅ ENHANCED: Add computed fields efficiently with proper date formatting
+        $purchase->purchaseProducts->each(function($purchaseProduct) use ($locationBatches) {
+            // Get current stock from pre-loaded location batches
+            $purchaseProduct->current_stock = $locationBatches[$purchaseProduct->batch_id] ?? 0;
+            
+            // Add batch information with proper null handling
+            $purchaseProduct->batch_number = $purchaseProduct->batch?->batch_no ?? '';
+            $purchaseProduct->expiry_date = $purchaseProduct->batch?->expiry_date ? 
+                $purchaseProduct->batch->expiry_date->format('Y-m-d') : null;
+            
+            // Add unit validation information
+            $purchaseProduct->allow_decimal = $purchaseProduct->product?->unit?->allow_decimal ?? true;
+            
+            // Add computed totals for frontend
+            $purchaseProduct->line_total = $purchaseProduct->quantity * $purchaseProduct->price;
+        });
+
+        // ✅ FORMAT DATES: Ensure all dates are properly formatted for frontend
+        $formattedPurchase = $purchase->toArray();
+        $formattedPurchase['purchase_date'] = $purchase->purchase_date ? 
+            $purchase->purchase_date->format('Y-m-d') : date('Y-m-d');
+        
+        // Format payment dates if they exist
+        if (isset($formattedPurchase['payments'])) {
+            foreach ($formattedPurchase['payments'] as &$payment) {
+                $payment['payment_date'] = isset($payment['payment_date']) ? 
+                    \Carbon\Carbon::parse($payment['payment_date'])->format('Y-m-d') : null;
+                $payment['cheque_received_date'] = isset($payment['cheque_received_date']) ? 
+                    \Carbon\Carbon::parse($payment['cheque_received_date'])->format('Y-m-d') : null;
+                $payment['cheque_valid_date'] = isset($payment['cheque_valid_date']) ? 
+                    \Carbon\Carbon::parse($payment['cheque_valid_date'])->format('Y-m-d') : null;
+            }
+        }
+
+        // ✅ FAST RESPONSE: Return properly formatted data structure
         if (request()->ajax() || request()->is('api/*')) {
-            // Add debug logging to ensure supplier_id is present
-            Log::info('Purchase edit response', [
-                'purchase_id' => $purchase->id,
-                'supplier_id' => $purchase->supplier_id,
-                'supplier_name' => $purchase->supplier ? $purchase->supplier->first_name : 'N/A',
-                'reference_no' => $purchase->reference_no
+            return response()->json([
+                'status' => 200, 
+                'purchase' => $formattedPurchase,
+                'meta' => [
+                    'products_count' => $purchase->purchaseProducts->count(),
+                    'total_amount' => $purchase->final_total,
+                    'payment_status' => $purchase->payment_status,
+                    'load_time' => microtime(true) - LARAVEL_START,
+                    'formatted_dates' => true,
+                    'null_checks_applied' => true
+                ]
+            ], 200);
+        }
+
+        return view('purchase.add_purchase', ['purchase' => $formattedPurchase]);
+        
+        } catch (\Exception $e) {
+            \Log::error('Error in editPurchase: ' . $e->getMessage(), [
+                'purchase_id' => $id,
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
             ]);
             
-            return response()->json(['status' => 200, 'purchase' => $purchase], 200);
+            if (request()->ajax() || request()->is('api/*')) {
+                return response()->json([
+                    'status' => 500,
+                    'message' => 'Error loading purchase data: ' . $e->getMessage(),
+                    'debug' => config('app.debug') ? [
+                        'file' => $e->getFile(),
+                        'line' => $e->getLine()
+                    ] : null
+                ], 500);
+            }
+            
+            return back()->with('error', 'Error loading purchase data.');
         }
-
-        return view('purchase.add_purchase', ['purchase' => $purchase]);
     }
 
     /**
@@ -1167,53 +1390,40 @@ class PurchaseController extends Controller
     }
 
     /**
-     * Clean up duplicate payments for a purchase (keep only the latest)
+     * Parse date string with flexible format support
      */
-    public function cleanupDuplicatePayments($purchaseId)
+    private function parseFlexibleDate($dateString)
     {
-        try {
-            DB::transaction(function () use ($purchaseId) {
-                $payments = Payment::where('reference_id', $purchaseId)
-                    ->where('payment_type', 'purchase')
-                    ->orderBy('created_at', 'asc')
-                    ->get();
-                
-                if ($payments->count() > 1) {
-                    // Keep the latest payment, mark others as inactive
-                    $latestPayment = $payments->last();
-                    $duplicatePayments = $payments->take($payments->count() - 1);
-                    
-                    Log::info('Cleaning up duplicate payments', [
-                        'purchase_id' => $purchaseId,
-                        'total_payments' => $payments->count(),
-                        'keeping_payment_id' => $latestPayment->id,
-                        'removing_count' => $duplicatePayments->count()
-                    ]);
-                    
-                    foreach ($duplicatePayments as $duplicate) {
-                        // Mark payment as inactive instead of deleting
-                        $duplicate->update([
-                            'status' => 'inactive',
-                            'notes' => ($duplicate->notes ?: '') . ' [DUPLICATE REMOVED: ' . now()->format('Y-m-d H:i:s') . ']'
-                        ]);
-                        
-                        // Also handle ledger entries for this duplicate payment
-                        $this->unifiedLedgerService->deletePaymentLedger($duplicate);
-                    }
+        if (empty($dateString)) {
+            return null;
+        }
+
+        // Try different date formats
+        $formats = [
+            'Y-m-d',      // HTML5 date input format (2024-01-15)
+            'd-m-Y',      // Legacy format (15-01-2024)
+            'm/d/Y',      // US format (01/15/2024)
+            'd/m/Y',      // European format (15/01/2024)
+            'Y/m/d',      // ISO-like format (2024/01/15)
+        ];
+
+        foreach ($formats as $format) {
+            try {
+                $date = Carbon::createFromFormat($format, $dateString);
+                if ($date && $date->format($format) === $dateString) {
+                    return $date->format('Y-m-d');
                 }
-            });
-            
-            return response()->json([
-                'status' => 200,
-                'message' => 'Duplicate payments cleaned up successfully.'
-            ]);
-            
-        } catch (\Exception $e) {
-            Log::error('Error cleaning up duplicate payments: ' . $e->getMessage());
-            return response()->json([
-                'status' => 500,
-                'message' => 'Error cleaning up duplicate payments.'
-            ]);
+            } catch (Exception $e) {
+                continue;
+            }
+        }
+
+        // If no specific format works, try Carbon's general parsing
+        try {
+            return Carbon::parse($dateString)->format('Y-m-d');
+        } catch (Exception $e) {
+            Log::warning('Could not parse date: ' . $dateString);
+            return null;
         }
     }
 }

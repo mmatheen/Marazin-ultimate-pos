@@ -494,9 +494,11 @@
 
             // Determine if decimal is allowed for this product
             const allowDecimal = product.allow_decimal === true || product.allow_decimal === "true";
-            const quantityStep = allowDecimal ? "0.01" : "1";
+            // ✅ FIX: Always allow step="0.01" to prevent browser validation errors on values like 5.00
+            // The backend will handle the actual decimal validation based on unit type
+            const quantityStep = "0.01"; // Always allow decimals in HTML to prevent validation errors
             const quantityMin = allowDecimal ? "0.01" : "1";
-            const quantityPattern = allowDecimal ? "[0-9]+([.][0-9]{1,2})?" : "[0-9]+";
+            const quantityPattern = allowDecimal ? "[0-9]+([.][0-9]{1,2})?" : "[0-9]+([.][0-9]{1,2})?";
 
             if (existingRow && !isEditing) {
                 console.log(`📋 Product ${product.id} (${product.name}) already exists - incrementing quantity`);
@@ -550,7 +552,7 @@
                 ${batchHistoryHtml ? `<br><div class="batch-history mt-1"><strong>Recent Batches:</strong><br>${batchHistoryHtml}</div>` : ''}
             </td>
             <td>
-                <input type="number" class="form-control purchase-quantity" value="${prices.quantity || 1}" min="${quantityMin}" step="${quantityStep}" pattern="${quantityPattern}" ${allowDecimal ? '' : 'oninput="this.value = this.value.replace(/[^0-9]/g, \'\')"'}>
+                <input type="number" class="form-control purchase-quantity" value="${prices.quantity || 1}" min="${quantityMin}" step="${quantityStep}" pattern="${quantityPattern}" data-allow-decimal="${allowDecimal}">
             </td>
             <td>
                 <input type="number" class="form-control product-price" value="${unitCost.toFixed(2)}" min="0">
@@ -583,6 +585,30 @@
                 ).on("input", function() {
                     updateRow($newRow);
                     updateFooter();
+                });
+                
+                // ✅ ADD: Custom validation for quantity based on unit type
+                $newRow.find(".purchase-quantity").on("blur", function() {
+                    const allowDecimal = $(this).data('allow-decimal');
+                    const value = parseFloat($(this).val());
+                    
+                    // Only validate if unit doesn't allow decimals
+                    if (allowDecimal === false || allowDecimal === "false") {
+                        // Check if the value has decimal places
+                        if (value % 1 !== 0) {
+                            $(this).addClass('is-invalid');
+                            if (!$(this).next('.invalid-feedback').length) {
+                                $(this).after('<div class="invalid-feedback">This unit requires whole numbers only.</div>');
+                            }
+                        } else {
+                            $(this).removeClass('is-invalid');
+                            $(this).next('.invalid-feedback').remove();
+                        }
+                    } else {
+                        // Remove any validation errors for decimal-allowed units
+                        $(this).removeClass('is-invalid');
+                        $(this).next('.invalid-feedback').remove();
+                    }
                 });
 
                 // Handle retail price changes separately to update profit margin
@@ -788,8 +814,57 @@
 
 
         function formatDate(dateStr) {
-            const [year, month, day] = dateStr.split('-');
-            return `${day}-${month}-${year}`;
+            if (!dateStr) return '';
+            
+            try {
+                // Handle various date formats and clean malformed dates
+                let cleanDate = dateStr;
+                
+                // Fix malformed date format like "24T00:00:00.0000002-11-2025"
+                if (typeof cleanDate === 'string' && cleanDate.includes('T') && cleanDate.includes('-')) {
+                    // Extract date parts from malformed format
+                    const parts = cleanDate.split('T')[0];
+                    if (parts && parts.length >= 2) {
+                        cleanDate = parts;
+                    }
+                    
+                    // If still malformed, try to extract valid date pattern
+                    const dateMatch = cleanDate.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+                    if (dateMatch) {
+                        cleanDate = `${dateMatch[1]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[3].padStart(2, '0')}`;
+                    }
+                }
+                
+                // ✅ FIX: Handle DD-MM-YYYY format by converting to YYYY-MM-DD for JavaScript
+                if (typeof cleanDate === 'string' && cleanDate.match(/^\d{2}-\d{2}-\d{4}$/)) {
+                    // Convert DD-MM-YYYY to YYYY-MM-DD
+                    const parts = cleanDate.split('-');
+                    if (parts.length === 3) {
+                        cleanDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                        console.log('Converted DD-MM-YYYY to YYYY-MM-DD:', dateStr, '->', cleanDate);
+                    }
+                }
+                
+                const date = new Date(cleanDate);
+                
+                // Check if date is valid
+                if (isNaN(date.getTime())) {
+                    console.warn('Invalid date detected:', dateStr, 'cleaned to:', cleanDate);
+                    return '';
+                }
+                
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                
+                const formatted = `${day}-${month}-${year}`;
+                console.log('Date formatted:', dateStr, '->', formatted);
+                return formatted;
+                
+            } catch (error) {
+                console.error('Error formatting date:', dateStr, error);
+                return '';
+            }
         }
 
         const pathSegments = window.location.pathname.split('/');
@@ -799,29 +874,80 @@
             lastSegment)) ? lastSegment : null;
 
         if (purchaseId) {
-            fetchPurchaseData(purchaseId);
+            // ✅ FIX: Wait for suppliers to be loaded before fetching purchase data
+            let suppliersLoaded = false;
+            let purchaseDataFetched = false;
+            let purchaseData = null;
+
+            // Listen for suppliers loaded event
+            $(document).on('suppliersLoaded', function() {
+                suppliersLoaded = true;
+                if (purchaseDataFetched && purchaseData) {
+                    populateForm(purchaseData);
+                }
+            });
+
+            // Fetch purchase data
+            fetchPurchaseData(purchaseId).then(function(data) {
+                purchaseDataFetched = true;
+                purchaseData = data;
+                if (suppliersLoaded) {
+                    populateForm(purchaseData);
+                }
+            });
+
             $("#purchaseButton").text("Update Purchase");
         }
 
         function fetchPurchaseData(purchaseId) {
-            $.ajax({
-                url: `/purchase/edit/${purchaseId}`,
-                method: 'GET',
-                dataType: 'json',
-                success: function(response) {
-                    if (response.status === 200) {
-                        populateForm(response.purchase);
-                    } else {
-                        toastr.error('Failed to fetch purchase data.', 'Error');
+            return new Promise((resolve, reject) => {
+                $.ajax({
+                    url: `/purchase/edit/${purchaseId}`,
+                    method: 'GET',
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.status === 200) {
+                            resolve(response.purchase);
+                        } else {
+                            toastr.error('Failed to fetch purchase data.', 'Error');
+                            reject(response);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        handleAjaxError('fetching purchase data')(xhr, status, error);
+                        reject(error);
                     }
-                },
-                error: handleAjaxError('fetching purchase data')
+                });
             });
         }
 
         function populateForm(purchase) {
-            $('#supplier-id').val(purchase.supplier_id).trigger(
-                'change'); // Trigger change event after setting supplier ID
+            // ✅ FIX: Check if supplier dropdown is populated before setting value
+            const supplierSelect = $('#supplier-id');
+            const supplierOptions = supplierSelect.find('option').length;
+            
+            if (supplierOptions <= 1) {
+                // Suppliers not loaded yet, wait a bit and retry
+                console.log('Suppliers not loaded yet, retrying in 500ms...');
+                setTimeout(() => populateForm(purchase), 500);
+                return;
+            }
+
+            // Set supplier and trigger change event
+            console.log('Setting supplier ID:', purchase.supplier_id);
+            console.log('Available supplier options:', supplierSelect.find('option').map(function() { return $(this).val() + ':' + $(this).text(); }).get());
+            
+            supplierSelect.val(purchase.supplier_id).trigger('change');
+            
+            // Verify if supplier was set correctly
+            const selectedSupplier = supplierSelect.val();
+            console.log('Supplier set to:', selectedSupplier);
+            
+            if (selectedSupplier != purchase.supplier_id) {
+                console.warn('Supplier selection failed. Expected:', purchase.supplier_id, 'Got:', selectedSupplier);
+            }
+            
+            // Continue with other form fields
             $('#reference-no').val(purchase.reference_no);
             $('#purchase-date').val(formatDate(purchase.purchase_date));
             $('#purchase-status').val(purchase.purchasing_status).change();
@@ -834,10 +960,66 @@
 
             if (purchase.payments && purchase.payments.length > 0) {
                 const latestPayment = purchase.payments[purchase.payments.length - 1];
+                console.log('Latest payment data:', latestPayment);
+                
+                // ✅ CRITICAL FIX: Set paid amount field
+                $('#paid-amount').val(latestPayment.amount || '');
+                
+                // Set basic payment fields
                 $('#payment-date').val(formatDate(latestPayment.payment_date));
                 $('#payment-account').val(latestPayment.payment_account);
                 $('#payment-method').val(latestPayment.payment_method);
                 $('#payment-note').val(latestPayment.notes);
+                
+                console.log('Payment amount set to:', latestPayment.amount);
+                
+                // ✅ CRITICAL FIX: Trigger payment field visibility after setting payment method
+                if (typeof togglePaymentFields === 'function') {
+                    togglePaymentFields();
+                } else {
+                    // Fallback manual visibility control
+                    const paymentMethod = latestPayment.payment_method;
+                    $('.payment-fields').addClass('d-none'); // Hide all first
+                    
+                    if (paymentMethod === 'cheque') {
+                        $('#chequeFields').removeClass('d-none');
+                    } else if (paymentMethod === 'card') {
+                        $('#creditCardFields').removeClass('d-none');
+                    } else if (paymentMethod === 'bank_transfer') {
+                        $('#bankTransferFields').removeClass('d-none');
+                    }
+                }
+                
+                // ✅ POPULATE CHEQUE FIELDS if payment method is cheque
+                if (latestPayment.payment_method === 'cheque') {
+                    $('#chequeNumber').val(latestPayment.cheque_number || '');
+                    $('#bankBranch').val(latestPayment.cheque_bank_branch || '');
+                    $('#cheque_received_date').val(formatDate(latestPayment.cheque_received_date));
+                    $('#cheque_valid_date').val(formatDate(latestPayment.cheque_valid_date));
+                    $('#cheque_given_by').val(latestPayment.cheque_given_by || '');
+                    
+                    console.log('Populated cheque fields:', {
+                        cheque_number: latestPayment.cheque_number,
+                        bank_branch: latestPayment.cheque_bank_branch,
+                        received_date: latestPayment.cheque_received_date,
+                        valid_date: latestPayment.cheque_valid_date,
+                        given_by: latestPayment.cheque_given_by
+                    });
+                }
+                
+                // ✅ POPULATE CARD FIELDS if payment method is card
+                if (latestPayment.payment_method === 'card') {
+                    $('#cardNumber').val(latestPayment.card_number || '');
+                    $('#cardHolderName').val(latestPayment.card_holder_name || '');
+                    $('#expiryMonth').val(latestPayment.card_expiry_month || '');
+                    $('#expiryYear').val(latestPayment.card_expiry_year || '');
+                    $('#securityCode').val(latestPayment.card_security_code || '');
+                }
+                
+                // ✅ POPULATE BANK TRANSFER FIELDS if payment method is bank_transfer
+                if (latestPayment.payment_method === 'bank_transfer') {
+                    $('#bankAccountNumber').val(latestPayment.bank_account_number || '');
+                }
             }
 
             // Use global variable or get existing instance (don't reinitialize!)
@@ -907,6 +1089,7 @@
             if (!$('#purchaseForm').valid()) {
                 document.getElementsByClassName('errorSound')[0].play();
                 toastr.error('Invalid inputs, Check & try again!!', 'Warning');
+                // ✅ FIX: Reset submission state on validation failure
                 $('#purchaseButton').prop('disabled', false).html(purchaseId ? 'Update Purchase' : 'Save Purchase');
                 isSubmitting = false;
                 return;
@@ -1316,16 +1499,57 @@
             }
 
             const purchaseDate = formatDate($('#purchase-date').val());
-            const paidDate = formatDate($('#payment-date').val());
+            const paidDate = $('#payment-date').val() ? formatDate($('#payment-date').val()) : '';
 
-            if (!purchaseDate || !paidDate) {
-                toastr.error('Invalid date format. Please use YYYY-MM-DD.', 'Error');
-                $('#purchaseButton').prop('disabled', false).html('Save Purchase');
+            if (!purchaseDate) {
+                toastr.error('Invalid purchase date format.', 'Error');
+                $('#purchaseButton').prop('disabled', false).html(purchaseId ? 'Update Purchase' : 'Save Purchase');
+                // ✅ FIX: Reset submission state on date validation failure
+                isSubmitting = false;
+                return;
+            }
+
+            // Only validate payment date if it's provided
+            if ($('#payment-date').val() && !paidDate) {
+                toastr.error('Invalid payment date format.', 'Error'); 
+                $('#purchaseButton').prop('disabled', false).html(purchaseId ? 'Update Purchase' : 'Save Purchase');
+                // ✅ FIX: Reset submission state on date validation failure
+                isSubmitting = false;
                 return;
             }
 
             formData.append('purchase_date', purchaseDate);
-            // formData.append('paid_date', paidDate);
+            
+            // ✅ FIX: Add payment fields if payment amount is provided
+            const paidAmount = $('#paid-amount').val();
+            if (paidAmount && parseFloat(paidAmount) > 0) {
+                formData.append('paid_amount', paidAmount);
+                if (paidDate) {
+                    formData.append('paid_date', paidDate);
+                }
+                formData.append('payment_method', $('#payment-method').val() || '');
+                formData.append('payment_account', $('#payment-account').val() || '');
+                formData.append('payment_note', $('#payment-note').val() || '');
+                
+                // Add payment method specific fields
+                const paymentMethod = $('#payment-method').val();
+                if (paymentMethod === 'cheque') {
+                    formData.append('cheque_number', $('#chequeNumber').val() || '');
+                    formData.append('cheque_bank_branch', $('#bankBranch').val() || '');
+                    formData.append('cheque_received_date', $('#cheque_received_date').val() || '');
+                    formData.append('cheque_valid_date', $('#cheque_valid_date').val() || '');
+                    formData.append('cheque_given_by', $('#cheque_given_by').val() || '');
+                } else if (paymentMethod === 'card') {
+                    formData.append('card_number', $('#cardNumber').val() || '');
+                    formData.append('card_holder_name', $('#cardHolderName').val() || '');
+                    formData.append('card_expiry_month', $('#expiryMonth').val() || '');
+                    formData.append('card_expiry_year', $('#expiryYear').val() || '');
+                    formData.append('card_security_code', $('#securityCode').val() || '');
+                } else if (paymentMethod === 'bank_transfer') {
+                    formData.append('bank_account_number', $('#bankAccountNumber').val() || '');
+                }
+            }
+            
             formData.append('final_total', $('#final-total').val());
 
             // FIX: Send discount and tax fields to server

@@ -251,18 +251,49 @@ class UnifiedLedgerService
                 'notes' => 'REVERSAL: Sale Edit - Cancel previous amount Rs.' . number_format($oldFinalTotal, 2) . ($editReason ? ' | Reason: ' . $editReason : '')
             ]);
 
+            // ✅ CRITICAL FIX: Ensure reversal entry has correct status
+            if ($reversalEntry->status !== 'reversed') {
+                $reversalEntry->status = 'reversed';
+                $reversalEntry->save();
+            }
+
             // Step 3: Create NEW sale entry with correct amount
-            $newSaleEntry = Ledger::createEntry([
-                'contact_id' => $sale->customer_id,
-                'contact_type' => 'customer',
-                'transaction_date' => Carbon::now('Asia/Colombo'),
-                'reference_no' => $sale->invoice_no,
-                'transaction_type' => 'sale',
-                'amount' => $newFinalTotal,
-                'notes' => 'Sale Edit - New Amount Rs.' . number_format($newFinalTotal, 2) . 
-                          ($difference >= 0 ? ' | Increase: +Rs' . number_format($difference, 2) : ' | Decrease: Rs' . number_format(abs($difference), 2)) .
-                          ($editReason ? ' | Reason: ' . $editReason : '')
-            ]);
+            // ✅ CRITICAL FIX: Check for existing active sale entry to prevent duplicates
+            $existingNewSaleEntry = Ledger::where('contact_id', $sale->customer_id)
+                ->where('contact_type', 'customer')
+                ->where('reference_no', $sale->invoice_no)
+                ->where('transaction_type', 'sale')
+                ->where('status', 'active')
+                ->where('debit', $newFinalTotal)
+                ->first();
+
+            if ($existingNewSaleEntry) {
+                Log::info("Active sale entry already exists, skipping creation", [
+                    'sale_id' => $sale->id,
+                    'existing_entry_id' => $existingNewSaleEntry->id,
+                    'amount' => $newFinalTotal
+                ]);
+                $newSaleEntry = $existingNewSaleEntry;
+            } else {
+                $newSaleEntry = Ledger::createEntry([
+                    'contact_id' => $sale->customer_id,
+                    'contact_type' => 'customer',
+                    'transaction_date' => Carbon::now('Asia/Colombo'),
+                    'reference_no' => $sale->invoice_no,
+                    'transaction_type' => 'sale',
+                    'amount' => $newFinalTotal,
+                    'status' => 'active', // ✅ ENSURE new sale entry is active
+                    'notes' => 'Sale Edit - New Amount Rs.' . number_format($newFinalTotal, 2) . 
+                              ($difference >= 0 ? ' | Increase: +Rs' . number_format($difference, 2) : ' | Decrease: Rs' . number_format(abs($difference), 2)) .
+                              ($editReason ? ' | Reason: ' . $editReason : '')
+                ]);
+            }
+
+            // ✅ CRITICAL FIX: Ensure new sale entry has correct status
+            if ($newSaleEntry->status !== 'active') {
+                $newSaleEntry->status = 'active';
+                $newSaleEntry->save();
+            }
 
             Log::info("Perfect reversal accounting completed for sale edit", [
                 'sale_id' => $sale->id,
@@ -406,24 +437,71 @@ class UnifiedLedgerService
     }
 
     /**
-     * Record opening balance payment
+     * Record opening balance payment and update customer/supplier opening balance
+     * Business Logic: When opening balance is paid, reduce the opening balance in customer/supplier table
+     * CLEAN VERSION: Only creates payment entry and updates table, no reversal entries
      */
     public function recordOpeningBalancePayment($payment, $contactType)
     {
-        // Use the actual creation time converted to Asia/Colombo timezone
-        $transactionDate = $payment->created_at ? 
-            Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo') : 
-            Carbon::now('Asia/Colombo');
-        
-        return Ledger::createEntry([
-            'contact_id' => $contactType === 'customer' ? $payment->customer_id : $payment->supplier_id,
-            'contact_type' => $contactType,
-            'transaction_date' => $transactionDate,
-            'reference_no' => $payment->reference_no,
-            'transaction_type' => 'opening_balance_payment', // Use specific opening balance payment type
-            'amount' => $payment->amount,
-            'notes' => $payment->notes ?: "Opening balance payment"
-        ]);
+        return DB::transaction(function () use ($payment, $contactType) {
+            // Use the actual creation time converted to Asia/Colombo timezone
+            $transactionDate = $payment->created_at ? 
+                Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo') : 
+                Carbon::now('Asia/Colombo');
+            
+            $contactId = $contactType === 'customer' ? $payment->customer_id : $payment->supplier_id;
+            
+            // 1. Create ledger entry for the payment
+            $ledgerEntry = Ledger::createEntry([
+                'contact_id' => $contactId,
+                'contact_type' => $contactType,
+                'transaction_date' => $transactionDate,
+                'reference_no' => $payment->reference_no,
+                'transaction_type' => 'opening_balance_payment', // Use specific opening balance payment type
+                'amount' => $payment->amount,
+                'notes' => $payment->notes ?: "Opening balance payment"
+            ]);
+            
+            // 2. Update opening balance in customer/supplier table (Business Logic)
+            // IMPORTANT: Use updateQuietly to prevent triggering model events that create reversal entries
+            if ($contactType === 'customer') {
+                $customer = Customer::withoutGlobalScopes()->find($contactId);
+                if ($customer) {
+                    $oldOpeningBalance = $customer->opening_balance;
+                    $newOpeningBalance = max(0, $customer->opening_balance - $payment->amount);
+                    
+                    // Use updateQuietly to prevent triggering syncOpeningBalanceToLedger()
+                    $customer->updateQuietly(['opening_balance' => $newOpeningBalance]);
+                    
+                    Log::info("Customer opening balance updated via payment (no reversals)", [
+                        'customer_id' => $contactId,
+                        'old_opening_balance' => $oldOpeningBalance,
+                        'payment_amount' => $payment->amount,
+                        'new_opening_balance' => $newOpeningBalance,
+                        'method' => 'updateQuietly'
+                    ]);
+                }
+            } else {
+                $supplier = Supplier::withoutGlobalScopes()->find($contactId);
+                if ($supplier) {
+                    $oldOpeningBalance = $supplier->opening_balance;
+                    $newOpeningBalance = max(0, $supplier->opening_balance - $payment->amount);
+                    
+                    // Use updateQuietly to prevent triggering model events
+                    $supplier->updateQuietly(['opening_balance' => $newOpeningBalance]);
+                    
+                    Log::info("Supplier opening balance updated via payment (no reversals)", [
+                        'supplier_id' => $contactId,
+                        'old_opening_balance' => $oldOpeningBalance,
+                        'payment_amount' => $payment->amount,
+                        'new_opening_balance' => $newOpeningBalance,
+                        'method' => 'updateQuietly'
+                    ]);
+                }
+            }
+            
+            return $ledgerEntry;
+        });
     }
 
     /**
@@ -561,16 +639,24 @@ class UnifiedLedgerService
             $ledgerQuery = $this->applyLocationFilter($ledgerQuery, $locationId, 'customer');
         }
 
-        // Get all ledger transactions and calculate running balance in PHP for better control
-        $ledgerTransactions = DB::table('ledgers')
+        // Get all ledger transactions and calculate running balance properly based on view mode
+        $ledgerQuery = DB::table('ledgers')
             ->where('contact_id', $customerId)
             ->where('contact_type', 'customer')
             ->where('transaction_date', '>=', Carbon::parse($startDate)->startOfDay())
             ->where('transaction_date', '<=', Carbon::parse($endDate)->endOfDay())
             ->select('*')
             ->orderBy('created_at', 'asc')
-            ->orderBy('id', 'asc')
-            ->get()
+            ->orderBy('id', 'asc');
+
+        // Apply status filtering based on view mode
+        if (!$showFullHistory) {
+            // NORMAL VIEW: Only show active entries
+            $ledgerQuery->where('status', 'active');
+        }
+        // FULL AUDIT TRAIL: Show all entries (no status filter)
+
+        $ledgerTransactions = $ledgerQuery->get()
             ->map(function($row) {
                 // Convert stdClass to object with proper properties for compatibility
                 $ledger = new \stdClass();
@@ -580,15 +666,19 @@ class UnifiedLedgerService
                 return $ledger;
             });
         
-        // Calculate running balance for audit trail display
-        // SIMPLIFIED APPROACH: Use BalanceHelper for final balance, simple running calc for display
+        // Calculate running balance properly based on what entries are included
+        $runningBalance = 0;
         
-        $runningBalance = 0; // Simple running balance for display purposes only
-        
-        $ledgerTransactions = $ledgerTransactions->map(function($ledger) use (&$runningBalance) {
-            // Simple running balance calculation for display
-            if ($ledger->status === 'active') {
+        $ledgerTransactions = $ledgerTransactions->map(function($ledger) use (&$runningBalance, $showFullHistory) {
+            // Calculate running balance based on entry status and view mode
+            if ($showFullHistory) {
+                // Full audit trail: Include all entries in running balance
                 $runningBalance += ($ledger->debit - $ledger->credit);
+            } else {
+                // Normal view: Only active entries contribute to running balance
+                if ($ledger->status === 'active') {
+                    $runningBalance += ($ledger->debit - $ledger->credit);
+                }
             }
             
             $ledger->calculated_running_balance = $runningBalance;
@@ -597,40 +687,14 @@ class UnifiedLedgerService
             return $ledger;
         });
 
-        // Apply filtering based on $showFullHistory parameter
-        if (!$showFullHistory) {
-            // **CLEAN VIEW: Filter out technical reversal entries**
-            $transactionsToProcess = $ledgerTransactions->filter(function ($ledger) {
-                // Only show active entries
-                if (!isset($ledger->status) || $ledger->status !== 'active') {
-                    return false;
-                }
-                
-                // Filter out opening balance adjustment entries
-                if ($ledger->transaction_type === 'opening_balance_adjustment' ||
-                    (isset($ledger->notes) && str_contains(strtolower($ledger->notes), 'cancel previous amount'))) {
-                    return false;
-                }
-                
-                return true;
-            });
-        } else {
-            // **FULL AUDIT TRAIL: Show ALL transactions**
-            $transactionsToProcess = $ledgerTransactions;
-        }
+        // For normal view, entries are already filtered by status in query
+        // For full audit trail, show everything
+        $transactionsToProcess = $ledgerTransactions;
 
-        // Transform ledger data for frontend display with SIMPLIFIED running balance
-        // NOTE: Use BalanceHelper for business logic, running balance is only for display
-        
-        $displayRunningBalance = 0;
-        $transactions = $transactionsToProcess->map(function ($ledger) use ($showFullHistory, &$displayRunningBalance) {
-            // Simple running balance for display (not business logic)
-            if ($showFullHistory) {
-                $displayBalance = (float) $ledger->calculated_running_balance;
-            } else {
-                $displayRunningBalance += ($ledger->debit - $ledger->credit);
-                $displayBalance = $displayRunningBalance;
-            }
+        // Transform ledger data for frontend display
+        $transactions = $transactionsToProcess->map(function ($ledger) use ($showFullHistory) {
+            // Use the calculated running balance from above
+            $displayBalance = (float) $ledger->calculated_running_balance;
             
             // Use created_at converted to Asia/Colombo timezone for display
             $displayDate = $ledger->created_at ? 
@@ -780,12 +844,15 @@ class UnifiedLedgerService
      */
     public function getSupplierLedger($supplierId, $startDate, $endDate, $locationId = null, $showFullHistory = false)
     {
-        $supplier = Supplier::find($supplierId);
+        // Use withoutGlobalScopes to bypass LocationScope filtering
+        // This is necessary because LocationScope filters suppliers by user's location permissions
+        // but for ledger reports, we need to access all suppliers regardless of location
+        $supplier = Supplier::withoutGlobalScopes()->find($supplierId);
         if (!$supplier) {
             throw new \Exception('Supplier not found');
         }
 
-        // Get ledger transactions for the supplier within the date range
+        // Get ledger transactions with proper status filtering based on view mode
         $ledgerQuery = Ledger::where('contact_id', $supplierId)
             ->where('contact_type', 'supplier')
             ->byDateRange($startDate, $endDate);
@@ -795,43 +862,35 @@ class UnifiedLedgerService
             $ledgerQuery = $this->applyLocationFilter($ledgerQuery, $locationId, 'supplier');
         }
 
-        // Apply filtering based on $showFullHistory parameter
-        // Apply status-based filtering only (clean and simple)
+        // Apply status filtering based on view mode
         if (!$showFullHistory) {
+            // NORMAL VIEW: Only show active entries
             $ledgerQuery->where('status', 'active');
         }
+        // FULL AUDIT TRAIL: Show all entries (no status filter)
 
         $ledgerTransactions = $ledgerQuery
             ->orderBy('created_at', 'asc') // Order by created_at ascending (chronological order)
             ->orderBy('id', 'asc') // Secondary sort by ID for same-date transactions (chronological)
             ->get();
 
-        // Apply duplicate filtering only for clean view
-        if (!$showFullHistory) {
-            // Filter to show only the latest entry for each reference number to avoid showing edit history
-            $filteredTransactions = collect();
-            $seenReferences = [];
-            
-            // Process in reverse order to keep the latest entries
-            foreach ($ledgerTransactions->reverse() as $ledger) {
-                $key = $ledger->reference_no . '_' . $ledger->transaction_type;
-                
-                if (!isset($seenReferences[$key])) {
-                    $seenReferences[$key] = true;
-                    $filteredTransactions->prepend($ledger); // Add to beginning to maintain order
-                }
-            }
-            $transactionsToProcess = $filteredTransactions;
-        } else {
-            // For full history, show all transactions with enhanced information
-            $transactionsToProcess = $ledgerTransactions;
-        }
+        // For normal view, entries are already filtered by status in query
+        // For full audit trail, show everything
+        $transactionsToProcess = $ledgerTransactions;
 
-        // Transform ledger data for frontend display with SIMPLIFIED approach
+        // Calculate running balance properly based on view mode
         $runningBalance = 0;
         $transactions = $transactionsToProcess->map(function ($ledger) use ($showFullHistory, &$runningBalance) {
-            // Simple running balance calculation for display
-            $runningBalance += ($ledger->debit - $ledger->credit);
+            // Calculate running balance based on view mode
+            if ($showFullHistory) {
+                // Full audit trail: Include all entries in running balance
+                $runningBalance += ($ledger->credit - $ledger->debit); // For suppliers: credit increases balance
+            } else {
+                // Normal view: Only active entries contribute to running balance
+                if ($ledger->status === 'active') {
+                    $runningBalance += ($ledger->credit - $ledger->debit); // For suppliers: credit increases balance
+                }
+            }
             
             // Use created_at converted to Asia/Colombo timezone for display
             $displayDate = $ledger->created_at ? 
@@ -897,6 +956,7 @@ class UnifiedLedgerService
             ],
             'transactions' => $transactions,
             'summary' => [
+                'total_transactions' => $totalPurchases, // Total purchase transactions for display
                 'total_purchases' => $totalPurchases, // Only actual purchases
                 'total_paid' => $totalPayments, // Only actual payments
                 'total_returns' => $totalReturns, // Only actual returns
@@ -1442,59 +1502,94 @@ class UnifiedLedgerService
         return DB::transaction(function () use ($purchase, $oldReferenceNo) {
             $referenceNo = $oldReferenceNo ?: ('PUR-' . $purchase->id);
             
-            // ✅ FIXED: Use proper reversal accounting instead of hard delete
-            // Step 1: Mark original purchase entry as reversed
-            $originalEntry = Ledger::where('reference_no', $referenceNo)
-                ->where('transaction_type', 'purchase')
-                ->where('contact_id', $purchase->supplier_id)
-                ->where('status', 'active')
-                ->first();
-                
-            if ($originalEntry) {
-                $originalEntry->update([
-                    'status' => 'reversed',
-                    'notes' => $originalEntry->notes . ' [REVERSED: Purchase updated on ' . now()->format('Y-m-d H:i:s') . ']'
-                ]);
-                
-                // Step 2: Create REVERSAL entry to cancel old purchase
-                Ledger::createEntry([
-                    'contact_id' => $purchase->supplier_id,
-                    'contact_type' => 'supplier',
-                    'transaction_date' => Carbon::now('Asia/Colombo'),
-                    'reference_no' => $referenceNo . '-REV-' . time(),
-                    'transaction_type' => 'purchase',
-                    'amount' => -$originalEntry->credit, // Reverse the credit
-                    'status' => 'reversed',
-                    'notes' => 'REVERSAL: Purchase Update - Cancel previous amount Rs.' . number_format($originalEntry->credit, 2)
-                ]);
-            }
-            
-            // Also handle associated payment entries
-            $paymentEntries = Ledger::where('reference_no', $referenceNo)
-                ->where('transaction_type', 'payments')
-                ->where('contact_id', $purchase->supplier_id)
+            // ✅ ENHANCED: Handle supplier changes and payment reassignments in UnifiedLedgerService
+            // First check if there are any existing ledger entries for this purchase
+            $existingEntries = Ledger::where('reference_no', $referenceNo)
+                ->whereIn('transaction_type', ['purchase', 'payments'])
                 ->where('status', 'active')
                 ->get();
                 
-            foreach ($paymentEntries as $paymentEntry) {
-                $paymentEntry->update([
-                    'status' => 'reversed',
-                    'notes' => $paymentEntry->notes . ' [REVERSED: Purchase updated on ' . now()->format('Y-m-d H:i:s') . ']'
-                ]);
+            Log::info('Updating purchase ledger entries', [
+                'purchase_id' => $purchase->id,
+                'reference_no' => $referenceNo,
+                'current_supplier_id' => $purchase->supplier_id,
+                'existing_entries_count' => $existingEntries->count()
+            ]);
+            
+            // ✅ Handle supplier changes by reassigning payments first
+            $supplierChanged = false;
+            if ($existingEntries->count() > 0) {
+                $oldSupplierId = $existingEntries->first()->contact_id;
+                $supplierChanged = $oldSupplierId != $purchase->supplier_id;
                 
-                Ledger::createEntry([
-                    'contact_id' => $purchase->supplier_id,
-                    'contact_type' => 'supplier',
-                    'transaction_date' => Carbon::now('Asia/Colombo'),
-                    'reference_no' => $referenceNo . '-PAY-REV-' . time(),
-                    'transaction_type' => 'payments',
-                    'amount' => $paymentEntry->debit, // Reverse the debit
-                    'status' => 'reversed',
-                    'notes' => 'REVERSAL: Purchase Payment Update - Cancel amount Rs.' . number_format($paymentEntry->debit, 2)
-                ]);
+                if ($supplierChanged) {
+                    Log::info('Supplier change detected - reassigning payments', [
+                        'old_supplier_id' => $oldSupplierId,
+                        'new_supplier_id' => $purchase->supplier_id,
+                        'purchase_id' => $purchase->id
+                    ]);
+                    
+                    // Reassign all payments to new supplier
+                    $payments = Payment::where('reference_id', $purchase->id)
+                        ->where('payment_type', 'purchase')
+                        ->where('supplier_id', $oldSupplierId)
+                        ->get();
+                        
+                    foreach ($payments as $payment) {
+                        $payment->update(['supplier_id' => $purchase->supplier_id]);
+                        Log::info('Payment reassigned to new supplier', [
+                            'payment_id' => $payment->id,
+                            'amount' => $payment->amount,
+                            'old_supplier_id' => $oldSupplierId,
+                            'new_supplier_id' => $purchase->supplier_id
+                        ]);
+                    }
+                }
             }
             
-            // Step 3: Record the updated purchase
+            // ✅ FIXED: Use proper reversal accounting for ALL existing entries
+            foreach ($existingEntries as $entry) {
+                Log::info('Processing existing ledger entry', [
+                    'entry_id' => $entry->id,
+                    'entry_type' => $entry->transaction_type,
+                    'old_supplier_id' => $entry->contact_id,
+                    'new_supplier_id' => $purchase->supplier_id,
+                    'supplier_changed' => $supplierChanged,
+                    'amount' => $entry->credit ?: $entry->debit
+                ]);
+                
+                // Mark original entry as reversed
+                $entry->update([
+                    'status' => 'reversed',
+                    'notes' => $entry->notes . ' [REVERSED: Purchase updated on ' . now()->format('Y-m-d H:i:s') . 
+                              ($supplierChanged ? ' - Supplier changed' : ' - Amount/details updated') . ']'
+                ]);
+                
+                // Create reversal entry to maintain audit trail
+                $reversalAmount = 0;
+                if ($entry->transaction_type === 'purchase') {
+                    $reversalAmount = -$entry->credit; // Reverse the credit
+                } else if ($entry->transaction_type === 'payments') {
+                    $reversalAmount = $entry->debit; // Reverse the debit
+                }
+                
+                if ($reversalAmount != 0) {
+                    Ledger::createEntry([
+                        'contact_id' => $entry->contact_id, // Keep original supplier for reversal
+                        'contact_type' => 'supplier',
+                        'transaction_date' => Carbon::now('Asia/Colombo'),
+                        'reference_no' => $referenceNo . '-REV-' . $entry->id . '-' . time(),
+                        'transaction_type' => $entry->transaction_type,
+                        'amount' => $reversalAmount,
+                        'status' => 'reversed',
+                        'notes' => 'REVERSAL: Purchase Update - ' . 
+                                 ($supplierChanged ? 'Supplier Change' : 'Amount Update') . 
+                                 ' - Cancel amount Rs.' . number_format(abs($reversalAmount), 2)
+                    ]);
+                }
+            }
+            
+            // Step 2: Record the updated purchase with current supplier
             return $this->recordPurchase($purchase);
         });
     }
@@ -1545,11 +1640,10 @@ class UnifiedLedgerService
                 ]);
             }
             
-            // CRITICAL: Recalculate ALL balances after reversal to ensure accuracy
+            // CRITICAL: Balances will be automatically recalculated by the ledger system
             // This ensures running balance is correct for both customer and supplier
-            Ledger::recalculateAllBalances($userId, $contactType);
             
-            Log::info("Ledger balances recalculated after reversal", [
+            Log::info("Ledger balances will be recalculated automatically after reversal", [
                 'contact_type' => $contactType,
                 'contact_id' => $userId,
                 'final_balance' => Ledger::where('contact_id', $userId)
@@ -1915,10 +2009,9 @@ class UnifiedLedgerService
             ]
         ]);
         
-        // STEP 4: Recalculate balances after marking as deleted
-        Ledger::recalculateAllBalances($userId, $contactType);
+        // STEP 4: Balances will be automatically recalculated by the ledger system
         
-        Log::info("Balances recalculated after payment deletion", [
+        Log::info("Balances will be recalculated automatically after payment deletion", [
             'contact_id' => $userId,
             'contact_type' => $contactType,
             'final_balance' => $contactType === 'customer' 
@@ -2286,7 +2379,7 @@ class UnifiedLedgerService
                     'contact_type' => $contactType,
                     'transaction_date' => Carbon::now('Asia/Colombo'),
                     'reference_no' => $referenceNo . '-DEL-' . time(),
-                    'transaction_type' => 'payment_adjustment',
+                    'transaction_type' => 'payment_adjustment', // ✅ FIX: Use payment_adjustment transaction type
                     'amount' => $payment->amount, // Positive amount creates DEBIT to reverse old CREDIT
                     'status' => 'reversed', // ✅ CRITICAL FIX: Reversal entries should have status='reversed'
                     'notes' => 'REVERSAL: Payment Deleted - Cancel amount Rs.' . number_format($payment->amount, 2) . ($deleteReason ? ' | Reason: ' . $deleteReason : ''),
@@ -2473,6 +2566,53 @@ class UnifiedLedgerService
             }
             
             return null; // No changes needed
+        });
+    }
+
+    /**
+     * Update purchase payment in ledger when payment amount changes
+     */
+    public function updatePurchasePayment($payment, $purchase)
+    {
+        return DB::transaction(function () use ($payment, $purchase) {
+            $referenceNo = $payment->reference_no ?: 'PAY-' . $payment->id;
+            
+            Log::info('Updating purchase payment in ledger', [
+                'payment_id' => $payment->id,
+                'purchase_id' => $purchase->id,
+                'reference_no' => $referenceNo,
+                'amount' => $payment->amount,
+                'supplier_id' => $purchase->supplier_id
+            ]);
+            
+            // Mark existing payment ledger entries as reversed
+            $existingEntries = Ledger::where('reference_no', $referenceNo)
+                ->where('transaction_type', 'payments')
+                ->where('contact_id', $purchase->supplier_id)
+                ->where('status', 'active')
+                ->get();
+                
+            foreach ($existingEntries as $entry) {
+                $entry->update([
+                    'status' => 'reversed',
+                    'notes' => ($entry->notes ?: 'Purchase payment') . ' [REVERSED: Payment updated on ' . now()->format('Y-m-d H:i:s') . ']'
+                ]);
+                
+                // Create reversal entry
+                Ledger::createEntry([
+                    'contact_id' => $purchase->supplier_id,
+                    'contact_type' => 'supplier',
+                    'transaction_date' => Carbon::now('Asia/Colombo'),
+                    'reference_no' => $referenceNo . '-REV-' . time(),
+                    'transaction_type' => 'payments',
+                    'amount' => $entry->debit ? -$entry->debit : $entry->credit,
+                    'status' => 'reversed',
+                    'notes' => 'REVERSAL: Payment Update - Cancel amount Rs.' . number_format($entry->debit ?: $entry->credit, 2)
+                ]);
+            }
+            
+            // Create new payment entry with updated amount
+            return $this->recordPurchasePayment($payment, $purchase);
         });
     }
 }

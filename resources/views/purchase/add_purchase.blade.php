@@ -825,24 +825,22 @@
 
                 function togglePaymentFields() {
                     const paymentMethod = $('#payment-method').val();
+                    console.log('Toggling payment fields for method:', paymentMethod);
+                    
+                    // Add class to all payment field containers for easier management
+                    $('#creditCardFields, #chequeFields, #bankTransferFields').addClass('payment-fields d-none');
+                    
                     if (paymentMethod === 'card') {
                         $('#creditCardFields').removeClass('d-none');
-                        $('#chequeFields').addClass('d-none');
-                        $('#bankTransferFields').addClass('d-none');
                     } else if (paymentMethod === 'cheque') {
-                        $('#creditCardFields').addClass('d-none');
                         $('#chequeFields').removeClass('d-none');
-                        $('#bankTransferFields').addClass('d-none');
                     } else if (paymentMethod === 'bank_transfer') {
-                        $('#creditCardFields').addClass('d-none');
-                        $('#chequeFields').addClass('d-none');
                         $('#bankTransferFields').removeClass('d-none');
-                    } else {
-                        $('#creditCardFields').addClass('d-none');
-                        $('#chequeFields').addClass('d-none');
-                        $('#bankTransferFields').addClass('d-none');
                     }
                 }
+                
+                // Make togglePaymentFields globally accessible for purchase_ajax
+                window.togglePaymentFields = togglePaymentFields;
             });
         </script>
     @endsection

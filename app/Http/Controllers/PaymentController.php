@@ -860,7 +860,8 @@ class PaymentController extends Controller
 
         try {
             DB::transaction(function () use ($request) {
-                $bulkReference = 'FLEX-' . date('Ymd-His') . '-' . strtoupper(substr(uniqid(), -4));
+                // Generate meaningful bulk reference based on payment content
+                $bulkReference = $this->generateMeaningfulBulkReference($request);
                 $totalAmount = 0;
                 $processedGroups = [];
 
@@ -1151,7 +1152,7 @@ class PaymentController extends Controller
 
         try {
             DB::transaction(function () use ($request) {
-                $bulkReference = 'PURCH-FLEX-' . date('Ymd-His') . '-' . strtoupper(substr(uniqid(), -4));
+                $bulkReference = $this->generateMeaningfulBulkReference($request);
                 $totalAmount = 0;
                 $processedGroups = [];
 
@@ -2797,6 +2798,60 @@ class PaymentController extends Controller
             ]);
         } elseif ($paymentGroup['method'] === 'bank_transfer') {
             $paymentData['bank_account_number'] = $paymentGroup['bank_account_number'] ?? null;
+        }
+    }
+
+    /**
+     * Generate meaningful bulk reference based on payment content
+     * Instead of confusing FLEX-20251124-115653-9EC4, generate readable references
+     */
+    private function generateMeaningfulBulkReference($request)
+    {
+        $paymentType = $request->payment_type;
+        $dateStr = date('Ymd');
+        
+        if ($paymentType === 'opening_balance') {
+            // For opening balance payments
+            if (isset($request->customer_id)) {
+                $customer = \App\Models\Customer::find($request->customer_id);
+                $customerName = $customer ? substr($customer->first_name, 0, 3) : 'CUST';
+                return "OB-BULK-{$customerName}-{$dateStr}";
+            } else if (isset($request->supplier_id)) {
+                $supplier = \App\Models\Supplier::find($request->supplier_id);
+                $supplierName = $supplier ? substr($supplier->name, 0, 3) : 'SUPP';
+                return "OB-BULK-{$supplierName}-{$dateStr}";
+            }
+        } else {
+            // For sale/purchase payments, collect reference numbers
+            $referenceNumbers = [];
+            
+            foreach ($request->payment_groups as $group) {
+                if (isset($group['bills'])) {
+                    foreach ($group['bills'] as $bill) {
+                        if (isset($bill['sale_id'])) {
+                            $sale = \App\Models\Sale::find($bill['sale_id']);
+                            if ($sale && $sale->invoice_no) {
+                                $referenceNumbers[] = $sale->invoice_no;
+                            }
+                        } else if (isset($bill['purchase_id'])) {
+                            $purchase = \App\Models\Purchase::find($bill['purchase_id']);
+                            if ($purchase && $purchase->reference_no) {
+                                $referenceNumbers[] = $purchase->reference_no;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (!empty($referenceNumbers)) {
+                // Limit to first 3 reference numbers to keep reference manageable
+                $referenceList = implode(',', array_slice($referenceNumbers, 0, 3));
+                $suffix = count($referenceNumbers) > 3 ? '+' . (count($referenceNumbers) - 3) : '';
+                return "BULK-{$referenceList}{$suffix}";
+            } else {
+                // Fallback for unknown cases
+                return "BULK-PAYMENT-{$dateStr}";
+            }
         }
     }
 }

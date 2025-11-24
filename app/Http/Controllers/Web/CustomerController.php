@@ -38,55 +38,55 @@ class CustomerController extends Controller
 
   
     public function index()
-{
-    /** @var User $user */
-    $user = auth()->user();
+    {
+        /** @var User $user */
+        $user = auth()->user();
 
-    if (!$user) {
-        return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
+        if (!$user) {
+            return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
+        }
+
+        // Start with bypassing location scope, but apply sales rep filtering if needed
+        $query = Customer::withoutLocationScope()->with(['sales', 'salesReturns', 'payments', 'city']);
+        
+        // Apply sales rep route filtering if user is a sales rep
+        $salesRep = \App\Models\SalesRep::where('user_id', $user->id)
+            ->where('status', 'active')
+            ->first();
+        if ($salesRep) {
+            $query = $this->applySalesRepFilter($query, $user);
+        }
+
+        $customers = $query->orderBy('first_name')->get()->map(function ($customer) {
+            return [
+                'id' => $customer->id,
+                'prefix' => $customer->prefix,
+                'first_name' => $customer->first_name,
+                'last_name' => $customer->last_name,
+                'full_name' => $customer->full_name,
+                'mobile_no' => $customer->mobile_no,
+                'email' => $customer->email,
+                'address' => $customer->address,
+                'location_id' => $customer->location_id,
+                'opening_balance' => (float)$customer->opening_balance, // ✅ Fetch actual opening balance from customer table
+                'current_balance' => (float)$customer->getCurrentTotalBalance(), // Current total due from ledger
+                'total_sale_due' => (float)$customer->total_sale_due,
+                'total_return_due' => (float)$customer->total_return_due,
+                'current_due' => (float)$customer->current_due,
+                'city_id' => $customer->city_id,
+                'city_name' => $customer->city?->name ?? '',
+                'credit_limit' => (float)$customer->credit_limit,
+                'customer_type' => $customer->customer_type,
+            ];
+        });
+
+        return response()->json([
+            'status' => 200,
+            'message' => $customers,
+            'total_customers' => $customers->count(),
+            'sales_rep_info' => $user->isSalesRep() ? $this->getSalesRepInfo($user) : null
+        ]);
     }
-
-    // Start with bypassing location scope, but apply sales rep filtering if needed
-    $query = Customer::withoutLocationScope()->with(['sales', 'salesReturns', 'payments', 'city']);
-    
-    // Apply sales rep route filtering if user is a sales rep
-    $salesRep = \App\Models\SalesRep::where('user_id', $user->id)
-        ->where('status', 'active')
-        ->first();
-    if ($salesRep) {
-        $query = $this->applySalesRepFilter($query, $user);
-    }
-
-    $customers = $query->orderBy('first_name')->get()->map(function ($customer) {
-        return [
-            'id' => $customer->id,
-            'prefix' => $customer->prefix,
-            'first_name' => $customer->first_name,
-            'last_name' => $customer->last_name,
-            'full_name' => $customer->full_name,
-            'mobile_no' => $customer->mobile_no,
-            'email' => $customer->email,
-            'address' => $customer->address,
-            'location_id' => $customer->location_id,
-             'opening_balance' => (float)$customer->getOpeningBalanceFromLedger(), // ✅ Fetch from ledger
-            'current_balance' => (float)$customer->current_balance,
-            'total_sale_due' => (float)$customer->total_sale_due,
-            'total_return_due' => (float)$customer->total_return_due,
-            'current_due' => (float)$customer->current_due,
-            'city_id' => $customer->city_id,
-            'city_name' => $customer->city?->name ?? '',
-            'credit_limit' => (float)$customer->credit_limit,
-            'customer_type' => $customer->customer_type,
-        ];
-    });
-
-    return response()->json([
-        'status' => 200,
-        'message' => $customers,
-        'total_customers' => $customers->count(),
-        'sales_rep_info' => $user->isSalesRep() ? $this->getSalesRepInfo($user) : null
-    ]);
-}
 
     private function applySalesRepFilter($query, $user)
     {

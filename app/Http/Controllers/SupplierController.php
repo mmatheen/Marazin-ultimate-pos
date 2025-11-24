@@ -40,8 +40,8 @@ class SupplierController extends Controller
                 'email' => $supplier->email,
                 'address' => $supplier->address,
                 'location_id' => $supplier->location_id,
-                'opening_balance' => $supplier->getOpeningBalanceFromLedger(), // ✅ Fetch from ledger
-                'current_balance' => $supplier->current_balance,
+                'opening_balance' => $supplier->opening_balance, // ✅ Show actual opening balance from table
+                'current_balance' => $supplier->getCurrentTotalBalance(), // Current total due amount
                 'total_purchase_due' => $supplier->getTotalPurchaseDueAttribute(),
                 'total_return_due' => $supplier->getTotalReturnDueAttribute(),
             ];

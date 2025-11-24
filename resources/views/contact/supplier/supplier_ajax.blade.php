@@ -278,6 +278,10 @@
 
                             supplierSelect.append(option);
                         });
+
+                        // ✅ FIX: Trigger custom event when suppliers are loaded
+                        $(document).trigger('suppliersLoaded');
+                        
                     } else {
                         console.error('Failed to fetch supplier data:', data.message);
                     }

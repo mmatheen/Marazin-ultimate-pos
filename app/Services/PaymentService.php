@@ -364,26 +364,263 @@ class PaymentService
     }
 
     /**
-     * Update purchase payment status based on total paid
+     * Handle purchase payment with smart create/update/delete logic
+     * Eliminates duplication from PurchaseController
+     * 
+     * @param array $paymentData
+     * @param Purchase $purchase
+     * @return Payment|null
+     */
+    public function handlePurchasePayment(array $paymentData, Purchase $purchase): ?Payment
+    {
+        return DB::transaction(function () use ($paymentData, $purchase) {
+            // Skip if no payment amount provided
+            if (empty($paymentData['amount']) || $paymentData['amount'] <= 0) {
+                return null;
+            }
+
+            Log::info('PaymentService: Handling purchase payment', [
+                'purchase_id' => $purchase->id,
+                'amount' => $paymentData['amount'],
+                'method' => __METHOD__
+            ]);
+
+            // Check for ACTIVE existing payments (exclude deleted ones)
+            $activePayments = Payment::where('reference_id', $purchase->id)
+                ->where('payment_type', 'purchase')
+                ->where('status', '!=', 'deleted')
+                ->get();
+                
+            // Check for ANY existing payments (including deleted) for audit trail
+            $allPayments = Payment::where('reference_id', $purchase->id)
+                ->where('payment_type', 'purchase')
+                ->get();
+                
+            $hasActivePayments = $activePayments->count() > 0;
+            $hasAnyPayments = $allPayments->count() > 0;
+
+            Log::info('PaymentService: Payment analysis', [
+                'has_active_payments' => $hasActivePayments,
+                'has_any_payments' => $hasAnyPayments,
+                'active_count' => $activePayments->count(),
+                'total_count' => $allPayments->count()
+            ]);
+
+            if ($hasActivePayments) {
+                // ✅ SCENARIO 1: CREATE NEW PAYMENT (mark old as deleted for audit)
+                // Better for audit trail - preserve payment history
+                Log::info('PaymentService: Creating new payment, marking old as deleted', [
+                    'existing_payments' => $activePayments->count(),
+                    'new_amount' => $paymentData['amount']
+                ]);
+                
+                // Mark existing active payments as deleted (for audit trail)
+                foreach ($activePayments as $oldPayment) {
+                    // ✅ CRITICAL FIX: Reverse the old payment in ledger before marking as deleted
+                    $this->unifiedLedgerService->deletePayment($oldPayment, 'Payment replaced during purchase edit', auth()->id());
+                    
+                    $oldPayment->update([
+                        'status' => 'deleted',
+                        'notes' => ($oldPayment->notes ?? '') . ' [REPLACED BY NEW PAYMENT: ' . now()->format('Y-m-d H:i:s') . ']'
+                    ]);
+                }
+                
+                // Create new payment entry
+                $paymentData['notes'] = ($paymentData['notes'] ?? '') . ' [NEW PAYMENT: ' . now()->format('Y-m-d H:i:s') . ']';
+                return $this->createFirstPurchasePayment($paymentData, $purchase);
+                
+            } elseif ($hasAnyPayments) {
+                // ✅ SCENARIO 2: CREATE NEW PAYMENT (previous were deleted)
+                return $this->createPurchasePaymentAfterDeletion($paymentData, $purchase, $allPayments);
+                
+            } else {
+                // ✅ SCENARIO 3: CREATE FIRST PAYMENT
+                return $this->createFirstPurchasePayment($paymentData, $purchase);
+            }
+        });
+    }
+
+    /**
+     * Update existing active purchase payment
+     * 
+     * @param Payment $payment
+     * @param array $newData
+     * @param Purchase $purchase
+     * @return Payment
+     */
+    private function updateExistingPurchasePayment(Payment $payment, array $newData, Purchase $purchase): Payment
+    {
+        Log::info('PaymentService: Updating existing payment', [
+            'payment_id' => $payment->id,
+            'old_amount' => $payment->amount,
+            'new_amount' => $newData['amount'],
+            'strategy' => 'update_existing'
+        ]);
+
+        // Parse dates with flexible format support
+        $paymentDate = isset($newData['payment_date']) 
+            ? $this->parseFlexibleDate($newData['payment_date']) 
+            : $payment->payment_date;
+
+        // Update payment record
+        $payment->update([
+            'payment_date' => $paymentDate ? Carbon::parse($paymentDate) : $payment->payment_date,
+            'amount' => $newData['amount'],
+            'payment_method' => $newData['payment_method'] ?? $payment->payment_method,
+            'notes' => ($newData['notes'] ?? $payment->notes) . ' [UPDATED: ' . now()->format('Y-m-d H:i:s') . ']',
+            'status' => 'edited', // Mark as edited for audit trail
+            // Update payment method specific fields
+            'card_number' => $newData['card_number'] ?? $payment->card_number,
+            'card_holder_name' => $newData['card_holder_name'] ?? $payment->card_holder_name,
+            'card_expiry_month' => $newData['card_expiry_month'] ?? $payment->card_expiry_month,
+            'card_expiry_year' => $newData['card_expiry_year'] ?? $payment->card_expiry_year,
+            'card_security_code' => $newData['card_security_code'] ?? $payment->card_security_code,
+            'cheque_number' => $newData['cheque_number'] ?? $payment->cheque_number,
+            'cheque_bank_branch' => $newData['cheque_bank_branch'] ?? $payment->cheque_bank_branch,
+            'cheque_received_date' => $this->parseFlexibleDate($newData['cheque_received_date'] ?? null) ?? $payment->cheque_received_date,
+            'cheque_valid_date' => $this->parseFlexibleDate($newData['cheque_valid_date'] ?? null) ?? $payment->cheque_valid_date,
+            'cheque_given_by' => $newData['cheque_given_by'] ?? $payment->cheque_given_by,
+        ]);
+
+        // Update payment in ledger using unified service
+        $this->unifiedLedgerService->updatePurchasePayment($payment, $purchase);
+
+        // Update purchase payment status
+        $this->updatePurchasePaymentStatus($purchase);
+
+        return $payment->fresh();
+    }
+
+    /**
+     * Create new payment after previous payments were deleted
+     * 
+     * @param array $paymentData
+     * @param Purchase $purchase
+     * @param \Illuminate\Support\Collection $deletedPayments
+     * @return Payment
+     */
+    private function createPurchasePaymentAfterDeletion(array $paymentData, Purchase $purchase, $deletedPayments): Payment
+    {
+        Log::info('PaymentService: Creating payment after deletion', [
+            'deleted_count' => $deletedPayments->where('status', 'deleted')->count(),
+            'new_amount' => $paymentData['amount'],
+            'strategy' => 'create_after_deletion'
+        ]);
+
+        // Add audit notes to deleted payments
+        foreach ($deletedPayments->where('status', 'deleted') as $deletedPayment) {
+            $deletedPayment->update([
+                'notes' => ($deletedPayment->notes ?? '') . ' [REPLACED BY NEW PAYMENT: ' . now()->format('Y-m-d H:i:s') . ']'
+            ]);
+        }
+
+        $paymentData['notes'] = ($paymentData['notes'] ?? '') . ' [NEW PAYMENT AFTER EDIT: ' . now()->format('Y-m-d H:i:s') . ']';
+        
+        return $this->createFirstPurchasePayment($paymentData, $purchase);
+    }
+
+    /**
+     * Create first payment for purchase
+     * 
+     * @param array $paymentData
+     * @param Purchase $purchase
+     * @return Payment
+     */
+    private function createFirstPurchasePayment(array $paymentData, Purchase $purchase): Payment
+    {
+        Log::info('PaymentService: Creating first payment', [
+            'amount' => $paymentData['amount'],
+            'strategy' => 'create_first_payment'
+        ]);
+
+        // Prepare payment data with proper date parsing
+        $processedData = [
+            'amount' => $paymentData['amount'],
+            'payment_method' => $paymentData['payment_method'] ?? 'cash',
+            'payment_date' => $paymentData['payment_date'] ?? now(),
+            'notes' => $paymentData['notes'] ?? null,
+            'card_number' => $paymentData['card_number'] ?? null,
+            'card_holder_name' => $paymentData['card_holder_name'] ?? null,
+            'card_expiry_month' => $paymentData['card_expiry_month'] ?? null,
+            'card_expiry_year' => $paymentData['card_expiry_year'] ?? null,
+            'card_security_code' => $paymentData['card_security_code'] ?? null,
+            'cheque_number' => $paymentData['cheque_number'] ?? null,
+            'cheque_bank_branch' => $paymentData['cheque_bank_branch'] ?? null,
+            'cheque_received_date' => $this->parseFlexibleDate($paymentData['cheque_received_date'] ?? null),
+            'cheque_valid_date' => $this->parseFlexibleDate($paymentData['cheque_valid_date'] ?? null),
+            'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
+        ];
+
+        return $this->recordPurchasePayment($processedData, $purchase);
+    }
+
+    /**
+     * Delete purchase payment with proper audit trail
+     * 
+     * @param Payment $payment
+     * @param string $reason
+     * @return bool
+     */
+    public function deletePurchasePayment(Payment $payment, string $reason = 'Payment deleted'): bool
+    {
+        return DB::transaction(function () use ($payment, $reason) {
+            $purchase = Purchase::findOrFail($payment->reference_id);
+
+            Log::info('PaymentService: Deleting purchase payment', [
+                'payment_id' => $payment->id,
+                'amount' => $payment->amount,
+                'reason' => $reason
+            ]);
+
+            // Mark as deleted with audit trail (don't hard delete)
+            $payment->update([
+                'status' => 'deleted',
+                'notes' => ($payment->notes ?? '') . ' [DELETED: ' . $reason . ' on ' . now()->format('Y-m-d H:i:s') . ']'
+            ]);
+
+            // Update purchase payment status
+            $this->updatePurchasePaymentStatus($purchase);
+
+            return true;
+        });
+    }
+
+    /**
+     * Update purchase payment status based on active payments (excluding deleted ones)
      * 
      * @param Purchase $purchase
      * @return void
      */
-    private function updatePurchasePaymentStatus(Purchase $purchase): void
+    public function updatePurchasePaymentStatus(Purchase $purchase): void
     {
+        // Calculate total paid excluding deleted payments
         $totalPaid = Payment::where('reference_id', $purchase->id)
             ->where('payment_type', 'purchase')
+            ->where('status', '!=', 'deleted')
             ->sum('amount');
 
-        if ($purchase->final_total - $totalPaid <= 0.01) {
+        // ✅ CRITICAL FIX: Update the total_paid field in purchase table
+        $purchase->total_paid = $totalPaid;
+
+        // Use small tolerance for floating point comparison
+        $tolerance = 0.01;
+        
+        if (($purchase->final_total - $totalPaid) <= $tolerance) {
             $purchase->payment_status = 'Paid';
-        } elseif ($totalPaid > 0) {
+        } elseif ($totalPaid > $tolerance) {
             $purchase->payment_status = 'Partial';
         } else {
             $purchase->payment_status = 'Due';
         }
 
         $purchase->save();
+        
+        Log::info('PaymentService: Updated purchase payment status', [
+            'purchase_id' => $purchase->id,
+            'total_paid' => $totalPaid,
+            'final_total' => $purchase->final_total,
+            'status' => $purchase->payment_status
+        ]);
     }
 
     /**

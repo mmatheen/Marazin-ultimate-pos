@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Services\UnifiedLedgerService;
 use Illuminate\Support\Facades\Log;
 use App\Models\Ledger;
+use App\Helpers\BalanceHelper;
 
 class Supplier extends Model
 {
@@ -76,6 +77,20 @@ class Supplier extends Model
         
         // Return remaining unpaid opening balance
         return max(0, $currentOpeningBalance - $totalPayments);
+    }
+
+    /**
+     * Get current total due amount (CLEAR METHOD NAME)
+     * This is the actual amount owed to the supplier from ledger
+     */
+    public function getCurrentTotalBalance()
+    {
+        // Return the current total balance using BalanceHelper (SINGLE SOURCE OF TRUTH)
+        // This includes opening balance + purchases - payments - returns = current due
+        $currentBalance = BalanceHelper::getSupplierBalance($this->id);
+        
+        // Return only positive balance (amount we owe to supplier)
+        return max(0, $currentBalance);
     }
 
     /**

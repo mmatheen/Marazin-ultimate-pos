@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class Ledger extends Model
@@ -251,6 +252,39 @@ class Ledger extends Model
             }
         }
 
+        // ✅ CRITICAL FIX: Prevent duplicate ledger entries
+        // Check if an active entry with the same criteria already exists
+        $duplicateQuery = self::where('contact_id', $data['contact_id'])
+            ->where('contact_type', $data['contact_type'])
+            ->where('reference_no', $data['reference_no'])
+            ->where('transaction_type', $data['transaction_type'])
+            ->where('status', 'active');
+
+        // For payment transactions, also check amount and timestamp to allow multiple payments
+        // but prevent exact duplicates within a short time window
+        if (in_array($data['transaction_type'], ['payment', 'payments', 'sale_payment', 'purchase_payment'])) {
+            $duplicateQuery->where('debit', abs($data['amount']))
+                ->orWhere('credit', abs($data['amount']))
+                ->where('created_at', '>=', Carbon::now()->subMinutes(5)); // Within 5 minutes
+        }
+
+        $existingEntry = $duplicateQuery->first();
+
+        if ($existingEntry) {
+            // If this is a duplicate request, log it and return the existing entry
+            Log::warning('Duplicate ledger entry attempted', [
+                'contact_id' => $data['contact_id'],
+                'contact_type' => $data['contact_type'], 
+                'reference_no' => $data['reference_no'],
+                'transaction_type' => $data['transaction_type'],
+                'existing_amount' => $existingEntry->debit ?: $existingEntry->credit,
+                'attempted_amount' => $data['amount'],
+                'time_diff' => $existingEntry->created_at->diffInMinutes(Carbon::now()) . ' minutes ago'
+            ]);
+            
+            return $existingEntry;
+        }
+
         $debit = 0;
         $credit = 0;
 
@@ -285,12 +319,13 @@ class Ledger extends Model
                 break;
 
             case 'purchase':
-                // Purchase increases what we owe supplier (credit)
+                // Purchase increases what we owe supplier (CREDIT - our liability increases)
                 $credit = $data['amount'];
                 break;
 
             case 'sale_payment':
             case 'payment':
+            case 'payments':  // ✅ ADDED: Support for standardized 'payments' transaction type
                 // Handle negative amounts for payment reversals
                 $amount = abs($data['amount']); // Work with positive amount
                 $isReversal = $data['amount'] < 0; // Check if this is a reversal
@@ -314,7 +349,7 @@ class Ledger extends Model
                     }
                 } else {
                     // Regular payment: customer paying us reduces what they owe (credit)
-                    // Supplier payment: we pay supplier, reduces what we owe them (debit)
+                    // Supplier payment: we pay supplier (debit - cash flow out)
                     if ($data['contact_type'] === 'customer') {
                         if ($isReversal) {
                             $debit = $amount; // Reversal of customer payment becomes debit
@@ -322,10 +357,11 @@ class Ledger extends Model
                             $credit = $amount;
                         }
                     } else {
+                        // Supplier payment: we pay supplier (DEBIT - cash flow out)
                         if ($isReversal) {
-                            $credit = $amount; // Reversal of supplier payment becomes credit
+                            $credit = $amount; // Reversal of supplier payment becomes CREDIT (restores debt)
                         } else {
-                            $debit = $amount;
+                            $debit = $amount; // Payment to supplier is DEBIT (cash flow out)
                         }
                     }
                 }
@@ -427,6 +463,15 @@ class Ledger extends Model
                 $credit = $data['amount'];
                 break;
 
+            case 'payment_adjustment':
+                // Payment adjustment - typically used for payment reversals
+                if ($data['contact_type'] === 'customer') {
+                    $debit = $data['amount']; // Reverse customer payment (increase their debt to us)
+                } else {
+                    $credit = $data['amount']; // Reverse supplier payment (restore our debt to them)
+                }
+                break;
+
             case 'bounce_recovery':
                 // Recovery of bounced cheque reduces customer debt
                 if ($data['contact_type'] === 'customer') {
@@ -446,7 +491,44 @@ class Ledger extends Model
                 break;
 
             default:
-                throw new \Exception("Unknown transaction type: {$data['transaction_type']}");
+                // Handle dynamic transaction types with "_reversal" suffix
+                if (str_ends_with($data['transaction_type'], '_reversal')) {
+                    $baseType = str_replace('_reversal', '', $data['transaction_type']);
+                    
+                    // For reversal entries, we typically reverse the logic of the base transaction
+                    switch ($baseType) {
+                        case 'sale':
+                        case 'purchase':
+                        case 'payment':
+                        case 'payments':
+                        case 'sale_payment':
+                        case 'purchase_payment':
+                        case 'sale_return':
+                        case 'purchase_return':
+                            // For reversals, we reverse the debit/credit logic
+                            // This is a simplified approach - the actual logic should be based on the reversal method
+                            if ($data['contact_type'] === 'customer') {
+                                if ($data['amount'] > 0) {
+                                    $credit = $data['amount'];
+                                } else {
+                                    $debit = abs($data['amount']);
+                                }
+                            } else {
+                                if ($data['amount'] > 0) {
+                                    $debit = $data['amount'];
+                                } else {
+                                    $credit = abs($data['amount']);
+                                }
+                            }
+                            break;
+                        
+                        default:
+                            throw new \Exception("Unknown reversal transaction type: {$data['transaction_type']}");
+                    }
+                } else {
+                    throw new \Exception("Unknown transaction type: {$data['transaction_type']}");
+                }
+                break;
         }
 
         // Create the ledger entry with new structure

@@ -87,20 +87,15 @@ class Payment extends Model
         });
     }
 
-    protected $dates = [
-        'payment_date',
-        'cheque_received_date',
-        'cheque_valid_date',
-        'cheque_clearance_date',
-        'cheque_bounce_date',
-        'edited_at',
-        'deleted_at',
-    ];
-
     protected $casts = [
         'amount' => 'decimal:2',
         'bank_charges' => 'decimal:2',
         'original_amount' => 'decimal:2',
+        'payment_date' => 'date',
+        'cheque_received_date' => 'date',
+        'cheque_valid_date' => 'date',
+        'cheque_clearance_date' => 'date',
+        'cheque_bounce_date' => 'date',
         'edited_at' => 'datetime',
         'deleted_at' => 'datetime',
     ];
