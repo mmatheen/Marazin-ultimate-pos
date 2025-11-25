@@ -79,6 +79,13 @@ class StockTransferController extends Controller
 
     public function storeOrUpdate(Request $request, $id = null)
     {
+        // Log the request for debugging
+        Log::info('Stock Transfer storeOrUpdate called', [
+            'id' => $id,
+            'method' => $request->method(),
+            'data' => $request->all()
+        ]);
+
         $request->validate([
             'from_location_id' => 'required|exists:locations,id|different:to_location_id',
             'to_location_id' => 'required|exists:locations,id',
@@ -111,7 +118,12 @@ class StockTransferController extends Controller
         try {
             DB::transaction(function () use ($request, $id) {
                 // Determine if we are updating or creating a new stock transfer
-                $stockTransfer = $id ? StockTransfer::findOrFail($id) : new StockTransfer();
+                $stockTransfer = $id ? StockTransfer::with('stockTransferProducts')->findOrFail($id) : new StockTransfer();
+
+                // Log the stock transfer being updated
+                if ($id) {
+                    Log::info('Updating existing stock transfer', ['id' => $id, 'reference_no' => $stockTransfer->reference_no]);
+                }
 
                 // Generate the reference number if creating a new transfer
                 $referenceNo = $id ? $stockTransfer->reference_no : $this->generateReferenceNumber();
@@ -134,19 +146,26 @@ class StockTransferController extends Controller
 
                 // Reverse previous stock movements if updating
                 if ($id) {
+                    Log::info('Reversing previous stock movements for transfer', ['id' => $id]);
                     $this->reverseStockTransferMovements($stockTransfer);
                     $stockTransfer->stockTransferProducts()->delete();
+                    Log::info('Previous stock movements reversed and products deleted');
                 }
 
                 // Iterate through the products and update the quantities
-                foreach ($request->products as $product) {
+                foreach ($request->products as $index => $product) {
                     // Check the quantity of the batch at the source location
                     $fromLocationBatch = LocationBatch::where('batch_id', $product['batch_id'])
                         ->where('location_id', $request->from_location_id)
-                        ->firstOrFail();
+                        ->first();
+
+                    if (!$fromLocationBatch) {
+                        throw new \Exception("Batch not found at source location for product {$index}");
+                    }
 
                     if ($fromLocationBatch->qty < $product['quantity']) {
-                        throw new \Exception('The selected batch does not have enough quantity at the source location.');
+                        $productName = \App\Models\Product::find($product['product_id'])->product_name ?? 'Unknown Product';
+                        throw new \Exception("Insufficient stock for {$productName}. Available: {$fromLocationBatch->qty}, Required: {$product['quantity']}");
                     }
 
                     // Create StockTransferProduct entry
@@ -195,7 +214,11 @@ class StockTransferController extends Controller
                 }
             });
 
-            return response()->json(['message' => $id ? 'Stock transfer updated successfully.' : 'Stock transfer created successfully.'], 201);
+            $message = $id ? 
+                "Stock transfer updated successfully at " . now()->format('Y-m-d H:i:s') : 
+                "Stock transfer created successfully at " . now()->format('Y-m-d H:i:s');
+                
+            return response()->json(['message' => $message], 201);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 400);
         }
@@ -205,16 +228,42 @@ class StockTransferController extends Controller
 
     public function edit($id)
     {
-        $stockTransfer = StockTransfer::with('stockTransferProducts.product.batches', 'fromLocation', 'toLocation')->findOrFail($id);
+        try {
+            $stockTransfer = StockTransfer::with([
+                'stockTransferProducts.product.batches.locationBatches', 
+                'fromLocation', 
+                'toLocation'
+            ])->findOrFail($id);
 
-        if (request()->ajax() || request()->is('api/*')) {
-            return response()->json([
-                'status' => 200,
-                'stockTransfer' => $stockTransfer,
+            Log::info('Loading stock transfer for edit', [
+                'id' => $id,
+                'reference_no' => $stockTransfer->reference_no,
+                'products_count' => $stockTransfer->stockTransferProducts->count()
             ]);
-        }
 
-        return view('stock_transfer.add_stock_transfer');
+            if (request()->ajax() || request()->is('api/*')) {
+                return response()->json([
+                    'status' => 200,
+                    'stockTransfer' => $stockTransfer,
+                ]);
+            }
+
+            return view('stock_transfer.add_stock_transfer');
+        } catch (\Exception $e) {
+            Log::error('Error loading stock transfer for edit', [
+                'id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            
+            if (request()->ajax() || request()->is('api/*')) {
+                return response()->json([
+                    'status' => 500,
+                    'message' => 'Error loading stock transfer: ' . $e->getMessage()
+                ], 500);
+            }
+            
+            return redirect()->back()->with('error', 'Stock transfer not found.');
+        }
     }
 
 
@@ -272,11 +321,24 @@ class StockTransferController extends Controller
      */
     private function reverseStockTransferMovements(StockTransfer $stockTransfer)
     {
+        Log::info('Starting reversal of stock transfer movements', [
+            'transfer_id' => $stockTransfer->id,
+            'reference_no' => $stockTransfer->reference_no
+        ]);
+
         foreach ($stockTransfer->stockTransferProducts as $transferProduct) {
             $batchId = $transferProduct->batch_id;
             $quantity = $transferProduct->quantity;
             $fromLocationId = $stockTransfer->from_location_id;
             $toLocationId = $stockTransfer->to_location_id;
+
+            Log::info('Reversing transfer product', [
+                'product_id' => $transferProduct->product_id,
+                'batch_id' => $batchId,
+                'quantity' => $quantity,
+                'from_location' => $fromLocationId,
+                'to_location' => $toLocationId
+            ]);
 
             // Reverse the movement: Add back to source location
             $fromLocationBatch = LocationBatch::where('batch_id', $batchId)
@@ -285,14 +347,30 @@ class StockTransferController extends Controller
 
             if ($fromLocationBatch) {
                 $fromLocationBatch->increment('qty', $quantity);
-                
-                // Log the reversal
-                StockHistory::create([
-                    'loc_batch_id' => $fromLocationBatch->id,
-                    'quantity' => $quantity,
-                    'stock_type' => StockHistory::STOCK_TYPE_ADJUSTMENT,
+                Log::info('Added quantity back to source location', [
+                    'location_batch_id' => $fromLocationBatch->id,
+                    'added_quantity' => $quantity,
+                    'new_quantity' => $fromLocationBatch->fresh()->qty
+                ]);
+            } else {
+                // Create the location batch if it doesn't exist
+                $fromLocationBatch = LocationBatch::create([
+                    'batch_id' => $batchId,
+                    'location_id' => $fromLocationId,
+                    'qty' => $quantity
+                ]);
+                Log::info('Created new location batch for source', [
+                    'location_batch_id' => $fromLocationBatch->id,
+                    'quantity' => $quantity
                 ]);
             }
+
+            // Log the reversal in stock history
+            StockHistory::create([
+                'loc_batch_id' => $fromLocationBatch->id,
+                'quantity' => $quantity,
+                'stock_type' => StockHistory::STOCK_TYPE_ADJUSTMENT,
+            ]);
 
             // Reverse the movement: Remove from destination location
             $toLocationBatch = LocationBatch::where('batch_id', $batchId)
@@ -304,6 +382,12 @@ class StockTransferController extends Controller
                 if ($toLocationBatch->qty >= $quantity) {
                     $toLocationBatch->decrement('qty', $quantity);
                     
+                    Log::info('Removed quantity from destination location', [
+                        'location_batch_id' => $toLocationBatch->id,
+                        'removed_quantity' => $quantity,
+                        'new_quantity' => $toLocationBatch->fresh()->qty
+                    ]);
+
                     // Log the reversal
                     StockHistory::create([
                         'loc_batch_id' => $toLocationBatch->id,
@@ -312,13 +396,45 @@ class StockTransferController extends Controller
                     ]);
                     
                     // Delete the location_batch if quantity becomes 0
-                    if ($toLocationBatch->qty == 0) {
+                    if ($toLocationBatch->fresh()->qty == 0) {
                         $toLocationBatch->delete();
+                        Log::info('Deleted empty location batch', ['location_batch_id' => $toLocationBatch->id]);
                     }
                 } else {
-                    Log::warning("Cannot reverse transfer: Insufficient stock at destination location. Batch ID: $batchId, Location ID: $toLocationId");
+                    $availableQty = $toLocationBatch->qty;
+                    Log::warning("Cannot reverse transfer: Insufficient stock at destination location", [
+                        'batch_id' => $batchId,
+                        'location_id' => $toLocationId,
+                        'available_qty' => $availableQty,
+                        'required_qty' => $quantity
+                    ]);
+                    
+                    // Partial reversal - remove what's available
+                    if ($availableQty > 0) {
+                        $toLocationBatch->update(['qty' => 0]);
+                        StockHistory::create([
+                            'loc_batch_id' => $toLocationBatch->id,
+                            'quantity' => -$availableQty,
+                            'stock_type' => StockHistory::STOCK_TYPE_ADJUSTMENT,
+                        ]);
+                        $toLocationBatch->delete();
+                        Log::info('Partial reversal completed', [
+                            'batch_id' => $batchId,
+                            'location_id' => $toLocationId,
+                            'removed_qty' => $availableQty
+                        ]);
+                    }
                 }
+            } else {
+                Log::info('No stock found at destination location to reverse', [
+                    'batch_id' => $batchId,
+                    'location_id' => $toLocationId
+                ]);
             }
         }
+
+        Log::info('Completed reversal of stock transfer movements', [
+            'transfer_id' => $stockTransfer->id
+        ]);
     }
 }

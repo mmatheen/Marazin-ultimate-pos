@@ -6,11 +6,11 @@
                 <div class="row align-items-center">
                     <div class="col-sm-12">
                         <div class="page-sub-header">
-                            <h3 class="page-title">Add Stock Transfer</h3>
+                            <h3 class="page-title" id="main-page-title">Add Stock Transfer</h3>
                             <ul class="breadcrumb">
                                 <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
-                                <li class="breadcrumb-item"><a href="#">Stock Management</a></li>
-                                <li class="breadcrumb-item active">Add Stock Transfer</li>
+                                <li class="breadcrumb-item"><a href="{{ route('list-stock-transfer') }}" id="stock-management-link">Stock Transfers</a></li>
+                                <li class="breadcrumb-item active" id="breadcrumb-title">Add Stock Transfer</li>
                             </ul>
                         </div>
                     </div>
@@ -26,7 +26,7 @@
                 <div class="col-md-12">
                     <div class="card card-table">
                         <div class="card-header">
-                            <h5 class="card-title">Transfer Details</h5>
+                            <h5 class="card-title" id="form-card-title">Transfer Details</h5>
                         </div>
                         <div class="card-body">
                             <div class="row">
@@ -177,11 +177,34 @@
             <!-- Submit Button -->
             <div class="row mb-4">
                 <div class="col-md-12 d-flex justify-content-center">
-                    <button type="submit" class="btn btn-primary btn-lg">Save</button>
+                    <button type="submit" class="btn btn-primary btn-lg" id="button-title">Save</button>
                 </div>
             </div>
         </form>
     </div>
 
     @include('stock_transfer.stock_transfer_ajax')
+    
+    <script>
+        // Check if we're in edit mode and update titles immediately
+        $(document).ready(function() {
+            const currentUrl = window.location.href;
+            console.log('Current URL:', currentUrl);
+            
+            if (currentUrl.includes('/edit-stock-transfer/')) {
+                const pathParts = currentUrl.split('/');
+                const stockTransferId = pathParts[pathParts.length - 1];
+                
+                if (stockTransferId && stockTransferId !== 'add-stock-transfer') {
+                    // Update page title immediately for edit mode
+                    $('#main-page-title').text('Edit Stock Transfer');
+                    $('#breadcrumb-title').text('Edit Stock Transfer');
+                    document.title = 'Edit Stock Transfer';
+                    $('#stock-management-link').text('Stock Transfers');
+                    
+                    console.log('Initial edit mode UI updates applied');
+                }
+            }
+        });
+    </script>
 @endsection

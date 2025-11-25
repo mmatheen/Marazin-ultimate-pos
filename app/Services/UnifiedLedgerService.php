@@ -2399,7 +2399,7 @@ class UnifiedLedgerService
                     'reference_no' => $referenceNo . '-DEL-' . time(),
                     'transaction_type' => 'payment_adjustment', 
                     'amount' => $payment->amount, 
-                    'status' => 'active', 
+                    'status' => 'reversed', // ✅ FIX: Payment adjustments should be marked as 'reversed' status
                     'notes' => $reversalNotes,
                     'created_by' => $deletedBy
                 ]);

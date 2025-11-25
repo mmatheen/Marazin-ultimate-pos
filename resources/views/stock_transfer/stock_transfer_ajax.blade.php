@@ -185,7 +185,8 @@
         };
 
         const pathSegments = window.location.pathname.split('/');
-        const stockTransferId = pathSegments[pathSegments.length - 1] !== 'add-stock-transfer' ?
+        // Only extract ID if we're on an edit page
+        const stockTransferId = window.location.pathname.includes('/edit-stock-transfer/') ?
             pathSegments[pathSegments.length - 1] : null;
 
         // fetchDropdownData('/location-get-all?context=all_locations', $('#from_location_id'), "Select Location");
@@ -221,16 +222,16 @@
 
 
                 // If editing an existing transfer, restore selected values after dropdowns are populated
-                const pathSegments = window.location.pathname.split('/');
-                const stockTransferId = pathSegments[pathSegments.length - 1] !== 'add-stock-transfer' ? pathSegments[pathSegments.length - 1] : null;
-
-                if (stockTransferId) {
-                    const checkInterval = setInterval(() => {
-                        if ($('#from_location_id').val()) {
-                            clearInterval(checkInterval);
-                            fetchStockTransferData(stockTransferId);
-                        }
-                    }, 200);
+                if (stockTransferId && stockTransferId !== 'add-stock-transfer' && window.location.pathname.includes('/edit-stock-transfer/')) {
+                    console.log('Checking for stock transfer ID:', stockTransferId);
+                    console.log('Current pathname:', window.location.pathname);
+                    console.log('Attempting to fetch stock transfer data for ID:', stockTransferId);
+                    // Fetch stock transfer data after a short delay to ensure dropdowns are ready
+                    setTimeout(() => {
+                        fetchStockTransferData(stockTransferId);
+                    }, 500);
+                } else {
+                    console.log('Not on edit page, skipping stock transfer data fetch');
                 }
             } else {
                 console.error('Failed to load locations:', response.message);
@@ -251,125 +252,189 @@
             // No need to prefetch products, autocomplete will fetch as user types
         });
 
-        if (stockTransferId) {
-            const checkLocationInterval = setInterval(() => {
-            if ($('#from_location_id').val()) {
-                clearInterval(checkLocationInterval);
+        if (stockTransferId && stockTransferId !== 'add-stock-transfer' && window.location.pathname.includes('/edit-stock-transfer/')) {
+            console.log('Secondary check - Attempting to fetch stock transfer data for ID:', stockTransferId);
+            // Also try to fetch after locations are loaded
+            setTimeout(() => {
                 fetchStockTransferData(stockTransferId);
-                // No need to prefetch products, autocomplete will fetch as user types
-            }
-            }, 200);
+            }, 1000);
         }
 
         // fetchProductsData is no longer needed, autocomplete handles fetching
 
         // Function to fetch stock transfer data
         function fetchStockTransferData(stockTransferId) {
+            console.log('fetchStockTransferData called with ID:', stockTransferId);
+            
+            // Validate that stockTransferId is a number
+            if (!stockTransferId || isNaN(stockTransferId)) {
+                console.error('Invalid stock transfer ID:', stockTransferId);
+                return;
+            }
+            
             $.ajax({
                 url: `/edit-stock-transfer/${stockTransferId}`,
                 method: 'GET',
                 success: function(response) {
+                    console.log('Fetch response received:', response);
                     if (response.stockTransfer) {
+                        console.log('Stock transfer data found, populating form...');
                         populateForm(response.stockTransfer);
+                    } else {
+                        console.error('No stock transfer data in response');
                     }
                 },
                 error: function(xhr, status, error) {
-                    console.error('Error fetching stock transfer:', error);
+                    console.error('Error fetching stock transfer:', {xhr, status, error});
+                    toastr.error('Failed to load stock transfer data');
                 }
             });
         }
 
         // Function to populate the form with stock transfer data
         function populateForm(stockTransfer) {
+            console.log('populateForm called with data:', stockTransfer);
+            
+            // Update page title and headings for editing
+            const transferName = stockTransfer.reference_no || `Stock Transfer #${stockTransfer.id}`;
+            
+            // Use setTimeout to ensure DOM is ready
+            setTimeout(() => {
+                document.title = `Edit Stock Transfer`;
+                $('#main-page-title').text(`Edit Stock Transfer`);
+                $('#breadcrumb-title').text(`Edit ${transferName}`);
+                $('#form-card-title').text(`${transferName} - Transfer Details`);
+                $('#stock-management-link').text('Stock Transfers');
+                $('#button-title').text('Update');
+
+                console.log('Page titles and breadcrumb updated for transfer:', transferName);
+            }, 100);
+            
             // Fix: Set date in DD-MM-YYYY format
             let date = stockTransfer.transfer_date.split(' ')[0];
             if (date.includes('-')) {
                 let parts = date.split('-');
                 if (parts[0].length === 4) date = `${parts[2]}-${parts[1]}-${parts[0]}`;
             }
+            console.log('Setting date:', date);
             $('#transfer_date').val(date);
+            
+            console.log('Setting reference no:', stockTransfer.reference_no);
             $('#reference_no').val(stockTransfer.reference_no);
+            
+            console.log('Setting status:', stockTransfer.status);
             $('#status').val(stockTransfer.status).trigger('change');
+            
             // Set dropdowns directly if options are already loaded
+            console.log('Setting from location:', stockTransfer.from_location_id);
             $('#from_location_id').val(stockTransfer.from_location_id).trigger('change');
+            
+            console.log('Setting to location:', stockTransfer.to_location_id);
             $('#to_location_id').val(stockTransfer.to_location_id).trigger('change');
+            
             // Wait for dropdowns to be populated if needed
             setTimeout(() => {
                 $('#from_location_id').val(stockTransfer.from_location_id).trigger('change');
                 $('#to_location_id').val(stockTransfer.to_location_id).trigger('change');
+                
                 // Clear products table before adding
+                console.log('Clearing products table and adding new products');
                 $('.add-table-items').empty();
                 productIndex = 1;
+                
                 // Add each product row
-                stockTransfer.stock_transfer_products.forEach(product => {
-                    addProductToTable(product, true);
-                });
+                if (stockTransfer.stock_transfer_products && stockTransfer.stock_transfer_products.length > 0) {
+                    console.log('Adding', stockTransfer.stock_transfer_products.length, 'products to table');
+                    stockTransfer.stock_transfer_products.forEach((product, index) => {
+                        console.log('Adding product', index + 1, ':', product);
+                        addProductToTable(product, true);
+                    });
+                } else {
+                    console.warn('No stock transfer products found');
+                }
+                
                 addTotalRow();
                 updateTotalAmount();
+                console.log('Form population completed');
             }, 300);
         }
 
         // Function to add a product to the table
         function addProductToTable(productData, isEditing = false) {
+            console.log('addProductToTable called with:', { productData, isEditing, productIndex });
+            
             const product = productData.product;
             const existingRow = $(`tr[data-product-id="${product.id}"]`);
             if (existingRow.length > 0) {
-            // Update the quantity if the product already exists in the table
-            const quantityInput = existingRow.find('.quantity-input');
-            const newQuantity = parseFloat(quantityInput.val()) + productData.quantity;
-            quantityInput.val(newQuantity);
-            existingRow.find('.quantity-input').trigger('change');
-            return;
+                console.log('Product already exists in table, updating quantity');
+                // Update the quantity if the product already exists in the table
+                const quantityInput = existingRow.find('.quantity-input');
+                const newQuantity = parseFloat(quantityInput.val()) + productData.quantity;
+                quantityInput.val(newQuantity);
+                existingRow.find('.quantity-input').trigger('change');
+                return;
             }
 
             // Filter batches to only include those in the selected "From" location
             const fromLocationId = $('#from_location_id').val();
+            console.log('From location ID:', fromLocationId);
 
             // --- FIX: Support batches as object or array, and location_batches as string/number ---
             let batchesArr = [];
             if (Array.isArray(productData.batches)) {
-            batchesArr = productData.batches;
+                batchesArr = productData.batches;
             } else if (productData.batches && typeof productData.batches === 'object') {
-            batchesArr = Object.values(productData.batches);
+                batchesArr = Object.values(productData.batches);
             } else if (Array.isArray(product.batches)) {
-            batchesArr = product.batches;
+                batchesArr = product.batches;
             } else if (product.batches && typeof product.batches === 'object') {
-            batchesArr = Object.values(product.batches);
+                batchesArr = Object.values(product.batches);
             }
+            
+            console.log('Batches array:', batchesArr);
 
             // Only use batches from the selected "From" location
             const batches = batchesArr.flatMap(batch => {
-            // Support both camelCase and snake_case for location_batches
-            const locationBatches = batch.location_batches || batch.locationBatches || [];
-            return locationBatches
-                .filter(locBatch => 
-                locBatch.location_id == fromLocationId && 
-                parseFloat(locBatch.quantity ?? locBatch.qty) > 0
-                )
-                .map(locationBatch => ({
-                batch_id: batch.id,
-                batch_no: batch.batch_no,
-                batch_price: parseFloat(batch.retail_price),
-                batch_quantity: parseFloat(locationBatch.quantity ?? locationBatch.qty),
-                transfer_quantity: productData.quantity
-                }));
+                // Support both camelCase and snake_case for location_batches
+                const locationBatches = batch.location_batches || batch.locationBatches || [];
+                return locationBatches
+                    .filter(locBatch => 
+                        locBatch.location_id == fromLocationId && 
+                        parseFloat(locBatch.quantity ?? locBatch.qty) > 0
+                    )
+                    .map(locationBatch => ({
+                        batch_id: batch.id,
+                        batch_no: batch.batch_no,
+                        batch_price: parseFloat(batch.retail_price),
+                        batch_quantity: parseFloat(locationBatch.quantity ?? locationBatch.qty),
+                        transfer_quantity: productData.quantity
+                    }));
             });
+            
+            console.log('Filtered batches:', batches);
 
             if (batches.length === 0) {
-            console.error('No batches available for product:', product.product_name);
-            toastr.error(
-                `No batches available in "${$('#from_location_id option:selected').text()}" for "${product.product_name}".`
-            );
-            return;
+                console.error('No batches available for product:', product.product_name);
+                toastr.error(
+                    `No batches available in "${$('#from_location_id option:selected').text()}" for "${product.product_name}".`
+                );
+                return;
             }
 
             // Determine if decimals are allowed for this product
             const allowDecimal = product.unit && product.unit.allow_decimal;
+            console.log('Product unit info:', product.unit, 'Allow decimal:', allowDecimal);
 
-            const quantityInput = isEditing ? `
-            <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]" min="1" value="${batches[0].transfer_quantity}" required readonly ${allowDecimal ? 'step="0.01"' : 'step="1"'}>
-            ` : `
-            <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]" min="1" value="${batches[0].transfer_quantity}" required ${allowDecimal ? 'step="0.01"' : 'step="1"'}>
+            // Format the initial quantity value based on decimal allowance
+            const initialQuantity = allowDecimal ? 
+                parseFloat(batches[0].transfer_quantity).toFixed(4) : 
+                Math.floor(batches[0].transfer_quantity);
+
+            const quantityInput = `
+            <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]" 
+                   min="0.0001" value="${initialQuantity}" required 
+                   ${allowDecimal ? 'step="0.0001"' : 'step="1"'} 
+                   onchange="updateSubTotal(this)" data-allow-decimal="${allowDecimal}">
             `;
 
             // Format quantity for display: show decimals only if allowed
@@ -378,8 +443,8 @@
             }
 
             const batchOptions = batches.map(batch => `
-            <option value="${batch.batch_id}" data-price="${batch.batch_price}" data-quantity="${batch.batch_quantity}" data-transfer-quantity="${batch.transfer_quantity}">
-                Batch ${batch.batch_no} - Current Qty: ${formatQty(batch.batch_quantity)} - Transfer Qty: ${formatQty(batch.transfer_quantity)} - Price: ${batch.batch_price}
+            <option value="${batch.batch_id}" data-price="${batch.batch_price}" data-quantity="${batch.batch_quantity}" data-transfer-quantity="${batch.transfer_quantity}" data-allow-decimal="${allowDecimal}">
+                Batch ${batch.batch_no} - Current Qty: ${formatQty(batch.batch_quantity, allowDecimal)} - Transfer Qty: ${formatQty(batch.transfer_quantity, allowDecimal)} - Price: ${batch.batch_price}
             </option>
             `).join('');
 
@@ -649,17 +714,29 @@
                 const method = stockTransferId ? 'PUT' : 'POST';
                 const formData = $(form).serialize();
                 
+                console.log('Form submission details:', {
+                    stockTransferId: stockTransferId,
+                    url: url,
+                    method: method,
+                    isEdit: !!stockTransferId
+                });
+                
                 // Disable button and change text
                 const originalText = $submitBtn.text();
-                $submitBtn.prop('disabled', true).text('Please wait...');
+                $submitBtn.prop('disabled', true).text(stockTransferId ? 'Updating...' : 'Saving...');
                 
                 $.ajax({
                     url: url,
                     method: method,
                     data: formData,
                     success: function(response) {
+                        console.log('Form submission successful:', response);
                         toastr.success(response.message);
-                        window.location.href = '/list-stock-transfer';
+                        
+                        // Small delay before redirect to allow user to see the success message
+                        setTimeout(() => {
+                            window.location.href = '/list-stock-transfer';
+                        }, 1500);
                     },
                     error: function(response) {
                         // Re-enable button on error
