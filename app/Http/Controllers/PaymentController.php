@@ -1716,7 +1716,7 @@ class PaymentController extends Controller
         try {
             // Make entity_type optional, default to sale
             $validator = Validator::make($request->all(), [
-                'entity_type' => 'nullable|in:sale,purchase',
+                'entity_type' => 'nullable|in:sale,purchase,opening_balance,return,purchase_return',
                 'entity_id' => 'nullable|integer',
                 'customer_id' => 'nullable|integer',
                 'supplier_id' => 'nullable|integer',
@@ -1732,24 +1732,53 @@ class PaymentController extends Controller
             $query = Payment::query();
 
             // Filter by entity type with more flexible conditions
-            if ($entityType === 'sale') {
-                $query->where('payment_type', 'sale')
-                      ->with(['customer']);
-                // Don't require customer_id to be not null as it might be optional
-                
-                // Filter by specific customer if provided
-                if ($request->customer_id) {
-                    $query->where('customer_id', $request->customer_id);
-                }
-            } else {
-                $query->where('payment_type', 'purchase')
-                      ->with(['supplier']);
-                // Don't require supplier_id to be not null as it might be optional
-                
-                // Filter by specific supplier if provided
-                if ($request->supplier_id) {
-                    $query->where('supplier_id', $request->supplier_id);
-                }
+            switch ($entityType) {
+                case 'sale':
+                    $query->where('payment_type', 'sale')
+                          ->with(['customer']);
+                    // Filter by specific customer if provided
+                    if ($request->customer_id) {
+                        $query->where('customer_id', $request->customer_id);
+                    }
+                    break;
+                    
+                case 'purchase':
+                    $query->where('payment_type', 'purchase')
+                          ->with(['supplier']);
+                    // Filter by specific supplier if provided
+                    if ($request->supplier_id) {
+                        $query->where('supplier_id', $request->supplier_id);
+                    }
+                    break;
+                    
+                case 'opening_balance':
+                    $query->where('payment_type', 'opening_balance')
+                          ->with(['customer', 'supplier']);
+                    // Filter by specific contact if provided
+                    if ($request->customer_id) {
+                        $query->where('customer_id', $request->customer_id);
+                    } elseif ($request->supplier_id) {
+                        $query->where('supplier_id', $request->supplier_id);
+                    }
+                    break;
+                    
+                case 'return':
+                case 'purchase_return':
+                    // Handle both 'return' request and 'purchase_return' in database
+                    $query->whereIn('payment_type', ['return', 'purchase_return', 'sale_return'])
+                          ->with(['customer', 'supplier']);
+                    // Filter by specific contact if provided
+                    if ($request->customer_id) {
+                        $query->where('customer_id', $request->customer_id);
+                    } elseif ($request->supplier_id) {
+                        $query->where('supplier_id', $request->supplier_id);
+                    }
+                    break;
+                    
+                default:
+                    // Fallback to sale
+                    $query->where('payment_type', 'sale')
+                          ->with(['customer']);
             }
 
             // Filter by specific entity ID if provided
@@ -1774,6 +1803,10 @@ class PaymentController extends Controller
             // They create ledger entries for sales but shouldn't appear in payment lists
             $query->where('amount', '>', 0);
 
+            // **IMPORTANT: Only show active payments**
+            // Filter out deleted/inactive payments to show only current active payments
+            $query->where('status', 'active');
+
             // Get payments ordered by date descending (latest first)
             $payments = $query->orderBy('payment_date', 'desc')
                              ->orderBy('created_at', 'desc')
@@ -1786,16 +1819,33 @@ class PaymentController extends Controller
                 'supplier_id' => $request->supplier_id,
                 'start_date' => $startDate,
                 'end_date' => $endDate,
+                'status_filter' => 'active',
+                'amount_filter' => '> 0',
                 'sql' => $query->toSql(),
                 'count' => $payments->count()
             ]);
 
             // Add related entity information
             foreach ($payments as $payment) {
-                if ($entityType === 'sale') {
-                    $payment->sale = Sale::find($payment->reference_id);
-                } else {
-                    $payment->purchase = Purchase::find($payment->reference_id);
+                switch ($payment->payment_type) {
+                    case 'sale':
+                        $payment->sale = Sale::find($payment->reference_id);
+                        break;
+                    case 'purchase':
+                        $payment->purchase = Purchase::find($payment->reference_id);
+                        break;
+                    case 'purchase_return':
+                        // Try to find purchase return record
+                        $payment->purchase_return = \App\Models\PurchaseReturn::find($payment->reference_id);
+                        break;
+                    case 'sale_return':
+                        // Try to find sale return record  
+                        $payment->sale_return = \App\Models\SalesReturn::find($payment->reference_id);
+                        break;
+                    case 'opening_balance':
+                        // Opening balance payments might not have reference entities
+                        // but contact information is already loaded via relationships
+                        break;
                 }
             }
 
@@ -1937,64 +1987,88 @@ class PaymentController extends Controller
                 } elseif ($entityType === 'sale') {
                     $entity = Sale::find($entityId);
                     if (!$entity) {
-                        throw new \Exception('Related sale not found');
-                    }
-                    
-                    // Skip validation if sale has 0 amount (opening balance or special case)
-                    if ($entity->total_amount <= 0) {
-                        Log::info("Payment edit for sale with zero amount - skipping overpayment validation", [
+                        // Handle missing sale record gracefully
+                        Log::warning("Payment edit attempted for missing sale", [
                             'payment_id' => $id,
-                            'sale_id' => $entityId,
-                            'sale_amount' => $entity->total_amount,
+                            'payment_type' => $payment->payment_type,
+                            'reference_id' => $entityId,
+                            'amount' => $request->amount
+                        ]);
+                        // Allow edit but skip overpayment validation for missing entities
+                        Log::info("Payment edit for missing sale - allowing edit without validation", [
+                            'payment_id' => $id,
+                            'missing_sale_id' => $entityId,
                             'payment_amount' => $request->amount
                         ]);
                     } else {
-                        // Calculate total payments for this sale (excluding current payment being edited)
-                        $totalOtherPayments = Payment::where('reference_id', $entityId)
-                            ->where('payment_type', 'sale')
-                            ->where('id', '!=', $payment->id)
-                            ->sum('amount');
-                        
-                        // Maximum allowed for this payment = Total Sale Amount - Other Payments
-                        $maxAmount = $entity->total_amount - $totalOtherPayments;
-                        
-                        // Also check against available due (current due + old payment amount)
-                        // This handles cases where there might be returns or adjustments
-                        $maxAmountByDue = $entity->total_due + $oldAmount;
-                        
-                        // Use the smaller of the two to be safe
-                        $maxAmount = min($maxAmount, $maxAmountByDue);
+                        // Skip validation if sale has 0 amount (opening balance or special case)
+                        if ($entity->total_amount <= 0) {
+                            Log::info("Payment edit for sale with zero amount - skipping overpayment validation", [
+                                'payment_id' => $id,
+                                'sale_id' => $entityId,
+                                'sale_amount' => $entity->total_amount,
+                                'payment_amount' => $request->amount
+                            ]);
+                        } else {
+                            // Calculate total payments for this sale (excluding current payment being edited)
+                            $totalOtherPayments = Payment::where('reference_id', $entityId)
+                                ->where('payment_type', 'sale')
+                                ->where('id', '!=', $payment->id)
+                                ->sum('amount');
+                            
+                            // Maximum allowed for this payment = Total Sale Amount - Other Payments
+                            $maxAmount = $entity->total_amount - $totalOtherPayments;
+                            
+                            // Also check against available due (current due + old payment amount)
+                            // This handles cases where there might be returns or adjustments
+                            $maxAmountByDue = $entity->total_due + $oldAmount;
+                            
+                            // Use the smaller of the two to be safe
+                            $maxAmount = min($maxAmount, $maxAmountByDue);
+                        }
                     }
                     
                 } else {
                     $entity = Purchase::find($entityId);
                     if (!$entity) {
-                        throw new \Exception('Related purchase not found');
-                    }
-                    
-                    // Skip validation if purchase has 0 amount (opening balance or special case)
-                    if ($entity->total_amount <= 0) {
-                        Log::info("Payment edit for purchase with zero amount - skipping overpayment validation", [
+                        // Handle missing purchase record gracefully
+                        Log::warning("Payment edit attempted for missing purchase", [
                             'payment_id' => $id,
-                            'purchase_id' => $entityId,
-                            'purchase_amount' => $entity->total_amount,
+                            'payment_type' => $payment->payment_type,
+                            'reference_id' => $entityId,
+                            'amount' => $request->amount
+                        ]);
+                        // Allow edit but skip overpayment validation for missing entities
+                        Log::info("Payment edit for missing purchase - allowing edit without validation", [
+                            'payment_id' => $id,
+                            'missing_purchase_id' => $entityId,
                             'payment_amount' => $request->amount
                         ]);
                     } else {
-                        // Calculate total payments for this purchase (excluding current payment being edited)
-                        $totalOtherPayments = Payment::where('reference_id', $entityId)
-                            ->where('payment_type', 'purchase')
-                            ->where('id', '!=', $payment->id)
-                            ->sum('amount');
-                        
-                        // Maximum allowed for this payment = Total Purchase Amount - Other Payments
-                        $maxAmount = $entity->total_amount - $totalOtherPayments;
-                        
-                        // Also check against available due (current due + old payment amount)
-                        $maxAmountByDue = $entity->total_due + $oldAmount;
-                        
-                        // Use the smaller of the two to be safe
-                        $maxAmount = min($maxAmount, $maxAmountByDue);
+                        // Skip validation if purchase has 0 amount (opening balance or special case)
+                        if ($entity->total_amount <= 0) {
+                            Log::info("Payment edit for purchase with zero amount - skipping overpayment validation", [
+                                'payment_id' => $id,
+                                'purchase_id' => $entityId,
+                                'purchase_amount' => $entity->total_amount,
+                                'payment_amount' => $request->amount
+                            ]);
+                        } else {
+                            // Calculate total payments for this purchase (excluding current payment being edited)
+                            $totalOtherPayments = Payment::where('reference_id', $entityId)
+                                ->where('payment_type', 'purchase')
+                                ->where('id', '!=', $payment->id)
+                                ->sum('amount');
+                            
+                            // Maximum allowed for this payment = Total Purchase Amount - Other Payments
+                            $maxAmount = $entity->total_amount - $totalOtherPayments;
+                            
+                            // Also check against available due (current due + old payment amount)
+                            $maxAmountByDue = $entity->total_due + $oldAmount;
+                            
+                            // Use the smaller of the two to be safe
+                            $maxAmount = min($maxAmount, $maxAmountByDue);
+                        }
                     }
                 }
 
@@ -2159,7 +2233,7 @@ class PaymentController extends Controller
                     $this->updatePurchaseTable($entityId);
                     $this->updateSupplierBalance($supplierId);
                 }
-            });
+            }); // End of transaction
 
             // Prepare success message
             $successMessage = 'Payment updated successfully! The ' . $entityType . ' balance has been recalculated.';

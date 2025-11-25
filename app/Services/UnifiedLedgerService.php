@@ -409,26 +409,30 @@ class UnifiedLedgerService
      */
     public function getCustomerStatement($customerId, $fromDate = null, $toDate = null)
     {
-        // Get opening balance
+        // Get opening balance - calculate dynamically from debit-credit
         $openingBalance = 0;
         if ($fromDate) {
-            $openingBalanceEntry = Ledger::where('contact_id', $customerId)
+            $openingBalance = Ledger::where('contact_id', $customerId)
                 ->where('contact_type', 'customer')
                 ->where('transaction_date', '<', $fromDate)
-                ->orderBy('created_at', 'desc')
-                ->first();
-            
-            $openingBalance = $openingBalanceEntry ? $openingBalanceEntry->balance : 0;
+                ->where('status', 'active')
+                ->sum(DB::raw('debit - credit'));
         }
 
         // Get transactions for the period
         $transactions = Ledger::getStatement($customerId, 'customer', $fromDate, $toDate);
 
+        // Calculate closing balance dynamically
+        $closingBalance = Ledger::where('contact_id', $customerId)
+            ->where('contact_type', 'customer')
+            ->where('status', 'active')
+            ->sum(DB::raw('debit - credit'));
+            
         return [
             'customer_id' => $customerId,
             'opening_balance' => $openingBalance,
             'transactions' => $transactions,
-            'closing_balance' => $transactions->last()->balance ?? $openingBalance,
+            'closing_balance' => $closingBalance,
             'period' => [
                 'from_date' => $fromDate,
                 'to_date' => $toDate
@@ -1442,7 +1446,7 @@ class UnifiedLedgerService
             ]);
             
             // Create reversal entry for audit trail
-            $reversalEntry = Ledger::create([
+            $reversalEntry = Ledger::createEntry([
                 'contact_id' => $sale->customer_id,
                 'contact_type' => 'customer',
                 'transaction_date' => now(),
@@ -1450,7 +1454,6 @@ class UnifiedLedgerService
                 'transaction_type' => 'sale',
                 'debit' => 0,
                 'credit' => $originalEntry->debit, // Reverse the original debit
-                'balance' => 0, // Will be calculated by observer
                 'notes' => "REVERSAL: Sale Edit - Original amount Rs{$originalEntry->debit} (ID: {$originalEntry->id})",
             ]);
         }
@@ -1474,7 +1477,7 @@ class UnifiedLedgerService
             
             // Create reversal entry for audit trail
             if ($paymentEntry->credit > 0) {
-                Ledger::create([
+                Ledger::createEntry([
                     'contact_id' => $sale->customer_id,
                     'contact_type' => 'customer',
                     'transaction_date' => now(),
@@ -1482,7 +1485,6 @@ class UnifiedLedgerService
                     'transaction_type' => 'payments',
                     'debit' => $paymentEntry->credit, // Reverse the payment credit
                     'credit' => 0,
-                    'balance' => 0, // Will be calculated
                     'notes' => "REVERSAL: Sale Edit - Payment Rs{$paymentEntry->credit} (ID: {$paymentEntry->id})",
                 ]);
             }
@@ -1622,7 +1624,7 @@ class UnifiedLedgerService
                 $reversalEntry->transaction_type = 'payments';
                 $reversalEntry->debit = $oldEntry->credit;  // Swap: original credit becomes debit
                 $reversalEntry->credit = $oldEntry->debit;  // Swap: original debit becomes credit
-                $reversalEntry->balance = 0; // Will be recalculated
+                // Note: Balance column removed from ledgers table - calculated dynamically
                 $reversalEntry->contact_type = $contactType;
                 $reversalEntry->contact_id = $userId;
                 $reversalEntry->save();
@@ -1634,7 +1636,7 @@ class UnifiedLedgerService
                     'original_credit' => $oldEntry->credit,
                     'reversal_debit' => $reversalEntry->debit,
                     'reversal_credit' => $reversalEntry->credit,
-                    'old_balance' => $oldEntry->balance,
+                    'note' => 'Balance calculated dynamically - not stored in DB',
                     'contact_type' => $contactType,
                     'contact_id' => $userId
                 ]);
@@ -1646,11 +1648,7 @@ class UnifiedLedgerService
             Log::info("Ledger balances will be recalculated automatically after reversal", [
                 'contact_type' => $contactType,
                 'contact_id' => $userId,
-                'final_balance' => Ledger::where('contact_id', $userId)
-                    ->where('contact_type', $contactType)
-                    ->orderBy('created_at', 'desc')
-                    ->orderBy('id', 'desc')
-                    ->first()->balance ?? 0
+                'note' => 'Final balance calculated dynamically using sum of debit-credit'
             ]);
         }
         
@@ -2147,7 +2145,8 @@ class UnifiedLedgerService
         
         foreach ($entries as $entry) {
             $runningBalance += $entry->debit - $entry->credit;
-            $entry->update(['balance' => $runningBalance]);
+            // Note: Balance column removed from ledgers table - calculated dynamically
+            // $entry->update(['balance' => $runningBalance]);
         }
 
         // Balance is automatically calculated through ledger system
