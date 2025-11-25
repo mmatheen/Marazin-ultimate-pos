@@ -340,11 +340,11 @@ class Ledger extends Model
                             $debit = $amount;
                         }
                     } else {
-                        // Return payment from supplier (money coming in from supplier) reduces what we owe them = DEBIT
+                        // Return payment from supplier (money coming in from supplier) = CREDIT (cash inflow)
                         if ($isReversal) {
-                            $credit = $amount; // Reversal becomes credit
+                            $debit = $amount; // Reversal becomes debit (removes the credit)
                         } else {
-                            $debit = $amount;
+                            $credit = $amount; // ✅ FIX: Return payment from supplier is CREDIT (money coming in)
                         }
                     }
                 } else {
@@ -385,13 +385,14 @@ class Ledger extends Model
                 break;
 
             case 'return_payment':
-                // Return payment to customer reduces what they owe us (credit)
-                // Return payment from supplier reduces what we owe them (debit)
+                // Return payment logic:
+                // - Customer return payment: We pay customer for their return (credit - reduces their debt)
+                // - Supplier return payment: Supplier pays us back for returned goods (credit - money coming in)
                 if ($data['contact_type'] === 'customer') {
-                    $credit = $data['amount'];
+                    $credit = $data['amount']; // We reduce customer's debt
                 } else {
-                    // Return payment from supplier reduces what we owe them (debit)
-                    $debit = $data['amount'];
+                    // Supplier return payment: Supplier pays us back (credit - money flowing in from supplier)
+                    $credit = $data['amount'];
                 }
                 break;
 
@@ -463,15 +464,6 @@ class Ledger extends Model
                 $credit = $data['amount'];
                 break;
 
-            case 'payment_adjustment':
-                // Payment adjustment - typically used for payment reversals
-                if ($data['contact_type'] === 'customer') {
-                    $debit = $data['amount']; // Reverse customer payment (increase their debt to us)
-                } else {
-                    $credit = $data['amount']; // Reverse supplier payment (restore our debt to them)
-                }
-                break;
-
             case 'bounce_recovery':
                 // Recovery of bounced cheque reduces customer debt
                 if ($data['contact_type'] === 'customer') {
@@ -490,6 +482,39 @@ class Ledger extends Model
                 }
                 break;
 
+            case 'payment_adjustment':
+                // Payment adjustment for reversal accounting
+                // This creates the exact opposite effect of the original payment
+                $amount = abs($data['amount']);
+                
+                // Check if this is a return payment adjustment based on notes
+                $isReturnPayment = isset($data['notes']) && strpos(strtolower($data['notes']), 'return payment reversal') !== false;
+                
+                if ($isReturnPayment) {
+                    // Return payment adjustment - we need to reverse the original return payment effect
+                    if ($data['contact_type'] === 'customer') {
+                        // Original customer return payment was DEBIT (money out to customer)
+                        // So reversal should be CREDIT (cancel the money out)
+                        $credit = $amount;
+                    } else {
+                        // Original supplier return payment was CREDIT (money in from supplier) 
+                        // So reversal should be DEBIT (cancel the money in)
+                        $debit = $amount;
+                    }
+                } else {
+                    // Regular payment adjustment - reverse normal payment
+                    if ($data['contact_type'] === 'customer') {
+                        // Original customer payment was CREDIT (they paid us)
+                        // So reversal should be DEBIT (cancel their payment)
+                        $debit = $amount;
+                    } else {
+                        // Original supplier payment was DEBIT (we paid them)
+                        // So reversal should be CREDIT (cancel our payment - restore debt)
+                        $credit = $amount;
+                    }
+                }
+                break;
+
             default:
                 // Handle dynamic transaction types with "_reversal" suffix
                 if (str_ends_with($data['transaction_type'], '_reversal')) {
@@ -497,6 +522,11 @@ class Ledger extends Model
                     
                     // For reversal entries, we typically reverse the logic of the base transaction
                     switch ($baseType) {
+                        case 'purchase_return':
+                            // Purchase return reversal should restore what we owe supplier (credit)
+                            $credit = $data['amount'];
+                            break;
+                            
                         case 'sale':
                         case 'purchase':
                         case 'payment':
@@ -504,9 +534,7 @@ class Ledger extends Model
                         case 'sale_payment':
                         case 'purchase_payment':
                         case 'sale_return':
-                        case 'purchase_return':
-                            // For reversals, we reverse the debit/credit logic
-                            // This is a simplified approach - the actual logic should be based on the reversal method
+                            // For other reversals, we reverse the debit/credit logic
                             if ($data['contact_type'] === 'customer') {
                                 if ($data['amount'] > 0) {
                                     $credit = $data['amount'];

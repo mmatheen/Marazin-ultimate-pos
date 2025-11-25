@@ -109,10 +109,9 @@
 
         // Supplier change handler
         $('#supplier-id').change(function() {
-            const supplierId = $(this).val();
             const locationId = $('#location-id').val();
-            if (supplierId && locationId) {
-                fetchPurchaseProductsBySupplierAndLocation(supplierId, locationId);
+            if (locationId) {
+                fetchAllProductsWithStock(locationId);
                 $('#productSearchInput').prop('disabled', false);
             } else {
                 $('#productSearchInput').prop('disabled', true);
@@ -123,9 +122,8 @@
         // Location change handler
         $('#location-id').change(function() {
             const locationId = $(this).val();
-            const supplierId = $('#supplier-id').val();
-            if (supplierId && locationId) {
-                fetchPurchaseProductsBySupplierAndLocation(supplierId, locationId);
+            if (locationId) {
+                fetchAllProductsWithStock(locationId);
                 $('#productSearchInput').prop('disabled', false);
             } else {
                 $('#productSearchInput').prop('disabled', true);
@@ -141,10 +139,10 @@
             updateFooter();
         }
 
-        // Fetch purchase products based on supplier ID and location ID
-        function fetchPurchaseProductsBySupplierAndLocation(supplierId, locationId) {
+        // Fetch all products with stock based on location ID
+        function fetchAllProductsWithStock(locationId) {
             $.ajax({
-                url: `/purchase-products-by-supplier/${supplierId}`,
+                url: `/purchase-returns/products-with-stock`,
                 type: 'GET',
                 data: {
                     location_id: locationId
@@ -156,21 +154,27 @@
                             id: product.product.id,
                             name: product.product.product_name,
                             unit: product.unit,
-                            purchases: product.purchases.map(purchase => ({
-                                purchase_id: purchase.purchase_id,
-                                batch: purchase.batch,
-                                quantity: purchase.quantity,
-                                price: purchase.unit_cost
+                            total_stock: product.total_stock,
+                            batches: product.batches.map(batch => ({
+                                batch_id: batch.batch_id,
+                                batch_no: batch.batch_no,
+                                quantity: batch.quantity,
+                                unit_cost: batch.unit_cost,
+                                wholesale_price: batch.wholesale_price,
+                                special_price: batch.special_price,
+                                retail_price: batch.retail_price,
+                                max_retail_price: batch.max_retail_price,
+                                expiry_date: batch.expiry_date
                             }))
                         }));
                         initAutocomplete(allProducts);
                     } else {
-                        toastr.error('No purchases found for this supplier at the selected location.', 'Error');
+                        toastr.error('No products with stock found at the selected location.', 'Error');
                     }
                 },
                 error: function(xhr) {
-                    const message = xhr.status === 404 ? 'No purchases found for this supplier at the selected location.' :
-                        'An error occurred while fetching purchase products.';
+                    const message = xhr.status === 404 ? 'No products with stock found at the selected location.' :
+                        'An error occurred while fetching products.';
                       toastr.error(message);
                 }
             });
@@ -254,7 +258,8 @@
                 success: function(response) {
                     if (response.purchase_return) {
                         populateForm(response.purchase_return);
-                        $('#productSearchInput').prop('disabled', true);
+                        // Allow adding more products during edit
+                        $('#productSearchInput').prop('disabled', false);
                     }
                 },
                 error: function(xhr, status, error) {
@@ -268,22 +273,38 @@
                 $('#location-id').val(data.location_id).change();
                 $('#reference_no').val(data.reference_no);
                 $('#return_date').val(formatDate(data.return_date));
+                
                 data.purchase_return_products.forEach(product => {
-                    const currentBatchQty = product.batch.qty + product.quantity;
+                    // Handle both batch and FIFO scenarios
+                    let batch = product.batch;
+                    let batchId = product.batch_no || (batch ? batch.id : null);
+                    let batchNo = batch ? batch.batch_no : 'FIFO';
+                    
+                    // For editing, we show the current quantity that was returned
+                    // The batch quantity shown should be the available quantity + the returned quantity
+                    let availableQty = 0;
+                    if (batch && batch.location_batches && batch.location_batches.length > 0) {
+                        const locationBatch = batch.location_batches.find(lb => lb.location_id == data.location_id);
+                        availableQty = locationBatch ? parseFloat(locationBatch.qty) : 0;
+                    }
+                    
                     addProductToTable({
                         id: product.product.id,
                         name: product.product.product_name,
-                        purchases: [{
-                            purchase_id: product.id,
-                            batch: {
-                                id: product.batch.id,
-                                batch_no: product.batch.batch_no,
-                                qty: currentBatchQty,
-                                expiry_date: product.batch.expiry_date
-                            },
-                            quantity: product.quantity,
-                            price: parseFloat(product.unit_price)
-                        }]
+                        sku: product.product.sku,
+                        batches: [{
+                            batch_id: batchId,
+                            batch_no: batchNo,
+                            quantity: availableQty + parseFloat(product.quantity), // Available + what was returned
+                            unit_cost: parseFloat(product.unit_price),
+                            wholesale_price: batch ? (batch.wholesale_price || 0) : 0,
+                            special_price: batch ? (batch.special_price || 0) : 0,
+                            retail_price: batch ? (batch.retail_price || 0) : 0,
+                            max_retail_price: batch ? (batch.max_retail_price || 0) : 0,
+                            expiry_date: batch ? batch.expiry_date : null
+                        }],
+                        returnedQuantity: parseFloat(product.quantity), // Track the originally returned quantity
+                        returnedUnitPrice: parseFloat(product.unit_price)
                     });
                 });
                 if (data.attach_document) {
@@ -307,8 +328,8 @@
 
         // Add product to table
         function addProductToTable(product) {
-            if (!product || !product.purchases || product.purchases.length === 0) {
-                toastr.warning('Selected product does not have purchase information.', 'Warning');
+            if (!product || !product.batches || product.batches.length === 0) {
+                toastr.warning('Selected product does not have available stock.', 'Warning');
                 return;
             }
             const existingRow = $(`#purchase_return tbody tr[data-id="${product.id}"]`);
@@ -319,7 +340,11 @@
                 undefined) {
                 allowDecimal = product.product.unit.allow_decimal == 1;
             }
-            if (existingRow.length > 0) {
+            
+            // Check if this is for editing (has returnedQuantity)
+            const isEditing = product.returnedQuantity !== undefined;
+            
+            if (existingRow.length > 0 && !isEditing) {
                 const quantityInput = existingRow.find('.purchase-quantity');
                 const maxQuantity = parseFloat(quantityInput.attr('max')) || 0;
                 let newQuantity = allowDecimal ?
@@ -334,14 +359,22 @@
                 updateRow(existingRow);
                 updateFooter();
             } else {
-                const firstPurchase = product.purchases[0];
-                const initialQuantity = ""; // Start with empty quantity - user must specify return amount
-                const subtotal = 0; // Start with 0 since no quantity specified
-                const batchOptions = product.purchases.map(purchase => `
-                <option value="${purchase.batch.id}" data-unit-cost="${purchase.price}" data-max-qty="${purchase.batch.qty}">
-                    ${purchase.batch.batch_no} - Qty: ${purchase.batch.qty} - Unit Price: ${purchase.price} - Exp: ${purchase.batch.expiry_date || '-'}
-                </option>
-            `).join('');
+                const firstBatch = product.batches[0];
+                
+                // For editing, pre-fill with returned quantity and price; for new, start empty
+                const initialQuantity = isEditing ? product.returnedQuantity : "";
+                const unitPrice = isEditing ? product.returnedUnitPrice : (firstBatch.unit_cost || 0);
+                const subtotal = isEditing ? (product.returnedQuantity * product.returnedUnitPrice) : 0;
+                
+                const batchOptions = product.batches.map(batch => {
+                    const isSelected = isEditing && batch.batch_id == firstBatch.batch_id ? 'selected' : '';
+                    return `
+                    <option value="${batch.batch_id}" data-unit-cost="${batch.unit_cost}" data-max-qty="${batch.quantity}" ${isSelected}>
+                        ${batch.batch_no} - Qty: ${batch.quantity} - Unit Price: ${batch.unit_cost} - Exp: ${batch.expiry_date || '-'}
+                    </option>
+                `;
+                }).join('');
+                
                 const newRow = `
                 <tr data-id="${product.id}">
                     <td>${product.id}</td>
@@ -349,21 +382,25 @@
                     <td><select class="form-control batch-select">${batchOptions}</select></td>
                     <td>
                         <input type="number" class="form-control purchase-quantity"
-                        value=""
+                        value="${initialQuantity}"
                         placeholder="Enter return quantity"
                         min="0.01"
                         ${allowDecimal ? 'step="0.01"' : 'step="1"'}
-                        max="${firstPurchase.quantity}">
+                        max="${firstBatch.quantity}">
                     </td>
-                    <td class="unit-price amount">${firstPurchase.price || '0'}</td>
-                    <td class="sub-total amount">0.00</td>
+                    <td class="unit-price amount">${unitPrice}</td>
+                    <td class="sub-total amount">${subtotal.toFixed(2)}</td>
                     <td><button class="btn btn-danger btn-sm delete-product"><i class="fas fa-trash"></i></button></td>
                 </tr>
             `;
                 const $newRow = $(newRow);
                 $('#purchase_return').DataTable().row.add($newRow).draw();
                 updateFooter();
-                toastr.success('New product added to the table!', 'Success');
+                
+                if (!isEditing) {
+                    toastr.success('New product added to the table!', 'Success');
+                }
+                
                 $newRow.find('.purchase-quantity').on('input', function() {
                     if (!allowDecimal) {
                         let val = parseInt($(this).val());
@@ -452,7 +489,8 @@
             const $submitButton = $('.btn[type="submit"]');
             $submitButton.prop('disabled', true).html('Processing...');
             if (!$('#addAndUpdatePurchaseReturnForm').valid()) {
-                document.getElementsByClassName('warningSound')[0].play();
+                const warningSound = document.getElementsByClassName('warningSound')[0];
+                if (warningSound) warningSound.play();
                 toastr.error('Invalid inputs, Check & try again!!', 'Warning');
                 $submitButton.prop('disabled', false).html('Save');
                 return;
@@ -492,7 +530,8 @@
                         });
                         $submitButton.prop('disabled', false).html('Save');
                     } else {
-                        document.getElementsByClassName('successSound')[0].play();
+                        const successSound = document.getElementsByClassName('successSound')[0];
+                        if (successSound) successSound.play();
                         toastr.success(response.message, 'Purchase Return');
                         resetFormAndValidation();
                         $submitButton.prop('disabled', false).html('Save');
@@ -525,10 +564,15 @@
         }
 
         // Initialize DataTable for both tables if needed
-        if (!$.fn.DataTable.isDataTable('#purchase_return')) {
+        if ($('#purchase_return').length && !$.fn.DataTable.isDataTable('#purchase_return')) {
             $('#purchase_return').DataTable();
         }
-        var table = $('#purchase_return_list').DataTable();
+        
+        // Initialize purchase_return_list DataTable only if the element exists
+        var table = null;
+        if ($('#purchase_return_list').length) {
+            table = $('#purchase_return_list').DataTable();
+        }
 
         // Fetch data with AJAX
         function fetchData() {
@@ -576,11 +620,20 @@
                         });
 
                         // Initialize or update the DataTable
-                        table.clear().rows.add(tableData).draw();
+                        if (table && typeof table.clear === 'function') {
+                            table.clear().rows.add(tableData).draw();
+                        } else {
+                            console.warn('DataTable not properly initialized');
+                        }
+                    } else {
+                        console.warn('No purchase return data received');
                     }
                 },
                 error: function(xhr, status, error) {
-                    console.error('Error fetching purchases:', error);
+                    console.error('Error fetching purchases:', error, xhr);
+                    if (xhr.responseJSON) {
+                        console.error('Response:', xhr.responseJSON);
+                    }
                 }
             });
         }
@@ -734,9 +787,46 @@
             });
         });
 
-        document.getElementById('addPayment').addEventListener('click', function(event) {
-            openPaymentModal(event, $('#viewPaymentModal').data('purchase-return-id'));
-        });
+        // Function to update payment modal with fresh data
+        function updatePaymentModal(purchaseReturn) {
+            const supplier = purchaseReturn.supplier ?
+                `${purchaseReturn.supplier.first_name} ${purchaseReturn.supplier.last_name}` :
+                'Unknown Supplier';
+            const location = purchaseReturn.location ? purchaseReturn.location.name : 'Unknown Location';
+
+            // Update modal fields
+            $('#viewSupplierDetail').text(supplier);
+            $('#viewBusinessDetail').text(location);
+            $('#viewReferenceNo').text(purchaseReturn.reference_no);
+            $('#viewDate').text(purchaseReturn.return_date);
+            $('#viewPurchaseStatus').text(purchaseReturn.payment_status);
+            $('#viewPaymentStatus').text(purchaseReturn.payment_status);
+
+            // Update payments table
+            const paymentsHtml = purchaseReturn.payments.length > 0 ?
+                purchaseReturn.payments.map(payment => `
+                    <tr>
+                        <td>${payment.payment_date}</td>
+                        <td>${payment.reference_no || 'N/A'}</td>
+                        <td>${parseFloat(payment.amount).toFixed(2)}</td>
+                        <td>${payment.payment_method}</td>
+                        <td>${payment.notes || 'N/A'}</td>
+                        <td>${payment.payment_account || 'N/A'}</td>
+                        <td><button class="btn btn-danger btn-sm delete-payment" data-id="${payment.id}">Delete</button></td>
+                    </tr>
+                `).join('') :
+                `<tr><td colspan="7" class="text-center">No records found</td></tr>`;
+
+            $('#viewPaymentModal tbody').html(paymentsHtml);
+        }
+
+        // Add event listener for addPayment button if it exists
+        const addPaymentButton = document.getElementById('addPayment');
+        if (addPaymentButton) {
+            addPaymentButton.addEventListener('click', function(event) {
+                openPaymentModal(event, $('#viewPaymentModal').data('purchase-return-id'));
+            });
+        }
 
         // Function to open the Add Payment modal from the View Payment modal
         function openPaymentModal(event, purchaseReturnId) {
@@ -812,6 +902,7 @@
         $('#viewPaymentModal tbody').on('click', '.delete-payment', function(event) {
             event.preventDefault(); // Prevent default link behavior
             const paymentId = $(this).data('id'); // Get payment ID directly from data attribute
+            const purchaseReturnId = $('#viewPaymentModal').data('purchase-return-id'); // Get the current purchase return ID
 
             // Confirm deletion
             if (confirm('Are you sure you want to delete this payment?')) {
@@ -819,19 +910,83 @@
                 $.ajax({
                     url: `/payments/${paymentId}`,
                     type: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken
+                    },
                     success: function(response) {
-                        if (response.status === 200) {
-                            // Refresh the payment list
-                            $('#viewPaymentModal').modal('hide');
-                            fetchData();
-                            toastr.success(response.message, 'Payment Deleted');
+                        console.log('Delete response:', response); // Debug logging
+                        
+                        // Check multiple success conditions
+                        if (response.status === 200 || response.success === true || response.message) {
+                            toastr.success(response.message || 'Payment deleted successfully', 'Payment Deleted');
+                            
+                            // Refresh the main data table
+                            if (typeof fetchData === 'function') {
+                                fetchData();
+                            }
+                            
+                            // Refresh the payment modal if we have the purchase return ID
+                            if (purchaseReturnId) {
+                                setTimeout(function() {
+                                    // Re-fetch and refresh the payment modal
+                                    $.ajax({
+                                        url: `/purchase-returns/get-Details/${purchaseReturnId}`,
+                                        type: 'GET',
+                                        dataType: 'json',
+                                        success: function(response) {
+                                            if (response && response.purchase_return) {
+                                                updatePaymentModal(response.purchase_return);
+                                            }
+                                        },
+                                        error: function() {
+                                            console.warn('Could not refresh payment modal');
+                                        }
+                                    });
+                                }, 100); // Small delay to ensure backend is updated
+                            }
                         } else {
-                            toastr.error(response.message);
+                            console.error('Unexpected response format:', response);
+                            toastr.error(response.message || 'Unexpected response from server');
                         }
                     },
                     error: function(xhr, status, error) {
-                        console.error('Error deleting payment:', error);
-                        toastr.error('Error deleting payment.');
+                        console.error('Delete payment AJAX error details:', {
+                            xhr: xhr,
+                            status: status,
+                            error: error,
+                            responseText: xhr.responseText,
+                            responseJSON: xhr.responseJSON,
+                            statusCode: xhr.status
+                        });
+                        
+                        let errorMessage = 'Error deleting payment.';
+                        
+                        // Check if this is actually a successful deletion with network error
+                        if (xhr.status === 200 || (xhr.responseJSON && xhr.responseJSON.success)) {
+                            toastr.success('Payment deleted successfully', 'Payment Deleted');
+                            // Refresh the data
+                            if (typeof fetchData === 'function') {
+                                fetchData();
+                            }
+                            return;
+                        }
+                        
+                        // Try to extract error message from response
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        } else if (xhr.responseText) {
+                            try {
+                                const errorData = JSON.parse(xhr.responseText);
+                                if (errorData.message) {
+                                    errorMessage = errorData.message;
+                                }
+                            } catch (e) {
+                                // Use default error message
+                                console.warn('Could not parse error response:', xhr.responseText);
+                            }
+                        }
+                        
+                        toastr.error(errorMessage);
                     }
                 });
             }
@@ -920,7 +1075,8 @@
                     data: paymentData,
                     success: function(response) {
                         $('#paymentModal').modal('hide');
-                        document.getElementsByClassName('successSound')[0].play();
+                        const successSound = document.getElementsByClassName('successSound')[0];
+                        if (successSound) successSound.play();
                         toastr.success(response.message, 'Payment Added');
                         fetchData();
                     },

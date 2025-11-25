@@ -1711,10 +1711,9 @@ class UnifiedLedgerService
     public function updatePurchaseReturn($purchaseReturn, $oldReferenceNo = null)
     {
         return DB::transaction(function () use ($purchaseReturn, $oldReferenceNo) {
-            $referenceNo = $oldReferenceNo ?: ('PR-' . $purchaseReturn->id);
+            $referenceNo = $oldReferenceNo ?: $purchaseReturn->reference_no;
             
-            // ✅ FIXED: Use proper reversal accounting instead of hard delete
-            // Step 1: Mark original return entry as reversed
+            // Step 1: Find the original purchase return entry
             $originalEntry = Ledger::where('reference_no', $referenceNo)
                 ->where('transaction_type', 'purchase_return')
                 ->where('contact_id', $purchaseReturn->supplier_id)
@@ -1722,25 +1721,30 @@ class UnifiedLedgerService
                 ->first();
                 
             if ($originalEntry) {
+                // Step 2: Mark original entry as reversed
                 $originalEntry->update([
                     'status' => 'reversed',
                     'notes' => $originalEntry->notes . ' [REVERSED: Return updated on ' . now()->format('Y-m-d H:i:s') . ']'
                 ]);
                 
-                // Step 2: Create REVERSAL entry to cancel old return
+                // Step 3: Create REVERSAL entry to cancel the old return
+                // The Ledger model will automatically handle the debit/credit logic for purchase_return_reversal
+                // Use the original entry's debit amount (since purchase_return creates debit entries)
+                $originalAmount = $originalEntry->debit ?: $originalEntry->amount;
+                
                 Ledger::createEntry([
                     'contact_id' => $purchaseReturn->supplier_id,
                     'contact_type' => 'supplier',
                     'transaction_date' => Carbon::now('Asia/Colombo'),
                     'reference_no' => $referenceNo . '-REV-' . time(),
-                    'transaction_type' => 'purchase_return',
-                    'amount' => $originalEntry->debit, // Reverse the debit
+                    'transaction_type' => 'purchase_return_reversal',
+                    'amount' => $originalAmount,
                     'status' => 'reversed',
-                    'notes' => 'REVERSAL: Purchase Return Update - Cancel previous amount Rs.' . number_format($originalEntry->debit, 2)
+                    'notes' => 'REVERSAL: Purchase Return Update - Reversing previous return of Rs.' . number_format($originalAmount, 2)
                 ]);
             }
             
-            // Step 3: Record the updated return
+            // Step 4: Record the updated purchase return as new entry
             return $this->recordPurchaseReturn($purchaseReturn);
         });
     }
@@ -2358,6 +2362,12 @@ class UnifiedLedgerService
             $contactType = $payment->customer_id ? 'customer' : 'supplier';
             $contactId = $payment->customer_id ?: $payment->supplier_id;
             
+            // Check if this is a return payment
+            $isReturnPayment = $payment->payment_type === 'purchase_return' || 
+                               $payment->payment_type === 'sale_return_with_bill' || 
+                               $payment->payment_type === 'sale_return_without_bill' ||
+                               (isset($payment->notes) && strpos(strtolower($payment->notes), 'return') !== false);
+            
             // Step 1: Mark original payment entry as REVERSED
             $originalEntry = Ledger::where('reference_no', $referenceNo)
                 ->where('contact_id', $contactId)
@@ -2374,15 +2384,23 @@ class UnifiedLedgerService
                 ]);
                 
                 // Step 2: Create REVERSAL entry to cancel the deleted payment
+                $reversalNotes = 'REVERSAL: Payment Deleted - Cancel amount Rs.' . number_format($payment->amount, 2);
+                if ($isReturnPayment) {
+                    $reversalNotes .= ' (Return payment reversal)';
+                }
+                if ($deleteReason) {
+                    $reversalNotes .= ' | Reason: ' . $deleteReason;
+                }
+                
                 $reversalEntry = Ledger::createEntry([
                     'contact_id' => $contactId,
                     'contact_type' => $contactType,
                     'transaction_date' => Carbon::now('Asia/Colombo'),
                     'reference_no' => $referenceNo . '-DEL-' . time(),
-                    'transaction_type' => 'payment_adjustment', // ✅ FIX: Use payment_adjustment transaction type
-                    'amount' => $payment->amount, // Positive amount creates DEBIT to reverse old CREDIT
-                    'status' => 'reversed', // ✅ CRITICAL FIX: Reversal entries should have status='reversed'
-                    'notes' => 'REVERSAL: Payment Deleted - Cancel amount Rs.' . number_format($payment->amount, 2) . ($deleteReason ? ' | Reason: ' . $deleteReason : ''),
+                    'transaction_type' => 'payment_adjustment', 
+                    'amount' => $payment->amount, 
+                    'status' => 'active', 
+                    'notes' => $reversalNotes,
                     'created_by' => $deletedBy
                 ]);
                 

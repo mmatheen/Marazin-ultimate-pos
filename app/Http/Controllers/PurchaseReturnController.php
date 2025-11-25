@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PurchaseReturnController extends Controller
 {
@@ -79,8 +80,20 @@ class PurchaseReturnController extends Controller
         try {
             DB::transaction(function () use ($request, $purchaseReturnId) {
                 $attachDocument = $this->handleAttachedDocument($request);
-                $referenceNo = $purchaseReturnId ? PurchaseReturn::find($purchaseReturnId)->reference_no : $this->generateReferenceNo();
                 $isUpdate = !is_null($purchaseReturnId);
+                
+                // Store old values for ledger reversal if updating
+                $oldReturnTotal = 0;
+                $oldReferenceNo = null;
+                if ($isUpdate) {
+                    $existingReturn = PurchaseReturn::find($purchaseReturnId);
+                    if ($existingReturn) {
+                        $oldReturnTotal = $existingReturn->return_total;
+                        $oldReferenceNo = $existingReturn->reference_no;
+                    }
+                }
+                
+                $referenceNo = $purchaseReturnId ? PurchaseReturn::find($purchaseReturnId)->reference_no : $this->generateReferenceNo();
 
                 $totalReturnAmount = collect($request->products)->sum(fn($product) => $product['subtotal']);
 
@@ -107,7 +120,7 @@ class PurchaseReturnController extends Controller
                     $existingProducts = $purchaseReturn->purchaseReturnProducts;
                     foreach ($existingProducts as $existingProduct) {
                         $quantity = $existingProduct->quantity;
-                        $batchId = $existingProduct->batch_id;
+                        $batchId = $existingProduct->batch_no;
 
                         // Restore batch or FIFO stock
                         $this->restoreStock($existingProduct->product_id, $purchaseReturn->location_id, $quantity, $batchId);
@@ -119,13 +132,16 @@ class PurchaseReturnController extends Controller
 
                 // Process each product in the request
                 foreach ($request->products as $productData) {
-                    $validProduct = PurchaseProduct::where('product_id', $productData['product_id'])
-                        ->whereHas('purchase', function ($query) use ($request) {
-                            $query->where('supplier_id', $request->supplier_id);
-                        })->exists();
+                    // Validate that product exists and has stock in the location
+                    $product = \App\Models\Product::find($productData['product_id']);
+                    if (!$product) {
+                        throw new \Exception("Product ID {$productData['product_id']} not found.");
+                    }
 
-                    if (!$validProduct) {
-                        throw new \Exception("Product ID {$productData['product_id']} does not belong to the selected supplier's purchase.");
+                    // Check if there's sufficient stock in the location for the return
+                    $availableStock = $this->getProductStockInLocation($productData['product_id'], $request->location_id, $productData['batch_id'] ?? null);
+                    if ($availableStock < $productData['quantity']) {
+                        throw new \Exception("Insufficient stock for product '{$product->product_name}'. Available: {$availableStock}, Requested: {$productData['quantity']}");
                     }
 
                     $this->processProductReturn($productData, $purchaseReturn->id, $request->location_id);
@@ -133,10 +149,13 @@ class PurchaseReturnController extends Controller
 
                 // Record or update purchase return in ledger
                 if ($isUpdate) {
-                    $this->unifiedLedgerService->updatePurchaseReturn($purchaseReturn);
+                    $this->unifiedLedgerService->updatePurchaseReturn($purchaseReturn, $oldReferenceNo);
                 } else {
                     $this->unifiedLedgerService->recordPurchaseReturn($purchaseReturn);
                 }
+
+                // Clear cache to ensure POS gets updated stock quantities
+                \Illuminate\Support\Facades\Cache::flush();
 
                 // Note: UnifiedLedgerService automatically handles balance calculations
             });
@@ -208,7 +227,6 @@ class PurchaseReturnController extends Controller
 
     private function reduceBatchStock($batchId, $locationId, $quantity)
     {
-        $batch = Batch::findOrFail($batchId);
         $locationBatch = LocationBatch::where('batch_id', $batchId)
             ->where('location_id', $locationId)
             ->first();
@@ -223,7 +241,6 @@ class PurchaseReturnController extends Controller
         }
 
         $locationBatch->decrement('qty', $quantity);
-        $batch->decrement('qty', $quantity);
 
         StockHistory::create([
             'loc_batch_id' => $locationBatch->id,
@@ -265,7 +282,6 @@ class PurchaseReturnController extends Controller
                 continue;
             }
 
-            $batch->decrement('qty', $deductQuantity);
             $locationBatch->decrement('qty', $deductQuantity);
             $quantity -= $deductQuantity;
 
@@ -283,13 +299,11 @@ class PurchaseReturnController extends Controller
 
     private function restoreBatchStock($batchId, $locationId, $quantity)
     {
-        $batch = Batch::findOrFail($batchId);
         $locationBatch = LocationBatch::where('batch_id', $batchId)
             ->where('location_id', $locationId)
             ->firstOrFail();
 
         $locationBatch->increment('qty', $quantity);
-        $batch->increment('qty', $quantity);
 
         StockHistory::create([
             'loc_batch_id' => $locationBatch->id,
@@ -322,7 +336,6 @@ class PurchaseReturnController extends Controller
                 continue;
             }
 
-            $batch->increment('qty', $restoreQuantity);
             $locationBatch->increment('qty', $restoreQuantity);
             $quantity -= $restoreQuantity;
 
@@ -335,6 +348,92 @@ class PurchaseReturnController extends Controller
 
         if ($quantity > 0) {
             throw new \Exception('Cannot fully restore the stock. Please check the inventory.');
+        }
+    }
+
+   
+    private function getProductStockInLocation($productId, $locationId, $batchId = null)
+    {
+        if ($batchId) {
+            // Get stock for specific batch
+            $locationBatch = LocationBatch::where('batch_id', $batchId)
+                ->where('location_id', $locationId)
+                ->first();
+            return $locationBatch ? $locationBatch->qty : 0;
+        } else {
+            // Get total stock for product across all batches in location
+            return LocationBatch::whereHas('batch', function ($query) use ($productId) {
+                $query->where('product_id', $productId);
+            })
+            ->where('location_id', $locationId)
+            ->sum('qty');
+        }
+    }
+
+    /**
+     * Get all products with stock in a specific location for purchase returns
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getAllProductsWithStock(Request $request)
+    {
+        try {
+            $locationId = $request->get('location_id');
+            
+            if (!$locationId) {
+                return response()->json(['message' => 'Location ID is required.'], 400);
+            }
+
+            // Get all products that have stock in the specified location
+            $productsWithStock = LocationBatch::with([
+                'batch.product.unit',
+                'batch'
+            ])
+            ->where('location_id', $locationId)
+            ->where('qty', '>', 0)
+            ->get()
+            ->groupBy('batch.product_id');
+
+            $products = [];
+
+            foreach ($productsWithStock as $productId => $locationBatches) {
+                $product = $locationBatches->first()->batch->product;
+                
+                if (!$product) continue;
+
+                $batches = [];
+                foreach ($locationBatches as $locationBatch) {
+                    $batch = $locationBatch->batch;
+                    if ($batch && $locationBatch->qty > 0) {
+                        $batches[] = [
+                            'batch_id' => $batch->id,
+                            'batch_no' => $batch->batch_no,
+                            'quantity' => $locationBatch->qty,
+                            'unit_cost' => $batch->unit_cost,
+                            'wholesale_price' => $batch->wholesale_price,
+                            'special_price' => $batch->special_price,
+                            'retail_price' => $batch->retail_price,
+                            'max_retail_price' => $batch->max_retail_price,
+                            'expiry_date' => $batch->expiry_date,
+                        ];
+                    }
+                }
+
+                if (!empty($batches)) {
+                    $products[] = [
+                        'product' => $product,
+                        'unit' => $product->unit ?? null,
+                        'batches' => $batches,
+                        'total_stock' => array_sum(array_column($batches, 'quantity'))
+                    ];
+                }
+            }
+
+            return response()->json(['products' => $products], 200);
+        } catch (\Exception $e) {
+            Log::error('Error in getAllProductsWithStock: ' . $e->getMessage());
+            return response()->json(['message' => 'An error occurred while fetching products with stock.'], 500);
         }
     }
 
@@ -359,7 +458,36 @@ class PurchaseReturnController extends Controller
 
     public function edit($id)
     {
-        $purchaseReturn = PurchaseReturn::with(['supplier', 'location', 'purchaseReturnProducts.batch', 'purchaseReturnProducts.product'])->findOrFail($id);
+        $purchaseReturn = PurchaseReturn::with([
+            'supplier', 
+            'location', 
+            'purchaseReturnProducts' => function($query) {
+                $query->with([
+                    'product',
+                    'batch' => function($batchQuery) {
+                        $batchQuery->with('locationBatches');
+                    }
+                ]);
+            }
+        ])->findOrFail($id);
+
+        // Process the data to ensure batch information is available
+        foreach ($purchaseReturn->purchaseReturnProducts as $returnProduct) {
+            // If batch_no is null (FIFO), we need to get the latest batch for display
+            if (!$returnProduct->batch_no) {
+                $latestBatch = \App\Models\Batch::where('product_id', $returnProduct->product_id)
+                    ->whereHas('locationBatches', function($query) use ($purchaseReturn) {
+                        $query->where('location_id', $purchaseReturn->location_id);
+                    })
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+                
+                if ($latestBatch) {
+                    // Create a mock batch relationship for consistency
+                    $returnProduct->setRelation('batch', $latestBatch);
+                }
+            }
+        }
 
         if (request()->ajax() || request()->is('api/*')) {
             return response()->json(['purchase_return' => $purchaseReturn], 200);

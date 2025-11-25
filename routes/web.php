@@ -322,6 +322,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/purchase-returns/get-Details/{id}', [PurchaseReturnController::class, 'getPurchaseReturns']);
         Route::get('/purchase-return/edit/{id}', [PurchaseReturnController::class, 'edit']);
         Route::get('/purchase-returns/get-product-details/{supplierId}', [PurchaseReturnController::class, 'getProductDetails']);
+        Route::get('/purchase-returns/products-with-stock', [PurchaseReturnController::class, 'getAllProductsWithStock']);
         Route::post('/purchase-return/update/{id}', [PurchaseReturnController::class, 'storeOrUpdate']);
 
         // -------------------- SaleController Routes --------------------

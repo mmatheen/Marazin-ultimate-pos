@@ -760,32 +760,69 @@ class PaymentController extends Controller
 
     public function destroy(Payment $payment)
     {
-        return DB::transaction(function () use ($payment) {
-            // ✅ FIXED: Use UnifiedLedgerService for proper reversal accounting
-            try {
-                // Use the proper delete method from UnifiedLedgerService
-                $this->unifiedLedgerService->deletePayment($payment, 'Manual deletion via destroy method');
-                
-                // Now safe to delete the payment record since ledger is handled
-                $payment->delete();
-                
-                Log::info('Payment deleted successfully with proper reversal accounting', [
-                    'payment_id' => $payment->id,
-                    'payment_type' => $payment->payment_type,
-                    'amount' => $payment->amount,
-                    'reference_no' => $payment->reference_no
-                ]);
-                
-            } catch (\Exception $e) {
-                Log::error('Failed to delete payment with proper accounting', [
-                    'payment_id' => $payment->id,
-                    'error' => $e->getMessage()
-                ]);
-                throw $e;
-            }
-        });
+        try {
+            // Log the payment details for debugging
+            Log::info('Attempting to delete payment', [
+                'payment_id' => $payment->id,
+                'payment_type' => $payment->payment_type,
+                'amount' => $payment->amount,
+                'reference_no' => $payment->reference_no,
+                'customer_id' => $payment->customer_id,
+                'supplier_id' => $payment->supplier_id
+            ]);
 
-        return response()->json(['status' => 200, 'message' => 'Payment deleted successfully with proper audit trail.']);
+            return DB::transaction(function () use ($payment) {
+                // ✅ FIXED: Use UnifiedLedgerService for proper reversal accounting
+                try {
+                    // Use the proper delete method from UnifiedLedgerService
+                    $result = $this->unifiedLedgerService->deletePayment($payment, 'Manual deletion via destroy method');
+                    
+                    Log::info('Ledger deletion result', ['result' => $result]);
+                    
+                    // Now safe to delete the payment record since ledger is handled
+                    $payment->delete();
+                    
+                    Log::info('Payment deleted successfully with proper reversal accounting', [
+                        'payment_id' => $payment->id,
+                        'payment_type' => $payment->payment_type,
+                        'amount' => $payment->amount,
+                        'reference_no' => $payment->reference_no
+                    ]);
+                    
+                    return response()->json([
+                        'status' => 200, 
+                        'success' => true,
+                        'message' => 'Payment deleted successfully with proper audit trail.'
+                    ]);
+                    
+                } catch (\Exception $e) {
+                    Log::error('Failed to delete payment with proper accounting', [
+                        'payment_id' => $payment->id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
+                        'file' => $e->getFile(),
+                        'line' => $e->getLine()
+                    ]);
+                    
+                    return response()->json([
+                        'status' => 500,
+                        'success' => false,
+                        'message' => 'Failed to delete payment: ' . $e->getMessage()
+                    ], 500);
+                }
+            });
+        } catch (\Exception $e) {
+            Log::error('Error in destroy method before transaction', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'status' => 500,
+                'success' => false,
+                'message' => 'Failed to delete payment: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     // Bulk payment functions for sales (customer) and purchases (supplier)
