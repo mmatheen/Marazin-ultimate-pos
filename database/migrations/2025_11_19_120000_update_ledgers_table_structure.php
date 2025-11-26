@@ -21,13 +21,16 @@ return new class extends Migration
         
         // Step 2: Copy all data from user_id to contact_id
         if (Schema::hasColumn('ledgers', 'user_id') && Schema::hasColumn('ledgers', 'contact_id')) {
-            DB::statement('UPDATE ledgers SET contact_id = user_id');
+            DB::statement('UPDATE ledgers SET contact_id = user_id WHERE user_id IS NOT NULL');
         }
         
-        // Step 3: Make contact_id NOT NULL since it has data now
+        // Step 2.1: For any remaining NULL contact_id, set to 0 (represents system/unknown contact)
+        DB::statement('UPDATE ledgers SET contact_id = 0 WHERE contact_id IS NULL');
+        
+        // Step 3: Now safely make contact_id NOT NULL since all records have valid values
         if (Schema::hasColumn('ledgers', 'contact_id')) {
             Schema::table('ledgers', function (Blueprint $table) {
-                $table->bigInteger('contact_id')->unsigned()->change();
+                $table->bigInteger('contact_id')->unsigned()->nullable(false)->change();
             });
         }
         
