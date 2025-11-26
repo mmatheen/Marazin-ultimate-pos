@@ -38,7 +38,7 @@ class UnifiedLedgerService
     /**
      * Record sale transaction
      */
-    public function recordSale($sale, $createdBy = null)
+    public function recordSale($sale, $createdBy = null, $customTransactionDate = null)
     {
         // ✅ FIX: Validate that sale has customer_id before proceeding
         if (empty($sale->customer_id)) {
@@ -53,10 +53,11 @@ class UnifiedLedgerService
         // Generate a proper reference number for the sale
         $referenceNo = $sale->invoice_no ?: 'INV-' . $sale->id;
         
-        // Use the actual creation time converted to Asia/Colombo timezone
-        $transactionDate = $sale->created_at ? 
-            Carbon::parse($sale->created_at)->setTimezone('Asia/Colombo') : 
-            Carbon::now('Asia/Colombo');
+        // ✅ FIX: Use custom transaction date if provided (for updates), otherwise use original creation time
+        $transactionDate = $customTransactionDate ?: 
+            ($sale->created_at ? 
+                Carbon::parse($sale->created_at)->setTimezone('Asia/Colombo') : 
+                Carbon::now('Asia/Colombo'));
         
         return Ledger::createEntry([
             'contact_id' => $sale->customer_id,
@@ -1525,7 +1526,8 @@ class UnifiedLedgerService
         }
             
         // Record the updated sale (creates new entry)
-        $newSaleEntry = $this->recordSale($sale);
+        // ✅ FIX: Use current time for updated sales so they appear in current date range
+        $newSaleEntry = $this->recordSale($sale, null, Carbon::now('Asia/Colombo'));
         
         return $newSaleEntry;
     }
