@@ -13,8 +13,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('ledgers', function (Blueprint $table) {
-            // Step 1: Add new contact_id column if user_id exists
-            if (Schema::hasColumn('ledgers', 'user_id')) {
+            // Step 1: Add new contact_id column if user_id exists and contact_id doesn't exist
+            if (Schema::hasColumn('ledgers', 'user_id') && !Schema::hasColumn('ledgers', 'contact_id')) {
                 $table->bigInteger('contact_id')->unsigned()->nullable()->after('id');
             }
         });
@@ -27,7 +27,7 @@ return new class extends Migration
         // Step 3: Make contact_id NOT NULL since it has data now
         if (Schema::hasColumn('ledgers', 'contact_id')) {
             Schema::table('ledgers', function (Blueprint $table) {
-                $table->bigInteger('contact_id')->unsigned()->change();
+                $table->bigInteger('contact_id')->unsigned()->nullable(false)->change();
             });
         }
         
@@ -66,7 +66,7 @@ return new class extends Migration
     {
         Schema::table('ledgers', function (Blueprint $table) {
             // Step 1: Add back user_id column
-            if (Schema::hasColumn('ledgers', 'contact_id')) {
+            if (Schema::hasColumn('ledgers', 'contact_id') && !Schema::hasColumn('ledgers', 'user_id')) {
                 $table->bigInteger('user_id')->unsigned()->nullable()->after('id');
             }
         });
@@ -79,7 +79,7 @@ return new class extends Migration
         // Step 3: Make user_id NOT NULL
         if (Schema::hasColumn('ledgers', 'user_id')) {
             Schema::table('ledgers', function (Blueprint $table) {
-                $table->bigInteger('user_id')->unsigned()->change();
+                $table->bigInteger('user_id')->unsigned()->nullable(false)->change();
             });
         }
         
