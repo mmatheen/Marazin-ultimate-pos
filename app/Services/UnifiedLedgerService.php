@@ -1507,13 +1507,18 @@ class UnifiedLedgerService
             
             // Create reversal entry for audit trail
             if ($paymentEntry->credit > 0) {
+                // Create reversal entry: negative amount reverses the original payment
+                // Original payment: customer paid Rs.X (credit entry) 
+                // Reversal: cancel that payment (debit entry) using negative amount
+                $reversalAmount = -$paymentEntry->credit; // Negative creates reversal effect
+                
                 Ledger::createEntry([
                     'contact_id' => $sale->customer_id,
                     'contact_type' => 'customer',
                     'transaction_date' => now(),
                     'reference_no' => $referenceNo,
                     'transaction_type' => 'payments',
-                    'amount' => -$paymentEntry->credit, // ✅ FIX: Use negative amount to create reversal instead of direct debit/credit
+                    'amount' => $reversalAmount, // Negative amount = reversal instruction
                     'notes' => "REVERSAL: Sale Edit - Payment Rs{$paymentEntry->credit} (ID: {$paymentEntry->id})",
                 ]);
             }
