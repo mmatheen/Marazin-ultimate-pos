@@ -1092,17 +1092,15 @@ class PaymentController extends Controller
                         }
 
                         // Create floating balance for customer (independent of sales)
-                        // Record bounced cheque in ledger
-                        Ledger::create([
-                            'user_id' => $payment->customer_id,
+                        // ✅ FIX: Use Ledger::createEntry() instead of create() for proper validation
+                        Ledger::createEntry([
+                            'contact_id' => $payment->customer_id,
                             'contact_type' => 'customer',
                             'transaction_date' => $request->bounce_date,
                             'transaction_type' => 'cheque_bounce',
                             'reference_no' => 'BOUNCE-' . $payment->cheque_number,
-                            'description' => "Cheque bounce: {$payment->cheque_number} - {$request->bounce_reason}",
-                            'debit' => $payment->amount,
-                            'credit' => 0,
-                            'balance' => 0, // Will be calculated automatically if needed
+                            'amount' => $payment->amount, // ✅ FIX: Add required amount field
+                            'notes' => "Cheque bounce: {$payment->cheque_number} - {$request->bounce_reason}" // ✅ FIX: Use notes instead of description
                         ]);
 
                         $bouncedPayments[] = [

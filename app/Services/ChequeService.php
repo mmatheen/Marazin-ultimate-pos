@@ -424,7 +424,7 @@ class ChequeService
 
         // 1. Create bounced cheque debit entry (increases customer floating balance)
         $bounceEntry = Ledger::createEntry([
-            'user_id' => $payment->customer_id,
+            'contact_id' => $payment->customer_id,  // ✅ FIX: Use contact_id instead of user_id
             'contact_type' => 'customer',
             'transaction_date' => $transactionDate,
             'reference_no' => $referenceNo,
@@ -437,7 +437,7 @@ class ChequeService
         // 2. Add bank charges as separate debit entry
         if ($bankCharges > 0) {
             $chargesEntry = Ledger::createEntry([
-                'user_id' => $payment->customer_id,
+                'contact_id' => $payment->customer_id,  // ✅ FIX: Use contact_id instead of user_id
                 'contact_type' => 'customer',
                 'transaction_date' => $transactionDate,
                 'reference_no' => $referenceNo . '-CHARGES',
@@ -491,7 +491,7 @@ class ChequeService
 
         // Create recovery entry to reduce floating balance
         $recoveryEntry = Ledger::createEntry([
-            'user_id' => $payment->customer_id,
+            'contact_id' => $payment->customer_id,  // ✅ FIX: Use contact_id instead of user_id
             'contact_type' => 'customer',
             'transaction_date' => $transactionDate,
             'reference_no' => $referenceNo,

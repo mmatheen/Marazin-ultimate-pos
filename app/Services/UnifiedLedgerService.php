@@ -40,6 +40,16 @@ class UnifiedLedgerService
      */
     public function recordSale($sale, $createdBy = null)
     {
+        // ✅ FIX: Validate that sale has customer_id before proceeding
+        if (empty($sale->customer_id)) {
+            Log::error('RecordSale called with empty customer_id', [
+                'sale_id' => $sale->id,
+                'customer_id' => $sale->customer_id,
+                'invoice_no' => $sale->invoice_no ?? 'N/A'
+            ]);
+            throw new \Exception("Cannot record sale in ledger: customer_id is missing or empty. Sale ID: {$sale->id}");
+        }
+
         // Generate a proper reference number for the sale
         $referenceNo = $sale->invoice_no ?: 'INV-' . $sale->id;
         
@@ -1315,6 +1325,17 @@ class UnifiedLedgerService
      */
     public function editSaleWithCustomerChange($sale, $oldCustomerId, $newCustomerId, $oldFinalTotal, $editReason = null)
     {
+        // ✅ FIX: Validate customer IDs before proceeding
+        if (empty($newCustomerId) || $newCustomerId === null) {
+            Log::error('EditSaleWithCustomerChange called with empty newCustomerId', [
+                'sale_id' => $sale->id,
+                'old_customer_id' => $oldCustomerId,
+                'new_customer_id' => $newCustomerId,
+                'sale_customer_id' => $sale->customer_id ?? 'N/A'
+            ]);
+            throw new \Exception("Cannot edit sale: new customer_id is missing or empty. Sale ID: {$sale->id}");
+        }
+
         return DB::transaction(function () use ($sale, $oldCustomerId, $newCustomerId, $oldFinalTotal, $editReason) {
             $referenceNo = $sale->invoice_no ?: 'INV-' . $sale->id;
             $newFinalTotal = $sale->final_total;
@@ -1427,6 +1448,16 @@ class UnifiedLedgerService
      */
     public function updateSale($sale, $oldReferenceNo = null)
     {
+        // ✅ FIX: Validate that sale has customer_id before proceeding
+        if (empty($sale->customer_id)) {
+            Log::error('UpdateSale called with empty customer_id', [
+                'sale_id' => $sale->id,
+                'customer_id' => $sale->customer_id,
+                'invoice_no' => $sale->invoice_no ?? 'N/A'
+            ]);
+            throw new \Exception("Cannot update sale ledger: customer_id is missing or empty. Sale ID: {$sale->id}");
+        }
+
         $referenceNo = $oldReferenceNo ?: ($sale->invoice_no ?: 'INV-' . $sale->id);
         
         // Find the original sale ledger entry to reverse
@@ -1452,8 +1483,7 @@ class UnifiedLedgerService
                 'transaction_date' => now(),
                 'reference_no' => $referenceNo,
                 'transaction_type' => 'sale',
-                'debit' => 0,
-                'credit' => $originalEntry->debit, // Reverse the original debit
+                'amount' => -$originalEntry->debit, // ✅ FIX: Use negative amount to create reversal instead of direct debit/credit
                 'notes' => "REVERSAL: Sale Edit - Original amount Rs{$originalEntry->debit} (ID: {$originalEntry->id})",
             ]);
         }
@@ -1483,8 +1513,7 @@ class UnifiedLedgerService
                     'transaction_date' => now(),
                     'reference_no' => $referenceNo,
                     'transaction_type' => 'payments',
-                    'debit' => $paymentEntry->credit, // Reverse the payment credit
-                    'credit' => 0,
+                    'amount' => -$paymentEntry->credit, // ✅ FIX: Use negative amount to create reversal instead of direct debit/credit
                     'notes' => "REVERSAL: Sale Edit - Payment Rs{$paymentEntry->credit} (ID: {$paymentEntry->id})",
                 ]);
             }

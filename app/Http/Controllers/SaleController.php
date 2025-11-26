@@ -1057,6 +1057,15 @@ class SaleController extends Controller
                 $oldFinalTotal = $isUpdate ? $sale->getOriginal('final_total') : null;
                 $customerChanged = $isUpdate && ($oldCustomerId != $request->customer_id);
                 
+                // ✅ CRITICAL FIX: Double-check customer exists before saving sale
+                if (!Customer::where('id', $request->customer_id)->exists()) {
+                    return response()->json([
+                        'status' => 400,
+                        'message' => "Customer with ID {$request->customer_id} does not exist.",
+                        'errors' => ['customer_id' => ['The selected customer does not exist.']]
+                    ]);
+                }
+                
                 $sale->fill([
                     'customer_id' => $request->customer_id,
                     'location_id' => $request->location_id,
@@ -1089,15 +1098,47 @@ class SaleController extends Controller
                     'shipping_status' => $request->shipping_status ?? 'pending',
                     'delivered_to' => $request->delivered_to,
                     'delivery_person' => $request->delivery_person,
-                ])->save();
+                ]);
 
-                // Debug: Check if final_total was saved correctly
+                // ✅ CRITICAL FIX: Add exception handling around sale save operation
+                try {
+                    $saveResult = $sale->save();
+                    if (!$saveResult) {
+                        throw new \Exception("Sale save operation returned false");
+                    }
+                } catch (\Exception $e) {
+                    Log::error('CRITICAL: Sale save operation failed', [
+                        'sale_id' => $sale->id ?? 'NEW',
+                        'customer_id' => $request->customer_id,
+                        'error' => $e->getMessage(),
+                        'error_code' => $e->getCode(),
+                        'sale_attributes' => $sale->getAttributes()
+                    ]);
+                    
+                    // Return specific error for database constraint violations
+                    if (str_contains($e->getMessage(), 'foreign key constraint') || 
+                        str_contains($e->getMessage(), 'Integrity constraint violation')) {
+                        return response()->json([
+                            'status' => 400,
+                            'message' => "Invalid customer ID: Customer with ID {$request->customer_id} does not exist.",
+                            'errors' => ['customer_id' => ['The selected customer does not exist.']]
+                        ]);
+                    }
+                    
+                    throw $e; // Re-throw for other errors
+                }
+
+                // Debug: Check if final_total and customer_id were saved correctly
                 $sale->refresh();
-                Log::info('🔍 FINAL TOTAL AFTER SAVE:', [
+                Log::info('🔍 SALE DATA AFTER SAVE:', [
+                    'sale_id' => $sale->id,
+                    'request_customer_id' => $request->customer_id,
+                    'saved_customer_id' => $sale->customer_id,
                     'expected_final_total' => $finalTotal,
                     'actual_final_total_in_db' => $sale->final_total,
                     'shipping_charges_in_db' => $sale->shipping_charges,
-                    'subtotal_in_db' => $sale->subtotal
+                    'subtotal_in_db' => $sale->subtotal,
+                    'is_update' => $isUpdate
                 ]);
 
                 // ----- Job Ticket Logic -----
@@ -1413,6 +1454,21 @@ class SaleController extends Controller
                         );
                     } elseif ($request->customer_id != 1) {
                         // Same customer, just amount/details changed - use regular update
+                        // ✅ CRITICAL FIX: Validate sale object before ledger operations
+                        if (empty($sale->customer_id)) {
+                            Log::error('CRITICAL: Sale customer_id is empty before ledger operations', [
+                                'sale_id' => $sale->id,
+                                'request_customer_id' => $request->customer_id,
+                                'sale_customer_id' => $sale->customer_id,
+                                'sale_attributes' => $sale->getAttributes(),
+                            ]);
+                            
+                            // Try to reload the sale from database
+                            $sale->refresh();
+                            if (empty($sale->customer_id)) {
+                                throw new \Exception("CRITICAL ERROR: Sale customer_id is missing after database refresh. Sale ID: {$sale->id}. This indicates a database constraint violation or data corruption.");
+                            }
+                        }
                         $this->unifiedLedgerService->updateSale($sale, $referenceNo);
                     }
                     // Note: New sales are already recorded above (before payments)

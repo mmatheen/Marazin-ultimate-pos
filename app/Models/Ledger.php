@@ -249,29 +249,12 @@ class Ledger extends Model
         foreach ($required as $field) {
             if (!isset($data[$field]) || $data[$field] === null || $data[$field] === '') {
                 Log::error('Ledger createEntry validation failed', [
-                    'missing_field' => $field,
-                    'provided_data' => $data,
-                    'trace' => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 10)
+                    'field' => $field,
+                    'provided_value' => $data[$field] ?? 'not_set',
+                    'all_data' => $data
                 ]);
                 throw new \Exception("Required field {$field} is missing or empty. Provided value: " . ($data[$field] ?? 'null'));
             }
-        }
-
-        // Additional validation for contact_id
-        if ($data['contact_type'] === 'customer' && !Customer::find($data['contact_id'])) {
-            Log::error('Invalid customer_id in ledger entry', [
-                'customer_id' => $data['contact_id'],
-                'data' => $data
-            ]);
-            throw new \Exception("Customer with ID {$data['contact_id']} does not exist");
-        }
-
-        if ($data['contact_type'] === 'supplier' && !Supplier::find($data['contact_id'])) {
-            Log::error('Invalid supplier_id in ledger entry', [
-                'supplier_id' => $data['contact_id'],
-                'data' => $data
-            ]);
-            throw new \Exception("Supplier with ID {$data['contact_id']} does not exist");
         }
 
         // ✅ CRITICAL FIX: Prevent duplicate ledger entries
@@ -337,15 +320,6 @@ class Ledger extends Model
                     $debit = $data['amount'];
                 } else {
                     $credit = abs($data['amount']); // Negative sale becomes credit
-                }
-                break;
-
-            case 'sale_adjustment':
-                // Sale adjustment can be positive (debit - increase debt) or negative (credit - reduce debt)
-                if ($data['amount'] > 0) {
-                    $debit = $data['amount'];
-                } else {
-                    $credit = abs($data['amount']);
                 }
                 break;
 
@@ -559,7 +533,6 @@ class Ledger extends Model
                             break;
                             
                         case 'sale':
-                        case 'sale_adjustment':
                         case 'purchase':
                         case 'payment':
                         case 'payments':
