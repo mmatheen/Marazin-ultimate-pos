@@ -170,8 +170,8 @@
                     }
 
                     if (itemToAdd && itemToAdd.product) {
-                        $("#productSearchInput").val(itemToAdd.value);
                         addProductToTable(itemToAdd.product);
+                        $("#productSearchInput").val('').focus();
                         $(this).autocomplete('close');
                     }
 
@@ -233,8 +233,11 @@
                 },
                 select: function(event, ui) {
                     if (ui.item.product) {
-                        $("#productSearchInput").val('');
                         addProductToTable(ui.item.product);
+                        $("#productSearchInput").val('').blur();
+                        $("#productSearchInput").focus();
+                        
+                        $(this).autocomplete('close');
                     }
                     return false;
                 },
