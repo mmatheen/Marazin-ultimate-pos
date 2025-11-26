@@ -21,16 +21,18 @@ return new class extends Migration
         // Step 2: Set any remaining NULL contact_id to 0 (system/unknown contact)
         DB::statement('UPDATE ledgers SET contact_id = 0 WHERE contact_id IS NULL');
         
-        // Step 3: Now safely make contact_id NOT NULL
-        Schema::table('ledgers', function (Blueprint $table) {
-            $table->bigInteger('contact_id')->unsigned()->nullable(false)->change();
-        });
+        // Step 3: Now safely make contact_id NOT NULL (only if column exists)
+        if (Schema::hasColumn('ledgers', 'contact_id')) {
+            Schema::table('ledgers', function (Blueprint $table) {
+                $table->bigInteger('contact_id')->unsigned()->nullable(false)->change();
+            });
+        }
         
         // Step 4: Add remaining columns if they don't exist
         Schema::table('ledgers', function (Blueprint $table) {
-            // Remove balance column as it will be calculated dynamically
-            if (Schema::hasColumn('ledgers', 'balance')) {
-                $table->dropColumn('balance');
+            // Add notes column first if not exists
+            if (!Schema::hasColumn('ledgers', 'notes')) {
+                $table->text('notes')->nullable()->after('credit');
             }
             
             // Add status column for tracking active/reversed entries
@@ -38,14 +40,20 @@ return new class extends Migration
                 $table->enum('status', ['active', 'reversed'])->default('active')->after('credit');
             }
             
-            // Add created_by for audit tracking
+            // Add created_by for audit tracking (after notes since notes was referenced)
             if (!Schema::hasColumn('ledgers', 'created_by')) {
-                $table->bigInteger('created_by')->unsigned()->nullable()->after('notes');
+                if (Schema::hasColumn('ledgers', 'notes')) {
+                    $table->bigInteger('created_by')->unsigned()->nullable()->after('notes');
+                } else {
+                    $table->bigInteger('created_by')->unsigned()->nullable()->after('credit');
+                }
             }
-            
-            // Add notes column if not exists
-            if (!Schema::hasColumn('ledgers', 'notes')) {
-                $table->text('notes')->nullable()->after('credit');
+        });
+        
+        // Step 4.1: Remove balance column in separate step to avoid conflicts
+        Schema::table('ledgers', function (Blueprint $table) {
+            if (Schema::hasColumn('ledgers', 'balance')) {
+                $table->dropColumn('balance');
             }
         });
         
