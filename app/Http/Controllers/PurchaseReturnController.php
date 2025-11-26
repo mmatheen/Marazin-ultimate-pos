@@ -372,6 +372,7 @@ class PurchaseReturnController extends Controller
 
     /**
      * Get all products with stock in a specific location for purchase returns
+     * Supports search functionality similar to POS autocomplete
      * 
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
@@ -380,43 +381,88 @@ class PurchaseReturnController extends Controller
     {
         try {
             $locationId = $request->get('location_id');
+            $search = $request->get('search'); // Add search parameter
             
             if (!$locationId) {
                 return response()->json(['message' => 'Location ID is required.'], 400);
             }
 
-            // Get all products that have stock in the specified location
-            $productsWithStock = LocationBatch::with([
-                'batch.product.unit',
-                'batch'
-            ])
-            ->where('location_id', $locationId)
-            ->where('qty', '>', 0)
-            ->get()
-            ->groupBy('batch.product_id');
+            // Build query for products with stock in the specified location
+            $productsQuery = Product::with([
+                'unit:id,name,short_name,allow_decimal',
+                'batches' => function ($query) {
+                    $query->select([
+                        'id',
+                        'batch_no',
+                        'product_id',
+                        'unit_cost',
+                        'wholesale_price',
+                        'special_price',
+                        'retail_price',
+                        'max_retail_price',
+                        'expiry_date'
+                    ]);
+                },
+                'batches.locationBatches' => function ($q) use ($locationId) {
+                    $q->where('location_id', $locationId)
+                      ->where('qty', '>', 0)
+                      ->select(['id', 'batch_id', 'location_id', 'qty']);
+                }
+            ])->where('is_active', true)
+              ->whereHas('batches.locationBatches', function ($q) use ($locationId) {
+                  $q->where('location_id', $locationId)
+                    ->where('qty', '>', 0);
+              });
 
+            // Add search functionality if search term is provided
+            if ($search) {
+                $productsQuery->where(function ($q) use ($search) {
+                    $q->where('product_name', 'like', "%{$search}%")
+                      ->orWhere('sku', 'like', "%{$search}%")
+                      ->orWhere('description', 'like', "%{$search}%");
+                });
+
+                // Order by relevance: exact matches first, then partial matches
+                $productsQuery->orderByRaw("
+                    CASE 
+                        WHEN sku = ? THEN 1
+                        WHEN LOWER(product_name) = LOWER(?) THEN 2
+                        WHEN sku LIKE ? THEN 3
+                        WHEN LOWER(product_name) LIKE LOWER(?) THEN 4
+                        WHEN description LIKE ? THEN 5
+                        ELSE 6
+                    END,
+                    CHAR_LENGTH(sku) ASC,
+                    product_name ASC
+                ", [
+                    $search,                    // Exact SKU match
+                    $search,                    // Exact product name match
+                    $search . '%',              // SKU starts with search term
+                    $search . '%',              // Product name starts with search term
+                    '%' . $search . '%'         // Description contains search term
+                ]);
+            }
+
+            $productsWithStock = $productsQuery->get();
             $products = [];
 
-            foreach ($productsWithStock as $productId => $locationBatches) {
-                $product = $locationBatches->first()->batch->product;
-                
-                if (!$product) continue;
-
+            foreach ($productsWithStock as $product) {
                 $batches = [];
-                foreach ($locationBatches as $locationBatch) {
-                    $batch = $locationBatch->batch;
-                    if ($batch && $locationBatch->qty > 0) {
-                        $batches[] = [
-                            'batch_id' => $batch->id,
-                            'batch_no' => $batch->batch_no,
-                            'quantity' => $locationBatch->qty,
-                            'unit_cost' => $batch->unit_cost,
-                            'wholesale_price' => $batch->wholesale_price,
-                            'special_price' => $batch->special_price,
-                            'retail_price' => $batch->retail_price,
-                            'max_retail_price' => $batch->max_retail_price,
-                            'expiry_date' => $batch->expiry_date,
-                        ];
+                foreach ($product->batches as $batch) {
+                    foreach ($batch->locationBatches as $locationBatch) {
+                        if ($locationBatch->qty > 0) {
+                            $batches[] = [
+                                'batch_id' => $batch->id,
+                                'batch_no' => $batch->batch_no,
+                                'quantity' => $locationBatch->qty,
+                                'unit_cost' => $batch->unit_cost,
+                                'wholesale_price' => $batch->wholesale_price,
+                                'special_price' => $batch->special_price,
+                                'retail_price' => $batch->retail_price,
+                                'max_retail_price' => $batch->max_retail_price,
+                                'expiry_date' => $batch->expiry_date,
+                            ];
+                        }
                     }
                 }
 

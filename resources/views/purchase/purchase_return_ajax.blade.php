@@ -111,7 +111,7 @@
         $('#supplier-id').change(function() {
             const locationId = $('#location-id').val();
             if (locationId) {
-                fetchAllProductsWithStock(locationId);
+                setupAutocomplete(locationId);
                 $('#productSearchInput').prop('disabled', false);
             } else {
                 $('#productSearchInput').prop('disabled', true);
@@ -123,7 +123,7 @@
         $('#location-id').change(function() {
             const locationId = $(this).val();
             if (locationId) {
-                fetchAllProductsWithStock(locationId);
+                setupAutocomplete(locationId);
                 $('#productSearchInput').prop('disabled', false);
             } else {
                 $('#productSearchInput').prop('disabled', true);
@@ -139,49 +139,16 @@
             updateFooter();
         }
 
-        // Fetch all products with stock based on location ID
-        function fetchAllProductsWithStock(locationId) {
-            $.ajax({
-                url: `/purchase-returns/products-with-stock`,
-                type: 'GET',
-                data: {
-                    location_id: locationId
-                },
-                dataType: 'json',
-                success: function(response) {
-                    if (response && response.products) {
-                        const allProducts = response.products.map(product => ({
-                            id: product.product.id,
-                            name: product.product.product_name,
-                            unit: product.unit,
-                            total_stock: product.total_stock,
-                            batches: product.batches.map(batch => ({
-                                batch_id: batch.batch_id,
-                                batch_no: batch.batch_no,
-                                quantity: batch.quantity,
-                                unit_cost: batch.unit_cost,
-                                wholesale_price: batch.wholesale_price,
-                                special_price: batch.special_price,
-                                retail_price: batch.retail_price,
-                                max_retail_price: batch.max_retail_price,
-                                expiry_date: batch.expiry_date
-                            }))
-                        }));
-                        initAutocomplete(allProducts);
-                    } else {
-                        toastr.error('No products with stock found at the selected location.', 'Error');
-                    }
-                },
-                error: function(xhr) {
-                    const message = xhr.status === 404 ? 'No products with stock found at the selected location.' :
-                        'An error occurred while fetching products.';
-                      toastr.error(message);
-                }
-            });
+        // Initialize autocomplete when location is selected
+        function setupAutocomplete(locationId) {
+            if (locationId) {
+                // Initialize the autocomplete functionality
+                initAutocomplete();
+            }
         }
 
-        // Initialize autocomplete functionality
-        function initAutocomplete(products) {
+        // Initialize autocomplete functionality with server-side search
+        function initAutocomplete() {
             const $input = $("#productSearchInput");
             
             // Add Enter key support for quick selection - Updated with working POS AJAX solution
@@ -213,19 +180,62 @@
             });
 
             $input.autocomplete({
+                minLength: 1,
+                delay: 300,
                 source: function(request, response) {
-                    const searchTerm = request.term.toLowerCase();
-                    const filteredProducts = products.filter(product => product.name && product.name
-                        .toLowerCase().includes(searchTerm));
-                    response(filteredProducts.map(product => ({
-                        label: `${product.name}`,
-                        value: product.name,
-                        product: product
-                    })));
+                    const locationId = $('#location-id').val();
+                    if (!locationId) {
+                        return response([]);
+                    }
+                    
+                    $.ajax({
+                        url: `/purchase-returns/products-with-stock`,
+                        type: 'GET',
+                        data: {
+                            location_id: locationId,
+                            search: request.term
+                        },
+                        dataType: 'json',
+                        success: function(data) {
+                            if (data && data.products && data.products.length > 0) {
+                                const results = data.products.map(product => ({
+                                    label: `${product.product.product_name} ${product.product.sku ? `(${product.product.sku})` : ''} [Stock: ${product.total_stock}]`,
+                                    value: product.product.product_name,
+                                    product: {
+                                        id: product.product.id,
+                                        name: product.product.product_name,
+                                        sku: product.product.sku,
+                                        unit: product.unit,
+                                        total_stock: product.total_stock,
+                                        batches: product.batches.map(batch => ({
+                                            batch_id: batch.batch_id,
+                                            batch_no: batch.batch_no,
+                                            quantity: batch.quantity,
+                                            unit_cost: batch.unit_cost,
+                                            wholesale_price: batch.wholesale_price,
+                                            special_price: batch.special_price,
+                                            retail_price: batch.retail_price,
+                                            max_retail_price: batch.max_retail_price,
+                                            expiry_date: batch.expiry_date
+                                        }))
+                                    }
+                                }));
+                                response(results);
+                            } else {
+                                response([{ label: "No products found", value: "" }]);
+                            }
+                        },
+                        error: function(xhr) {
+                            console.error('Search error:', xhr);
+                            response([{ label: "Error searching products", value: "" }]);
+                        }
+                    });
                 },
                 select: function(event, ui) {
-                    $("#productSearchInput").val(ui.item.value);
-                    addProductToTable(ui.item.product);
+                    if (ui.item.product) {
+                        $("#productSearchInput").val('');
+                        addProductToTable(ui.item.product);
+                    }
                     return false;
                 },
                 open: function() {
@@ -235,7 +245,7 @@
                         const menu = autocompleteInstance.menu;
                         const firstItem = menu.element.find("li:first-child");
                         
-                        if (firstItem.length > 0 && !firstItem.text().includes("No products found")) {
+                        if (firstItem.length > 0 && !firstItem.text().includes("No products found") && !firstItem.text().includes("Error searching")) {
                             // Properly set the active item using jQuery UI's method
                             menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
                             firstItem.addClass("ui-state-focus");
