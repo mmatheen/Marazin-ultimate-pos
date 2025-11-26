@@ -471,7 +471,6 @@
             const productId = row.data('id');
             $('#purchase_return').DataTable().row(row).remove().draw();
             updateFooter();
-            toastr.success(`Product ID ${productId} removed from the table!`, 'Success');
         }
 
         // Event listener for remove button
