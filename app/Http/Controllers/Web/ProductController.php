@@ -1489,6 +1489,12 @@ class ProductController extends Controller
             $filterSubCategory = $request->input('sub_category_id');
             $filterBrand = $request->input('brand_id');
             $locationId = $request->input('location_id'); // Add location filter
+            $stockStatus = $request->input('stock_status'); // Add stock status filter
+            
+            // Ensure location_id is properly typed (convert to integer if it's a numeric string)
+            if ($locationId && is_numeric($locationId)) {
+                $locationId = (int) $locationId;
+            }
 
             Log::info('Filters applied:', [
                 'search' => $search,
@@ -1496,7 +1502,8 @@ class ProductController extends Controller
                 'filterCategory' => $filterCategory,
                 'filterSubCategory' => $filterSubCategory,
                 'filterBrand' => $filterBrand,
-                'locationId' => $locationId
+                'locationId' => $locationId,
+                'stockStatus' => $stockStatus
             ]);
 
             // Apply user location scope
@@ -1584,7 +1591,7 @@ class ProductController extends Controller
                 ->when(!$request->has('show_all'), function ($query) {
                     return $query->where('is_active', true);
                 })
-                // Filter by location if provided (show ALL products assigned to that location, including 0 qty)
+                // Filter by location if provided (show ALL products assigned to that location, including 0 stock)
                 ->when($locationId, function ($query) use ($locationId) {
                     return $query->whereHas('locations', function ($q) use ($locationId) {
                         $q->where('locations.id', $locationId);
@@ -1613,6 +1620,48 @@ class ProductController extends Controller
             }
             if (!empty($filterBrand)) {
                 $query->where('brand_id', $filterBrand);
+            }
+
+            // Apply stock status filter
+            if (!empty($stockStatus)) {
+                switch ($stockStatus) {
+                    case 'in_stock':
+                        // Products with stock > 0 in any location (or selected location)
+                        $query->whereHas('batches.locationBatches', function ($q) use ($locationId, $userLocationIds) {
+                            $q->where('qty', '>', 0);
+                            if ($locationId) {
+                                $q->where('location_id', $locationId);
+                            } elseif (!empty($userLocationIds)) {
+                                $q->whereIn('location_id', $userLocationIds);
+                            }
+                        });
+                        break;
+                        
+                    case 'out_of_stock':
+                        // Products with no stock in any location (or selected location)
+                        $query->whereDoesntHave('batches.locationBatches', function ($q) use ($locationId, $userLocationIds) {
+                            $q->where('qty', '>', 0);
+                            if ($locationId) {
+                                $q->where('location_id', $locationId);
+                            } elseif (!empty($userLocationIds)) {
+                                $q->whereIn('location_id', $userLocationIds);
+                            }
+                        });
+                        break;
+                        
+                    case 'low_stock':
+                        // Products with stock below alert quantity
+                        $query->whereHas('batches.locationBatches', function ($q) use ($locationId, $userLocationIds) {
+                            $q->where('qty', '>', 0)
+                              ->whereRaw('qty <= (SELECT alert_quantity FROM products WHERE products.id = location_batches.batch_id)');
+                            if ($locationId) {
+                                $q->where('location_id', $locationId);
+                            } elseif (!empty($userLocationIds)) {
+                                $q->whereIn('location_id', $userLocationIds);
+                            }
+                        });
+                        break;
+                }
             }
 
             // Set ordering (if valid column)

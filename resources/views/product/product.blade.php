@@ -35,7 +35,7 @@
                 <div class="card card-body mb-4">
                     <div class="student-group-form">
                         <div class="row g-3 align-items-end">
-                            <div class="col-lg-3 col-md-6">
+                            <div class="col-lg-2 col-md-6">
                                 <div class="form-group local-forms">
                                     <label>Product <span class="login-danger"></span></label>
                                     <select class="form-control selectBox select2" id="productNameFilter"
@@ -45,7 +45,7 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-lg-3 col-md-6">
+                            <div class="col-lg-2 col-md-6">
                                 <div class="form-group local-forms">
                                     <label>Category <span class="login-danger"></span></label>
                                     <select class="form-control selectBox select2" id="categoryFilter" style="width: 100%;">
@@ -54,7 +54,7 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-lg-3 col-md-6">
+                            <div class="col-lg-2 col-md-6">
                                 <div class="form-group local-forms">
                                     <label>Brand <span class="login-danger"></span></label>
                                     <select class="form-control selectBox select2" id="brandFilter" style="width: 100%;">
@@ -63,13 +63,32 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-lg-3 col-md-6">
+                            <div class="col-lg-2 col-md-6">
                                 <div class="form-group local-forms">
                                     <label>Location <span class="login-danger"></span></label>
                                     <select class="form-control selectBox select2" id="locationFilter" style="width: 100%;">
                                         <option value="">Select Location</option>
                                         <!-- Populate with location options -->
                                     </select>
+                                </div>
+                            </div>
+                            <div class="col-lg-2 col-md-6">
+                                <div class="form-group local-forms">
+                                    <label>Stock Status <span class="login-danger"></span></label>
+                                    <select class="form-control selectBox select2" id="stockStatusFilter" style="width: 100%;">
+                                        <option value="">All Products</option>
+                                        <option value="in_stock">In Stock (Qty > 0)</option>
+                                        <option value="out_of_stock">Out of Stock (Qty = 0)</option>
+                                        <option value="low_stock">Low Stock (Alert Level)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-lg-2 col-md-6">
+                                <div class="form-group local-forms">
+                                  
+                                    <button type="button" class="btn btn-outline-secondary w-100" id="clearFiltersBtn" style="height: 40px;">
+                                        <i class="fas fa-times"></i> Clear
+                                    </button>
                                 </div>
                             </div>
                         </div>

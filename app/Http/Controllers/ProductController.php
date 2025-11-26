@@ -1422,6 +1422,31 @@ class ProductController extends Controller
             $filterSubCategory = $request->input('sub_category_id');
             $filterBrand = $request->input('brand_id');
             $locationId = $request->input('location_id'); // Add location filtering
+            
+            // Ensure location_id is properly typed (convert to integer if it's a numeric string)
+            if ($locationId && is_numeric($locationId)) {
+                $locationId = (int) $locationId;
+            }
+
+            // Debug: Log location filtering
+            if ($locationId) {
+                Log::info('Location filter applied in getAllProductStocks', [
+                    'location_id' => $locationId,
+                    'location_id_type' => gettype($locationId),
+                    'request_params' => $request->all()
+                ]);
+                
+                // Check if any location batches exist for this location
+                $locationBatchCount = \App\Models\LocationBatch::where('location_id', $locationId)->count();
+                Log::info('Location batch count for location', [
+                    'location_id' => $locationId,
+                    'location_batch_count' => $locationBatchCount
+                ]);
+            } else {
+                Log::info('No location filter - showing all locations in getAllProductStocks', [
+                    'request_params' => $request->all()
+                ]);
+            }
 
             // Build product query
             $query = Product::select([
@@ -1483,8 +1508,8 @@ class ProductController extends Controller
                 // Filter by location if provided (only show products that exist in that location)
                 ->when($locationId, function ($query) use ($locationId) {
                     return $query->whereHas('batches.locationBatches', function ($q) use ($locationId) {
-                        $q->where('location_id', $locationId);
-                        // Only show products that actually exist in the selected location
+                        $q->where('location_id', $locationId)
+                          ->where('qty', '>', 0); // Only show products with actual stock in the location
                     });
                 });
 

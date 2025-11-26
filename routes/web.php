@@ -394,10 +394,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/cheque/mark-reminder-sent/{reminderId}', [PaymentController::class, 'markReminderSent'])->name('cheque.mark-reminder-sent');
         Route::post('/cheque/bulk-update-status', [PaymentController::class, 'bulkUpdateChequeStatus'])->name('cheque.bulk-update-status');
         
-        // Debug routes for recovery payment issues
-        Route::get('/debug/recovery-payments', [\App\Http\Controllers\RecoveryPaymentDebugController::class, 'debugRecoveryPayments'])->name('debug.recovery-payments');
-        Route::post('/debug/test-recovery-payment', [\App\Http\Controllers\RecoveryPaymentDebugController::class, 'testRecoveryPayment'])->name('debug.test-recovery-payment');
-
          // -------------------- PaymentController Routes --------------------
         Route::get('payments', [PaymentController::class, 'index']);
         Route::post('payments', [PaymentController::class, 'storeOrUpdate']);

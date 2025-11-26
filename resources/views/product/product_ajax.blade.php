@@ -1001,37 +1001,54 @@
         });
     }
 
-    // Populate filter dropdowns from current page data
+    // Populate filter dropdowns - products from current page, but categories/brands from all available data
     function populateProductFilter(pageData) {
         const productNameFilter = $('#productNameFilter');
         const categoryFilter = $('#categoryFilter');
         const brandFilter = $('#brandFilter');
         const locationFilter = $('#locationFilter');
 
+        // Only get product names from current page data
         const productNames = [...new Set(pageData.map(item => item.product.product_name))];
-        const categories = [...new Set(pageData.map(item => item.product.main_category_id))];
-        const brands = [...new Set(pageData.map(item => item.product.brand_id))];
-        const locations = [...new Set(pageData.flatMap(item => item.locations.map(loc => loc.id)))];
 
+        // Clear and populate product names from current page
         productNameFilter.empty().append('<option value="">Select Product</option>');
-        categoryFilter.empty().append('<option value="">Select Category</option>');
-        brandFilter.empty().append('<option value="">Select Brand</option>');
-
-        // Don't clear location filter as it's populated from initial data
-        // locationFilter.empty().append('<option value="">Select Location</option>');
-
         productNames.forEach(name => {
             productNameFilter.append(`<option value="${name}">${name}</option>`);
         });
-        categories.forEach(category => {
-            if (categoryMap[category]) categoryFilter.append(
-                `<option value="${category}">${categoryMap[category]}</option>`);
-        });
-        brands.forEach(brand => {
-            if (brandMap[brand]) brandFilter.append(
-                `<option value="${brand}">${brandMap[brand]}</option>`);
-        });
 
+        // Categories and brands will be populated from all available data in populateAllFilterOptions
+        // Don't populate them here to avoid limiting to current page data
+    }
+
+    // Populate category and brand filters with ALL available options (not limited to current page)
+    function populateAllFilterOptions() {
+        const categoryFilter = $('#categoryFilter');
+        const brandFilter = $('#brandFilter');
+
+        // Clear existing options
+        categoryFilter.empty().append('<option value="">Select Category</option>');
+        brandFilter.empty().append('<option value="">Select Brand</option>');
+
+        // Populate with ALL categories from categoryMap (loaded from initialProductDetails)
+        if (typeof categoryMap === 'object' && categoryMap !== null) {
+            Object.entries(categoryMap).forEach(([categoryId, categoryName]) => {
+                if (categoryId && categoryName) {
+                    categoryFilter.append(`<option value="${categoryId}">${categoryName}</option>`);
+                }
+            });
+            console.log('✅ Populated', Object.keys(categoryMap).length, 'categories in filter');
+        }
+
+        // Populate with ALL brands from brandMap (loaded from initialProductDetails)
+        if (typeof brandMap === 'object' && brandMap !== null) {
+            Object.entries(brandMap).forEach(([brandId, brandName]) => {
+                if (brandId && brandName) {
+                    brandFilter.append(`<option value="${brandId}">${brandName}</option>`);
+                }
+            });
+            console.log('✅ Populated', Object.keys(brandMap).length, 'brands in filter');
+        }
     }
 
     function buildActionsDropdown(row) {
@@ -1091,6 +1108,7 @@
                 cache: true, // Enable caching
                 data: function(d) {
                     // DataTables sends search and paging params in 'd'
+                    const locationId = $('#locationFilter').val();
                     const requestData = {
                         draw: d.draw,
                         start: d.start,
@@ -1107,10 +1125,17 @@
                         product_name: $('#productNameFilter').val(),
                         main_category_id: $('#categoryFilter').val(),
                         brand_id: $('#brandFilter').val(),
-                        location_id: $('#locationFilter').val(),
+                        location_id: locationId,
+                        stock_status: $('#stockStatusFilter').val(),
                         // Show all products (active and inactive) in product list
                         show_all: true
                     };
+                    // Debug: Log the location filter value being sent
+                    if (locationId) {
+                        console.log('🔍 Location filter applied:', locationId, $('#locationFilter option:selected').text());
+                    } else {
+                        console.log('🔍 No location filter - showing all locations');
+                    }
                     return requestData;
                 },
                 dataSrc: function(response) {
@@ -1123,8 +1148,13 @@
 
                     // If your backend returns {status: 200, data: [...]}, convert to DataTables format
                     if (response.status === 200 && Array.isArray(response.data)) {
-                        // Optionally update filters
-                        if (response.draw === 1) populateProductFilter(response.data);
+                        // Update product name filter with current page data
+                        // But categories and brands will be populated separately with ALL available data
+                        if (response.draw === 1) {
+                            populateProductFilter(response.data);
+                            // Also populate category/brand filters with ALL available options
+                            populateAllFilterOptions();
+                        }
                         return response.data;
                     }
 
@@ -1679,7 +1709,7 @@
     }
 
     // On filter change, reload DataTable (triggers ajax with filters)
-    $('#productNameFilter, #categoryFilter, #brandFilter, #locationFilter').on('change', function() {
+    $('#productNameFilter, #categoryFilter, #brandFilter, #locationFilter, #stockStatusFilter').on('change', function() {
         if ($.fn.DataTable.isDataTable('#productTable')) {
             try {
                 $('#productTable').DataTable().ajax.reload(null, false);
@@ -1688,6 +1718,36 @@
                 toastr.error('Error reloading product list', 'Error');
             }
         }
+    });
+
+    // Clear Filters Button Handler
+    $('#clearFiltersBtn').on('click', function() {
+        console.log('🧹 Clearing all filters...');
+        
+        // Clear all filter dropdowns to their default "Select..." options
+        $('#productNameFilter').val('').trigger('change');
+        $('#categoryFilter').val('').trigger('change');
+        $('#brandFilter').val('').trigger('change');
+        $('#locationFilter').val('').trigger('change');
+        $('#stockStatusFilter').val('').trigger('change');
+        
+        // If using Select2, also trigger Select2 events for proper clearing
+        if (typeof $.fn.select2 !== 'undefined') {
+            $('#productNameFilter, #categoryFilter, #brandFilter, #locationFilter, #stockStatusFilter').select2();
+        }
+        
+        // Reload DataTable to show all products (no filters applied)
+        if ($.fn.DataTable.isDataTable('#productTable')) {
+            try {
+                $('#productTable').DataTable().ajax.reload(null, false);
+                toastr.success('Filters cleared successfully', 'Success');
+            } catch (error) {
+                console.error('Error reloading DataTable after clearing filters:', error);
+                toastr.error('Error reloading product list', 'Error');
+            }
+        }
+        
+        console.log('✅ Filters cleared and table reloaded');
     });
 
     // On page load: fetch categories/brands/locations, then initialize DataTable
@@ -1708,7 +1768,14 @@
             
             // Then initialize DataTable if we're on a list page
             if (typeof fetchCategoriesAndBrands === 'function' && typeof fetchProductData === 'function') {
-                fetchCategoriesAndBrands(fetchProductData);
+                fetchCategoriesAndBrands(function() {
+                    // First initialize the DataTable
+                    fetchProductData();
+                    // Then populate the filter options with ALL available categories and brands
+                    setTimeout(function() {
+                        populateAllFilterOptions();
+                    }, 100); // Small delay to ensure DataTable is fully initialized
+                });
             }
         });
     });
