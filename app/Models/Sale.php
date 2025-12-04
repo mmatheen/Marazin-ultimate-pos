@@ -391,14 +391,43 @@ class Sale extends Model
                 throw new \Exception('Cannot revert invoice with payments. Please process refund first.');
             }
             
-            // Restore stock for each product
+            // Revert stock history type back to sale_order
             foreach ($invoice->products as $item) {
-                $locationBatch = LocationBatch::where('batch_id', $item->batch_id)
+                $locationBatch = \App\Models\LocationBatch::where('batch_id', $item->batch_id)
                     ->where('location_id', $item->location_id)
                     ->first();
                 
                 if ($locationBatch) {
-                    $locationBatch->increment('qty', $item->quantity);
+                    // Find the stock history record for this sale and change it back to sale_order
+                    $stockHistory = \App\Models\StockHistory::where('loc_batch_id', $locationBatch->id)
+                        ->where('stock_type', \App\Models\StockHistory::STOCK_TYPE_SALE)
+                        ->where('quantity', -$item->quantity)
+                        ->whereHas('locationBatch.batch', function($query) use ($item) {
+                            $query->where('product_id', $item->product_id);
+                        })
+                        ->orderBy('created_at', 'desc')
+                        ->first();
+
+                    if ($stockHistory) {
+                        // Change stock type back to sale_order
+                        $stockHistory->update([
+                            'stock_type' => \App\Models\StockHistory::STOCK_TYPE_SALE_ORDER
+                        ]);
+                        
+                        Log::info("Reverted stock history type from sale to sale_order", [
+                            'stock_history_id' => $stockHistory->id,
+                            'batch_id' => $item->batch_id,
+                            'location_id' => $item->location_id,
+                            'quantity' => $item->quantity
+                        ]);
+                    } else {
+                        Log::warning("Stock history record not found for invoice reversion", [
+                            'batch_id' => $item->batch_id,
+                            'location_id' => $item->location_id,
+                            'product_id' => $item->product_id,
+                            'quantity' => $item->quantity
+                        ]);
+                    }
                 }
             }
             
@@ -426,58 +455,98 @@ class Sale extends Model
 
     /**
      * Validate stock availability before conversion
+     * Since stock was already allocated during sale order creation, 
+     * we just need to verify the sale order is in a valid state
      */
     protected function validateStockAvailability()
     {
-        $insufficientItems = [];
+        // Stock was already deducted during sale order creation,
+        // so we don't need to check stock availability again.
+        // We just verify that all items in the sale order have valid batches
+        
+        $invalidItems = [];
         
         foreach ($this->products as $item) {
-            // Get current stock for this batch/location
+            // Verify the batch still exists and is valid
             $locationBatch = \App\Models\LocationBatch::where('batch_id', $item->batch_id)
                 ->where('location_id', $item->location_id)
                 ->first();
             
-            $availableQty = $locationBatch ? $locationBatch->qty : 0;
-            
-            if ($availableQty < $item->quantity) {
+            if (!$locationBatch) {
                 $product = $item->product;
                 $productName = $product ? $product->product_name : 'Unknown Product';
                 
-                $insufficientItems[] = [
+                $invalidItems[] = [
                     'product' => $productName,
-                    'required' => $item->quantity,
-                    'available' => $availableQty,
-                    'shortage' => $item->quantity - $availableQty
+                    'batch_id' => $item->batch_id,
+                    'location_id' => $item->location_id
                 ];
             }
         }
         
-        if (!empty($insufficientItems)) {
-            $errorMessage = "Insufficient stock for the following items:\n\n";
-            foreach ($insufficientItems as $item) {
-                $errorMessage .= "• {$item['product']}: Required {$item['required']}, Available {$item['available']} (Short by {$item['shortage']})\n";
+        if (!empty($invalidItems)) {
+            $errorMessage = "Invalid batch/location combinations found:\n\n";
+            foreach ($invalidItems as $item) {
+                $errorMessage .= "• {$item['product']}: Batch ID {$item['batch_id']} at Location {$item['location_id']}\n";
             }
-            $errorMessage .= "\nPlease restock or reduce order quantities before converting to invoice.";
+            $errorMessage .= "\nPlease contact administrator to resolve these batch issues.";
             
             throw new \Exception($errorMessage);
         }
+        
+        Log::info("Stock availability validation passed for sale order conversion", [
+            'sale_order_id' => $this->id,
+            'products_count' => $this->products->count()
+        ]);
     }
 
     /**
-     * Update stock when converting SO to Invoice
+     * Update stock history when converting SO to Invoice
+     * Stock was already deducted during sale order creation, 
+     * so we just need to update the stock history type from 'sale_order' to 'sale'
      */
     protected function updateStockOnConversion($item)
     {
-        // Update location_batches stock
-        $locationBatch = LocationBatch::where('batch_id', $item->batch_id)
+        // Find the location batch
+        $locationBatch = \App\Models\LocationBatch::where('batch_id', $item->batch_id)
             ->where('location_id', $item->location_id)
             ->first();
 
         if ($locationBatch) {
-            $locationBatch->decrement('qty', $item->quantity);
+            // Update stock history type from 'sale_order' to 'sale'
+            // Find the original sale_order stock history record
+            $stockHistory = \App\Models\StockHistory::where('loc_batch_id', $locationBatch->id)
+                ->where('stock_type', \App\Models\StockHistory::STOCK_TYPE_SALE_ORDER)
+                ->where('quantity', -$item->quantity)
+                ->whereHas('locationBatch.batch', function($query) use ($item) {
+                    $query->where('product_id', $item->product_id);
+                })
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if ($stockHistory) {
+                // Update the stock type to indicate it's now a finalized sale
+                $stockHistory->update([
+                    'stock_type' => \App\Models\StockHistory::STOCK_TYPE_SALE
+                ]);
+                
+                Log::info("Updated stock history type from sale_order to sale", [
+                    'stock_history_id' => $stockHistory->id,
+                    'batch_id' => $item->batch_id,
+                    'location_id' => $item->location_id,
+                    'quantity' => $item->quantity
+                ]);
+            } else {
+                Log::warning("Stock history record not found for sale order conversion", [
+                    'batch_id' => $item->batch_id,
+                    'location_id' => $item->location_id,
+                    'product_id' => $item->product_id,
+                    'quantity' => $item->quantity
+                ]);
+            }
         }
 
-        // Note: Stock is managed through location_batch table, not products.stock column
+        // Note: Stock was already deducted during sale order creation, no further deduction needed
     }
 
     public static function getAvailableStock($batchId, $locationId)

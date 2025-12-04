@@ -44,9 +44,16 @@ class DashboardController extends Controller
             $locationFilter = $userLocations ? $userLocations->toArray() : null;
         }
     
-        // Apply location filter for sales
+        // Apply location filter for sales - EXCLUDE SALE ORDERS, only count actual final sales
         $salesQuery = DB::table('sales')
-            ->whereBetween('sales_date', [$startDate, $endDate]);
+            ->whereBetween('sales_date', [$startDate, $endDate])
+            ->where(function($query) {
+                $query->where('transaction_type', 'invoice') // Only invoices
+                      ->orWhere(function($subQuery) {
+                          $subQuery->whereNull('transaction_type') // Legacy sales without transaction_type
+                                   ->where('status', 'final'); // Only final status
+                      });
+            });
         if ($locationFilter) {
             $salesQuery->whereIn('location_id', $locationFilter);
         }
@@ -98,10 +105,17 @@ class DashboardController extends Controller
         
         $totalProducts = $productsQuery->count();
     
-        // Fetch sales dates and amounts with location filter
+        // Fetch sales dates and amounts with location filter - EXCLUDE SALE ORDERS
         $salesDataQuery = DB::table('sales')
             ->select(DB::raw('DATE(sales_date) as date'), DB::raw('SUM(final_total) as amount'))
-            ->whereBetween('sales_date', [$startDate, $endDate]);
+            ->whereBetween('sales_date', [$startDate, $endDate])
+            ->where(function($query) {
+                $query->where('transaction_type', 'invoice') // Only invoices
+                      ->orWhere(function($subQuery) {
+                          $subQuery->whereNull('transaction_type') // Legacy sales without transaction_type
+                                   ->where('status', 'final'); // Only final status
+                      });
+            });
         if ($locationFilter) {
             $salesDataQuery->whereIn('location_id', $locationFilter);
         }

@@ -209,15 +209,23 @@ class SaleController extends Controller
             // Convert using model method
             $invoice = $saleOrder->convertToInvoice();
             
-            // Redirect to POS edit page for payment
+            // ✨ Create ledger entry for the invoice (skip for Walk-In customers)
+            if ($invoice->customer_id != 1) {
+                $this->unifiedLedgerService->recordSale($invoice);
+            }
+            
+            // Return success without redirecting to edit (stock already deducted)
             return response()->json([
                 'status' => 200,
-                'message' => 'Sale Order converted to Invoice successfully!',
+                'message' => 'Sale Order converted to Invoice successfully! Invoice created with proper stock allocation.',
                 'invoice' => [
                     'id' => $invoice->id,
                     'invoice_no' => $invoice->invoice_no,
+                    'final_total' => $invoice->final_total,
+                    'customer_id' => $invoice->customer_id
                 ],
-                'redirect_url' => route('sales.edit', $invoice->id)
+                'print_url' => "/sales/print-recent-transaction/{$invoice->id}",
+                'success' => true
             ], 200);
             
         } catch (\Exception $e) {
@@ -244,29 +252,90 @@ class SaleController extends Controller
                 ], 400);
             }
             
+            // Store original status to check for cancellation
+            $originalStatus = $saleOrder->order_status;
+            
             // Get the JSON data
             $data = $request->all();
             
-            // Update allowed fields
-            if (isset($data['order_status'])) {
-                $saleOrder->order_status = $data['order_status'];
+            // Check if this is a cancellation request
+            $isCancellation = isset($data['order_status']) && 
+                             $data['order_status'] === 'cancelled' && 
+                             $originalStatus !== 'cancelled';
+            
+            // If cancelling, use database transaction to restore stock
+            if ($isCancellation) {
+                DB::transaction(function () use ($saleOrder, $data) {
+                    // Get all products from the sale order
+                    $products = $saleOrder->products;
+                    
+                    Log::info('Starting sale order cancellation via updateSaleOrder', [
+                        'sale_order_id' => $saleOrder->id,
+                        'products_count' => $products->count(),
+                        'original_status' => $saleOrder->order_status
+                    ]);
+                    
+                    // Restore stock for each product
+                    foreach ($products as $product) {
+                        Log::info("Processing product for stock restoration", [
+                            'product_id' => $product->product_id,
+                            'batch_id' => $product->batch_id,
+                            'quantity' => $product->quantity,
+                            'location_id' => $product->location_id
+                        ]);
+                        
+                        // Use existing restoreStock function with sale_order_reversal type
+                        $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_ORDER_REVERSAL);
+                    }
+                    
+                    // Update sale order status and other fields
+                    $saleOrder->order_status = $data['order_status'];
+                    $saleOrder->status = 'cancelled'; // Also update main status field
+                    
+                    if (isset($data['order_notes'])) {
+                        $saleOrder->order_notes = $data['order_notes'];
+                    }
+                    
+                    if (isset($data['expected_delivery_date'])) {
+                        $saleOrder->expected_delivery_date = $data['expected_delivery_date'];
+                    }
+                    
+                    $saleOrder->save();
+                    
+                    Log::info('Sale Order cancelled and stock restoration completed via updateSaleOrder', [
+                        'sale_order_id' => $saleOrder->id,
+                        'order_number' => $saleOrder->order_number,
+                        'products_restored' => $products->count()
+                    ]);
+                });
+                
+                return response()->json([
+                    'status' => 200,
+                    'message' => 'Sale Order cancelled successfully and stock restored!',
+                    'sale_order' => $saleOrder->fresh()
+                ], 200);
+            } else {
+                // Normal update (not cancellation)
+                if (isset($data['order_status'])) {
+                    $saleOrder->order_status = $data['order_status'];
+                }
+                
+                if (isset($data['order_notes'])) {
+                    $saleOrder->order_notes = $data['order_notes'];
+                }
+                
+                if (isset($data['expected_delivery_date'])) {
+                    $saleOrder->expected_delivery_date = $data['expected_delivery_date'];
+                }
+                
+                $saleOrder->save();
+                
+                return response()->json([
+                    'status' => 200,
+                    'message' => 'Sale Order updated successfully!',
+                    'sale_order' => $saleOrder
+                ], 200);
             }
-            
-            if (isset($data['order_notes'])) {
-                $saleOrder->order_notes = $data['order_notes'];
-            }
-            
-            if (isset($data['expected_delivery_date'])) {
-                $saleOrder->expected_delivery_date = $data['expected_delivery_date'];
-            }
-            
-            $saleOrder->save();
-            
-            return response()->json([
-                'status' => 200,
-                'message' => 'Sale Order updated successfully!',
-                'sale_order' => $saleOrder
-            ], 200);
             
         } catch (\Exception $e) {
             return response()->json([
@@ -351,12 +420,28 @@ class SaleController extends Controller
                 ->limit(200) // Increased limit for Recent Transactions
                 ->get();
         } else {
-            // Original simple format for backward compatibility (only final sales)
-            $sales = Sale::with('products.product', 'customer', 'location', 'payments', 'user')
-                ->where('status', 'final')
-                ->orderBy('created_at', 'desc')
-                ->limit(100) // Limit to prevent timeout
-                ->get();
+            // Check if this is specifically for sale orders list page
+            if ($request->has('sale_orders') && $request->get('sale_orders') == 'true') {
+                // Only return sale orders for sale orders list page
+                $sales = Sale::with('products.product', 'customer', 'location', 'payments', 'user')
+                    ->where('transaction_type', 'sale_order')
+                    ->orderBy('created_at', 'desc')
+                    ->limit(200)
+                    ->get();
+            } else {
+                // Original logic for All Sales page - only final invoices
+                $sales = Sale::with('products.product', 'customer', 'location', 'payments', 'user')
+                    ->where('status', 'final')
+                    ->where('transaction_type', '!=', 'sale_order') // Explicitly exclude sale orders
+                    ->where(function($query) {
+                        // Only include actual invoices
+                        $query->where('transaction_type', 'invoice')
+                              ->orWhereNull('transaction_type'); // Legacy records without transaction_type
+                    })
+                    ->orderBy('created_at', 'desc')
+                    ->limit(100)
+                    ->get();
+            }
         }
 
         return response()->json(['sales' => $sales], 200);
@@ -414,8 +499,14 @@ class SaleController extends Controller
             $query = Sale::withoutGlobalScopes()->select([
                 'id', 'invoice_no', 'sales_date', 'customer_id', 'user_id', 'location_id',
                 'final_total', 'total_paid', 'total_due', 'payment_status', 'status', 
-                'created_at', 'updated_at'
-            ])->where('status', 'final');
+                'created_at', 'updated_at', 'transaction_type'
+            ])->where('status', 'final')
+            ->where('transaction_type', '!=', 'sale_order') // Exclude sale orders from All Sales
+            ->where(function($q) {
+                // Only include actual invoices
+                $q->where('transaction_type', 'invoice')
+                  ->orWhereNull('transaction_type'); // Legacy records without transaction_type
+            });
             
             // Apply user-based filtering - if user can only view own sales, filter by user_id
             if ($user && $user->can('view own sales') && !$user->can('view all sales')) {
@@ -1176,8 +1267,9 @@ class SaleController extends Controller
 
                 // ----- Ledger - Record Sale FIRST (before payments) -----
                 // ✨ PERFORMANCE FIX: Skip ledger operations for Walk-In customers (no credit tracking needed)
-                // ✨ ACCOUNTING FIX: Only create ledger entries for final sales, not drafts/quotations
-                if ($request->customer_id != 1 && !$isUpdate && !in_array($sale->status, ['draft', 'quotation'])) {
+                // ✨ ACCOUNTING FIX: Only create ledger entries for final sales, not drafts/quotations/sale_orders
+                // ✨ SALE ORDER FIX: Skip ledger for sale orders - ledger created only on conversion to invoice
+                if ($request->customer_id != 1 && !$isUpdate && !in_array($sale->status, ['draft', 'quotation']) && $transactionType !== 'sale_order') {
                     // Record sale in unified ledger BEFORE processing payments
                     // This ensures customer debt is established first
                     $this->unifiedLedgerService->recordSale($sale);
@@ -1417,9 +1509,9 @@ class SaleController extends Controller
                             $this->validateStockForUpdate($productData, $request->location_id, $originalProducts ?? []);
                         }
                         
-                        // ✨ For Sale Orders: Don't reduce stock, just save items
+                        // ✨ For Sale Orders: Deduct stock but use special stock type for allocation tracking
                         if ($transactionType === 'sale_order') {
-                            $this->simulateBatchSelection($productData, $sale->id, $request->location_id, 'draft');
+                            $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE_ORDER, 'sale_order');
                         }
                         // Always process sale for final/suspend status
                         elseif (in_array($newStatus, ['final', 'suspend'])) {
@@ -2034,11 +2126,24 @@ class SaleController extends Controller
     {
         Log::info("Restoring stock for product ID {$product->product_id} from batch ID {$product->batch_id} at location {$product->location_id}");
 
+        // Check if batch_id is null - skip stock restoration for unlimited stock products
+        if (is_null($product->batch_id)) {
+            Log::info("Skipping stock restoration for unlimited stock product (batch_id is null)");
+            return;
+        }
+
         // Optimized: Single update query
         $affected = DB::table('location_batches')
             ->where('batch_id', $product->batch_id)
             ->where('location_id', $product->location_id)
             ->update(['qty' => DB::raw("qty + {$product->quantity}")]);
+
+        Log::info("Stock restoration result", [
+            'affected_rows' => $affected,
+            'batch_id' => $product->batch_id,
+            'location_id' => $product->location_id,
+            'quantity_restored' => $product->quantity
+        ]);
 
         if ($affected > 0) {
             // Get location batch for stock history
@@ -2052,11 +2157,32 @@ class SaleController extends Controller
                     'quantity' => $product->quantity,
                     'stock_type' => $stockType,
                 ]);
+                Log::info("Stock history created successfully", [
+                    'stock_history_type' => $stockType,
+                    'quantity' => $product->quantity
+                ]);
+            } else {
+                Log::warning("LocationBatch not found after successful stock update", [
+                    'batch_id' => $product->batch_id,
+                    'location_id' => $product->location_id
+                ]);
             }
+        } else {
+            Log::error("Failed to restore stock - no rows affected", [
+                'batch_id' => $product->batch_id,
+                'location_id' => $product->location_id,
+                'quantity' => $product->quantity
+            ]);
         }
 
-        // Restore IMEI numbers to 'available' status
-        $this->restoreImeiNumbers($product);
+        // Restore IMEI numbers only for actual sales, not for sale orders
+        // Sale orders don't "sell" IMEI numbers, they just allocate stock
+        if ($stockType === StockHistory::STOCK_TYPE_SALE_REVERSAL) {
+            $this->restoreImeiNumbers($product);
+            Log::info("IMEI numbers restored for actual sale reversal");
+        } else {
+            Log::info("Skipping IMEI restoration for sale order cancellation - IMEIs were not sold");
+        }
     }
 
     private function restoreImeiNumbers($salesProduct)
@@ -2084,6 +2210,8 @@ class SaleController extends Controller
         
         Log::info("Completed IMEI restoration for sale product ID {$salesProduct->id}");
     }
+
+ 
 
     private function generateReferenceNo()
     {

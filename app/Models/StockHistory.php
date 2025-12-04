@@ -22,6 +22,8 @@ class StockHistory extends Model
     const STOCK_TYPE_PURCHASE_RETURN_REVERSAL = 'purchase_return_reversal';
     const STOCK_TYPE_SALE = 'sale';
     const STOCK_TYPE_SALE_REVERSAL = 'sale_reversal';
+    const STOCK_TYPE_SALE_ORDER = 'sale_order';
+    const STOCK_TYPE_SALE_ORDER_REVERSAL = 'sale_order_reversal';
     const STOCK_TYPE_SALE_RETURN_WITH_BILL = 'sales_return_with_bill';
     const STOCK_TYPE_SALE_RETURN_WITHOUT_BILL = 'sales_return_without_bill';
     const STOCK_TYPE_TRANSFER_IN = 'transfer_in';
@@ -47,6 +49,8 @@ class StockHistory extends Model
             self::STOCK_TYPE_PURCHASE_RETURN_REVERSAL,
             self::STOCK_TYPE_SALE,
             self::STOCK_TYPE_SALE_REVERSAL,
+            self::STOCK_TYPE_SALE_ORDER,
+            self::STOCK_TYPE_SALE_ORDER_REVERSAL,
             self::STOCK_TYPE_SALE_RETURN_WITH_BILL,
             self::STOCK_TYPE_SALE_RETURN_WITHOUT_BILL,
             self::STOCK_TYPE_TRANSFER_IN,

@@ -44,9 +44,6 @@
                                 <button class="btn btn-sm btn-outline-info filter-status" data-status="confirmed">
                                     Confirmed
                                 </button>
-                                <button class="btn btn-sm btn-outline-secondary filter-status" data-status="in_progress">
-                                    In Progress
-                                </button>
                                 <button class="btn btn-sm btn-outline-success filter-status" data-status="completed">
                                     Completed
                                 </button>
@@ -158,7 +155,7 @@
                 processing: true,
                 serverSide: false,
                 ajax: {
-                    url: '/sales',
+                    url: '/sales?sale_orders=true',
                     type: 'GET',
                     dataSrc: function(json) {
                         // Filter only 'sale_order' transaction type
@@ -167,10 +164,11 @@
                                 return item.transaction_type === 'sale_order';
                             });
                             
-                            // Apply status filter
+                            // Apply status filter - check both order_status and status fields
                             if (currentFilter !== 'all') {
                                 saleOrders = saleOrders.filter(function(item) {
-                                    return item.order_status === currentFilter;
+                                    const actualStatus = item.order_status || item.status || 'pending';
+                                    return actualStatus === currentFilter;
                                 });
                             }
                             
@@ -194,14 +192,15 @@
                                         <li><button type="button" value="${row.id}" class="view-details dropdown-item"><i class="feather-eye text-info"></i> View</button></li>
                             `;
                             
-                            // Show change status for non-completed/cancelled orders
-                            if (row.order_status !== 'completed' && row.order_status !== 'cancelled') {
+                            // Show change status for non-completed/cancelled orders - check both status fields
+                            const actualStatus = row.order_status || row.status || 'pending';
+                            if (actualStatus !== 'completed' && actualStatus !== 'cancelled') {
                                 actions += `
                                         <li><button type="button" value="${row.id}" class="change-status dropdown-item"><i class="feather-refresh-cw text-primary"></i> Change Status</button></li>
                                 `;
                                 
-                                // ✅ Only show Convert to Invoice for confirmed/in_progress/ready/delivered orders
-                                if (['confirmed', 'in_progress', 'ready', 'delivered'].includes(row.order_status)) {
+                                // ✅ Only show Convert to Invoice for confirmed orders
+                                if (actualStatus === 'confirmed') {
                                     actions += `
                                         <li><button type="button" value="${row.id}" class="convert-invoice dropdown-item"><i class="feather-file-text text-success"></i> Convert to Invoice</button></li>
                                     `;
@@ -209,11 +208,10 @@
                                 
                                 actions += `
                                         <li><button type="button" value="${row.id}" class="edit_btn dropdown-item"><i class="feather-edit text-info"></i> Edit</button></li>
-                                        <li><button type="button" value="${row.id}" class="cancel-order dropdown-item"><i class="feather-x text-warning"></i> Cancel Order</button></li>
                                 `;
                             }
                             
-                            if (row.order_status !== 'completed') {
+                            if (actualStatus !== 'completed') {
                                 actions += `
                                         <li><button type="button" value="${row.id}" class="delete_btn dropdown-item"><i class="feather-trash-2 text-danger"></i> Delete</button></li>
                                 `;
@@ -253,19 +251,18 @@
                         defaultContent: ''
                     },
                     {
-                        data: 'order_status',
-                        render: function(data) {
+                        data: null,
+                        render: function(data, type, row) {
+                            // Check both order_status and status fields
+                            const actualStatus = row.order_status || row.status || 'pending';
                             const badges = {
                                 'pending': '<span class="badge bg-warning">Pending</span>',
                                 'confirmed': '<span class="badge bg-info">Confirmed</span>',
-                                'in_progress': '<span class="badge bg-primary">In Progress</span>',
-                                'ready': '<span class="badge bg-success">Ready</span>',
-                                'delivered': '<span class="badge bg-success">Delivered</span>',
                                 'completed': '<span class="badge bg-dark">Completed</span>',
                                 'cancelled': '<span class="badge bg-danger">Cancelled</span>',
-                                'on_hold': '<span class="badge bg-secondary">On Hold</span>'
+                                'draft': '<span class="badge bg-secondary">Draft</span>'
                             };
-                            return badges[data] || '<span class="badge bg-secondary">' + data + '</span>';
+                            return badges[actualStatus] || '<span class="badge bg-secondary">' + actualStatus + '</span>';
                         }
                     },
                     {
@@ -402,21 +399,23 @@
             $('#saleOrdersTable tbody').on('click', '.change-status', function() {
                 var saleId = $(this).val();
                 var data = table.row($(this).parents('tr')).data();
+                var currentStatus = data.order_status || data.status || 'pending';
                 
                 Swal.fire({
                     title: 'Change Order Status',
                     html: `
                         <p>Change status for Sale Order: <strong>${data.order_number}</strong></p>
                         <div class="text-start mt-3">
-                            <label class="form-label">Current Status: <span class="badge bg-info">${data.order_status}</span></label>
-                            <select id="newStatus" class="form-select">
+                            <label class="form-label">Current Status: <span class="badge bg-info">${currentStatus}</span></label>
+                            <select id="newStatus" class="form-control">
                                 <option value="">-- Select New Status --</option>
-                                <option value="pending" ${data.order_status === 'pending' ? 'disabled' : ''}>Pending</option>
-                                <option value="confirmed" ${data.order_status === 'confirmed' ? 'disabled' : ''}>Confirmed</option>
-                                <option value="in_progress" ${data.order_status === 'in_progress' ? 'disabled' : ''}>In Progress</option>
-                                <option value="ready" ${data.order_status === 'ready' ? 'disabled' : ''}>Ready</option>
-                                <option value="delivered" ${data.order_status === 'delivered' ? 'disabled' : ''}>Delivered</option>
-                                <option value="on_hold" ${data.order_status === 'on_hold' ? 'disabled' : ''}>On Hold</option>
+                                ${currentStatus === 'pending' || currentStatus === 'draft' ? 
+                                    '<option value="confirmed">Confirmed</option>' : 
+                                    (currentStatus === 'confirmed' ? 
+                                        '<option value="cancelled">Cancelled</option>' : 
+                                        '<option value="cancelled">Cancelled</option>'
+                                    )
+                                }
                             </select>
                             <label class="form-label mt-3">Status Note (Optional):</label>
                             <textarea id="statusNote" class="form-control" rows="2" placeholder="Add note about status change..."></textarea>
@@ -466,6 +465,14 @@
                                     text: `Order status changed to: ${newStatus}`,
                                     timer: 2000
                                 });
+                                
+                                // If status changed to cancelled, switch to 'all' filter so user can see the cancelled order
+                                if (newStatus === 'cancelled') {
+                                    currentFilter = 'all';
+                                    $('.filter-status').removeClass('btn-primary').addClass('btn-outline-primary');
+                                    $('.filter-status[data-status="all"]').removeClass('btn-outline-primary').addClass('btn-primary');
+                                }
+                                
                                 table.ajax.reload();
                             },
                             error: function(xhr) {
@@ -525,8 +532,58 @@
                                     icon: 'success',
                                     timer: 2000
                                 }).then(() => {
-                                    // Redirect to invoice edit page for payment
-                                    window.location.href = response.redirect_url;
+                                    // Automatically print using iframe method (same as POS system)
+                                    if (response.print_url) {
+                                        // Fetch the invoice HTML and use iframe printing
+                                        $.ajax({
+                                            url: response.print_url,
+                                            type: 'GET',
+                                            success: function(printResponse) {
+                                                if (printResponse.invoice_html) {
+                                                    // Use iframe-based printing (same as POS system)
+                                                    const iframe = document.createElement('iframe');
+                                                    iframe.style.position = 'absolute';
+                                                    iframe.style.width = '0';
+                                                    iframe.style.height = '0';
+                                                    iframe.style.border = 'none';
+                                                    iframe.style.left = '-9999px';
+                                                    iframe.style.top = '-9999px';
+                                                    iframe.style.visibility = 'hidden';
+                                                    document.body.appendChild(iframe);
+
+                                                    const iframeDoc = iframe.contentWindow.document;
+                                                    iframeDoc.open();
+                                                    iframeDoc.write(printResponse.invoice_html);
+                                                    iframeDoc.close();
+
+                                                    // Wait for content to load then print
+                                                    iframe.onload = function() {
+                                                        setTimeout(() => {
+                                                            try {
+                                                                iframe.contentWindow.focus();
+                                                                iframe.contentWindow.print();
+                                                            } catch (e) {
+                                                                console.error('Print error:', e);
+                                                            }
+                                                            
+                                                            // Clean up iframe after printing
+                                                            setTimeout(() => {
+                                                                if (document.body.contains(iframe)) {
+                                                                    document.body.removeChild(iframe);
+                                                                }
+                                                            }, 1000);
+                                                        }, 500);
+                                                    };
+                                                }
+                                            },
+                                            error: function() {
+                                                console.error('Failed to fetch invoice for printing');
+                                            }
+                                        });
+                                    }
+                                    
+                                    // Reload the table to show updated status
+                                    table.ajax.reload();
                                 });
                             },
                             error: function(xhr) {
@@ -547,55 +604,7 @@
                 window.location.href = `/sales/edit/${saleId}`;
             });
 
-            // Cancel Order Handler
-            $('#saleOrdersTable tbody').on('click', '.cancel-order', function() {
-                var saleId = $(this).val();
-                var data = table.row($(this).parents('tr')).data();
-                
-                Swal.fire({
-                    title: 'Cancel Order?',
-                    text: `Are you sure you want to cancel Sale Order ${data.order_number}?`,
-                    icon: 'warning',
-                    input: 'textarea',
-                    inputPlaceholder: 'Enter cancellation reason...',
-                    inputAttributes: {
-                        'aria-label': 'Enter cancellation reason'
-                    },
-                    showCancelButton: true,
-                    confirmButtonColor: '#d33',
-                    cancelButtonColor: '#3085d6',
-                    confirmButtonText: 'Yes, Cancel Order!',
-                    preConfirm: (reason) => {
-                        if (!reason) {
-                            Swal.showValidationMessage('Please provide a cancellation reason')
-                        }
-                        return reason;
-                    }
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        // Update order status to cancelled
-                        $.ajax({
-                            url: `/sale-orders/update/${saleId}`,
-                            type: 'POST',
-                            headers: {
-                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                            },
-                            data: JSON.stringify({
-                                order_status: 'cancelled',
-                                order_notes: (data.order_notes || '') + '\n\nCancelled: ' + result.value
-                            }),
-                            contentType: 'application/json',
-                            success: function(response) {
-                                toastr.success('Sale Order cancelled successfully');
-                                table.ajax.reload();
-                            },
-                            error: function(xhr) {
-                                toastr.error('Failed to cancel order');
-                            }
-                        });
-                    }
-                });
-            });
+
 
             // Delete Handler
             $('#saleOrdersTable tbody').on('click', '.delete_btn', function() {
