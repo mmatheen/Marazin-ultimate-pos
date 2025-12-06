@@ -2,7 +2,7 @@
 @section('title', 'Discounts Management')
 
 @section('content')
-{{-- <div class="container-fluid">
+<div class="container-fluid">
     <div class="row">
         <div class="col-md-12">
             <div class="card">
@@ -69,91 +69,7 @@
             </div>
         </div>
     </div>
-</div> --}}
-
-  <div class="content container-fluid">
-        <div class="row">
-
-              <div class="page-header">
-                <div class="row align-items-center">
-                    <div class="col-sm-12">
-                        <div class="page-sub-header">
-                            <h3 class="page-title">Discounts </h3>
-                            <ul class="breadcrumb">
-                                <li class="breadcrumb-item">Products</li>
-                                <li class="breadcrumb-item active">Discounts</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {{-- table row --}}
-        <div class="row">
-            <div class="col-sm-12">
-                <div class="card card-table">
-                    <div class="card-body">
-                        <div class="page-header">
-                            <div class="row align-items-center">
-                                <div class="col-auto text-end float-end ms-auto download-grp">
-
-
-                                       <button class="btn btn-outline-primary " data-toggle="modal" data-target="#createDiscountModal">
-                                        <i class="fas fa-plus"></i> Add New Discount
-                                    </button>
-
-
-                                </div>
-                            </div>
-                        </div>
-                     <div class="row mb-3">
-                        <div class="col-md-3">
-                            <label>Date From</label>
-                            <input type="taxt" class="form-control datetimepicker" placeholder="DD-MM-YYYY" id="filter_from">
-                        </div>
-                        <div class="col-md-3">
-                            <label>Date To</label>
-                            <input type="taxt" class="form-control datetimepicker" placeholder="DD-MM-YYYY" id="filter_to">
-                        </div>
-                        <div class="col-md-3">
-                            <label>Status</label>
-                            <select class="form-control" id="filter_status">
-                                <option value="">All</option>
-                                <option value="1">Active</option>
-                                <option value="0">Inactive</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3 d-flex align-items-end">
-                            <button class="btn btn-primary me-2" id="apply_filters">Apply</button>
-                            <button class="btn btn-secondary ml-2" id="reset_filters">Reset</button>
-                        </div>
-                    </div>
-
-                        <div class="table-responsive">
-                             <table id="discounts-table" class="table table-bordered table-striped">
-                                <thead>
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>Name</th>
-                                        <th>Description</th>
-                                        <th>Type</th>
-                                        <th>Amount</th>
-                                        <th>Start Date</th>
-                                        <th>End Date</th>
-                                        <th>Status</th>
-                                        <th>Products</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+</div>
 
 <!-- Create Discount Modal -->
 <div class="modal fade" id="createDiscountModal" tabindex="-1" role="dialog" aria-hidden="true">
@@ -190,8 +106,7 @@
                             </div>
                             <div class="form-group">
                                 <label>Amount *</label>
-                                <input type="number" step="0.01" min="0" class="form-control" name="amount" required>
-                                <small class="form-text text-muted">For percentage: Max 100%. For fixed amount: Should not exceed product price.</small>
+                                <input type="number" step="0.01" class="form-control" name="amount" required>
                                 <div class="invalid-feedback" id="amount-error"></div>
                             </div>
                         </div>
@@ -214,23 +129,12 @@
                             </div>
                             <div class="form-group">
                                 <label>Apply to Products (Leave empty for all products)</label>
-                                <select class="form-control select2" name="product_ids[]" id="product_ids" multiple style="width: 100%;">
+                                <select class="form-control select2" name="product_ids[]" multiple style="width: 100%;">
                                     @foreach(\App\Models\Product::all() as $product)
-                                        <option value="{{ $product->id }}" data-retail="{{ $product->retail_price }}" data-mrp="{{ $product->max_retail_price }}" data-wholesale="{{ $product->whole_sale_price }}">{{ $product->product_name }} ({{ $product->sku }}) - MRP: Rs. {{ $product->max_retail_price }}</option>
+                                        <option value="{{ $product->id }}">{{ $product->product_name }} ({{ $product->sku }})</option>
                                     @endforeach
                                 </select>
                                 <div class="invalid-feedback" id="product_ids-error"></div>
-                            </div>
-                            <div id="product-price-info" class="mt-2" style="display:none;">
-                                <div class="alert alert-info">
-                                    <strong>Selected Products Price Range:</strong>
-                                    <div id="price-range-display"></div>
-                                </div>
-                            </div>
-                            <div id="discount-validation-warning" class="mt-2" style="display:none;">
-                                <div class="alert alert-warning">
-                                    <i class="fas fa-exclamation-triangle"></i> <span id="validation-message"></span>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -362,21 +266,10 @@
                                 <label>Apply to Products (Leave empty for all products)</label>
                                 <select class="form-control select2-edit" name="product_ids[]" id="edit_product_ids" multiple style="width: 100%;">
                                     @foreach(\App\Models\Product::all() as $product)
-                                        <option value="{{ $product->id }}" data-retail="{{ $product->retail_price }}" data-mrp="{{ $product->max_retail_price }}" data-wholesale="{{ $product->whole_sale_price }}">{{ $product->product_name }} ({{ $product->sku }}) - MRP: Rs. {{ $product->max_retail_price }}</option>
+                                        <option value="{{ $product->id }}">{{ $product->product_name }} ({{ $product->sku }})</option>
                                     @endforeach
                                 </select>
                                 <div class="invalid-feedback" id="edit_product_ids-error"></div>
-                            </div>
-                            <div id="edit-product-price-info" class="mt-2" style="display:none;">
-                                <div class="alert alert-info">
-                                    <strong>Selected Products Price Range:</strong>
-                                    <div id="edit-price-range-display"></div>
-                                </div>
-                            </div>
-                            <div id="edit-discount-validation-warning" class="mt-2" style="display:none;">
-                                <div class="alert alert-warning">
-                                    <i class="fas fa-exclamation-triangle"></i> <span id="edit-validation-message"></span>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -440,7 +333,7 @@ $(document).ready(function() {
         $.each(errors, function(field, messages) {
             var fieldElement = $(formId + ' [name="' + field + '"]');
             var errorElement = $(formId + ' #' + (formId === '#editDiscountForm' ? 'edit_' : '') + field.replace('.', '_') + '-error');
-
+            
             if (fieldElement.length) {
                 fieldElement.addClass('is-invalid');
             }
@@ -449,6 +342,7 @@ $(document).ready(function() {
             }
         });
     }
+
     const table = $('#discounts-table').DataTable({
         ajax: {
             url: '/discounts/data',
@@ -508,19 +402,13 @@ $(document).ready(function() {
                 data: null,
                 render: function (data) {
                     return `
-                        <div class="dropdown">
-                            <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                Actions
+                        <div class="btn-group" role="group">
+                            <button class="btn btn-sm btn-primary edit-discount" data-id="${data.id}">Edit</button>
+                            <button class="btn btn-sm btn-danger delete-discount" data-id="${data.id}">Delete</button>
+                            <button class="btn btn-sm btn-info view-products" data-id="${data.id}">Products</button>
+                            <button class="btn btn-sm ${data.is_active ? 'btn-warning' : 'btn-success'} toggle-status" data-id="${data.id}">
+                                ${data.is_active ? 'Deactivate' : 'Activate'}
                             </button>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item edit-discount" href="#" data-id="${data.id}">Edit</a></li>
-                                <li><a class="dropdown-item delete-discount" href="#" data-id="${data.id}">Delete</a></li>
-                                <li><a class="dropdown-item view-products" href="#" data-id="${data.id}">Products</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item toggle-status" href="#" data-id="${data.id}">
-                                    ${data.is_active ? 'Deactivate' : 'Activate'}
-                                </a></li>
-                            </ul>
                         </div>
                     `;
                 }
@@ -545,10 +433,10 @@ $(document).ready(function() {
         e.preventDefault();
         var exportType = $(this).data('type');
         var button = $(this);
-
+        
         // Disable button during export
         button.addClass('disabled').append(' <i class="fas fa-spinner fa-spin"></i>');
-
+        
         // Get current filter values
         var filters = {
             from: $('#filter_from').val() || '',
@@ -559,7 +447,7 @@ $(document).ready(function() {
 
         // Show loading message
         toastr.info('Preparing ' + exportType.toUpperCase() + ' export...', 'Please wait');
-
+        
         // Build URL with filters
         var baseUrl = "{{ route('discounts.export') }}";
         var params = [];
@@ -569,278 +457,34 @@ $(document).ready(function() {
             }
         });
         var url = baseUrl + (params.length ? '?' + params.join('&') : '');
-
+        
         // Use location.href for direct download (cleanest method)
         window.location.href = url;
-
+        
         // Clear loading message and show success after short delay
         setTimeout(function() {
             toastr.clear();
             toastr.success('Export completed successfully!');
-
+            
             // Re-enable button
             button.removeClass('disabled').find('.fa-spinner').remove();
         }, 1000);
     });
-
-    // Store selected products data globally
-    var selectedProductsData = [];
-    var editSelectedProductsData = [];
-
-    // Function to validate discount against selected products
-    function validateDiscountAmount() {
-        var discountType = $('#createDiscountForm select[name="type"]').val();
-        var discountAmount = parseFloat($('#createDiscountForm input[name="amount"]').val());
-
-        if (!discountAmount || discountAmount <= 0) {
-            $('#discount-validation-warning').hide();
-            return true;
-        }
-
-        // Percentage validation
-        if (discountType === 'percentage') {
-            if (discountAmount > 100) {
-                $('#validation-message').html('<strong>Error:</strong> Percentage discount cannot exceed 100%');
-                $('#discount-validation-warning').removeClass('alert-warning').addClass('alert-danger').show();
-                return false;
-            } else {
-                $('#discount-validation-warning').hide();
-                return true;
-            }
-        }
-
-        // Fixed amount validation against selected products
-        if (discountType === 'fixed' && selectedProductsData.length > 0) {
-            var invalidProducts = [];
-
-            selectedProductsData.forEach(function(product) {
-                if (discountAmount > product.max_price) {
-                    var batchInfo = product.batch_count > 0
-                        ? ' (' + product.batch_count + ' batch' + (product.batch_count > 1 ? 'es' : '') + ')'
-                        : ' (No batches)';
-                    invalidProducts.push(product.name + batchInfo + ' - Max: ' + product.display_price_range);
-                }
-            });
-
-            if (invalidProducts.length > 0) {
-                $('#validation-message').html(
-                    '<strong>Warning:</strong> Discount amount (Rs. ' + discountAmount.toFixed(2) +
-                    ') exceeds the batch price of following products:<br><ul class="mb-0 mt-1"><li>' +
-                    invalidProducts.join('</li><li>') + '</li></ul>'
-                );
-                $('#discount-validation-warning').removeClass('alert-danger').addClass('alert-warning').show();
-                return false;
-            } else {
-                $('#discount-validation-warning').hide();
-                return true;
-            }
-        }
-
-        $('#discount-validation-warning').hide();
-        return true;
-    }
-
-    // Function to validate edit discount form
-    function validateEditDiscountAmount() {
-        var discountType = $('#edit_type').val();
-        var discountAmount = parseFloat($('#edit_amount').val());
-
-        if (!discountAmount || discountAmount <= 0) {
-            $('#edit-discount-validation-warning').hide();
-            return true;
-        }
-
-        // Percentage validation
-        if (discountType === 'percentage') {
-            if (discountAmount > 100) {
-                $('#edit-validation-message').html('<strong>Error:</strong> Percentage discount cannot exceed 100%');
-                $('#edit-discount-validation-warning').removeClass('alert-warning').addClass('alert-danger').show();
-                return false;
-            } else {
-                $('#edit-discount-validation-warning').hide();
-                return true;
-            }
-        }
-
-        // Fixed amount validation against selected products
-        if (discountType === 'fixed' && editSelectedProductsData.length > 0) {
-            var invalidProducts = [];
-
-            editSelectedProductsData.forEach(function(product) {
-                if (discountAmount > product.max_price) {
-                    var batchInfo = product.batch_count > 0
-                        ? ' (' + product.batch_count + ' batch' + (product.batch_count > 1 ? 'es' : '') + ')'
-                        : ' (No batches)';
-                    invalidProducts.push(product.name + batchInfo + ' - Max: ' + product.display_price_range);
-                }
-            });
-
-            if (invalidProducts.length > 0) {
-                $('#edit-validation-message').html(
-                    '<strong>Warning:</strong> Discount amount (Rs. ' + discountAmount.toFixed(2) +
-                    ') exceeds the batch price of following products:<br><ul class="mb-0 mt-1"><li>' +
-                    invalidProducts.join('</li><li>') + '</li></ul>'
-                );
-                $('#edit-discount-validation-warning').removeClass('alert-danger').addClass('alert-warning').show();
-                return false;
-            } else {
-                $('#edit-discount-validation-warning').hide();
-                return true;
-            }
-        }
-
-        $('#edit-discount-validation-warning').hide();
-        return true;
-    }
-
-    // Function to fetch and display product prices
-    function loadProductPrices(productIds) {
-        if (productIds.length === 0) {
-            $('#product-price-info').hide();
-            $('#discount-validation-warning').hide();
-            selectedProductsData = [];
-            return;
-        }
-
-        $.ajax({
-            url: "{{ route('discounts.validate-prices') }}",
-            type: 'POST',
-            data: {
-                _token: "{{ csrf_token() }}",
-                product_ids: productIds
-            },
-            success: function(response) {
-                if (response.valid && response.products) {
-                    selectedProductsData = response.products;
-
-                    // Calculate overall min and max prices
-                    var allMinPrices = [];
-                    var allMaxPrices = [];
-                    var totalBatches = 0;
-                    var totalStock = 0;
-
-                    response.products.forEach(function(product) {
-                        if (product.min_price > 0) allMinPrices.push(product.min_price);
-                        if (product.max_price > 0) allMaxPrices.push(product.max_price);
-                        totalBatches += product.batch_count;
-                        totalStock += product.total_stock || 0;
-                    });
-
-                    var overallMinPrice = allMinPrices.length > 0 ? Math.min(...allMinPrices) : 0;
-                    var overallMaxPrice = allMaxPrices.length > 0 ? Math.max(...allMaxPrices) : 0;
-
-                    var priceInfo = '<small><strong>' + response.products.length + ' product(s) selected</strong> (' + totalBatches + ' batches, Total stock: ' + totalStock + ')<br>';
-                    if (overallMinPrice === overallMaxPrice) {
-                        priceInfo += 'Batch price: Rs. ' + overallMaxPrice.toFixed(2);
-                    } else {
-                        priceInfo += 'Batch price range: Rs. ' + overallMinPrice.toFixed(2) + ' - Rs. ' + overallMaxPrice.toFixed(2);
-                    }
-                    priceInfo += '</small>';
-
-                    $('#price-range-display').html(priceInfo);
-                    $('#product-price-info').show();
-
-                    // Validate current discount amount
-                    validateDiscountAmount();
-                }
-            },
-            error: function() {
-                toastr.error('Error loading product prices');
-            }
-        });
-    }
-
-    // Function to fetch and display product prices for edit form
-    function loadEditProductPrices(productIds) {
-        if (productIds.length === 0) {
-            $('#edit-product-price-info').hide();
-            $('#edit-discount-validation-warning').hide();
-            editSelectedProductsData = [];
-            return;
-        }
-
-        $.ajax({
-            url: "{{ route('discounts.validate-prices') }}",
-            type: 'POST',
-            data: {
-                _token: "{{ csrf_token() }}",
-                product_ids: productIds
-            },
-            success: function(response) {
-                if (response.valid && response.products) {
-                    editSelectedProductsData = response.products;
-
-                    // Calculate overall min and max prices
-                    var allMinPrices = [];
-                    var allMaxPrices = [];
-                    var totalBatches = 0;
-                    var totalStock = 0;
-
-                    response.products.forEach(function(product) {
-                        if (product.min_price > 0) allMinPrices.push(product.min_price);
-                        if (product.max_price > 0) allMaxPrices.push(product.max_price);
-                        totalBatches += product.batch_count;
-                        totalStock += product.total_stock || 0;
-                    });
-
-                    var overallMinPrice = allMinPrices.length > 0 ? Math.min(...allMinPrices) : 0;
-                    var overallMaxPrice = allMaxPrices.length > 0 ? Math.max(...allMaxPrices) : 0;
-
-                    var priceInfo = '<small><strong>' + response.products.length + ' product(s) selected</strong> (' + totalBatches + ' batches, Total stock: ' + totalStock + ')<br>';
-                    if (overallMinPrice === overallMaxPrice) {
-                        priceInfo += 'Batch price: Rs. ' + overallMaxPrice.toFixed(2);
-                    } else {
-                        priceInfo += 'Batch price range: Rs. ' + overallMinPrice.toFixed(2) + ' - Rs. ' + overallMaxPrice.toFixed(2);
-                    }
-                    priceInfo += '</small>';
-
-                    $('#edit-price-range-display').html(priceInfo);
-                    $('#edit-product-price-info').show();
-
-                    // Validate current discount amount
-                    validateEditDiscountAmount();
-                }
-            },
-            error: function() {
-                toastr.error('Error loading product prices');
-            }
-        });
-    }
 
     // Create Discount - Show Modal
     $('[data-target="#createDiscountModal"]').click(function() {
         $('#createDiscountForm')[0].reset();
         $('.select2').val(null).trigger('change');
         clearValidationErrors('#createDiscountForm');
-        $('#product-price-info').hide();
-        $('#discount-validation-warning').hide();
-        selectedProductsData = [];
         // Set today's date as default for start date
         $('#createDiscountForm input[name="start_date"]').val(today);
         $('#createDiscountModal').modal('show');
-    });
-
-    // Watch for product selection changes
-    $('#createDiscountForm select[name="product_ids[]"]').on('change', function() {
-        var selectedIds = $(this).val() || [];
-        loadProductPrices(selectedIds);
-    });
-
-    // Watch for discount type/amount changes
-    $('#createDiscountForm select[name="type"], #createDiscountForm input[name="amount"]').on('change keyup', function() {
-        validateDiscountAmount();
     });
 
     // Create Discount - Submit Form
     $('#createDiscountForm').submit(function(e) {
         e.preventDefault();
         clearValidationErrors('#createDiscountForm');
-
-        // Run validation
-        if (!validateDiscountAmount()) {
-            toastr.error('Please fix the validation errors before submitting');
-            return false;
-        }
 
         // Get selected product IDs
         var productIds = $('#createDiscountForm select[name="product_ids[]"]').val();
@@ -894,8 +538,6 @@ $(document).ready(function() {
 
             // Clear any existing validation errors
             clearValidationErrors('#editDiscountForm');
-            $('#edit-product-price-info').hide();
-            $('#edit-discount-validation-warning').hide();
 
             // Initialize Select2 for edit modal
             $('.select2-edit').select2({
@@ -907,37 +549,14 @@ $(document).ready(function() {
             var productIds = data.products.map(product => product.id);
             $('#edit_product_ids').val(productIds).trigger('change');
 
-            // Load prices for selected products
-            if (productIds.length > 0) {
-                loadEditProductPrices(productIds);
-            }
-
             $('#editDiscountModal').modal('show');
         });
-    });
-
-    // Watch for product selection changes in edit form
-    $('#edit_product_ids').on('change', function() {
-        var selectedIds = $(this).val() || [];
-        loadEditProductPrices(selectedIds);
-    });
-
-    // Watch for discount type/amount changes in edit form
-    $('#edit_type, #edit_amount').on('change keyup', function() {
-        validateEditDiscountAmount();
     });
 
     // Update Discount
     $('#editDiscountForm').submit(function(e) {
         e.preventDefault();
         clearValidationErrors('#editDiscountForm');
-
-        // Run validation
-        if (!validateEditDiscountAmount()) {
-            toastr.error('Please fix the validation errors before submitting');
-            return false;
-        }
-
         var discountId = $('#edit_discount_id').val();
 
         $.ajax({
@@ -1078,10 +697,10 @@ $(document).ready(function() {
         e.preventDefault();
         var modal = $(this).closest('.modal');
         console.log('Close button clicked for modal:', modal.attr('id'));
-
+        
         // Try multiple ways to close the modal
         modal.modal('hide');
-
+        
         // Backup method - manually remove modal classes and backdrop
         setTimeout(function() {
             if (modal.hasClass('show')) {
@@ -1096,7 +715,7 @@ $(document).ready(function() {
     // Test Bootstrap functionality
     console.log('Bootstrap version:', typeof $.fn.modal !== 'undefined' ? 'Available' : 'Not Available');
     console.log('jQuery version:', $.fn.jquery);
-
+    
     // Test modal opening (support both Bootstrap 4 and 5)
     $(document).on('click', '[data-toggle="modal"], [data-bs-toggle="modal"]', function(e) {
         e.preventDefault();

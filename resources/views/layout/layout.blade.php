@@ -39,7 +39,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.css">
 
 
-    
+
 
     <style>
         @media (max-width: 575.98px) {
@@ -251,11 +251,11 @@
         document.addEventListener("DOMContentLoaded", function() {
             // Check if refreshSalesRepAssignments function exists (from sales-rep-modal component)
             if (typeof window.refreshSalesRepAssignments === 'function') {
-                
+
                 // Refresh assignments on page load if it's a new day
                 const lastRefreshDate = localStorage.getItem('salesRepLastRefreshDate');
                 const today = new Date().toDateString();
-                
+
                 if (lastRefreshDate !== today) {
                     // It's a new day, refresh assignments to update statuses
                     window.refreshSalesRepAssignments();
@@ -360,7 +360,7 @@
             if ($(this).hasClass('skip-global-handler') || $(this).attr('id') === 'importProductForm' || $(this).attr('data-skip-global') === 'true') {
                 return; // Let the form handle its own submission
             }
-            
+
             e.preventDefault(); // prevent default submit
 
             let $form = $(this);

@@ -91,10 +91,10 @@ Route::middleware(['auth'])->group(function () {
 
          // -------------------- DashboardController Routes --------------------
         Route::get('/dashboard-data', [DashboardController::class, 'getDashboardData']);
-        
+
         // -------------------- Get User Details for Header --------------------
         Route::get('/get-all-details-using-guard', [UserController::class, 'getAllDetailsUsingGuard']);
-        
+
         // -------------------- UserController Routes --------------------
         // User Management
         Route::get('/user', [UserController::class, 'user'])->name('user');
@@ -143,11 +143,11 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/customer-delete/{id}', [CustomerController::class, 'destroy']);
         Route::get('/customer-get-by-id/{id}', [CustomerController::class, 'show']);
         Route::get('/customer-export', [CustomerController::class, 'export'])->name('customer.export');
-        
+
         // Floating Balance Routes
         Route::get('/customer/credit-info/{id}', [CustomerController::class, 'getCreditInfo']);
         Route::post('/floating-balance/customer/{id}/recovery-payment', [CustomerController::class, 'recordRecoveryPayment']);
-        
+
         // Cheque Management Routes
         Route::post('/cheque/bulk-recovery-payment', [PaymentController::class, 'bulkRecoveryPayment']);
         Route::get('/payment/{payment}/recovery-chain', [PaymentController::class, 'getRecoveryChain']);
@@ -181,7 +181,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/suppliers-list', [PaymentController::class, 'getSuppliersData'])->name('contact.supplier.getSuppliers');
         Route::get('/business-locations', [PaymentController::class, 'getBusinessLocations'])->name('business.getBusinessLocation');
 
-        
+
          // -------------------- ProductController Routes --------------------
         // Product CRUD
         Route::get('/list-product', [ProductController::class, 'product'])->name('list-product');
@@ -195,10 +195,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/products/stock-history/{id}', [ProductController::class, 'getStockHistory'])->name('productStockHistory');
         Route::get('/products/stocks', [ProductController::class, 'getAllProductStocks']);
         Route::get('/products/stocks/autocomplete', [ProductController::class, 'autocompleteStock']);
-        
+
         // Diagnostic route for troubleshooting hosting issues
         Route::get('/diagnostic/system-check', [\App\Http\Controllers\Web\DiagnosticController::class, 'checkSystem']);
-        
+
         // Product Store/Update
         Route::post('/product/store', [ProductController::class, 'storeOrUpdate']);
         Route::post('/product/update/{id}', [ProductController::class, 'storeOrUpdate']);
@@ -231,10 +231,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/save-changes', [ProductController::class, 'saveChanges']);
         Route::post('/get-product-locations', [ProductController::class, 'getProductLocations']);
         Route::post('/apply-discount', [ProductController::class, 'applyDiscount'])->name('products.applyDiscount');
-        
+
         // Quick Add Product (for POS when product not found) - Use main ProductController
         Route::post('/products/quick-add', [\App\Http\Controllers\ProductController::class, 'quickAdd'])->name('products.quickAdd');
-        
+
         // Batch Price Management
         Route::get('/product/{productId}/batches', [ProductController::class, 'getProductBatches'])->name('product.batches');
         Route::post('/batches/update-prices', [ProductController::class, 'updateBatchPrices'])->name('batches.updatePrices');
@@ -249,8 +249,9 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/discounts/{discount}/toggle-status', [DiscountController::class, 'toggleStatus'])->name('discounts.toggle-status');
         Route::get('/discounts/export', [DiscountController::class, 'export'])->name('discounts.export');
         Route::get('/discounts/{discount}/products', [DiscountController::class, 'getProducts'])->name('discounts.products');
+        Route::post('/discounts/validate-prices', [DiscountController::class, 'validateProductPrices'])->name('discounts.validate-prices');
 
-       
+
         // -------------------- UnitController Routes --------------------
         Route::get('/unit', [UnitController::class, 'unit'])->name('unit');
         Route::get('/unit-edit/{id}', [UnitController::class, 'edit']);
@@ -291,7 +292,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/warranty-store', [WarrantyController::class, 'store'])->name('warranty-store');
         Route::post('/warranty-update/{id}', [WarrantyController::class, 'update']);
         Route::delete('/warranty-delete/{id}', [WarrantyController::class, 'destroy']);
-      
+
 
          // -------------------- PurchaseController Routes --------------------
         Route::get('/list-purchase', [PurchaseController::class, 'listPurchase'])->name('list-purchase');
@@ -306,7 +307,7 @@ Route::middleware(['auth'])->group(function () {
         // Routes for fixing payment calculation issues
         Route::post('/purchases/recalculate-total/{id}', [PurchaseController::class, 'recalculatePurchaseTotal']);
         Route::post('/purchases/recalculate-all-totals', [PurchaseController::class, 'recalculateAllPurchaseTotals']);
-        
+
         // IMEI Management Routes for Purchases
         Route::get('/purchases/{id}/imei-products', [PurchaseController::class, 'getPurchaseImeiProducts']);
         Route::post('/purchases/add-imei', [PurchaseController::class, 'addImeiToPurchaseProduct']);
@@ -343,17 +344,17 @@ Route::middleware(['auth'])->group(function () {
         // Suspended Sales - These need to come before the generic routes
         Route::get('/sales/suspended', [SaleController::class, 'fetchSuspendedSales']);
         Route::delete('/sales/delete-suspended/{id}', [SaleController::class, 'deleteSuspendedSale']);
-        
+
         Route::get('/sales/edit/{id}', [SaleController::class, 'editSale'])->name('sales.edit');
         Route::delete('/sales/delete/{id}', [SaleController::class, 'destroy'])->name('sales.destroy');
         Route::get('/sales/{invoiceNo}', [SaleController::class, 'getSaleByInvoiceNo']);
-        
+
         // Sales Reports - These need to come before the generic routes
         Route::get('/sales-report', [SaleController::class, 'saleDailyReport'])->name('sales-report');
         Route::get('/daily-sales-report', [SaleController::class, 'dailyReport']);
-        
+
         // Print Sales - These need to come before the generic routes
-        Route::get('/sales/print-recent-transaction/{id}', [SaleController::class, 'printRecentTransaction']);        
+        Route::get('/sales/print-recent-transaction/{id}', [SaleController::class, 'printRecentTransaction']);
         Route::post('/pos/log-pricing-error', [SaleController::class, 'logPricingError']);
 
         // Customer Previous Price History
@@ -384,7 +385,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/sale-return/edit/{id}', [SaleReturnController::class, 'editSaleReturn']);
         Route::get('/sale-return/print/{id}', [SaleReturnController::class, 'printReturnReceipt'])->name('sale.return.print');
 
-       
+
          // -------------------- Cheque Management Routes --------------------
         Route::get('/cheque-management', [PaymentController::class, 'chequeManagement'])->name('cheque-management');
         Route::get('/cheque-guide', function() { return view('sell.cheque-guide'); })->name('cheque-guide');
@@ -393,7 +394,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/cheque/pending-reminders', [PaymentController::class, 'pendingChequeReminders'])->name('cheque.pending-reminders');
         Route::post('/cheque/mark-reminder-sent/{reminderId}', [PaymentController::class, 'markReminderSent'])->name('cheque.mark-reminder-sent');
         Route::post('/cheque/bulk-update-status', [PaymentController::class, 'bulkUpdateChequeStatus'])->name('cheque.bulk-update-status');
-        
+
          // -------------------- PaymentController Routes --------------------
         Route::get('payments', [PaymentController::class, 'index']);
         Route::post('payments', [PaymentController::class, 'storeOrUpdate']);
@@ -401,22 +402,22 @@ Route::middleware(['auth'])->group(function () {
         Route::put('payments/{payment}', [PaymentController::class, 'storeOrUpdate']);
         Route::delete('payments/{payment}', [PaymentController::class, 'destroy']);
         Route::post('/submit-bulk-payment', [PaymentController::class, 'submitBulkPayment']);
-        
+
         // Enhanced Flexible Bulk Payment Routes (Tamil Scenario)
         Route::post('/submit-flexible-bulk-payment', [PaymentController::class, 'submitFlexibleBulkPayment']);
         Route::post('/submit-flexible-bulk-purchase-payment', [PaymentController::class, 'submitFlexibleBulkPurchasePayment']);
         Route::post('/handle-selective-cheque-bounce', [PaymentController::class, 'handleSelectiveChequeBounce']);
         Route::get('/add-sale-bulk-payments', [PaymentController::class, 'addSaleBulkPayments'])->name('add-sale-bulk-payments');
         Route::get('/add-purchase-bulk-payments', [PaymentController::class, 'addPurchaseBulkPayments'])->name('add-purchase-bulk-payments');
-        Route::get('/manage-bulk-payments', function() { return view('bulk_payments.bulk_payments_list'); })->name('manage-bulk-payments');        
+        Route::get('/manage-bulk-payments', function() { return view('bulk_payments.bulk_payments_list'); })->name('manage-bulk-payments');
         // Bulk Payment Management Routes
         Route::get('/bulk-payments-list', [PaymentController::class, 'getBulkPaymentsList'])->name('bulk.payments.list');
         Route::get('/bulk-payment/{id}/edit', [PaymentController::class, 'editBulkPayment'])->name('bulk.payment.edit');
         Route::put('/bulk-payment/{id}', [PaymentController::class, 'updateBulkPayment'])->name('bulk.payment.update');
         Route::delete('/bulk-payment/{id}', [PaymentController::class, 'deleteBulkPayment'])->name('bulk.payment.delete');
         Route::get('/bulk-payment-logs', [PaymentController::class, 'getBulkPaymentLogs'])->name('bulk.payment.logs');
-        
-       
+
+
         // -------------------- StockTransferController Routes --------------------
         Route::get('/stock-transfers', [StockTransferController::class, 'index']);
         Route::get('/list-stock-transfer', [StockTransferController::class, 'stockTransfer'])->name('list-stock-transfer');
@@ -456,7 +457,7 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/expense-payment/{paymentId}', [ExpenseController::class, 'editPayment']);
         Route::delete('/expense-payment/{paymentId}', [ExpenseController::class, 'deletePayment']);
         Route::get('/expense-reports', [ExpenseController::class, 'reports']);
-       
+
         // -------------------- ExpenseParentCategoryController Routes --------------------
         Route::get('/expense-parent-catergory', [ExpenseParentCategoryController::class, 'mainCategory'])->name('expense-parent-catergory');
         Route::get('/expense-parent-catergory-edit/{id}', [ExpenseParentCategoryController::class, 'edit']);
@@ -503,26 +504,26 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/sales-reps/available-users', [SalesRepController::class, 'getAvailableUsers'])->name('sales-reps.available-users');
             Route::get('/sales-reps/available-routes', [SalesRepController::class, 'getAvailableRoutes'])->name('sales-reps.available-routes');
             Route::post('/sales-reps/assign-locations', [SalesRepController::class, 'assignUserToLocations'])->name('sales-reps.assign-locations');
-            
+
             // -------------------- Sales Rep Status Management Routes --------------------
             Route::post('/sales-reps/update-statuses', [SalesRepController::class, 'updateAllStatusesByDate'])->name('sales-reps.update-statuses');
             Route::get('/sales-reps/expiring-soon', [SalesRepController::class, 'getExpiringSoon'])->name('sales-reps.expiring-soon');
             Route::get('/sales-reps/status-statistics', [SalesRepController::class, 'getStatusStatistics'])->name('sales-reps.status-statistics');
             Route::put('/sales-reps/{id}/cancel', [SalesRepController::class, 'cancelAssignment'])->name('sales-reps.cancel');
             Route::put('/sales-reps/{id}/reactivate', [SalesRepController::class, 'reactivateAssignment'])->name('sales-reps.reactivate');
-            
+
             // -------------------- Sales Rep POS Routes --------------------
             Route::get('/my-assignments', [SalesRepController::class, 'getMyAssignments'])->name('sales-rep.my-assignments');
 
         });
 
-               
+
         // -------------------- ReportController Routes --------------------
         Route::get('/stock-report', [ReportController::class, 'stockHistory'])->name('stock.report');
         Route::get('/account-ledger', [ReportController::class, 'accountLedger'])->name('account.ledger');
         Route::get('/activity-log', [ReportController::class, 'activityLogPage'])->name('activity-log.activityLogPage');
         Route::post('/activity-log/fetch', [ReportController::class, 'fetchActivityLog'])->name('activity-log.fetch');
-        
+
         // Profit & Loss Reports
         Route::get('/profit-loss-report', [ReportController::class, 'profitLossReport'])->name('profit-loss.report');
         Route::post('/profit-loss-data', [ReportController::class, 'profitLossData'])->name('profit-loss.data');
@@ -551,21 +552,21 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/location-store', [LocationController::class, 'store']);
         Route::post('/location-update/{id}', [LocationController::class, 'update']);
         Route::delete('/location-delete/{id}', [LocationController::class, 'destroy']);
-        
+
         // New vehicle and hierarchy routes
         Route::get('/location-parents', [LocationController::class, 'getParentLocations']);
         Route::get('/location-sublocations/{parentId}', [LocationController::class, 'getSublocations']);
         Route::get('/location-by-vehicle-type/{vehicleType}', [LocationController::class, 'getLocationsByVehicleType']);
         Route::get('/location-search-by-vehicle', [LocationController::class, 'searchByVehicleNumber']);
         Route::get('/location-hierarchy/{id}', [LocationController::class, 'getLocationHierarchy']);
-       
+
         // -------------------- Site Setting Routes --------------------
         Route::get('/site-settings', [SettingController::class, 'index'])->name('settings.index');
         Route::post('/site-settings/update', [SettingController::class, 'update'])->name('settings.update');
 
         //Salesrep routes
 
-        
+
 
          // // -------------------- VariationTitleController Routes --------------------
         // Route::get('/variation-title', [VariationTitleController::class, 'variationTitle'])->name('variation-title');
@@ -574,7 +575,7 @@ Route::middleware(['auth'])->group(function () {
         // Route::post('/variation-title-store', [VariationTitleController::class, 'store'])->name('variation-title-store');
         // Route::post('/variation-title-update/{id}', [VariationTitleController::class, 'update']);
         // Route::delete('/variation-title-delete/{id}', [VariationTitleController::class, 'destroy']);
-        
+
  // // -------------------- OpeningStockController Routes --------------------
         // Route::get('/import-opening-stock', [OpeningStockController::class, 'importOpeningStock'])->name('import-opening-stock');
         // Route::get('/import-opening-stock-edit/{id}', [OpeningStockController::class, 'edit']);
@@ -588,7 +589,7 @@ Route::middleware(['auth'])->group(function () {
         // Route::post('/import-opening-stck-excel-store', [OpeningStockController::class, 'importOpeningStockStore']);
         // Route::post('/opening-stock-store', [OpeningStockController::class, 'store'])->name('opening-stock.store');
 
-       
+
         // // -------------------- CartController Routes --------------------
         // Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
         // Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
@@ -622,7 +623,7 @@ Route::middleware(['auth'])->group(function () {
         // Route::post('/selling-price-group-update/{id}', [SellingPriceGroupController::class, 'update']);
         // Route::delete('/selling-price-group-delete/{id}', [SellingPriceGroupController::class, 'destroy']);
 
-        
+
         // // -------------------- CustomerGroupController Routes --------------------
         // Route::get('/customer-group', [CustomerGroupController::class, 'customerGroup'])->name('customer-group');
         // Route::get('/customer-group-edit/{id}', [CustomerGroupController::class, 'edit']);

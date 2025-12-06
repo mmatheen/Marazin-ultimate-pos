@@ -205,7 +205,7 @@
                                         title="Enter Invoice No">
                                         <i class="fas fa-redo-alt"></i>
                                     </button>
-                                    <div class="dropdown-menu p-3" style="min-width: 250px;">
+                                    <div class="dropdown-menu p-3">
                                         <label for="invoiceNo" class="form-label">Enter Invoice No</label>
                                         <input type="text" id="invoiceNo" class="form-control form-control-sm"
                                             placeholder="Invoice No">

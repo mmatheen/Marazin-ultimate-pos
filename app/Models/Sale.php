@@ -54,7 +54,7 @@ class Sale extends Model
     protected static function booted()
     {
         static::addGlobalScope(new \App\Scopes\LocationScope);
-        
+
         // Automatically calculate total_due before saving
         static::saving(function ($sale) {
             if (isset($sale->final_total) && isset($sale->total_paid)) {
@@ -183,7 +183,7 @@ class Sale extends Model
     {
         return $query->where('user_id', $userId);
     }
-    
+
     /**
      * Scope: Get sale orders by sales rep (using user_id from sales_reps table)
      * @deprecated Use byUser() instead
@@ -299,7 +299,7 @@ class Sale extends Model
                 'payment_status' => 'Due',
                 'order_notes' => $this->order_notes,
             ]);
-            
+
             // Generate invoice number
             $invoice->invoice_no = self::generateInvoiceNo($this->location_id);
             $invoice->save();
@@ -326,9 +326,9 @@ class Sale extends Model
                 if (!$item->relationLoaded('imeis')) {
                     $item->load('imeis');
                 }
-                
+
                 Log::info("Converting product {$item->product_id}, IMEI count: " . $item->imeis->count());
-                
+
                 if ($item->imeis && $item->imeis->count() > 0) {
                     foreach ($item->imeis as $imei) {
                         $newImei = new SaleImei();
@@ -376,27 +376,27 @@ class Sale extends Model
     {
         return DB::transaction(function () use ($invoiceId) {
             $invoice = Sale::findOrFail($invoiceId);
-            
+
             // Validate this is an invoice converted from this sale order
             if ($invoice->transaction_type !== 'invoice') {
                 throw new \Exception('Not an invoice');
             }
-            
+
             if ($this->converted_to_sale_id != $invoiceId) {
                 throw new \Exception('This invoice was not created from this sale order');
             }
-            
+
             // Check if invoice has payments
             if ($invoice->total_paid > 0) {
                 throw new \Exception('Cannot revert invoice with payments. Please process refund first.');
             }
-            
+
             // Revert stock history type back to sale_order
             foreach ($invoice->products as $item) {
                 $locationBatch = \App\Models\LocationBatch::where('batch_id', $item->batch_id)
                     ->where('location_id', $item->location_id)
                     ->first();
-                
+
                 if ($locationBatch) {
                     // Find the stock history record for this sale and change it back to sale_order
                     $stockHistory = \App\Models\StockHistory::where('loc_batch_id', $locationBatch->id)
@@ -413,7 +413,7 @@ class Sale extends Model
                         $stockHistory->update([
                             'stock_type' => \App\Models\StockHistory::STOCK_TYPE_SALE_ORDER
                         ]);
-                        
+
                         Log::info("Reverted stock history type from sale to sale_order", [
                             'stock_history_id' => $stockHistory->id,
                             'batch_id' => $item->batch_id,
@@ -430,32 +430,32 @@ class Sale extends Model
                     }
                 }
             }
-            
+
             // Mark invoice as cancelled
             $invoice->update([
                 'status' => 'cancelled',
                 'payment_status' => 'Cancelled'
             ]);
-            
+
             // Restore sale order to confirmed status
             $this->update([
                 'order_status' => 'confirmed',
                 'converted_to_sale_id' => null,
             ]);
-            
+
             Log::info("Invoice {$invoice->invoice_no} reverted, Sale Order {$this->order_number} restored to confirmed", [
                 'sale_order_id' => $this->id,
                 'invoice_id' => $invoice->id,
                 'stock_restored' => true
             ]);
-            
+
             return true;
         });
     }
 
     /**
      * Validate stock availability before conversion
-     * Since stock was already allocated during sale order creation, 
+     * Since stock was already allocated during sale order creation,
      * we just need to verify the sale order is in a valid state
      */
     protected function validateStockAvailability()
@@ -463,19 +463,19 @@ class Sale extends Model
         // Stock was already deducted during sale order creation,
         // so we don't need to check stock availability again.
         // We just verify that all items in the sale order have valid batches
-        
+
         $invalidItems = [];
-        
+
         foreach ($this->products as $item) {
             // Verify the batch still exists and is valid
             $locationBatch = \App\Models\LocationBatch::where('batch_id', $item->batch_id)
                 ->where('location_id', $item->location_id)
                 ->first();
-            
+
             if (!$locationBatch) {
                 $product = $item->product;
                 $productName = $product ? $product->product_name : 'Unknown Product';
-                
+
                 $invalidItems[] = [
                     'product' => $productName,
                     'batch_id' => $item->batch_id,
@@ -483,17 +483,17 @@ class Sale extends Model
                 ];
             }
         }
-        
+
         if (!empty($invalidItems)) {
             $errorMessage = "Invalid batch/location combinations found:\n\n";
             foreach ($invalidItems as $item) {
                 $errorMessage .= "• {$item['product']}: Batch ID {$item['batch_id']} at Location {$item['location_id']}\n";
             }
             $errorMessage .= "\nPlease contact administrator to resolve these batch issues.";
-            
+
             throw new \Exception($errorMessage);
         }
-        
+
         Log::info("Stock availability validation passed for sale order conversion", [
             'sale_order_id' => $this->id,
             'products_count' => $this->products->count()
@@ -502,7 +502,7 @@ class Sale extends Model
 
     /**
      * Update stock history when converting SO to Invoice
-     * Stock was already deducted during sale order creation, 
+     * Stock was already deducted during sale order creation,
      * so we just need to update the stock history type from 'sale_order' to 'sale'
      */
     protected function updateStockOnConversion($item)
@@ -529,7 +529,7 @@ class Sale extends Model
                 $stockHistory->update([
                     'stock_type' => \App\Models\StockHistory::STOCK_TYPE_SALE
                 ]);
-                
+
                 Log::info("Updated stock history type from sale_order to sale", [
                     'stock_history_id' => $stockHistory->id,
                     'batch_id' => $item->batch_id,
@@ -585,37 +585,7 @@ class Sale extends Model
 
         return $availableStock + $soldQuantity;
     }
-    // public static function generateInvoiceNo($locationId)
-    // {
-    //     return DB::transaction(function () use ($locationId) {
-    //         $location = Location::findOrFail($locationId);
-
-    //         $prefix = $location->invoice_prefix;
-
-    //         // Lock the sales table for this location
-    //         $lastSale = self::where('location_id', $locationId)
-    //             ->lockForUpdate()
-    //             ->orderByDesc('id')
-    //             ->first();
-
-    //         $nextNumber = 1;
-
-    //         if ($lastSale && preg_match("/{$prefix}-(\d+)/", $lastSale->invoice_no, $matches)) {
-    //             $nextNumber = (int)$matches[1] + 1;
-    //         }
-
-    //         $invoiceNo = "{$prefix}-" . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
-
-    //         // Ensure the invoice number is unique
-    //         while (self::where('location_id', $locationId)->where('invoice_no', $invoiceNo)->exists()) {
-    //             $nextNumber++;
-    //             $invoiceNo = "{$prefix}-" . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
-    //         }
-
-    //         return $invoiceNo;
-    //     });
-    // }
-
+  
     public static function generateInvoiceNo($locationId)
     {
         return DB::transaction(function () use ($locationId) {
@@ -641,7 +611,7 @@ class Sale extends Model
             // Check if this invoice number already exists (safety check)
             $attempts = 0;
             $maxAttempts = 10;
-            
+
             while (self::where('invoice_no', $invoiceNo)->exists() && $attempts < $maxAttempts) {
                 $counter->next_invoice_number++;
                 $invoiceNo = "{$prefix}-" . str_pad($counter->next_invoice_number, 3, '0', STR_PAD_LEFT);
@@ -689,10 +659,10 @@ class Sale extends Model
         } else {
             $baseTotal = $this->subtotal - $this->discount_amount;
         }
-        
+
         // Add shipping charges if present
         $shippingCharges = $this->shipping_charges ?? 0;
-        
+
         return $baseTotal + $shippingCharges;
     }
 
@@ -708,7 +678,7 @@ class Sale extends Model
     {
         // Get all payments regardless of cheque status (for sale completion)
         $totalReceived = $this->payments()->sum('amount');
-        
+
         // Get actual cleared/safe payments (for risk analysis)
         $actualPaid = $this->payments()
             ->where(function($query) {
@@ -734,7 +704,7 @@ class Sale extends Model
 
         // For sale completion: Count all payments EXCEPT bounced cheques
         $newTotalPaid = $totalReceived - $bouncedCheques;
-        
+
         // Debug logging
         Log::info("Sale {$this->id} payment recalculation:", [
             'total_received' => $totalReceived,
@@ -743,10 +713,10 @@ class Sale extends Model
             'new_total_paid' => $newTotalPaid,
             'final_total' => $this->final_total
         ]);
-        
+
         $this->total_paid = $newTotalPaid;
         $this->total_due = $this->final_total - $newTotalPaid; // Now we can set this directly
-        
+
         // Update payment status based on totals
         if ($this->total_due <= 0) {
             $this->payment_status = 'Paid';
@@ -757,7 +727,7 @@ class Sale extends Model
         }
 
         $this->save();
-        
+
         return [
             'total_received' => $totalReceived,
             'actual_paid' => $actualPaid,
@@ -769,7 +739,7 @@ class Sale extends Model
     }
 
     // ==================== SHIPPING METHODS ====================
-    
+
     /**
      * Check if sale has shipping information
      */
