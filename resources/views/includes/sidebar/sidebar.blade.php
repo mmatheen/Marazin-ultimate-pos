@@ -197,7 +197,7 @@
                             {{-- @endcan --}}
                             
                             {{-- Sale Orders List --}}
-                            @can('create sale')
+                            @can('view sale-order')
                                 <li><a href="{{ route('sale-orders-list') }}" class="{{ set_active(['sale-orders-list']) }}">
                                     <i class="fas fa-shopping-cart"></i> Sale Orders</a>
                                 </li>
@@ -214,10 +214,10 @@
                             @endcan
 
                             {{-- Cheque Management --}}
-                            @canany(['view all sales', 'view own sales'])
+                            @can('view cheque-management')
                                 <li><a href="{{ route('cheque-management') }}" class="{{ set_active(['cheque-management']) }}">
                                     <i class="fas fa-money-check"></i> Cheque Management</a></li>
-                            @endcanany
+                            @endcan
 
                             {{-- <li><a href="{{ route('pos-list') }}" class="{{ set_active(['pos-list'])}}">List POS</a>
                         </li> --}}

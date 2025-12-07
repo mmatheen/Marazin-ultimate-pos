@@ -175,6 +175,8 @@ class RolesAndPermissionsSeeder extends Seeder
                 'create job-ticket',
                 'create quotation',
                 'save draft',
+                'create sale-order',
+                'view sale-order',
                 'suspend sale',
                 'credit sale',
                 'card payment',
@@ -209,7 +211,12 @@ class RolesAndPermissionsSeeder extends Seeder
                 'delete payment',
                 'bulk sale payment',
                 'bulk purchase payment',
-                'view payment history'
+                'view payment history',
+                'manage cheque',
+                'view cheque',
+                'approve cheque',
+                'reject cheque',
+                'view cheque-management'
             ],
 
             // 7. Expense Management
@@ -529,7 +536,70 @@ class RolesAndPermissionsSeeder extends Seeder
             $role->syncPermissions($rolePermissions);
         }
 
+        // Smart assignment of new permissions to existing roles
+        $this->assignNewPermissionsToExistingRoles();
+
         $this->command->info('Roles and Permissions Seeder completed successfully!');
+    }
+
+    /**
+     * Assign newly added permissions to existing roles based on their related permissions
+     */
+    private function assignNewPermissionsToExistingRoles()
+    {
+        $this->command->info('Assigning new permissions to existing roles...');
+
+        // Define new permissions and their related parent permissions
+        $newPermissionLogic = [
+            'create sale-order' => ['save draft', 'create sale'],
+            'view sale-order' => ['save draft', 'view all sales', 'view own sales'],
+            'manage cheque' => ['cheque payment', 'create payment'],
+            'view cheque' => ['cheque payment', 'view payments'],
+            'approve cheque' => ['cheque payment', 'edit payment'],
+            'reject cheque' => ['cheque payment', 'edit payment'],
+            'view cheque-management' => ['cheque payment', 'view payments']
+        ];
+
+        // Get all roles
+        $allRoles = Role::with('permissions')->get();
+
+        foreach ($allRoles as $role) {
+            // Skip Master Super Admin and Super Admin (they get all permissions anyway)
+            if (in_array($role->name, ['Master Super Admin', 'Super Admin'])) {
+                continue;
+            }
+
+            $currentPermissions = $role->permissions->pluck('name')->toArray();
+            $permissionsToAdd = [];
+
+            foreach ($newPermissionLogic as $newPermission => $relatedPermissions) {
+                // Check if this permission already exists in the role
+                if (in_array($newPermission, $currentPermissions)) {
+                    continue;
+                }
+
+                // Check if role has any of the related permissions
+                foreach ($relatedPermissions as $relatedPermission) {
+                    if (in_array($relatedPermission, $currentPermissions)) {
+                        $permissionsToAdd[] = $newPermission;
+                        $this->command->info("Adding '{$newPermission}' to role '{$role->name}' (has '{$relatedPermission}')");
+                        break;
+                    }
+                }
+            }
+
+            // Add the new permissions to the role
+            if (!empty($permissionsToAdd)) {
+                foreach ($permissionsToAdd as $permissionName) {
+                    $permission = Permission::where('name', $permissionName)->first();
+                    if ($permission && !$role->hasPermissionTo($permission)) {
+                        $role->givePermissionTo($permission);
+                    }
+                }
+            }
+        }
+
+        $this->command->info('New permissions assigned successfully!');
     }
 
     /**

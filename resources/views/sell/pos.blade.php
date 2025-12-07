@@ -274,14 +274,14 @@
                         <div class="row g-3 p-3">
                             <!-- Row 1 -->
                             <div class="col-4">
-                                <button type="button" class="menu-card w-100" 
+                                <button type="button" class="menu-card w-100"
                                     data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#recentTransactionsModal">
                                     <div class="menu-icon bg-secondary text-white">
                                         <i class="fas fa-clock"></i>
                                     </div>
                                     <span>Recent Transactions</span>
                                 </button>
-                            </div>  
+                            </div>
                             <div class="col-4">
                                 <button type="button" class="menu-card w-100" data-bs-dismiss="modal"
                                     data-bs-toggle="modal" data-bs-target="#suspendSalesModal">
@@ -441,7 +441,7 @@
             </div>
         </div>
 
-    
+
         <div class="row mt-1">
 
             <div class="container-fluid p-1">
@@ -827,7 +827,7 @@
                                         </div>
                                     @endcan
 
-                                    @can('save draft')
+                                    @can('create sale-order')
                                         <div class="col-6">
                                             <button type="button" class="btn btn-outline-success w-100 mobile-action-btn"
                                                 data-action="sale-order" data-bs-dismiss="modal">
@@ -921,7 +921,7 @@
                             </button>
                         @endcan
 
-                        @can('save draft')
+                        @can('create sale-order')
                             <!-- Sale Order Button -->
                             <button type="button" class="btn btn-outline-success btn-sm" id="saleOrderButton">
                                 <i class="fas fa-shopping-cart"></i> Sale Order
@@ -1116,7 +1116,7 @@
                                     <label for="shippingDetails" class="form-label">
                                         <strong>Shipping Details:</strong>
                                     </label>
-                                    <textarea class="form-control" id="shippingDetails" name="shipping_details" 
+                                    <textarea class="form-control" id="shippingDetails" name="shipping_details"
                                         rows="4" placeholder="Enter shipping details..."></textarea>
                                 </div>
 
@@ -1128,8 +1128,8 @@
                                         <span class="input-group-text">
                                             Rs.
                                         </span>
-                                        <input type="number" class="form-control" id="shippingCharges" 
-                                            name="shipping_charges" min="0" step="0.01" 
+                                        <input type="number" class="form-control" id="shippingCharges"
+                                            name="shipping_charges" min="0" step="0.01"
                                             placeholder="0.00">
                                     </div>
                                 </div>
@@ -1138,7 +1138,7 @@
                                     <label for="deliveredTo" class="form-label">
                                         <strong>Delivered To:</strong>
                                     </label>
-                                    <input type="text" class="form-control" id="deliveredTo" name="delivered_to" 
+                                    <input type="text" class="form-control" id="deliveredTo" name="delivered_to"
                                         placeholder="Enter recipient name">
                                 </div>
                             </div>
@@ -1149,7 +1149,7 @@
                                     <label for="shippingAddress" class="form-label">
                                         <strong>Shipping Address:</strong>
                                     </label>
-                                    <textarea class="form-control" id="shippingAddress" name="shipping_address" 
+                                    <textarea class="form-control" id="shippingAddress" name="shipping_address"
                                         rows="4" placeholder="Enter shipping address..."></textarea>
                                 </div>
 
@@ -1544,7 +1544,7 @@
         </div>
     </div>
 
-    
+
     <!-- Modal -->
     <div class="modal fade" id="jobTicketModal" tabindex="-1" aria-labelledby="jobTicketModalLabel">
         <div class="modal-dialog modal-lg">
@@ -1654,7 +1654,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Batch Price Selection Modal -->
     <div class="modal fade" id="batchPriceModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
