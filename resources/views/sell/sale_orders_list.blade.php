@@ -142,7 +142,7 @@
 
     <!-- SweetAlert2 CSS (for modern Swal.fire() syntax) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-    
+
     <!-- SweetAlert2 JS (for modern Swal.fire() syntax) -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -163,7 +163,7 @@
                             let saleOrders = json.sales.filter(function(item) {
                                 return item.transaction_type === 'sale_order';
                             });
-                            
+
                             // Apply status filter - check both order_status and status fields
                             if (currentFilter !== 'all') {
                                 saleOrders = saleOrders.filter(function(item) {
@@ -171,7 +171,7 @@
                                     return actualStatus === currentFilter;
                                 });
                             }
-                            
+
                             return saleOrders;
                         }
                         return [];
@@ -191,32 +191,32 @@
                                     <ul class="dropdown-menu">
                                         <li><button type="button" value="${row.id}" class="view-details dropdown-item"><i class="feather-eye text-info"></i> View</button></li>
                             `;
-                            
+
                             // Show change status for non-completed/cancelled orders - check both status fields
                             const actualStatus = row.order_status || row.status || 'pending';
                             if (actualStatus !== 'completed' && actualStatus !== 'cancelled') {
                                 actions += `
                                         <li><button type="button" value="${row.id}" class="change-status dropdown-item"><i class="feather-refresh-cw text-primary"></i> Change Status</button></li>
                                 `;
-                                
+
                                 // ✅ Only show Convert to Invoice for confirmed orders
                                 if (actualStatus === 'confirmed') {
                                     actions += `
                                         <li><button type="button" value="${row.id}" class="convert-invoice dropdown-item"><i class="feather-file-text text-success"></i> Convert to Invoice</button></li>
                                     `;
                                 }
-                                
+
                                 actions += `
                                         <li><button type="button" value="${row.id}" class="edit_btn dropdown-item"><i class="feather-edit text-info"></i> Edit</button></li>
                                 `;
                             }
-                            
+
                             if (actualStatus !== 'completed') {
                                 actions += `
                                         <li><button type="button" value="${row.id}" class="delete_btn dropdown-item"><i class="feather-trash-2 text-danger"></i> Delete</button></li>
                                 `;
                             }
-                            
+
                             actions += `
                                     </ul>
                                 </div>
@@ -269,12 +269,12 @@
                         data: 'expected_delivery_date',
                         render: function(data) {
                             if (!data) return '-';
-                            
+
                             // Check if delivery date is past
                             const deliveryDate = new Date(data);
                             const today = new Date();
                             today.setHours(0, 0, 0, 0);
-                            
+
                             if (deliveryDate < today) {
                                 return `<span class="text-danger"><i class="fas fa-exclamation-triangle"></i> ${data}</span>`;
                             }
@@ -302,7 +302,7 @@
                         render: function(data) {
                             if (!data) return '-';
                             if (data.length > 30) {
-                                return '<span data-bs-toggle="tooltip" title="' + data + '">' + 
+                                return '<span data-bs-toggle="tooltip" title="' + data + '">' +
                                        data.substring(0, 30) + '...</span>';
                             }
                             return data;
@@ -318,11 +318,11 @@
             // Filter button click handlers
             $('.filter-status').on('click', function() {
                 currentFilter = $(this).data('status');
-                
+
                 // Update button states
                 $('.filter-status').removeClass('active');
                 $(this).addClass('active');
-                
+
                 // Reload table
                 table.ajax.reload();
             });
@@ -334,7 +334,7 @@
             $('#saleOrdersTable tbody').on('click', '.view-details', function() {
                 var saleId = $(this).val();
                 var data = table.row($(this).parents('tr')).data();
-                
+
                 // Populate modal with sale order details
                 let orderInfo = `
                     <strong>Order Number:</strong> ${data.order_number}<br>
@@ -345,17 +345,17 @@
                     <strong>Sales Rep:</strong> ${data.user ? data.user.user_name : ''}<br>
                     <strong>Notes:</strong> ${data.order_notes || 'No notes'}
                 `;
-                
+
                 let customerInfo = `
                     <strong>Name:</strong> ${data.customer ? (data.customer.first_name + ' ' + data.customer.last_name) : ''}<br>
                     <strong>Mobile:</strong> ${data.customer ? data.customer.mobile_no : ''}<br>
                     <strong>Email:</strong> ${data.customer ? (data.customer.email || '-') : ''}<br>
                     <strong>Address:</strong> ${data.customer ? (data.customer.address || '-') : ''}
                 `;
-                
+
                 $('#orderDetails').html(orderInfo);
                 $('#customerDetails').html(customerInfo);
-                
+
                 // Populate products table
                 let productsHtml = '';
                 if (data.products && data.products.length > 0) {
@@ -373,7 +373,7 @@
                     });
                 }
                 $('#productsTable tbody').html(productsHtml);
-                
+
                 // Populate amount details
                 let amountHtml = `
                     <tr>
@@ -390,7 +390,7 @@
                     </tr>
                 `;
                 $('#amountDetailsTable tbody').html(amountHtml);
-                
+
                 // Show modal
                 $('#viewDetailsModal').modal('show');
             });
@@ -400,7 +400,20 @@
                 var saleId = $(this).val();
                 var data = table.row($(this).parents('tr')).data();
                 var currentStatus = data.order_status || data.status || 'pending';
-                
+
+                // Build status options based on current status
+                let statusOptions = '<option value="">-- Select New Status --</option>';
+
+                if (currentStatus === 'pending' || currentStatus === 'draft') {
+                    // From pending/draft: can go to confirmed or cancelled
+                    statusOptions += '<option value="confirmed">Confirmed</option>';
+                    statusOptions += '<option value="cancelled">Cancelled</option>';
+                } else if (currentStatus === 'confirmed') {
+                    // From confirmed: can only go to cancelled
+                    statusOptions += '<option value="cancelled">Cancelled</option>';
+                }
+                // Completed orders should not have change status button (handled in actions column)
+
                 Swal.fire({
                     title: 'Change Order Status',
                     html: `
@@ -408,14 +421,7 @@
                         <div class="text-start mt-3">
                             <label class="form-label">Current Status: <span class="badge bg-info">${currentStatus}</span></label>
                             <select id="newStatus" class="form-control">
-                                <option value="">-- Select New Status --</option>
-                                ${currentStatus === 'pending' || currentStatus === 'draft' ? 
-                                    '<option value="confirmed">Confirmed</option>' : 
-                                    (currentStatus === 'confirmed' ? 
-                                        '<option value="cancelled">Cancelled</option>' : 
-                                        '<option value="cancelled">Cancelled</option>'
-                                    )
-                                }
+                                ${statusOptions}
                             </select>
                             <label class="form-label mt-3">Status Note (Optional):</label>
                             <textarea id="statusNote" class="form-control" rows="2" placeholder="Add note about status change..."></textarea>
@@ -427,25 +433,25 @@
                     preConfirm: () => {
                         const newStatus = document.getElementById('newStatus').value;
                         const statusNote = document.getElementById('statusNote').value;
-                        
+
                         if (!newStatus) {
                             Swal.showValidationMessage('Please select a new status');
                             return false;
                         }
-                        
+
                         return { newStatus, statusNote };
                     }
                 }).then((result) => {
                     if (result.isConfirmed) {
                         const { newStatus, statusNote } = result.value;
-                        
+
                         // Prepare note
                         let updatedNotes = data.order_notes || '';
                         if (statusNote) {
                             const timestamp = new Date().toLocaleString();
                             updatedNotes += `\n\n[${timestamp}] Status changed to: ${newStatus}\nNote: ${statusNote}`;
                         }
-                        
+
                         // Update status via AJAX
                         $.ajax({
                             url: `/sale-orders/update/${saleId}`,
@@ -465,14 +471,14 @@
                                     text: `Order status changed to: ${newStatus}`,
                                     timer: 2000
                                 });
-                                
+
                                 // If status changed to cancelled, switch to 'all' filter so user can see the cancelled order
                                 if (newStatus === 'cancelled') {
                                     currentFilter = 'all';
                                     $('.filter-status').removeClass('btn-primary').addClass('btn-outline-primary');
                                     $('.filter-status[data-status="all"]').removeClass('btn-outline-primary').addClass('btn-primary');
                                 }
-                                
+
                                 table.ajax.reload();
                             },
                             error: function(xhr) {
@@ -487,7 +493,7 @@
             $('#saleOrdersTable tbody').on('click', '.convert-invoice', function() {
                 var saleId = $(this).val();
                 var data = table.row($(this).parents('tr')).data();
-                
+
                 Swal.fire({
                     title: 'Convert to Invoice?',
                     html: `
@@ -517,7 +523,7 @@
                                 Swal.showLoading();
                             }
                         });
-                        
+
                         // Send AJAX request
                         $.ajax({
                             url: `/sale-orders/convert-to-invoice/${saleId}`,
@@ -565,7 +571,7 @@
                                                             } catch (e) {
                                                                 console.error('Print error:', e);
                                                             }
-                                                            
+
                                                             // Clean up iframe after printing
                                                             setTimeout(() => {
                                                                 if (document.body.contains(iframe)) {
@@ -581,7 +587,7 @@
                                             }
                                         });
                                     }
-                                    
+
                                     // Reload the table to show updated status
                                     table.ajax.reload();
                                 });
@@ -610,7 +616,7 @@
             $('#saleOrdersTable tbody').on('click', '.delete_btn', function() {
                 var saleId = $(this).val();
                 var data = table.row($(this).parents('tr')).data();
-                
+
                 Swal.fire({
                     title: 'Delete Sale Order?',
                     text: `Are you sure you want to delete Sale Order ${data.order_number}? This action cannot be undone!`,
