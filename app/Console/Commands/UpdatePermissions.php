@@ -34,12 +34,12 @@ class UpdatePermissions extends Command
         // Show what will be added
         $this->info('📋 New Permissions to be Added:');
         $this->newLine();
-        
+
         $this->line('  POS Management:');
         $this->line('    • create sale-order - Create sale orders from POS');
         $this->line('    • view sale-order - View sale order list');
         $this->newLine();
-        
+
         $this->line('  Payment Management (Cheque):');
         $this->line('    • manage cheque - Manage cheque payments');
         $this->line('    • view cheque - View cheque details');

@@ -33,17 +33,17 @@ class PaymentController extends Controller
     {
         $this->paymentService = $paymentService;
         $this->unifiedLedgerService = $unifiedLedgerService;
-        
+
         // Standard payment permissions
         $this->middleware('permission:view payments', ['only' => ['index', 'show']]);
         $this->middleware('permission:create payment', ['only' => ['store']]);
         $this->middleware('permission:edit payment', ['only' => ['edit', 'update']]);
         $this->middleware('permission:delete payment', ['only' => ['destroy']]);
-        
+
         // Bulk payment permissions
         $this->middleware('permission:bulk sale payment', ['only' => ['addSaleBulkPayments', 'storeSaleBulkPayments', 'getBulkPaymentsList', 'editBulkPayment', 'updateBulkPayment', 'deleteBulkPayment', 'getBulkPaymentLogs']]);
         $this->middleware('permission:bulk purchase payment', ['only' => ['addPurchaseBulkPayments', 'storePurchaseBulkPayments', 'getBulkPaymentsList', 'editBulkPayment', 'updateBulkPayment', 'deleteBulkPayment', 'getBulkPaymentLogs']]);
-        
+
         // Cheque management methods are accessible to all authenticated users for now
         // Methods: chequeManagement, updateChequeStatus, bulkUpdateChequeStatus, chequeStatusHistory, getFloatingBalance
         // TODO: Add specific cheque management permissions later if needed
@@ -91,9 +91,9 @@ class PaymentController extends Controller
         try {
             // Get show_full_history parameter (default false for backward compatibility)
             // Support both parameter names for compatibility
-            $showFullHistory = $request->boolean('show_full_history', false) 
+            $showFullHistory = $request->boolean('show_full_history', false)
                 || $request->boolean('show_full_audit_trail', false);
-            
+
             $ledgerData = $this->unifiedLedgerService->getCustomerLedger(
                 $request->customer_id,
                 $request->start_date,
@@ -150,23 +150,23 @@ class PaymentController extends Controller
             }
 
             $appliedAmount = min($remainingAdvance, $sale->total_due);
-            
+
             // Update sale with advance payment
             // Only update total_paid - total_due is generated automatically
             $sale->total_paid += $appliedAmount;
-            
+
             // Calculate new total_due for payment status logic
             $newTotalDue = $sale->final_total - $sale->total_paid;
-            
+
             // Update payment status
             if ($newTotalDue <= 0) {
                 $sale->payment_status = 'Paid';
             } elseif ($sale->total_paid > 0) {
                 $sale->payment_status = 'Partial';
             }
-            
+
             $sale->save();
-            
+
             // Create a payment record for the advance application
             $payment = Payment::create([
                 'payment_date' => now()->format('Y-m-d H:i:s'),
@@ -210,10 +210,10 @@ class PaymentController extends Controller
             DB::beginTransaction();
 
             $customerId = $request->customer_id;
-            
+
             // Calculate current advance balance
             $advanceBalance = $this->calculateCustomerAdvanceBalance($customerId);
-            
+
             if ($advanceBalance <= 0) {
                 return response()->json([
                     'status' => 400,
@@ -357,9 +357,9 @@ class PaymentController extends Controller
         try {
             // Get show_full_history parameter (default false for backward compatibility)
             // Support both parameter names for compatibility
-            $showFullHistory = $request->boolean('show_full_history', false) 
+            $showFullHistory = $request->boolean('show_full_history', false)
                 || $request->boolean('show_full_audit_trail', false);
-            
+
             $ledgerData = $this->unifiedLedgerService->getSupplierLedger(
                 $request->supplier_id,
                 $request->start_date,
@@ -403,10 +403,10 @@ class PaymentController extends Controller
             DB::beginTransaction();
 
             $supplierId = $request->supplier_id;
-            
+
             // Calculate current advance balance
             $advanceBalance = $this->calculateSupplierAdvanceBalance($supplierId);
-            
+
             if ($advanceBalance <= 0) {
                 return response()->json([
                     'status' => 400,
@@ -437,29 +437,29 @@ class PaymentController extends Controller
     {
         $supplier = Supplier::find($supplierId);
         $openingBalance = $supplier ? floatval($supplier->opening_balance) : 0;
-        
+
         $totalPayments = Payment::where('supplier_id', $supplierId)->sum('amount');
         $totalPurchases = Purchase::where('supplier_id', $supplierId)->sum('final_total');
         $totalReturns = PurchaseReturn::where('supplier_id', $supplierId)->sum('return_total');
-        
+
         $manualAdvanceAvailable = 0;
-        
+
         // Supplier advance (negative opening balance means they gave us advance)
         if ($openingBalance < 0) {
             $manualAdvanceAvailable += abs($openingBalance);
         }
-        
+
         // Returns can be used as advance
         if ($totalReturns > 0) {
             $manualAdvanceAvailable += $totalReturns;
         }
-        
+
         // Overpayments to supplier
         $overpayment = max(0, $totalPayments - ($totalPurchases - $totalReturns));
         if ($overpayment > 0) {
             $manualAdvanceAvailable += $overpayment;
         }
-        
+
         return $manualAdvanceAvailable;
     }
 
@@ -482,21 +482,21 @@ class PaymentController extends Controller
             }
 
             $appliedAmount = min($remainingAdvance, $purchase->total_due);
-            
+
             $purchase->total_paid += $appliedAmount;
             // Don't update total_due directly as it might be a generated column
-            
+
             // Calculate new total_due
             $newTotalDue = $purchase->final_total - $purchase->total_paid;
-            
+
             if ($newTotalDue <= 0) {
                 $purchase->payment_status = 'Paid';
             } elseif ($purchase->total_paid > 0) {
                 $purchase->payment_status = 'Partial';
             }
-            
+
             $purchase->save();
-            
+
             // Create payment record
             $payment = Payment::create([
                 'payment_date' => now()->format('Y-m-d H:i:s'),
@@ -524,10 +524,10 @@ class PaymentController extends Controller
         }
 
         $isUpdate = !empty($payment);
-        
+
         DB::transaction(function () use ($request, $payment, $isUpdate) {
             $paymentData = $this->preparePaymentData($request);
-            
+
             if ($isUpdate) {
                 // For updates, use PaymentService which handles ledger properly
                 $updatedPayment = $this->paymentService->editSalePayment($payment, $paymentData);
@@ -579,7 +579,7 @@ class PaymentController extends Controller
         } else {
             $paymentDate = Carbon::parse($paymentDate);
         }
-        
+
         return [
             'payment_date' => $paymentDate->format('Y-m-d H:i:s'),
             'amount' => $request->amount,
@@ -675,7 +675,7 @@ class PaymentController extends Controller
         } else if ($payment->payment_type === 'opening_balance') {
             $contactType = $payment->customer_id ? 'customer' : 'supplier';
             $this->unifiedLedgerService->recordOpeningBalancePayment($payment, $contactType);
-            
+
             if ($payment->customer_id) {
                 $this->updateCustomerBalance($payment->customer_id);
             } else {
@@ -691,11 +691,11 @@ class PaymentController extends Controller
             $totalPaid = Payment::where('reference_id', $sale->id)
                 ->where('payment_type', 'sale')
                 ->sum('amount');
-            
+
             // Update total_paid first
             $sale->total_paid = $totalPaid;
             $sale->save();
-            
+
             // Refresh the model to get the updated generated total_due column
             $sale->refresh();
 
@@ -738,7 +738,7 @@ class PaymentController extends Controller
         $totalPurchases = Purchase::where('supplier_id', $supplierId)->sum('final_total');
         $totalPurchasesReturn = PurchaseReturn::where('supplier_id', $supplierId)->sum('return_total');
         $totalPayments = Payment::where('supplier_id', $supplierId)->where('payment_type', 'purchase')->sum('amount');
-        
+
         return ($supplier->opening_balance + $totalPurchases) - ($totalPayments + $totalPurchasesReturn);
     }
 
@@ -776,25 +776,25 @@ class PaymentController extends Controller
                 try {
                     // Use the proper delete method from UnifiedLedgerService
                     $result = $this->unifiedLedgerService->deletePayment($payment, 'Manual deletion via destroy method');
-                    
+
                     Log::info('Ledger deletion result', ['result' => $result]);
-                    
+
                     // Now safe to delete the payment record since ledger is handled
                     $payment->delete();
-                    
+
                     Log::info('Payment deleted successfully with proper reversal accounting', [
                         'payment_id' => $payment->id,
                         'payment_type' => $payment->payment_type,
                         'amount' => $payment->amount,
                         'reference_no' => $payment->reference_no
                     ]);
-                    
+
                     return response()->json([
-                        'status' => 200, 
+                        'status' => 200,
                         'success' => true,
                         'message' => 'Payment deleted successfully with proper audit trail.'
                     ]);
-                    
+
                 } catch (\Exception $e) {
                     Log::error('Failed to delete payment with proper accounting', [
                         'payment_id' => $payment->id,
@@ -803,7 +803,7 @@ class PaymentController extends Controller
                         'file' => $e->getFile(),
                         'line' => $e->getLine()
                     ]);
-                    
+
                     return response()->json([
                         'status' => 500,
                         'success' => false,
@@ -816,7 +816,7 @@ class PaymentController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'status' => 500,
                 'success' => false,
@@ -832,7 +832,7 @@ class PaymentController extends Controller
 
         $entity = $this->validateEntity($data['entity_type'], $data['entity_id']);
         $paymentType = $data['payment_type'] ?? 'both';
-        
+
         // Calculate the appropriate maximum amount based on payment type
         $maxAmount = $this->calculateMaxPaymentAmount($data['entity_type'], $entity->id, $entity->opening_balance, $paymentType);
 
@@ -875,7 +875,7 @@ class PaymentController extends Controller
             'payment_date' => 'required|date',
             'payment_type' => 'required|in:opening_balance,sale_dues,both',
             'payment_groups' => 'required|array|min:1',
-            'payment_groups.*.method' => 'required|in:cash,cheque,card,bank_transfer',
+            'payment_groups.*.method' => 'required|in:cash,cheque,card,bank_transfer,discount',
             'payment_groups.*.bills' => 'required_unless:payment_type,opening_balance|array|min:1',
             'payment_groups.*.bills.*.sale_id' => 'required_unless:payment_type,opening_balance|exists:sales,id',
             'payment_groups.*.bills.*.amount' => 'required_unless:payment_type,opening_balance|numeric|min:0.01',
@@ -924,10 +924,10 @@ class PaymentController extends Controller
                         $this->addMethodSpecificFields($paymentData, $paymentGroup);
 
                         $payment = Payment::create($paymentData);
-                        
+
                         // Record in unified ledger
                         $this->unifiedLedgerService->recordOpeningBalancePayment($payment, 'customer');
-                        
+
                         $groupTotal = $paymentGroup['totalAmount'];
                         $groupPayments[] = [
                             'payment_id' => $payment->id,
@@ -941,7 +941,7 @@ class PaymentController extends Controller
                             $sale = Sale::where('id', $bill['sale_id'])
                                       ->where('customer_id', $request->customer_id)
                                       ->first();
-                            
+
                             if (!$sale) {
                                 throw new \Exception("Sale {$bill['sale_id']} not found for customer");
                             }
@@ -966,13 +966,13 @@ class PaymentController extends Controller
                             $this->addMethodSpecificFields($paymentData, $paymentGroup);
 
                             $payment = Payment::create($paymentData);
-                            
+
                             // Record in unified ledger
                             $this->unifiedLedgerService->recordSalePayment($payment);
-                            
+
                             // Update sale table
                             $this->updateSaleTable($bill['sale_id']);
-                            
+
                             $groupTotal += $bill['amount'];
                             $groupPayments[] = [
                                 'payment_id' => $payment->id,
@@ -1069,7 +1069,7 @@ class PaymentController extends Controller
                                 // Reduce total_paid by bounced amount
                                 $sale->total_paid = max(0, $sale->total_paid - $payment->amount);
                                 $sale->save();
-                                
+
                                 // Refresh and update payment status
                                 $sale->refresh();
                                 if ($sale->total_due <= 0) {
@@ -1165,7 +1165,7 @@ class PaymentController extends Controller
             'payment_date' => 'required|date',
             'payment_type' => 'required|in:flexible,purchase_dues',
             'payment_groups' => 'required|array|min:1',
-            'payment_groups.*.method' => 'required|in:cash,cheque,card,bank_transfer',
+            'payment_groups.*.method' => 'required|in:cash,cheque,card,bank_transfer,discount',
             'payment_groups.*.bills' => 'required_unless:payment_type,opening_balance|array|min:1',
             'payment_groups.*.bills.*.purchase_id' => 'required_unless:payment_type,opening_balance|exists:purchases,id',
             'payment_groups.*.bills.*.amount' => 'required_unless:payment_type,opening_balance|numeric|min:0.01',
@@ -1213,10 +1213,10 @@ class PaymentController extends Controller
                         $this->addMethodSpecificFields($paymentData, $paymentGroup);
 
                         $payment = Payment::create($paymentData);
-                        
+
                         // Record in unified ledger
                         $this->unifiedLedgerService->recordOpeningBalancePayment($payment, 'supplier');
-                        
+
                         $groupTotal = $paymentGroup['totalAmount'];
                         $groupPayments[] = [
                             'payment_id' => $payment->id,
@@ -1230,7 +1230,7 @@ class PaymentController extends Controller
                             $purchase = Purchase::where('id', $bill['purchase_id'])
                                       ->where('supplier_id', $request->supplier_id)
                                       ->first();
-                            
+
                             if (!$purchase) {
                                 throw new \Exception("Purchase {$bill['purchase_id']} not found for supplier");
                             }
@@ -1255,13 +1255,13 @@ class PaymentController extends Controller
                             $this->addMethodSpecificFields($paymentData, $paymentGroup);
 
                             $payment = Payment::create($paymentData);
-                            
+
                             // Record in unified ledger
                             $this->unifiedLedgerService->recordPurchasePayment($payment);
-                            
+
                             // Update purchase table
                             $this->updatePurchaseTable($bill['purchase_id']);
-                            
+
                             $groupTotal += $bill['amount'];
                             $groupPayments[] = [
                                 'payment_id' => $payment->id,
@@ -1369,20 +1369,20 @@ class PaymentController extends Controller
     {
         // Calculate available opening balance from ledger, not customer table
         $currentOpeningBalance = $this->calculateCurrentOpeningBalanceFromLedger($entity);
-        
+
         if ($currentOpeningBalance > 0 && $remainingAmount > 0) {
             $openingBalancePayment = min($remainingAmount, $currentOpeningBalance);
-            
+
             // Create opening balance settlement payment
             $this->createOpeningBalancePayment($entity, $openingBalancePayment, $paymentMethod, $request);
-            
+
             // **IMPORTANT**: DO NOT update customer table opening_balance field during payments
             // Customer table opening_balance should only change during edits via CustomerController
             // Current balance is calculated from ledger entries, not customer table field
             $entityType = $entity instanceof Customer ? 'customer' : 'supplier';
-            
+
             Log::info("Opening balance payment recorded for {$entityType} {$entity->id}: Payment amount {$openingBalancePayment}");
-            
+
             // Reduce remaining amount
             $remainingAmount -= $openingBalancePayment;
         }
@@ -1437,7 +1437,7 @@ class PaymentController extends Controller
     private function calculateCurrentOpeningBalanceFromLedger($entity)
     {
         $entityType = $entity instanceof Customer ? 'customer' : 'supplier';
-        
+
         // Get the latest active opening balance entry (after all edits and reversals)
         $latestOpeningBalance = Ledger::where('contact_id', $entity->id)
             ->where('contact_type', $entityType)
@@ -1445,7 +1445,7 @@ class PaymentController extends Controller
             ->where('status', 'active')
             ->orderBy('id', 'desc') // Use id for reliable ordering when created_at is same
             ->first();
-        
+
         $currentOpeningBalance = 0;
         if ($latestOpeningBalance) {
             if ($entityType === 'customer') {
@@ -1454,14 +1454,14 @@ class PaymentController extends Controller
                 $currentOpeningBalance = $latestOpeningBalance->credit - $latestOpeningBalance->debit;
             }
         }
-        
+
         // Get total payments made towards opening balance
         $totalPayments = Ledger::where('contact_id', $entity->id)
             ->where('contact_type', $entityType)
             ->where('transaction_type', 'opening_balance_payment')
             ->where('status', 'active')
             ->sum($entityType === 'customer' ? 'debit' : 'credit');
-        
+
         // Return remaining unpaid opening balance
         return max(0, $currentOpeningBalance - $totalPayments);
     }
@@ -1513,7 +1513,7 @@ class PaymentController extends Controller
     {
         // Use the request payment_date or current time if not provided
         $paymentDate = $request->payment_date ? $this->parseFlexibleDate($request->payment_date) . ' ' . Carbon::now()->format('H:i:s') : Carbon::now()->format('Y-m-d H:i:s');
-        
+
         $paymentData = [
             'payment_date' => $paymentDate,
             'amount' => $amount,
@@ -1566,11 +1566,11 @@ class PaymentController extends Controller
             $totalPaid = Payment::where('reference_id', $purchase->id)
                 ->where('payment_type', 'purchase')
                 ->sum('amount');
-            
+
             // Update total_paid first
             $purchase->total_paid = $totalPaid;
             $purchase->save();
-            
+
             // Refresh the model to get the updated generated total_due column
             $purchase->refresh();
 
@@ -1582,7 +1582,7 @@ class PaymentController extends Controller
             } else {
                 $purchase->payment_status = 'Due';
             }
-            
+
             $purchase->save();
         }
     }
@@ -1594,11 +1594,11 @@ class PaymentController extends Controller
             $totalPaid = Payment::where('reference_id', $purchaseReturn->id)
                 ->where('payment_type', 'purchase_return')
                 ->sum('amount');
-            
+
             // Update total_paid first
             $purchaseReturn->total_paid = $totalPaid;
             $purchaseReturn->save();
-            
+
             // Refresh the model to get the updated generated total_due column
             $purchaseReturn->refresh();
 
@@ -1610,7 +1610,7 @@ class PaymentController extends Controller
             } else {
                 $purchaseReturn->payment_status = 'Due';
             }
-            
+
             $purchaseReturn->save();
         }
     }
@@ -1622,11 +1622,11 @@ class PaymentController extends Controller
             $totalPaid = Payment::where('reference_id', $salesReturn->id)
                 ->whereIn('payment_type', ['sale_return_with_bill', 'sale_return_without_bill'])
                 ->sum('amount');
-            
+
             // Update total_paid first
             $salesReturn->total_paid = $totalPaid;
             $salesReturn->save();
-            
+
             // Refresh the model to get the updated generated total_due column
             $salesReturn->refresh();
 
@@ -1638,7 +1638,7 @@ class PaymentController extends Controller
             } else {
                 $salesReturn->payment_status = 'Due';
             }
-            
+
             $salesReturn->save();
         }
     }
@@ -1649,20 +1649,20 @@ class PaymentController extends Controller
     public function getSupplierDetails(Request $request)
     {
         $supplierId = $request->supplier_id;
-        
+
         if (!$supplierId) {
             return response()->json(['success' => false, 'message' => 'Supplier ID required']);
         }
 
         $supplier = Supplier::find($supplierId);
-        
+
         if (!$supplier) {
             return response()->json(['success' => false, 'message' => 'Supplier not found']);
         }
 
         // Calculate supplier balance (for suppliers, positive means we owe them)
         $balance = $this->calculateSupplierBalance($supplierId);
-        
+
         // Get total purchases
         $totalPurchases = Purchase::where('supplier_id', $supplierId)->sum('final_total');
 
@@ -1739,7 +1739,7 @@ class PaymentController extends Controller
                         $query->where('customer_id', $request->customer_id);
                     }
                     break;
-                    
+
                 case 'purchase':
                     $query->where('payment_type', 'purchase')
                           ->with(['supplier']);
@@ -1748,7 +1748,7 @@ class PaymentController extends Controller
                         $query->where('supplier_id', $request->supplier_id);
                     }
                     break;
-                    
+
                 case 'opening_balance':
                     $query->where('payment_type', 'opening_balance')
                           ->with(['customer', 'supplier']);
@@ -1759,7 +1759,7 @@ class PaymentController extends Controller
                         $query->where('supplier_id', $request->supplier_id);
                     }
                     break;
-                    
+
                 case 'return':
                 case 'purchase_return':
                     // Handle both 'return' request and 'purchase_return' in database
@@ -1772,7 +1772,7 @@ class PaymentController extends Controller
                         $query->where('supplier_id', $request->supplier_id);
                     }
                     break;
-                    
+
                 default:
                     // Fallback to sale
                     $query->where('payment_type', 'sale')
@@ -1837,7 +1837,7 @@ class PaymentController extends Controller
                         $payment->purchase_return = \App\Models\PurchaseReturn::find($payment->reference_id);
                         break;
                     case 'sale_return':
-                        // Try to find sale return record  
+                        // Try to find sale return record
                         $payment->sale_return = \App\Models\SalesReturn::find($payment->reference_id);
                         break;
                     case 'opening_balance':
@@ -1878,10 +1878,10 @@ class PaymentController extends Controller
     {
         try {
             $payment = Payment::findOrFail($id);
-            
+
             // Determine entity type
             $entityType = $payment->payment_type === 'sale' ? 'sale' : 'purchase';
-            
+
             // Get related entity
             $entity = null;
             if ($entityType === 'sale') {
@@ -1942,28 +1942,28 @@ class PaymentController extends Controller
 
         try {
             $payment = Payment::findOrFail($id);
-            
+
             // CRITICAL: Only allow editing TODAY's payments to maintain ledger integrity
             $paymentDate = Carbon::parse($payment->payment_date);
             $today = Carbon::today();
-            
+
             if (!$paymentDate->isSameDay($today)) {
                 return response()->json([
                     'status' => 403,
                     'message' => 'Cannot edit past payments. Only TODAY\'s payments can be edited to maintain ledger integrity and prevent accounting corruption.'
                 ]);
             }
-            
+
             $entityType = $payment->payment_type === 'sale' ? 'sale' : 'purchase';
             $advanceAmount = 0; // Initialize outside transaction
-            
+
             DB::transaction(function () use ($request, $id, &$advanceAmount) {
                 $payment = Payment::findOrFail($id);
-                
+
                 // Store old payment data for logging and ledger management
                 $oldPaymentData = $payment->toArray();
                 $oldAmount = $payment->amount;
-                
+
                 // Determine entity type and get related info
                 $entityType = $payment->payment_type === 'sale' ? 'sale' : 'purchase';
                 $entityId = $payment->reference_id;
@@ -1973,7 +1973,7 @@ class PaymentController extends Controller
                 // CRITICAL VALIDATION: Prevent overpayment for bulk payments
                 // For bulk payments, we need to check against the original sale/purchase amount
                 // to ensure total payments don't exceed the invoice total
-                
+
                 // Skip validation if this is an opening balance payment or payment without reference
                 if (!$entityId) {
                     Log::info("Payment edit without reference_id - skipping overpayment validation", [
@@ -2013,19 +2013,19 @@ class PaymentController extends Controller
                                 ->where('payment_type', 'sale')
                                 ->where('id', '!=', $payment->id)
                                 ->sum('amount');
-                            
+
                             // Maximum allowed for this payment = Total Sale Amount - Other Payments
                             $maxAmount = $entity->total_amount - $totalOtherPayments;
-                            
+
                             // Also check against available due (current due + old payment amount)
                             // This handles cases where there might be returns or adjustments
                             $maxAmountByDue = $entity->total_due + $oldAmount;
-                            
+
                             // Use the smaller of the two to be safe
                             $maxAmount = min($maxAmount, $maxAmountByDue);
                         }
                     }
-                    
+
                 } else {
                     $entity = Purchase::find($entityId);
                     if (!$entity) {
@@ -2057,13 +2057,13 @@ class PaymentController extends Controller
                                 ->where('payment_type', 'purchase')
                                 ->where('id', '!=', $payment->id)
                                 ->sum('amount');
-                            
+
                             // Maximum allowed for this payment = Total Purchase Amount - Other Payments
                             $maxAmount = $entity->total_amount - $totalOtherPayments;
-                            
+
                             // Also check against available due (current due + old payment amount)
                             $maxAmountByDue = $entity->total_due + $oldAmount;
-                            
+
                             // Use the smaller of the two to be safe
                             $maxAmount = min($maxAmount, $maxAmountByDue);
                         }
@@ -2074,16 +2074,16 @@ class PaymentController extends Controller
                 // Check if user explicitly allowed advance payment (for customer credit)
                 $allowAdvance = $request->input('allow_advance', false);
                 $advanceAmount = 0;
-                
+
                 // Only validate overpayment if there's a linked entity (sale/purchase)
                 if ($entityId && isset($maxAmount) && $request->amount > $maxAmount) {
                     if (!$allowAdvance) {
                         // Overpayment not allowed without advance flag
-                        $totalPaid = ($entityType === 'sale' ? 
+                        $totalPaid = ($entityType === 'sale' ?
                             Payment::where('reference_id', $entityId)->where('payment_type', 'sale')->where('id', '!=', $payment->id)->sum('amount') :
                             Payment::where('reference_id', $entityId)->where('payment_type', 'purchase')->where('id', '!=', $payment->id)->sum('amount')
                         );
-                        
+
                         // Create a structured error message for better display
                         $errorData = [
                             'title' => 'Overpayment Not Allowed!',
@@ -2096,7 +2096,7 @@ class PaymentController extends Controller
                             ],
                             'tip' => 'Check "Allow Advance Payment" if customer is paying extra as advance credit.'
                         ];
-                        
+
                         // Throw exception with JSON encoded data for frontend parsing
                         throw new \Exception(json_encode($errorData));
                     } else {
@@ -2150,12 +2150,12 @@ class PaymentController extends Controller
                     // Create old payment object for ledger cleanup
                     $oldPayment = new Payment($oldPaymentData);
                     $oldPayment->id = $payment->id;
-                    
+
                     // Step 1: Delete old ledger entry
                     // Step 2: Create new ledger entry with updated amount
                     // This ensures the ledger is always in sync with the payment
                     $this->unifiedLedgerService->updatePayment($payment->fresh(), $oldPayment);
-                    
+
                     Log::info('Ledger updated successfully for payment edit', [
                         'payment_id' => $payment->id,
                         'old_amount' => $oldAmount,
@@ -2180,7 +2180,7 @@ class PaymentController extends Controller
                 } elseif ($entityType === 'purchase' && isset($entity)) {
                     $referenceInfo = $entity->reference_no ?? 'Purchase #' . $entityId;
                 }
-                
+
                 BulkPaymentLog::create([
                     'action' => 'edit',
                     'entity_type' => $entityType,
@@ -2206,7 +2206,7 @@ class PaymentController extends Controller
                         $oldCreditBalance = $customer->current_balance;
                         $customer->current_balance = ($customer->current_balance ?? 0) - $advanceAmount; // Negative means customer has credit
                         $customer->save();
-                        
+
                         Log::info("Customer credit updated for advance payment", [
                             'customer_id' => $customerId,
                             'customer_name' => $customer->first_name . ' ' . $customer->last_name,
@@ -2215,7 +2215,7 @@ class PaymentController extends Controller
                             'advance_amount_added' => $advanceAmount,
                             'payment_id' => $payment->id
                         ]);
-                        
+
                         // Add note to payment about advance
                         $advanceNote = "\n[Advance Payment: Rs. " . number_format($advanceAmount, 2) . " added to customer credit. Applied to bill: Rs. " . number_format($maxAmount, 2) . "]";
                         $payment->notes = ($payment->notes ?? '') . $advanceNote;
@@ -2269,24 +2269,24 @@ class PaymentController extends Controller
 
         try {
             $payment = Payment::findOrFail($id);
-            
+
             // CRITICAL: Only allow deleting TODAY's payments to maintain ledger integrity
             $paymentDate = Carbon::parse($payment->payment_date);
             $today = Carbon::today();
-            
+
             if (!$paymentDate->isSameDay($today)) {
                 return response()->json([
                     'status' => 403,
                     'message' => 'Cannot delete past payments. Only TODAY\'s payments can be deleted to maintain ledger integrity and prevent accounting corruption.'
                 ]);
             }
-            
+
             $entityType = '';
             $amount = 0;
-            
+
             DB::transaction(function () use ($request, $id, &$entityType, &$amount) {
                 $payment = Payment::findOrFail($id);
-                
+
                 // Store data for logging before deletion
                 $paymentData = $payment->toArray();
                 $entityType = $payment->payment_type === 'sale' ? 'sale' : 'purchase';
@@ -2300,7 +2300,7 @@ class PaymentController extends Controller
                     // Delete the payment ledger entries from unified ledger
                     // This removes the debit/credit entries for this payment
                     $this->unifiedLedgerService->deletePaymentLedger($payment);
-                    
+
                     Log::info('Ledger payment entries deleted successfully', [
                         'payment_id' => $payment->id,
                         'amount' => $amount,
@@ -2389,7 +2389,7 @@ class PaymentController extends Controller
         if ($request->action) {
             $query->where('action', $request->action);
         }
-        
+
         // Filter by specific payment ID
         if ($request->payment_id) {
             $query->where('payment_id', $request->payment_id);
@@ -2480,7 +2480,7 @@ class PaymentController extends Controller
 
         try {
             $chequeService = app(\App\Services\ChequeService::class);
-            
+
             $result = $chequeService->updateChequeStatus(
                 $paymentId,
                 $request->status,
@@ -2489,7 +2489,7 @@ class PaymentController extends Controller
                 auth()->id()
             );
 
-            $message = $request->status === 'bounced' 
+            $message = $request->status === 'bounced'
                 ? 'Cheque marked as bounced. Bill status unchanged, floating balance created for customer.'
                 : 'Cheque status updated successfully';
 
@@ -2522,7 +2522,7 @@ class PaymentController extends Controller
 
         try {
             $chequeService = app(\App\Services\ChequeService::class);
-            
+
             $results = $chequeService->bulkUpdateChequeStatus(
                 $request->payment_ids,
                 $request->status,
@@ -2686,15 +2686,15 @@ class PaymentController extends Controller
                 case 'card':
                     $cashAmount = $totalRecoveryAmount;
                     break;
-                    
+
                 case 'new_cheque':
                     $chequeAmount = $totalRecoveryAmount;
                     break;
-                    
+
                 case 'partial_cash_cheque':
                     $cashAmount = floatval($request->cash_amount);
                     $chequeAmount = $totalRecoveryAmount - $cashAmount;
-                    
+
                     if ($chequeAmount < 0) {
                         return response()->json([
                             'status' => 400,
@@ -2707,7 +2707,7 @@ class PaymentController extends Controller
             // Process each bounced payment
             foreach ($bouncedPayments as $bouncedPayment) {
                 $paymentRecoveryAmount = $bouncedPayment->amount + ($bouncedPayment->bank_charges ?? 0);
-                
+
                 // Calculate proportional amounts for this payment
                 $paymentCashAmount = $cashAmount > 0 ? ($paymentRecoveryAmount / $totalRecoveryAmount) * $cashAmount : 0;
                 $paymentChequeAmount = $chequeAmount > 0 ? ($paymentRecoveryAmount / $totalRecoveryAmount) * $chequeAmount : 0;
@@ -2736,7 +2736,7 @@ class PaymentController extends Controller
                         'card_number' => $request->recovery_method === 'card' ? $request->card_number : null,
                         'card_type' => $request->recovery_method === 'card' ? $request->card_type : null,
                     ]);
-                    
+
                     $recoveryPayments[] = $recoveryPayment;
                 }
 
@@ -2762,7 +2762,7 @@ class PaymentController extends Controller
                         'cheque_valid_date' => $request->new_cheque_valid_date,
                         'cheque_status' => 'pending',
                     ]);
-                    
+
                     $recoveryPayments[] = $chequeRecoveryPayment;
                 }
 
@@ -2812,7 +2812,7 @@ class PaymentController extends Controller
                 'request_data' => $request->all(),
                 'error' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'status' => 500,
                 'message' => 'Failed to process bulk recovery payment: ' . $e->getMessage()
@@ -2828,12 +2828,12 @@ class PaymentController extends Controller
         try {
             $payment = Payment::findOrFail($paymentId);
             $chain = $payment->getRecoveryChain();
-            
+
             return response()->json([
                 'status' => 200,
                 'data' => $chain
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 500,
@@ -2918,7 +2918,7 @@ class PaymentController extends Controller
     {
         $paymentType = $request->payment_type;
         $dateStr = date('Ymd');
-        
+
         if ($paymentType === 'opening_balance') {
             // For opening balance payments
             if (isset($request->customer_id)) {
@@ -2933,7 +2933,7 @@ class PaymentController extends Controller
         } else {
             // For sale/purchase payments, collect reference numbers
             $referenceNumbers = [];
-            
+
             foreach ($request->payment_groups as $group) {
                 if (isset($group['bills'])) {
                     foreach ($group['bills'] as $bill) {
@@ -2951,7 +2951,7 @@ class PaymentController extends Controller
                     }
                 }
             }
-            
+
             if (!empty($referenceNumbers)) {
                 // Limit to first 3 reference numbers to keep reference manageable
                 $referenceList = implode(',', array_slice($referenceNumbers, 0, 3));

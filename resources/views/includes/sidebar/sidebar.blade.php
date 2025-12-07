@@ -57,11 +57,11 @@
                             @can('view customer')
                                 <li><a href="{{ route('customer') }}" class="{{ set_active(['customer']) }}">Customer</a></li>
                             @endcan
-                            
+
                             @canany(['view customer', 'view supplier'])
                                 <li><a href="{{ route('account.ledger') }}" class="{{ set_active(['account-ledger', 'unified-ledger']) }}"> Account Ledger</a></li>
                             @endcanany
-                            
+
                             @can('view customer')
                                 <!-- Customer Ledger redirects to Unified Ledger -->
                             @endcan
@@ -195,7 +195,7 @@
                             <li><a href="{{ route('draft-list') }}" class="{{ set_active(['draft-list']) }}">Draft
                                     List</a></li>
                             {{-- @endcan --}}
-                            
+
                             {{-- Sale Orders List --}}
                             @can('view sale-order')
                                 <li><a href="{{ route('sale-orders-list') }}" class="{{ set_active(['sale-orders-list']) }}">
@@ -327,7 +327,7 @@
                         <span class="menu-arrow"></span>
                     </a>
                     <ul>
-                       
+
                         @can('view routes')
                         <li><a href="{{ route('routes.create') }}"
                                 class="{{ set_active(['sales-rep/routes']) }}">Routes</a></li>
@@ -367,11 +367,11 @@
                             @can('view daily-report')
                                 <li><a href="{{ route('sales-report') }}" class="{{ set_active(['sales-report']) }}">Daily Sales Report</a></li>
                             @endcan
-                            
+
                             @can('view stock-report')
                                 <li><a href="{{ route('stock.report') }}" class="{{ set_active(['stock-report']) }}">Stock Report</a></li>
                             @endcan
-                            
+
                             @can('view profit-loss-report')
                                 <li><a href="{{ route('profit-loss.report') }}" class="{{ set_active(['profit-loss.report']) }}">Profit & Loss Report</a></li>
                             @endcan
@@ -399,7 +399,7 @@
                             @endcan
 
                             @can('view settings')
-                          
+
                                 <li><a href="{{ route('settings.index') }}" class="{{ set_active(['settings.index']) }}">Site Settings</a></li>
                             @endcan
 

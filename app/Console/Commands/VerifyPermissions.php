@@ -69,13 +69,13 @@ class VerifyPermissions extends Command
         $this->newLine();
 
         $roles = Role::with('permissions')->get();
-        
+
         $headers = ['Role', 'Sale Order Perms', 'Cheque Perms', 'Total Permissions'];
         $rows = [];
 
         foreach ($roles as $role) {
             $rolePerms = $role->permissions->pluck('name')->toArray();
-            
+
             $saleOrderPerms = array_intersect($rolePerms, ['create sale-order', 'view sale-order']);
             $chequePerms = array_intersect($rolePerms, [
                 'manage cheque',
@@ -102,23 +102,23 @@ class VerifyPermissions extends Command
 
         foreach ($roles as $role) {
             $rolePerms = $role->permissions->pluck('name')->toArray();
-            
+
             $this->info("Role: {$role->name}");
-            
+
             // Sale Order permissions
             $this->line('  Sale Order:');
             foreach (['create sale-order', 'view sale-order'] as $perm) {
                 $status = in_array($perm, $rolePerms) ? '✅' : '❌';
                 $this->line("    {$status} {$perm}");
             }
-            
+
             // Cheque permissions
             $this->line('  Cheque Management:');
             foreach (['manage cheque', 'view cheque', 'approve cheque', 'reject cheque', 'view cheque-management'] as $perm) {
                 $status = in_array($perm, $rolePerms) ? '✅' : '❌';
                 $this->line("    {$status} {$perm}");
             }
-            
+
             $this->newLine();
         }
 
@@ -132,7 +132,7 @@ class VerifyPermissions extends Command
         $rolesWithSaleOrder = $roles->filter(function($role) {
             return $role->hasPermissionTo('create sale-order') || $role->hasPermissionTo('view sale-order');
         })->count();
-        
+
         $rolesWithCheque = $roles->filter(function($role) {
             return $role->hasPermissionTo('view cheque-management');
         })->count();
