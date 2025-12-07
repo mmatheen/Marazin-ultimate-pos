@@ -59,9 +59,9 @@
     }
 
     .payment-methods-container {
-        height: 300px !important;
-        max-height: 300px !important;
-        min-height: 300px !important;
+        height: 380px !important;
+        max-height: 380px !important;
+        min-height: 380px !important;
         overflow-y: scroll !important;
         overflow-x: hidden !important;
         display: block !important;
@@ -350,7 +350,7 @@
                                             </button>
 
                                         </div>
-                                        <div id="flexiblePaymentsList" class="payment-methods-container">
+                                        <div id="flexiblePaymentsList" class="payment-methods-container" style="height: 380px; max-height: 380px; overflow-y: scroll; overflow-x: hidden;">
                                             <!-- Payment methods will be added here -->
                                         </div>
                                     </div>
@@ -701,13 +701,14 @@ $(document).ready(function() {
         });
     }
 
-    // Set today's date as default for "Paid On" field in DD-MM-YYYY format
+    // Set today's date as default for "Paid On" field in YYYY-MM-DD format
     var today = new Date();
-    var todayFormatted = String(today.getDate()).padStart(2, '0') + '-' +
+    var todayFormatted = today.getFullYear() + '-' +
         String(today.getMonth() + 1).padStart(2, '0') + '-' +
-        today.getFullYear();
+        String(today.getDate()).padStart(2, '0');
+    $('#paidOn').val(todayFormatted);
     $('input[name="payment_date"]').val(todayFormatted);
-    console.log('Set default date to today (DD-MM-YYYY):', todayFormatted);
+    console.log('Set default date to today (YYYY-MM-DD):', todayFormatted);
 
     // Load customers immediately
     setTimeout(function() {
@@ -1924,7 +1925,7 @@ function addFlexiblePayment() {
         </div>
     `;
 
-    $('#flexiblePaymentsList').append(paymentHTML);
+    $('#flexiblePaymentsList').prepend(paymentHTML);
 
     // Initialize payment method allocations
     paymentMethodAllocations[paymentId] = {
@@ -2088,7 +2089,16 @@ function updateSummaryTotals() {
 
         if ($totalBillsCount.length) $totalBillsCount.text(totalBills);
         if ($totalDueAmountFlex.length) $totalDueAmountFlex.text(`Rs. ${totalDueAmount.toFixed(2)}`);
-        if ($totalPaymentAmount.length) $totalPaymentAmount.text(`Rs. ${totalPaymentAmount.toFixed(2)}`);
+
+        if ($totalPaymentAmount.length) {
+            $totalPaymentAmount.text(`Rs. ${totalPaymentAmount.toFixed(2)}`);
+            // Update color based on amount
+            if (totalPaymentAmount > 0) {
+                $totalPaymentAmount.removeClass('text-muted').addClass('text-success');
+            } else {
+                $totalPaymentAmount.removeClass('text-success').addClass('text-muted');
+            }
+        }
 
         if ($balanceAmount.length) {
             // Enhanced balance display with better messaging
