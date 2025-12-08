@@ -60,7 +60,7 @@ class SaleController extends Controller
         })->only(['index', 'listSale', 'getDataTableSales', 'salesDetails']);
     }
 
- 
+
     private function validateCreditLimit($customer, $finalTotal, $payments, $saleStatus)
     {
         // Skip validation for walk-in customers
@@ -85,15 +85,15 @@ class SaleController extends Controller
 
         if (!empty($payments)) {
             $actualPaymentAmount = array_sum(array_column($payments, 'amount'));
-            
+
             // Check payment methods
             foreach ($payments as $payment) {
                 $paymentMethod = $payment['payment_method'] ?? '';
-                
+
                 if ($paymentMethod === 'credit') {
                     $hasCreditPayment = true;
                 }
-                
+
                 // Skip credit limit validation for cheque payments
                 if ($paymentMethod === 'cheque') {
                     $hasChequePayment = true;
@@ -116,10 +116,10 @@ class SaleController extends Controller
 
         // Get customer's current outstanding balance (calculate fresh from ledger)
         $currentBalance = $customer->calculateBalanceFromLedger();
-        
+
         // Calculate available credit remaining
         $availableCredit = max(0, $customer->credit_limit - $currentBalance);
-        
+
         // Check if the credit amount exceeds available credit
         if ($remainingBalance > $availableCredit) {
             // Format error message with clear breakdown
@@ -132,14 +132,14 @@ class SaleController extends Controller
             $errorMessage .= "• Total Sale Amount: Rs " . number_format($finalTotal, 2) . "\n";
             $errorMessage .= "• Payment Received: Rs " . number_format($actualPaymentAmount, 2) . "\n";
             $errorMessage .= "• Credit Amount Required: Rs " . number_format($remainingBalance, 2) . "\n\n";
-            
+
             if ($availableCredit > 0) {
                 $errorMessage .= "Maximum credit sale allowed: Rs " . number_format($availableCredit, 2) . "\n";
                 $errorMessage .= "Exceeds limit by: Rs " . number_format($remainingBalance - $availableCredit, 2);
             } else {
                 $errorMessage .= "No credit available. Please settle previous outstanding amount or pay full amount.";
             }
-            
+
             throw new \Exception($errorMessage);
         }
 
@@ -152,7 +152,7 @@ class SaleController extends Controller
         $locations = \App\Models\Location::select('id', 'name')->get();
         $customers = \App\Models\Customer::select('id', 'first_name', 'last_name')->get();
         $users = \App\Models\User::select('id', 'full_name')->get();
-        
+
         return view('sell.sale', compact('locations', 'customers', 'users'));
     }
 
@@ -171,7 +171,7 @@ class SaleController extends Controller
     {
         return view('sell.draft_list');
     }
-    
+
     public function quotation()
     {
         return view('sell.quotation_list');
@@ -189,7 +189,7 @@ class SaleController extends Controller
     {
         try {
             $saleOrder = Sale::findOrFail($id);
-            
+
             // Validate it's a sale order
             if ($saleOrder->transaction_type !== 'sale_order') {
                 return response()->json([
@@ -197,7 +197,7 @@ class SaleController extends Controller
                     'message' => 'This is not a Sale Order'
                 ], 400);
             }
-            
+
             // Validate not already converted
             if ($saleOrder->order_status === 'completed') {
                 return response()->json([
@@ -205,15 +205,15 @@ class SaleController extends Controller
                     'message' => 'This Sale Order has already been converted to an invoice'
                 ], 400);
             }
-            
+
             // Convert using model method
             $invoice = $saleOrder->convertToInvoice();
-            
+
             // ✨ Create ledger entry for the invoice (skip for Walk-In customers)
             if ($invoice->customer_id != 1) {
                 $this->unifiedLedgerService->recordSale($invoice);
             }
-            
+
             // Return success without redirecting to edit (stock already deducted)
             return response()->json([
                 'status' => 200,
@@ -227,7 +227,7 @@ class SaleController extends Controller
                 'print_url' => "/sales/print-recent-transaction/{$invoice->id}",
                 'success' => true
             ], 200);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 400,
@@ -243,7 +243,7 @@ class SaleController extends Controller
     {
         try {
             $saleOrder = Sale::findOrFail($id);
-            
+
             // Validate it's a sale order
             if ($saleOrder->transaction_type !== 'sale_order') {
                 return response()->json([
@@ -251,30 +251,30 @@ class SaleController extends Controller
                     'message' => 'This is not a Sale Order'
                 ], 400);
             }
-            
+
             // Store original status to check for cancellation
             $originalStatus = $saleOrder->order_status;
-            
+
             // Get the JSON data
             $data = $request->all();
-            
+
             // Check if this is a cancellation request
-            $isCancellation = isset($data['order_status']) && 
-                             $data['order_status'] === 'cancelled' && 
+            $isCancellation = isset($data['order_status']) &&
+                             $data['order_status'] === 'cancelled' &&
                              $originalStatus !== 'cancelled';
-            
+
             // If cancelling, use database transaction to restore stock
             if ($isCancellation) {
                 DB::transaction(function () use ($saleOrder, $data) {
                     // Get all products from the sale order
                     $products = $saleOrder->products;
-                    
+
                     Log::info('Starting sale order cancellation via updateSaleOrder', [
                         'sale_order_id' => $saleOrder->id,
                         'products_count' => $products->count(),
                         'original_status' => $saleOrder->order_status
                     ]);
-                    
+
                     // Restore stock for each product
                     foreach ($products as $product) {
                         Log::info("Processing product for stock restoration", [
@@ -283,32 +283,32 @@ class SaleController extends Controller
                             'quantity' => $product->quantity,
                             'location_id' => $product->location_id
                         ]);
-                        
+
                         // Use existing restoreStock function with sale_order_reversal type
                         $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_ORDER_REVERSAL);
                     }
-                    
+
                     // Update sale order status and other fields
                     $saleOrder->order_status = $data['order_status'];
                     $saleOrder->status = 'cancelled'; // Also update main status field
-                    
+
                     if (isset($data['order_notes'])) {
                         $saleOrder->order_notes = $data['order_notes'];
                     }
-                    
+
                     if (isset($data['expected_delivery_date'])) {
                         $saleOrder->expected_delivery_date = $data['expected_delivery_date'];
                     }
-                    
+
                     $saleOrder->save();
-                    
+
                     Log::info('Sale Order cancelled and stock restoration completed via updateSaleOrder', [
                         'sale_order_id' => $saleOrder->id,
                         'order_number' => $saleOrder->order_number,
                         'products_restored' => $products->count()
                     ]);
                 });
-                
+
                 return response()->json([
                     'status' => 200,
                     'message' => 'Sale Order cancelled successfully and stock restored!',
@@ -319,24 +319,24 @@ class SaleController extends Controller
                 if (isset($data['order_status'])) {
                     $saleOrder->order_status = $data['order_status'];
                 }
-                
+
                 if (isset($data['order_notes'])) {
                     $saleOrder->order_notes = $data['order_notes'];
                 }
-                
+
                 if (isset($data['expected_delivery_date'])) {
                     $saleOrder->expected_delivery_date = $data['expected_delivery_date'];
                 }
-                
+
                 $saleOrder->save();
-                
+
                 return response()->json([
                     'status' => 200,
                     'message' => 'Sale Order updated successfully!',
                     'sale_order' => $saleOrder
                 ], 200);
             }
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 400,
@@ -353,7 +353,7 @@ class SaleController extends Controller
     {
         try {
             $invoice = Sale::findOrFail($invoiceId);
-            
+
             // Validate it's an invoice
             if ($invoice->transaction_type !== 'invoice') {
                 return response()->json([
@@ -361,22 +361,22 @@ class SaleController extends Controller
                     'message' => 'This is not an invoice'
                 ], 400);
             }
-            
+
             // Find the original sale order
             $saleOrder = Sale::where('converted_to_sale_id', $invoiceId)
                 ->where('transaction_type', 'sale_order')
                 ->first();
-            
+
             if (!$saleOrder) {
                 return response()->json([
                     'status' => 400,
                     'message' => 'Original Sale Order not found'
                 ], 400);
             }
-            
+
             // Revert the conversion
             $saleOrder->revertInvoiceConversion($invoiceId);
-            
+
             return response()->json([
                 'status' => 200,
                 'message' => 'Invoice cancelled successfully. Sale Order restored to confirmed status.',
@@ -387,7 +387,7 @@ class SaleController extends Controller
                 ],
                 'redirect_url' => route('sale-orders-list')
             ], 200);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 400,
@@ -449,7 +449,7 @@ class SaleController extends Controller
 
     /**
      * Get sales data for DataTable with server-side processing
-     * 
+     *
      * This method fetches sales data from the database and returns it
      * in a format that DataTable can understand. It includes pagination,
      * search, and proper relationship loading.
@@ -462,25 +462,25 @@ class SaleController extends Controller
             $start = (int) $request->input('start', 0);      // Starting record number
             $draw = (int) $request->input('draw', 1);        // DataTable draw counter
             $search = $request->input('search.value', '');    // Search term
-            
+
             // Make sure parameters are valid
             if ($perPage <= 0) $perPage = 10;
             if ($start < 0) $start = 0;
-            
+
             // Get authenticated user
             /** @var \App\Models\User|null $user */
             $user = auth()->user();
-            
+
             // 2. Check if we have any sales (bypassing location scopes to get all sales)
             $totalSalesQuery = Sale::withoutGlobalScopes();
-            
+
             // If user can only view own sales, apply filter for total count too
             if ($user && $user->can('view own sales') && !$user->can('view all sales')) {
                 $totalSalesQuery->where('user_id', $user->id);
             }
-            
+
             $totalSales = $totalSalesQuery->count();
-            
+
             // If no sales exist in database, return helpful message
             if ($totalSales === 0) {
                 return response()->json([
@@ -494,11 +494,11 @@ class SaleController extends Controller
                     ]
                 ]);
             }
-            
+
             // 3. Build the main query (bypass location scopes to show all user's sales)
             $query = Sale::withoutGlobalScopes()->select([
                 'id', 'invoice_no', 'sales_date', 'customer_id', 'user_id', 'location_id',
-                'final_total', 'total_paid', 'total_due', 'payment_status', 'status', 
+                'final_total', 'total_paid', 'total_due', 'payment_status', 'status',
                 'created_at', 'updated_at', 'transaction_type'
             ])->where('status', 'final')
             ->where('transaction_type', '!=', 'sale_order') // Exclude sale orders from All Sales
@@ -507,12 +507,12 @@ class SaleController extends Controller
                 $q->where('transaction_type', 'invoice')
                   ->orWhereNull('transaction_type'); // Legacy records without transaction_type
             });
-            
+
             // Apply user-based filtering - if user can only view own sales, filter by user_id
             if ($user && $user->can('view own sales') && !$user->can('view all sales')) {
                 $query->where('user_id', $user->id);
             }
-            
+
             // Load related data (customer, user, location, payments) with correct column names
             // Note: We only load the columns we need to make the query faster
             // Load customer without global scopes to avoid location filtering
@@ -524,7 +524,7 @@ class SaleController extends Controller
                 'location:id,name',                            // Location where sale was made
                 'payments:id,reference_id,amount,payment_method,payment_date,notes' // Payment info
             ]);
-            
+
             // Count how many products are in each sale
             $query->withCount('products as total_items');
 
@@ -582,13 +582,13 @@ class SaleController extends Controller
 
             // 6. Get total count for pagination (after filters)
             $totalCount = $query->count();
-            
+
             // 7. Get the actual sales data with pagination
             $sales = $query->orderBy('created_at', 'desc')  // Newest first
                           ->skip($start)                      // Skip records for pagination
                           ->take($perPage)                    // Take only what we need
                           ->get();
-            
+
             // 8. Format the data for DataTable
             $salesData = [];
             foreach ($sales as $sale) {
@@ -597,10 +597,10 @@ class SaleController extends Controller
                 if ($sale->customer) {
                     $customerName = trim(($sale->customer->first_name ?? '') . ' ' . ($sale->customer->last_name ?? ''));
                 }
-                
+
                 // Use existing payment status from database (don't recalculate)
                 $paymentStatus = $sale->payment_status;
-                
+
                 // Format payment methods for display
                 $paymentMethods = [];
                 if ($sale->payments && $sale->payments->count() > 0) {
@@ -614,7 +614,7 @@ class SaleController extends Controller
                         ];
                     }
                 }
-                
+
                 // Create the data array for this sale
                 $salesData[] = [
                     'id' => $sale->id,
@@ -658,7 +658,7 @@ class SaleController extends Controller
         } catch (\Exception $e) {
             // If something goes wrong, log the error and return error response
             Log::error('Sales DataTable Error: ' . $e->getMessage());
-            
+
             return response()->json([
                 'error' => 'Failed to fetch sales data',
                 'message' => $e->getMessage(),
@@ -679,7 +679,7 @@ class SaleController extends Controller
         return response()->json(['message' => 'Sales cache cleared'], 200);
     }
 
-    
+
     public function salesDetails($id)
     {
         try {
@@ -879,7 +879,7 @@ class SaleController extends Controller
         // ✨ PERFORMANCE FIX: Set database query timeout for faster failure
         DB::statement('SET SESSION wait_timeout=30');
         DB::statement('SET SESSION interactive_timeout=30');
-        
+
         $validator = Validator::make($request->all(), [
             'customer_id' => 'required|integer|exists:customers,id',
             'location_id' => 'required|integer|exists:locations,id',
@@ -938,7 +938,7 @@ class SaleController extends Controller
             // Floating balance fields
             'use_floating_balance' => 'nullable|boolean',
             'floating_balance_amount' => 'nullable|numeric|min:0',
-            // Shipping validation rules  
+            // Shipping validation rules
             'shipping_details' => 'nullable|string|max:2000',
             'shipping_address' => 'nullable|string|max:1000',
             'shipping_charges' => 'nullable|numeric|min:0|max:999999.99',
@@ -958,7 +958,7 @@ class SaleController extends Controller
                 $hasCheque = collect($request->payments)->contains('payment_method', 'cheque');
                 if ($hasCheque) {
                     return response()->json([
-                        'status' => 400, 
+                        'status' => 400,
                         'message' => 'Cheque payment is not allowed for Walk-In Customer. Please choose another payment method or select a different customer.',
                         'errors' => ['payment_method' => ['Cheque payment is not allowed for Walk-In Customer.']]
                     ]);
@@ -968,7 +968,7 @@ class SaleController extends Controller
                 if ($request->status !== 'suspend') {
                     $finalTotal = $request->final_total ?? $request->total_amount ?? 0;
                     $totalPayments = collect($request->payments)->sum('amount');
-                    
+
                     // Only block if there's insufficient payment (credit sale)
                     if ($totalPayments < $finalTotal) {
                         return response()->json([
@@ -984,7 +984,7 @@ class SaleController extends Controller
         try {
             $startTime = microtime(true);
             Log::info('Sale processing started', ['customer_id' => $request->customer_id, 'start_time' => $startTime]);
-            
+
             // Pre-validation: Skip expensive credit limit check for Walk-In Customer
             if ($request->customer_id != 1) {
                 // Only do credit limit validation for non Walk-In customers
@@ -993,7 +993,7 @@ class SaleController extends Controller
                 $subtotal = array_reduce($request->products, fn($carry, $p) => $carry + $p['subtotal'], 0);
                 $discount = $request->discount_amount ?? 0;
                 $shippingCharges = $request->shipping_charges ?? 0; // Add shipping here too
-                
+
                 $finalTotal = $request->discount_type === 'percentage'
                     ? $subtotal - ($subtotal * $discount / 100) + $shippingCharges
                     : $subtotal - $discount + $shippingCharges;
@@ -1075,19 +1075,19 @@ class SaleController extends Controller
                 $subtotal = array_reduce($request->products, fn($carry, $p) => $carry + $p['subtotal'], 0);
                 $discount = $request->discount_amount ?? 0;
                 $shippingCharges = $request->shipping_charges ?? 0;
-                
+
                 // Debug the incoming request data
                 Log::info('🔍 SHIPPING REQUEST DATA:', [
                     'request_shipping_charges' => $request->shipping_charges,
                     'final_shipping_charges_used' => $shippingCharges,
                     'request_has_shipping' => isset($request->shipping_charges)
                 ]);
-                
+
                 // Calculate total after discount
                 $totalAfterDiscount = $request->discount_type === 'percentage'
                     ? $subtotal - ($subtotal * $discount / 100)
                     : $subtotal - $discount;
-                
+
                 // Add shipping charges to get final total
                 $finalTotal = $totalAfterDiscount + $shippingCharges;
 
@@ -1096,7 +1096,7 @@ class SaleController extends Controller
                     'request_final_total' => $request->final_total,
                     'calculated_subtotal' => $subtotal,
                     'calculated_discount' => $discount,
-                    'calculated_afterDiscount' => $totalAfterDiscount, 
+                    'calculated_afterDiscount' => $totalAfterDiscount,
                     'calculated_shippingCharges' => $shippingCharges,
                     'CALCULATED_FINAL_TOTAL' => $finalTotal,
                     'formula' => "{$subtotal} - {$discount} + {$shippingCharges} = {$finalTotal}",
@@ -1142,21 +1142,17 @@ class SaleController extends Controller
                     'shippingCharges' => $shippingCharges,
                     'about_to_save_final_total' => $finalTotal
                 ]);
-                
+
                 // ----- Store customer change information before updating sale -----
                 $oldCustomerId = $isUpdate ? $sale->getOriginal('customer_id') : null;
                 $oldFinalTotal = $isUpdate ? $sale->getOriginal('final_total') : null;
                 $customerChanged = $isUpdate && ($oldCustomerId != $request->customer_id);
-                
+
                 // ✅ CRITICAL FIX: Double-check customer exists before saving sale
                 if (!Customer::where('id', $request->customer_id)->exists()) {
-                    return response()->json([
-                        'status' => 400,
-                        'message' => "Customer with ID {$request->customer_id} does not exist.",
-                        'errors' => ['customer_id' => ['The selected customer does not exist.']]
-                    ]);
+                    throw new \Exception("Customer with ID {$request->customer_id} does not exist.");
                 }
-                
+
                 $sale->fill([
                     'customer_id' => $request->customer_id,
                     'location_id' => $request->location_id,
@@ -1205,17 +1201,13 @@ class SaleController extends Controller
                         'error_code' => $e->getCode(),
                         'sale_attributes' => $sale->getAttributes()
                     ]);
-                    
+
                     // Return specific error for database constraint violations
-                    if (str_contains($e->getMessage(), 'foreign key constraint') || 
+                    if (str_contains($e->getMessage(), 'foreign key constraint') ||
                         str_contains($e->getMessage(), 'Integrity constraint violation')) {
-                        return response()->json([
-                            'status' => 400,
-                            'message' => "Invalid customer ID: Customer with ID {$request->customer_id} does not exist.",
-                            'errors' => ['customer_id' => ['The selected customer does not exist.']]
-                        ]);
+                        throw new \Exception("Invalid customer ID: Customer with ID {$request->customer_id} does not exist.");
                     }
-                    
+
                     throw $e; // Re-throw for other errors
                 }
 
@@ -1260,7 +1252,7 @@ class SaleController extends Controller
                             'reference_no' => $referenceNo,
                             'notes' => 'Advance payment for job ticket',
                         ];
-                        
+
                         $payment = $this->paymentService->recordSalePayment($paymentData, $sale);
                     }
                 }
@@ -1278,7 +1270,7 @@ class SaleController extends Controller
                 // ----- Handle Payments (if not jobticket and not sale_order) -----
                 if ($sale->status !== 'jobticket' && $transactionType !== 'sale_order') {
                     $totalPaid = 0;
-                    
+
                     // ✨ FAST PATH: Simplified payment processing for Walk-In customers
                     if ($request->customer_id == 1 && !empty($request->payments)) {
                         // Fast payment processing for Walk-In customers - FIXED: Exclude pending cheques
@@ -1289,7 +1281,7 @@ class SaleController extends Controller
                             }
                             return $payment['amount'];
                         });
-                        
+
                         foreach ($request->payments as $paymentData) {
                             if (!empty($paymentData['amount']) && $paymentData['amount'] > 0) {
                                 // Ensure payment_date is in proper format
@@ -1301,7 +1293,7 @@ class SaleController extends Controller
                                         $paymentDate = now();
                                     }
                                 }
-                                
+
                                 Payment::create([
                                     'reference_id' => $sale->id,
                                     'payment_type' => 'sale',
@@ -1313,12 +1305,12 @@ class SaleController extends Controller
                                 ]);
                             }
                         }
-                        
+
                         $sale->update([
                             'total_paid' => $totalPaid,
                             'payment_status' => $totalPaid >= $sale->final_total ? 'Paid' : 'Partial',
                         ]);
-                        
+
                     } elseif (!empty($request->payments)) {
                         // FIXED: Calculate total paid excluding pending cheques
                         $totalPaid = 0;
@@ -1336,7 +1328,7 @@ class SaleController extends Controller
                         if ($isUpdate) {
                             // Handle payment updates properly for customer changes
                             $oldPayments = Payment::where('reference_id', $sale->id)->get();
-                            
+
                             if ($customerChanged) {
                                 // Customer changed - payment ledger entries already handled by editSaleWithCustomerChange
                                 // Just delete the payment records since ledger reversals are already done
@@ -1365,7 +1357,7 @@ class SaleController extends Controller
                                     $paymentDate = now();
                                 }
                             }
-                            
+
                             // Prepare payment data with enhanced cheque handling
                             $servicePaymentData = [
                                 'payment_date' => $paymentDate,
@@ -1388,7 +1380,7 @@ class SaleController extends Controller
                             } elseif ($paymentData['payment_method'] === 'cheque') {
                                 // Ensure cheque_status has a default value if not provided
                                 $chequeStatus = $paymentData['cheque_status'] ?? 'pending';
-                                
+
                                 $servicePaymentData = array_merge($servicePaymentData, [
                                     'cheque_number' => $paymentData['cheque_number'] ?? null,
                                     'cheque_bank_branch' => $paymentData['cheque_bank_branch'] ?? null,
@@ -1432,17 +1424,17 @@ class SaleController extends Controller
                                 $paymentStatus = 'Partial';
                             }
                         }
-                        
+
                         $sale->update([
                             'total_paid' => $totalPaid,
                             'payment_status' => $paymentStatus,
                         ]);
-                        
+
                     } elseif ($isUpdate) {
                         // ✨ PERFORMANCE FIX: Only update if needed
                         $amountGiven = $request->amount_given ?? $sale->final_total;
                         $calculatedTotalPaid = min($amountGiven, $finalTotal);
-                        
+
                         if ($sale->total_paid !== $calculatedTotalPaid || $sale->amount_given !== $amountGiven) {
                             $sale->update([
                                 'total_paid' => $calculatedTotalPaid,
@@ -1489,18 +1481,18 @@ class SaleController extends Controller
                     ->select('id', 'product_name', 'sku', 'stock_alert', 'unit_id')
                     ->with('unit:id,allow_decimal')
                     ->get()->keyBy('id');
-                
+
                 foreach ($request->products as $productData) {
                     $product = $products[$productData['product_id']] ?? null;
                     if (!$product) {
                         throw new \Exception("Product ID {$productData['product_id']} not found");
                     }
-                    
+
                     // *** CRITICAL SECURITY FIX: Validate price integrity during edit mode ***
                     if ($isUpdate) {
                         $this->validateEditModePrice($productData, $sale);
                     }
-                    
+
                     if ($product->stock_alert === 0) {
                         $this->processUnlimitedStockProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
                     } else {
@@ -1508,7 +1500,7 @@ class SaleController extends Controller
                         if ($isUpdate && in_array($newStatus, ['final', 'suspend'])) {
                             $this->validateStockForUpdate($productData, $request->location_id, $originalProducts ?? []);
                         }
-                        
+
                         // ✨ For Sale Orders: Deduct stock but use special stock type for allocation tracking
                         if ($transactionType === 'sale_order') {
                             $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE_ORDER, 'sale_order');
@@ -1536,11 +1528,11 @@ class SaleController extends Controller
                             'old_amount' => $oldFinalTotal,
                             'new_amount' => $sale->final_total
                         ]);
-                        
+
                         $this->unifiedLedgerService->editSaleWithCustomerChange(
-                            $sale, 
-                            $oldCustomerId, 
-                            $request->customer_id, 
+                            $sale,
+                            $oldCustomerId,
+                            $request->customer_id,
                             $oldFinalTotal,
                             'Customer changed during sale edit'
                         );
@@ -1554,7 +1546,7 @@ class SaleController extends Controller
                                 'sale_customer_id' => $sale->customer_id,
                                 'sale_attributes' => $sale->getAttributes(),
                             ]);
-                            
+
                             // Try to reload the sale from database
                             $sale->refresh();
                             if (empty($sale->customer_id)) {
@@ -1565,7 +1557,7 @@ class SaleController extends Controller
                     }
                     // Note: New sales are already recorded above (before payments)
                 }
-                
+
                 // *** CRITICAL FIX: Always recalculate customer balance after sale edits ***
                 if ($isUpdate && $request->customer_id != 1) {
                     $this->recalculateCustomerBalance($request->customer_id);
@@ -1576,7 +1568,7 @@ class SaleController extends Controller
             });
 
             // POST-TRANSACTION OPERATIONS (for better performance)
-            
+
             // Create cheque reminders outside transaction - Skip for Walk-In customers
             if (!empty($request->payments) && $request->customer_id != 1) {
                 $payments = Payment::where('reference_id', $sale->id)
@@ -1584,7 +1576,7 @@ class SaleController extends Controller
                     ->where('payment_method', 'cheque')
                     ->whereNotNull('cheque_valid_date')
                     ->get();
-                    
+
                 foreach ($payments as $payment) {
                     $payment->createReminders();
                 }
@@ -1592,14 +1584,14 @@ class SaleController extends Controller
 
             // ✨ PERFORMANCE FIX: Skip heavy receipt generation for Walk-In customers and other optimizations
         $isWalkInCustomer = $sale->customer_id == 1;
-        $shouldGenerateReceipt = !$request->header('X-Skip-Receipt') && 
-                               $sale->status !== 'jobticket' && 
+        $shouldGenerateReceipt = !$request->header('X-Skip-Receipt') &&
+                               $sale->status !== 'jobticket' &&
                                !($isWalkInCustomer && $request->status === 'final'); // Skip for Walk-In final sales
-        
+
         if ($shouldGenerateReceipt) {
             // ✨ PERFORMANCE FIX: Eager load all related data in single queries
             $sale->load(['location', 'user']);
-            
+
             // Optimized customer loading (avoid re-loading for Walk-In Customer)
             if ($sale->customer_id == 1) {
                 // Create a simple Walk-In Customer object to avoid database call
@@ -1615,7 +1607,7 @@ class SaleController extends Controller
                 // Use withoutGlobalScopes for receipt generation
                 $customer = Customer::withoutGlobalScopes()->findOrFail($sale->customer_id);
             }
-            
+
             // ✨ PERFORMANCE FIX: Get products and payments in parallel
             [$products, $payments] = [
                 SalesProduct::with(['product:id,product_name,sku', 'imeis:id,sale_product_id,imei_number'])
@@ -1625,7 +1617,7 @@ class SaleController extends Controller
                     ->select('id', 'amount', 'payment_method', 'payment_date', 'reference_no', 'notes')
                     ->get()
             ];
-            
+
             $user = $sale->user;
             $location = $sale->location;
         } else {
@@ -1642,7 +1634,7 @@ class SaleController extends Controller
             if ($customer && $customer->id != 1) {
                 $customerOutstandingBalance = $customer->calculateBalanceFromLedger();
             }
-            
+
             $viewData = [
                 'sale' => $sale,
                 'customer' => $customer,
@@ -1728,7 +1720,7 @@ class SaleController extends Controller
             ], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 400);
-            
+
         }
     }
 
@@ -1750,24 +1742,24 @@ class SaleController extends Controller
                         $customerOutstandingBalance = $customer->calculateBalanceFromLedger();
                     }
                     $viewData['customer_outstanding_balance'] = $customerOutstandingBalance;
-                    
+
                     // Get location from sale for receipt template selection
                     $location = $sale->location;
                     $receiptView = $location ? $location->getReceiptViewName() : 'sell.receipt';
-                    
+
                     // Render the location-specific receipt view to HTML
                     $receiptHtml = view($receiptView, $viewData)->render();
 
                     // Generate PDF with appropriate paper size based on layout
                     $paperSize = [0, 0, 226.77, 842]; // Default 80mm x 297mm
                     $layoutType = $location ? $location->invoice_layout_pos : '80mm';
-                    
+
                     if ($layoutType === 'a4') {
                         $paperSize = 'A4';
                     } elseif ($layoutType === 'dot_matrix') {
                         $paperSize = [0, 0, 612, 792]; // 8.5" x 11"
                     }
-                    
+
                     $pdf = Pdf::loadHTML($receiptHtml)->setPaper($paperSize, 'portrait');
                     $pdfContent = $pdf->output();
 
@@ -1797,7 +1789,7 @@ class SaleController extends Controller
         })->afterResponse();
     }
 
- 
+
 
     private function processProductSale($productData, $saleId, $locationId, $stockType, $newStatus)
     {
@@ -1882,7 +1874,7 @@ class SaleController extends Controller
             if (!empty($productData['imei_numbers']) && is_array($productData['imei_numbers'])) {
                 $requiredImeiCount = min(count($productData['imei_numbers']), $deduction['quantity']);
                 $imeiNumbers = array_slice($productData['imei_numbers'], 0, $requiredImeiCount);
-                
+
                 if (!empty($imeiNumbers)) {
                     // Single batch update for IMEI status
                     ImeiNumber::whereIn('imei_number', $imeiNumbers)
@@ -2010,7 +2002,7 @@ class SaleController extends Controller
                     'batch_id' => $batch->id,
                     'quantity' => $remainingQuantity,
                 ];
-            } 
+            }
             else {
                 // Only check stock for final/suspend status
                 if ($locationBatch && $locationBatch->qty >= $remainingQuantity) {
@@ -2085,7 +2077,7 @@ class SaleController extends Controller
         $totalQuantity = $productData['quantity'];
         $productId = $productData['product_id'];
         $batchId = $productData['batch_id'];
-        
+
         // Get original quantity sold for this product/batch combination
         $originalQuantity = 0;
         if (isset($originalProducts[$productId])) {
@@ -2102,7 +2094,7 @@ class SaleController extends Controller
             // Specific batch selected
             $currentStock = Sale::getAvailableStock($batchId, $locationId);
             $availableStock = $currentStock + $originalQuantity;
-            
+
             if ($totalQuantity > $availableStock) {
                 throw new \Exception("Batch ID {$batchId} does not have enough stock. Available: {$availableStock}, Requested: {$totalQuantity}");
             }
@@ -2113,9 +2105,9 @@ class SaleController extends Controller
                 ->where('batches.product_id', $productId)
                 ->where('location_batches.location_id', $locationId)
                 ->sum('location_batches.qty');
-                
+
             $availableStock = $currentTotalStock + $originalQuantity;
-            
+
             if ($totalQuantity > $availableStock) {
                 throw new \Exception("Not enough stock available. Available: {$availableStock}, Requested: {$totalQuantity}");
             }
@@ -2188,30 +2180,30 @@ class SaleController extends Controller
     private function restoreImeiNumbers($salesProduct)
     {
         Log::info("Restoring IMEI numbers for sale product ID {$salesProduct->id}");
-        
+
         // Get all IMEI numbers associated with this sale product
         $saleImeis = SaleImei::where('sale_product_id', $salesProduct->id)->get();
-        
+
         if ($saleImeis->isNotEmpty()) {
             // Batch update IMEI statuses
             $imeiNumbers = $saleImeis->pluck('imei_number')->toArray();
-            
+
             $updated = ImeiNumber::whereIn('imei_number', $imeiNumbers)
                 ->where('product_id', $salesProduct->product_id)
                 ->where('batch_id', $salesProduct->batch_id)
                 ->where('location_id', $salesProduct->location_id)
                 ->update(['status' => 'available']);
-                
+
             Log::info("Updated {$updated} IMEI numbers to available status");
-            
+
             // Batch delete sale IMEI records
             SaleImei::where('sale_product_id', $salesProduct->id)->delete();
         }
-        
+
         Log::info("Completed IMEI restoration for sale product ID {$salesProduct->id}");
     }
 
- 
+
 
     private function generateReferenceNo()
     {
@@ -2253,7 +2245,7 @@ class SaleController extends Controller
             // Use the actual stored price from sales_products table
             // This already includes all discounts applied during the sale
             $actualPrice = $product->price; // This is the final price customer paid per unit
-            
+
             // Add unit details with better null handling
             $productModel = $product->product;
             if ($productModel && $productModel->unit) {
@@ -2324,7 +2316,7 @@ class SaleController extends Controller
                         'final_total' => $sale->final_total, // Raw number, not formatted
                     ];
                 });
-            
+
             return response()->json($suspendedSales->values(), 200); // Ensure it returns an array
         } catch (\Exception $e) {
             logger()->error('Error fetching suspended sales: ' . $e->getMessage());
@@ -2436,7 +2428,7 @@ class SaleController extends Controller
                     }
 
                     $batchId = $product->batch_id ?? 'all';
-                    
+
                     // Get current available stock
                     $currentStock = $batchId === 'all'
                         ? DB::table('location_batches')
@@ -2445,7 +2437,7 @@ class SaleController extends Controller
                         ->where('location_batches.location_id', $product->location_id)
                         ->sum('location_batches.qty')
                         : Sale::getAvailableStock($batchId, $product->location_id);
-                    
+
                     // For editing: max allowed = current stock + quantity from this sale
                     // This represents what would be available if we "undo" this sale
                     $totalAllowedQuantity = $currentStock + $product->quantity;
@@ -2598,7 +2590,7 @@ class SaleController extends Controller
                     $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
                     $product->delete();
                 }
-                
+
                 // 2. Clean up ledger entries to maintain accounting accuracy
                 // This ensures customer balance is corrected when suspended sale is deleted
                 if ($sale->customer_id && $sale->customer_id != 1) {
@@ -2609,21 +2601,21 @@ class SaleController extends Controller
                         'invoice_no' => $sale->invoice_no
                     ]);
                 }
-                
+
                 // 3. Delete the sale record
                 $sale->delete();
             });
 
             Log::info('Successfully deleted suspended sale', ['sale_id' => $id]);
             return response()->json(['message' => 'Suspended sale deleted, stock restored, and customer balance updated successfully.'], 200);
-            
+
         } catch (\Exception $e) {
             Log::error('Error deleting suspended sale', [
                 'sale_id' => $id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json(['message' => 'An error occurred while deleting the sale: ' . $e->getMessage()], 500);
         }
     }
@@ -2638,12 +2630,12 @@ class SaleController extends Controller
                 $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
                 $product->delete();
             }
-            
+
             // 2. Clean up ledger entries for non-Walk-In customers
             // Only delete ledger entries for sales that would have created them
-            if ($sale->customer_id && $sale->customer_id != 1 && 
+            if ($sale->customer_id && $sale->customer_id != 1 &&
                 !in_array($sale->status, ['draft', 'quotation'])) {
-                
+
                 $deletedLedgerEntries = $this->unifiedLedgerService->deleteSaleLedger($sale);
                 Log::info("Deleted {$deletedLedgerEntries} ledger entries for sale deletion", [
                     'sale_id' => $sale->id,
@@ -2652,7 +2644,7 @@ class SaleController extends Controller
                     'status' => $sale->status
                 ]);
             }
-            
+
             // 3. Delete the sale record
             $sale->delete();
         });
@@ -2757,7 +2749,7 @@ class SaleController extends Controller
 
     /**
      * Process floating balance adjustment against sale
-     * 
+     *
      * @param Sale $sale
      * @param float $adjustmentAmount
      * @return void
@@ -2776,7 +2768,7 @@ class SaleController extends Controller
             'payment_status' => 'completed',
             'created_by' => auth()->id()
         ]);
-        
+
         $payment->save();
 
         // Record in unified ledger as floating balance recovery
@@ -2818,17 +2810,17 @@ class SaleController extends Controller
             // Get the last 3 sales of this product for this customer with price and date
             $previousPrices = collect(DB::select("
                 SELECT sp.price, sp.quantity, s.created_at, s.invoice_no
-                FROM sales_products sp 
-                JOIN sales s ON sp.sale_id = s.id 
+                FROM sales_products sp
+                JOIN sales s ON sp.sale_id = s.id
                 WHERE s.customer_id = ? AND sp.product_id = ? AND s.status = 'final'
-                ORDER BY s.created_at DESC 
+                ORDER BY s.created_at DESC
                 LIMIT 3
             ", [$customerId, $productId]))
                 ->map(function ($saleProduct) {
                     $unitPrice = floatval($saleProduct->price);
                     $quantity = floatval($saleProduct->quantity);
                     $total = $unitPrice * $quantity;
-                    
+
                     return [
                         'sale_date' => \Carbon\Carbon::parse($saleProduct->created_at)->format('Y-m-d'),
                         'invoice_no' => $saleProduct->invoice_no,
@@ -2839,8 +2831,8 @@ class SaleController extends Controller
                 });
 
             // Calculate average price if there are previous purchases
-            $averagePrice = $previousPrices->isNotEmpty() 
-                ? $previousPrices->avg('unit_price') 
+            $averagePrice = $previousPrices->isNotEmpty()
+                ? $previousPrices->avg('unit_price')
                 : null;
 
             return response()->json([
@@ -2870,7 +2862,7 @@ class SaleController extends Controller
 
     /**
      * Validate price integrity during edit mode to prevent manipulation
-     * 
+     *
      * @param array $productData
      * @param Sale $sale
      * @throws \Exception
@@ -2966,7 +2958,7 @@ class SaleController extends Controller
     /**
      * Recalculate and update customer balance based on actual outstanding dues
      * This prevents balance discrepancies after sale edits
-     * 
+     *
      * @param int $customerId
      */
     private function recalculateCustomerBalance($customerId)
@@ -2977,18 +2969,18 @@ class SaleController extends Controller
                 ->where('customer_id', $customerId)
                 ->where('status', 'final')
                 ->sum('total_due');
-            
+
             // Update customer balance
             Customer::withoutGlobalScopes()
                 ->where('id', $customerId)
                 ->update(['current_balance' => $totalDue]);
-            
+
             Log::info('Customer balance recalculated after sale edit', [
                 'customer_id' => $customerId,
                 'new_balance' => $totalDue,
                 'recalculated_by' => auth()->id()
             ]);
-            
+
         } catch (\Exception $e) {
             Log::error('Failed to recalculate customer balance', [
                 'customer_id' => $customerId,
