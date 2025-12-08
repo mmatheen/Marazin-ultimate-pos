@@ -270,7 +270,7 @@
                 @endcanany
 
                 <li class="menu-title">
-                    <span>Inventory</span>
+                    <span>Stock</span>
                 </li>
 
                 @canany(['view stock-transfer', 'create stock-transfer', 'view stock-adjustment', 'create stock-adjustment'])
