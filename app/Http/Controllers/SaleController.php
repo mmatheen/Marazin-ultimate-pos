@@ -811,6 +811,7 @@ class SaleController extends Controller
             $netIncome = $billTotal - $totalSalesReturns;
 
             // Cash in Hand: Total of all actual payments received (Cash + Card + Cheque + Bank Transfer)
+            // Note: This shows money collected, not accounting for pending return refunds
             $cashInHand = $paymentTotal;
 
             $summaries = [
