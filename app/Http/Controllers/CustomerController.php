@@ -38,7 +38,7 @@ class CustomerController extends Controller
         return view('contact.customer.customer', compact('cities', 'customerGroups'));
     }
 
-  
+
     public function index()
 {
     /** @var User $user */
@@ -50,7 +50,7 @@ class CustomerController extends Controller
 
     // Start with bypassing all global scopes to ensure accurate balance calculations
     $query = Customer::withoutGlobalScopes()->with(['sales', 'salesReturns', 'payments', 'city']);
-    
+
     // Apply sales rep route filtering if user is a sales rep
     if ($user->isSalesRep()) {
         $query = $this->applySalesRepFilter($query, $user);
@@ -148,9 +148,9 @@ class CustomerController extends Controller
                     ->where('payment_method', 'cheque')
                     ->where('cheque_status', 'bounced')
                     ->count();
-                    
+
                 $floatingBalance = $customer->getFloatingBalance();
-                
+
                 return [
                     'id' => $customer->id,
                     'full_name' => $customer->full_name,
@@ -232,11 +232,11 @@ class CustomerController extends Controller
     //         ]);
     //     } catch (\Illuminate\Database\QueryException $e) {
     //         DB::rollBack();
-            
+
     //         // Handle specific database constraint violations
     //         if ($e->errorInfo[1] == 1062) { // Duplicate entry error code
     //             $errorMessage = $e->getMessage();
-                
+
     //             if (strpos($errorMessage, 'customers_mobile_no_unique') !== false) {
     //                 return response()->json([
     //                     'status' => 400,
@@ -245,7 +245,7 @@ class CustomerController extends Controller
     //                     ]
     //                 ]);
     //             }
-                
+
     //             if (strpos($errorMessage, 'customers_email_unique') !== false) {
     //                 return response()->json([
     //                     'status' => 400,
@@ -254,13 +254,13 @@ class CustomerController extends Controller
     //                     ]
     //                 ]);
     //             }
-                
+
     //             return response()->json([
     //                 'status' => 400,
     //                 'message' => 'A customer with these details already exists.'
     //             ]);
     //         }
-            
+
     //         Log::error('Customer creation error: ' . $e->getMessage());
     //         return response()->json([
     //             'status' => 500,
@@ -355,18 +355,18 @@ class CustomerController extends Controller
             ]);
         } catch (\Illuminate\Database\QueryException $e) {
             DB::rollBack();
-            
+
             Log::error('Customer creation QueryException', [
                 'error_message' => $e->getMessage(),
                 'error_code' => $e->errorInfo[1] ?? 'Unknown',
                 'sql_state' => $e->errorInfo[0] ?? 'Unknown',
                 'request_data' => $request->all()
             ]);
-            
+
             // Handle specific database constraint violations
             if ($e->errorInfo[1] == 1062) { // Duplicate entry error code
                 $errorMessage = $e->getMessage();
-                
+
                 if (strpos($errorMessage, 'customers_mobile_no_unique') !== false) {
                     return response()->json([
                         'status' => 400,
@@ -375,7 +375,7 @@ class CustomerController extends Controller
                         ]
                     ], 400);
                 }
-                
+
                 if (strpos($errorMessage, 'customers_email_unique') !== false) {
                     return response()->json([
                         'status' => 400,
@@ -384,17 +384,17 @@ class CustomerController extends Controller
                         ]
                     ], 400);
                 }
-                
+
                 return response()->json([
                     'status' => 400,
                     'message' => 'A customer with these details already exists.'
                 ], 400);
             }
-            
+
             // Handle null constraint violations
             if ($e->errorInfo[1] == 1048) { // Cannot be null error code
                 $errorMessage = $e->getMessage();
-                
+
                 if (strpos($errorMessage, 'customer_type') !== false) {
                     return response()->json([
                         'status' => 400,
@@ -404,7 +404,7 @@ class CustomerController extends Controller
                     ], 400);
                 }
             }
-            
+
             Log::error('Customer creation error: ' . $e->getMessage());
             return response()->json([
                 'status' => 400,
@@ -419,7 +419,7 @@ class CustomerController extends Controller
                 'stack_trace' => $e->getTraceAsString(),
                 'request_data' => $request->all()
             ]);
-            
+
             // Check if this is a duplicate entry error that wasn't caught above
             $errorMessage = $e->getMessage();
             if (strpos($errorMessage, 'Duplicate') !== false || strpos($errorMessage, '1062') !== false || strpos($errorMessage, 'Integrity constraint violation') !== false) {
@@ -432,7 +432,7 @@ class CustomerController extends Controller
                         ]
                     ], 400);
                 }
-                
+
                 // Check for email duplicate
                 if (strpos($errorMessage, 'email') !== false) {
                     return response()->json([
@@ -442,13 +442,13 @@ class CustomerController extends Controller
                         ]
                     ], 400);
                 }
-                
+
                 return response()->json([
                     'status' => 400,
                     'message' => 'A customer with these details already exists.'
                 ], 400);
             }
-            
+
             return response()->json([
                 'status' => 500,
                 'message' => "Error creating customer. Please try again."
@@ -470,6 +470,14 @@ class CustomerController extends Controller
 
     public function update(Request $request, int $id)
     {
+        // ✅ CRITICAL PROTECTION: Prevent editing Walk-In Customer's essential details
+        if ($id == 1) {
+            return response()->json([
+                'status' => 403,
+                'message' => 'Cannot modify Walk-In Customer! This is a system-protected customer.'
+            ], 403);
+        }
+
         $validator = Validator::make($request->all(), [
             'prefix' => 'nullable|string|max:10',
             'first_name' => 'required|string|max:255',
@@ -572,11 +580,11 @@ class CustomerController extends Controller
                 ]);
             } catch (\Illuminate\Database\QueryException $e) {
                 DB::rollBack();
-                
+
                 // Handle specific database constraint violations
                 if ($e->errorInfo[1] == 1062) { // Duplicate entry error code
                     $errorMessage = $e->getMessage();
-                    
+
                     if (strpos($errorMessage, 'customers_mobile_no_unique') !== false) {
                         return response()->json([
                             'status' => 400,
@@ -585,7 +593,7 @@ class CustomerController extends Controller
                             ]
                         ]);
                     }
-                    
+
                     if (strpos($errorMessage, 'customers_email_unique') !== false) {
                         return response()->json([
                             'status' => 400,
@@ -594,13 +602,13 @@ class CustomerController extends Controller
                             ]
                         ]);
                     }
-                    
+
                     return response()->json([
                         'status' => 400,
                         'message' => 'A customer with these details already exists.'
                     ]);
                 }
-                
+
                 Log::error('Customer update error: ' . $e->getMessage());
                 return response()->json([
                     'status' => 500,
@@ -609,7 +617,7 @@ class CustomerController extends Controller
             } catch (\Exception $e) {
                 DB::rollBack();
                 Log::error('Customer update error: ' . $e->getMessage());
-                
+
                 // Check if this is a duplicate entry error that wasn't caught above
                 $errorMessage = $e->getMessage();
                 if (strpos($errorMessage, 'Duplicate') !== false || strpos($errorMessage, '1062') !== false || strpos($errorMessage, 'Integrity constraint violation') !== false) {
@@ -622,7 +630,7 @@ class CustomerController extends Controller
                             ]
                         ], 400);
                     }
-                    
+
                     // Check for email duplicate
                     if (strpos($errorMessage, 'email') !== false) {
                         return response()->json([
@@ -632,13 +640,13 @@ class CustomerController extends Controller
                             ]
                         ], 400);
                     }
-                    
+
                     return response()->json([
                         'status' => 400,
                         'message' => 'A customer with these details already exists.'
                     ], 400);
                 }
-                
+
                 return response()->json([
                     'status' => 500,
                     'message' => "Error updating customer. Please try again."
@@ -651,6 +659,14 @@ class CustomerController extends Controller
 
     public function destroy(int $id)
     {
+        // ✅ CRITICAL PROTECTION: Prevent deletion of Walk-In Customer (ID 1)
+        if ($id == 1) {
+            return response()->json([
+                'status' => 403,
+                'message' => 'Cannot delete Walk-In Customer! This is a system-protected customer.'
+            ], 403);
+        }
+
         $customer = Customer::withoutLocationScope()->find($id);
         if ($customer) {
             try {
@@ -709,7 +725,7 @@ class CustomerController extends Controller
 
     /**
      * Get customers for a specific route
-     * 
+     *
      * @param int $routeId
      * @return \Illuminate\Http\JsonResponse
      */
@@ -753,7 +769,7 @@ class CustomerController extends Controller
 
     /**
      * Filter customers by cities
-     * 
+     *
      * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\JsonResponse
      */
@@ -777,7 +793,7 @@ class CustomerController extends Controller
                 $query->whereHas('city', function ($cityQuery) use ($cityNames) {
                     $cityQuery->whereRaw('LOWER(name) IN (' . implode(',', array_fill(0, count($cityNames), '?')) . ')', $cityNames);
                 });
-                
+
                 // Also include customers without any city assigned
                 // This allows sales reps to see customers who haven't been assigned a city yet
                 $query->orWhereNull('city_id');
@@ -829,7 +845,7 @@ class CustomerController extends Controller
         // The UnifiedLedgerService already handles all the complexity correctly
         // It will create proper reversal entries + new opening balance entries
         // No need to consider payments here - that's handled by the balance calculation logic
-        
+
         if ($oldOpeningBalance != $newOpeningBalance) {
             $notes = sprintf(
                 "Opening Balance Edit: Rs.%s -> Rs.%s",

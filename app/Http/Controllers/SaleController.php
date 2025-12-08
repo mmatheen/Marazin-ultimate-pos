@@ -1148,8 +1148,8 @@ class SaleController extends Controller
                 $oldFinalTotal = $isUpdate ? $sale->getOriginal('final_total') : null;
                 $customerChanged = $isUpdate && ($oldCustomerId != $request->customer_id);
 
-                // ✅ CRITICAL FIX: Double-check customer exists before saving sale
-                if (!Customer::where('id', $request->customer_id)->exists()) {
+                // ✅ CRITICAL FIX: Double-check customer exists before saving sale (use withoutGlobalScopes)
+                if (!Customer::withoutGlobalScopes()->where('id', $request->customer_id)->exists()) {
                     throw new \Exception("Customer with ID {$request->customer_id} does not exist.");
                 }
 

@@ -36,7 +36,7 @@ class CustomerController extends Controller
         return view('contact.customer.customer', compact('cities', 'customerGroups'));
     }
 
-  
+
     public function index()
     {
         /** @var User $user */
@@ -48,7 +48,7 @@ class CustomerController extends Controller
 
         // Start with bypassing location scope, but apply sales rep filtering if needed
         $query = Customer::withoutLocationScope()->with(['sales', 'salesReturns', 'payments', 'city']);
-        
+
         // Apply sales rep route filtering if user is a sales rep
         $salesRep = \App\Models\SalesRep::where('user_id', $user->id)
             ->where('status', 'active')
@@ -209,11 +209,11 @@ class CustomerController extends Controller
         } catch (\Illuminate\Database\QueryException $e) {
             DB::rollBack();
             Log::error('Customer creation QueryException: ' . $e->getMessage());
-            
+
             // Handle specific database constraint violations
             if ($e->errorInfo[1] == 1062) { // Duplicate entry error code
                 $errorMessage = $e->getMessage();
-                
+
                 // Check for mobile number duplicate
                 if (strpos($errorMessage, 'mobile') !== false || strpos($errorMessage, 'mobile_no') !== false || strpos($errorMessage, 'customers_mobile_no_unique') !== false) {
                     return response()->json([
@@ -223,7 +223,7 @@ class CustomerController extends Controller
                         ]
                     ], 400);
                 }
-                
+
                 // Check for email duplicate
                 if (strpos($errorMessage, 'email') !== false) {
                     return response()->json([
@@ -233,13 +233,13 @@ class CustomerController extends Controller
                         ]
                     ], 400);
                 }
-                
+
                 return response()->json([
                     'status' => 400,
                     'message' => 'A customer with these details already exists.'
                 ], 400);
             }
-            
+
             return response()->json([
                 'status' => 400,
                 'message' => "Error creating customer. Please check your input and try again."
@@ -247,7 +247,7 @@ class CustomerController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Customer creation Exception: ' . $e->getMessage());
-            
+
             // Check if this is a duplicate entry error that wasn't caught above
             $errorMessage = $e->getMessage();
             if (strpos($errorMessage, 'Duplicate') !== false || strpos($errorMessage, '1062') !== false || strpos($errorMessage, 'Integrity constraint violation') !== false) {
@@ -260,7 +260,7 @@ class CustomerController extends Controller
                         ]
                     ], 400);
                 }
-                
+
                 // Check for email duplicate
                 if (strpos($errorMessage, 'email') !== false) {
                     return response()->json([
@@ -270,13 +270,13 @@ class CustomerController extends Controller
                         ]
                     ], 400);
                 }
-                
+
                 return response()->json([
                     'status' => 400,
                     'message' => 'A customer with these details already exists.'
                 ], 400);
             }
-            
+
             return response()->json([
                 'status' => 500,
                 'message' => "Error creating customer. Please try again."
@@ -388,11 +388,11 @@ class CustomerController extends Controller
             } catch (\Illuminate\Database\QueryException $e) {
                 DB::rollBack();
                 Log::error('Customer update QueryException: ' . $e->getMessage());
-                
+
                 // Handle specific database constraint violations
                 if ($e->errorInfo[1] == 1062) { // Duplicate entry error code
                     $errorMessage = $e->getMessage();
-                    
+
                     // Check for mobile number duplicate
                     if (strpos($errorMessage, 'mobile') !== false || strpos($errorMessage, 'mobile_no') !== false || strpos($errorMessage, 'customers_mobile_no_unique') !== false) {
                         return response()->json([
@@ -402,7 +402,7 @@ class CustomerController extends Controller
                             ]
                         ], 400);
                     }
-                    
+
                     // Check for email duplicate
                     if (strpos($errorMessage, 'email') !== false) {
                         return response()->json([
@@ -412,13 +412,13 @@ class CustomerController extends Controller
                             ]
                         ], 400);
                     }
-                    
+
                     return response()->json([
                         'status' => 400,
                         'message' => 'A customer with these details already exists.'
                     ], 400);
                 }
-                
+
                 return response()->json([
                     'status' => 400,
                     'message' => "Error updating customer. Please check your input and try again."
@@ -426,7 +426,7 @@ class CustomerController extends Controller
             } catch (\Exception $e) {
                 DB::rollBack();
                 Log::error('Customer update Exception: ' . $e->getMessage());
-                
+
                 // Check if this is a duplicate entry error that wasn't caught above
                 $errorMessage = $e->getMessage();
                 if (strpos($errorMessage, 'Duplicate') !== false || strpos($errorMessage, '1062') !== false || strpos($errorMessage, 'Integrity constraint violation') !== false) {
@@ -439,7 +439,7 @@ class CustomerController extends Controller
                             ]
                         ], 400);
                     }
-                    
+
                     // Check for email duplicate
                     if (strpos($errorMessage, 'email') !== false) {
                         return response()->json([
@@ -449,13 +449,13 @@ class CustomerController extends Controller
                             ]
                         ], 400);
                     }
-                    
+
                     return response()->json([
                         'status' => 400,
                         'message' => 'A customer with these details already exists.'
                     ], 400);
                 }
-                
+
                 return response()->json([
                     'status' => 500,
                     'message' => "Error updating customer. Please try again."
@@ -468,6 +468,13 @@ class CustomerController extends Controller
 
     public function destroy(int $id)
     {
+
+        if ($id == 1) {
+            return response()->json([
+                'status' => 403,
+                'message' => 'Cannot delete Walk-In Customer! This is a system-protected customer.'
+            ], 403);
+        }
         $customer = Customer::withoutLocationScope()->find($id);
         if ($customer) {
             try {
@@ -526,7 +533,7 @@ class CustomerController extends Controller
 
     /**
      * Get customers for a specific route
-     * 
+     *
      * @param int $routeId
      * @return \Illuminate\Http\JsonResponse
      */
@@ -570,7 +577,7 @@ class CustomerController extends Controller
 
     /**
      * Filter customers by cities
-     * 
+     *
      * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\JsonResponse
      */
@@ -586,9 +593,9 @@ class CustomerController extends Controller
         }
 
         $user = auth()->user();
-        
+
         $customers = Customer::withoutLocationScope()->with(['city']);
-        
+
         // Check if user is a sales rep
         $isSalesRep = false;
         if ($user) {
@@ -597,16 +604,16 @@ class CustomerController extends Controller
                 ->first();
             $isSalesRep = (bool) $salesRep;
         }
-        
+
         $customers = $customers->where(function ($query) use ($cityIds, $isSalesRep) {
             $query->whereIn('city_id', $cityIds);
-            
+
             // Only include customers without city assignment for non-sales rep users
             if (!$isSalesRep) {
                 $query->orWhereNull('city_id');
             }
         });
-            
+
         // For filterByCities, don't apply additional sales rep filtering
         // The frontend route selection already determines which city IDs to send
         // So we trust the city_ids provided and don't further restrict by sales rep's default route
@@ -661,28 +668,28 @@ class CustomerController extends Controller
     {
         try {
             $customer = Customer::with(['sales', 'payments'])->findOrFail($id);
-            
+
             // Calculate total sales amount
             $totalSales = $customer->sales()->sum('final_total');
-            
+
             // Calculate total payments received
             $totalPayments = $customer->payments()->sum('amount');
-            
+
             // Calculate total due (sales - payments)
             $totalDue = $totalSales - $totalPayments;
-            
+
             // Calculate floating balance from bounced cheques
             $floatingBalance = $customer->payments()
                 ->where('payment_method', 'cheque')
                 ->where('cheque_status', 'bounced')
                 ->sum(DB::raw('amount + COALESCE(bank_charges, 0)'));
-                
+
             // Get credit limit from customer
             $creditLimit = $customer->credit_limit ?? 0;
-            
+
             // Calculate available credit
             $availableCredit = $creditLimit - $totalDue;
-            
+
             $data = [
                 'total_due' => $totalDue,
                 'credit_limit' => $creditLimit,
@@ -691,16 +698,16 @@ class CustomerController extends Controller
                 'total_sales' => $totalSales,
                 'total_payments' => $totalPayments,
             ];
-            
+
             return response()->json([
                 'status' => 200,
                 'message' => 'Customer credit info retrieved successfully',
                 'data' => $data
             ]);
-            
+
         } catch (\Exception $e) {
             Log::error('Error fetching customer credit info: ' . $e->getMessage());
-            
+
             return response()->json([
                 'status' => 500,
                 'message' => 'Failed to fetch customer credit information'
@@ -731,7 +738,7 @@ class CustomerController extends Controller
             }
 
             $customer = Customer::findOrFail($customerId);
-            
+
             // Calculate current floating balance
             $currentFloatingBalance = $customer->payments()
                 ->where('payment_method', 'cheque')
@@ -739,7 +746,7 @@ class CustomerController extends Controller
                 ->sum(DB::raw('amount + COALESCE(bank_charges, 0)'));
 
             $recoveryAmount = $request->amount;
-            
+
             // Validate recovery amount doesn't exceed floating balance
             if ($recoveryAmount > $currentFloatingBalance) {
                 return response()->json([
@@ -788,7 +795,7 @@ class CustomerController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error recording recovery payment: ' . $e->getMessage());
-            
+
             return response()->json([
                 'status' => 500,
                 'message' => 'Failed to record recovery payment'
