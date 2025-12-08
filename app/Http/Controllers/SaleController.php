@@ -804,14 +804,14 @@ class SaleController extends Controller
             // Calculate total sales returns (only for sales in the current period)
             $totalSalesReturns = $todaySalesReturns->sum('return_total');
 
+            // Payment Total: Sum of all payment methods (excluding credit)
+            $paymentTotal = $cashPayments + $chequePayments + $bankTransferPayments + $cardPayments;
+
             // Net Income: Bill Total - Total Sales Returns
             $netIncome = $billTotal - $totalSalesReturns;
 
-            // Cash in Hand: Cash Payments (actual cash received)
-            $cashInHand = $cashPayments;
-
-            // Payment Total: Sum of all payment methods
-            $paymentTotal = $cashPayments + $chequePayments + $bankTransferPayments + $cardPayments;
+            // Cash in Hand: Total of all actual payments received (Cash + Card + Cheque + Bank Transfer)
+            $cashInHand = $paymentTotal;
 
             $summaries = [
                 'billTotal' => $billTotal,
