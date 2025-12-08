@@ -1,6 +1,6 @@
 @extends('layout.layout')
 
-@section('head')
+{{-- @section('head')
 <style>
     /* Fix Select2 dropdown alignment and search on bulk payment page */
     .select2-container {
@@ -173,10 +173,10 @@
         to { opacity: 1; transform: translateY(0); }
     }
 </style>
-@endsection
+@endsection --}}
 
 @section('content')
-<div class="container-fluid">
+<div class="container-fluid py-4">
     <form id="bulkPaymentForm">
         <input id="sale_id" name="sale_id" type="hidden">
         <div class="row">
@@ -184,20 +184,13 @@
                 <div class="row align-items-center">
                     <div class="col-sm-12">
                         <div class="page-sub-header">
-                            <h3 class="page-title">
-                                <i class="fas fa-credit-card"></i> Bulk Payment System
-                                <small class="text-muted d-block mt-1">Pay multiple bills using single or multiple payment methods</small>
-                            </h3>
+
                             <ul class="breadcrumb">
                                 <li class="breadcrumb-item"><a href="{{ route('manage-bulk-payments') }}">Bulk payments</a></li>
                                 <li class="breadcrumb-item active">Add Sale Payments</li>
                             </ul>
                         </div>
-                        <div class="page-btn">
-                            <a href="{{ route('manage-bulk-payments') }}" class="btn btn-outline-primary">
-                                <i class="feather-list"></i> Manage Payments
-                            </a>
-                        </div>
+
                     </div>
                 </div>
             </div>
@@ -599,7 +592,7 @@
     </div>
 </div>
 
-@include('sell.sales_ajax')
+{{-- @include('sell.sales_ajax') --}}
 
 <script>
 // Define the customer loading function directly here for the separate page
@@ -1775,7 +1768,7 @@ function loadCustomerSalesForMultiMethod(customerId) {
                     populateFlexibleBillsList();
                 } else {
                     populateFlexibleBillsList();
-                    toastr.success(`${availableCustomerSales.length} outstanding bills loaded`);
+
                 }
 
                 window.isLoadingCustomerSales = false;

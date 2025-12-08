@@ -218,11 +218,6 @@
 
 
                     <div class="table-responsive">
-                        <div class="mb-3">
-                            <button id="bulkPaymentBtn" class="btn btn-primary">
-                                Add Bulk Payment
-                            </button>
-                        </div>
                         <table class="datatable table table-stripped" style="width:100%" id="purchase-list">
                             <thead>
                                 <tr>
@@ -1002,9 +997,9 @@
                         <div class="mb-3">
                             <div id="addImeiProductInfo" class="alert alert-info"></div>
                         </div>
-                        
+
                         <input type="hidden" id="addImeiPurchaseProductId">
-                        
+
                         <div class="mb-3">
                             <label for="imeiInputMethod" class="form-label">Input Method</label>
                             <select class="form-select" id="imeiInputMethod">

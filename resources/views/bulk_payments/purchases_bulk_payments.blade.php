@@ -6,39 +6,39 @@
     .select2-container {
         width: 100% !important;
     }
-    
+
     .select2-container--default .select2-selection--single {
         height: 38px;
         padding: 6px 12px;
         border: 1px solid #ced4da;
         border-radius: 4px;
     }
-    
+
     .select2-container--default .select2-selection--single .select2-selection__rendered {
         line-height: 24px;
         padding-left: 0;
     }
-    
+
     .select2-container--default .select2-selection--single .select2-selection__arrow {
         height: 36px;
     }
-    
+
     /* Ensure dropdown appears properly */
     .select2-container--open {
         z-index: 9999 !important;
     }
-    
+
     .select2-dropdown {
         z-index: 9999 !important;
     }
-    
+
     /* Fix search input focus */
     .select2-search__field {
         outline: none;
         border: 1px solid #ced4da !important;
         padding: 4px !important;
     }
-    
+
     .select2-search__field:focus {
         border-color: #80bdff !important;
         box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
@@ -46,55 +46,71 @@
 
     /* Flexible Many-to-Many Payment UI Styles */
     .bill-items-container {
-        max-height: 500px;
-        overflow-y: auto;
+        height: 300px !important;
+        max-height: 300px !important;
+        min-height: 300px !important;
+        overflow-y: scroll !important;
+        overflow-x: hidden !important;
+        display: block !important;
+        -webkit-overflow-scrolling: touch;
+        position: relative;
+        border: 1px solid #e9ecef;
+        border-radius: 4px;
     }
-    
+
     .payment-methods-container {
-        max-height: 500px;
-        overflow-y: auto;
+        height: 380px !important;
+        max-height: 380px !important;
+        min-height: 380px !important;
+        overflow-y: scroll !important;
+        overflow-x: hidden !important;
+        display: block !important;
+        -webkit-overflow-scrolling: touch;
+        position: relative;
+        border: 1px solid #e9ecef;
+        border-radius: 4px;
     }
-    
+
     .bill-item {
         transition: all 0.3s ease;
         cursor: pointer;
     }
-    
+
     .bill-item:hover {
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         transform: translateY(-1px);
     }
-    
+
     .payment-method-item {
         transition: all 0.3s ease;
     }
-    
+
     .bill-allocation-row {
         transition: all 0.3s ease;
     }
-    
+
     .bill-allocation-row:hover {
         background-color: #f8f9fa !important;
     }
-    
+
     .btn-xs {
         padding: 0.125rem 0.375rem;
         font-size: 0.75rem;
         line-height: 1.2;
         border-radius: 0.2rem;
     }
-    
+
     .allocation-amount:disabled {
         background-color: #f8f9fa;
         border-color: #e9ecef;
     }
-    
+
     /* Animation for adding/removing items */
     .payment-method-item, .bill-allocation-row {
         opacity: 0;
         animation: fadeInUp 0.3s ease forwards;
     }
-    
+
     @keyframes fadeInUp {
         from {
             opacity: 0;
@@ -105,53 +121,53 @@
             transform: translateY(0);
         }
     }
-    
+
     /* Scrollbar styling */
     .bill-items-container::-webkit-scrollbar,
     .payment-methods-container::-webkit-scrollbar {
         width: 6px;
     }
-    
+
     .bill-items-container::-webkit-scrollbar-track,
     .payment-methods-container::-webkit-scrollbar-track {
         background: #f1f1f1;
         border-radius: 3px;
     }
-    
+
     .bill-items-container::-webkit-scrollbar-thumb,
     .payment-methods-container::-webkit-scrollbar-thumb {
         background: #c1c1c1;
         border-radius: 3px;
     }
-    
+
     .bill-items-container::-webkit-scrollbar-thumb:hover,
     .payment-methods-container::-webkit-scrollbar-thumb:hover {
         background: #a8a8a8;
     }
-    
+
     .method-group:hover {
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
-    
+
     .form-label-sm {
         font-size: 0.875rem;
         font-weight: 600;
         color: #495057;
     }
-    
+
     .selected-bill {
         transition: all 0.2s ease;
     }
-    
+
     .selected-bill:hover {
         background-color: #f8f9fa !important;
         border-color: #007bff !important;
     }
-    
+
     .bill-selection-section {
         animation: fadeIn 0.3s ease-in-out;
     }
-    
+
     @keyframes fadeIn {
         from { opacity: 0; transform: translateY(-10px); }
         to { opacity: 1; transform: translateY(0); }
@@ -168,42 +184,37 @@
                 <div class="row align-items-center">
                     <div class="col-sm-12">
                         <div class="page-sub-header">
-                            <h3 class="page-title">
-                                <i class="fas fa-credit-card"></i> Purchase Bulk Payment System
-                                <small class="text-muted d-block mt-1">Pay multiple purchase bills using single or multiple payment methods</small>
-                            </h3>
+
                             <ul class="breadcrumb">
                                 <li class="breadcrumb-item"><a href="{{ route('manage-bulk-payments') }}">Bulk payments</a></li>
                                 <li class="breadcrumb-item active">Add Purchase Payments</li>
                             </ul>
                         </div>
-                        <div class="page-btn">
+                        {{-- <div class="page-btn">
                             <a href="{{ route('manage-bulk-payments') }}" class="btn btn-outline-primary">
                                 <i class="feather-list"></i> Manage Payments
                             </a>
-                        </div>
+                        </div> --}}
                     </div>
                 </div>
             </div>
         </div>
-   
-   
+
+
         <!-- Step 1: Supplier Selection -->
         <div class="card mb-4 shadow-sm rounded border-primary">
             <div class="card-header bg-primary text-white">
-                <h6 class="mb-0"><i class="fas fa-truck"></i> Step 1: Select Supplier</h6>
+                <h6 class="mb-0"><i class="fas fa-user"></i> Step 1: Select Supplier</h6>
             </div>
             <div class="card-body">
                 <div class="form-group">
                     <label for="supplierSelect">Choose Supplier with Due Bills</label>
-                    <div class="input-group">
-                        <select id="supplierSelect" class="form-control select2">
-                            <option value="">🔄 Loading suppliers...</option>
-                        </select>
-                    </div>
+                    <select id="supplierSelect" class="form-control selectBox">
+                        <option value="">🔄 Loading suppliers...</option>
+                    </select>
                     <small class="form-text text-muted">Select a supplier to see their due bills and payment options</small>
                 </div>
-                
+
                 <!-- Supplier Summary (Hidden by default) -->
                 <div id="supplierSummarySection" class="row mt-3" style="display: none;">
                     <div class="col-md-2">
@@ -239,62 +250,29 @@
                     </div>
                 </div>
 
-                <!-- Payment Type Selection -->
-                <div class="row mt-4">
+                <!-- Payment Type Selection - Compact Single Row -->
+                <div class="row mt-3">
                     <div class="col-md-12">
-                        <div class="card p-3 border border-primary">
-                            <h5 class="text-primary">Payment Options</h5>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="paymentType" id="payOpeningBalance" value="opening_balance">
-                                <label class="form-check-label" for="payOpeningBalance">
-                                    <strong>Pay Opening Balance Only</strong>
-                                    <small class="d-block text-muted">Settle supplier's opening balance (not related to any purchase)</small>
-                                </label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="paymentType" id="payPurchaseDues" value="purchase_dues" checked>
-                                <label class="form-check-label" for="payPurchaseDues">
-                                    <strong>Pay Purchase Dues</strong>
-                                    <small class="d-block text-muted">Pay against specific purchase invoices</small>
-                                </label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="paymentType" id="payBoth" value="both">
-                                <label class="form-check-label" for="payBoth">
-                                    <strong>Pay Both (Opening Balance + Purchase Dues)</strong>
-                                    <small class="d-block text-muted">First settle opening balance, then apply to purchases</small>
-                                </label>
+                        <div class="border border-primary rounded p-2 bg-light">
+                            <div class="d-flex align-items-center">
+                                <strong class="text-primary me-3">Payment Options:</strong>
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input" type="radio" name="paymentType" id="payOpeningBalance" value="opening_balance">
+                                    <label class="form-check-label" for="payOpeningBalance">Opening Balance Only</label>
+                                </div>
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input" type="radio" name="paymentType" id="payPurchaseDues" value="purchase_dues" checked>
+                                    <label class="form-check-label" for="payPurchaseDues">Pay Purchase Dues</label>
+                                </div>
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input" type="radio" name="paymentType" id="payBoth" value="both">
+                                    <label class="form-check-label" for="payBoth">Both (Opening + Purchase Dues)</label>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div id="purchasesListContainer" class="mt-4">
-                    <table id="purchasesList" class="table table-striped" style="margin-bottom: 70px; margin-top: 30px">
-                        <thead>
-                            <tr>
-                                <th>Purchase ID</th>
-                                <th>Purchase Date</th>
-                                <th>Final Total</th>
-                                <th>Total Paid</th>
-                                <th>Total Due</th>
-                                <th>Payment Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                    
-                    <!-- Individual Payment Total Display -->
-                    <div class="row mt-3">
-                        <div class="col-md-12">
-                            <div class="alert alert-info">
-                                <h5>Individual Payments Total: <span id="individualPaymentTotal">Rs. 0.00</span></h5>
-                                <small class="text-muted">This shows the sum of individual payment amounts entered above</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
                 <!-- Step 2: Payment Method Selection (Hidden by default) -->
                 <div id="paymentMethodSection" style="display: none;">
                     <div class="card mb-4 border-success">
@@ -307,19 +285,16 @@
                         <div class="mb-3">
                             <label for="paymentMethod" class="form-label">
                                 <i class="fas fa-credit-card"></i> Payment Method
-                                <span class="badge bg-info ms-2" id="methodModeIndicator">Single Mode</span>
+                                <span class="badge bg-success ms-2" id="methodModeIndicator">Multi Mode</span>
                             </label>
                             <div class="input-group">
                                 <select class="form-select" id="paymentMethod" name="payment_method" onchange="togglePaymentFields()">
-                                    <option value="cash" selected><i class="fas fa-money-bill"></i> Cash</option>
-                                    <option value="card">Credit Card</option>
-                                    <option value="cheque">Cheque</option>
-                                    <option value="bank_transfer">Bank Transfer</option>
-                                    <option value="multiple">🔄 Multiple Methods</option>
+                                    <option value="cash">💵 Cash</option>
+                                    <option value="card">💳 Credit Card</option>
+                                    <option value="cheque">📄 Cheque</option>
+                                    <option value="bank_transfer">🏦 Bank Transfer</option>
+                                    <option value="multiple" selected>🔄 Multiple Methods</option>
                                 </select>
-                                <button type="button" class="btn btn-outline-secondary" id="toggleMultiMode" title="Switch to Multi-Method Mode">
-                                    <i class="fas fa-layer-group"></i>
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -334,35 +309,32 @@
                             <label for="payAmount" class="form-label">Amount</label>
                             <input type="text" class="form-control" id="globalPaymentAmount" name="amount">
                             <div id="amountError" class="text-danger" style="display:none;"></div>
-                            <small id="autoAllocationHint" class="text-info" style="display:none;">
-                                <i class="fas fa-magic"></i> Enter amount here for auto-allocation to bills
-                            </small>
-                            <small id="multiMethodHint" class="text-muted" style="display:none;">
-                                <i class="fas fa-info-circle"></i> Switch to single payment method for auto-allocation
-                            </small>
                         </div>
                     </div>
                 </div>
 
                 <!-- FLEXIBLE Many-to-Many Payment UI -->
-                <div id="multiMethodContainer" class="mb-4 d-none">
+                <div id="multiMethodContainer" class="mb-4">
                     <div class="card border-primary">
                         <div class="card-body p-0">
-                            
+
                             <!-- Two Column Layout -->
                             <div class="row g-0">
                                 <!-- Left Column: Available Bills -->
                                 <div class="col-md-6 border-end">
                                     <div class="p-3">
-                                        <h6 class="text-primary mb-3">
-                                            <i class="fas fa-file-invoice-dollar"></i> Outstanding Purchase Bills
-                                        </h6>
-                                        <div id="availableBillsList" class="bill-items-container">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <h6 class="text-primary mb-0">
+                                                <i class="fas fa-file-invoice-dollar"></i> Outstanding Bills
+                                            </h6>
+                                            <input type="text" id="billSearchInput" class="form-control form-control-sm" placeholder="🔍 Search reference..." style="max-width: 180px;">
+                                        </div>
+                                        <div id="availableBillsList" class="bill-items-container" style="height: 300px; max-height: 300px; overflow-y: scroll; overflow-x: hidden;">
                                             <!-- Bills will be populated here -->
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <!-- Right Column: Payment Methods -->
                                 <div class="col-md-6">
                                     <div class="p-3">
@@ -373,15 +345,15 @@
                                             <button type="button" class="btn btn-success btn-sm" id="addFlexiblePayment">
                                                 <i class="fas fa-plus"></i> Add Payment
                                             </button>
-                                         
+
                                         </div>
-                                        <div id="flexiblePaymentsList" class="payment-methods-container">
+                                        <div id="flexiblePaymentsList" class="payment-methods-container" style="height: 380px; max-height: 380px; overflow-y: scroll; overflow-x: hidden;">
                                             <!-- Payment methods will be added here -->
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <!-- Bottom Summary -->
                             <div class="border-top p-3 bg-light">
                                 <div class="row text-center">
@@ -426,7 +398,7 @@
                             <label for="cardType" class="form-label">Card Type</label>
                             <select class="form-select" id="cardType" name="card_type">
                                 <option value="visa">Visa</option>
-                               
+
                             </select>
                         </div>
                     </div>
@@ -496,7 +468,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Submit Button (Hidden by default) -->
         <div id="submitButtonSection" style="display: none;">
             <button type="button" id="submitBulkPayment" class="btn btn-primary btn-lg w-100">
@@ -504,14 +476,14 @@
             </button>
         </div>
     </form>
-</div>
+</diV>
 <div class="modal fade" id="flexibleBulkPaymentModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title">
-                    <i class="fas fa-layer-group"></i> Flexible Multi-Method Purchase Bulk Payment
-                    <small class="d-block">Different payment methods for different purchase bills</small>
+                    <i class="fas fa-layer-group"></i> Flexible Multi-Method Bulk Payment
+                    <small class="d-block">Different payment methods for different bills</small>
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
@@ -624,22 +596,17 @@
     </div>
 </div>
 
-<script>
-// Global variables for tracking bill payment allocations
-var availableSupplierPurchases = [];
-var billPaymentAllocations = {};
 
-// Ensure jQuery is loaded before defining functions
-$(document).ready(function() {
-    // Define functions globally to be accessible from onclick handlers
-    window.loadSuppliersForBulkPayment = function() {
-    console.log('Loading suppliers for bulk payment...');
+<script>
+// Define the supplier loading function directly here for the separate page
+function loadSuppliersForBulkPayment() {
+    console.log('Loading suppliers for bulk payment (separate page version)...');
     console.log('CSRF Token:', $('meta[name="csrf-token"]').attr('content'));
     console.log('Current user authenticated:', $('meta[name="csrf-token"]').length > 0);
-    
+
     $.ajax({
         url: '/supplier-get-all',
-        type: 'GET',
+        method: 'GET',
         dataType: 'json',
         headers: {
             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
@@ -648,122 +615,40 @@ $(document).ready(function() {
         success: function(response) {
             console.log('Supplier response for bulk payment:', response);
             var supplierSelect = $('#supplierSelect');
-            
-            // Clear loading message and reset select
             supplierSelect.empty();
-            supplierSelect.append('<option value="" selected disabled>Choose Supplier with Due Bills</option>');
-            
-            console.log('Cleared select dropdown, current options:', supplierSelect.find('option').length);
-            
-            // Handle different response structures
-            let suppliers = [];
-            
-            console.log('Raw API response:', response);
-            
-            if (response.status === 200 && Array.isArray(response.message)) {
-                suppliers = response.message;
-                console.log('Using response.message structure');
-            } else if (response.status === 200 && Array.isArray(response.data)) {
-                suppliers = response.data;
-                console.log('Using response.data structure');
-            } else if (Array.isArray(response)) {
-                suppliers = response;
-                console.log('Using direct array response');
-            } else if (response.message && Array.isArray(response.message)) {
-                suppliers = response.message;
-                console.log('Using nested response.message structure');
-            } else {
-                console.log('Unknown response structure:', response);
-            }
-            
-            console.log('Processed suppliers array:', suppliers, 'Length:', suppliers.length);
-            
-            if (suppliers && suppliers.length > 0) {
-                var suppliersWithDue = 0;
-                
-                suppliers.forEach(function(supplier) {
-                    // Use the correct field names from the JSON response
+            supplierSelect.append('<option value="" selected disabled>Select Supplier</option>');
+
+            if (response.status === 200 && response.message && response.message.length > 0) {
+                response.message.forEach(function(supplier) {
+
+                    // Calculate total due amount
                     var openingBalance = parseFloat(supplier.opening_balance) || 0;
                     var purchaseDue = parseFloat(supplier.total_purchase_due) || 0;
-                    var currentBalance = parseFloat(supplier.current_balance) || 0; // Fixed field name
-                    
-                    // Calculate total due - current balance represents what we owe the supplier
-                    var totalDue = currentBalance > 0 ? currentBalance : 0;
-                    
-                    // Get supplier name
-                    var lastName = supplier.last_name ? supplier.last_name : '';
-                    var fullName = supplier.full_name || (supplier.first_name + (lastName ? ' ' + lastName : ''));
-                    
-                    console.log('Processing supplier:', {
-                        id: supplier.id,
-                        name: fullName,
-                        openingBalance: openingBalance,
-                        purchaseDue: purchaseDue,
-                        currentBalance: currentBalance,
-                        totalDue: totalDue,
-                        willShow: (totalDue > 0.01 || openingBalance > 0.01 || purchaseDue > 0.01)
-                    });
-                    
-                    // Show suppliers who have due amounts OR opening balance OR purchase due
-                    if (totalDue > 0.01 || openingBalance > 0.01 || purchaseDue > 0.01) {
-                        var displayText = fullName;
-                        
-                        // Add due amount if exists
-                        if (totalDue > 0) {
-                            displayText += ' (Due: Rs. ' + totalDue.toFixed(2) + ')';
-                        }
-                        
-                        // Add opening balance info if exists
+                    var currentBalance = parseFloat(supplier.current_balance) || 0;
+
+                    // Total due is the current balance (which includes opening balance + purchase dues)
+                    var totalDue = currentBalance;
+
+                    // Only show suppliers who have due amounts
+                    if (totalDue > 0) {
+                        var lastName = supplier.last_name ? supplier.last_name : '';
+                        var fullName = supplier.first_name + (lastName ? ' ' + lastName : '');
+                        var displayText = fullName + ' (Due: Rs. ' + totalDue.toFixed(2) + ')';
                         if (openingBalance > 0) {
                             displayText += ' [Opening: Rs. ' + openingBalance.toFixed(2) + ']';
                         }
-                        
-                        console.log('Adding supplier option:', {
-                            id: supplier.id,
-                            name: fullName,
-                            openingBalance: openingBalance,
-                            purchaseDue: purchaseDue,
-                            totalDue: totalDue,
-                            currentBalance: currentBalance
-                        });
-                        
+
                         supplierSelect.append(
                             '<option value="' + supplier.id +
                             '" data-opening-balance="' + openingBalance +
                             '" data-purchase-due="' + purchaseDue +
                             '" data-total-due="' + totalDue +
-                            '" data-current-balance="' + currentBalance +
-                            '" data-full-name="' + fullName +
                             '">' + displayText + '</option>'
                         );
-                        
-                        suppliersWithDue++;
-                    } else {
-                        console.log('Skipping supplier (no due amount):', {
-                            id: supplier.id,
-                            name: fullName,
-                            openingBalance: openingBalance,
-                            purchaseDue: purchaseDue,
-                            totalDue: totalDue,
-                            currentBalance: currentBalance
-                        });
                     }
                 });
-                
-                console.log('Loaded ' + suppliersWithDue + ' suppliers with due amounts out of ' + suppliers.length + ' total suppliers');
-                
-                // Show message if no suppliers with due amounts found
-                if (suppliersWithDue === 0) {
-                    supplierSelect.append('<option value="" disabled>No suppliers with outstanding due amounts found</option>');
-                }
-                
-                // Trigger select2 to refresh
-                if ($('#supplierSelect').hasClass('select2-hidden-accessible')) {
-                    $('#supplierSelect').trigger('change.select2');
-                }
             } else {
-                console.error("No suppliers found in response:", response);
-                supplierSelect.append('<option value="" disabled>No suppliers found</option>');
+                console.error("Failed to fetch supplier data or no suppliers found.", response);
             }
         },
         error: function(xhr, status, error) {
@@ -773,41 +658,33 @@ $(document).ready(function() {
                 responseText: xhr.responseText,
                 statusCode: xhr.status
             });
-            
-            $('#supplierSelect').empty()
-                .append('<option value="">Choose Supplier with Due Bills</option>')
-                .append('<option disabled>Error loading suppliers. Please refresh the page.</option>');
-            
+
             // Show user-friendly error message
-            if (xhr.status === 403) {
-                alert('Access denied. Please check your permissions.');
-            } else if (xhr.status === 401) {
-                alert('Session expired. Please log in again.');
-            } else {
-                alert('Failed to load suppliers. Please refresh the page and try again.');
+            var errorMessage = 'Failed to load suppliers.';
+            if (xhr.status === 401) {
+                errorMessage = 'Authentication required. Please refresh the page and login again.';
+            } else if (xhr.status === 403) {
+                errorMessage = 'Permission denied to access supplier data.';
             }
+
+            $('#supplierSelect').append('<option value="" disabled>Error: ' + errorMessage + '</option>');
         }
     });
-    };
+}
 
-    // Global variables for flexible payment system
-    let flexiblePaymentCounter = 0;
-    let paymentMethodAllocations = {};
-    let billPaymentAllocations = {};
-    let availableSupplierPurchases = [];
-    
-    
-    
-    // Initialize select2 with proper settings  
+// Additional initialization for the separate bulk payment page
+$(document).ready(function() {
+    console.log('Bulk payment page specific initialization...');
+
+    // Initialize select2 with proper settings for standalone page
     if (typeof $.fn.select2 !== 'undefined') {
         $('#supplierSelect').select2({
             placeholder: "Select Supplier",
             allowClear: true,
-            width: '100%',
-            dropdownAutoWidth: true
+            width: '100%'
         });
-        
-        
+        console.log('Select2 initialized on bulk payment page');
+
         // Add event listener to ensure search input gets focus when dropdown opens
         $('#supplierSelect').on('select2:open', function() {
             setTimeout(function() {
@@ -817,199 +694,101 @@ $(document).ready(function() {
                 }
             }, 100);
         });
-    } else {
-        console.log('Select2 not available, using regular select');
     }
-    
-    // Set today's date as default for "Paid On" field
+
+    // Set today's date as default for "Paid On" field in YYYY-MM-DD format
     var today = new Date();
-    var todayFormatted = today.getFullYear() + '-' + 
-        String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+    var todayFormatted = today.getFullYear() + '-' +
+        String(today.getMonth() + 1).padStart(2, '0') + '-' +
         String(today.getDate()).padStart(2, '0');
+    $('#paidOn').val(todayFormatted);
     $('input[name="payment_date"]').val(todayFormatted);
-    console.log('Set default date to today:', todayFormatted);
-    
-    // Initialize DataTable for purchases list
-    if ($('#purchasesList').length > 0 && typeof $.fn.DataTable !== 'undefined') {
-        $('#purchasesList').DataTable({
-            columns: [
-                { title: "Purchase ID (Invoice)" },
-                { title: "Final Total" },
-                { title: "Total Paid" },
-                { title: "Total Due" },
-                { title: "Payment Amount" }
-            ],
-            paging: true,
-            searching: true,
-            ordering: true
-        });
-        console.log('DataTable initialized for purchases list');
-    }
-    
+    console.log('Set default date to today (YYYY-MM-DD):', todayFormatted);
 
-    
-    loadSuppliersForBulkPayment();
-    
-    // Also try again after a short delay in case of timing issues
+    // Load suppliers immediately
     setTimeout(function() {
-        if ($('#supplierSelect option').length <= 1) {
-            console.log('Retrying supplier load after timeout...');
-            loadSuppliersForBulkPayment();
-        }
-    }, 2000);
-    
-    // Add reload purchases function
-    window.reloadPurchases = function() {
-        var supplierId = $('#supplierSelect').val();
-        if (supplierId) {
-            console.log('Reloading purchases for supplier:', supplierId);
-            loadSupplierPurchases(supplierId);
-        } else {
-            alert('Please select a supplier first');
-        }
-    };
-    
+        console.log('Loading suppliers for separate page...');
+        loadSuppliersForBulkPayment();
+    }, 1000);
 
+    // Initialize Multiple Methods mode by default
+    setTimeout(function() {
+        console.log('Initializing Multiple Methods mode as default...');
+        $('#paymentMethod').val('multiple').trigger('change');
+        togglePaymentFields();
+        // Show payment method section
+        $('#paymentMethodSection').show();
+        $('#submitButtonSection').show();
+    }, 1500);
+
+    // Handle Payment Type changes to update payment method dropdown
+    $('input[name="paymentType"]').on('change', function() {
+        const selectedType = $(this).val();
+        const $paymentMethod = $('#paymentMethod');
+
+        if (selectedType === 'opening_balance') {
+            // Opening Balance: Show single payment methods, default to Cash
+            $paymentMethod.find('option[value="multiple"]').hide();
+            if ($paymentMethod.val() === 'multiple') {
+                $paymentMethod.val('cash').trigger('change');
+            }
+        } else {
+            // Pay Purchase Dues or Both: Show all including Multiple Methods
+            $paymentMethod.find('option[value="multiple"]').show();
+            if ($paymentMethod.val() !== 'multiple') {
+                $paymentMethod.val('multiple').trigger('change');
+            }
+        }
+    });
 });
 
-// Supplier selection change handler
+// Supplier selection change handler for separate page
 $(document).on('change', '#supplierSelect', function() {
-    console.log('Supplier selected...');
-    
+    console.log('Supplier selected on separate page...');
+
     var selectedOption = $(this).find(':selected');
     var supplierId = $(this).val();
-    
     if (!supplierId) {
         console.log('No supplier selected - hiding sections');
         $('#supplierSummarySection').hide();
         $('#paymentMethodSection').hide();
         $('#submitButtonSection').hide();
-        $('#reloadPurchasesBtn').hide();
         return;
     }
-    
+
     console.log('Selected supplier ID:', supplierId);
-    console.log('Selected option data:', {
-        'opening-balance': selectedOption.data('opening-balance'),
-        'purchase-due': selectedOption.data('purchase-due'),
-        'total-due': selectedOption.data('total-due'),
-        'current-balance': selectedOption.data('current-balance')
-    });
-    
+
     // Show supplier summary and payment method section
     $('#supplierSummarySection').show();
     $('#paymentMethodSection').show();
-    
+    $('#submitButtonSection').show();
+
     // Get supplier data from the selected option
     var supplierOpeningBalance = parseFloat(selectedOption.data('opening-balance')) || 0;
     var purchaseDue = parseFloat(selectedOption.data('purchase-due')) || 0;
     var totalDue = parseFloat(selectedOption.data('total-due')) || 0;
-    var currentBalance = parseFloat(selectedOption.data('current-balance')) || 0;
-    
-    console.log('Parsed supplier balances:', {
-        openingBalance: supplierOpeningBalance,
-        purchaseDue: purchaseDue,
-        totalDue: totalDue,
-        currentBalance: currentBalance
-    });
-    
-                // Update balance cards with proper amounts
-                $('#openingBalance').text('Rs. ' + supplierOpeningBalance.toFixed(2));
-                $('#totalPurchasesAmount').text('Rs. ' + 0.00.toFixed(2)); // Will be updated by purchase loading
-                $('#totalPaidAmount').text('Rs. ' + 0.00.toFixed(2)); // Will be updated by purchase loading  
-                $('#totalDueAmount').text('Rs. ' + 0.00.toFixed(2)); // Will be updated by purchase loading
-                $('#totalSupplierDue').text('Rs. ' + totalDue.toFixed(2));
-                
-                // Clear "No outstanding purchase bills found" message
-                $('#purchasesList tbody').empty();
-                $('#purchasesList tbody').append('<tr><td colspan="5" class="text-center">Loading purchases...</td></tr>');    // Store original data globally
+
+
+    // Update balance cards
+    $('#openingBalance').text('Rs. ' + supplierOpeningBalance.toFixed(2));
+    $('#totalSupplierDue').text('Rs. ' + totalDue.toFixed(2));
+    // Store original opening balance globally
     window.originalOpeningBalance = supplierOpeningBalance;
     window.purchaseDueAmount = purchaseDue;
-    window.selectedSupplierId = supplierId;
-    
+
     // Reset and clear previous validation errors
     $('#globalPaymentAmount').removeClass('is-invalid').next('.invalid-feedback').remove();
     $('#globalPaymentAmount').val('');
-    
-    // Load purchases for the selected supplier
+
+    // Load purchases for the selected supplier (for multiple methods mode)
     loadSupplierPurchases(supplierId);
-    
-    // Also load for multi-method if that mode is active
-    const isMultiMethodActive = $('#paymentMethod').val() === 'multiple';
-    console.log('Multi-method mode active:', isMultiMethodActive);
-    if (isMultiMethodActive) {
-        console.log('Loading purchases for multi-method mode due to supplier change');
-        loadSupplierPurchasesForMultiMethod(supplierId);
-    }
-    
-    // Show reload button
-    $('#reloadPurchasesBtn').show();
+    loadSupplierPurchasesForMultiMethod(supplierId);
 });
-
-
-// Removed duplicate debugSupplierData function - now defined globally above
-
-// Add bill allocation to a payment method for purchases
-function addBillAllocation(paymentId) {
-    // Filter bills - ONLY exclude FULLY allocated ones (like sales system)
-    const availableBills = availableSupplierPurchases.filter(purchase => {
-        const allocatedAmount = billPaymentAllocations[purchase.id] || 0;
-        const remainingAmount = purchase.total_due - allocatedAmount;
-        return remainingAmount > 0.01; // Only exclude if fully allocated
-    });
-    
-    if (availableBills.length === 0) {
-        alert('No outstanding purchase bills available for allocation. All bills are fully allocated across all payment methods.');
-        return;
-    }
-    
-    const allocationId = `allocation_${Date.now()}`;
-    
-    // Create enhanced bill options with status indicators (EXACTLY like sales)
-    const billOptions = availableBills.map(purchase => {
-        const allocatedAmount = billPaymentAllocations[purchase.id] || 0;
-        const remainingAmount = purchase.total_due - allocatedAmount;
-        const statusIcon = allocatedAmount > 0 ? '🟡' : '🔴'; // Yellow for partial, Red for unpaid
-        const statusText = allocatedAmount > 0 ? 'Partially Paid' : 'Unpaid';
-        const invoiceDisplay = purchase.reference_no || purchase.invoice_no || 'PUR-' + purchase.id;
-        
-        return `<option value="${purchase.id}" data-due="${purchase.total_due}" data-invoice="${invoiceDisplay}" data-remaining="${remainingAmount}">
-            ${statusIcon} ${invoiceDisplay} - Remaining: Rs.${remainingAmount.toFixed(2)} (${statusText})
-        </option>`;
-    }).join('');
-    
-    const allocationHTML = `
-        <div class="bill-allocation-row border rounded p-2 mb-2 bg-white" data-allocation-id="${allocationId}" data-payment-id="${paymentId}">
-            <div class="row align-items-center">
-                <div class="col-md-5">
-                    <select class="form-select form-select-sm bill-select" data-allocation-id="${allocationId}">
-                        <option value="">💰 Select Bill to Pay...</option>
-                        ${billOptions}
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <input type="number" class="form-control form-control-sm allocation-amount" 
-                           step="0.01" min="0.01" placeholder="Enter amount" 
-                           data-allocation-id="${allocationId}" disabled>
-                    <small class="text-muted bill-amount-hint" style="display: none;"></small>
-                </div>
-                <div class="col-md-3">
-                    <button type="button" class="btn btn-danger btn-sm remove-allocation-btn" 
-                            data-allocation-id="${allocationId}" title="Remove this allocation">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    $(`.bill-allocations-list[data-payment-id="${paymentId}"]`).append(allocationHTML);
-}
 
 // Function to load purchases for selected supplier
 function loadSupplierPurchases(supplierId) {
     console.log('Loading purchases for supplier:', supplierId);
-    
+
     $.ajax({
         url: '/get-all-purchases',
         method: 'GET',
@@ -1024,27 +803,27 @@ function loadSupplierPurchases(supplierId) {
         success: function(response) {
             console.log('Purchases response:', response);
             console.log('Looking for supplier_id:', supplierId);
-            
+
             // Clear the table first
             $('#purchasesList tbody').empty();
-            
+
             if (response.purchases && response.purchases.length > 0) {
                 console.log('Total purchases in response:', response.purchases.length);
-                
+
                 // Filter purchases for this specific supplier
                 var supplierPurchases = response.purchases.filter(p => p.supplier_id == supplierId);
                 console.log('Purchases for supplier ' + supplierId + ':', supplierPurchases.length);
-                
+
                 var totalPurchasesAmount = 0,
                     totalPaidAmount = 0,
                     totalDueAmount = 0;
                 var outstandingPurchases = [];
-                
+
                 supplierPurchases.forEach(function(purchase) {
                     var finalTotal = parseFloat(purchase.final_total) || 0;
                     var totalPaid = parseFloat(purchase.total_paid) || 0;
                     var totalDue = parseFloat(purchase.total_due) || 0;
-                    
+
                     // Verify calculation
                     var calculatedDue = finalTotal - totalPaid;
                     if (Math.abs(totalDue - calculatedDue) > 0.01) {
@@ -1056,7 +835,7 @@ function loadSupplierPurchases(supplierId) {
                         });
                         totalDue = calculatedDue; // Use calculated value
                     }
-                    
+
                     console.log('Processing purchase:', {
                         id: purchase.id,
                         reference: purchase.reference_no,
@@ -1065,17 +844,17 @@ function loadSupplierPurchases(supplierId) {
                         total_paid: totalPaid,
                         total_due: totalDue
                     });
-                    
+
                     // Include all purchases in totals for summary
                     totalPurchasesAmount += finalTotal;
                     totalPaidAmount += totalPaid;
                     totalDueAmount += totalDue;
-                    
+
                     // Only show purchases with outstanding dues in the payment table
                     if (totalDue > 0.01) {
                         var invoiceDisplay = purchase.reference_no || purchase.invoice_no || 'PUR-' + purchase.id;
                         var purchaseDate = purchase.purchase_date ? new Date(purchase.purchase_date).toLocaleDateString() : 'N/A';
-                        
+
                         var row = '<tr data-purchase-id="' + purchase.id + '">' +
                             '<td>' + invoiceDisplay + '</td>' +
                             '<td>' + purchaseDate + '</td>' +
@@ -1089,9 +868,9 @@ function loadSupplierPurchases(supplierId) {
                                     'min="0" max="' + totalDue + '" step="0.01" ' +
                                     'placeholder="Enter amount" value="0"></td>' +
                             '</tr>';
-                        
+
                         $('#purchasesList tbody').append(row);
-                        
+
                         // Store for global processing
                         outstandingPurchases.push({
                             id: purchase.id,
@@ -1103,36 +882,36 @@ function loadSupplierPurchases(supplierId) {
                         });
                     }
                 });
-                
+
                 console.log('Totals calculated:', {
                     totalPurchasesAmount: totalPurchasesAmount,
                     totalPaidAmount: totalPaidAmount,
                     totalDueAmount: totalDueAmount,
                     outstandingCount: outstandingPurchases.length
                 });
-                
+
                 // Update summary cards
                 $('#totalPurchasesAmount').text('Rs. ' + totalPurchasesAmount.toFixed(2));
                 $('#totalPaidAmount').text('Rs. ' + totalPaidAmount.toFixed(2));
                 $('#totalDueAmount').text('Rs. ' + totalDueAmount.toFixed(2));
-                
+
                 // Store for global payment processing
                 availableSupplierPurchases = outstandingPurchases;
                 window.purchaseDueAmount = totalDueAmount;
-                
+
                 // Update global payment amount max and placeholder
                 $('#globalPaymentAmount').attr('max', totalDueAmount);
                 $('#globalPaymentAmount').attr('placeholder', 'Max: Rs. ' + totalDueAmount.toFixed(2));
-                
+
                 // Show appropriate message if no outstanding purchases
                 if (outstandingPurchases.length === 0) {
-                    var message = supplierPurchases.length > 0 ? 
+                    var message = supplierPurchases.length > 0 ?
                         '✅ All ' + supplierPurchases.length + ' purchases are fully paid for this supplier' :
                         '📋 No purchases found for this supplier';
                     $('#purchasesList tbody').append(
                         '<tr><td colspan="6" class="text-center text-success">' + message + '</td></tr>'
                     );
-                    
+
                     // Hide payment method section if no outstanding amounts
                     $('#paymentMethodSection').hide();
                     $('#submitButtonSection').hide();
@@ -1141,22 +920,22 @@ function loadSupplierPurchases(supplierId) {
                     $('#paymentMethodSection').show();
                     $('#submitButtonSection').show();
                 }
-                
+
             } else {
                 console.log('No purchases found in response');
                 $('#purchasesList tbody').append(
                     '<tr><td colspan="6" class="text-center text-info">No purchases found for this supplier</td></tr>'
                 );
-                
+
                 // Reset summary
                 $('#totalPurchasesAmount').text('Rs. 0.00');
                 $('#totalPaidAmount').text('Rs. 0.00');
                 $('#totalDueAmount').text('Rs. 0.00');
-                
+
                 // Clear global variables
                 availableSupplierPurchases = [];
                 window.purchaseDueAmount = 0;
-                
+
                 // Hide payment sections
                 $('#paymentMethodSection').hide();
                 $('#submitButtonSection').hide();
@@ -1169,7 +948,7 @@ function loadSupplierPurchases(supplierId) {
                 responseText: xhr.responseText,
                 statusCode: xhr.status
             });
-            
+
             $('#purchasesList tbody').empty();
             var errorMessage = 'Error loading purchases data';
             if (xhr.status === 404) {
@@ -1177,7 +956,7 @@ function loadSupplierPurchases(supplierId) {
             } else if (xhr.status === 500) {
                 errorMessage = 'Server error loading purchases data';
             }
-            
+
             $('#purchasesList tbody').append('<tr><td colspan="5" class="text-center text-danger">' + errorMessage + '</td></tr>');
         }
     });
@@ -1190,7 +969,7 @@ function updateIndividualPaymentTotal() {
         var amount = parseFloat($(this).val()) || 0;
         total += amount;
     });
-    
+
     $('#individualPaymentTotal').text('Rs. ' + total.toFixed(2));
     return total;
 }
@@ -1199,17 +978,17 @@ function updateIndividualPaymentTotal() {
 $(document).on('input', '.reference-amount', function() {
     var referenceDue = parseFloat($(this).attr('max'));
     var paymentAmount = parseFloat($(this).val()) || 0;
-    
+
     // Clear existing validation feedback first
     $(this).removeClass('is-invalid');
     $(this).next('.invalid-feedback').remove();
-    
+
     if (paymentAmount > referenceDue) {
         $(this).addClass('is-invalid').after(
             '<span class="invalid-feedback d-block">Amount exceeds total due.</span>'
         );
     }
-    
+
     // Update individual payment total whenever amount changes
     updateIndividualPaymentTotal();
 });
@@ -1219,23 +998,23 @@ $('input[name="paymentType"]').change(function() {
     var paymentType = $(this).val();
     var supplierId = $('#supplierSelect').val();
     console.log('Payment type changed to:', paymentType);
-    
+
     if (!supplierId) {
         return;
     }
-    
+
     // Show/hide purchases list based on payment type
     if (paymentType === 'opening_balance') {
         $('#purchasesListContainer').hide();
     } else {
         $('#purchasesListContainer').show();
     }
-    
+
     // Update max amount and placeholder for global payment input
     var supplierOpeningBalance = window.originalOpeningBalance || 0;
     var purchaseDueAmount = window.purchaseDueAmount || 0;
     var totalDueAmount = parseFloat($('#totalSupplierDue').text().replace('Rs. ', '')) || 0;
-    
+
     if (paymentType === 'opening_balance') {
         $('#globalPaymentAmount').attr('max', supplierOpeningBalance);
         $('#globalPaymentAmount').attr('placeholder', 'Max: Rs. ' + supplierOpeningBalance.toFixed(2));
@@ -1246,7 +1025,7 @@ $('input[name="paymentType"]').change(function() {
         $('#globalPaymentAmount').attr('max', totalDueAmount);
         $('#globalPaymentAmount').attr('placeholder', 'Max: Rs. ' + totalDueAmount.toFixed(2));
     }
-    
+
     // Reset and re-apply global amount if any
     var globalAmount = parseFloat($('#globalPaymentAmount').val()) || 0;
     if (globalAmount > 0) {
@@ -1260,12 +1039,9 @@ $(document).on('input', '#globalPaymentAmount', function() {
     var supplierOpeningBalance = window.originalOpeningBalance || 0;
     var remainingAmount = globalAmount;
     var paymentType = $('input[name="paymentType"]:checked').val();
-    
-    console.log('=== PURCHASE AUTO-ALLOCATION ===');
+
     console.log('Global amount changed:', globalAmount, 'Payment type:', paymentType);
-    console.log('Supplier opening balance:', supplierOpeningBalance);
-    console.log('Remaining amount to distribute:', remainingAmount);
-    
+
     // Validate global amount based on payment type
     var totalSupplierDue = parseFloat($('#totalSupplierDue').text().replace('Rs. ', '')) || 0;
     var maxAmount = 0;
@@ -1276,109 +1052,90 @@ $(document).on('input', '#globalPaymentAmount', function() {
     } else if (paymentType === 'both') {
         maxAmount = totalSupplierDue;
     }
-    
+
     // Clear existing validation feedback
     $(this).removeClass('is-invalid');
     $(this).next('.invalid-feedback').remove();
-    
+
     if (globalAmount > maxAmount) {
         $(this).addClass('is-invalid').after(
             '<span class="invalid-feedback d-block">Global amount exceeds total due amount.</span>'
         );
         return;
     }
-    
+
     // AUTO-APPLY: Distribute payment based on payment type
     if (paymentType === 'opening_balance') {
-        console.log('Applying to opening balance only...');
         // Only apply to opening balance
         let newOpeningBalance = Math.max(0, supplierOpeningBalance - remainingAmount);
         $('#openingBalance').text('Rs. ' + newOpeningBalance.toFixed(2));
-        
+
         // Clear all purchase payment inputs
         $('.reference-amount').val(0);
-        console.log('Opening balance updated to:', newOpeningBalance, 'Cleared all purchase amounts');
-        
+
     } else if (paymentType === 'purchase_dues') {
-        console.log('Applying to purchase dues only...');
-        var totalApplied = 0;
         // Only apply to purchase dues in order
         $('.reference-amount').each(function() {
-            // Column 4 contains the Total Due amount (0-indexed: Purchase ID, Date, Final Total, Paid, Due, Input)
-            var referenceDue = parseFloat($(this).closest('tr').find('td:eq(4)').text().replace('Rs. ', '')) || 0;
+            var referenceDue = parseFloat($(this).closest('tr').find('td:eq(3)').text()) || 0;
             if (remainingAmount > 0 && referenceDue > 0) {
                 var paymentAmount = Math.min(remainingAmount, referenceDue);
                 $(this).val(paymentAmount.toFixed(2));
                 remainingAmount -= paymentAmount;
-                totalApplied += paymentAmount;
-                console.log('Applied', paymentAmount, 'to purchase with due:', referenceDue);
             } else {
                 $(this).val(0);
             }
         });
-        console.log('Total applied to purchases:', totalApplied, 'Remaining:', remainingAmount);
-        
+
         // Don't change opening balance
         $('#openingBalance').text('Rs. ' + supplierOpeningBalance.toFixed(2));
-        
+
     } else if (paymentType === 'both') {
-        console.log('Applying to both opening balance and purchase dues...');
         // First deduct from opening balance
         let newOpeningBalance = supplierOpeningBalance;
         if (newOpeningBalance > 0 && remainingAmount > 0) {
             if (remainingAmount <= newOpeningBalance) {
                 newOpeningBalance -= remainingAmount;
-                console.log('Applied', remainingAmount, 'to opening balance. New balance:', newOpeningBalance);
                 remainingAmount = 0;
             } else {
-                console.log('Applied', newOpeningBalance, 'to opening balance (full amount)');
                 remainingAmount -= newOpeningBalance;
                 newOpeningBalance = 0;
-                console.log('Remaining amount after opening balance:', remainingAmount);
             }
         }
         $('#openingBalance').text('Rs. ' + newOpeningBalance.toFixed(2));
-        
-        var totalAppliedToPurchases = 0;
+
         // Then apply remaining amount to purchases in order
         $('.reference-amount').each(function() {
-            // Column 4 contains the Total Due amount (0-indexed: Purchase ID, Date, Final Total, Paid, Due, Input)
-            var referenceDue = parseFloat($(this).closest('tr').find('td:eq(4)').text().replace('Rs. ', '')) || 0;
+            var referenceDue = parseFloat($(this).closest('tr').find('td:eq(3)').text()) || 0;
             if (remainingAmount > 0 && referenceDue > 0) {
                 var paymentAmount = Math.min(remainingAmount, referenceDue);
                 $(this).val(paymentAmount.toFixed(2));
                 remainingAmount -= paymentAmount;
-                totalAppliedToPurchases += paymentAmount;
-                console.log('Applied', paymentAmount, 'to purchase with due:', referenceDue);
             } else {
                 $(this).val(0);
             }
         });
-        console.log('Total applied to purchases:', totalAppliedToPurchases, 'Final remaining:', remainingAmount);
     }
-    
-    console.log('=== AUTO-ALLOCATION COMPLETE ===');
-    
+
     // Update the individual payment total display
     updateIndividualPaymentTotal();
 });
 
-// Handle bulk payment submission for purchase page
+// Handle bulk payment submission for separate page
 $(document).on('click', '#submitBulkPayment', function() {
-    console.log('Submit purchase bulk payment button clicked');
-    
+    console.log('Submit bulk payment button clicked (separate page)');
+
     var supplierId = $('#supplierSelect').val();
     var paymentMethod = $('#paymentMethod').val();
-    
+
     console.log('Supplier ID:', supplierId);
     console.log('Payment Method raw:', paymentMethod);
-    
+
     // Check if this is multi-method payment
     if (paymentMethod === 'multiple') {
         return submitMultiMethodPayment();
     }
-    
-    // Get payment date
+
+    // Get payment date - check multiple possible inputs
     var paymentDate = '';
     $('#paidOn, [name="payment_date"]').each(function() {
         var val = $(this).val();
@@ -1388,30 +1145,39 @@ $(document).on('click', '#submitBulkPayment', function() {
             return false; // Break the loop
         }
     });
-    
+
     // If still empty, try to get from visible date inputs or set today's date
     if (!paymentDate) {
         paymentDate = $('input[type="date"]:visible').val();
         console.log('Trying visible date input, payment_date:', paymentDate);
     }
-    
+
     // If still empty, set today's date
     if (!paymentDate) {
         var today = new Date();
-        paymentDate = today.getFullYear() + '-' + 
-            String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+        paymentDate = today.getFullYear() + '-' +
+            String(today.getMonth() + 1).padStart(2, '0') + '-' +
             String(today.getDate()).padStart(2, '0');
         console.log('Using today\'s date:', paymentDate);
     }
-    
+
     var globalPaymentAmount = parseFloat($('#globalPaymentAmount').val()) || 0;
     var paymentType = $('input[name="paymentType"]:checked').val();
-    
+
     console.log('Global payment amount raw value:', $('#globalPaymentAmount').val());
     console.log('Global payment amount parsed:', globalPaymentAmount);
     console.log('Global amount element exists:', $('#globalPaymentAmount').length > 0);
     console.log('Global amount element is visible:', $('#globalPaymentAmount').is(':visible'));
-    
+
+    // Convert date format from DD-MM-YYYY to YYYY-MM-DD if needed
+    if (paymentDate && paymentDate.includes('-')) {
+        var dateParts = paymentDate.split('-');
+        if (dateParts.length === 3 && dateParts[0].length === 2) {
+            // Assume DD-MM-YYYY format, convert to YYYY-MM-DD
+            paymentDate = dateParts[2] + '-' + dateParts[1] + '-' + dateParts[0];
+        }
+    }
+
     console.log('Form values collected:', {
         supplierId: supplierId,
         paymentMethod: paymentMethod,
@@ -1419,6 +1185,8 @@ $(document).on('click', '#submitBulkPayment', function() {
         globalPaymentAmount: globalPaymentAmount,
         paymentType: paymentType
     });
+
+    console.log('Date after conversion:', paymentDate);
 
     // Validate supplier selection
     if (!supplierId) {
@@ -1431,18 +1199,18 @@ $(document).on('click', '#submitBulkPayment', function() {
     var supplierOpeningBalance = parseFloat($('#supplierSelect').find(':selected').data('opening-balance')) || 0;
     var totalDueAmount = parseFloat($('#totalDueAmount').text().replace('Rs. ', '')) || 0;
     var totalSupplierDue = parseFloat($('#totalSupplierDue').text().replace('Rs. ', '')) || 0;
-    
+
     console.log('Balance details:', {
         supplierOpeningBalance: supplierOpeningBalance,
         totalDueAmount: totalDueAmount, // This is purchase dues only
         totalSupplierDue: totalSupplierDue // This is total supplier due (purchases + opening balance)
     });
-    
+
     if (paymentType === 'opening_balance') {
         maxAmount = supplierOpeningBalance;
     } else if (paymentType === 'purchase_dues') {
         // Allow payment up to total supplier due even when "purchase_dues" is selected
-        maxAmount = totalSupplierDue; 
+        maxAmount = totalSupplierDue;
     } else if (paymentType === 'both') {
         maxAmount = totalSupplierDue;
     }
@@ -1520,8 +1288,8 @@ $(document).on('click', '#submitBulkPayment', function() {
         payment_method: paymentMethod,
         payment_date: paymentDate,
         global_amount: globalPaymentAmount,
-        payment_type: paymentType.replace('purchase_dues', 'sale_dues'), // Backend expects 'sale_dues' for consistency
-        payments: purchasePayments // Backend expects 'payments' field
+        payment_type: paymentType,
+        purchase_payments: purchasePayments
     };
 
     // Add payment method specific fields
@@ -1542,27 +1310,27 @@ $(document).on('click', '#submitBulkPayment', function() {
         paymentData.bank_account_number = $('#bankAccountNumber').val();
     }
 
-    console.log('Purchase payment data being sent:', paymentData);
+    console.log('Payment data being sent:', paymentData);
 
     $.ajax({
-        url: '/submit-bulk-payment',
+        url: '/submit-bulk-purchase-payment',
         method: 'POST',
         data: paymentData,
         headers: {
             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
         },
         success: function(response) {
-            console.log('Purchase payment submission successful:', response);
-            
+            console.log('Payment submission successful:', response);
+
             // Show success toastr notification
             if (typeof toastr !== 'undefined') {
-                toastr.success('Purchase payment submitted successfully!', 'Success', {
+                toastr.success('Payment submitted successfully!', 'Success', {
                     timeOut: 3000,
                     progressBar: true,
                     closeButton: true
                 });
             }
-            
+
             // Reset form
             $('#bulkPaymentForm')[0].reset();
             $('#supplierSelect').val('').trigger('change');
@@ -1574,22 +1342,22 @@ $(document).on('click', '#submitBulkPayment', function() {
             $('#totalSupplierDue').text('Rs. 0.00');
             $('#individualPaymentTotal').text('Rs. 0.00');
             $('#globalPaymentAmount').val('');
-            
+
             // Reload suppliers to refresh due amounts
             setTimeout(function() {
                 loadSuppliersForBulkPayment();
             }, 1000);
         },
         error: function(xhr, status, error) {
-            console.error('Purchase payment submission failed:', {
+            console.error('Payment submission failed:', {
                 status: status,
                 error: error,
                 response: xhr.responseText
             });
-            
+
             // Show error toastr notification
-            var errorMessage = 'Purchase payment submission failed. Please try again.';
-            
+            var errorMessage = 'Payment submission failed. Please try again.';
+
             if (xhr.responseJSON && xhr.responseJSON.message) {
                 errorMessage = xhr.responseJSON.message;
             } else if (xhr.status === 422) {
@@ -1597,7 +1365,7 @@ $(document).on('click', '#submitBulkPayment', function() {
             } else if (xhr.status === 500) {
                 errorMessage = 'Server error. Please contact support.';
             }
-            
+
             if (typeof toastr !== 'undefined') {
                 toastr.error(errorMessage, 'Error', {
                     timeOut: 5000,
@@ -1611,51 +1379,32 @@ $(document).on('click', '#submitBulkPayment', function() {
     });
 });
 
-// Multi-Method Payment Functions for Enhanced Purchase UI
+// Multi-Method Payment Functions for Enhanced UI
 function togglePaymentFields() {
     const paymentMethod = $('#paymentMethod').val();
     const isMultiMethod = paymentMethod === 'multiple';
-    
-    console.log('Purchase payment method changed to:', paymentMethod, 'isMultiMethod:', isMultiMethod);
-    
+
+    console.log('Payment method changed to:', paymentMethod);
+
     // Hide all conditional fields first
     $('#cardFields, #chequeFields, #bankTransferFields').addClass('d-none');
     $('#multiMethodContainer').toggleClass('d-none', !isMultiMethod);
-    
-    // Hide/Show the main purchases list when multiple methods is selected
-    $('#purchasesListContainer').toggleClass('d-none', isMultiMethod);
-    
-    console.log('Container visibility after toggle:');
-    console.log('- multiMethodContainer hidden:', $('#multiMethodContainer').hasClass('d-none'));
-    console.log('- purchasesListContainer hidden:', $('#purchasesListContainer').hasClass('d-none'));
-    
+
     // Update mode indicator
     const modeIndicator = $('#methodModeIndicator');
     if (isMultiMethod) {
-        console.log('Switching to multi-method mode...');
         modeIndicator.text('Multi Mode').removeClass('bg-info').addClass('bg-success');
-        $('#globalPaymentAmount').prop('disabled', true).val('').attr('placeholder', 'Calculated from table');
-        $('#autoAllocationHint').hide();
-        $('#multiMethodHint').show();
-        
-        // Load supplier bills for multi-method
+        $('#globalPaymentAmount').prop('disabled', true).val('').attr('placeholder', 'Calculated from allocations');        // Load supplier bills for simple payment table
         const supplierId = $('#supplierSelect').val();
-        console.log('Selected supplier ID for multi-method:', supplierId);
-        
         if (supplierId) {
-            console.log('Loading purchases for multi-method...');
             loadSupplierPurchasesForMultiMethod(supplierId);
         } else {
-            console.log('No supplier selected, showing message');
-            $('#availableBillsList').html('<div class="text-center text-muted p-3">Please select a supplier first</div>');
+            $('#billsPaymentTableBody').html('<tr><td colspan="6" class="text-center text-muted">Please select a supplier first</td></tr>');
         }
     } else {
-        console.log('Switching to single-method mode...');
         modeIndicator.text('Single Mode').removeClass('bg-success').addClass('bg-info');
         $('#globalPaymentAmount').prop('disabled', false).attr('placeholder', '0.00');
-        $('#multiMethodHint').hide();
-        $('#autoAllocationHint').show();
-        
+
         // Show appropriate conditional fields for single method
         switch (paymentMethod) {
             case 'card':
@@ -1669,7 +1418,7 @@ function togglePaymentFields() {
                 break;
         }
     }
-    
+
     // Show submit button if payment method is selected and supplier is chosen
     if ($('#supplierSelect').val() && paymentMethod !== '') {
         $('#submitButtonSection').show();
@@ -1680,7 +1429,7 @@ function togglePaymentFields() {
 
 // Multi-Method Group Management
 let methodGroupCounter = 0;
-// availableSupplierPurchases already declared above - using existing variable
+let availableSupplierPurchases = [];
 
 function addNewMethodGroup() {
     const supplierId = $('#supplierSelect').val();
@@ -1688,158 +1437,471 @@ function addNewMethodGroup() {
         toastr.warning('Please select a supplier first');
         return;
     }
-    
+
     // Check if bills are available
     if (!availableSupplierPurchases || availableSupplierPurchases.length === 0) {
         // Only load bills if we haven't tried loading them already
         if (!window.isLoadingSupplierPurchases) {
             window.isLoadingSupplierPurchases = true;
-            toastr.info('Loading supplier purchase bills...');
+            toastr.info('Loading supplier bills...');
             loadSupplierPurchasesForMultiMethod(supplierId);
         } else {
-            toastr.warning('No outstanding purchase bills available for this supplier');
+            toastr.warning('No outstanding bills available for this supplier');
         }
         return;
     }
-    
+
     const groupIndex = methodGroupCounter++;
     console.log('Creating group with', availableSupplierPurchases.length, 'available purchases');
-    
-    const purchasesOptions = availableSupplierPurchases.map(purchase => 
-        `<option value="${purchase.id}" data-due="${purchase.total_due}" data-invoice="${purchase.invoice_no}">
-            ${purchase.invoice_no || purchase.id} - Due: Rs.${parseFloat(purchase.total_due).toFixed(2)}
+
+    const purchasesOptions = availableSupplierPurchases.map(purchase =>
+        `<option value="${purchase.id}" data-due="${purchase.total_due}" data-invoice="${purchase.reference_no}">
+            ${purchase.reference_no} - Due: Rs.${parseFloat(purchase.total_due).toFixed(2)}
         </option>`
     ).join('');
-    
-    console.log('Generated purchase options for new group:', purchasesOptions);
-    
-    // Add group HTML similar to sales but adapted for purchases
-    // [Implementation similar to sales version but with purchase-specific terminology]
+
+    console.log('Generated purchases options for new group:', purchasesOptions);
+
+    const groupHtml = `
+        <div class="method-group mb-4 p-3 border rounded" data-group-index="${groupIndex}" style="background-color: #f8f9fa;">
+            <!-- Group Header -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="mb-0 text-primary">
+                    <i class="fas fa-credit-card"></i> Payment Method ${groupIndex + 1}
+                </h6>
+                <button type="button" class="btn btn-outline-danger btn-sm remove-method-group">
+                    <i class="fas fa-times"></i> Remove
+                </button>
+            </div>
+
+            <!-- Step 1: Choose Payment Method -->
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">
+                        <span class="badge bg-primary me-1">1</span> Choose Payment Method
+                    </label>
+                    <select class="form-select group-payment-method" required>
+                        <option value="">Select Payment Method</option>
+                        <option value="cash">💵 Cash</option>
+                        <option value="cheque">📄 Cheque</option>
+                        <option value="card">💳 Card</option>
+                        <option value="bank_transfer">🏦 Bank Transfer</option>
+                    </select>
+                </div>
+                <div class="col-md-8 method-specific-fields">
+                    <!-- Method-specific fields will appear here -->
+                </div>
+            </div>
+
+            <!-- Step 2: Select Bills -->
+            <div class="bill-selection-section" style="display: none;">
+                <label class="form-label fw-bold mb-2">
+                    <span class="badge bg-success me-1">2</span> Select Bills to Pay with This Method
+                </label>
+                <div class="bills-container border rounded p-2" style="background-color: white;">
+                    <div class="bill-row row mb-2 align-items-end">
+                        <div class="col-md-5">
+                            <select class="form-select bill-select" required>
+                                <option value="">Choose a bill...</option>
+                                ${salesOptions}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="number" class="form-control bill-amount"
+                                   step="0.01" min="0.01" placeholder="Enter amount" required>
+                            <small class="text-muted">Max: Rs. <span class="due-display">0.00</span></small>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="button" class="btn btn-success add-bill-to-group">
+                                <i class="fas fa-plus"></i> Add Bill
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Selected Bills Summary -->
+                <div class="selected-bills-list mt-2">
+                    <!-- Selected bills will appear here -->
+                </div>
+            </div>
+
+            <!-- Group Summary -->
+            <div class="mt-3 p-2 rounded" style="background-color: #e3f2fd;">
+                <div class="row text-center">
+                    <div class="col-md-6">
+                        <strong class="text-primary">Bills Selected: <span class="group-bills-count">0</span></strong>
+                    </div>
+                    <div class="col-md-6">
+                        <strong class="text-success">Total Amount: Rs. <span class="group-total-amount">0.00</span></strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    $('#methodGroupsContainer').append(groupHtml);
+    updateSummaryTotals();
 }
 
-// Load supplier purchases for flexible many-to-many system  
+// Event Handlers for Multi-Method
+$(document).ready(function() {
+    // Toggle multi-method button
+    $('#toggleMultiMode').click(function() {
+        const currentMethod = $('#paymentMethod').val();
+        if (currentMethod === 'multiple') {
+            $('#paymentMethod').val('cash');
+        } else {
+            $('#paymentMethod').val('multiple');
+        }
+        togglePaymentFields();
+    });
+
+    // Add method group
+    $(document).on('click', '#addMethodGroup', addNewMethodGroup);
+
+    // Remove method group
+    $(document).on('click', '.remove-method-group', function() {
+        $(this).closest('.method-group').remove();
+        updateSummaryTotals();
+    });
+
+    // Simple Payment Table Event Handlers
+
+    // Payment method selection for each bill
+    $(document).on('change', '.payment-method-select', function() {
+        const method = $(this).val();
+        const billIndex = $(this).data('bill-index');
+        const $row = $(this).closest('tr');
+        const $detailsContainer = $row.find('.payment-details-container');
+        const $amountInput = $row.find('.pay-amount-input');
+        const $payButton = $row.find('.pay-bill-btn');
+
+        if (method) {
+            // Show payment method specific fields
+            let fieldsHTML = getPaymentMethodFields(method, billIndex);
+            $detailsContainer.html(fieldsHTML).show();
+
+            // Enable amount input and pay button
+            $amountInput.prop('disabled', false);
+            $payButton.prop('disabled', false);
+        } else {
+            // Hide fields and disable inputs
+            $detailsContainer.hide();
+            $amountInput.prop('disabled', true).val('');
+            $payButton.prop('disabled', true);
+        }
+
+        updateSummaryTotals();
+    });
+
+    // Amount input change
+    $(document).on('input', '.pay-amount-input', function() {
+        const amount = parseFloat($(this).val()) || 0;
+        const maxAmount = parseFloat($(this).attr('max'));
+        const $payButton = $(this).closest('tr').find('.pay-bill-btn');
+
+        if (amount > 0 && amount <= maxAmount) {
+            $payButton.prop('disabled', false).removeClass('btn-secondary').addClass('btn-success');
+        } else {
+            $payButton.prop('disabled', true).removeClass('btn-success').addClass('btn-secondary');
+        }
+
+        updateSummaryTotals();
+    });
+
+    // Pay bill button click
+    $(document).on('click', '.pay-bill-btn', function() {
+        const $row = $(this).closest('tr');
+        const billId = $row.data('bill-id');
+        const amount = parseFloat($row.find('.pay-amount-input').val());
+        const method = $row.find('.payment-method-select').val();
+
+        if (!method || !amount) {
+            toastr.error('Please select payment method and enter amount');
+            return;
+        }
+
+        // Mark bill as paid and disable row
+        $row.addClass('table-success');
+        $row.find('input, select, button').prop('disabled', true);
+        $row.find('.pay-bill-btn').html('<i class="fas fa-check text-success"></i> Paid');
+
+        updateSummaryTotals();
+        toastr.success(`Payment of Rs.${amount.toFixed(2)} recorded for bill ${$row.find('strong').text()}`);
+    });
+
+    // Payment method change in group - IMPROVED UI (LEGACY - KEEPING FOR COMPATIBILITY)
+    $(document).on('change', '.group-payment-method', function() {
+        const method = $(this).val();
+        const $group = $(this).closest('.method-group');
+        const $fieldsContainer = $group.find('.method-specific-fields');
+        const groupIndex = $group.data('group-index');
+
+        let fieldsHtml = '';
+        switch (method) {
+            case 'cheque':
+                fieldsHtml = `
+                    <div class="p-2 border rounded" style="background-color: #e8f5e8;">
+                        <div class="row g-2">
+                            <div class="col-md-3">
+                                <label class="form-label-sm mb-1">Cheque Number</label>
+                                <input type="text" class="form-control form-control-sm"
+                                       placeholder="Enter cheque number" name="cheque_number_${groupIndex}" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label-sm mb-1">Bank & Branch</label>
+                                <input type="text" class="form-control form-control-sm"
+                                       placeholder="e.g., BOC-Kalmunai" name="cheque_bank_${groupIndex}" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label-sm mb-1">Valid Date</label>
+                                <input type="date" class="form-control form-control-sm"
+                                       name="cheque_date_${groupIndex}" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label-sm mb-1">Given By</label>
+                                <input type="text" class="form-control form-control-sm"
+                                       placeholder="Person name" name="cheque_given_by_${groupIndex}">
+                            </div>
+                        </div>
+                    </div>
+                `;
+                break;
+            case 'card':
+                fieldsHtml = `
+                    <div class="p-2 border rounded" style="background-color: #e3f2fd;">
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label-sm mb-1">Card Number</label>
+                                <input type="text" class="form-control form-control-sm"
+                                       placeholder="Enter card number" name="card_number_${groupIndex}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label-sm mb-1">Card Holder Name</label>
+                                <input type="text" class="form-control form-control-sm"
+                                       placeholder="Name on card" name="card_holder_${groupIndex}">
+                            </div>
+                        </div>
+                    </div>
+                `;
+                break;
+            case 'bank_transfer':
+                fieldsHtml = `
+                    <div class="p-2 border rounded" style="background-color: #fff3cd;">
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label-sm mb-1">Account Number</label>
+                                <input type="text" class="form-control form-control-sm"
+                                       placeholder="Bank account number" name="account_number_${groupIndex}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label-sm mb-1">Reference Number</label>
+                                <input type="text" class="form-control form-control-sm"
+                                       placeholder="Transfer reference" name="transfer_ref_${groupIndex}">
+                            </div>
+                        </div>
+                    </div>
+                `;
+                break;
+            case 'cash':
+                fieldsHtml = `
+                    <div class="p-2 border rounded" style="background-color: #d4edda;">
+                        <div class="text-center text-success">
+                            <i class="fas fa-money-bill-wave fa-2x mb-2"></i>
+                            <p class="mb-0">Cash Payment Selected</p>
+                            <small class="text-muted">No additional details required</small>
+                        </div>
+                    </div>
+                `;
+                break;
+            default:
+                fieldsHtml = '';
+        }
+        $fieldsContainer.html(fieldsHtml);
+
+        // Show bill selection section after method is chosen
+        if (method) {
+            $group.find('.bill-selection-section').fadeIn();
+        } else {
+            $group.find('.bill-selection-section').hide();
+        }
+    });
+
+    // Add bill to group - IMPROVED VERSION
+    $(document).on('click', '.add-bill-to-group', function() {
+        const $group = $(this).closest('.method-group');
+        const $billRow = $(this).closest('.bill-row');
+        const selectedBillId = $billRow.find('.bill-select').val();
+        const amount = parseFloat($billRow.find('.bill-amount').val());
+
+        if (!selectedBillId || !amount || amount <= 0) {
+            toastr.warning('Please select a bill and enter a valid amount');
+            return;
+        }
+
+        const selectedOption = $billRow.find('.bill-select option:selected');
+        const invoiceNo = selectedOption.data('invoice');
+        const dueAmount = parseFloat(selectedOption.data('due'));
+
+        if (amount > dueAmount) {
+            toastr.error(`Amount Rs.${amount} exceeds due amount Rs.${dueAmount}`);
+            return;
+        }
+
+        // Check if bill already added to this group
+        const existingBills = $group.find('.selected-bills-list .selected-bill');
+        let billExists = false;
+        existingBills.each(function() {
+            if ($(this).data('bill-id') == selectedBillId) {
+                billExists = true;
+            }
+        });
+
+        if (billExists) {
+            toastr.warning('This bill is already added to this payment method');
+            return;
+        }
+
+        // Add to selected bills summary
+        const selectedBillHtml = `
+            <div class="selected-bill d-flex justify-content-between align-items-center p-2 mb-1 border rounded bg-white" data-bill-id="${selectedBillId}">
+                <div>
+                    <strong>${invoiceNo}</strong>
+                    <small class="text-muted d-block">Due: Rs.${dueAmount.toFixed(2)} | Paying: Rs.${amount.toFixed(2)}</small>
+                </div>
+                <button type="button" class="btn btn-outline-danger btn-sm remove-selected-bill">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+
+        $group.find('.selected-bills-list').append(selectedBillHtml);
+
+        // Reset the selection form
+        $billRow.find('.bill-select').val('');
+        $billRow.find('.bill-amount').val('');
+        $billRow.find('.due-display').text('0.00');
+
+        updateSummaryTotals();
+        toastr.success('Bill added successfully');
+    });
+
+    // Remove selected bill from group
+    $(document).on('click', '.remove-selected-bill', function() {
+        $(this).closest('.selected-bill').remove();
+        updateSummaryTotals();
+        toastr.info('Bill removed');
+    });
+
+    // Bill selection change
+    $(document).on('change', '.bill-select', function() {
+        const selectedOption = $(this).find('option:selected');
+        const dueAmount = selectedOption.data('due') || 0;
+        const $row = $(this).closest('.bill-row');
+
+        $row.find('.due-display').text(parseFloat(dueAmount).toFixed(2));
+        $row.find('.bill-amount').attr('max', dueAmount).val('');
+        updateSummaryTotals();
+    });
+
+    // Amount change calculation
+    $(document).on('input', '.bill-amount', function() {
+        updateSummaryTotals();
+    });
+
+    // Supplier selection change - load purchases for multi-method
+    $('#supplierSelect').change(function() {
+        const supplierId = $(this).val();
+        const paymentMethod = $('#paymentMethod').val();
+
+        if (supplierId && paymentMethod === 'multiple') {
+            // Clear existing data and reload bills for simple table
+            $('#billsPaymentTableBody').empty();
+            availableSupplierPurchases = [];
+
+            loadSupplierPurchasesForMultiMethod(supplierId);
+        }
+    });
+});
+
+// Load supplier purchases for flexible many-to-many system
 function loadSupplierPurchasesForMultiMethod(supplierId) {
-    console.log('Loading purchase bills for flexible many-to-many system:', supplierId);
-    
+    console.log('Loading bills for flexible many-to-many system:', supplierId);
+
     $.ajax({
         url: '/get-all-purchases',
-        type: 'GET',
-        dataType: 'json',
+        method: 'GET',
         data: {
-            supplier_id: supplierId
-        },
-        headers: {
-            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-            'X-Requested-With': 'XMLHttpRequest'
+            supplier_id: supplierId,
+            length: 100
         },
         success: function(response) {
-            console.log('Multi-method purchases response:', response);
-            
-            if (response.purchases && response.purchases.length > 0) {
-                // Filter for bills for the specific supplier with outstanding dues
+            if (response.purchases) {
+                // Filter for outstanding bills
                 availableSupplierPurchases = response.purchases.filter(purchase => {
-                    const isCorrectSupplier = purchase.supplier_id == supplierId;
-                    // Use purchasing_status instead of status
-                    const purchasingStatus = purchase.purchasing_status || purchase.status || '';
-                    const isValidStatus = purchasingStatus.toLowerCase() === 'received' || 
-                                         purchasingStatus.toLowerCase() === 'ordered' || 
-                                         purchasingStatus.toLowerCase() === 'pending';
-                    
-                    // Check if there's outstanding due amount
-                    const finalTotal = parseFloat(purchase.final_total) || 0;
-                    const totalPaid = parseFloat(purchase.total_paid) || 0;
-                    const totalDue = parseFloat(purchase.total_due) || (finalTotal - totalPaid);
-                    const hasDue = totalDue > 0.01;
-                    
-                    console.log(`Purchase ${purchase.id}: supplier=${purchase.supplier_id}, purchasing_status=${purchasingStatus}, total_due=${totalDue}, isCorrectSupplier=${isCorrectSupplier}, isValidStatus=${isValidStatus}, hasDue=${hasDue}`);
-                    
-                    return isCorrectSupplier && hasDue;
+                    const isDue = purchase.total_due > 0;
+                    const isOutstanding = purchase.payment_status === 'Due' || purchase.payment_status === 'Partial';
+                    return isDue && isOutstanding && purchase.supplier_id == supplierId;
                 });
-                
-                console.log('Outstanding purchase bills for supplier ' + supplierId + ':', availableSupplierPurchases.length);
-                
-                // Add calculated due amounts to purchases
-                availableSupplierPurchases = availableSupplierPurchases.map(purchase => {
-                    const finalTotal = parseFloat(purchase.final_total) || 0;
-                    const totalPaid = parseFloat(purchase.total_paid) || 0;
-                    const totalDue = parseFloat(purchase.total_due) || (finalTotal - totalPaid);
-                    
-                    return {
-                        ...purchase,
-                        total_due: totalDue,
-                        reference_no: purchase.reference_no || purchase.invoice_no || 'PUR-' + purchase.id
-                    };
-                });
-                
+
+                console.log('Outstanding bills for flexible UI:', availableSupplierPurchases.length);
+
                 if (availableSupplierPurchases.length === 0) {
-                    console.log('No outstanding purchases found for supplier. All supplier purchases:', response.purchases.filter(p => p.supplier_id == supplierId).map(p => ({
-                        id: p.id, 
-                        supplier_id: p.supplier_id, 
-                        purchasing_status: p.purchasing_status,
-                        total_due: p.total_due,
-                        final_total: p.final_total,
-                        total_paid: p.total_paid
-                    })));
-                    if (typeof toastr !== 'undefined') toastr.info('No outstanding purchase bills found for this supplier');
+                    toastr.warning('No outstanding bills found for this supplier');
                     populateFlexibleBillsList();
                 } else {
                     populateFlexibleBillsList();
-                    if (typeof toastr !== 'undefined') toastr.success(`${availableSupplierPurchases.length} outstanding purchase bills loaded`);
+                    // Removed duplicate toastr notification
                 }
-                
-            } else {
-                console.log('No purchases found in response');
-                availableSupplierPurchases = [];
-                populateFlexibleBillsList();
-                if (typeof toastr !== 'undefined') toastr.warning('No purchases found for this supplier');
+
+                window.isLoadingSupplierPurchases = false;
             }
         },
         error: function(xhr, status, error) {
-            console.error('Failed to load supplier purchases:', {
-                status: status,
-                error: error,
-                responseText: xhr.responseText,
-                statusCode: xhr.status
-            });
-            if (typeof toastr !== 'undefined') toastr.error('Failed to load supplier purchases: ' + error);
-            availableSupplierPurchases = [];
-            populateFlexibleBillsList();
+            console.error('Failed to load supplier purchases:', error);
+            toastr.error('Failed to load supplier purchases: ' + error);
+            window.isLoadingSupplierPurchases = false;
         }
     });
 }
 
-// Initialize system safety check (variables already declared above)
+// Global variables for flexible system
+let flexiblePaymentCounter = 0;
+let billPaymentAllocations = {}; // Track allocations per bill
+let paymentMethodAllocations = {}; // Track allocations per payment method
+
+// Initialize system safety check
 function initializeFlexiblePaymentSystem() {
-    // Variables already declared globally above, just reset values
-    flexiblePaymentCounter = 0;
-    billPaymentAllocations = {};
-    paymentMethodAllocations = {};
-    availableSupplierPurchases = [];
-    
-    console.log('Flexible purchase payment system initialized');
+    if (typeof flexiblePaymentCounter === 'undefined') flexiblePaymentCounter = 0;
+    if (typeof billPaymentAllocations === 'undefined') billPaymentAllocations = {};
+    if (typeof paymentMethodAllocations === 'undefined') paymentMethodAllocations = {};
+    if (typeof availableSupplierPurchases === 'undefined') availableSupplierPurchases = [];
+
+    console.log('Flexible payment system initialized');
 }
 
-// Populate flexible bills list (left side) - adapted for purchases
+// Populate flexible bills list (left side)
 function populateFlexibleBillsList() {
     let billsHTML = '';
-    
+
     if (availableSupplierPurchases.length === 0) {
-        billsHTML = '<div class="alert alert-warning text-center">No outstanding purchase bills found</div>';
-    } else {
+        billsHTML = '<div class="alert alert-warning text-center">No outstanding bills found</div>';
+    }
+    else {
         availableSupplierPurchases.forEach((purchase) => {
             const allocatedAmount = billPaymentAllocations[purchase.id] || 0;
             const remainingAmount = purchase.total_due - allocatedAmount;
             const isFullyPaid = remainingAmount <= 0;
-            
+
             billsHTML += `
                 <div class="bill-item border rounded p-3 mb-2 ${isFullyPaid ? 'bg-light' : 'bg-white'}" data-bill-id="${purchase.id}">
                     <div class="d-flex justify-content-between align-items-start">
                         <div class="flex-grow-1">
                             <h6 class="mb-1 ${isFullyPaid ? 'text-muted' : 'text-primary'}">
-                                ${purchase.invoice_no || purchase.id}
+                                ${purchase.reference_no}
                                 ${isFullyPaid ? '<span class="badge bg-success ms-2">PAID</span>' : ''}
                             </h6>
-                            <div class="small text-muted">Purchase Bill #${purchase.id}</div>
+                            <div class="small text-muted">Bill #${purchase.id}</div>
                             <div class="mt-2">
                                 <div class="d-flex justify-content-between">
                                     <span class="small text-muted">Total Due:</span>
@@ -1875,216 +1937,16 @@ function populateFlexibleBillsList() {
             `;
         });
     }
-    
-    console.log('Populating flexible bills list with', availableSupplierPurchases.length, 'purchases');
+
     $('#availableBillsList').html(billsHTML);
-    console.log('Bills HTML updated, calling updateSummaryTotals...');
     updateSummaryTotals();
 }
 
 // Add new flexible payment method
-// Update summary totals in flexible payment mode
-function updateSummaryTotals() {
-    let totalPayments = 0;
-    let totalBills = availableSupplierPurchases.length;
-    let totalDue = 0;
-    
-    // Calculate total due from purchases
-    availableSupplierPurchases.forEach(purchase => {
-        totalDue += parseFloat(purchase.total_due) || 0;
-    });
-    
-    // Calculate total payments
-    Object.values(paymentMethodAllocations).forEach(payment => {
-        totalPayments += payment.totalAmount || 0;
-    });
-    
-    const balance = totalPayments - totalDue;
-    
-    // Update summary display
-    $('#totalBillsCount').text(totalBills);
-    $('#totalDueAmount').text('Rs. ' + totalDue.toFixed(2));
-    $('#totalPaymentAmount').text('Rs. ' + totalPayments.toFixed(2));
-    $('#balanceAmount').text('Rs. ' + balance.toFixed(2))
-        .removeClass('text-success text-danger text-warning')
-        .addClass(balance > 0 ? 'text-success' : balance < 0 ? 'text-danger' : 'text-muted');
-}
-
-// Generate payment method specific fields
-function getPaymentMethodFields(method, paymentId) {
-    switch (method) {
-        case 'card':
-            return `
-                <div class="row">
-                    <div class="col-md-6 mb-2">
-                        <input type="text" class="form-control form-control-sm" placeholder="Card Number" name="card_number_${paymentId}">
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <input type="text" class="form-control form-control-sm" placeholder="Holder Name" name="card_holder_${paymentId}">
-                    </div>
-                </div>
-            `;
-        case 'cheque':
-            return `
-                <div class="row">
-                    <div class="col-md-6 mb-2">
-                        <input type="text" class="form-control form-control-sm" placeholder="Cheque Number" name="cheque_number_${paymentId}">
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <input type="text" class="form-control form-control-sm" placeholder="Bank Branch" name="cheque_bank_${paymentId}">
-                    </div>
-                </div>
-            `;
-        case 'bank_transfer':
-            return `
-                <div class="mb-2">
-                    <input type="text" class="form-control form-control-sm" placeholder="Bank Account Number" name="bank_account_${paymentId}">
-                </div>
-            `;
-        default:
-            return '';
-    }
-}
-
-// Populate flexible bills list
-function populateFlexibleBillsList() {
-    const billsList = $('#availableBillsList');
-    billsList.empty();
-    
-    if (availableSupplierPurchases.length === 0) {
-        billsList.html('<div class="text-center text-muted p-3">No outstanding purchase bills found</div>');
-        return;
-    }
-    
-    availableSupplierPurchases.forEach(purchase => {
-        const totalDue = parseFloat(purchase.total_due) || 0;
-        const allocatedAmount = billPaymentAllocations[purchase.id] || 0;
-        const remainingAmount = totalDue - allocatedAmount;
-        
-        if (remainingAmount > 0) {
-            const billHtml = `
-                <div class="bill-item border rounded p-2 mb-2 bg-white" data-bill-id="${purchase.id}">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <strong>PUR${purchase.id}</strong>
-                            <small class="text-muted d-block">${purchase.reference_no || 'No Reference'}</small>
-                        </div>
-                        <div class="text-end">
-                            <div class="text-primary fw-bold">Rs. ${totalDue.toFixed(2)}</div>
-                            <small class="text-muted">Remaining: Rs. ${remainingAmount.toFixed(2)}</small>
-                        </div>
-                    </div>
-                </div>
-            `;
-            billsList.append(billHtml);
-        }
-    });
-}
-
-// Update summary totals in flexible payment mode
-function updateSummaryTotals() {
-    let totalPayments = 0;
-    let totalBills = availableSupplierPurchases.length;
-    let totalDue = 0;
-    
-    // Calculate total due from purchases
-    availableSupplierPurchases.forEach(purchase => {
-        totalDue += parseFloat(purchase.total_due) || 0;
-    });
-    
-    // Calculate total payments
-    Object.values(paymentMethodAllocations).forEach(payment => {
-        totalPayments += payment.totalAmount || 0;
-    });
-    
-    const balance = totalPayments - totalDue;
-    
-    // Update summary display
-    $('#totalBillsCount').text(totalBills);
-    $('#totalDueAmount').text('Rs. ' + totalDue.toFixed(2));
-    $('#totalPaymentAmount').text('Rs. ' + totalPayments.toFixed(2));
-    $('#balanceAmount').text('Rs. ' + balance.toFixed(2))
-        .removeClass('text-success text-danger text-warning')
-        .addClass(balance > 0 ? 'text-success' : balance < 0 ? 'text-danger' : 'text-muted');
-}
-
-// Generate payment method specific fields
-function getPaymentMethodFields(method, paymentId) {
-    switch (method) {
-        case 'card':
-            return `
-                <div class="row">
-                    <div class="col-md-6 mb-2">
-                        <input type="text" class="form-control form-control-sm" placeholder="Card Number" name="card_number_${paymentId}">
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <input type="text" class="form-control form-control-sm" placeholder="Holder Name" name="card_holder_${paymentId}">
-                    </div>
-                </div>
-            `;
-        case 'cheque':
-            return `
-                <div class="row">
-                    <div class="col-md-6 mb-2">
-                        <input type="text" class="form-control form-control-sm" placeholder="Cheque Number" name="cheque_number_${paymentId}">
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <input type="text" class="form-control form-control-sm" placeholder="Bank Branch" name="cheque_bank_${paymentId}">
-                    </div>
-                </div>
-            `;
-        case 'bank_transfer':
-            return `
-                <div class="mb-2">
-                    <input type="text" class="form-control form-control-sm" placeholder="Bank Account Number" name="bank_account_${paymentId}">
-                </div>
-            `;
-        default:
-            return '';
-    }
-}
-
-// Populate flexible bills list
-function populateFlexibleBillsList() {
-    const billsList = $('#availableBillsList');
-    billsList.empty();
-    
-    if (availableSupplierPurchases.length === 0) {
-        billsList.html('<div class="text-center text-muted p-3">No outstanding purchase bills found</div>');
-        return;
-    }
-    
-    availableSupplierPurchases.forEach(purchase => {
-        const totalDue = parseFloat(purchase.total_due) || 0;
-        const allocatedAmount = billPaymentAllocations[purchase.id] || 0;
-        const remainingAmount = totalDue - allocatedAmount;
-        
-        if (remainingAmount > 0) {
-            const billHtml = `
-                <div class="bill-item border rounded p-2 mb-2 bg-white" data-bill-id="${purchase.id}">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <strong>PUR${purchase.id}</strong>
-                            <small class="text-muted d-block">${purchase.reference_no || 'No Reference'}</small>
-                        </div>
-                        <div class="text-end">
-                            <div class="text-primary fw-bold">Rs. ${totalDue.toFixed(2)}</div>
-                            <small class="text-muted">Remaining: Rs. ${remainingAmount.toFixed(2)}</small>
-                        </div>
-                    </div>
-                </div>
-            `;
-            billsList.append(billHtml);
-        }
-    });
-}
-
 function addFlexiblePayment() {
     flexiblePaymentCounter++;
     const paymentId = `payment_${flexiblePaymentCounter}`;
-    
-    console.log('Adding flexible payment with ID:', paymentId);
-    
+
     const paymentHTML = `
         <div class="payment-method-item border rounded p-3 mb-3 bg-light" data-payment-id="${paymentId}">
             <div class="d-flex justify-content-between align-items-start mb-3">
@@ -2095,7 +1957,7 @@ function addFlexiblePayment() {
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            
+
             <div class="row mb-3">
                 <div class="col-md-6">
                     <label class="form-label small">Payment Method</label>
@@ -2105,16 +1967,17 @@ function addFlexiblePayment() {
                         <option value="cheque">📄 Cheque</option>
                         <option value="card">💳 Card</option>
                         <option value="bank_transfer">🏦 Bank Transfer</option>
+                        <option value="discount">🎁 Discount</option>
                     </select>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label small">Total Amount</label>
-                    <input type="number" class="form-control payment-total-amount" 
-                           step="0.01" min="0.01" placeholder="0.00" 
+                    <input type="number" class="form-control payment-total-amount"
+                           step="0.01" min="0.01" placeholder="0.00"
                            data-payment-id="${paymentId}">
                 </div>
             </div>
-            
+
             <div class="payment-details-container mb-3" style="display: none;">
                 <label class="form-label small text-info mb-2">
                     <i class="fas fa-info-circle"></i> Payment Details
@@ -2123,11 +1986,11 @@ function addFlexiblePayment() {
                     <!-- Payment method specific fields will appear here -->
                 </div>
             </div>
-            
+
             <div class="bill-allocations-container">
                 <h6 class="small text-muted mb-2">
-                    <i class="fas fa-list"></i> Purchase Bill Allocations
-                    <button type="button" class="btn btn-success btn-xs ms-2 add-bill-allocation-btn" 
+                    <i class="fas fa-list"></i> Bill Allocations
+                    <button type="button" class="btn btn-success btn-xs ms-2 add-bill-allocation-btn"
                             data-payment-id="${paymentId}">
                         <i class="fas fa-plus"></i> Add Bill
                     </button>
@@ -2138,23 +2001,143 @@ function addFlexiblePayment() {
             </div>
         </div>
     `;
-    
-    $('#flexiblePaymentsList').append(paymentHTML);
-    
+
+    $('#flexiblePaymentsList').prepend(paymentHTML);
+
     // Initialize payment method allocations
     paymentMethodAllocations[paymentId] = {
         method: '',
         totalAmount: 0,
-        billAllocations: {},
-        details: {}
+        billAllocations: {}
     };
-    
-    console.log('Payment method allocations after adding:', paymentMethodAllocations);
-    
+
     updateSummaryTotals();
-    
-    // Focus on the payment method selector
-    $(`select[data-payment-id="${paymentId}"]`).focus();
+}
+
+// Add bill allocation to a payment method (ENHANCED WITH BILL STATUS TRACKING)
+function addBillAllocation(paymentId) {
+    // Filter bills - exclude fully paid ones and show remaining amounts
+    const availableBills = availableSupplierPurchases.filter(purchase => {
+        const allocatedAmount = billPaymentAllocations[purchase.id] || 0;
+        const remainingAmount = purchase.total_due - allocatedAmount;
+        return remainingAmount > 0.01; // Avoid tiny remaining amounts
+    });
+
+    if (availableBills.length === 0) {
+        toastr.warning('No outstanding bills available for allocation. All bills are either fully paid or allocated.');
+        return;
+    }
+
+    const allocationId = `allocation_${Date.now()}`;
+
+    // Create enhanced bill options with status indicators
+    const billOptions = availableBills.map(purchase => {
+        const allocatedAmount = billPaymentAllocations[purchase.id] || 0;
+        const remainingAmount = purchase.total_due - allocatedAmount;
+        const statusIcon = allocatedAmount > 0 ? '⚠️' : '🔴'; // Warning for partial, Red for unpaid
+        const statusText = allocatedAmount > 0 ? 'Partially Paid' : 'Unpaid';
+
+        return `<option value="${purchase.id}" data-due="${purchase.total_due}" data-invoice="${purchase.reference_no}" data-remaining="${remainingAmount}">
+            ${statusIcon} ${purchase.reference_no} - Remaining: Rs.${remainingAmount.toFixed(2)} (${statusText})
+        </option>`;
+    }).join('');
+
+    const allocationHTML = `
+        <div class="bill-allocation-row border rounded p-2 mb-2 bg-white" data-allocation-id="${allocationId}">
+            <div class="row align-items-center">
+                <div class="col-md-5">
+                    <select class="form-select form-select-sm bill-select" data-allocation-id="${allocationId}">
+                        <option value="">💰 Select Bill to Pay...</option>
+                        ${billOptions}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <input type="number" class="form-control form-control-sm allocation-amount"
+                           step="0.01" min="0.01" placeholder="Enter amount"
+                           data-allocation-id="${allocationId}" disabled>
+                    <small class="text-muted bill-amount-hint" style="display: none;"></small>
+                </div>
+                <div class="col-md-3">
+                    <button type="button" class="btn btn-danger btn-sm remove-allocation-btn"
+                            data-allocation-id="${allocationId}" title="Remove this allocation">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    $(`.bill-allocations-list[data-payment-id="${paymentId}"]`).append(allocationHTML);
+
+    // Removed excessive toastr notification
+}
+
+// Get payment method specific fields
+function getPaymentMethodFields(method, paymentId) {
+    switch (method) {
+        case 'cheque':
+            return `
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <input type="text" class="form-control form-control-sm"
+                               placeholder="Cheque Number" name="cheque_number_${paymentId}" required>
+                    </div>
+                    <div class="col-md-6">
+                        <input type="text" class="form-control form-control-sm"
+                               placeholder="Bank & Branch" name="cheque_bank_${paymentId}" required>
+                    </div>
+                    <div class="col-md-6">
+                        <input type="date" class="form-control form-control-sm"
+                               name="cheque_date_${paymentId}" required>
+                    </div>
+                    <div class="col-md-6">
+                        <input type="text" class="form-control form-control-sm"
+                               placeholder="Given By" name="cheque_given_by_${paymentId}">
+                    </div>
+                </div>
+            `;
+        case 'card':
+            return `
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <input type="text" class="form-control form-control-sm"
+                               placeholder="Card Number" name="card_number_${paymentId}" required>
+                    </div>
+                    <div class="col-md-6">
+                        <input type="text" class="form-control form-control-sm"
+                               placeholder="Card Holder" name="card_holder_${paymentId}">
+                    </div>
+                </div>
+            `;
+        case 'bank_transfer':
+            return `
+                <input type="text" class="form-control form-control-sm"
+                       placeholder="Account Number" name="account_number_${paymentId}" required>
+            `;
+        case 'cash':
+            return '<small class="text-success"><i class="fas fa-money-bill-wave"></i> Cash Payment - No additional details needed</small>';
+        default:
+            return '';
+    }
+}
+
+// REMOVED AUTO-DISTRIBUTION - User must manually select bills
+// This function is kept for compatibility but does nothing
+function autoDistributeAmountToBills(paymentId, totalAmount) {
+    console.log('Auto-distribution disabled - user must manually select bills');
+    // Do nothing - let users manually select bills
+}
+
+// Legacy function compatibility - redirects to new system
+function calculateSimpleTotal() {
+    console.log('Legacy calculateSimpleTotal called - redirecting to updateSummaryTotals');
+    updateSummaryTotals();
+}
+
+// Legacy function compatibility - redirects to new system
+function calculateMultiMethodTotals() {
+    console.log('Legacy calculateMultiMethodTotals called - redirecting to updateSummaryTotals');
+    updateSummaryTotals();
 }
 
 // Update summary totals
@@ -2163,7 +2146,7 @@ function updateSummaryTotals() {
         // Calculate bill totals
         let totalBills = availableSupplierPurchases.length || 0;
         let totalDueAmount = availableSupplierPurchases.reduce((sum, purchase) => sum + parseFloat(purchase.total_due || 0), 0);
-        
+
         // Calculate payment totals
         let totalPaymentAmount = 0;
         if (paymentMethodAllocations && Object.keys(paymentMethodAllocations).length > 0) {
@@ -2171,35 +2154,44 @@ function updateSummaryTotals() {
                 totalPaymentAmount += payment.totalAmount || 0;
             });
         }
-        
+
         // Calculate balance
         let balanceAmount = totalDueAmount - totalPaymentAmount;
-        
-        // Update UI elements if they exist (using correct element IDs from the bottom summary)
+
+        // Update UI elements if they exist
         const $totalBillsCount = $('#totalBillsCount');
-        const $totalDueAmount = $('#totalDueAmount');
+        const $totalDueAmountFlex = $('#totalDueAmount');
         const $totalPaymentAmount = $('#totalPaymentAmount');
         const $balanceAmount = $('#balanceAmount');
-        
+
         if ($totalBillsCount.length) $totalBillsCount.text(totalBills);
-        if ($totalDueAmount.length) $totalDueAmount.text(`Rs. ${totalDueAmount.toFixed(2)}`);
-        if ($totalPaymentAmount.length) $totalPaymentAmount.text(`Rs. ${totalPaymentAmount.toFixed(2)}`);
-        
-        // Update balance calculation
+        if ($totalDueAmountFlex.length) $totalDueAmountFlex.text(`Rs. ${totalDueAmount.toFixed(2)}`);
+
+        if ($totalPaymentAmount.length) {
+            $totalPaymentAmount.text(`Rs. ${totalPaymentAmount.toFixed(2)}`);
+            // Update color based on amount
+            if (totalPaymentAmount > 0) {
+                $totalPaymentAmount.removeClass('text-muted').addClass('text-success');
+            } else {
+                $totalPaymentAmount.removeClass('text-success').addClass('text-muted');
+            }
+        }
+
         if ($balanceAmount.length) {
             // Enhanced balance display with better messaging
             if (balanceAmount > 0) {
                 $balanceAmount.text(`Rs. ${balanceAmount.toFixed(2)}`).removeClass('text-success text-danger').addClass('text-warning');
+                // Show remaining due amount
             } else if (balanceAmount < 0) {
                 const excessAmount = Math.abs(balanceAmount);
                 $balanceAmount.text(`Rs. ${balanceAmount.toFixed(2)}`).removeClass('text-warning text-success').addClass('text-danger');
-                
-                // Add excess amount info
+
+                // Add excess amount info if not already present
                 if ($('#excessInfo').length === 0) {
                     $balanceAmount.parent().append(`
                         <div id="excessInfo" class="mt-2">
                             <small class="text-info">
-                                <i class="fas fa-info-circle"></i> 
+                                <i class="fas fa-info-circle"></i>
                                 Excess Rs. ${excessAmount.toFixed(2)} will be treated as advance payment
                             </small>
                         </div>
@@ -2212,7 +2204,7 @@ function updateSummaryTotals() {
                 $('#excessInfo').remove(); // Remove excess info when balanced
             }
         }
-        
+
         // Show/hide submit button
         const $submitSection = $('#submitButtonSection');
         if ($submitSection.length) {
@@ -2222,69 +2214,287 @@ function updateSummaryTotals() {
                 $submitSection.fadeOut();
             }
         }
-        
-        console.log('Purchase summary totals updated:', { totalBills, totalDueAmount, totalPaymentAmount, balanceAmount });
-        
+
+        console.log('Summary totals updated:', { totalBills, totalDueAmount, totalPaymentAmount, balanceAmount });
+
     } catch (error) {
         console.error('Error in updateSummaryTotals:', error);
     }
 }
 
-// Initialize flexible many-to-many payment system for purchases
+// Update payment method allocation totals (ENHANCED WITH SYSTEM UPDATE FLAG)
+function updatePaymentMethodTotal(paymentId) {
+    let total = 0;
+
+    // Find all allocation amounts within this specific payment method
+    $(`.payment-method-item[data-payment-id="${paymentId}"] .allocation-amount`).each(function() {
+        total += parseFloat($(this).val()) || 0;
+    });
+
+    // Update internal tracking
+    paymentMethodAllocations[paymentId].totalAmount = total;
+
+    // Update the payment total input field (mark as system update to avoid recursion)
+    const $totalInput = $(`.payment-total-amount[data-payment-id="${paymentId}"]`);
+    $totalInput.data('system-update', true);
+    $totalInput.val(total.toFixed(2));
+
+    // Remove system update flag after a short delay
+    setTimeout(() => {
+        $totalInput.data('system-update', false);
+    }, 100);
+
+    updateSummaryTotals();
+}
+
+// Submit flexible many-to-many payment
+function submitMultiMethodPayment() {
+    const supplierId = $('#supplierSelect').val();
+    const paymentDate = $('#paidOn').val() || $('[name="payment_date"]').val();
+    const paymentType = $('input[name="paymentType"]:checked').val();
+
+    if (!supplierId) {
+        toastr.error('Please select a supplier');
+        return false;
+    }
+
+    if (!paymentDate) {
+        toastr.error('Please select payment date');
+        return false;
+    }
+
+    // Collect flexible payment groups
+    const paymentGroups = [];
+    let hasValidPayments = false;
+    let groupIndex = 0;
+
+    $('.payment-method-item').each(function() {
+        const $payment = $(this);
+        const paymentId = $payment.data('payment-id');
+        const method = $payment.find('.payment-method-select').val();
+        const totalAmount = parseFloat($payment.find('.payment-total-amount').val()) || 0;
+
+        if (!method || totalAmount <= 0) return;
+
+        groupIndex++; // Increment counter for validation messages
+
+        const groupData = {
+            method: method,
+            totalAmount: totalAmount,
+            bills: [],
+            details: {}
+        };
+
+        // Collect method-specific details (WITH DEBUG LOGGING)
+        switch (method) {
+            case 'cheque':
+                const $chequeNumberField = $payment.find(`[name="cheque_number_${paymentId}"]`);
+                const $chequeBankField = $payment.find(`[name="cheque_bank_${paymentId}"]`);
+                const $chequeDateField = $payment.find(`[name="cheque_date_${paymentId}"]`);
+                const $chequeGivenByField = $payment.find(`[name="cheque_given_by_${paymentId}"]`);
+
+                console.log('Cheque field elements found for payment', paymentId, ':', {
+                    cheque_number_element: $chequeNumberField.length,
+                    cheque_bank_element: $chequeBankField.length,
+                    cheque_date_element: $chequeDateField.length,
+                    cheque_given_by_element: $chequeGivenByField.length
+                });
+
+                const chequeNumber = $chequeNumberField.val() || '';
+                const chequeBank = $chequeBankField.val() || '';
+                const chequeDate = $chequeDateField.val() || '';
+                const chequeGivenBy = $chequeGivenByField.val() || '';
+
+                console.log('Cheque field values for payment', paymentId, ':', {
+                    cheque_number: chequeNumber,
+                    cheque_bank: chequeBank,
+                    cheque_date: chequeDate,
+                    cheque_given_by: chequeGivenBy
+                });
+
+                // Validate required cheque fields
+                if (!chequeNumber || chequeNumber.trim() === '') {
+                    toastr.error(`Payment ${groupIndex}: Cheque Number is required`);
+                    $('#submitBulkPayment').prop('disabled', false).html('<i class="fas fa-paper-plane"></i> Submit Payment');
+                    return false;
+                }
+                if (!chequeBank || chequeBank.trim() === '') {
+                    toastr.error(`Payment ${groupIndex}: Bank & Branch is required for cheque payments`);
+                    $('#submitBulkPayment').prop('disabled', false).html('<i class="fas fa-paper-plane"></i> Submit Payment');
+                    return false;
+                }
+                if (!chequeDate || chequeDate.trim() === '') {
+                    toastr.error(`Payment ${groupIndex}: Cheque Date is required`);
+                    $('#submitBulkPayment').prop('disabled', false).html('<i class="fas fa-paper-plane"></i> Submit Payment');
+                    return false;
+                }
+
+                groupData.cheque_number = chequeNumber;
+                groupData.cheque_bank_branch = chequeBank;
+                groupData.cheque_valid_date = chequeDate;
+                groupData.cheque_given_by = chequeGivenBy;
+                break;
+            case 'card':
+                groupData.card_number = $payment.find(`[name="card_number_${paymentId}"]`).val();
+                groupData.card_holder = $payment.find(`[name="card_holder_${paymentId}"]`).val();
+                break;
+            case 'bank_transfer':
+                groupData.bank_account_number = $payment.find(`[name="account_number_${paymentId}"]`).val();
+                break;
+        }
+
+        // Collect bill allocations OR total amount for opening balance
+        $payment.find('.bill-allocation-row').each(function() {
+            const $allocation = $(this);
+            const billId = $allocation.find('.bill-select').val();
+            const amount = parseFloat($allocation.find('.allocation-amount').val()) || 0;
+
+            if (billId && amount > 0) {
+                groupData.bills.push({
+                    purchase_id: parseInt(billId),
+                    amount: amount
+                });
+            }
+        });
+
+        // For opening balance payments, use the total amount even if no bills
+        if (paymentType === 'opening_balance' && totalAmount > 0) {
+            groupData.totalAmount = totalAmount;
+            paymentGroups.push(groupData);
+            hasValidPayments = true;
+        } else if (groupData.bills.length > 0) {
+            groupData.totalAmount = totalAmount;
+            paymentGroups.push(groupData);
+            hasValidPayments = true;
+        }
+    });
+
+    if (!hasValidPayments) {
+        toastr.error('Please add at least one payment method with bill allocations');
+        return false;
+    }
+
+    // Validate allocations don't exceed bill amounts
+    const billTotals = {};
+    paymentGroups.forEach(group => {
+        group.bills.forEach(bill => {
+            billTotals[bill.purchase_id] = (billTotals[bill.purchase_id] || 0) + bill.amount;
+        });
+    });
+
+    for (const [billId, totalAllocated] of Object.entries(billTotals)) {
+        const bill = availableSupplierPurchases.find(p => p.id == billId);
+        if (bill && totalAllocated > bill.total_due) {
+            toastr.error(`Total allocation for ${bill.reference_no} exceeds bill amount`);
+            return false;
+        }
+    }
+
+    // Show loading
+    $('#submitBulkPayment').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Processing...');
+
+    // Submit flexible payment
+    $.ajax({
+        url: '/submit-flexible-bulk-purchase-payment',
+        method: 'POST',
+        data: {
+            supplier_id: supplierId,
+            payment_date: paymentDate,
+            payment_type: paymentType,
+            payment_groups: paymentGroups,
+            notes: $('#notes').val() || '',
+            _token: $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function(response) {
+            if (response.status === 200) {
+                toastr.success(response.message);
+
+                // Show success details
+                setTimeout(() => {
+                    toastr.info(`Reference: ${response.bulk_reference}<br>Amount: Rs. ${response.total_amount}`, 'Payment Details', {
+                        timeOut: 10000
+                    });
+                }, 1000);
+
+                // Reset form and refresh
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            }
+        },
+        error: function(xhr) {
+            const error = xhr.responseJSON;
+            toastr.error(error?.message || 'Flexible payment submission failed');
+        },
+        complete: function() {
+            $('#submitBulkPayment').prop('disabled', false).html('<i class="fas fa-credit-card"></i> Submit Payment');
+        }
+    });
+
+    return false;
+}
+
+// Initialize flexible many-to-many payment system
 $(document).ready(function() {
-    console.log('Flexible Many-to-Many Purchase Payment System Ready');
-    
+    console.log('Flexible Many-to-Many Payment System Ready');
+
     // Initialize system variables
     initializeFlexiblePaymentSystem();
-    
-    // Toggle multi-method button
-    $('#toggleMultiMode').click(function() {
-        const currentMethod = $('#paymentMethod').val();
-        if (currentMethod === 'multiple') {
-            $('#paymentMethod').val('cash');
-        } else {
-            $('#paymentMethod').val('multiple');
-        }
-        togglePaymentFields();
+
+    // Bill Search/Filter functionality
+    $('#billSearchInput').on('keyup', function() {
+        const searchValue = $(this).val().toLowerCase();
+        $('.bill-item').each(function() {
+            const invoiceNo = $(this).find('h6').text().toLowerCase();
+            const billNumber = $(this).find('.text-muted').text().toLowerCase();
+
+            if (invoiceNo.includes(searchValue) || billNumber.includes(searchValue)) {
+                $(this).show();
+            } else {
+                $(this).hide();
+            }
+        });
     });
-    
+
     // Add Payment Method button
     $('#addFlexiblePayment').click(function() {
-        console.log('Adding flexible payment method...');
         addFlexiblePayment();
     });
-    
-    // Payment method selection change within flexible payments
-    $(document).on('change', '.payment-method-select', function() {
+
+
+    // Remove Payment Method
+    $(document).on('click', '.remove-payment-btn', function() {
         const paymentId = $(this).data('payment-id');
-        const method = $(this).val();
-        
-        console.log('Payment method changed:', {paymentId, method});
-        
+
+        // Remove allocations from tracking
         if (paymentMethodAllocations[paymentId]) {
-            paymentMethodAllocations[paymentId].method = method;
+            Object.keys(paymentMethodAllocations[paymentId].billAllocations).forEach(billId => {
+                const amount = paymentMethodAllocations[paymentId].billAllocations[billId];
+                billPaymentAllocations[billId] = (billPaymentAllocations[billId] || 0) - amount;
+                if (billPaymentAllocations[billId] <= 0) {
+                    delete billPaymentAllocations[billId];
+                }
+            });
+            delete paymentMethodAllocations[paymentId];
         }
-        
-        // Show/hide payment details based on method
-        const detailsContainer = $(this).closest('.payment-method-item').find('.payment-details-container');
-        const paymentFields = detailsContainer.find('.payment-fields');
-        
-        if (method && method !== 'cash') {
-            detailsContainer.show();
-            paymentFields.html(getPaymentMethodFields(method, paymentId));
-        } else {
-            detailsContainer.hide();
-            paymentFields.empty();
-        }
+
+        $(this).closest('.payment-method-item').fadeOut(() => {
+            $(this).closest('.payment-method-item').remove();
+            populateFlexibleBillsList();
+            updateSummaryTotals();
+        });
     });
-    
-    // Payment Total Amount Input - SMART DISTRIBUTION TO SELECTED BILLS (EXACT COPY FROM SALES)
-    $(document).on('input', '.payment-total-amount', function() {
+
+    // Payment Method Selection
+    $(document).on('change', '.payment-method-select', function() {
         try {
             const paymentId = $(this).data('payment-id');
-            const totalAmount = parseFloat($(this).val()) || 0;
-            const $paymentContainer = $(this).closest('.payment-method-item');
-            
+            const method = $(this).val();
+            const $container = $(this).closest('.payment-method-item');
+
+            console.log('Payment method selected:', method, 'for payment ID:', paymentId);
+            console.log('Available allocations:', paymentMethodAllocations);
+
             // Ensure allocation object exists
             if (!paymentMethodAllocations[paymentId]) {
                 paymentMethodAllocations[paymentId] = {
@@ -2293,43 +2503,201 @@ $(document).ready(function() {
                     billAllocations: {}
                 };
             }
-            
+
+            paymentMethodAllocations[paymentId].method = method;
+
+            if (method) {
+                const fieldsHTML = getPaymentMethodFields(method, paymentId);
+                console.log('Generated fields HTML:', fieldsHTML);
+
+                const $detailsContainer = $container.find('.payment-details-container');
+                const $fieldsContainer = $detailsContainer.find('.payment-fields');
+
+                console.log('Details container found:', $detailsContainer.length);
+                console.log('Fields container found:', $fieldsContainer.length);
+
+                $fieldsContainer.html(fieldsHTML);
+                $detailsContainer.slideDown();
+
+                // Show success message for better user feedback
+                toastr.success(`${method.toUpperCase()} payment method selected - Enter details below`);
+            } else {
+                $container.find('.payment-details-container').slideUp();
+            }
+        } catch (error) {
+            console.error('Error in payment method selection:', error);
+            toastr.error('Error selecting payment method: ' + error.message);
+        }
+    });
+
+    // Add Bill Allocation
+    $(document).on('click', '.add-bill-allocation-btn', function() {
+        const paymentId = $(this).data('payment-id');
+        addBillAllocation(paymentId);
+    });
+
+    // Remove Bill Allocation
+    $(document).on('click', '.remove-allocation-btn', function() {
+        const allocationId = $(this).data('allocation-id');
+        const $row = $(this).closest('.bill-allocation-row');
+        const billId = $row.find('.bill-select').val();
+        const amount = parseFloat($row.find('.allocation-amount').val()) || 0;
+
+        // Update tracking
+        if (billId && amount > 0) {
+            billPaymentAllocations[billId] = (billPaymentAllocations[billId] || 0) - amount;
+            if (billPaymentAllocations[billId] <= 0) {
+                delete billPaymentAllocations[billId];
+            }
+        }
+
+        $row.fadeOut(() => {
+            $row.remove();
+            populateFlexibleBillsList();
+            updateSummaryTotals();
+        });
+    });
+
+    // Bill Selection in Allocation - SIMPLE MANUAL APPROACH
+    $(document).on('change', '.bill-allocation-row .bill-select', function() {
+        const billId = $(this).val();
+        const $row = $(this).closest('.bill-allocation-row');
+        const $amountInput = $row.find('.allocation-amount');
+        const $hint = $row.find('.bill-amount-hint');
+
+        if (billId) {
+            const bill = availableSupplierPurchases.find(p => p.id == billId);
+            const allocatedAmount = billPaymentAllocations[billId] || 0;
+            const remainingAmount = bill.total_due - allocatedAmount;
+
+            // Enable amount input but DON'T auto-fill
+            $amountInput.attr('max', remainingAmount.toFixed(2)).prop('disabled', false);
+            $amountInput.attr('placeholder', `Max: Rs. ${remainingAmount.toFixed(2)}`);
+            $amountInput.val(''); // Empty - let user type
+
+            // Show available amount info
+            $hint.text(`Available: Rs. ${remainingAmount.toFixed(2)} (${allocatedAmount > 0 ? 'Partially Paid' : 'Unpaid'})`).show();
+        } else {
+            // Reset when no bill selected
+            $amountInput.prop('disabled', true).val('').removeAttr('max').attr('placeholder', 'Select bill first');
+            $hint.hide();
+        }
+    });
+
+    // Amount Input in Allocation (FIXED WITH SYSTEM UPDATE DETECTION)
+    $(document).on('input', '.allocation-amount', function() {
+        // Check if this is a system update to prevent interference
+        const isSystemUpdate = $(this).data('system-update');
+        if (isSystemUpdate) {
+            console.log('Skipping system update for allocation amount');
+            return;
+        }
+
+        const $row = $(this).closest('.bill-allocation-row');
+        const $hint = $row.find('.bill-amount-hint');
+        const billId = $row.find('.bill-select').val();
+        const amount = parseFloat($(this).val()) || 0;
+
+        if (!billId) return;
+
+        const bill = availableSupplierPurchases.find(p => p.id == billId);
+        if (!bill) return;
+
+        // Calculate available amount for this bill
+        const prevAmount = $(this).data('prev-amount') || 0;
+        const currentAllocation = billPaymentAllocations[billId] || 0;
+        const maxAmount = bill.total_due - (currentAllocation - prevAmount);
+
+        // Validate amount doesn't exceed remaining balance
+        if (amount > maxAmount) {
+            $(this).val(maxAmount.toFixed(2));
+            // Show subtle warning in hint instead of annoying toastr
+            $hint.text(`⚠️ Amount limited to remaining balance: Rs. ${maxAmount.toFixed(2)}`).removeClass('text-muted text-success').addClass('text-warning');
+            return;
+        }
+
+        // Update bill payment tracking
+        billPaymentAllocations[billId] = (currentAllocation - prevAmount) + amount;
+        $(this).data('prev-amount', amount);
+
+        // If bill becomes fully paid, remove from available bills
+        const remainingAfterPayment = bill.total_due - billPaymentAllocations[billId];
+
+        // Update hint with payment status
+        if (remainingAfterPayment <= 0.01) {
+            $hint.text('✅ Bill will be fully paid').removeClass('text-muted').addClass('text-success');
+        } else {
+            $hint.text(`💰 Remaining after this payment: Rs. ${remainingAfterPayment.toFixed(2)}`).removeClass('text-success').addClass('text-muted');
+        }
+
+        // Update payment method totals (only for manual changes, not system updates)
+        const paymentId = $row.closest('.payment-method-item').data('payment-id');
+        updatePaymentMethodTotal(paymentId);
+
+        // Refresh available bills list and summary
+        populateFlexibleBillsList();
+        updateSummaryTotals();
+
+        // Clean up zero allocations
+        if (amount <= 0) {
+            if (billPaymentAllocations[billId] <= 0) {
+                delete billPaymentAllocations[billId];
+            }
+        }
+    });
+
+    // Payment Total Amount Input - SMART DISTRIBUTION TO SELECTED BILLS
+    $(document).on('input', '.payment-total-amount', function() {
+        try {
+            const paymentId = $(this).data('payment-id');
+            const totalAmount = parseFloat($(this).val()) || 0;
+            const $paymentContainer = $(this).closest('.payment-method-item');
+
+            // Ensure allocation object exists
+            if (!paymentMethodAllocations[paymentId]) {
+                paymentMethodAllocations[paymentId] = {
+                    method: '',
+                    totalAmount: 0,
+                    billAllocations: {}
+                };
+            }
+
             // Check if this is a system update (to prevent recursion)
             const isSystemUpdate = $(this).data('system-update');
-            
+
             if (!isSystemUpdate) {
                 paymentMethodAllocations[paymentId].totalAmount = totalAmount;
-                
+
                 // Get existing bill allocation rows
                 const $allocationRows = $paymentContainer.find('.bill-allocation-row');
-                
+
                 if (totalAmount > 0 && $allocationRows.length > 0) {
                     // SMART DISTRIBUTION: Distribute total amount across selected bills
                     let remainingAmount = totalAmount;
                     const billsToUpdate = [];
-                    
+
                     // Collect bills that are selected but get their available amounts
                     $allocationRows.each(function() {
                         const $row = $(this);
                         const $billSelect = $row.find('.bill-select');
                         const billId = $billSelect.val();
-                        
+
                         if (billId) {
                             const bill = availableSupplierPurchases.find(p => p.id == billId);
                             if (bill) {
                                 const previousAllocated = billPaymentAllocations[billId] || 0;
                                 const availableAmount = bill.total_due - previousAllocated;
-                                
+
                                 billsToUpdate.push({
                                     row: $row,
                                     billId: billId,
                                     availableAmount: availableAmount,
-                                    invoice: bill.reference_no || bill.invoice_no || 'PUR-' + billId
+                                    invoice: bill.reference_no
                                 });
                             }
                         }
                     });
-                    
+
                     // Clear previous amounts from tracking for this payment method only
                     $allocationRows.each(function() {
                         const $row = $(this);
@@ -2337,7 +2705,7 @@ $(document).ready(function() {
                         const $amountInput = $row.find('.allocation-amount');
                         const currentAmount = parseFloat($amountInput.val()) || 0;
                         const prevAmount = $amountInput.data('prev-amount') || 0;
-                        
+
                         if (billId && prevAmount > 0) {
                             // Remove the previous amount from global tracking
                             billPaymentAllocations[billId] = (billPaymentAllocations[billId] || 0) - prevAmount;
@@ -2347,7 +2715,7 @@ $(document).ready(function() {
                             $amountInput.data('prev-amount', 0);
                         }
                     });
-                    
+
                     // Recalculate available amounts after clearing previous allocations
                     billsToUpdate.forEach(billInfo => {
                         const bill = availableSupplierPurchases.find(p => p.id == billInfo.billId);
@@ -2356,47 +2724,47 @@ $(document).ready(function() {
                             billInfo.availableAmount = bill.total_due - currentAllocated;
                         }
                     });
-                    
+
                     // Now distribute the total amount across selected bills
                     billsToUpdate.forEach((billInfo, index) => {
                         if (remainingAmount <= 0) return;
-                        
+
                         // Calculate amount to allocate to this bill
                         const amountToAllocate = Math.min(remainingAmount, billInfo.availableAmount);
-                        
+
                         if (amountToAllocate > 0) {
                             // Update the amount input with system update flag
                             const $amountInput = billInfo.row.find('.allocation-amount');
                             $amountInput.data('system-update', true);
                             $amountInput.val(amountToAllocate.toFixed(2));
-                            
+
                             // Update tracking
                             billPaymentAllocations[billInfo.billId] = (billPaymentAllocations[billInfo.billId] || 0) + amountToAllocate;
                             $amountInput.data('prev-amount', amountToAllocate);
-                            
+
                             // Update hint
                             const $hint = billInfo.row.find('.bill-amount-hint');
                             const remainingAfterPayment = billInfo.availableAmount - amountToAllocate;
-                            
+
                             if (remainingAfterPayment <= 0.01) {
                                 $hint.text('✅ Bill will be fully paid').removeClass('text-muted').addClass('text-success');
                             } else {
                                 $hint.text(`💰 Remaining: Rs. ${remainingAfterPayment.toFixed(2)}`).removeClass('text-success').addClass('text-muted');
                             }
-                            
+
                             remainingAmount -= amountToAllocate;
-                            
+
                             // Remove system update flag after a delay
                             setTimeout(() => {
                                 $amountInput.data('system-update', false);
                             }, 200);
                         }
                     });
-                    
+
                     // Update hint for the payment total with enhanced excess handling
                     const $hint = $paymentContainer.find('.payment-total-hint');
                     const actualAllocated = totalAmount - remainingAmount;
-                    
+
                     if (remainingAmount > 0.01) {
                         // There's excess amount - provide options
                         const hintText = `⚠️ Excess Rs. ${remainingAmount.toFixed(2)} - Will be treated as advance payment`;
@@ -2407,7 +2775,7 @@ $(document).ready(function() {
                         } else {
                             $hint.text(hintText).removeClass('text-success text-info').addClass('text-warning');
                         }
-                        
+
                         // Show excess amount handling options
                         const $excessOptions = $paymentContainer.find('.excess-options');
                         if ($excessOptions.length === 0) {
@@ -2428,13 +2796,13 @@ $(document).ready(function() {
                                     </div>
                                 </div>
                             `);
+                        } else {
+                            // Update existing options
+                            $excessOptions.find(`label[for="reduce_${paymentId}"]`).text(`✂️ Reduce Total to Rs. ${actualAllocated.toFixed(2)}`);
                         }
-                    } else if (actualAllocated > 0) {
-                        // Perfect allocation or exactly matched
-                        const hintText = actualAllocated === totalAmount ? 
-                            `✅ Perfect allocation: Rs. ${actualAllocated.toFixed(2)}` :
-                            `✅ Allocated: Rs. ${actualAllocated.toFixed(2)}`;
-                            
+                    } else {
+                        // Perfect allocation - no excess
+                        const hintText = `✅ Perfect allocation: Rs. ${actualAllocated.toFixed(2)}`;
                         if ($hint.length === 0) {
                             $paymentContainer.find('.payment-total-amount').after(
                                 `<small class="payment-total-hint text-success d-block">${hintText}</small>`
@@ -2442,580 +2810,102 @@ $(document).ready(function() {
                         } else {
                             $hint.text(hintText).removeClass('text-warning text-info').addClass('text-success');
                         }
-                        
+
                         // Remove excess options if they exist
                         $paymentContainer.find('.excess-options').remove();
                     }
-                    
-                    // Refresh available bills list to reflect new allocations
-                    if (typeof populateFlexibleBillsList === 'function') populateFlexibleBillsList();
+
+                    // Refresh bills list
+                    populateFlexibleBillsList();
+                } else {
+                    // No allocations or zero amount - remove hints
+                    $paymentContainer.find('.payment-total-hint').remove();
+
+                    if (totalAmount === 0) {
+                        // Clear all amounts if total is zero
+                        $allocationRows.each(function() {
+                            $(this).find('.allocation-amount').val('');
+                        });
+                    }
                 }
             }
-            
-            // Update summary totals regardless
+
             updateSummaryTotals();
-            
         } catch (error) {
-            console.error('Error in payment total amount distribution:', error);
-            toastr.error('Error distributing payment amount: ' + error.message);
+            console.error('Error in payment total amount input:', error);
         }
     });
-    
-    // Handle Excess Amount Options (EXACT COPY FROM SALES)
+
+    // Handle Excess Amount Options
     $(document).on('change', '.excess-option', function() {
         const $paymentContainer = $(this).closest('.payment-method-item');
         const paymentId = $paymentContainer.data('payment-id');
         const $totalInput = $paymentContainer.find('.payment-total-amount');
         const selectedOption = $(this).val();
-        
+
         if (selectedOption === 'reduce') {
             // Calculate actual allocated amount
             let actualAllocated = 0;
             $paymentContainer.find('.allocation-amount').each(function() {
                 actualAllocated += parseFloat($(this).val()) || 0;
             });
-            
+
             // Update total to match allocations
             $totalInput.data('system-update', true);
             $totalInput.val(actualAllocated.toFixed(2));
-            
+
             // Update tracking
             paymentMethodAllocations[paymentId].totalAmount = actualAllocated;
-            
+
             // Remove excess options
             $paymentContainer.find('.excess-options').remove();
-            
+
             // Update hint
             const $hint = $paymentContainer.find('.payment-total-hint');
             $hint.text(`✅ Reduced to allocated amount: Rs. ${actualAllocated.toFixed(2)}`).removeClass('text-warning').addClass('text-success');
-            
+
             // Remove system update flag
             setTimeout(() => {
                 $totalInput.data('system-update', false);
             }, 100);
-            
+
             toastr.success(`Payment amount reduced to Rs. ${actualAllocated.toFixed(2)} (no excess)`);
         } else if (selectedOption === 'advance') {
             toastr.info('Excess amount will be kept as advance payment (supplier credit)');
         }
-        
+
         updateSummaryTotals();
     });
-    
-    // Remove Payment Method
-    $(document).on('click', '.remove-payment-btn', function() {
-        const paymentId = $(this).data('payment-id');
-        
-        // Remove allocations from tracking
-        if (paymentMethodAllocations[paymentId]) {
-            Object.keys(paymentMethodAllocations[paymentId].billAllocations).forEach(billId => {
-                const amount = paymentMethodAllocations[paymentId].billAllocations[billId];
-                billPaymentAllocations[billId] = (billPaymentAllocations[billId] || 0) - amount;
-                if (billPaymentAllocations[billId] <= 0) {
-                    delete billPaymentAllocations[billId];
-                }
-            });
-            delete paymentMethodAllocations[paymentId];
+
+    // Add to Payment from Bill (Quick Add)
+    $(document).on('click', '.add-to-payment-btn', function() {
+        const billId = $(this).data('bill-id');
+        const bill = availableSupplierPurchases.find(p => p.id == billId);
+
+        if ($('.payment-method-item').length === 0) {
+            addFlexiblePayment();
         }
-        
-        $(this).closest('.payment-method-item').fadeOut(() => {
-            $(this).closest('.payment-method-item').remove();
-            populateFlexibleBillsList();
-            updateSummaryTotals();
-        });
-    });
-    
-    // Supplier selection change - load purchases for multi-method
-    $('#supplierSelect').change(function() {
-        const supplierId = $(this).val();
-        const paymentMethod = $('#paymentMethod').val();
-        
-        if (supplierId && paymentMethod === 'multiple') {
-            // Clear existing data and reload bills
-            $('#billsPaymentTableBody').empty();
-            availableSupplierPurchases = [];
-            
-            loadSupplierPurchasesForMultiMethod(supplierId);
-        }
-    });
-    
-    // Add Bill Allocation event handler
-    $(document).on('click', '.add-bill-allocation-btn', function() {
-        const paymentId = $(this).data('payment-id');
+
+        // Find the first payment method or create one
+        const $firstPayment = $('.payment-method-item').first();
+        const paymentId = $firstPayment.data('payment-id');
+
+        // Add allocation
         addBillAllocation(paymentId);
-    });
-    
-    // Remove Bill Allocation event handler
-    $(document).on('click', '.remove-allocation-btn', function() {
-        const allocationId = $(this).data('allocation-id');
-        const $row = $(this).closest('.bill-allocation-row');
-        const billId = $row.find('.bill-select').val();
-        const amount = parseFloat($row.find('.allocation-amount').val()) || 0;
-        const paymentId = $row.data('payment-id');
-        
-        // Update tracking
-        if (billId && amount > 0) {
-            billPaymentAllocations[billId] = (billPaymentAllocations[billId] || 0) - amount;
-            if (billPaymentAllocations[billId] <= 0) {
-                delete billPaymentAllocations[billId];
-            }
-            
-            // Update payment method allocations
-            if (paymentMethodAllocations[paymentId] && paymentMethodAllocations[paymentId].billAllocations) {
-                delete paymentMethodAllocations[paymentId].billAllocations[billId];
-            }
-        }
-        
-        $row.fadeOut(() => {
-            $row.remove();
-            
-            // Refresh bill options for ALL payment methods (global refresh like sales)
-            refreshAllBillOptions();
-            
-            // Note: populateFlexibleBillsList and updateSummaryTotals functions need to be implemented
-            if (typeof populateFlexibleBillsList === 'function') populateFlexibleBillsList();
-            if (typeof updateSummaryTotals === 'function') updateSummaryTotals();
-        });
-    });
-    
-    // Function to refresh bill options based on global allocations
-    function refreshBillOptionsForPayment(paymentId) {
-        const $allocationRows = $(`.bill-allocation-row[data-payment-id="${paymentId}"]`);
-        
-        // Update each row's options to show current availability
-        $allocationRows.each(function() {
-            const $select = $(this).find('.bill-select');
-            const currentValue = $select.val();
-            
-            // Clear and repopulate options
-            $select.empty().append('<option value="">Select Bill to Pay...</option>');
-            
-            if (availableSupplierPurchases && availableSupplierPurchases.length > 0) {
-                availableSupplierPurchases.forEach(purchase => {
-                    const allocatedAmount = billPaymentAllocations[purchase.id] || 0;
-                    const remainingAmount = purchase.total_due - allocatedAmount;
-                    
-                    // Show all bills with remaining amounts OR currently selected (like sales system)
-                    if (remainingAmount > 0.01 || purchase.id === currentValue) {
-                        const statusIcon = allocatedAmount > 0 ? '🟡' : '🔴';
-                        const statusText = allocatedAmount > 0 ? 'Partially Paid' : 'Unpaid';
-                        const invoiceDisplay = purchase.reference_no || purchase.invoice_no || 'PUR-' + purchase.id;
-                        
-                        const option = new Option(
-                            `${statusIcon} ${invoiceDisplay} - Remaining: Rs. ${remainingAmount.toFixed(2)} (${statusText})`,
-                            purchase.id,
-                            false,
-                            purchase.id === currentValue
-                        );
-                        $select.append(option);
-                    }
-                });
-            }
-            
-            $select.trigger('change.select2');
-        });
-    }
-    
-    // Function to refresh ALL bill options across ALL payment methods (like sales system)
-    function refreshAllBillOptions() {
-        console.log('Refreshing all bill options based on global allocations');
-        
-        // Update all bill allocation rows across all payment methods
-        $('.bill-allocation-row').each(function() {
-            const $select = $(this).find('.bill-select');
-            const currentValue = $select.val();
-            
-            // Clear and repopulate options
-            $select.empty().append('<option value="">Select Bill to Pay...</option>');
-            
-            if (availableSupplierPurchases && availableSupplierPurchases.length > 0) {
-                availableSupplierPurchases.forEach(purchase => {
-                    const allocatedAmount = billPaymentAllocations[purchase.id] || 0;
-                    const remainingAmount = purchase.total_due - allocatedAmount;
-                    
-                    // Show all bills with remaining amounts OR currently selected bills (like sales system)
-                    if (remainingAmount > 0.01 || purchase.id === currentValue) {
-                        const statusIcon = allocatedAmount > 0 ? '🟡' : '🔴';
-                        const statusText = allocatedAmount > 0 ? 'Partially Paid' : 'Unpaid';
-                        const invoiceDisplay = purchase.reference_no || purchase.invoice_no || 'PUR-' + purchase.id;
-                        
-                        const option = new Option(
-                            `${statusIcon} ${invoiceDisplay} - Remaining: Rs. ${remainingAmount.toFixed(2)} (${statusText})`,
-                            purchase.id,
-                            false,
-                            purchase.id === currentValue
-                        );
-                        $select.append(option);
-                    }
-                });
-            }
-            
-            $select.trigger('change.select2');
-        });
-        
-        // Also refresh any existing selections to show correct remaining amounts
-        $('.bill-allocation-row .bill-select').each(function() {
-            const billId = $(this).val();
-            if (billId) {
-                // Mark as programmatic change to prevent clearing amount input
-                $(this).data('programmatic-change', true);
-                $(this).trigger('change');
-            }
-        });
-    }
-    
-    // Function to update current row's hint with latest allocation info
-    function updateCurrentRowHint($row, billId) {
-        const $hint = $row.find('.bill-amount-hint');
-        const $amountInput = $row.find('.allocation-amount');
-        const bill = availableSupplierPurchases.find(p => p.id == billId);
-        
-        if (bill) {
-            const allocatedAmount = billPaymentAllocations[billId] || 0;
-            const remainingAmount = bill.total_due - allocatedAmount;
-            const currentAmount = parseFloat($amountInput.val()) || 0;
-            
-            // Update max amount
-            $amountInput.attr('max', remainingAmount.toFixed(2));
-            $amountInput.attr('placeholder', `Max: Rs. ${remainingAmount.toFixed(2)}`);
-            
-            // Update hint to show current allocation status
-            if (remainingAmount <= 0.01) {
-                $hint.text('✅ Bill will be fully paid').removeClass('text-muted').addClass('text-success');
-            } else if (currentAmount > 0) {
-                $hint.text(`💰 Remaining after this payment: Rs. ${remainingAmount.toFixed(2)}`).removeClass('text-success').addClass('text-muted');
-            } else {
-                const statusText = allocatedAmount > 0 ? 'Partially Paid' : 'Unpaid';
-                $hint.text(`Available: Rs. ${remainingAmount.toFixed(2)} (${statusText})`).removeClass('text-success text-muted').addClass('text-info');
-            }
-        }
-    }
-    
-    // Function to refresh bill options for all payment methods EXCEPT the specified one
-    function refreshBillOptionsExcept(excludePaymentId) {
-        console.log('Refreshing bill options except payment', excludePaymentId);
-        
-        // Update bill allocation rows for other payment methods only
-        $('.bill-allocation-row').each(function() {
-            const $row = $(this);
-            const paymentId = $row.closest('.payment-method-item').data('payment-id');
-            
-            // Skip the current payment method to preserve user selections
-            if (paymentId === excludePaymentId) return;
-            
-            const $select = $row.find('.bill-select');
-            const currentValue = $select.val();
-            
-            // Clear and repopulate options
-            $select.empty().append('<option value="">Select Bill to Pay...</option>');
-            
-            if (availableSupplierPurchases && availableSupplierPurchases.length > 0) {
-                availableSupplierPurchases.forEach(purchase => {
-                    const allocatedAmount = billPaymentAllocations[purchase.id] || 0;
-                    const remainingAmount = purchase.total_due - allocatedAmount;
-                    
-                    // Show all bills with remaining amounts OR currently selected bills
-                    if (remainingAmount > 0.01 || purchase.id === currentValue) {
-                        const statusIcon = allocatedAmount > 0 ? '🟡' : '🔴';
-                        const statusText = allocatedAmount > 0 ? 'Partially Paid' : 'Unpaid';
-                        const invoiceDisplay = purchase.reference_no || purchase.invoice_no || 'PUR-' + purchase.id;
-                        
-                        const option = new Option(
-                            `${statusIcon} ${invoiceDisplay} - Remaining: Rs. ${remainingAmount.toFixed(2)} (${statusText})`,
-                            purchase.id,
-                            false,
-                            purchase.id === currentValue
-                        );
-                        $select.append(option);
-                    }
-                });
-            }
-            
-            $select.trigger('change.select2');
-        });
-    }
-    
-    // Bill Selection in Allocation - SIMPLE approach (like sales system)
-    $(document).on('change', '.bill-allocation-row .bill-select', function() {
-        const billId = $(this).val();
-        const $row = $(this).closest('.bill-allocation-row');
-        const $amountInput = $row.find('.allocation-amount');
-        const $hint = $row.find('.bill-amount-hint');
-        
-        if (billId) {
-            const bill = availableSupplierPurchases.find(p => p.id == billId);
-            if (bill) {
-                // Use GLOBAL allocation tracking (across all payment methods)
-                const allocatedAmount = billPaymentAllocations[billId] || 0;
-                const remainingAmount = bill.total_due - allocatedAmount;
-                
-                // Enable amount input but DON'T auto-fill (like sales system)
-                $amountInput.attr('max', remainingAmount.toFixed(2)).prop('disabled', false);
-                $amountInput.attr('placeholder', `Max: Rs. ${remainingAmount.toFixed(2)}`);
-                
-                // Only clear if this is user-initiated, not programmatic
-                if (!$(this).data('programmatic-change')) {
-                    $amountInput.val(''); // Empty - let user type
-                }
-                
-                // Show available amount info with current allocation status
-                const statusText = allocatedAmount > 0 ? 'Partially Paid' : 'Unpaid';
-                $hint.text(`Available: Rs. ${remainingAmount.toFixed(2)} (${statusText})`).show();
-                
-                // Clear the programmatic flag
-                $(this).removeData('programmatic-change');
-            }
-        } else {
-            // Reset when no bill selected
-            $amountInput.prop('disabled', true).val('').removeAttr('max').attr('placeholder', 'Select bill first');
-            $hint.hide();
-        }
-    });
-    
-    // Amount Input in Allocation (FIXED WITH SYSTEM UPDATE DETECTION - Like Sales)
-    $(document).on('input', '.allocation-amount', function() {
-        // Check if this is a system update to prevent interference
-        const isSystemUpdate = $(this).data('system-update');
-        if (isSystemUpdate) {
-            console.log('Skipping system update for allocation amount');
-            return;
-        }
-        
-        const $row = $(this).closest('.bill-allocation-row');
-        const $hint = $row.find('.bill-amount-hint');
-        const billId = $row.find('.bill-select').val();
-        const amount = parseFloat($(this).val()) || 0;
-        
-        if (!billId) return;
-        
-        const bill = availableSupplierPurchases.find(p => p.id == billId);
-        if (!bill) return;
-        
-        // Calculate available amount for this bill (EXACTLY like sales)
-        const prevAmount = $(this).data('prev-amount') || 0;
-        const currentAllocation = billPaymentAllocations[billId] || 0;
-        const maxAmount = bill.total_due - (currentAllocation - prevAmount);
-        
-        // Validate amount doesn't exceed remaining balance
-        if (amount > maxAmount) {
-            $(this).val(maxAmount.toFixed(2));
-            // Show subtle warning in hint instead of annoying toastr
-            $hint.text(`⚠️ Amount limited to remaining balance: Rs. ${maxAmount.toFixed(2)}`).removeClass('text-muted text-success').addClass('text-warning');
-            return;
-        }
-        
-        // Update bill payment tracking (GLOBAL across all payment methods)
-        billPaymentAllocations[billId] = (currentAllocation - prevAmount) + amount;
-        $(this).data('prev-amount', amount);
-        
-        // If bill becomes fully paid, remove from available bills
-        const remainingAfterPayment = bill.total_due - billPaymentAllocations[billId];
-        
-        // Update hint with payment status
-        if (remainingAfterPayment <= 0.01) {
-            $hint.text('✅ Bill will be fully paid').removeClass('text-muted').addClass('text-success');
-        } else {
-            $hint.text(`💰 Remaining after this payment: Rs. ${remainingAfterPayment.toFixed(2)}`).removeClass('text-success').addClass('text-muted');
-        }
-        
-        // Only update the current row's hint and summary (like sales system)
-        // Don't refresh all dropdowns to prevent losing current selections
-        updateCurrentRowHint($row, billId);
-        
-        // Only refresh other payment methods' dropdowns, not current one
-        const currentPaymentId = $row.closest('.payment-method-item').data('payment-id');
-        refreshBillOptionsExcept(currentPaymentId);
-        
-        // Update summary if function exists
-        if (typeof updateSummaryTotals === 'function') updateSummaryTotals();
-        
-        // Clean up zero allocations
-        if (amount <= 0) {
-            if (billPaymentAllocations[billId] <= 0) {
-                delete billPaymentAllocations[billId];
-            }
-        }
+
+        // Pre-select the bill
+        const $lastAllocation = $firstPayment.find('.bill-allocation-row').last();
+        $lastAllocation.find('.bill-select').val(billId).trigger('change');
+
+        // Set full amount
+        const allocatedAmount = billPaymentAllocations[billId] || 0;
+        const remainingAmount = bill.total_due - allocatedAmount;
+        $lastAllocation.find('.allocation-amount').val(remainingAmount.toFixed(2)).trigger('input');
+
+        toastr.success(`Added ${bill.reference_no} to payment`);
     });
 });
 
-// Helper function to get required fields for each payment method
-function getRequiredFieldsForMethod(method) {
-    switch (method) {
-        case 'cash':
-            return [];
-        case 'card':
-            return ['card_number', 'card_holder_name', 'card_type'];
-        case 'cheque':
-            return ['cheque_number', 'cheque_bank_branch', 'cheque_received_date'];
-        case 'bank_transfer':
-            return ['bank_name', 'account_number', 'transaction_reference'];
-        default:
-            return [];
-    }
-}
-
-// Submit flexible multi-method payment
-function submitMultiMethodPayment() {
-    console.log('=== SUBMIT FLEXIBLE PURCHASE PAYMENT ===');
-    
-    // Get supplier and payment date
-    const supplierId = $('#supplier_id').val();
-    const paymentDate = $('#payment_date').val();
-    const paymentType = 'flexible'; // Always flexible for multi-method
-    
-    console.log('Supplier ID:', supplierId);
-    console.log('Payment Date:', paymentDate);
-    console.log('Payment Allocations:', paymentMethodAllocations);
-    
-    // Basic validation
-    if (!supplierId) {
-        toastr.error('Please select a supplier');
-        return false;
-    }
-    
-    if (!paymentDate) {
-        toastr.error('Please select payment date');
-        return false;
-    }
-    
-    // Check if we have payment methods
-    if (Object.keys(paymentMethodAllocations).length === 0) {
-        toastr.error('Please add at least one payment method');
-        return false;
-    }
-    
-    // Build payment groups data
-    const paymentGroups = [];
-    let hasValidPayments = false;
-    
-    for (const [paymentId, allocation] of Object.entries(paymentMethodAllocations)) {
-        console.log(`Processing payment ${paymentId}:`, allocation);
-        
-        if (!allocation.method) {
-            toastr.error(`Please select payment method for Payment ${paymentId}`);
-            return false;
-        }
-        
-        // Get payment method details from form
-        const $methodContainer = $(`.payment-method-item[data-payment-id="${paymentId}"]`);
-        const paymentDetails = {};
-        
-        // Collect all input fields for this payment method
-        $methodContainer.find('.payment-fields input, .payment-fields select, .payment-fields textarea').each(function() {
-            const fieldName = $(this).attr('name');
-            if (fieldName) {
-                paymentDetails[fieldName] = $(this).val();
-            }
-        });
-        
-        console.log(`Payment ${paymentId} details:`, paymentDetails);
-        
-        // Validate required fields
-        const requiredFields = getRequiredFieldsForMethod(allocation.method);
-        const missingFields = requiredFields.filter(field => !paymentDetails[field]);
-        
-        if (missingFields.length > 0) {
-            toastr.error(`Please fill required fields for ${allocation.method}: ${missingFields.join(', ')}`);
-            return false;
-        }
-        
-        // Build bills data for this payment method
-        const bills = [];
-        for (const [billId, amount] of Object.entries(allocation.billAllocations)) {
-            if (amount > 0) {
-                const bill = availableSupplierPurchases.find(p => p.id == billId);
-                if (bill) {
-                    bills.push({
-                        purchase_id: parseInt(billId),
-                        amount: parseFloat(amount),
-                        invoice_no: bill.invoice_no,
-                        total_due: bill.total_due
-                    });
-                    hasValidPayments = true;
-                }
-            }
-        }
-        
-        if (bills.length === 0) {
-            toastr.error(`Please allocate bills for payment method ${allocation.method}`);
-            return false;
-        }
-        
-        // Add payment group
-        paymentGroups.push({
-            payment_method: allocation.method,
-            total_amount: allocation.totalAmount,
-            payment_details: paymentDetails,
-            bills: bills
-        });
-    }
-    
-    if (!hasValidPayments) {
-        toastr.error('No valid bill payments found');
-        return false;
-    }
-    
-    console.log('Final payment groups:', paymentGroups);
-    
-    // Validate bill totals don't exceed due amounts
-    const billTotals = {};
-    paymentGroups.forEach(group => {
-        group.bills.forEach(bill => {
-            billTotals[bill.purchase_id] = (billTotals[bill.purchase_id] || 0) + bill.amount;
-        });
-    });
-    
-    for (const [billId, totalAllocated] of Object.entries(billTotals)) {
-        const bill = availableSupplierPurchases.find(p => p.id == billId);
-        if (bill && totalAllocated > bill.total_due) {
-            toastr.error(`Total allocation for ${bill.invoice_no} exceeds bill amount`);
-            return false;
-        }
-    }
-    
-    // Show loading
-    $('#submitBulkPayment').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Processing...');
-    
-    // Submit flexible payment
-    $.ajax({
-        url: '/submit-flexible-bulk-purchase-payment',
-        method: 'POST',
-        data: {
-            supplier_id: supplierId,
-            payment_date: paymentDate,
-            payment_type: paymentType,
-            payment_groups: paymentGroups,
-            notes: $('#notes').val() || '',
-            _token: $('meta[name="csrf-token"]').attr('content')
-        },
-        success: function(response) {
-            if (response.status === 200) {
-                toastr.success(response.message);
-                
-                // Show success details
-                setTimeout(() => {
-                    toastr.info(`Reference: ${response.bulk_reference}<br>Amount: Rs. ${response.total_amount}`, 'Payment Details', {
-                        timeOut: 10000
-                    });
-                }, 1000);
-                
-                // Reset form and refresh
-                setTimeout(() => {
-                    window.location.reload();
-                }, 2000);
-            }
-        },
-        error: function(xhr) {
-            const error = xhr.responseJSON;
-            toastr.error(error?.message || 'Flexible payment submission failed');
-        },
-        complete: function() {
-            $('#submitBulkPayment').prop('disabled', false).html('<i class="fas fa-credit-card"></i> Submit Payment');
-        }
-    });
-    
-    return false;
-}
-
 </script>
 @endsection
+

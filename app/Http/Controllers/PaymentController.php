@@ -863,11 +863,6 @@ class PaymentController extends Controller
         return response()->json(['message' => 'Payments submitted successfully.']);
     }
 
-    /**
-     * Enhanced flexible bulk payment for Tamil scenario
-     * Multiple payment methods for different bills in single transaction
-     * Tamil: பல payment methods-ல ஒரே transaction-ல bulk payment
-     */
     public function submitFlexibleBulkPayment(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -1163,7 +1158,7 @@ class PaymentController extends Controller
         $validator = Validator::make($request->all(), [
             'supplier_id' => 'required|exists:suppliers,id',
             'payment_date' => 'required|date',
-            'payment_type' => 'required|in:flexible,purchase_dues',
+            'payment_type' => 'required|in:opening_balance,purchase_dues,both',
             'payment_groups' => 'required|array|min:1',
             'payment_groups.*.method' => 'required|in:cash,cheque,card,bank_transfer,discount',
             'payment_groups.*.bills' => 'required_unless:payment_type,opening_balance|array|min:1',

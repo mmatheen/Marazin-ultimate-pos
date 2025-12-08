@@ -1,51 +1,51 @@
 @extends('layout.layout')
 
-@section('head')
+{{-- @section('head')
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
     <style>
         /* Fix Select2 dropdown alignment and search in modal */
         #bulkPaymentModal .select2-container {
             width: 100% !important;
         }
-        
+
         #bulkPaymentModal .select2-container--default .select2-selection--single {
             height: 38px;
             padding: 6px 12px;
             border: 1px solid #ced4da;
             border-radius: 4px;
         }
-        
+
         #bulkPaymentModal .select2-container--default .select2-selection--single .select2-selection__rendered {
             line-height: 24px;
             padding-left: 0;
         }
-        
+
         #bulkPaymentModal .select2-container--default .select2-selection--single .select2-selection__arrow {
             height: 36px;
         }
-        
+
         /* Ensure dropdown appears above modal backdrop */
         .select2-container--open {
             z-index: 9999 !important;
         }
-        
+
         .select2-dropdown {
             z-index: 9999 !important;
         }
-        
+
         /* Fix search input focus */
         .select2-search__field {
             outline: none;
             border: 1px solid #ced4da !important;
             padding: 4px !important;
         }
-        
+
         .select2-search__field:focus {
             border-color: #80bdff !important;
             box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
         }
     </style>
-@endsection
+@endsection --}}
 
 @section('content')
     <div class="content container-fluid">
@@ -187,11 +187,7 @@
 
 
                                     <div class="table-responsive">
-                                        <div class="mb-3">
-                                            <button id="bulkPaymentBtn" class="btn btn-primary">
-                                                Add Bulk Payment
-                                            </button>
-                                        </div>
+
                                         <table id="salesTable" class="table table-bordered">
                                             <thead>
                                                 <tr>
@@ -613,194 +609,11 @@
             </div>
         </div>
 
-
-        <div class="modal fade" id="bulkPaymentModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="bulkPaymentModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-xl">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="bulkPaymentModalLabel">Customer Bulk Payments</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <form id="bulkPaymentForm">
-                            <div class="card mb-4 shadow-sm rounded">
-                                <div class="card-body">
-                                    <div class="form-group">
-                                        <label for="customerSelect">Select Customer</label>
-                                        <select id="customerSelect" class="form-control selectBox">
-                                            <option value="">Select Customer</option>
-                                        </select>
-                                    </div>
-                                    <div class="row mt-3">
-                                        <div class="col-md-2">
-                                            <div class="card bg-warning p-3 rounded text-center shadow-sm">
-                                                <strong>Opening Balance:</strong>
-                                                <span id="openingBalance" class="d-block mt-2">Rs. 0.00</span>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-2">
-                                            <div class="card bg-success p-3 rounded text-center shadow-sm">
-                                                <strong>Total Sales:</strong>
-                                                <span id="totalSalesAmount" class="d-block mt-2">Rs. 0.00</span>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <div class="card bg-secondary p-3 rounded text-center shadow-sm">
-                                                <strong>Total Paid:</strong>
-                                                <span id="totalPaidAmount" class="d-block mt-2">Rs. 0.00</span>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <div class="card bg-primary p-3 rounded text-center shadow-sm">
-                                                <strong>Sale Due Amount:</strong>
-                                                <span id="totalDueAmount" class="d-block mt-2">Rs. 0.00</span>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <div class="card bg-danger p-3 rounded text-center shadow-sm">
-                                                <strong>Total Customer Due:</strong>
-                                                <span id="totalCustomerDue" class="d-block mt-2">Rs. 0.00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Payment Type Selection -->
-                                    <div class="row mt-4">
-                                        <div class="col-md-12">
-                                            <div class="card p-3 border border-primary">
-                                                <h5 class="text-primary">Payment Options</h5>
-                                                <div class="form-check form-check-inline">
-                                                    <input class="form-check-input" type="radio" name="paymentType" id="payOpeningBalance" value="opening_balance">
-                                                    <label class="form-check-label" for="payOpeningBalance">
-                                                        <strong>Pay Opening Balance Only</strong>
-                                                        <small class="d-block text-muted">Settle customer's opening balance (not related to any sale)</small>
-                                                    </label>
-                                                </div>
-                                                <div class="form-check form-check-inline">
-                                                    <input class="form-check-input" type="radio" name="paymentType" id="paySaleDues" value="sale_dues" checked>
-                                                    <label class="form-check-label" for="paySaleDues">
-                                                        <strong>Pay Sale Dues</strong>
-                                                        <small class="d-block text-muted">Pay against specific sales invoices</small>
-                                                    </label>
-                                                </div>
-                                                <div class="form-check form-check-inline">
-                                                    <input class="form-check-input" type="radio" name="paymentType" id="payBoth" value="both">
-                                                    <label class="form-check-label" for="payBoth">
-                                                        <strong>Pay Both (Opening Balance + Sale Dues)</strong>
-                                                        <small class="d-block text-muted">First settle opening balance, then apply to sales</small>
-                                                    </label>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div id="salesListContainer" class="mt-4">
-                                        <table id="salesList" class="table table-striped" style="margin-bottom: 70px; margin-top: 30px">
-                                            <thead>
-                                                <tr>
-                                                    <th>Sale ID</th>
-                                                    <th>Final Total</th>
-                                                    <th>Total Paid</th>
-                                                    <th>Total Due</th>
-                                                    <th>Payment Amount</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody></tbody>
-                                        </table>
-                                        
-                                        <!-- Individual Payment Total Display -->
-                                        <div class="row mt-3">
-                                            <div class="col-md-12">
-                                                <div class="alert alert-info">
-                                                    <h5>Individual Payments Total: <span id="individualPaymentTotal">Rs. 0.00</span></h5>
-                                                    <small class="text-muted">This shows the sum of individual payment amounts entered above</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="row mb-3">
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <label for="paymentMethod" class="form-label">Payment Method</label>
-                                                <select class="form-select" id="paymentMethod" name="payment_method">
-                                                    <option value="cash" selected>Cash</option>
-                                                    <option value="card">Credit Card</option>
-                                                    <option value="cheque">Cheque</option>
-                                                    <option value="bank_transfer">Bank Transfer</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <label for="paidOn" class="form-label">Paid On</label>
-                                                <input type="date" class="form-control" id="paidOn" name="paid_on">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <label for="globalPaymentAmount" class="form-label">Amount</label>
-                                                <input type="number" class="form-control" id="globalPaymentAmount" name="global_payment_amount" min="0" step="0.01" placeholder="0.00">
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Payment Method Specific Fields -->
-                                    <div class="row mb-3" id="cardFields" style="display: none;">
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="cardNumber" class="form-label">Card Number</label>
-                                                <input type="text" class="form-control" id="cardNumber" name="card_number">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="cardHolderName" class="form-label">Card Holder Name</label>
-                                                <input type="text" class="form-control" id="cardHolderName" name="card_holder_name">
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="row mb-3" id="chequeFields" style="display: none;">
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="chequeNumber" class="form-label">Cheque Number</label>
-                                                <input type="text" class="form-control" id="chequeNumber" name="cheque_number">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="chequeBankBranch" class="form-label">Bank Branch</label>
-                                                <input type="text" class="form-control" id="chequeBankBranch" name="cheque_bank_branch">
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="row mb-3" id="bankTransferFields" style="display: none;">
-                                        <div class="col-md-12">
-                                            <div class="mb-3">
-                                                <label for="bankAccountNumber" class="form-label">Bank Account Number</label>
-                                                <input type="text" class="form-control" id="bankAccountNumber" name="bank_account_number">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <button type="button" id="submitBulkPayment" class="btn btn-success">Submit Payment</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <script>
             $(document).ready(function() {
                 // Ensure bulk payment modal uses the same functionality as the separate page
                 // The sales_ajax.blade.php file included at the end provides all the functionality
-                
+
                 // Override the local togglePaymentFields function to use the global one from sales_ajax.blade.php
                 window.togglePaymentFields = window.togglePaymentFields || togglePaymentFieldsLocal;
             });
@@ -867,20 +680,6 @@
                 });
             }
 
-            // Bulk Payment Button Click Handler
-            $('#bulkPaymentBtn').click(function() {
-                $('#bulkPaymentModal').modal('show');
-            });
-
-            // Toggle payment fields based on selected payment method for bulk payments
-            $('#bulkPaymentModal #paymentMethod').change(function() {
-                togglePaymentFieldsLocal('bulkPaymentModal');
-            });
-
-            // Initialize payment fields when bulk payment modal is shown
-            $('#bulkPaymentModal').on('shown.bs.modal', function() {
-                togglePaymentFieldsLocal('bulkPaymentModal');
-            });
 
             // Toggle payment fields based on selected payment method for individual payments
             $('#paymentMethod').change(function() {
@@ -890,12 +689,12 @@
             // Function to toggle payment fields based on payment method (local version for sale.blade.php)
             function togglePaymentFieldsLocal(modalId) {
                 const paymentMethod = $(`#${modalId} #paymentMethod`).val();
-                
+
                 // Hide all payment method specific fields
                 $(`#${modalId} #cardFields`).hide();
                 $(`#${modalId} #chequeFields`).hide();
                 $(`#${modalId} #bankTransferFields`).hide();
-                
+
                 // Show relevant fields based on payment method
                 if (paymentMethod === 'card') {
                     $(`#${modalId} #cardFields`).show();
@@ -907,8 +706,5 @@
             }
         </script>
 
-        <script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
-        <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
-
         @include('sell.sales_ajax')
-    @endsection
+@endsection
