@@ -283,16 +283,14 @@
             // Initialize DataTable
             var table = $('#draftSalesTable').DataTable({
                 processing: true,
-                serverSide: false, // Set to true if your backend supports server-side processing
+                serverSide: false,
                 ajax: {
-                    url: '/sales',
+                    url: '/sales?status=draft',
                     type: 'GET',
                     dataSrc: function(json) {
-                        // Filter only 'draft' status sales
+                        // Return draft sales directly
                         if (json.sales && Array.isArray(json.sales)) {
-                            return json.sales.filter(function(item) {
-                                return item.status === 'draft';
-                            });
+                            return json.sales;
                         }
                         return [];
                     }

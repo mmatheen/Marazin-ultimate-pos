@@ -9,7 +9,7 @@
     <link rel="shortcut icon" href="{{ URL::to('assets/img/ARB Logo.png') }}"> --}}
     <!-- Dynamic App Name in Title -->
     <meta charset="UTF-8">
-   <title>{{ $activeSetting?->app_name ?? 'My App' }}</title>
+<title>{{ $activeSetting?->app_name ?? 'My App' }} - @yield('title')</title>
 
     <!-- Dynamic Favicon -->
     <link rel="icon" href="{{ $activeSetting?->favicon_url }}" type="image/x-icon">

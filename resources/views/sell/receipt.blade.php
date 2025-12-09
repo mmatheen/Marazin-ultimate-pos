@@ -111,7 +111,7 @@
             .quantity-with-pcs {
                 display: inline-block;
             }
-            
+
         }
     </style>
 </head>
@@ -129,6 +129,20 @@
             {{-- <div style="font-size: 28px; font-weight: bold;">PRANY</div>
             <div style="font-size: 16px; font-weight: bold;">STORES</div> --}}
         </div>
+
+        {{-- Document Type Header --}}
+        <div style="text-align: center; font-size: 14px; font-weight: bold; margin: 8px 0; padding: 4px; background-color: #f0f0f0; border: 1px dashed #000;">
+            @if ($sale->status === 'quotation')
+                QUOTATION
+            @elseif ($sale->status === 'draft')
+                DRAFT
+            @elseif (isset($sale->transaction_type) && $sale->transaction_type === 'sale_order')
+                SALE ORDER
+            @else
+                INVOICE
+            @endif
+        </div>
+
         <div class="billAddress" style="font-size: 12px; color: #000; margin-bottom: 4px; margin-top: 2px;">
             @if ($location)
                 @if ($location->address)
@@ -185,12 +199,12 @@
                     @php
                         $products->load('imeis');
                     @endphp
-                    
+
                     {{-- Process products: separate IMEI products, group non-IMEI products --}}
                     @php
                         $displayItems = [];
                         $nonImeiGroups = [];
-                        
+
                         foreach ($products as $product) {
                             // Check if product has IMEIs
                             if ($product->imeis && $product->imeis->count() > 0) {
@@ -219,7 +233,7 @@
                                 $nonImeiGroups[$groupKey]['amount'] += $product->price * $product->quantity;
                             }
                         }
-                        
+
                         // Merge grouped items with IMEI items
                         $displayItems = array_merge($displayItems, array_values($nonImeiGroups));
                     @endphp
@@ -317,47 +331,50 @@
                         <td width="80" align="right" style="font-weight: bold;">
                             {{ number_format($sale->final_total, 0, '.', ',') }}</td>
                     </tr>
-                    @if (!is_null($amount_given) && $amount_given > 0)
+                    {{-- Only show payment details for final sales, not for quotations, drafts, or sale orders --}}
+                    @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))
+                        @if (!is_null($amount_given) && $amount_given > 0)
+                            <tr>
+                                <td align="right"><strong>AMOUNT GIVEN</strong></td>
+                                <td width="80" align="right">{{ number_format($amount_given, 0, '.', ',') }}</td>
+                            </tr>
+                        @endif
                         <tr>
-                            <td align="right"><strong>AMOUNT GIVEN</strong></td>
-                            <td width="80" align="right">{{ number_format($amount_given, 0, '.', ',') }}</td>
+                            <td align="right"><strong>PAID</strong></td>
+                            <td width="80" align="right">{{ number_format($sale->total_paid, 0, '.', ',') }}</td>
                         </tr>
-                    @endif
-                    <tr>
-                        <td align="right"><strong>PAID</strong></td>
-                        <td width="80" align="right">{{ number_format($sale->total_paid, 0, '.', ',') }}</td>
-                    </tr>
-                    @if (!is_null($balance_amount) && $balance_amount > 0)
-                        <tr>
-                            <td align="right"><strong>BALANCE GIVEN</strong></td>
-                            <td width="80" align="right">{{ number_format($balance_amount, 0, '.', ',') }}</td>
-                        </tr>
-                    @endif
-                    @if (!is_null($sale->total_due) && $sale->total_due > 0)
-                        <tr>
-                            <td align="right"><strong>BALANCE DUE</strong></td>
-                            <td width="80" align="right">
-                                <div style="padding: 4px; display: inline-block; min-width: 60px; text-align: right;">
-                                    ({{ number_format($sale->total_due, 0, '.', ',') }})
-                                </div>
-                            </td>
-                        </tr>
-                    @endif
-                    {{-- Show total outstanding balance for non-walk-in customers with credit --}}
-                    @if ($customer && isset($customer_outstanding_balance) && $customer_outstanding_balance > 0)
-                        <tr>
-                            <td colspan="2" style="padding: 2px 0 !important;">
-                                <hr style="margin: 2px 0; border-top-style: dashed; border-width: 1px;">
-                            </td>
-                        </tr>
-                         <tr>
-                            <td align="right"><strong>TOTAL OUTSTANDING DUE</strong></td>
-                            <td width="80" align="right">
-                                <div style="padding: 4px; display: inline-block; min-width: 60px; text-align: right;">
-                                   Rs {{ number_format($customer_outstanding_balance, 0, '.', ',') }}
-                                </div>
-                            </td>
-                        </tr>
+                        @if (!is_null($balance_amount) && $balance_amount > 0)
+                            <tr>
+                                <td align="right"><strong>BALANCE GIVEN</strong></td>
+                                <td width="80" align="right">{{ number_format($balance_amount, 0, '.', ',') }}</td>
+                            </tr>
+                        @endif
+                        @if (!is_null($sale->total_due) && $sale->total_due > 0)
+                            <tr>
+                                <td align="right"><strong>BALANCE DUE</strong></td>
+                                <td width="80" align="right">
+                                    <div style="padding: 4px; display: inline-block; min-width: 60px; text-align: right;">
+                                        ({{ number_format($sale->total_due, 0, '.', ',') }})
+                                    </div>
+                                </td>
+                            </tr>
+                        @endif
+                        {{-- Show total outstanding balance for non-walk-in customers with credit --}}
+                        @if ($customer && isset($customer_outstanding_balance) && $customer_outstanding_balance > 0)
+                            <tr>
+                                <td colspan="2" style="padding: 2px 0 !important;">
+                                    <hr style="margin: 2px 0; border-top-style: dashed; border-width: 1px;">
+                                </td>
+                            </tr>
+                             <tr>
+                                <td align="right"><strong>TOTAL OUTSTANDING DUE</strong></td>
+                                <td width="80" align="right">
+                                    <div style="padding: 4px; display: inline-block; min-width: 60px; text-align: right;">
+                                       Rs {{ number_format($customer_outstanding_balance, 0, '.', ',') }}
+                                    </div>
+                                </td>
+                            </tr>
+                        @endif
                     @endif
                 </tbody>
             </table>
@@ -398,16 +415,29 @@
         </div>
 
         <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
-        <div style="font-size: 12px; display: block; text-align: center; color: #000; margin-bottom: 8px;">
-            <p><strong>PAYMENT METHOD:</strong>
-                @if ($payments->count() > 1)
-                    Multiple <br>
-                    <span style="font-size: 10px;">({{ $payments->pluck('payment_method')->join(', ') }})</span>
-                @else
-                    {{ $payments->first()->payment_method ?? 'N/A' }}
+        {{-- Only show payment method for final sales, not for quotations, drafts, or sale orders --}}
+        @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))
+            <div style="font-size: 12px; display: block; text-align: center; color: #000; margin-bottom: 8px;">
+                <p><strong>PAYMENT METHOD:</strong>
+                    @if ($payments->count() > 1)
+                        Multiple <br>
+                        <span style="font-size: 10px;">({{ $payments->pluck('payment_method')->join(', ') }})</span>
+                    @else
+                        {{ $payments->first()->payment_method ?? 'N/A' }}
+                    @endif
+                </p>
+            </div>
+        @else
+            <div style="font-size: 12px; display: block; text-align: center; color: #000; margin-bottom: 8px;">
+                @if ($sale->status === 'quotation')
+                    <p><strong>*** QUOTATION - PRICE ESTIMATE ONLY ***</strong></p>
+                @elseif ($sale->status === 'draft')
+                    <p><strong>*** DRAFT - PRICE ESTIMATE ONLY ***</strong></p>
+                @elseif (isset($sale->transaction_type) && $sale->transaction_type === 'sale_order')
+                    <p><strong>*** SALE ORDER - CONFIRMED ORDER ***</strong></p>
                 @endif
-            </p>
-        </div>
+            </div>
+        @endif
 
         <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
         <div class="attribute" style="font-size: 8px; color: #000; font-weight: normal !important; text-align: center;">

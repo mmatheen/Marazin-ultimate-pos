@@ -8,7 +8,7 @@
             size: A4;
             margin: 12mm 15mm;
         }
-        
+
         body {
             font-family: Arial, sans-serif;
             font-size: 13px;
@@ -18,17 +18,17 @@
             max-width: 100%;
             overflow-x: hidden;
         }
-        
+
         .logo-container {
             text-align: center;
             margin-bottom: 10px;
         }
-        
+
         .logo-container img {
             max-width: 120px;
             height: auto;
         }
-        
+
         .company-name {
             text-align: center;
             font-size: 22px;
@@ -36,7 +36,7 @@
             text-transform: uppercase;
             margin-bottom: 5px;
         }
-        
+
         .company-details {
             text-align: center;
             font-size: 11px;
@@ -44,65 +44,65 @@
             margin-bottom: 12px;
             line-height: 1.3;
         }
-        
+
         .company-details div {
             margin-bottom: 1px;
         }
-        
+
         hr.dashed {
             border: 0;
             border-top: 2px dashed #000;
             margin: 10px 0;
         }
-        
+
         .invoice-header-section {
             border-top: 2px dashed #000;
             border-bottom: 2px dashed #000;
             padding: 8px 0;
             margin-bottom: 12px;
         }
-        
+
         .invoice-header-table {
             width: 100%;
             table-layout: fixed;
         }
-        
+
         .invoice-header-table td {
             vertical-align: top;
             font-size: 12px;
             word-wrap: break-word;
         }
-        
+
         .customer-name {
             font-size: 14px;
             font-weight: bold;
             margin-bottom: 3px;
         }
-        
+
         .date-time {
             font-size: 11px;
             color: #333;
         }
-        
+
         .invoice-number {
             font-size: 14px;
             font-weight: bold;
             text-align: center;
         }
-        
+
         .cashier-name {
             font-size: 11px;
             text-align: center;
             color: #333;
         }
-        
+
         .products-table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 15px;
             table-layout: fixed;
         }
-        
+
         .products-table th {
             background-color: #f0f0f0;
             padding: 8px 4px;
@@ -112,7 +112,7 @@
             text-transform: uppercase;
             border-bottom: 2px solid #000;
         }
-        
+
         .products-table td {
             padding: 6px 4px;
             font-size: 12px;
@@ -120,40 +120,40 @@
             word-wrap: break-word;
             overflow-wrap: break-word;
         }
-        
+
         .product-name-row {
             border-top: 1px solid #ddd;
         }
-        
+
         .product-name-row td {
             font-size: 13px;
         }
-        
+
         .product-details-row td {
             padding-top: 2px;
             padding-bottom: 8px;
             border-bottom: 1px solid #eee;
             font-size: 11px;
         }
-        
+
         .text-right {
             text-align: right;
         }
-        
+
         .text-center {
             text-align: center;
         }
-        
+
         .strikethrough {
             text-decoration: line-through;
             color: #999;
         }
-        
+
         .discount-amount {
             color: #666;
             font-size: 12px;
         }
-        
+
         .totals-table {
             width: 100%;
             margin-top: 15px;
@@ -161,33 +161,33 @@
             padding-top: 10px;
             table-layout: fixed;
         }
-        
+
         .totals-table td {
             padding: 5px 0;
             font-size: 13px;
             word-wrap: break-word;
         }
-        
+
         .totals-table .label {
             text-align: right;
             font-weight: bold;
             padding-right: 15px;
             width: 70%;
         }
-        
+
         .totals-table .value {
             text-align: right;
             width: 30%;
             font-weight: bold;
             white-space: nowrap;
         }
-        
+
         .grand-total {
             font-size: 16px !important;
             border-top: 2px solid #000;
             padding-top: 10px !important;
         }
-        
+
         .stats-section {
             display: flex;
             justify-content: space-around;
@@ -197,40 +197,40 @@
             border-top: 2px dashed #000;
             border-bottom: 2px dashed #000;
         }
-        
+
         .stat-item {
             flex: 1;
             border-right: 2px dashed #000;
             padding: 0 8px;
         }
-        
+
         .stat-item:last-child {
             border-right: none;
         }
-        
+
         .stat-number {
             font-size: 18px;
             font-weight: bold;
             color: #000;
         }
-        
+
         .stat-label {
             font-size: 10px;
             color: #666;
             text-transform: uppercase;
             margin-top: 2px;
         }
-        
+
         .payment-info {
             text-align: center;
             margin: 12px 0;
             font-size: 12px;
         }
-        
+
         .payment-info strong {
             text-transform: uppercase;
         }
-        
+
         .footer {
             margin-top: 15px;
             padding-top: 12px;
@@ -239,11 +239,11 @@
             font-size: 10px;
             color: #666;
         }
-        
+
         .footer p {
             margin: 4px 0;
         }
-        
+
         .price-legend {
             font-size: 10px;
             color: #666;
@@ -253,14 +253,14 @@
             border-left: 3px solid #333;
             text-align: left;
         }
-        
+
         @media print {
-            body { 
+            body {
                 margin: 0;
                 padding: 15px;
             }
-            .no-print { 
-                display: none; 
+            .no-print {
+                display: none;
             }
         }
     </style>
@@ -274,7 +274,7 @@
             <div class="company-name">{{ $location->name ?? 'COMPANY NAME' }}</div>
         @endif
     </div>
-    
+
     {{-- Company Details --}}
     <div class="company-details">
         @if ($location)
@@ -289,7 +289,7 @@
             @endif
         @endif
     </div>
-    
+
     {{-- Invoice Header Section --}}
     <div class="invoice-header-section">
         <table class="invoice-header-table">
@@ -300,7 +300,7 @@
                         <div style="font-size: 11px; color: #333;">{{ $customer->mobile_no }}</div>
                     @endif
                     <div class="date-time">
-                        [{{ date('d-m-Y', strtotime($sale->sales_date)) }}] 
+                        [{{ date('d-m-Y', strtotime($sale->sales_date)) }}]
                         {{ \Carbon\Carbon::now('Asia/Colombo')->format('h:i A') }}
                     </div>
                 </td>
@@ -312,7 +312,7 @@
             </tr>
         </table>
     </div>
-    
+
     {{-- Products Table --}}
     <table class="products-table">
         <thead>
@@ -329,12 +329,12 @@
             @php
                 $products->load('imeis');
             @endphp
-            
+
             {{-- Process products: separate IMEI products, group non-IMEI products --}}
             @php
                 $displayItems = [];
                 $nonImeiGroups = [];
-                
+
                 foreach ($products as $product) {
                     // Check if product has IMEIs
                     if ($product->imeis && $product->imeis->count() > 0) {
@@ -363,7 +363,7 @@
                         $nonImeiGroups[$groupKey]['amount'] += $product->price * $product->quantity;
                     }
                 }
-                
+
                 // Merge grouped items with IMEI items
                 $displayItems = array_merge($displayItems, array_values($nonImeiGroups));
             @endphp
@@ -386,7 +386,7 @@
                         @endif
                     </td>
                 </tr>
-                
+
                 {{-- Product Details Row --}}
                 <tr class="product-details-row">
                     <td></td>
@@ -411,14 +411,14 @@
             @endforeach
         </tbody>
     </table>
-    
+
     {{-- Totals Section --}}
     <table class="totals-table">
         <tr>
             <td class="label">SUBTOTAL</td>
             <td class="value">Rs. {{ number_format($sale->subtotal, 2) }}</td>
         </tr>
-        
+
         @if ($sale->discount_amount > 0)
             <tr>
                 <td class="label">
@@ -438,48 +438,51 @@
                 </td>
             </tr>
         @endif
-        
+
         @if (!is_null($sale->shipping_charges) && $sale->shipping_charges > 0)
             <tr>
                 <td class="label">SHIPPING CHARGES</td>
                 <td class="value">Rs. {{ number_format($sale->shipping_charges, 2) }}</td>
             </tr>
         @endif
-        
+
         <tr class="grand-total">
             <td class="label">TOTAL</td>
             <td class="value">Rs. {{ number_format($sale->final_total, 2) }}</td>
         </tr>
-        
-        @if (!is_null($amount_given) && $amount_given > 0)
+
+        {{-- Only show payment details for final sales, not for quotations, drafts, or sale orders --}}
+        @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))
+            @if (!is_null($amount_given) && $amount_given > 0)
+                <tr>
+                    <td class="label">AMOUNT GIVEN</td>
+                    <td class="value">Rs. {{ number_format($amount_given, 2) }}</td>
+                </tr>
+            @endif
+
             <tr>
-                <td class="label">AMOUNT GIVEN</td>
-                <td class="value">Rs. {{ number_format($amount_given, 2) }}</td>
+                <td class="label">PAID</td>
+                <td class="value">Rs. {{ number_format($sale->total_paid, 2) }}</td>
             </tr>
-        @endif
-        
-        <tr>
-            <td class="label">PAID</td>
-            <td class="value">Rs. {{ number_format($sale->total_paid, 2) }}</td>
-        </tr>
-        
-        @if (!is_null($balance_amount) && $balance_amount > 0)
-            <tr>
-                <td class="label">BALANCE GIVEN</td>
-                <td class="value">Rs. {{ number_format($balance_amount, 2) }}</td>
-            </tr>
-        @endif
-        
-        @if (!is_null($sale->total_due) && $sale->total_due > 0)
-            <tr>
-                <td class="label">BALANCE DUE</td>
-                <td class="value" style="color: red;">
-                    (Rs. {{ number_format($sale->total_due, 2) }})
-                </td>
-            </tr>
+
+            @if (!is_null($balance_amount) && $balance_amount > 0)
+                <tr>
+                    <td class="label">BALANCE GIVEN</td>
+                    <td class="value">Rs. {{ number_format($balance_amount, 2) }}</td>
+                </tr>
+            @endif
+
+            @if (!is_null($sale->total_due) && $sale->total_due > 0)
+                <tr>
+                    <td class="label">BALANCE DUE</td>
+                    <td class="value" style="color: red;">
+                        (Rs. {{ number_format($sale->total_due, 2) }})
+                    </td>
+                </tr>
+            @endif
         @endif
     </table>
-    
+
     @php
         $total_discount = $products->sum(function ($product) {
             return ($product->product->max_retail_price - $product->price) * $product->quantity;
@@ -498,7 +501,7 @@
         // Total all discounts (product discounts + bill discount)
         $total_all_discounts = $total_discount + $bill_discount;
     @endphp
-    
+
     {{-- Stats Section --}}
     <div class="stats-section">
         <div class="stat-item">
@@ -514,23 +517,35 @@
             <div class="stat-label">Total Discount</div>
         </div>
     </div>
-    
-    {{-- Payment Method --}}
-    <div class="payment-info">
-        <strong>Payment Method:</strong>
-        @if ($payments && $payments->count() > 0)
-            @if ($payments->count() > 1)
-                Multiple 
-                <br><span style="font-size: 11px;">({{ $payments->pluck('payment_method')->join(', ') }})</span>
+
+    {{-- Payment Method - Only show for final sales, not for quotations, drafts, or sale orders --}}
+    @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))
+        <div class="payment-info">
+            <strong>Payment Method:</strong>
+            @if ($payments && $payments->count() > 0)
+                @if ($payments->count() > 1)
+                    Multiple
+                    <br><span style="font-size: 11px;">({{ $payments->pluck('payment_method')->join(', ') }})</span>
+                @else
+                    {{ ucfirst($payments->first()->payment_method) }}
+                @endif
             @else
-                {{ ucfirst($payments->first()->payment_method) }}
+                Cash
             @endif
-        @else
-            Cash
-        @endif
-    </div>
-    
-    
+        </div>
+    @else
+        <div class="payment-info" style="text-align: center; font-weight: bold; color: #555;">
+            @if ($sale->status === 'quotation')
+                *** QUOTATION - PRICE ESTIMATE ONLY ***
+            @elseif ($sale->status === 'draft')
+                *** DRAFT - PRICE ESTIMATE ONLY ***
+            @elseif (isset($sale->transaction_type) && $sale->transaction_type === 'sale_order')
+                *** SALE ORDER - CONFIRMED ORDER ***
+            @endif
+        </div>
+    @endif
+
+
     {{-- Footer --}}
     <div class="footer">
         <p><strong>Come again! Thank you for your business!</strong></p>

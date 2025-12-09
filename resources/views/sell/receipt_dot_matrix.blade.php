@@ -338,7 +338,17 @@
             {{-- <div class="delivered-badge">Delivered</div> --}}
         @endif
 
-        <div class="invoice-title">INVOICE</div>
+        <div class="invoice-title">
+            @if ($sale->status === 'quotation')
+                QUOTATION
+            @elseif ($sale->status === 'draft')
+                DRAFT
+            @elseif (isset($sale->transaction_type) && $sale->transaction_type === 'sale_order')
+                SALE ORDER
+            @else
+                INVOICE
+            @endif
+        </div>
 
         <table class="items-table">
             <thead>
@@ -357,12 +367,12 @@
                 @php
                     $products->load('imeis');
                 @endphp
-                
+
                 {{-- Process products: separate IMEI products, group non-IMEI products --}}
                 @php
                     $displayItems = [];
                     $nonImeiGroups = [];
-                    
+
                     foreach ($products as $product) {
                         // Check if product has IMEIs
                         if ($product->imeis && $product->imeis->count() > 0) {
@@ -398,7 +408,7 @@
                             $nonImeiGroups[$groupKey]['discount'] += ($product->product->max_retail_price - $product->price) * $product->quantity;
                         }
                     }
-                    
+
                     // Merge grouped items with IMEI items
                     $displayItems = array_merge($displayItems, array_values($nonImeiGroups));
                     $index = 1;
@@ -458,10 +468,12 @@
                         <span>Total Quantity:</span>
                         <span>{{ $products->sum('quantity') }}</span>
                     </div>
-                    <div class="summary-row">
-                        <span>Previous Outstanding:</span>
-                        <span>0.00</span>
-                    </div>
+                    @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))
+                        <div class="summary-row">
+                            <span>Previous Outstanding:</span>
+                            <span>0.00</span>
+                        </div>
+                    @endif
                 </div>
 
                 <div class="summary-column">
@@ -469,10 +481,12 @@
                         <span>Total Discounts:</span>
                         <span>{{ number_format($total_all_discounts, 2) }}</span>
                     </div>
-                    <div class="summary-row">
-                        <span>Return Amount:</span>
-                        <span>0.00</span>
-                    </div>
+                    @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))
+                        <div class="summary-row">
+                            <span>Return Amount:</span>
+                            <span>0.00</span>
+                        </div>
+                    @endif
                     @if (!is_null($sale->shipping_charges) && $sale->shipping_charges > 0)
                         <div class="summary-row">
                             <span>Shipping Charges:</span>
@@ -480,7 +494,7 @@
                         </div>
                     @endif
                     <div class="summary-row">
-                        <span>Amount Payable:</span>
+                        <span>{{ in_array($sale->status, ['quotation', 'draft']) || (isset($sale->transaction_type) && $sale->transaction_type === 'sale_order') ? 'Estimated Total:' : 'Amount Payable:' }}</span>
                         <span>{{ number_format($sale->final_total, 2) }}</span>
                     </div>
                 </div>
@@ -491,33 +505,38 @@
                         <span>{{ number_format($total_all_discounts, 2) }}</span>
                     </div>
                     <div class="summary-row bold">
-                        <span>Bill Total:</span>
+                        <span>{{ in_array($sale->status, ['quotation', 'draft']) || (isset($sale->transaction_type) && $sale->transaction_type === 'sale_order') ? 'Estimated Total:' : 'Bill Total:' }}</span>
                         <span>{{ number_format($sale->final_total, 2) }}</span>
                     </div>
-                    <div class="summary-row">
-                        <span>Amount Paid:</span>
-                        <span>{{ number_format($amount_paid, 2) }}</span>
-                    </div>
-                    <div class="summary-row">
-                        <span>Balance:</span>
-                        <span>{{ number_format($balance, 2) }}</span>
-                    </div>
-                    @if ($sale->total_due > 0)
-                        <div class="summary-row total">
-                            <span>*Current Credit:</span>
-                            <span>{{ number_format($sale->total_due, 2) }}</span>
+                    @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))
+                        <div class="summary-row">
+                            <span>Amount Paid:</span>
+                            <span>{{ number_format($amount_paid, 2) }}</span>
                         </div>
+                        <div class="summary-row">
+                            <span>Balance:</span>
+                            <span>{{ number_format($balance, 2) }}</span>
+                        </div>
+                        @if ($sale->total_due > 0)
+                            <div class="summary-row total">
+                                <span>*Current Credit:</span>
+                                <span>{{ number_format($sale->total_due, 2) }}</span>
+                            </div>
+                        @endif
                     @endif
                 </div>
             </div>
 
-            <div style="text-align: center; font-size: 11px; font-weight: bold;">
-                Payment: @if ($payments && $payments->count() > 0)
-                    {{ strtoupper($payments->first()->payment_method) }}
-                @else
-                    CASH
-                @endif | <span>{{ number_format($sale->total_paid ?? 0, 2) }}</span>
-            </div>
+            {{-- Only show payment method for final sales, not for quotations, drafts, or sale orders --}}
+            @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))
+                <div style="text-align: center; font-size: 11px; font-weight: bold;">
+                    Payment: @if ($payments && $payments->count() > 0)
+                        {{ strtoupper($payments->first()->payment_method) }}
+                    @else
+                        CASH
+                    @endif | <span>{{ number_format($sale->total_paid ?? 0, 2) }}</span>
+                </div>
+            @endif
 
 
             <div class="footer-line">

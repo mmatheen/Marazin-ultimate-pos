@@ -153,7 +153,7 @@ return [
             'disks' => [
                  'local',
                  'google',
-                
+
             ],
         ],
 
@@ -290,7 +290,7 @@ return [
 
         'default_strategy' => [
 
-            
+
 
             /*
              * The number of days for which backups must be kept.
@@ -299,7 +299,7 @@ return [
 
             /*
              * After the "keep_all_backups_for_days" period is over, the most recent backup
-             * of that day will be kept. Older backups within the same day will be removed.
+             * of that day will be kept            . Older backups within the same day will be removed.
              * If you create backups only once a day, no backups will be removed yet.
              */
             'keep_daily_backups_for_days' => 0,

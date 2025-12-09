@@ -414,7 +414,7 @@ class SaleController extends Controller
                     $query->where('transaction_type', 'invoice')
                           ->orWhereNull('transaction_type');
                 })
-                ->whereIn('status', ['final', 'quotation', 'draft', 'jobticket', 'suspended'])
+                ->whereIn('status', ['final', 'quotation', 'draft', 'jobticket', 'suspend'])
                 ->where('payment_status', '!=', 'Cancelled') // Exclude cancelled invoices
                 ->orderBy('created_at', 'desc')
                 ->limit(200) // Increased limit for Recent Transactions
@@ -428,7 +428,18 @@ class SaleController extends Controller
                     ->orderBy('created_at', 'desc')
                     ->limit(200)
                     ->get();
-            } else {
+            }
+            // Check if this is a request for draft, quotation, or suspend sales
+            elseif ($request->has('status') && in_array($request->get('status'), ['draft', 'quotation', 'suspend'])) {
+                // Return sales with the specified status
+                $status = $request->get('status');
+                $sales = Sale::with('products.product', 'customer', 'location', 'payments', 'user')
+                    ->where('status', $status)
+                    ->orderBy('created_at', 'desc')
+                    ->limit(200)
+                    ->get();
+            }
+            else {
                 // Original logic for All Sales page - only final invoices
                 $sales = Sale::with('products.product', 'customer', 'location', 'payments', 'user')
                     ->where('status', 'final')
@@ -1693,7 +1704,7 @@ class SaleController extends Controller
             } else {
                 if ($sale->transaction_type === 'sale_order') {
                     $message = 'Sale Order created successfully!';
-                } elseif ($sale->status === 'suspended') {
+                } elseif ($sale->status === 'suspend') {
                     $message = 'Sale suspended successfully.';
                 } else {
                     $message = 'Sale recorded successfully.';
