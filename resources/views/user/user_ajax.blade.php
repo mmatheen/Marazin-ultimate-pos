@@ -368,7 +368,7 @@
                     if (res.status && Array.isArray(res.data)) {
                         res.data.forEach(function(loc) {
                             let label = '';
-                            
+
                             // If it's a sub-location (vehicle), show parent info
                             if (loc.parent_id && loc.parent) {
                                 label = `${loc.parent.name} → ${loc.name}`;
@@ -393,13 +393,13 @@
 
                         // Refresh Select2 to show updated options
                         dropdown.trigger('change.select2');
-                        
+
                         console.log(`Loaded ${dropdown.find('option').length - 1} accessible locations`);
-                        
+
                     } else {
                         dropdown.append('<option value="" disabled>No locations available</option>');
                     }
-                    
+
                     // Execute callback if provided
                     if (typeof callback === 'function') {
                         callback();
@@ -409,7 +409,7 @@
                     console.error("Failed to load locations:", xhr.responseJSON?.message);
                     $('#edit_location_id').html('<option value="" disabled>Failed to load locations</option>');
                     toastr.error('Could not load locations.');
-                    
+
                     // Execute callback even on error
                     if (typeof callback === 'function') {
                         callback();
