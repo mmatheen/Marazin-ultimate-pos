@@ -198,17 +198,20 @@
                         };
                         toastr.error(response.message, 'Error');
                     } else if (response.status == 200) {
-                        $('#edit_name_title').val(response.message.name_title);
-                        $('#edit_full_name').val(response.message.full_name);
-                        $('#edit_user_name').val(response.message.user_name);
-                        $('#edit_email').val(response.message.email);
-                        $('#edit_role_name').val(response.message.role);
+                        // Populate locations first, then set values
+                        populateLocationDropdown(function() {
+                            $('#edit_name_title').val(response.message.name_title);
+                            $('#edit_full_name').val(response.message.full_name);
+                            $('#edit_user_name').val(response.message.user_name);
+                            $('#edit_email').val(response.message.email);
+                            $('#edit_role_name').val(response.message.role);
 
-                        // For multiple locations select
-                        $('#edit_location_id').val(response.message.location_ids).trigger(
-                            'change');
+                            // For multiple locations select - set after dropdown is populated
+                            $('#edit_location_id').val(response.message.location_ids).trigger(
+                                'change');
 
-                        $('#addAndEditModal').modal('show');
+                            $('#addAndEditModal').modal('show');
+                        });
                     }
                 }
             });
@@ -353,7 +356,7 @@
         populateLocationDropdown();
 
         // Populate Location Dropdown - Show only locations accessible to logged-in user
-        function populateLocationDropdown() {
+        function populateLocationDropdown(callback) {
             $.ajax({
                 url: '/location-get-all',
                 type: 'GET',
@@ -365,7 +368,7 @@
                     if (res.status && Array.isArray(res.data)) {
                         res.data.forEach(function(loc) {
                             let label = '';
-
+                            
                             // If it's a sub-location (vehicle), show parent info
                             if (loc.parent_id && loc.parent) {
                                 label = `${loc.parent.name} → ${loc.name}`;
@@ -390,25 +393,36 @@
 
                         // Refresh Select2 to show updated options
                         dropdown.trigger('change.select2');
-
+                        
                         console.log(`Loaded ${dropdown.find('option').length - 1} accessible locations`);
-
+                        
                     } else {
                         dropdown.append('<option value="" disabled>No locations available</option>');
+                    }
+                    
+                    // Execute callback if provided
+                    if (typeof callback === 'function') {
+                        callback();
                     }
                 },
                 error: function(xhr) {
                     console.error("Failed to load locations:", xhr.responseJSON?.message);
                     $('#edit_location_id').html('<option value="" disabled>Failed to load locations</option>');
                     toastr.error('Could not load locations.');
+                    
+                    // Execute callback even on error
+                    if (typeof callback === 'function') {
+                        callback();
+                    }
                 }
             });
         }
 
-        // Refresh location dropdown when modal is shown
+        // Refresh location dropdown when modal is shown for add mode
         $('#addAndEditModal').on('shown.bs.modal', function() {
-            populateLocationDropdown();
-        });
-
-    });
+            // Only refresh if it's add mode (not edit mode)
+            if (!$('#edit_id').val()) {
+                populateLocationDropdown();
+            }
+        });    });
 </script>
