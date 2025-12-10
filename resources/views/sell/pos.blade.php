@@ -1657,10 +1657,10 @@
 
     <!-- Batch Price Selection Modal -->
     <div class="modal fade" id="batchPriceModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Select Retail Price</h5>
+                    <h5 class="modal-title">Select Batch Price</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -1669,7 +1669,18 @@
                             <tr>
                                 <th>#</th>
                                 <th>Batch No</th>
+                                @can('select retail price')
                                 <th>Retail Price</th>
+                                @endcan
+                                @can('select wholesale price')
+                                <th>Wholesale Price</th>
+                                @endcan
+                                @can('select special price')
+                                <th>Special Price</th>
+                                @endcan
+                                @can('select max retail price')
+                                <th>Max Retail Price</th>
+                                @endcan
                                 <th>Quantity</th>
                                 <th>Action</th>
                             </tr>
@@ -1685,6 +1696,16 @@
 
     <!-- JavaScript for Calculator Functionality -->
         <script>
+            // User's allowed price types based on permissions
+            const allowedPriceTypes = {!! json_encode($allowedPriceTypes ?? ['retail', 'wholesale', 'special', 'max_retail']) !!};
+
+            // User's editing permissions
+            const canEditUnitPrice = {!! json_encode($canEditUnitPrice ?? true) !!};
+            const canEditDiscount = {!! json_encode($canEditDiscount ?? true) !!};
+
+            // Price validation setting (1 = strict validation, 0 = flexible/free editing)
+            const priceValidationEnabled = {!! json_encode($priceValidationEnabled ?? 1) !!};
+
             function calcInput(value) {
                 document.getElementById('calcDisplay').value += value;
             }

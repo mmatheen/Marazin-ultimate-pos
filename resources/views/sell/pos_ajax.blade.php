@@ -1,7 +1,7 @@
 <script src="{{ asset('assets/js/jquery-3.6.0.min.js') }}"></script>
 
 <script>
-  
+
     // Global AJAX setup for CSRF token
     $.ajaxSetup({
         headers: {
@@ -95,7 +95,7 @@
         // Global function for manual cache refresh (can be called from console)
         window.refreshPOSCache = function() {
             clearAllCaches();
-            
+
             // Reinitialize autocomplete to ensure fresh data
             if (typeof initAutocomplete === 'function') {
                 try {
@@ -106,7 +106,7 @@
                     console.warn('Could not reinitialize autocomplete:', e.message);
                 }
             }
-            
+
             if (selectedLocationId) {
                 console.log('🔄 Manual cache refresh initiated');
                 fetchPaginatedProducts(true);
@@ -143,7 +143,7 @@
                 e.preventDefault();
                 return true;
             }
-            
+
             // Handle Infinity/-Infinity parsing errors
             if (e.message && (e.message.includes('Infinity') || e.message.includes('cannot be parsed'))) {
                 console.error('Numeric Parsing Error Caught:', {
@@ -174,7 +174,7 @@
         let salesRepCustomersFiltered = false; // Track if sales rep customer filtering has been applied
         let salesRepCustomersLoaded = false; // Track if customers have been loaded for this session
         const perPage = 24;
-        
+
         // Filter state tracking
         let currentFilter = {
             type: null,  // 'category', 'subcategory', 'brand', or null for no filter
@@ -191,21 +191,21 @@
         fetchAllLocations();
         $('#locationSelect').on('change', handleLocationChange);
         $('#locationSelectDesktop').on('change', handleLocationChange);
-        
+
         // Safely call fetchCategories with error handling
         try {
             fetchCategories();
         } catch (categoryInitError) {
             console.error('❌ [INIT] Error initializing categories:', categoryInitError);
         }
-        
+
         // Safely call fetchBrands with error handling
         try {
             fetchBrands();
         } catch (brandInitError) {
             console.error('❌ [INIT] Error initializing brands:', brandInitError);
         }
-        
+
         initAutocomplete();
         initDOMElements();
 
@@ -234,7 +234,7 @@
 
                 console.log('Product search input auto-focused for quick searching');
             }
-            
+
             // Debug: Log current image configuration
             console.log('🖼️ Image Configuration:');
             console.log('- Primary path: /assets/images/');
@@ -275,22 +275,22 @@
         });
 
         // ---- CUSTOMER TYPE PRICING FUNCTIONS ----
-        
+
         /**
          * Check if customer data is cached and valid
          */
         function getCachedCustomer(customerId) {
             const cacheKey = `customer_${customerId}`;
             const cached = customerCache.get(cacheKey);
-            
+
             if (cached && (Date.now() - cached.timestamp < customerCacheExpiry)) {
                 console.log('Using cached customer data for ID:', customerId);
                 return cached.data;
             }
-            
+
             return null;
         }
-        
+
         /**
          * Cache customer data
          */
@@ -308,12 +308,12 @@
          */
         function getCachedStaticData(key) {
             const cached = staticDataCache.get(key);
-            
+
             if (cached && (Date.now() - cached.timestamp < staticDataCacheExpiry)) {
                 console.log('Using cached static data for:', key);
                 return cached.data;
             }
-            
+
             return null;
         }
 
@@ -364,7 +364,7 @@
         function batchDOMUpdates(updates) {
             // Use DocumentFragment for batch operations
             const fragment = document.createDocumentFragment();
-            
+
             // Execute all updates in a single frame
             requestAnimationFrame(() => {
                 updates.forEach(update => {
@@ -402,18 +402,18 @@
         function getSafeImageUrl(product) {
             // Default fallback image
             const fallbackImage = '/assets/images/No Product Image Available.png';
-            
+
             if (!product || !product.product_image || product.product_image.trim() === '') {
                 return fallbackImage;
             }
-            
+
             const imageName = product.product_image.trim();
-            
+
             // If it's already a full URL (starts with http or /), use it as is
             if (imageName.startsWith('http') || imageName.startsWith('/')) {
                 return imageName;
             }
-            
+
             // For relative filenames, prioritize assets/images path (where images actually are)
             return `/assets/images/${imageName}`;
         }
@@ -424,24 +424,24 @@
         function createSafeImage(product, styles = '', className = '', title = '') {
             const fallbackImage = '/assets/images/No Product Image Available.png';
             const primaryImage = getSafeImageUrl(product);
-            
+
             const img = document.createElement('img');
             img.src = primaryImage;
             if (styles) img.style.cssText = styles;
             if (className) img.className = className;
             if (title) img.title = title;
             img.alt = product?.product_name || 'Product Image';
-            
+
             // Handle image load errors with fallback and retry logic
             img.onerror = function() {
                 if (this.src !== fallbackImage) {
                     console.log(`Image not found: ${this.src}, trying alternatives`);
-                    
+
                     // Try alternative paths before using fallback
                     const originalImage = product?.product_image?.trim();
                     if (originalImage && !this.dataset.triedAlternatives) {
                         this.dataset.triedAlternatives = 'true';
-                        
+
                         // Try storage path as alternative (in case some images are there)
                         const alternativePath = `/storage/products/${originalImage}`;
                         if (this.src !== alternativePath) {
@@ -450,7 +450,7 @@
                             return;
                         }
                     }
-                    
+
                     // Use fallback image
                     this.src = fallbackImage;
                     this.onerror = function() {
@@ -464,7 +464,7 @@
                     };
                 }
             };
-            
+
             return img;
         }
 
@@ -485,12 +485,12 @@
             const images = document.querySelectorAll('img[src*="assets/images"], img[src*="storage/products"]');
             let missingCount = 0;
             let totalCount = images.length;
-            
+
             console.log(`🖼️ Checking ${totalCount} product images...`);
-            
+
             images.forEach(img => {
                 if (img.src.includes('No Product Image Available.png')) return;
-                
+
                 fetch(img.src, { method: 'HEAD' })
                     .then(response => {
                         if (!response.ok) {
@@ -505,7 +505,7 @@
                         console.log(`❌ Error loading: ${img.src}`);
                     });
             });
-            
+
             setTimeout(() => {
                 console.log(`📊 Image Health Check: ${missingCount}/${totalCount} images missing`);
                 if (missingCount > 0) {
@@ -521,7 +521,7 @@
          */
         function refreshProductImages() {
             console.log('🔄 Refreshing product images...');
-            
+
             // Clear any cached image data
             const productCards = document.querySelectorAll('.product-card img');
             productCards.forEach(img => {
@@ -532,7 +532,7 @@
                     img.src = getSafeImageUrl(product);
                 }
             });
-            
+
             console.log(`Refreshed ${productCards.length} product images`);
         }
 
@@ -579,7 +579,7 @@
                     // Last resort: Use cached fallback or default
                     console.warn('Customer type not found, using retailer as fallback for immediate response');
                     customerType = 'retailer';
-                    
+
                     // Async fetch in background for future calls (non-blocking)
                     fetchCustomerTypeAsync(customerId);
                 }
@@ -602,7 +602,7 @@
          */
         function fetchCustomerTypeAsync(customerId) {
             console.log('Fetching customer type in background for future calls...');
-            
+
             $.ajax({
                 url: `/customer-get-by-id/${customerId}`,
                 method: 'GET',
@@ -613,12 +613,12 @@
                             id: parseInt(customerId),
                             customer_type: response.customer_type
                         };
-                        
+
                         // Cache for future calls
                         setCachedCustomer(customerId, customerData);
-                        
+
                         console.log('Background fetch completed, customer type cached:', response.customer_type);
-                        
+
                         // Update current pricing if this customer is still selected
                         const currentCustomerId = $('#customer-id').val();
                         if (currentCustomerId === customerId) {
@@ -760,7 +760,7 @@
                 toastr.info('Edit Mode: Original sale prices preserved. Customer pricing not applied.', 'Edit Mode Active');
                 return;
             }
-            
+
             const billingBody = document.getElementById('billing-body');
             const existingRows = billingBody ? billingBody.querySelectorAll('tr') : [];
 
@@ -1519,7 +1519,7 @@
 
                 // Show mobile menu display
                 salesRepDisplayMenu.style.display = 'block';
-                
+
                 console.log('Mobile menu sales rep display updated and shown');
                 console.log('Mobile menu display style:', salesRepDisplayMenu.style.display);
                 console.log('Vehicle text set to:', selectedVehicleDisplayMenu.textContent);
@@ -1830,7 +1830,7 @@
                     console.log('Auto-selection prevented - form was recently reset');
                     return;
                 }
-                
+
                 if (isSalesRep) {
                     // For sales reps, DO NOT auto-select any customer
                     // Keep the dropdown at "Please Select" so user must choose
@@ -1955,7 +1955,7 @@
             if (changeSalesRepBtnMenu) {
                 changeSalesRepBtnMenu.style.display = 'none';
             }
-            
+
             console.log('Sales rep display hidden immediately (desktop and mobile)');
         }
 
@@ -1988,19 +1988,19 @@
 
             return true;
         }
-        
+
         // Function to validate payment method compatibility with sale history
         function validatePaymentMethodCompatibility(paymentMethod, saleData) {
             if (!isEditing || !currentEditingSaleId) {
                 return true; // Not in edit mode, allow any payment method
             }
-            
+
             // Get original sale payment status
             const originalPaymentStatus = saleData?.payment_status || 'pending';
             const originalTotalPaid = parseFloat(saleData?.total_paid || 0);
             const originalFinalTotal = parseFloat(saleData?.final_total || 0);
             const originalDue = originalFinalTotal - originalTotalPaid;
-            
+
             // If original sale was credit (has due amount)
             if (originalDue > 0 && originalPaymentStatus !== 'paid') {
                 if (paymentMethod === 'cash' || paymentMethod === 'card') {
@@ -2015,16 +2015,16 @@
                         `• Mark sale as fully paid\n` +
                         `• Update payment records`
                     );
-                    
+
                     if (!confirmChange) {
                         console.log('Payment method change cancelled by user');
                         return false;
                     }
-                    
+
                     console.log('✅ Payment method change confirmed: Credit → ' + paymentMethod.toUpperCase());
                 }
             }
-            
+
             return true;
         }
 
@@ -2058,16 +2058,16 @@
             // Remove both main loader and small loader
             const mainLoader = posProduct.querySelector('.loader-container');
             const smallLoader = posProduct.querySelector('.small-loader');
-            
+
             if (mainLoader) {
                 mainLoader.remove();
             }
             if (smallLoader) {
                 smallLoader.remove();
             }
-            
+
             // Only clear innerHTML if it's just a loader
-            if (posProduct.innerHTML.includes('loader-container') && 
+            if (posProduct.innerHTML.includes('loader-container') &&
                 !posProduct.innerHTML.includes('product-card')) {
                 posProduct.innerHTML = '';
             }
@@ -2108,36 +2108,36 @@
                 },
                 ...options
             };
-            
+
             return fetch(url, defaultOptions).then(res => {
                 if (!res.ok) {
                     if (res.status === 429) {
                         const retryAfter = parseInt(res.headers.get('Retry-After') || '2', 10) * 1000;
                         console.warn(`Rate limited on ${url}. Retry after ${retryAfter}ms`);
-                        return Promise.reject({ 
-                            status: 429, 
+                        return Promise.reject({
+                            status: 429,
                             retryAfter,
                             message: `Rate limited. Please wait ${Math.ceil(retryAfter/1000)} seconds.`
                         });
                     }
-                    return res.text().then(text => Promise.reject({ 
-                        status: res.status, 
+                    return res.text().then(text => Promise.reject({
+                        status: res.status,
                         text,
                         message: `HTTP ${res.status}: ${res.statusText}`
                     }));
                 }
-                
+
                 const contentType = res.headers.get('content-type') || '';
                 if (contentType.indexOf('application/json') === -1) {
                     return res.text().then(text => {
                         console.warn('Non-JSON response received:', text.substring(0, 200));
-                        return Promise.reject({ 
+                        return Promise.reject({
                             text,
                             message: 'Server returned non-JSON response. Please check server configuration.'
                         });
                     });
                 }
-                
+
                 return res.json();
             });
         }
@@ -2150,17 +2150,17 @@
                 renderCategories(cachedCategories);
                 return;
             }
-            
+
             fetch('/main-category-get-all')
                 .then(response => {
                     return response.json();
                 })
                 .then(data => {
                     const categories = data.message;
-                    
+
                     // Cache the categories
                     setCachedStaticData('categories', categories);
-                    
+
                     // Render categories
                     renderCategories(categories);
                 })
@@ -2171,7 +2171,7 @@
 
         function renderCategories(categories) {
             const categoryContainer = getCachedElement('categoryContainer');
-            
+
             // Clear existing content before adding new categories
             try {
                 categoryContainer.innerHTML = '';
@@ -2179,7 +2179,7 @@
             } catch (clearError) {
                 return;
             }
-            
+
             if (Array.isArray(categories)) {
                 categories.forEach((category, index) => {
                     try {
@@ -2214,8 +2214,8 @@
                         card.appendChild(buttonContainer);
 
                         // Triple-check container still exists and has appendChild method before appending
-                        if (categoryContainer && 
-                            typeof categoryContainer.appendChild === 'function' && 
+                        if (categoryContainer &&
+                            typeof categoryContainer.appendChild === 'function' &&
                             categoryContainer.parentNode) {
                             categoryContainer.appendChild(card);
                         } else {
@@ -2294,17 +2294,17 @@
                 renderBrands(cachedBrands);
                 return;
             }
-            
+
             fetch('/brand-get-all')
                 .then(response => {
                     return response.json();
                 })
                 .then(data => {
                     const brands = data.message;
-                    
+
                     // Cache the brands
                     setCachedStaticData('brands', brands);
-                    
+
                     // Render brands
                     renderBrands(brands);
                 })
@@ -2315,13 +2315,13 @@
 
         function renderBrands(brands) {
             let brandContainer = getCachedElement('brandContainer');
-            
+
             // Validate container exists before proceeding
             if (!brandContainer) {
                 console.error('[FETCHBRANDS] Brand container not found in DOM');
                 return;
             }
-         
+
             // Clear existing content before adding new brands
             try {
                 brandContainer.innerHTML = '';
@@ -2330,7 +2330,7 @@
                 console.error('[FETCHBRANDS] Error clearing container:', clearError);
                 return;
             }
-            
+
             if (Array.isArray(brands)) {
                 brands.forEach((brand, index) => {
                     try {
@@ -2340,7 +2340,7 @@
                             console.error('[FETCHBRANDS] Container disappeared during iteration:', index);
                             return;
                         }
-                        
+
                         const brandCard = document.createElement('div');
                         brandCard.classList.add('brand-card');
                         brandCard.setAttribute('data-id', brand.id);
@@ -2355,8 +2355,8 @@
                         });
 
                         // Triple-check container still exists and has appendChild method before appending
-                        if (brandContainer && 
-                            typeof brandContainer.appendChild === 'function' && 
+                        if (brandContainer &&
+                            typeof brandContainer.appendChild === 'function' &&
                             brandContainer.parentNode) {
                             brandContainer.appendChild(brandCard);
                         } else {
@@ -2400,7 +2400,7 @@
         function populateLocationDropdown(locations) {
             const locationSelect = $('#locationSelect');
             const locationSelectDesktop = $('#locationSelectDesktop');
-            
+
             locationSelect.empty(); // Clear existing options
             locationSelectDesktop.empty(); // Clear desktop options too
 
@@ -2411,12 +2411,12 @@
             locations.forEach((location, index) => {
                 const option = $('<option></option>').val(location.id).text(location.name);
                 const optionDesktop = $('<option></option>').val(location.id).text(location.name);
-                
+
                 if (index === 0) {
                     option.attr('selected', 'selected');
                     optionDesktop.attr('selected', 'selected');
                 }
-                
+
                 locationSelect.append(option);
                 locationSelectDesktop.append(optionDesktop);
             });
@@ -2457,10 +2457,10 @@
         function fetchPaginatedProducts(reset = false, attemptNumber = 0) {
             // Basic guards
             if (isLoadingProducts || !selectedLocationId || !hasMoreProducts) return;
-            
+
             isLoadingProducts = true;
             const perPage = 24;
-            
+
             if (reset) {
                 currentProductsPage = 1;
                 retryCount = 0; // Reset retry count on fresh fetch
@@ -2475,7 +2475,7 @@
             }
 
             const url = `/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=${perPage}`;
-            
+
             // Add CSRF token and headers to prevent 419 errors
             const fetchOptions = {
                 method: 'GET',
@@ -2498,9 +2498,9 @@
                             const retryAfter = parseInt(res.headers.get('Retry-After') || '2', 10) * 1000;
                             const exponentialDelay = Math.min(baseRetryDelay * Math.pow(2, attemptNumber), 10000); // Max 10s
                             const finalDelay = Math.max(retryAfter, exponentialDelay);
-                            
+
                             console.warn(`Rate limited (429). Attempt ${attemptNumber + 1}/${maxRetries}. Retrying after ${finalDelay} ms`);
-                            
+
                             if (attemptNumber < maxRetries - 1) {
                                 // Temporary cooldown: prevent further requests for this period
                                 hasMoreProducts = false;
@@ -2514,8 +2514,8 @@
                             } else {
                                 // Max retries exceeded
                                 console.error('Max retries exceeded for rate limiting');
-                                return Promise.reject({ 
-                                    isHandled: false, 
+                                return Promise.reject({
+                                    isHandled: false,
                                     message: 'Rate limit exceeded. Please try again later.',
                                     status: 429
                                 });
@@ -2523,8 +2523,8 @@
                         } else if (res.status === 419) {
                             // CSRF token mismatch
                             console.error('CSRF token mismatch (419)');
-                            return Promise.reject({ 
-                                isHandled: false, 
+                            return Promise.reject({
+                                isHandled: false,
                                 message: 'Session expired. Please refresh the page.',
                                 status: 419
                             });
@@ -2532,9 +2532,9 @@
                             // Other HTTP errors - try to get response text for debugging
                             return res.text().then(text => {
                                 console.error(`HTTP ${res.status} error:`, text);
-                                return Promise.reject({ 
-                                    isHandled: false, 
-                                    status: res.status, 
+                                return Promise.reject({
+                                    isHandled: false,
+                                    status: res.status,
                                     text,
                                     message: `Server error (${res.status}). Please try again.`
                                 });
@@ -2547,8 +2547,8 @@
                     if (contentType.indexOf('application/json') === -1) {
                         return res.text().then(text => {
                             console.error('Non-JSON response received:', text.substring(0, 200) + '...');
-                            return Promise.reject({ 
-                                isHandled: false, 
+                            return Promise.reject({
+                                isHandled: false,
                                 text,
                                 message: 'Invalid response format. Please check server configuration.'
                             });
@@ -2580,10 +2580,10 @@
                     console.log(`Before adding: allProducts.length = ${allProducts.length}`);
                     data.data.forEach(stock => allProducts.push(stock));
                     console.log(`After adding: allProducts.length = ${allProducts.length}`);
-                    
+
                     // Always keep stockData in sync with allProducts
                     stockData = [...allProducts];
-                    
+
                     // Display products with proper append logic
                     if (reset) {
                         console.log('Displaying all products (reset mode)');
@@ -2602,23 +2602,23 @@
                 })
                 .catch(err => {
                     hideLoader();
-                    
+
                     if (err && err.isHandled) {
                         // Already handled (e.g., 429 retry), don't show error
                         return;
                     }
-                    
+
                     isLoadingProducts = false;
                     console.error('Error fetching products:', err);
-                    
+
                     if (err.text) {
                         console.error('Response text:', err.text.substring(0, 500));
                     }
-                    
+
                     if (reset) {
                         posProduct.innerHTML = '<div class="text-center p-4"><p class="text-danger">Failed to load products</p><button onclick="fetchPaginatedProducts(true)" class="btn btn-primary btn-sm">Retry</button></div>';
                     }
-                    
+
                     // Show user-friendly error message
                     if (typeof toastr !== 'undefined') {
                         const errorMessage = err.message || 'Failed to load products. Please try again.';
@@ -2639,7 +2639,7 @@
             posProduct.addEventListener('scroll', () => {
                 // Throttle scroll events to prevent rapid-fire requests
                 if (scrollThrottleTimer) return;
-                
+
                 scrollThrottleTimer = setTimeout(() => {
                     scrollThrottleTimer = null;
 
@@ -2672,17 +2672,17 @@
             if (!append) {
                 posProduct.innerHTML = '';
             }
-            
+
             if (!selectedLocationId || products.length === 0) {
                 if (!append) {
                     posProduct.innerHTML = '<p class="text-center">No products found.</p>';
                 }
                 return;
             }
-            
+
             // Track newly added cards for event listener attachment
             const newlyAddedCards = [];
-            
+
             // Only show products with stock in selected location, or unlimited stock
             const filteredProducts = products.filter(stock => {
                 // Use the existing normalizeBatches function to handle both array and object formats
@@ -2708,16 +2708,16 @@
                     )
                 );
             });
-            
+
             filteredProducts.forEach(stock => {
                 const product = stock.product;
-                
+
                 // Check if this product already exists in the DOM (to prevent duplicates)
                 if (append && document.querySelector(`[data-id="${product.id}"]`)) {
                     console.log(`Product ${product.id} already exists in DOM, skipping...`);
                     return;
                 }
-                
+
                 let locationQty = 0;
 
                 // Use the existing normalizeBatches function to handle both array and object formats
@@ -2746,14 +2746,14 @@
                 // Create card element with safe image handling
                 const cardDiv = document.createElement('div');
                 cardDiv.className = 'col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-6 col-12';
-                
+
                 const productCard = document.createElement('div');
                 productCard.className = 'product-card';
                 productCard.setAttribute('data-id', product.id);
-                
+
                 // Create safe image
                 const img = createSafeImage(product, 'width: 100%; height: auto; object-fit: cover;');
-                
+
                 const cardBody = document.createElement('div');
                 cardBody.className = 'product-card-body';
                 cardBody.innerHTML = `
@@ -2766,16 +2766,16 @@
                         </span>
                     </h6>
                 `;
-                
+
                 productCard.appendChild(img);
                 productCard.appendChild(cardBody);
                 cardDiv.appendChild(productCard);
                 posProduct.appendChild(cardDiv);
-                
+
                 // Track this newly added card
                 newlyAddedCards.push(productCard);
             });
-            
+
             // Add click event only to newly added product cards
             newlyAddedCards.forEach(card => {
                 card.addEventListener('click', () => {
@@ -2784,7 +2784,7 @@
                     if (productStock) addProductToTable(productStock.product);
                 });
             });
-            
+
             console.log(`DisplayProducts: Added ${newlyAddedCards.length} new product cards, append mode: ${append}`);
         }
 
@@ -2820,7 +2820,7 @@
         function createProductSearchRequest(term, response) {
             // Create cache key based on search term and location
             const cacheKey = `search_${selectedLocationId}_${term.toLowerCase()}`;
-            
+
             // Check cache first
             const cached = searchCache.get(cacheKey);
             if (cached && (Date.now() - cached.timestamp < searchCacheExpiry)) {
@@ -2828,7 +2828,7 @@
                 autocompleteState.isRequesting = false;
                 return response(cached.results);
             }
-            
+
             return $.ajax({
                 url: '/products/stocks/autocomplete',
                 data: {
@@ -2848,7 +2848,7 @@
 
         function handleSearchSuccess(data, term, response, cacheKey = null) {
             autocompleteState.isRequesting = false;
-            
+
             if (data.status !== 200 || !Array.isArray(data.data)) {
                 autocompleteState.lastResults = [];
                 return response([{ label: "No results found", value: "" }]);
@@ -2856,7 +2856,7 @@
 
             const filtered = filterStockData(data.data);
             const results = mapSearchResults(filtered, term);
-            
+
             if (results.length === 0) {
                 results.push({ label: "No results found", value: "" });
             }
@@ -2871,17 +2871,17 @@
             }
 
             autocompleteState.lastResults = results.filter(r => r.product);
-            
+
             // Check for exact match auto-add
             checkForAutoAdd(results, term);
-            
+
             response(results);
         }
 
         function handleSearchError(jqXHR, textStatus, response) {
             autocompleteState.isRequesting = false;
             console.error('Autocomplete error:', textStatus);
-            
+
             if (jqXHR.status === 429) {
                 const retryAfter = parseInt(jqXHR.getResponseHeader('Retry-After') || '2', 10);
                 response([{ label: `Rate limited. Retrying in ${retryAfter}s...`, value: "" }]);
@@ -2894,10 +2894,10 @@
         function filterStockData(stockArray) {
             return stockArray.filter(stock => {
                 if (!stock.product) return false;
-                
+
                 const product = stock.product;
                 if (product.stock_alert == 0) return true; // Unlimited stock
-                
+
                 const hasDecimal = product.unit && (product.unit.allow_decimal === true || product.unit.allow_decimal === 1);
                 const stockLevel = hasDecimal ? parseFloat(stock.total_stock) : parseInt(stock.total_stock);
                 return stockLevel > 0;
@@ -2907,7 +2907,7 @@
         function mapSearchResults(filteredStocks, term) {
             return filteredStocks.map(stock => {
                 const { imeiMatch, exactImeiMatch, imeiNumber } = findImeiMatch(stock, term);
-                
+
                 return {
                     label: createProductLabel(stock, imeiMatch, imeiNumber),
                     value: stock.product.product_name,
@@ -2925,7 +2925,7 @@
             }
 
             // Filter only available IMEI numbers
-            const availableImeis = stock.imei_numbers.filter(imei => 
+            const availableImeis = stock.imei_numbers.filter(imei =>
                 imei.status === 'available' || imei.status === undefined
             );
 
@@ -2960,9 +2960,9 @@
             });
 
             if (exactMatch && !autocompleteState.adding) {
-                const matchType = exactMatch.product.sku && 
+                const matchType = exactMatch.product.sku &&
                     exactMatch.product.sku.toLowerCase() === term.toLowerCase() ? 'SKU' : 'IMEI';
-                
+
                 showSearchIndicator("⚡ Auto-adding...", "orange");
                 autocompleteState.autoAddTimer = setTimeout(() => {
                     if (!autocompleteState.adding) {
@@ -3010,7 +3010,7 @@
                     console.log('Item focused:', ui.item);
                     // Prevent input value from changing on focus
                     event.preventDefault();
-                    
+
                     // Update indicator based on focused item
                     if (ui.item && ui.item.product) {
                         showSearchIndicator("↵ Press Enter to add");
@@ -3023,10 +3023,10 @@
                     console.log('Autocomplete menu opened');
                     const $this = $(this);
                     const instance = $this.autocomplete("instance");
-                    
+
                     // Setup custom keyboard handling immediately
                     setupDirectKeyboardHandling($this, instance);
-                    
+
                     // Setup first item focus
                     setTimeout(() => {
                         setupFirstItemFocus();
@@ -3050,26 +3050,26 @@
         function setupFirstItemFocus() {
             const instance = $("#productSearchInput").autocomplete("instance");
             if (!instance || !instance.menu) return;
-            
+
             const menu = instance.menu;
             const items = menu.element.find("li.ui-menu-item");
-            
+
             console.log('Setting up first item focus, found', items.length, 'items');
-            
+
             if (items.length > 0) {
                 const firstValidItem = items.first();
                 const itemData = firstValidItem.data("ui-autocomplete-item");
-                
+
                 console.log('First item data:', itemData);
-                
+
                 if (itemData && itemData.product) {
                     // Clear any existing focus
                     menu.element.find('.ui-state-focus').removeClass('ui-state-focus');
-                    
+
                     // Set focus on first item
                     firstValidItem.addClass('ui-state-focus');
                     menu.active = firstValidItem;
-                    
+
                     console.log('First item focused');
                     showSearchIndicator("↵ Press Enter to add");
                 } else {
@@ -3080,12 +3080,12 @@
 
         function setupCustomRendering() {
             const instance = $("#productSearchInput").autocomplete("instance");
-            
+
             instance._renderItem = function(ul, item) {
                 const li = $("<li>")
                     .addClass("ui-menu-item")
                     .data("ui-autocomplete-item", item);
-                
+
                 if (item.product) {
                     if (item.imeiMatch) {
                         li.append(createImeiItemHtml(item));
@@ -3095,7 +3095,7 @@
                 } else {
                     li.append(`<div class="autocomplete-item no-product" style="color: red; padding: 8px 12px; font-style: italic;">${item.label}</div>`);
                 }
-                
+
                 return li.appendTo(ul);
             };
 
@@ -3123,7 +3123,7 @@
             const imeiNumber = imeiInfo ? imeiInfo[1].trim() : '';
             const stockInfo = item.label.match(/\[Stock: ([^\]]+)\]/);
             const stock = stockInfo ? stockInfo[1] : '';
-            
+
             return `
                 <div style="padding: 10px 12px; background-color: #e8f4f8; border-left: 4px solid #17a2b8;">
                     <div style="font-weight: 600; color: #2c3e50; margin-bottom: 4px;">
@@ -3165,14 +3165,14 @@
                         // Handle manual entry when menu is closed
                         event.preventDefault();
                         const currentValue = $(this).val().trim();
-                        
+
                         // Handle barcode scanner input (fast entry + Enter)
                         if (scannerBuffer.length > 0 || (currentValue.length > 0 && timeDiff < 100)) {
                             handleBarcodeScan(currentValue || scannerBuffer);
                             scannerBuffer = '';
                             return;
                         }
-                        
+
                         // Handle manual entry
                         handleManualEnter($(this));
                         event.stopImmediatePropagation();
@@ -3181,7 +3181,7 @@
                         if (event.key.length === 1) {
                             scannerBuffer += event.key;
                         }
-                        
+
                         // Clear scanner buffer after delay
                         if (scannerTimeout) clearTimeout(scannerTimeout);
                         scannerTimeout = setTimeout(() => {
@@ -3192,14 +3192,14 @@
                 .on('input.scanner', function(event) {
                     const currentTime = Date.now();
                     const timeDiff = currentTime - lastKeyTime;
-                    
+
                     // If input is changing very fast, likely from scanner
                     if (timeDiff < SCANNER_SPEED_THRESHOLD) {
                         // Delay the autocomplete to let scanner finish
                         if (autocompleteState.debounceTimer) {
                             clearTimeout(autocompleteState.debounceTimer);
                         }
-                        
+
                         autocompleteState.debounceTimer = setTimeout(() => {
                             const value = $(this).val().trim();
                             if (value.length > 0) {
@@ -3214,15 +3214,15 @@
         // Direct keyboard handling for when autocomplete menu is open
         function setupDirectKeyboardHandling($input, instance) {
             console.log('Setting up direct keyboard handling');
-            
+
             $input.off('keydown.custom').on('keydown.custom', function(event) {
                 const menu = instance.menu;
                 const isMenuOpen = $input.autocomplete("widget").is(":visible");
-                
+
                 if (!isMenuOpen || !menu) return;
-                
+
                 console.log('Custom keydown:', event.key, event.keyCode);
-                
+
                 if (event.key === 'ArrowDown' || event.keyCode === 40) {
                     event.preventDefault();
                     event.stopPropagation();
@@ -3244,11 +3244,11 @@
                 }
             });
         }
-        
+
         function navigateMenu(direction, menu) {
             const items = menu.element.find('li.ui-menu-item');
             let currentIndex = -1;
-            
+
             // Find currently focused item
             items.each(function(index) {
                 if ($(this).hasClass('ui-state-focus')) {
@@ -3256,9 +3256,9 @@
                     return false;
                 }
             });
-            
+
             console.log('Current index:', currentIndex, 'Direction:', direction);
-            
+
             // Calculate next index
             let nextIndex;
             if (direction === 'down') {
@@ -3266,17 +3266,17 @@
             } else {
                 nextIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
             }
-            
+
             console.log('Next index:', nextIndex);
-            
+
             // Clear all focus
             items.removeClass('ui-state-focus');
-            
+
             // Set focus on new item
             const nextItem = items.eq(nextIndex);
             nextItem.addClass('ui-state-focus');
             menu.active = nextItem;
-            
+
             // Update indicator
             const itemData = nextItem.data("ui-autocomplete-item");
             if (itemData && itemData.product) {
@@ -3284,7 +3284,7 @@
             } else {
                 hideSearchIndicator();
             }
-            
+
             // Scroll into view if needed
             const menuElement = menu.element[0];
             const itemElement = nextItem[0];
@@ -3294,13 +3294,13 @@
                 menuElement.scrollTop = itemElement.offsetTop + itemElement.offsetHeight - menuElement.offsetHeight;
             }
         }
-        
+
         function selectCurrentItem(menu, instance) {
             const focusedItem = menu.element.find('li.ui-state-focus');
             if (focusedItem.length > 0) {
                 const itemData = focusedItem.data("ui-autocomplete-item");
                 console.log('Selecting current item:', itemData);
-                
+
                 if (itemData && itemData.product) {
                     // Trigger the select event manually
                     instance._trigger("select", null, { item: itemData });
@@ -3310,15 +3310,15 @@
 
         function handleBarcodeScan(scannedValue) {
             console.log('Barcode scanned:', scannedValue);
-            
+
             if (!scannedValue || scannedValue.length < 2) {
                 autoFocusSearchInput();
                 return;
             }
-            
+
             // Set the input value
             $("#productSearchInput").val(scannedValue);
-            
+
             // Force immediate search for exact match
             searchForExactMatch(scannedValue);
         }
@@ -3350,7 +3350,7 @@
                         <div class="modal-content">
                             <div class="modal-header bg-warning">
                                 <h5 class="modal-title">
-                                    <i class="fas fa-exclamation-triangle"></i> 
+                                    <i class="fas fa-exclamation-triangle"></i>
                                     Product Not Found
                                 </h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -3359,7 +3359,7 @@
                                 <div class="alert alert-info">
                                     <strong>This product is not in the system.</strong> Do you want to add it quickly?
                                 </div>
-                                
+
                                 <form id="quickAddForm">
                                     <div class="row">
                                         <div class="col-md-6">
@@ -3388,8 +3388,8 @@
                                     <div class="row mt-3">
                                         <div class="col-md-6">
                                             <label class="form-label">Category:</label>
-                                            <input type="text" class="form-control" id="quickAddCategory" 
-                                                   placeholder="Type or select category" 
+                                            <input type="text" class="form-control" id="quickAddCategory"
+                                                   placeholder="Type or select category"
                                                    list="categoryOptions">
                                             <datalist id="categoryOptions">
                                                 <option value="General">
@@ -3444,7 +3444,7 @@
             // Show modal and set SKU
             $('#quickAddModal').modal('show');
             $('#quickAddSku').val(searchTerm);
-            
+
             // Auto-focus product name field
             setTimeout(() => {
                 $('#quickAddName').focus();
@@ -3528,11 +3528,11 @@
                         // Add the newly created product
                         const newProduct = response.product;
                         addSavedProductToBilling(newProduct, formData.qty);
-                        
+
                         // Close modal and clear search input
                         $('#quickAddModal').modal('hide');
                         toastr.success('Product saved and added to bill', 'Success');
-                        
+
                         // Clear search input immediately and focus for next scan
                         setTimeout(() => {
                             $("#productSearchInput").val('').focus();
@@ -3558,7 +3558,7 @@
         window.toggleStockQuantity = function toggleStockQuantity() {
             const stockType = $('#quickAddStockType').val();
             const stockQuantityRow = $('#stockQuantityRow');
-            
+
             if (stockType === 'limited') {
                 stockQuantityRow.show();
                 $('#quickAddStockQty').prop('required', true);
@@ -3577,7 +3577,7 @@
                 total: parseFloat($('#quickAddTotal').val()) || 0,
                 category: $('#quickAddCategory').val(),
                 stock_type: $('#quickAddStockType').val(),
-                stock_quantity: $('#quickAddStockType').val() === 'limited' ? 
+                stock_quantity: $('#quickAddStockType').val() === 'limited' ?
                     (parseInt($('#quickAddStockQty').val()) || 100) : null
             };
         }
@@ -3606,10 +3606,10 @@
         function addSavedProductToBilling(product, qty) {
             // Get current customer information for pricing
             const currentCustomer = getCurrentCustomer();
-            
+
             // Ensure product has all required price fields (same as entered price)
             const enteredPrice = parseFloat(product.original_price || product.retail_price || product.price || 0);
-            
+
             // Make sure product object has all price fields
             if (!product.retail_price || parseFloat(product.retail_price) <= 0) {
                 product.retail_price = enteredPrice;
@@ -3623,7 +3623,7 @@
             if (!product.max_retail_price) {
                 product.max_retail_price = enteredPrice;
             }
-            
+
             // Create a properly structured stock entry for the new product
             const stockEntry = {
                 product: product,
@@ -3645,19 +3645,19 @@
                 }],
                 imei_numbers: [] // Empty array for IMEI products
             };
-            
+
             // Add the new product to global stockData and allProducts arrays
             // This ensures the product details modal will work
             if (!stockData.find(s => s.product && s.product.id === product.id)) {
                 stockData.push(stockEntry);
                 console.log('Added new product to stockData:', product.product_name);
             }
-            
+
             if (typeof allProducts !== 'undefined' && !allProducts.find(s => s.product && s.product.id === product.id)) {
                 allProducts.push(stockEntry);
                 console.log('Added new product to allProducts:', product.product_name);
             }
-            
+
             // Add product directly to billing body with the specified quantity
             addProductToBillingBody(
                 product,
@@ -3676,9 +3676,9 @@
 
         function searchForExactMatch(searchTerm) {
             if (!selectedLocationId) return;
-            
+
             showSearchIndicator("🔍 Scanner searching...", "#17a2b8");
-            
+
             $.ajax({
                 url: '/products/stocks/autocomplete',
                 data: {
@@ -3689,29 +3689,29 @@
                 timeout: 5000,
                 success: function(data) {
                     hideSearchIndicator();
-                    
+
                     if (data.status === 200 && Array.isArray(data.data)) {
                         const filtered = filterStockData(data.data);
                         const results = mapSearchResults(filtered, searchTerm);
-                        
+
                         // Look for exact SKU or IMEI match
                         const exactMatch = results.find(r => {
                             if (!r.product) return false;
                             return (r.product.sku && r.product.sku.toLowerCase() === searchTerm.toLowerCase()) ||
                                    r.exactImeiMatch;
                         });
-                        
+
                         if (exactMatch) {
-                            const matchType = exactMatch.product.sku && 
+                            const matchType = exactMatch.product.sku &&
                                 exactMatch.product.sku.toLowerCase() === searchTerm.toLowerCase() ? 'SCANNER_SKU' : 'SCANNER_IMEI';
-                            
+
                             showSearchIndicator("⚡ Adding scanned item...", "#28a745");
-                            
+
                             setTimeout(() => {
                                 addProductFromAutocomplete(exactMatch, searchTerm, matchType);
                                 $("#productSearchInput").val('');
                                 hideSearchIndicator();
-                                
+
                                 // Auto-focus for next scan after successful add
                                 setTimeout(() => {
                                     autoFocusSearchInput();
@@ -3727,12 +3727,12 @@
                                 }, 100);
                             } else {
                                 showSearchIndicator("❌ No match found", "#dc3545");
-                                
+
                                 // Show quick add option for missing products
                                 setTimeout(() => {
                                     showQuickAddOption(searchTerm);
                                 }, 1000);
-                                
+
                                 setTimeout(() => {
                                     hideSearchIndicator();
                                     autoFocusSearchInput(); // Focus for next scan attempt
@@ -3763,9 +3763,9 @@
             const widget = $input.autocomplete("widget");
             const focused = widget.find(".ui-state-focus");
             const currentSearchTerm = $input.val().trim();
-            
+
             let itemToAdd = getSelectedItem(focused) || getFirstResult();
-            
+
             if (itemToAdd && itemToAdd.product && shouldAddProduct(itemToAdd)) {
                 autocompleteState.lastProduct = itemToAdd.product;
                 const matchType = itemToAdd.imeiMatch ? 'IMEI' : 'MANUAL_ENTER';
@@ -3800,22 +3800,22 @@
 
         function setupInputEvents() {
             let inputTimeout = null;
-            
+
             $("#productSearchInput").on('input.general', function() {
                 autocompleteState.lastProduct = null;
-                
+
                 const inputValue = $(this).val();
-                
+
                 // Clear previous timeout
                 if (inputTimeout) clearTimeout(inputTimeout);
-                
+
                 // Reset state
                 if (inputValue.length === 0) {
                     hideSearchIndicator();
                     resetAutocompleteState();
                     return;
                 }
-                
+
                 // For manual typing, use normal debounce
                 // Scanner input is handled separately in keydown event
                 inputTimeout = setTimeout(() => {
@@ -3854,72 +3854,72 @@
 
         function setupAutocompleteStyles() {
             if (document.getElementById('autocomplete-styles')) return;
-            
+
             const style = document.createElement('style');
             style.id = 'autocomplete-styles';
             style.textContent = `
-                .ui-autocomplete { 
-                    max-height: 400px; overflow-y: auto; z-index: 1000; 
-                    border: 1px solid #ddd; border-radius: 4px; 
+                .ui-autocomplete {
+                    max-height: 400px; overflow-y: auto; z-index: 1000;
+                    border: 1px solid #ddd; border-radius: 4px;
                     box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 400px !important;
                 }
-                .ui-autocomplete .ui-menu-item { 
-                    border-bottom: 1px solid #f0f0f0; 
-                    list-style: none; 
+                .ui-autocomplete .ui-menu-item {
+                    border-bottom: 1px solid #f0f0f0;
+                    list-style: none;
                     margin: 0;
                     padding: 0;
                     cursor: pointer;
                     position: relative;
                 }
                 .ui-autocomplete .ui-menu-item:last-child { border-bottom: none; }
-                
+
                 /* Focus and active states */
                 .ui-autocomplete .ui-menu-item.ui-state-focus,
                 .ui-autocomplete .ui-menu-item.ui-state-active,
-                .ui-autocomplete .ui-menu-item:hover { 
-                    background: #007bff !important; 
-                    color: white !important; 
-                    margin: 0; 
+                .ui-autocomplete .ui-menu-item:hover {
+                    background: #007bff !important;
+                    color: white !important;
+                    margin: 0;
                     outline: none;
                 }
-                
+
                 /* Content styling for focused items */
                 .ui-autocomplete .ui-state-focus .autocomplete-item,
                 .ui-autocomplete .ui-state-active .autocomplete-item,
                 .ui-autocomplete .ui-menu-item:hover .autocomplete-item,
                 .ui-autocomplete .ui-state-focus div,
                 .ui-autocomplete .ui-state-active div,
-                .ui-autocomplete .ui-menu-item:hover div { 
-                    color: white !important; 
-                    background-color: transparent !important; 
-                    border-left-color: white !important; 
+                .ui-autocomplete .ui-menu-item:hover div {
+                    color: white !important;
+                    background-color: transparent !important;
+                    border-left-color: white !important;
                 }
-                
+
                 .ui-autocomplete .ui-state-focus div > div,
                 .ui-autocomplete .ui-state-active div > div,
-                .ui-autocomplete .ui-menu-item:hover div > div { 
-                    color: white !important; 
+                .ui-autocomplete .ui-menu-item:hover div > div {
+                    color: white !important;
                 }
-                
+
                 .ui-autocomplete .ui-state-focus span,
                 .ui-autocomplete .ui-state-active span,
-                .ui-autocomplete .ui-menu-item:hover span { 
-                    color: white !important; 
+                .ui-autocomplete .ui-menu-item:hover span {
+                    color: white !important;
                 }
-                
-                .ui-autocomplete .ui-menu-item .autocomplete-item { 
-                    white-space: normal; 
-                    word-wrap: break-word; 
+
+                .ui-autocomplete .ui-menu-item .autocomplete-item {
+                    white-space: normal;
+                    word-wrap: break-word;
                     transition: all 0.1s ease;
                     display: block;
                     width: 100%;
                 }
-                
+
                 .ui-autocomplete .ui-menu-item.no-product {
                     opacity: 0.7;
                     cursor: default;
                 }
-                
+
                 /* Ensure menu items are properly focusable */
                 .ui-autocomplete .ui-menu-item {
                     outline: none;
@@ -3927,11 +3927,11 @@
                 .ui-autocomplete .ui-menu-item:focus {
                     outline: none;
                 }
-                
+
                 #productSearchInput { position: relative; }
-                .search-indicator { 
-                    position: absolute; right: 10px; top: 50%; transform: translateY(-50%); 
-                    font-size: 12px; color: #28a745; pointer-events: none; 
+                .search-indicator {
+                    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+                    font-size: 12px; color: #28a745; pointer-events: none;
                     background: white; padding: 0 5px; z-index: 1001;
                 }
             `;
@@ -3953,9 +3953,9 @@
             if (!item.product) return;
 
             // Prevent duplicates
-            if (autocompleteState.lastProduct && 
+            if (autocompleteState.lastProduct &&
                 autocompleteState.lastProduct.id === item.product.id) {
-                
+
                 if (item.product.is_imei_or_serial_no === 1 && matchType === 'IMEI') {
                     console.log('Preventing duplicate IMEI scan:', item.product.product_name);
                     autoFocusSearchInput(); // Focus for next scan
@@ -3971,7 +3971,7 @@
             console.log('Adding product:', item.product.product_name, 'Term:', searchTerm, 'Type:', matchType);
 
             let stockEntry = stockData.find(stock => stock.product.id === item.product.id);
-            
+
             if (!stockEntry && item.stockData) {
                 stockData.push(item.stockData);
                 allProducts.push(item.stockData);
@@ -3984,7 +3984,7 @@
             }
 
             addProductToTable(item.product, searchTerm, matchType);
-            
+
             // Auto-focus search input for next product after small delay
             setTimeout(() => {
                 autoFocusSearchInput();
@@ -3993,14 +3993,14 @@
 
         function fetchProductStock(productId, searchTerm, matchType) {
             const url = `/api/products/stocks?location_id=${selectedLocationId}&product_id=${productId}`;
-            
+
             safeFetchJson(url)
                 .then(data => {
                     if (data.status === 200 && Array.isArray(data.data) && data.data.length > 0) {
                         stockData.push(data.data[0]);
                         allProducts.push(data.data[0]);
                         addProductToTable(data.data[0].product, searchTerm, matchType);
-                        
+
                         // Auto-focus for next scan after successful add
                         setTimeout(() => {
                             autoFocusSearchInput();
@@ -4055,21 +4055,21 @@
                 toastr.error('Please select a location first', 'Location Required');
                 return;
             }
-            
+
             console.log('Filtering products by category:', categoryId);
             showLoader();
-            
+
             // Set current filter state
             currentFilter = {
                 type: 'category',
                 id: categoryId
             };
-            
+
             // Reset pagination and fetch filtered products from server
             currentProductsPage = 1;
             hasMoreProducts = true;
             allProducts = [];
-            
+
             fetchFilteredProducts('category', categoryId);
         }
 
@@ -4079,21 +4079,21 @@
                 toastr.error('Please select a location first', 'Location Required');
                 return;
             }
-            
+
             console.log('Filtering products by subcategory:', subCategoryId);
             showLoader();
-            
+
             // Set current filter state
             currentFilter = {
                 type: 'subcategory',
                 id: subCategoryId
             };
-            
+
             // Reset pagination and fetch filtered products from server
             currentProductsPage = 1;
             hasMoreProducts = true;
             allProducts = [];
-            
+
             fetchFilteredProducts('subcategory', subCategoryId);
         }
 
@@ -4103,31 +4103,31 @@
                 toastr.error('Please select a location first', 'Location Required');
                 return;
             }
-            
+
             console.log('Filtering products by brand:', brandId);
             showLoader();
-            
+
             // Set current filter state
             currentFilter = {
                 type: 'brand',
                 id: brandId
             };
-            
+
             // Reset pagination and fetch filtered products from server
             currentProductsPage = 1;
             hasMoreProducts = true;
             allProducts = [];
-            
+
             fetchFilteredProducts('brand', brandId);
         }
 
         // New function to fetch filtered products from server
         function fetchFilteredProducts(filterType, filterId, reset = true) {
             if (isLoadingProducts || !selectedLocationId) return;
-            
+
             isLoadingProducts = true;
             const perPage = 24;
-            
+
             if (reset) {
                 currentProductsPage = 1;
                 posProduct.innerHTML = '';
@@ -4143,7 +4143,7 @@
 
             // Build filter URL based on filter type
             let url = `/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=${perPage}`;
-            
+
             switch(filterType) {
                 case 'category':
                     url += `&main_category_id=${filterId}`;
@@ -4155,9 +4155,9 @@
                     url += `&brand_id=${filterId}`;
                     break;
             }
-            
+
             console.log(`Fetching filtered products (${filterType}): ${url}`);
-            
+
             const fetchOptions = {
                 method: 'GET',
                 headers: {
@@ -4177,20 +4177,20 @@
                 })
                 .then(data => {
                     console.log(`Filtered products response (${filterType}):`, data);
-                    
+
                     if (data.status === 200 && Array.isArray(data.data)) {
                         if (reset) {
                             allProducts = [];
                             posProduct.innerHTML = '';
                         }
-                        
+
                         // Add new products to allProducts array
                         data.data.forEach(stock => allProducts.push(stock));
-                        
+
                         // Update pagination flags
                         hasMoreProducts = data.data.length === perPage;
                         currentProductsPage++;
-                        
+
                         // Display the filtered products
                         if (reset) {
                             displayProducts(allProducts, false);
@@ -4198,9 +4198,9 @@
                             // For pagination, append new products
                             displayProducts(data.data, true);
                         }
-                        
+
                         console.log(`Loaded ${data.data.length} filtered products. Has more: ${hasMoreProducts}`);
-                        
+
                         if (data.data.length === 0 && reset) {
                             posProduct.innerHTML = `<div class="text-center p-4">
                                 <p class="text-muted">No products found for selected ${filterType}</p>
@@ -4231,20 +4231,20 @@
         // Helper function to show all products (reset filters)
         function showAllProducts() {
             console.log('Showing all products (resetting filters)');
-            
+
             // Clear current filter state
             currentFilter = {
                 type: null,
                 id: null
             };
-            
+
             currentProductsPage = 1;
             hasMoreProducts = true;
             allProducts = [];
             posProduct.innerHTML = '';
             fetchPaginatedProducts(true);
         }
-        
+
         // Make showAllProducts available globally for error button clicks
         window.showAllProducts = showAllProducts;
 
@@ -4475,6 +4475,12 @@
             const modalElement = document.getElementById('batchPriceModal');
             const modal = new bootstrap.Modal(modalElement);
 
+            // Check if user has any price permissions
+            if (!allowedPriceTypes || allowedPriceTypes.length === 0) {
+                toastr.error('You do not have permission to view batch prices. Please contact your administrator.', 'Access Denied');
+                return;
+            }
+
             // Get current customer if not provided
             if (!currentCustomer) {
                 currentCustomer = getCurrentCustomer();
@@ -4499,8 +4505,10 @@
             }).sort((a, b) => parseInt(b.id) - parseInt(a.id));
 
             if (validBatches.length === 0) {
+                // Calculate colspan based on allowed price types
+                const colspanCount = 3 + allowedPriceTypes.length; // # + Batch No + Quantity + Action + price columns
                 tbody.innerHTML =
-                    `<tr><td colspan="5" class="text-center text-danger">No batches available</td></tr>`;
+                    `<tr><td colspan="${colspanCount}" class="text-center text-danger">No batches available</td></tr>`;
                 modal.show();
                 setTimeout(() => modal.hide(), 1500);
                 activeModalProductId = null;
@@ -4512,29 +4520,42 @@
                 const locationBatch = batch.location_batches.find(lb => lb.location_id ==
                     selectedLocationId);
 
+                // Build price columns HTML based on allowed price types
+                let priceColumnsHtml = '';
+
+                if (allowedPriceTypes.includes('retail')) {
+                    const retailPrice = batch.retail_price ? parseFloat(batch.retail_price).toFixed(2) : 'N/A';
+                    priceColumnsHtml += `<td class="text-center">Rs ${retailPrice}</td>`;
+                }
+
+                if (allowedPriceTypes.includes('wholesale')) {
+                    const wholesalePrice = batch.wholesale_price ? parseFloat(batch.wholesale_price).toFixed(2) : 'N/A';
+                    priceColumnsHtml += `<td class="text-center">Rs ${wholesalePrice}</td>`;
+                }
+
+                if (allowedPriceTypes.includes('special')) {
+                    const specialPrice = batch.special_price ? parseFloat(batch.special_price).toFixed(2) : 'N/A';
+                    priceColumnsHtml += `<td class="text-center">Rs ${specialPrice}</td>`;
+                }
+
+                if (allowedPriceTypes.includes('max_retail')) {
+                    const maxRetailPrice = batch.max_retail_price ? parseFloat(batch.max_retail_price).toFixed(2) : 'N/A';
+                    priceColumnsHtml += `<td class="text-center">Rs ${maxRetailPrice}</td>`;
+                }
+
                 // Get customer-type-based price for this batch
                 const priceResult = getCustomerTypePrice(batch, product, currentCustomer.customer_type);
 
-                let priceDisplay = '';
-                let priceToUse = 0;
                 let buttonContent = '';
 
                 if (priceResult.hasError) {
-                    priceDisplay =
-                        `<span class="text-danger">No valid price for ${currentCustomer.customer_type}</span>`;
                     buttonContent =
                         `<button class="btn btn-sm btn-secondary" disabled>No Price</button>`;
                 } else {
-                    priceToUse = priceResult.price;
+                    const priceToUse = priceResult.price;
                     const batchMrp = batch.max_retail_price !== undefined && batch.max_retail_price !==
                         null ?
                         parseFloat(batch.max_retail_price) : (product.max_retail_price || 0);
-
-                    priceDisplay = `
-                        MRP: Rs ${batchMrp.toFixed(2)}<br>
-                        <strong>${currentCustomer.customer_type.charAt(0).toUpperCase() + currentCustomer.customer_type.slice(1)} Price: Rs ${priceToUse.toFixed(2)}</strong><br>
-                        <small class="text-muted">Source: ${priceResult.source.replace(/_/g, ' ')}</small>
-                    `;
 
                     buttonContent = `
                         <button class="btn btn-sm btn-primary select-batch-btn"
@@ -4551,9 +4572,9 @@
                 tr.innerHTML = `
             <td><strong>[${index + 1}]</strong></td>
             <td>${batch.batch_no}</td>
-            <td>${priceDisplay}</td>
-            <td>${locationBatch.quantity} PC(s)</td>
-            <td>${buttonContent}</td>
+            ${priceColumnsHtml}
+            <td class="text-center">${locationBatch.quantity} PC(s)</td>
+            <td class="text-center">${buttonContent}</td>
         `;
                 tbody.appendChild(tr);
                 batchRows.push(tr);
@@ -5288,14 +5309,14 @@
                     1, // saleQuantity = 1 for individual IMEI
                     [imeiNumber], // Array with single IMEI
                     null, // discountType
-                    null, // discountAmount  
+                    null, // discountAmount
                     batchForPricing // selectedBatch
                 );
             });
 
             // Reset lastAddedProduct to allow adding more products
             lastAddedProduct = null;
-            
+
             updateTotals();
             fetchPaginatedProducts(true);
         }
@@ -5528,14 +5549,14 @@
 
             // Check for previously selected price type from the row, otherwise default based on customer type
             let defaultPriceType = 'retail';
-            
+
             // First, check if this row has a previously selected price type
             const storedPriceType = row.querySelector('.selected-price-type');
             if (storedPriceType && storedPriceType.textContent) {
                 const savedPriceType = storedPriceType.textContent.trim();
                 // Validate that the saved price type is available for this product
-                if (savedPriceType === 'retail' || 
-                    (savedPriceType === 'wholesale' && hasWholesale) || 
+                if (savedPriceType === 'retail' ||
+                    (savedPriceType === 'wholesale' && hasWholesale) ||
                     (savedPriceType === 'special' && hasSpecial)) {
                     defaultPriceType = savedPriceType;
                     console.log('Using previously selected price type:', savedPriceType);
@@ -5556,25 +5577,35 @@
             }
 
             if (locationBatches.length > 0) {
-                // Build batch options with all available prices
+                // Build batch options - only show prices user has permission to see
                 batchOptions = locationBatches.map((batch, idx) => {
-                    let priceDisplay = `R: ${formatAmountWithSeparators(batch.retail_price.toFixed(2))}`;
+                    let priceDisplay = '';
+                    let priceComponents = [];
 
-                    if (batch.wholesale_price > 0) {
-                        priceDisplay += ` | W: ${formatAmountWithSeparators(batch.wholesale_price.toFixed(2))}`;
+                    // Only show prices the user has permission for
+                    if (allowedPriceTypes.includes('retail')) {
+                        priceComponents.push(`R: ${formatAmountWithSeparators(batch.retail_price.toFixed(2))}`);
                     }
 
-                    if (batch.special_price > 0) {
-                        priceDisplay += ` | S: ${formatAmountWithSeparators(batch.special_price.toFixed(2))}`;
+                    if (allowedPriceTypes.includes('wholesale') && batch.wholesale_price > 0) {
+                        priceComponents.push(`W: ${formatAmountWithSeparators(batch.wholesale_price.toFixed(2))}`);
                     }
 
-                    priceDisplay += ` | MRP: ${formatAmountWithSeparators(batch.max_retail_price.toFixed(2))}`;
+                    if (allowedPriceTypes.includes('special') && batch.special_price > 0) {
+                        priceComponents.push(`S: ${formatAmountWithSeparators(batch.special_price.toFixed(2))}`);
+                    }
+
+                    if (allowedPriceTypes.includes('max_retail')) {
+                        priceComponents.push(`MRP: ${formatAmountWithSeparators(batch.max_retail_price.toFixed(2))}`);
+                    }
+
+                    priceDisplay = priceComponents.join(' | ');
 
                     return `
-                        <option value="${batch.batch_id}" 
-                        data-retail-price="${batch.retail_price}" 
-                        data-wholesale-price="${batch.wholesale_price}" 
-                        data-special-price="${batch.special_price}" 
+                        <option value="${batch.batch_id}"
+                        data-retail-price="${batch.retail_price}"
+                        data-wholesale-price="${batch.wholesale_price}"
+                        data-special-price="${batch.special_price}"
                         data-max-retail-price="${batch.max_retail_price}"
                         data-quantity="${batch.batch_quantity}" ${selectedBatchId === batch.batch_id ? 'selected' : ''}>
                         ${batch.batch_no} - Qty: ${formatAmountWithSeparators(batch.batch_quantity)} - ${priceDisplay}
@@ -5582,39 +5613,49 @@
                     `;
                 }).join('');
 
-                // Build price type radio buttons (only show available options)
+                // Build price type radio buttons (only show available options AND user has permission)
                 let priceTypeButtons = '';
 
-                // Always show retail
-                const isRetailSelected = defaultPriceType === 'retail';
-                priceTypeButtons += `
-                    <label class="btn ${isRetailSelected ? 'btn-success' : 'btn-outline-success'} price-type-btn ${isRetailSelected ? 'active' : ''}" style="flex: 1; min-width: 70px; margin: 2px;">
-                        <input type="radio" name="modal-price-type" value="retail" ${isRetailSelected ? 'checked' : ''} hidden> 
-                        <i class="fas fa-tag d-block d-sm-inline me-sm-1"></i>
-                        <span class="fw-bold d-none d-sm-inline">Retail</span>
-                        <span class="fw-bold d-inline d-sm-none small">R</span>
-                    </label>
-                `;
+                // Determine which price types to show based on BOTH availability AND permissions
+                // IMPORTANT: If customer is wholesaler, always show wholesale even if user doesn't have permission
+                // This ensures correct pricing for customer type
+                const currentCustomer = getCurrentCustomer();
+                const isWholesalerCustomer = currentCustomer && currentCustomer.customer_type === 'wholesaler';
 
-                // Show wholesale if available
-                if (hasWholesale) {
-                    const isWholesaleSelected = defaultPriceType === 'wholesale';
+                // Show retail if user has permission OR if it's the only available option
+                if (allowedPriceTypes.includes('retail')) {
+                    const isRetailSelected = defaultPriceType === 'retail';
                     priceTypeButtons += `
-                        <label class="btn ${isWholesaleSelected ? 'btn-info' : 'btn-outline-info'} price-type-btn ${isWholesaleSelected ? 'active' : ''}" style="flex: 1; min-width: 70px; margin: 2px;">
-                            <input type="radio" name="modal-price-type" value="wholesale" ${isWholesaleSelected ? 'checked' : ''} hidden> 
-                            <i class="fas fa-boxes d-block d-sm-inline me-sm-1"></i>
-                            <span class="fw-bold d-none d-sm-inline">Wholesale</span>
-                            <span class="fw-bold d-inline d-sm-none small">W</span>
+                        <label class="btn ${isRetailSelected ? 'btn-success' : 'btn-outline-success'} price-type-btn ${isRetailSelected ? 'active' : ''}" style="flex: 1; min-width: 70px; margin: 2px;">
+                            <input type="radio" name="modal-price-type" value="retail" ${isRetailSelected ? 'checked' : ''} hidden>
+                            <i class="fas fa-tag d-block d-sm-inline me-sm-1"></i>
+                            <span class="fw-bold d-none d-sm-inline">Retail</span>
+                            <span class="fw-bold d-inline d-sm-none small">R</span>
                         </label>
                     `;
                 }
 
-                // Show special if available
-                if (hasSpecial) {
+                // Show wholesale if: (available AND user has permission) OR customer is wholesaler
+                if (hasWholesale && (allowedPriceTypes.includes('wholesale') || isWholesalerCustomer)) {
+                    const isWholesaleSelected = defaultPriceType === 'wholesale';
+                    const isAutoSelected = isWholesalerCustomer && !allowedPriceTypes.includes('wholesale');
+                    priceTypeButtons += `
+                        <label class="btn ${isWholesaleSelected ? 'btn-info' : 'btn-outline-info'} price-type-btn ${isWholesaleSelected ? 'active' : ''}" style="flex: 1; min-width: 70px; margin: 2px;" ${isAutoSelected ? 'title="Auto-selected for wholesaler customer"' : ''}>
+                            <input type="radio" name="modal-price-type" value="wholesale" ${isWholesaleSelected ? 'checked' : ''} hidden>
+                            <i class="fas fa-boxes d-block d-sm-inline me-sm-1"></i>
+                            <span class="fw-bold d-none d-sm-inline">Wholesale</span>
+                            <span class="fw-bold d-inline d-sm-none small">W</span>
+                            ${isAutoSelected ? '<i class="fas fa-lock ms-1 small"></i>' : ''}
+                        </label>
+                    `;
+                }
+
+                // Show special if available AND user has permission
+                if (hasSpecial && allowedPriceTypes.includes('special')) {
                     const isSpecialSelected = defaultPriceType === 'special';
                     priceTypeButtons += `
                         <label class="btn ${isSpecialSelected ? 'btn-warning' : 'btn-outline-warning'} price-type-btn ${isSpecialSelected ? 'active' : ''}" style="flex: 1; min-width: 70px; margin: 2px;">
-                            <input type="radio" name="modal-price-type" value="special" ${isSpecialSelected ? 'checked' : ''} hidden> 
+                            <input type="radio" name="modal-price-type" value="special" ${isSpecialSelected ? 'checked' : ''} hidden>
                             <i class="fas fa-star d-block d-sm-inline me-sm-1"></i>
                             <span class="fw-bold d-none d-sm-inline">Special</span>
                             <span class="fw-bold d-inline d-sm-none small">S</span>
@@ -5631,8 +5672,8 @@
 
                 modalBody.innerHTML = `
                     <div class="d-flex align-items-center mb-3">
-                        <img src="${getSafeImageUrl(product)}" 
-                             style="width:50px; height:50px; margin-right:15px; border-radius:8px; object-fit:cover;" 
+                        <img src="${getSafeImageUrl(product)}"
+                             style="width:50px; height:50px; margin-right:15px; border-radius:8px; object-fit:cover;"
                              alt="${product.product_name}"
                              onerror="this.onerror=null; this.src='/assets/images/No Product Image Available.png'; console.log('Image fallback applied for: ${product.product_name}');" />
                         <div>
@@ -5650,13 +5691,28 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold text-muted small">BATCH SELECTION</label>
                         <select id="modalBatchDropdown" class="form-select batch-dropdown">
-                            <option value="all" 
-                                data-retail-price="${allRetailPrice}" 
-                                data-wholesale-price="${allWholesalePrice}" 
-                                data-special-price="${allSpecialPrice}" 
+                            <option value="all"
+                                data-retail-price="${allRetailPrice}"
+                                data-wholesale-price="${allWholesalePrice}"
+                                data-special-price="${allSpecialPrice}"
                                 data-max-retail-price="${allMrpPrice}"
                                 data-quantity="${totalQuantity}" ${selectedBatchId === 'all' ? 'selected' : ''}>
-                                All - Qty: ${formatAmountWithSeparators(totalQuantity)} - R: ${formatAmountWithSeparators(allRetailPrice.toFixed(2))}${allWholesalePrice > 0 ? ' | W: ' + formatAmountWithSeparators(allWholesalePrice.toFixed(2)) : ''}${allSpecialPrice > 0 ? ' | S: ' + formatAmountWithSeparators(allSpecialPrice.toFixed(2)) : ''} | MRP: ${formatAmountWithSeparators(allMrpPrice.toFixed(2))}
+                                All - Qty: ${formatAmountWithSeparators(totalQuantity)}${(() => {
+                                    let allPrices = [];
+                                    if (allowedPriceTypes.includes('retail')) {
+                                        allPrices.push('R: ' + formatAmountWithSeparators(allRetailPrice.toFixed(2)));
+                                    }
+                                    if (allowedPriceTypes.includes('wholesale') && allWholesalePrice > 0) {
+                                        allPrices.push('W: ' + formatAmountWithSeparators(allWholesalePrice.toFixed(2)));
+                                    }
+                                    if (allowedPriceTypes.includes('special') && allSpecialPrice > 0) {
+                                        allPrices.push('S: ' + formatAmountWithSeparators(allSpecialPrice.toFixed(2)));
+                                    }
+                                    if (allowedPriceTypes.includes('max_retail')) {
+                                        allPrices.push('MRP: ' + formatAmountWithSeparators(allMrpPrice.toFixed(2)));
+                                    }
+                                    return allPrices.length > 0 ? ' - ' + allPrices.join(' | ') : '';
+                                })()}
                             </option>
                             ${batchOptions}
                         </select>
@@ -5669,7 +5725,7 @@
                                     font-size: 0.85em;
                                 }
                             }
-                            
+
                             /* Customer Price History Styles */
                             .customer-price-history {
                                 background: #f8f9fa;
@@ -5680,18 +5736,18 @@
                                 font-size: 0.85em;
                                 animation: slideIn 0.3s ease-out;
                             }
-                            
+
                             .price-history-item {
                                 display: flex;
                                 justify-content: space-between;
                                 align-items: center;
                                 margin-bottom: 4px;
                             }
-                            
+
                             .price-history-item:last-child {
                                 margin-bottom: 0;
                             }
-                            
+
                             .price-badge {
                                 background: #ffc107;
                                 color: #000;
@@ -5700,7 +5756,7 @@
                                 font-weight: 500;
                                 font-size: 0.8em;
                             }
-                            
+
                             /* Hover tooltip enhancement */
                             .product-image:hover,
                             .product-name:hover {
@@ -5708,7 +5764,7 @@
                                 transition: opacity 0.2s ease;
                                 cursor: help;
                             }
-                            
+
                             @keyframes slideIn {
                                 from {
                                     opacity: 0;
@@ -5749,11 +5805,11 @@
                             btn.classList.add('btn-outline-warning');
                         }
                     });
-                    
+
                     // Add active state to selected button
                     const selectedBtn = this.parentElement;
                     selectedBtn.classList.add('active');
-                    
+
                     // Change to solid style for active button
                     if (selectedBtn.classList.contains('btn-outline-success')) {
                         selectedBtn.classList.remove('btn-outline-success');
@@ -5791,7 +5847,7 @@
             if (!customerId || customerId === '' || customerId === 'walk-in') {
                 return null;
             }
-            
+
             try {
                 const response = await fetch(`/customer-previous-price?customer_id=${customerId}&product_id=${productId}`, {
                     method: 'GET',
@@ -5801,15 +5857,15 @@
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
                     }
                 });
-                
+
                 if (!response.ok) {
                     console.log('API response not ok:', response.status, response.statusText);
                     return null;
                 }
-                
+
                 const data = await response.json();
                 console.log('Customer price history response:', data);
-                
+
                 return (data.status === 200) ? data.data : null;
             } catch (error) {
                 console.log('Could not fetch customer previous price:', error);
@@ -5840,7 +5896,7 @@
             let customerPriceHistory = null;
             const currentCustomer = getCurrentCustomer();
             console.log('Current customer for price history:', currentCustomer);
-            
+
             if (currentCustomer && currentCustomer.id && currentCustomer.customer_type !== 'walk-in') {
                 try {
                     console.log(`Fetching price history for customer ${currentCustomer.id} and product ${product.id}`);
@@ -5858,13 +5914,13 @@
 
             // Use selectedBatch if provided; fallback to stockEntry batch
             let batch = selectedBatch || normalizeBatches(stockEntry).find(b => b.id === parseInt(batchId));
-            
+
             // If batchId is "all" or batch not found, use the latest available batch for MRP
             if (!batch && (batchId === "all" || batchId === "" || batchId === null)) {
                 const batchesArray = normalizeBatches(stockEntry);
                 batch = batchesArray.length > 0 ? batchesArray[0] : null; // Use first/latest batch
             }
-            
+
             // Debug logging for batch MRP
             console.log('🔍 Batch MRP Debug:', {
                 productName: product.product_name,
@@ -5901,7 +5957,7 @@
                     toastr.error(
                         `This product has no valid price configured for ${currentCustomer.customer_type} customers. Please contact admin to fix pricing.`,
                         'Pricing Error');
-                    
+
                     // Log the error
                     logPricingError(product, currentCustomer.customer_type, batch);
                 }
@@ -5929,7 +5985,7 @@
             if (isEditing && currentEditingSaleId && (discountType && discountAmount !== null)) {
                 // In edit mode with original discount data, preserve exact original pricing
                 console.log('🔒 Edit Mode: Preserving original discount:', {discountType, discountAmount, productName: product.product_name});
-                
+
                 if (discountType === 'fixed') {
                     discountFixed = parseFloat(discountAmount);
                     // In edit mode, final price should be the original sale price
@@ -5945,7 +6001,7 @@
                 // Normal mode or edit mode without original discount - use standard logic
                 // Priority order:
                 // 1. Manual discount
-                // 2. Active discount  
+                // 2. Active discount
                 // 3. Default (MRP - customer type price)
                 if (discountType && discountAmount !== null) {
                     console.log('Applying manual discount:', {discountType, discountAmount, productName: product.product_name, effectiveMRP});
@@ -6064,7 +6120,7 @@
                         newPrice: finalPrice.toFixed(2)
                     });
 
-                    // For products that appear identical (same product, same price), 
+                    // For products that appear identical (same product, same price),
                     // merge regardless of batch to avoid confusion
                     return (
                         rowProductId == product.id &&
@@ -6114,19 +6170,19 @@
         <td class="text-center counter-cell" style="vertical-align: middle; font-weight: bold; color: #000;"></td>
         <td>
             <div class="d-flex align-items-start">
-            <img src="${getSafeImageUrl(product)}" 
-                 style="width:50px; height:50px; margin-right:10px; border-radius:50%;" 
+            <img src="${getSafeImageUrl(product)}"
+                 style="width:50px; height:50px; margin-right:10px; border-radius:50%;"
                  class="product-image"
                  title="Unit Cost: ${batch ? (batch.unit_cost || batch.purchase_price || 'N/A') : (product.unit_cost || product.purchase_price || 'N/A')} | Original Price: ${product.original_price || product.purchase_price || 'N/A'}"
                  alt="${product.product_name}"
-                 data-bs-toggle="tooltip" 
+                 data-bs-toggle="tooltip"
                  data-bs-placement="top"
                  onerror="this.onerror=null; this.src='/assets/images/No Product Image Available.png'; console.log('Image fallback applied for billing row: ${product.product_name}');"/>
             <div class="product-info" style="min-width: 0; flex: 1;">
             <div class="font-weight-bold product-name" style="word-break: break-word; max-width: 260px; line-height: 1.2;" title="Unit Cost: ${batch ? (batch.unit_cost || batch.purchase_price || 'N/A') : (product.unit_cost || product.purchase_price || 'N/A')} | Original Price: ${product.original_price || product.purchase_price || 'N/A'}">
             ${product.product_name}
             <span class="badge bg-info ms-1">MRP: ${batch && batch.max_retail_price ? batch.max_retail_price : product.max_retail_price}</span>
-           
+
             </div>
             <div class="d-flex flex-wrap align-items-center mt-1" style="gap: 10px;">
             <span class="text-muted product-sku" style="font-size: 0.95em; word-break: break-all;">
@@ -6150,27 +6206,27 @@
             </div>
             <div style="font-size: 0.85em; color: #888; text-align:center;">${unitName}</div>
         </td>
-        <td class="text-center"><input type="number" name="discount_fixed[]" class="form-control fixed_discount text-center" value="${discountFixed.toFixed(2)}"></td>
-        <td class="text-center"><input type="number" name="discount_percent[]" class="form-control percent_discount text-center" value="${discountPercent.toFixed(2)}"></td>
+        <td class="text-center"><input type="number" name="discount_fixed[]" class="form-control fixed_discount text-center" value="${discountFixed.toFixed(2)}" ${!canEditDiscount && priceValidationEnabled && !isEditing ? 'readonly' : ''}></td>
+        <td class="text-center"><input type="number" name="discount_percent[]" class="form-control percent_discount text-center" value="${discountPercent.toFixed(2)}" ${!canEditDiscount && priceValidationEnabled && !isEditing ? 'readonly' : ''}></td>
         <td class="text-center">
-            <input type="number" value="${finalPrice.toFixed(2)}" class="form-control price-input unit-price text-center" 
+            <input type="number" value="${finalPrice.toFixed(2)}" class="form-control price-input unit-price text-center"
                 data-price="${finalPrice}"
-                data-quantity="${adjustedBatchQuantity}" 
+                data-quantity="${adjustedBatchQuantity}"
                 data-retail-price="${batch ? batch.retail_price : product.retail_price}"
                 data-wholesale-price="${batch ? batch.wholesale_price : (stockEntry.batches?.[0]?.wholesale_price || 0)}"
                 data-special-price="${batch ? batch.special_price : (stockEntry.batches?.[0]?.special_price || 0)}"
                 data-max-retail-price="${batch ? batch.max_retail_price || product.max_retail_price : product.max_retail_price}"
-                min="0" readonly>
-            ${customerPriceHistory && customerPriceHistory.has_previous_purchases ? 
+                min="0" ${!canEditUnitPrice && priceValidationEnabled && !isEditing ? 'readonly' : ''}>
+            ${customerPriceHistory && customerPriceHistory.has_previous_purchases ?
                 `<div class="text-center mt-1">
-                    <i class="fas fa-chart-line text-info cursor-pointer price-history-icon" 
-                       title="View price history for this customer" 
+                    <i class="fas fa-chart-line text-info cursor-pointer price-history-icon"
+                       title="View price history for this customer"
                        data-product-id="${product.id}"
-                       data-product-name="${product.product_name}" 
+                       data-product-name="${product.product_name}"
                        data-customer-name="${currentCustomer.first_name || ''} ${currentCustomer.last_name || ''}"
                        style="font-size: 14px; cursor: pointer;">
                     </i>
-                 </div>` : 
+                 </div>` :
                 ''
             }
         </td>
@@ -6223,7 +6279,7 @@
             }
 
             disableConflictingDiscounts(row);
-            
+
             // Debug: Log actual DOM values after disableConflictingDiscounts
             const fixedInputDebug = row.querySelector('.fixed_discount');
             const percentInputDebug = row.querySelector('.percent_discount');
@@ -6233,7 +6289,7 @@
                 fixedDisabled: fixedInputDebug?.disabled,
                 percentDisabled: percentInputDebug?.disabled
             });
-            
+
             updateTotals();
 
             // Initialize Bootstrap tooltips for the newly added row
@@ -6495,18 +6551,18 @@
                     const productId = priceHistoryIcon.getAttribute('data-product-id');
                     const productName = priceHistoryIcon.getAttribute('data-product-name');
                     const customerName = priceHistoryIcon.getAttribute('data-customer-name');
-                    
+
                     // Get current customer
                     const currentCustomer = getCurrentCustomer();
                     if (!currentCustomer || !currentCustomer.id || currentCustomer.customer_type === 'walk-in') {
                         toastr.warning('Price history is only available for registered customers');
                         return;
                     }
-                    
+
                     try {
                         // Fetch fresh price history data
                         const priceHistoryData = await getCustomerPreviousPrice(currentCustomer.id, productId);
-                        
+
                         if (priceHistoryData && priceHistoryData.has_previous_purchases) {
                             showPriceHistoryModal(productName, JSON.stringify(priceHistoryData), customerName);
                         } else {
@@ -6526,7 +6582,7 @@
                     const batchIdCell = row.querySelector('.batch-id');
                     const productIdCell = row.querySelector('.product-id');
                     const locationIdCell = row.querySelector('.location-id');
-                    
+
                     const imeis = imeiDataCell ? imeiDataCell.textContent.trim().split(',').filter(
                         Boolean) : [];
                     const batchId = batchIdCell ? batchIdCell.textContent.trim() : null;
@@ -6540,7 +6596,7 @@
 
                     // Fetch fresh IMEI data from API to ensure we have complete data including IDs
                     console.log('Fetching IMEI data for product:', productId, 'location:', currentLocationId);
-                    
+
                     fetch(`/get-imeis/${productId}?location_id=${currentLocationId}`, {
                         method: 'GET',
                         headers: {
@@ -6552,13 +6608,13 @@
                     .then(data => {
                         if (data.status === 200) {
                             console.log('IMEI data fetched successfully:', data.data);
-                            
+
                             // Create a temporary stockEntry with the fetched IMEI data
                             const tempStockEntry = {
                                 ...stockEntry,
                                 imei_numbers: data.data
                             };
-                            
+
                             // Show IMEI modal with complete data - Always show all IMEIs when editing
                             showImeiSelectionModal(product, tempStockEntry, [], '', 'EDIT', "all");
                         } else {
@@ -6665,7 +6721,7 @@
 
                 // Update batch ID and store selected price type
                 selectedRow.querySelector('.batch-id').textContent = batchId;
-                
+
                 // Store the selected price type for future modal opens
                 let priceTypeElement = selectedRow.querySelector('.selected-price-type');
                 if (!priceTypeElement) {
@@ -6675,7 +6731,7 @@
                     selectedRow.appendChild(priceTypeElement);
                 }
                 priceTypeElement.textContent = selectedPriceType;
-                
+
                 const stars = selectedPriceType === 'retail' ? '<i class="fas fa-star"></i>' :
                     selectedPriceType === 'wholesale' ?
                     '<i class="fas fa-star"></i><i class="fas fa-star"></i>' :
@@ -6778,7 +6834,7 @@
                 if (quantityInput) {
                     quantity = quantityInput.value === "" ? 0 : parseFloat(quantityInput.value);
                 }
-                
+
                 // Check if priceInput exists before accessing its value
                 const basePrice = priceInput ? (parseFloat(priceInput.value) || 0) : 0;
 
@@ -6795,7 +6851,7 @@
                 if (subtotalElement) {
                     subtotalElement.textContent = formatAmountWithSeparators(subtotal.toFixed(2));
                 }
-                
+
                 totalItems += quantity;
                 totalAmount += subtotal;
             });
@@ -6966,13 +7022,13 @@
             const paymentButtons = ['#cashButton', '#cardButton', '#chequeButton', '#creditSaleButton',
                 '#multiplePayButton'
             ];
-            
+
             // Enhanced double-click prevention for all payment buttons
             paymentButtons.forEach(buttonSelector => {
                 $(document).off('click.payment-protection', buttonSelector);
                 $(document).on('click.payment-protection', buttonSelector, function(e) {
                     const button = this;
-                    
+
                     // Check if button is already processing
                     if (button.dataset.isProcessing === "true" || $(button).prop('disabled')) {
                         e.preventDefault();
@@ -7187,7 +7243,7 @@
             globalDiscountInput.addEventListener('input', function() {
                 updateTotals(); // updateTotals already includes shipping
             });
-            
+
             // Change event - fires when input loses focus and value has changed
             globalDiscountInput.addEventListener('change', function() {
                 const discountValue = parseFloat(this.value) || 0;
@@ -7197,7 +7253,7 @@
                 }
                 updateTotals(); // updateTotals already includes shipping
             });
-            
+
             // Blur event - fires when input loses focus
             globalDiscountInput.addEventListener('blur', function() {
                 const discountValue = parseFloat(this.value) || 0;
@@ -7207,13 +7263,13 @@
                 }
                 updateTotals(); // updateTotals already includes shipping
             });
-            
+
             // Keyup event - fires when user releases a key
             globalDiscountInput.addEventListener('keyup', function() {
                 updateTotals(); // updateTotals already includes shipping
             });
         }
-        
+
         // Also trigger updateTotals when discount type changes
         if (globalDiscountTypeInput) {
             globalDiscountTypeInput.addEventListener('change', function() {
@@ -7263,7 +7319,7 @@
                 .then(data => {
                     if (data.status === 200) {
                         const saleDetails = data.sale_details;
-                        
+
                         // *** NEW: Store original sale data for payment method validation ***
                         window.originalSaleData = {
                             payment_status: saleDetails.sale.payment_status,
@@ -7308,7 +7364,7 @@
                         saleDetails.sale_products.forEach(saleProduct => {
                             // *** CRITICAL FIX: Always use original sale price in edit mode ***
                             const price = parseFloat(saleProduct.price); // Use original sale price, NOT current customer type price
-                            
+
                             if (!price || price <= 0) {
                                 console.error('Invalid original sale price for product:', saleProduct.product.product_name, 'Price:', saleProduct.price);
                                 toastr.error(`Invalid price data for product: ${saleProduct.product.product_name}. Cannot load for editing.`, 'Edit Error');
@@ -7371,7 +7427,7 @@
                             try {
                                 // Debug edit mode batch handling
                                 console.log('🔄 Edit Mode - Adding product with original batch_id:', saleProduct.batch_id, 'for product:', saleProduct.product.product_name);
-                                
+
                                 // For edit mode, use FIFO method except for IMEI products
                                 // IMEI products must keep their specific batch IDs
                                 let editModeBatchId = "all"; // Default to FIFO
@@ -7381,7 +7437,7 @@
                                 } else {
                                     console.log('🔄 Edit Mode - Non-IMEI product, using FIFO method: "all"');
                                 }
-                                
+
                                 addProductToBillingBody(
                                     saleProduct.product,
                                     normalizedStockEntry,
@@ -7395,7 +7451,7 @@
                                     saleProduct.discount_type,
                                     saleProduct.discount_amount
                                 );
-                                
+
                                 console.log('Product added to billing:', saleProduct.product.product_name, {
                                     discount_type: saleProduct.discount_type,
                                     discount_amount: saleProduct.discount_amount,
@@ -7536,14 +7592,14 @@
                     const productRow = $(this);
                     const batchId = productRow.find('.batch-id').text().trim();
                     const locationId = productRow.find('.location-id').text().trim();
-                    
+
                     console.log('Raw batchId from row:', batchId, 'Type:', typeof batchId);
-                    
+
                     // Additional debugging for batch ID issues
                     if (batchId && batchId !== 'all' && batchId !== '') {
                         console.warn('⚠️ Specific batch ID found in billing row:', batchId, 'This might cause stock issues if not intended');
                     }
-                    
+
                     const discountFixed = parseFloat(productRow.find('.fixed_discount').val()
                         .trim()) || 0;
                     const discountPercent = parseFloat(productRow.find('.percent_discount')
@@ -7567,14 +7623,14 @@
                     const productId = parseInt(productRow.find('.product-id').text().trim(), 10);
                     const qtyVal = productRow.find('.quantity-input').val().trim();
                     const quantity = isImeiProduct ? 1 : (parseFloat(qtyVal) || 0);
-                    
+
                     // Process batch_id to ensure proper format for backend FIFO logic
                     // Send "all" for FIFO method when no specific batch is selected
                     // Send specific batch_id string when a batch is selected
-                    
+
                     // EMERGENCY FIX: Force all products to use FIFO method to prevent stock issues
                     let processedBatchId = "all"; // Always use FIFO method
-                    
+
                     // Only allow specific batch IDs for IMEI products (they need their specific batches)
                     if (batchId && batchId !== "null" && batchId !== "" && batchId !== "all") {
                         // Check if this is an IMEI product by looking at the row
@@ -7586,15 +7642,15 @@
                             console.log('🔧 EMERGENCY FIX: Non-IMEI product forced to use FIFO method instead of batch:', batchId);
                         }
                     }
-                    
+
                     console.log('Processed batchId:', processedBatchId, 'from original:', batchId, 'type:', typeof batchId, '(FIFO method if "all")');
-                    
+
                     // Critical debugging - log every batch_id being sent to server
                     if (processedBatchId !== "all") {
                         console.error('🚨 ALERT: Sending specific batch_id to server:', processedBatchId, 'This may cause "Insufficient stock" errors!');
                         console.trace('Stack trace for specific batch_id');
                     }
-                    
+
                     const productData = {
                         product_id: productId,
                         location_id: parseInt(locationId, 10),
@@ -7607,7 +7663,7 @@
                         tax: 0,
                         batch_id: processedBatchId,
                     };
-                    
+
                     // Only add IMEI numbers if they exist (reduce payload size)
                     if (imeis.length > 0) {
                         productData.imei_numbers = imeis;
@@ -7744,7 +7800,7 @@
                             } catch (e) {
                                 // Ignore if sound element doesn't exist
                             }
-                            
+
                             // Show appropriate success message
                             if (response.sale && response.sale.transaction_type === 'sale_order') {
                                 toastr.success(response.message + ' Order Number: ' + response.sale.order_number, 'Sale Order Created', {
@@ -7768,7 +7824,7 @@
 
                             // IMMEDIATE form reset and UI feedback - don't wait for async operations
                             resetForm();
-                            
+
                             // Extra safety check for sales rep customer reset after successful billing
                             if (isSalesRep) {
                                 setTimeout(() => {
@@ -7778,7 +7834,7 @@
                                         customerSelect.val('').trigger('change');
                                     }
                                 }, 100);
-                                
+
                                 // Additional check after 300ms for any delayed customer filtering
                                 setTimeout(() => {
                                     const customerSelect = $('#customer-id');
@@ -7845,7 +7901,7 @@
                                                         }
                                                     }
                                                 }, 100); // Check every 100ms for faster detection
-                                                
+
                                                 // Fallback timeout in case window detection fails (after 30 seconds)
                                                 setTimeout(() => {
                                                     clearInterval(checkClosed);
@@ -8094,7 +8150,7 @@
                             total_paid: window.originalSaleData?.total_paid,
                             final_total: window.originalSaleData?.final_total
                         };
-                        
+
                         if (!validatePaymentMethodCompatibility('cash', saleData)) {
                             enableButton(button);
                             return;
@@ -8131,7 +8187,7 @@
                     if (isNaN(amountGiven) || amountGiven <= 0) {
                         amountGiven = totalAmount;
                     }
-                    
+
                     // Debug logging
                     console.log('Cash Payment Debug:', {
                         subtotal: saleData.total_amount,
@@ -8197,7 +8253,7 @@
             });
 
             // ==================== SHIPPING FUNCTIONALITY ====================
-            
+
             // Initialize shipping modal handlers
             $('#shippingButton').on('click', function() {
                 console.log('Shipping button clicked');
@@ -8209,16 +8265,16 @@
                 // Get current total (includes shipping) and calculate subtotal
                 const totalWithCurrentShipping = parseFormattedAmount($('#final-total-amount').text());
                 const subtotalWithoutShipping = totalWithCurrentShipping - shippingData.shipping_charges;
-                
+
                 // Update subtotal in modal (without shipping)
                 $('#modalSubtotal').text(formatCurrency(subtotalWithoutShipping));
-                
+
                 // Update shipping charges in modal
                 $('#modalShippingCharges').text(formatCurrency(shippingData.shipping_charges));
-                
+
                 // Calculate and display total with shipping
                 $('#modalTotalWithShipping').text(formatCurrency(totalWithCurrentShipping));
-                
+
                 // Populate form with current shipping data
                 $('#shippingDetails').val(shippingData.shipping_details);
                 $('#shippingAddress').val(shippingData.shipping_address);
@@ -8227,7 +8283,7 @@
                 $('#deliveredTo').val(shippingData.delivered_to);
                 $('#deliveryPerson').val(shippingData.delivery_person);
                 $('#trackingNumber').val(shippingData.tracking_number);
-                
+
                 $('#shippingModal').modal('show');
             }
 
@@ -8237,7 +8293,7 @@
                 // Get current total and subtract current shipping to get subtotal
                 const totalWithCurrentShipping = parseFormattedAmount($('#final-total-amount').text());
                 const subtotalWithoutShipping = totalWithCurrentShipping - shippingData.shipping_charges;
-                
+
                 $('#modalShippingCharges').text(formatCurrency(shippingCharges));
                 $('#modalTotalWithShipping').text(formatCurrency(subtotalWithoutShipping + shippingCharges));
             });
@@ -8273,7 +8329,7 @@
                 // Just update totals - no complex sync logic
                 updateTotals();
                 updateShippingButtonState();
-                
+
                 $('#shippingModal').modal('hide');
                 toastr.success('Shipping information updated successfully');
             }
@@ -8300,7 +8356,7 @@
                     delivered_to: '',
                     delivery_person: ''
                 };
-                
+
                 updateTotals();
                 updateShippingButtonState();
             }
@@ -8348,7 +8404,7 @@
                             total_paid: window.originalSaleData?.total_paid,
                             final_total: window.originalSaleData?.final_total
                         };
-                        
+
                         if (!validatePaymentMethodCompatibility('card', saleData)) {
                             enableButton(button);
                             return;
@@ -8716,7 +8772,7 @@
                 document.querySelectorAll('.payment-row').forEach(row => {
                     const paymentMethod = row.querySelector('.payment-method').value;
                     let paymentDate = row.querySelector('.payment-date').value;
-                    
+
                     // Convert date from DD-MM-YYYY or DD/MM/YYYY to YYYY-MM-DD format for database
                     if (paymentDate && paymentDate.match(/^\d{2}[\-\/]\d{2}[\-\/]\d{4}$/)) {
                         const parts = paymentDate.split(/[\-\/]/);
@@ -8724,7 +8780,7 @@
                     } else if (!paymentDate) {
                         paymentDate = new Date().toISOString().slice(0, 10); // Default to today
                     }
-                    
+
                     const amountInput = row.querySelector('.payment-amount').value;
                     let amount = parseFormattedAmount(amountInput);
 
@@ -8823,7 +8879,7 @@
 
                 // Get fresh CSRF token
                 const csrfToken = $('meta[name="csrf-token"]').attr('content');
-                
+
                 if (!csrfToken) {
                     toastr.error('Security token not found. Please refresh the page and try again.');
                     return;
@@ -8852,9 +8908,9 @@
                             responseText: xhr.responseText,
                             error: error
                         });
-                        
+
                         let errorMessage = 'Failed to delete suspended sale';
-                        
+
                         if (xhr.status === 419) {
                             errorMessage = 'Session expired. Please refresh the page and try again.';
                             // Optionally reload the page
@@ -8880,7 +8936,7 @@
                                 errorMessage = `Error ${xhr.status}: ${xhr.statusText || 'Unknown error'}`;
                             }
                         }
-                        
+
                         toastr.error(errorMessage);
                     }
                 });
@@ -9014,7 +9070,7 @@
                 // Validate customer is selected and not Walk-in
                 const customerId = $('#customer-id').val();
                 const customerText = $('#customer-id option:selected').text();
-                
+
                 if (!customerId || customerId == '1' || customerText.toLowerCase().includes('walk-in')) {
                     toastr.error('Sale Orders cannot be created for Walk-In customers. Please select a valid customer.');
                     return;
@@ -9043,7 +9099,7 @@
                 const selectedDate = new Date(expectedDeliveryDate);
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
-                
+
                 if (selectedDate < today) {
                     toastr.error('Expected delivery date cannot be in the past.');
                     return;
@@ -9090,7 +9146,7 @@
                     // For sales reps, reset to "Please Select" - don't auto-select any customer
                     customerSelect.val('').trigger('change');
                     console.log('Sales rep: Customer reset to "Please Select"');
-                    
+
                     // Set a flag to prevent any auto-selection for a short period
                     window.preventAutoSelection = true;
                     setTimeout(() => {
@@ -9125,7 +9181,7 @@
                 currentEditingSaleId = null; // Reset the editing sale ID
 
                 resetToWalkingCustomer();
-                
+
                 // For sales reps, ensure customer stays reset with additional safeguard
                 if (isSalesRep) {
                     setTimeout(() => {
@@ -9135,7 +9191,7 @@
                             customerSelect.val('').trigger('change');
                         }
                     }, 200); // Check after a short delay
-                    
+
                     setTimeout(() => {
                         const customerSelect = $('#customer-id');
                         if (customerSelect.val() && customerSelect.val() !== '') {
@@ -9144,7 +9200,7 @@
                         }
                     }, 500); // Check again after 500ms
                 }
-                
+
                 const quantityInputs = document.querySelectorAll('.quantity-input');
                 quantityInputs.forEach(input => {
                     input.value = 1;
@@ -9170,19 +9226,19 @@
         });
     // Prevent multiple initialization
     let recentTransactionsInitialized = false;
-    
+
     $(document).ready(function() {
         if (recentTransactionsInitialized) {
             console.log('Recent transactions already initialized, skipping...');
             return;
         }
         recentTransactionsInitialized = true;
-        
+
         // Initialize DataTable with proper configuration
         if ($.fn.DataTable.isDataTable('#transactionTable')) {
             $('#transactionTable').DataTable().destroy();
         }
-        
+
         $('#transactionTable').DataTable({
             responsive: true,
             pageLength: 10,
@@ -9197,7 +9253,7 @@
         $('#transactionTabs a[data-bs-toggle="tab"]').off('shown.bs.tab').on('shown.bs.tab', function (e) {
             const target = $(e.target).attr('href');
             let status = '';
-            
+
             // Extract status from href
             switch(target) {
                 case '#final':
@@ -9218,7 +9274,7 @@
                 default:
                     status = 'final';
             }
-            
+
             console.log('Tab switched to:', status);
             debouncedLoadTableData(status);
         });
@@ -9265,10 +9321,10 @@
             console.log('Already fetching sales data, skipping...');
             return;
         }
-        
+
         window.fetchingSalesData = true;
         console.log('Fetching sales data...');
-        
+
         $.ajax({
             url: '/sales',
             type: 'GET',
@@ -9283,7 +9339,7 @@
                 window.fetchingSalesData = false;
                 lastSalesDataFetch = Date.now();
                 console.log('Sales data received:', data);
-                
+
                 if (Array.isArray(data)) {
                     sales = data;
                 } else if (data.sales && Array.isArray(data.sales)) {
@@ -9294,9 +9350,9 @@
                     console.error('Unexpected data format:', data);
                     sales = [];
                 }
-                
+
                 console.log('Processed sales array:', sales.length, 'items');
-                
+
                 // Load the default tab data (e.g., 'final')
                 loadTableData('final');
                 updateTabBadges();
@@ -9305,7 +9361,7 @@
                 window.fetchingSalesData = false;
                 console.error('Error fetching sales data:', error);
                 console.error('Response:', xhr.responseText);
-                
+
                 // Show user-friendly error message
                 if (typeof toastr !== 'undefined') {
                     toastr.error('Failed to load recent transactions. Please try again.');
@@ -9320,17 +9376,17 @@
             console.log('Table data already loading, skipping...');
             return;
         }
-        
+
         isLoadingTableData = true;
         console.log('Loading table data for status:', status);
         console.log('Available sales:', sales.length);
-        
+
         const table = $('#transactionTable').DataTable();
         table.clear(); // Clear existing data
 
         // Filter by status - remove excessive logging per sale
         const filteredSales = sales.filter(sale => sale.status === status);
-        
+
         console.log('Filtered sales for', status, ':', filteredSales.length);
 
         if (filteredSales.length === 0) {
@@ -9351,14 +9407,14 @@
                     const dateB = new Date(b.created_at);
                     return dateB.getTime() - dateA.getTime(); // Latest first
                 }
-                
+
                 // Fallback to sale_date if created_at is not available
                 if (a.sale_date && b.sale_date) {
                     const dateA = new Date(a.sale_date);
                     const dateB = new Date(b.sale_date);
                     return dateB.getTime() - dateA.getTime(); // Latest first
                 }
-                
+
                 // Final fallback to ID (latest ID first)
                 return (b.id || 0) - (a.id || 0);
             });
@@ -9366,7 +9422,7 @@
             // Add each row in sorted order
             sortedSales.forEach((sale, index) => {
                 let customerName = 'Walk-In Customer';
-                
+
                 if (sale.customer) {
                     customerName = [
                         sale.customer.prefix,
@@ -9377,12 +9433,12 @@
 
                 // Format the final total
                 const finalTotal = parseFloat(sale.final_total || 0).toFixed(2);
-                
+
                 // Create action buttons based on status and permissions
                 let actionButtons = `<button class='btn btn-outline-success btn-sm me-1' onclick="printReceipt(${sale.id})" title="Print">
                                         <i class="fas fa-print"></i>
                                     </button>`;
-                
+
                 // Add edit button based on user permissions and status
                 if (userPermissions.canEditSale && status !== 'quotation') {
                     actionButtons += `<button class='btn btn-outline-primary btn-sm' onclick="navigateToEdit(${sale.id})" title="Edit">
@@ -9402,10 +9458,10 @@
         }
 
         table.draw(); // Draw all rows at once for performance
-        
+
         // Reset loading flag
         isLoadingTableData = false;
-        
+
         // Update tab badge counts
         updateTabBadges();
     }
@@ -9419,22 +9475,22 @@
             jobticket: 0,
             suspend: 0
         };
-        
+
         // Count sales by status
         sales.forEach(sale => {
             if (statusCounts.hasOwnProperty(sale.status)) {
                 statusCounts[sale.status]++;
             }
         });
-        
+
         // Update badge counts on tabs
         Object.keys(statusCounts).forEach(status => {
             const tabLink = $(`#transactionTabs a[href="#${status}"]`);
-            
+
             if (tabLink.length > 0) {
                 // Remove existing badge
                 tabLink.find('.badge').remove();
-                
+
                 // Add new badge if count > 0
                 if (statusCounts[status] > 0) {
                     const tabText = tabLink.text().trim();
@@ -9443,7 +9499,7 @@
                 }
             }
         });
-        
+
         console.log('Tab badge counts updated:', statusCounts);
     }
 
@@ -9455,7 +9511,7 @@
     // Function to print the receipt for the sale (attached to window for global access)
     window.printReceipt = function(saleId) {
         console.log('printReceipt called with saleId:', saleId);
-        
+
         // Close any open modals before printing
         const openModals = document.querySelectorAll('.modal.show');
         openModals.forEach(modal => {
@@ -9481,7 +9537,7 @@
                     if (data.invoice_html) {
                         // Check if mobile device
                         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-                        
+
                         if (isMobile) {
                             // For mobile: Open in new window/tab for better print support
                             const printWindow = window.open('', '_blank');
@@ -9489,7 +9545,7 @@
                                 printWindow.document.open();
                                 printWindow.document.write(data.invoice_html);
                                 printWindow.document.close();
-                                
+
                                 // Wait for content to load then trigger print
                                 printWindow.onload = function() {
                                     setTimeout(() => {
@@ -9497,7 +9553,7 @@
                                         // Don't auto-close on mobile - let user close manually
                                     }, 500);
                                 };
-                                
+
                                 // Monitor window closure for edit redirects (mobile)
                                 if (window.location.pathname.includes('/edit/')) {
                                     const checkClosed = setInterval(() => {
@@ -9507,7 +9563,7 @@
                                             window.location.href = '/pos-create';
                                         }
                                     }, 100); // Faster detection for immediate redirect
-                                    
+
                                     // Fallback timeout (30 seconds)
                                     setTimeout(() => {
                                         clearInterval(checkClosed);
@@ -9547,13 +9603,13 @@
                                         console.error('Print error:', e);
                                         toastr.error('Unable to print. Please try again.');
                                     }
-                                    
+
                                     // Cleanup after printing or after timeout
                                     const cleanup = () => {
                                         if (iframe && document.body.contains(iframe)) {
                                             document.body.removeChild(iframe);
                                         }
-                                        
+
                                         // Redirect to POS after cleanup if this is an edit
                                         if (window.location.pathname.includes('/edit/')) {
                                             console.log('Desktop print completed, redirecting to POS immediately...');
@@ -9561,7 +9617,7 @@
                                             window.location.href = '/pos-create';
                                         }
                                     };
-                                    
+
                                     // Try to cleanup after print dialog closes
                                     if (iframe.contentWindow.matchMedia) {
                                         const mediaQueryList = iframe.contentWindow.matchMedia('print');
@@ -9571,7 +9627,7 @@
                                             }
                                         });
                                     }
-                                    
+
                                     // Fallback cleanup after 3 seconds (increased for edit redirect)
                                     setTimeout(cleanup, 3000);
                                 }, 100);
@@ -9585,7 +9641,7 @@
                             toastr.error('Print window was blocked. Please allow pop-ups and try again.');
                         } else {
                             toastr.success('Receipt opened in new window for printing.');
-                            
+
                             // Monitor window closure for edit redirects (fallback method)
                             if (window.location.pathname.includes('/edit/')) {
                                 const checkClosed = setInterval(() => {
@@ -9595,7 +9651,7 @@
                                         window.location.href = '/pos-create';
                                     }
                                 }, 100); // Faster detection for immediate redirect
-                                
+
                                 // Fallback timeout (30 seconds)
                                 setTimeout(() => {
                                     clearInterval(checkClosed);
@@ -9611,7 +9667,7 @@
                 .catch(error => {
                     console.error('Error fetching the receipt:', error);
                     console.log('Trying direct print URL as fallback');
-                    
+
                     // Fallback: Open print URL directly
                     const printWindow = window.open(`/sales/print-recent-transaction/${saleId}`, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
                     if (!printWindow) {
@@ -9624,7 +9680,7 @@
                         }
                     } else {
                         toastr.info('Opened receipt in new window (fallback method).');
-                        
+
                         // Monitor window closure for edit redirects (error fallback)
                         if (window.location.pathname.includes('/edit/')) {
                             const checkClosed = setInterval(() => {
@@ -9634,7 +9690,7 @@
                                     window.location.href = '/pos-create';
                                 }
                             }, 100); // Faster detection for immediate redirect
-                            
+
                             // Fallback timeout (30 seconds)
                             setTimeout(() => {
                                 clearInterval(checkClosed);
@@ -9889,7 +9945,7 @@
                 })
                 .fail(function(xhr, status, error) {
                     let errorMessage = 'An error occurred during payment processing.';
-                    
+
                     try {
                         const errorResponse = JSON.parse(xhr.responseText);
                         if (errorResponse.message) {
@@ -9907,7 +9963,7 @@
                             }
                         }
                     }
-                    
+
                     toastr.error(errorMessage);
                     console.error('Payment error:', xhr.responseText);
                     if (options.fail) options.fail(xhr, status, error);
@@ -9919,11 +9975,12 @@
         });
     }
 
+
     // Global function to show price history modal - SIMPLE VERSION for busy billing
     window.showPriceHistoryModal = function(productName, priceHistoryJson, customerName) {
         try {
             const priceHistory = JSON.parse(priceHistoryJson);
-            
+
             // Create SIMPLE modal HTML - perfect for busy billing environment
             const modalHtml = `
                 <div class="modal fade" id="priceHistoryModal" tabindex="-1">

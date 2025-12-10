@@ -14,7 +14,7 @@ class Setting extends Model
         'app_name',
         'logo',
         'favicon',
-       
+        'enable_price_validation',
     ];
 
     // Accessor: Full URL for logo

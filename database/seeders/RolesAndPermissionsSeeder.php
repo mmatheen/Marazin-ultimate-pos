@@ -183,7 +183,13 @@ class RolesAndPermissionsSeeder extends Seeder
                 'cheque payment',
                 'multiple payment methods',
                 'cash payment',
-                'discount application'
+                'discount application',
+                'select retail price',
+                'select wholesale price',
+                'select special price',
+                'select max retail price',
+                'edit unit price in pos',
+                'edit discount in pos'
             ],
 
             // 5. Purchase Management

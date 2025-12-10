@@ -163,8 +163,33 @@ class SaleController extends Controller
 
     public function pos()
     {
-        // No need to pass sales reps - we use logged in user
-        return view('sell.pos');
+        /** @var \App\Models\User|null $user */
+        $user = auth()->user();
+
+        // Determine which batch price types the user can access based on permissions
+        $allowedPriceTypes = [];
+
+        if ($user && $user->can('select retail price')) {
+            $allowedPriceTypes[] = 'retail';
+        }
+        if ($user && $user->can('select wholesale price')) {
+            $allowedPriceTypes[] = 'wholesale';
+        }
+        if ($user && $user->can('select special price')) {
+            $allowedPriceTypes[] = 'special';
+        }
+        if ($user && $user->can('select max retail price')) {
+            $allowedPriceTypes[] = 'max_retail';
+        }
+
+        // Check editing permissions
+        $canEditUnitPrice = $user && $user->can('edit unit price in pos');
+        $canEditDiscount = $user && $user->can('edit discount in pos');
+
+        // Get price validation setting from database (1 = strict, 0 = flexible)
+        $priceValidationEnabled = \App\Models\Setting::value('enable_price_validation') ?? 1;
+
+        return view('sell.pos', compact('allowedPriceTypes', 'canEditUnitPrice', 'canEditDiscount', 'priceValidationEnabled'));
     }
 
     public function draft()
@@ -2571,7 +2596,41 @@ class SaleController extends Controller
                     'sale_details' => $saleDetails,
                 ]);
             }
-            return view('sell.pos', ['saleDetails' => $saleDetails]);
+
+            // Pass price permissions to view (same as pos() method)
+            /** @var \App\Models\User|null $user */
+            $user = auth()->user();
+
+            // Determine which batch price types the user can access based on permissions
+            $allowedPriceTypes = [];
+
+            if ($user && $user->can('select retail price')) {
+                $allowedPriceTypes[] = 'retail';
+            }
+            if ($user && $user->can('select wholesale price')) {
+                $allowedPriceTypes[] = 'wholesale';
+            }
+            if ($user && $user->can('select special price')) {
+                $allowedPriceTypes[] = 'special';
+            }
+            if ($user && $user->can('select max retail price')) {
+                $allowedPriceTypes[] = 'max_retail';
+            }
+
+            // Check editing permissions
+            $canEditUnitPrice = $user && $user->can('edit unit price in pos');
+            $canEditDiscount = $user && $user->can('edit discount in pos');
+
+            // Get price validation setting from database (1 = strict, 0 = flexible)
+            $priceValidationEnabled = \App\Models\Setting::value('enable_price_validation') ?? 1;
+
+            return view('sell.pos', [
+                'saleDetails' => $saleDetails,
+                'allowedPriceTypes' => $allowedPriceTypes,
+                'canEditUnitPrice' => $canEditUnitPrice,
+                'canEditDiscount' => $canEditDiscount,
+                'priceValidationEnabled' => $priceValidationEnabled
+            ]);
         } catch (ModelNotFoundException $e) {
             return response()->json(['status' => 404, 'message' => 'Sale not found.']);
         } catch (\Exception $e) {

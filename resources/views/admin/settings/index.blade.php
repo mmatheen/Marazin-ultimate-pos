@@ -48,7 +48,7 @@
                             <!-- App Name -->
                             <div class="col-md-12">
                                 <label for="app_name" class="form-label fw-bold">App Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-control-lg rounded-3 shadow-sm" 
+                                <input type="text" class="form-control form-control-lg rounded-3 shadow-sm"
                                     name="app_name" id="app_name"
                                     value="{{ old('app_name', $setting->app_name) }}" required>
                             </div>
@@ -92,6 +92,38 @@
                                 </div>
                             </div>
 
+                            <!-- Price Validation Toggle -->
+                            <div class="col-md-12">
+                                <div class="card border-primary shadow-sm">
+                                    <div class="card-header bg-primary text-white">
+                                        <h5 class="mb-0"><i class="fas fa-shield-alt me-2"></i>POS Price & Discount Controls</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <h6 class="mb-1">Enable Price Validation</h6>
+                                                <p class="text-muted small mb-0">
+                                                    <strong>ON (Strict):</strong> Only users with permissions can edit prices/discounts in POS<br>
+                                                    <strong>OFF (Flexible):</strong> All users can freely edit prices/discounts in POS
+                                                </p>
+                                            </div>
+                                            <div class="form-check form-switch" style="transform: scale(1.5);">
+                                                <input class="form-check-input" type="checkbox" role="switch"
+                                                    name="enable_price_validation" id="enable_price_validation"
+                                                    {{ old('enable_price_validation', $setting->enable_price_validation ?? 1) ? 'checked' : '' }}>
+                                            </div>
+                                        </div>
+                                        <div class="alert alert-info mt-3 mb-0">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            <small>
+                                                When <strong>enabled</strong>, go to <a href="{{ route('group-role-and-permission-view') }}" class="alert-link">Role & Permissions</a>
+                                                to assign "edit unit price in pos" and "edit discount in pos" permissions.
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
 
                         <div class="text-end mt-4">
@@ -115,7 +147,7 @@ function previewImage(input, previewId, removeBtnId) {
         const reader = new FileReader();
         reader.onload = function (e) {
             preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
-            
+
             removeBtn.classList.remove('d-none');
         };
         reader.readAsDataURL(file);
