@@ -41,7 +41,7 @@ class SaleController extends Controller
         $this->middleware('permission:view all sales|view own sales', ['only' => ['listSale', 'index', 'show', 'getDataTableSales', 'salesDetails']]);
         $this->middleware('permission:create sale', ['only' => ['addSale', 'storeOrUpdate']]);
         $this->middleware('permission:access pos', ['only' => ['pos']]);
-        $this->middleware('permission:edit sale|edit sale-order', ['only' => ['editSale']]);
+        $this->middleware('permission:edit sale', ['only' => ['editSale']]);
         $this->middleware('permission:delete sale', ['only' => ['destroy']]);
         $this->middleware('permission:print sale invoice', ['only' => ['printInvoice']]);
 
@@ -1364,12 +1364,21 @@ class SaleController extends Controller
 
                         if ($isUpdate) {
                             // Handle payment updates properly for customer changes
-                            $oldPayments = Payment::where('reference_id', $sale->id)->get();
+                            $oldPayments = Payment::where('reference_id', $sale->id)
+                                ->where('status', '!=', 'deleted')
+                                ->get();
 
                             if ($customerChanged) {
                                 // Customer changed - payment ledger entries already handled by editSaleWithCustomerChange
-                                // Just delete the payment records since ledger reversals are already done
-                                Payment::where('reference_id', $sale->id)->delete();
+                                // ✅ CRITICAL FIX: Mark payments as deleted instead of hard delete
+                                Payment::where('reference_id', $sale->id)
+                                    ->where('status', '!=', 'deleted')
+                                    ->update([
+                                        'status' => 'deleted',
+                                        'deleted_at' => now(),
+                                        'deleted_by' => auth()->id(),
+                                        'notes' => DB::raw("CONCAT(COALESCE(notes, ''), ' | [DELETED: Customer changed during sale edit - ', NOW(), ']')")
+                                    ]);
                             } else {
                                 // Same customer - use payment service to properly handle ledger reversal
                                 foreach ($oldPayments as $oldPayment) {

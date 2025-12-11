@@ -69,12 +69,6 @@
             staticDataCache.clear();
             searchCache.clear();
             domElementCache = {};
-            // Clear location cache
-            cachedLocations = null;
-            locationCacheExpiry = null;
-            // Clear image failure cache
-            failedImages.clear();
-            imageAttempts.clear();
             console.log('🗑️ All caches cleared due to data update');
         }
 
@@ -121,24 +115,6 @@
                 console.log('ℹ️ No location selected, only cache cleared');
                 toastr.info('Cache cleared. Select a location to refresh products.', 'Cache Cleared');
             }
-        };
-
-        // Global function to refresh locations cache
-        window.refreshLocationCache = function() {
-            console.log('🔄 Refreshing location cache...');
-            cachedLocations = null;
-            locationCacheExpiry = null;
-            fetchAllLocations(true); // Force refresh
-            toastr.info('Location cache refreshed!', 'Cache Refresh');
-        };
-
-        // Global function to clear image failure cache
-        window.clearImageCache = function() {
-            const count = failedImages.size;
-            failedImages.clear();
-            imageAttempts.clear();
-            console.log(`🖼️ Cleared ${count} failed image entries from cache`);
-            toastr.info(`Image cache cleared! (${count} entries removed)`, 'Cache Cleared');
         };    // Global function to clean up modal backdrops and body styles
     window.cleanupModalBackdrop = function() {
         // Remove all modal backdrops
@@ -199,20 +175,6 @@
         let salesRepCustomersLoaded = false; // Track if customers have been loaded for this session
         const perPage = 24;
 
-        // Location cache to prevent redundant API calls
-        let cachedLocations = null;
-        let locationCacheExpiry = null;
-        const LOCATION_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
-
-        // Image failure cache to prevent repeated 404 errors
-        let failedImages = new Set();
-        let imageAttempts = new Map(); // Track attempts per image
-
-        // Customer filter debounce tracking
-        let isCurrentlyFiltering = false;
-        let lastCustomerFilterCall = 0;
-        const CUSTOMER_FILTER_COOLDOWN = 2000; // 2 seconds minimum between filter calls
-
         // Filter state tracking
         let currentFilter = {
             type: null,  // 'category', 'subcategory', 'brand', or null for no filter
@@ -229,14 +191,6 @@
         fetchAllLocations();
         $('#locationSelect').on('change', handleLocationChange);
         $('#locationSelectDesktop').on('change', handleLocationChange);
-
-        // Ensure all buttons are visible by default (for non-sales rep users)
-        // Sales rep button visibility will be controlled by checkAndToggleSalesRepButtons()
-        setTimeout(() => {
-            if (!isSalesRep) {
-                showAllSalesRepButtons();
-            }
-        }, 1000);
 
         // Safely call fetchCategories with error handling
         try {
@@ -455,11 +409,6 @@
 
             const imageName = product.product_image.trim();
 
-            // If this image has failed before, return fallback immediately
-            if (failedImages.has(imageName)) {
-                return fallbackImage;
-            }
-
             // If it's already a full URL (starts with http or /), use it as is
             if (imageName.startsWith('http') || imageName.startsWith('/')) {
                 return imageName;
@@ -483,50 +432,36 @@
             if (title) img.title = title;
             img.alt = product?.product_name || 'Product Image';
 
-            // Add loading="lazy" for better performance
-            img.loading = 'lazy';
-
-            // Handle image load errors with optimized fallback logic
+            // Handle image load errors with fallback and retry logic
             img.onerror = function() {
-                const originalImage = product?.product_image?.trim();
+                if (this.src !== fallbackImage) {
+                    console.log(`Image not found: ${this.src}, trying alternatives`);
 
-                // If already showing fallback or no original image, stop trying
-                if (this.src === fallbackImage || !originalImage) {
-                    return;
-                }
+                    // Try alternative paths before using fallback
+                    const originalImage = product?.product_image?.trim();
+                    if (originalImage && !this.dataset.triedAlternatives) {
+                        this.dataset.triedAlternatives = 'true';
 
-                // Track attempts for this specific image
-                const attemptKey = originalImage;
-                const currentAttempts = imageAttempts.get(attemptKey) || 0;
+                        // Try storage path as alternative (in case some images are there)
+                        const alternativePath = `/storage/products/${originalImage}`;
+                        if (this.src !== alternativePath) {
+                            console.log(`Trying storage path: ${alternativePath}`);
+                            this.src = alternativePath;
+                            return;
+                        }
+                    }
 
-                // Limit to 2 attempts max (primary + one alternative)
-                if (currentAttempts >= 2) {
-                    // Mark as failed and use fallback
-                    failedImages.add(originalImage);
+                    // Use fallback image
                     this.src = fallbackImage;
-                    imageAttempts.delete(attemptKey); // Clean up
-                    return;
-                }
-
-                // First attempt failed, try storage path as alternative
-                if (currentAttempts === 0 && !this.src.includes('/storage/products/')) {
-                    imageAttempts.set(attemptKey, 1);
-                    this.src = `/storage/products/${originalImage}`;
-                    return;
-                }
-
-                // All attempts failed, use fallback
-                imageAttempts.set(attemptKey, 2);
-                failedImages.add(originalImage);
-                this.src = fallbackImage;
-                imageAttempts.delete(attemptKey); // Clean up
-            };
-
-            // Success handler - remove from attempts tracking
-            img.onload = function() {
-                const originalImage = product?.product_image?.trim();
-                if (originalImage) {
-                    imageAttempts.delete(originalImage);
+                    this.onerror = function() {
+                        // If even fallback fails, create a placeholder
+                        console.warn('Fallback image also failed, using text placeholder');
+                        this.style.display = 'none';
+                        const placeholder = document.createElement('div');
+                        placeholder.innerHTML = '<div style="font-size: 24px;">📷</div><div style="font-size: 10px; margin-top: 4px;">No Image</div>';
+                        placeholder.style.cssText = styles + '; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8f9fa; color: #6c757d; border: 1px solid #dee2e6;';
+                        this.parentNode?.replaceChild(placeholder, this);
+                    };
                 }
             };
 
@@ -544,29 +479,41 @@
         }
 
         /**
-         * Image health check - scan and report missing images (simplified)
+         * Image health check - scan and report missing images
          */
         function checkImageHealth() {
             const images = document.querySelectorAll('img[src*="assets/images"], img[src*="storage/products"]');
             let missingCount = 0;
-            const totalCount = images.length;
+            let totalCount = images.length;
 
             console.log(`🖼️ Checking ${totalCount} product images...`);
 
-            // Only log summary, not individual images (reduces console noise)
             images.forEach(img => {
                 if (img.src.includes('No Product Image Available.png')) return;
-                if (img.naturalWidth === 0 && img.complete) {
-                    missingCount++;
-                }
+
+                fetch(img.src, { method: 'HEAD' })
+                    .then(response => {
+                        if (!response.ok) {
+                            missingCount++;
+                            console.log(`❌ Missing: ${img.src} - Response: ${response.status}`);
+                        } else {
+                            console.log(`✅ Found: ${img.src}`);
+                        }
+                    })
+                    .catch(() => {
+                        missingCount++;
+                        console.log(`❌ Error loading: ${img.src}`);
+                    });
             });
 
-            console.log(`📊 Image Health Check: ${missingCount}/${totalCount} images missing`);
-            if (missingCount > 0) {
-                console.log(`💡 Tip: ${failedImages.size} unique images cached as failed`);
-            } else {
-                console.log('🎉 All product images are loading correctly!');
-            }
+            setTimeout(() => {
+                console.log(`📊 Image Health Check: ${missingCount}/${totalCount} images missing`);
+                if (missingCount > 0) {
+                    console.log('💡 Tip: Check if images exist in /public/assets/images/ directory');
+                } else {
+                    console.log('🎉 All product images are loading correctly!');
+                }
+            }, 2000);
         }
 
         /**
@@ -1606,120 +1553,83 @@
         }
 
         function restrictLocationAccess(selection) {
-            console.log('Restricting location access for sales rep');
-            console.log('Sales rep has access to assigned vehicle and parent location');
+            console.log('Restricting location access to vehicle:', selection.vehicle);
 
-            // *** SKIP AUTO-SELECTION IN EDIT MODE ***
-            // When editing a sale, the location is already set from the sale data
-            // Auto-selecting the vehicle would override the correct location
-            if (isEditing) {
-                console.log('⏭️ Edit mode active - Skipping auto-selection of vehicle location');
-                return;
-            }
+            // Override the fetchAllLocations to only include assigned vehicle
+            const originalFetchLocations = window.fetchAllLocations;
 
-            // For sales reps, the backend already returns both sub-locations and parent locations
-            // Ensure locations are loaded (use cache or fetch) before auto-selecting
+            window.fetchAllLocations = function() {
+                // Create a mock response with only the assigned vehicle
+                const mockResponse = {
+                    status: true,
+                    data: [selection.vehicle]
+                };
+                populateLocationDropdown(mockResponse.data);
 
-            const autoSelectVehicle = () => {
-                const locationSelect = document.getElementById('locationSelect');
-                const locationSelectDesktop = document.getElementById('locationSelectDesktop');
-
-                if (locationSelect && selection.vehicle && selection.vehicle.id) {
-                    // Verify the option exists before selecting
-                    const optionExists = $(locationSelect).find(`option[value="${selection.vehicle.id}"]`).length > 0;
-
-                    if (optionExists) {
+                // Auto-select the vehicle in the dropdown with multiple retries
+                const selectVehicle = () => {
+                    const locationSelect = document.getElementById('locationSelect');
+                    if (locationSelect) {
                         locationSelect.value = selection.vehicle.id;
                         $(locationSelect).trigger('change');
-                        console.log('✅ Vehicle auto-selected:', selection.vehicle.id);
-
-                        // Check and toggle buttons based on selected location type
-                        checkAndToggleSalesRepButtons(selection.vehicle.id);
+                        console.log('Vehicle auto-selected:', selection.vehicle.id);
                     } else {
-                        console.warn('⚠️ Vehicle option not found in dropdown, will retry...');
-                        // Retry after a short delay
-                        setTimeout(autoSelectVehicle, 300);
+                        // Retry if dropdown not ready
+                        setTimeout(selectVehicle, 200);
                     }
-                }
+                };
 
-                if (locationSelectDesktop && selection.vehicle && selection.vehicle.id) {
-                    const optionExists = $(locationSelectDesktop).find(`option[value="${selection.vehicle.id}"]`).length > 0;
-                    if (optionExists) {
-                        locationSelectDesktop.value = selection.vehicle.id;
-                        $(locationSelectDesktop).trigger('change');
-                    }
-                }
+                setTimeout(selectVehicle, 100);
             };
 
-            // Check if locations are already cached
-            if (cachedLocations && locationCacheExpiry && Date.now() < locationCacheExpiry) {
-                console.log('✅ Using cached locations for sales rep restriction');
-                // Populate dropdown with cached data immediately
-                populateLocationDropdown(cachedLocations);
-                // Auto-select after dropdown is populated
-                setTimeout(autoSelectVehicle, 200);
-            } else {
-                console.log('🔄 Fetching locations for sales rep...');
-                // Fetch locations and wait for completion
-                $.ajax({
-                    url: '/location-get-all',
-                    method: 'GET',
-                    success: function(response) {
-                        if (response.status && Array.isArray(response.data)) {
-                            // Cache the locations
-                            cachedLocations = response.data;
-                            locationCacheExpiry = Date.now() + LOCATION_CACHE_DURATION;
-                            console.log('💾 Locations fetched and cached');
+            // Re-fetch locations with restriction
+            window.fetchAllLocations();
 
-                            // Populate dropdown
-                            populateLocationDropdown(response.data);
-
-                            // Auto-select vehicle after dropdown is populated
-                            setTimeout(autoSelectVehicle, 300);
-                        }
-                    },
-                    error: function(jqXHR, textStatus, errorThrown) {
-                        console.error('❌ Error fetching locations:', textStatus, errorThrown);
-                        // Try to auto-select anyway in case dropdown is already populated
-                        setTimeout(autoSelectVehicle, 500);
-                    }
-                });
-            }
+            // Also set the location immediately if dropdown already exists
+            setTimeout(() => {
+                const locationSelect = document.getElementById('locationSelect');
+                if (locationSelect && !locationSelect.value) {
+                    locationSelect.value = selection.vehicle.id;
+                    $(locationSelect).trigger('change');
+                    console.log('Vehicle set directly on existing dropdown');
+                }
+            }, 300);
         }
 
         let filteringInProgress = false;
 
         function filterCustomersByRoute(selection) {
-            if (filteringInProgress || isCurrentlyFiltering) {
-                return; // Already filtering, skip
+            if (filteringInProgress) {
+                console.log('Filtering already in progress, skipping...');
+                return;
             }
 
             // Check if auto-selection is currently prevented (e.g., after form reset)
             if (window.preventAutoSelection) {
+                console.log('Customer filtering skipped - auto-selection is prevented');
                 return;
             }
 
             // Check if customers already loaded for this session
             if (salesRepCustomersLoaded) {
-                return; // Only log once, not repeatedly
-            }
-
-            if (!selection || !selection.route) {
+                console.log('Customers already loaded for this sales rep session, skipping filter');
                 return;
             }
 
-            // Set both flags to prevent recursive calls
-            filteringInProgress = true;
-            isCurrentlyFiltering = true;
+            if (!selection || !selection.route) {
+                console.log('No valid selection or route provided for filtering');
+                return;
+            }
 
-            console.log('🔍 Filtering customers for route:', selection.route.name);
+            filteringInProgress = true;
+            console.log('Filtering customers for route:', selection.route.name, 'with cities:', selection.route
+                .cities);
 
             if (!selection.route.cities || selection.route.cities.length === 0) {
-                console.log('⚠️ No cities found for selected route, trying fallback filtering');
+                console.log('No cities found for selected route, trying fallback filtering');
                 // Fallback: try to filter by route name pattern
                 fallbackRouteFiltering(selection);
                 filteringInProgress = false;
-                isCurrentlyFiltering = false;
                 return;
             }
 
@@ -1765,28 +1675,25 @@
                 })
                 .then(response => response.json())
                 .then(data => {
-                    console.log('✅ Filter customers response:', data);
+                    console.log('Filter customers response:', data);
                     if (data.status && data.customers) {
                         populateFilteredCustomers(data.customers, selection.route.name);
                         salesRepCustomersFiltered = true; // Mark that filtering has been applied
                         salesRepCustomersLoaded = true; // Mark that customers are loaded for this session
-                        console.log('✅ Customer filtering completed successfully for route:', selection.route.name);
+                        console.log('Customer filtering completed successfully for route:', selection.route
+                            .name);
                     } else {
-                        console.error('❌ Failed to filter customers:', data.message || 'Unknown error');
+                        console.error('Failed to filter customers:', data.message || 'Unknown error');
                         // Fallback to route name filtering
                         fallbackRouteFiltering(selection);
                     }
+                    filteringInProgress = false; // Reset flag
                 })
                 .catch(error => {
-                    console.error('❌ Error filtering customers:', error);
+                    console.error('Error filtering customers:', error);
                     // Fallback to route name filtering
                     fallbackRouteFiltering(selection);
-                })
-                .finally(() => {
-                    // Reset both flags
-                    filteringInProgress = false;
-                    isCurrentlyFiltering = false;
-                    lastCustomerFilterCall = Date.now();
+                    filteringInProgress = false; // Reset flag
                 });
         }
 
@@ -2072,14 +1979,10 @@
                 return false;
             }
 
-            // Check if selected location matches the assigned vehicle OR its parent location
+            // Check if selected location matches the assigned vehicle
             const selectedLocationId = document.getElementById('locationSelect')?.value;
-            const assignedVehicleId = selection.vehicle.id;
-            const parentLocationId = selection.vehicle.parent_id;
-
-            // Allow if selected location is either the assigned vehicle OR the parent location
-            if (selectedLocationId != assignedVehicleId && selectedLocationId != parentLocationId) {
-                toastr.error('You can only sell from your assigned vehicle location or its parent location.', 'Location Mismatch');
+            if (selectedLocationId != selection.vehicle.id) {
+                toastr.error('You can only sell from your assigned vehicle location.', 'Location Mismatch');
                 return false;
             }
 
@@ -2476,26 +2379,13 @@
         }
 
         // ---- LOCATION ----
-        function fetchAllLocations(forceRefresh = false) {
-            // Check cache first
-            if (!forceRefresh && cachedLocations && locationCacheExpiry && Date.now() < locationCacheExpiry) {
-                console.log('✅ Using cached locations (', cachedLocations.length, 'items)');
-                populateLocationDropdown(cachedLocations);
-                return;
-            }
-
-            console.log('🔄 Fetching locations from server...');
+        function fetchAllLocations() {
             $.ajax({
                 url: '/location-get-all',
                 method: 'GET',
                 success: function(response) {
                     // Check for status = true and data exists
                     if (response.status && Array.isArray(response.data)) {
-                        // Cache the locations
-                        cachedLocations = response.data;
-                        locationCacheExpiry = Date.now() + LOCATION_CACHE_DURATION;
-                        console.log('💾 Locations cached for 5 minutes');
-
                         populateLocationDropdown(response.data);
                     } else {
                         console.error('Error fetching locations:', response.message);
@@ -2518,56 +2408,22 @@
             locationSelect.append('<option value="" disabled selected>Select Location</option>');
             locationSelectDesktop.append('<option value="" disabled selected>Select Location</option>');
 
-            // Separate parent and sub-locations for better organization
-            const parentLocations = locations.filter(loc => !loc.parent_id);
-            const subLocations = locations.filter(loc => loc.parent_id);
+            locations.forEach((location, index) => {
+                const option = $('<option></option>').val(location.id).text(location.name);
+                const optionDesktop = $('<option></option>').val(location.id).text(location.name);
 
-            // Add parent locations first
-            parentLocations.forEach((location) => {
-                let displayName = location.name;
-                // If this parent has children in the list, show count
-                const childCount = subLocations.filter(sub => sub.parent_id === location.id).length;
-                if (childCount > 0) {
-                    displayName += ` (Main Location - ${childCount} vehicles)`;
+                if (index === 0) {
+                    option.attr('selected', 'selected');
+                    optionDesktop.attr('selected', 'selected');
                 }
-
-                const option = $('<option></option>').val(location.id).text(displayName);
-                const optionDesktop = $('<option></option>').val(location.id).text(displayName);
 
                 locationSelect.append(option);
                 locationSelectDesktop.append(optionDesktop);
             });
 
-            // Add sub-locations with parent reference
-            subLocations.forEach((location) => {
-                let displayName = location.name;
-
-                // Add parent info and vehicle details if available
-                if (location.parent && location.parent.name) {
-                    displayName = `${location.parent.name} → ${location.name}`;
-                }
-                if (location.vehicle_number) {
-                    displayName += ` (${location.vehicle_number})`;
-                }
-                if (location.vehicle_type) {
-                    displayName += ` - ${location.vehicle_type}`;
-                }
-
-                const option = $('<option></option>').val(location.id).text(displayName);
-                const optionDesktop = $('<option></option>').val(location.id).text(displayName);
-
-                locationSelect.append(option);
-                locationSelectDesktop.append(optionDesktop);
-            });
-
-            // Don't auto-select first option - let user or system choose
             // Trigger change event (optional: useful if other logic depends on it)
-            if (locationSelect.val()) {
-                locationSelect.trigger('change');
-            }
-            if (locationSelectDesktop.val()) {
-                locationSelectDesktop.trigger('change');
-            }
+            locationSelect.trigger('change');
+            locationSelectDesktop.trigger('change');
         }
 
         // ---- PAGINATED PRODUCT FETCH ----
@@ -2578,18 +2434,10 @@
             allProducts = [];
             posProduct.innerHTML = '';
             if (selectedLocationId) fetchPaginatedProducts(true);
-
-            // Always clear billing body when user manually changes location
-            // This ensures products from previous location are removed
-            billingBody.innerHTML = '';
-            console.log('🗑️ Billing body cleared due to location change');
-
-            updateTotals();
-
-            // Check if sales rep selected a parent location and hide/show buttons accordingly
-            if (isSalesRep && selectedLocationId) {
-                checkAndToggleSalesRepButtons(selectedLocationId);
+            if (!isEditing) {
+                billingBody.innerHTML = '';
             }
+            updateTotals();
 
             // Auto-focus search input after location change
             setTimeout(() => {
@@ -2599,102 +2447,6 @@
                     console.log('Product search input focused after location change');
                 }
             }, 300);
-        }
-
-        /**
-         * Check if sales rep selected parent location and hide/show buttons accordingly
-         * When parent location is selected: Show only Sale Order button
-         * When sub-location is selected: Show all buttons normally
-         */
-        function checkAndToggleSalesRepButtons(locationId) {
-            // Use cached locations if available, otherwise fetch
-            if (cachedLocations && locationCacheExpiry && Date.now() < locationCacheExpiry) {
-                // Use cached data
-                const selectedLocation = cachedLocations.find(loc => loc.id == locationId);
-
-                if (selectedLocation) {
-                    const isParentLocation = !selectedLocation.parent_id;
-
-                    if (isParentLocation) {
-                        // Parent location selected - Hide all buttons except Sale Order
-                        console.log('Sales Rep selected PARENT location - Hiding all buttons except Sale Order');
-                        hideSalesRepButtonsExceptSaleOrder();
-                    } else {
-                        // Sub-location selected - Show all buttons normally
-                        console.log('Sales Rep selected SUB-location - Showing all buttons normally');
-                        showAllSalesRepButtons();
-                    }
-                }
-            } else {
-                // Cache not available, fetch and then check
-                $.ajax({
-                    url: '/location-get-all',
-                    type: 'GET',
-                    dataType: 'json',
-                    success: function(response) {
-                        if (response.status && Array.isArray(response.data)) {
-                            // Update cache
-                            cachedLocations = response.data;
-                            locationCacheExpiry = Date.now() + LOCATION_CACHE_DURATION;
-
-                            const selectedLocation = response.data.find(loc => loc.id == locationId);
-
-                            if (selectedLocation) {
-                                const isParentLocation = !selectedLocation.parent_id;
-
-                                if (isParentLocation) {
-                                    console.log('Sales Rep selected PARENT location - Hiding all buttons except Sale Order');
-                                    hideSalesRepButtonsExceptSaleOrder();
-                                } else {
-                                    console.log('Sales Rep selected SUB-location - Showing all buttons normally');
-                                    showAllSalesRepButtons();
-                                }
-                            }
-                        }
-                    },
-                    error: function(xhr) {
-                        console.error('Error fetching location details:', xhr);
-                    }
-                });
-            }
-        }
-
-        /**
-         * Hide all payment buttons except Sale Order for sales rep on parent location
-         */
-        function hideSalesRepButtonsExceptSaleOrder() {
-            // Hide all buttons except Sale Order
-            $('#draftButton').hide();
-            $('#quotationButton').hide();
-            $('#suspendButton, button[data-bs-target="#suspendModal"]').hide();
-            $('#creditSaleButton').hide();
-            $('#cardButton').hide();
-            $('#chequeButton').hide();
-            $('#cashButton').hide();
-            $('button[data-bs-target="#paymentModal"]').hide(); // Multiple Pay button
-
-            // Show Sale Order button
-            $('#saleOrderButton').show();
-
-            console.log('✅ Only Sale Order button visible for parent location');
-        }
-
-        /**
-         * Show all buttons for sales rep when sub-location is selected
-         */
-        function showAllSalesRepButtons() {
-            // Show all buttons
-            $('#draftButton').show();
-            $('#quotationButton').show();
-            $('#suspendButton, button[data-bs-target="#suspendModal"]').show();
-            $('#creditSaleButton').show();
-            $('#cardButton').show();
-            $('#chequeButton').show();
-            $('#cashButton').show();
-            $('button[data-bs-target="#paymentModal"]').show(); // Multiple Pay button
-            $('#saleOrderButton').show();
-
-            console.log('✅ All buttons visible for sub-location');
         }
 
         // Request retry tracking
@@ -6343,9 +6095,8 @@
                 initialQuantityValue = 1;
             }
 
-            // If not IMEI, try to merge row (works in both normal and edit mode)
-            // IMEI products always get separate rows
-            if (imeis.length === 0) {
+            // If not IMEI and not in edit mode, try to merge row
+            if (imeis.length === 0 && !isEditing) {
                 const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
                     const productIdElement = row.querySelector('.product-id');
                     const batchIdElement = row.querySelector('.batch-id');
@@ -6366,8 +6117,7 @@
                         existingBatchId: rowBatchId,
                         newBatchId: batchId,
                         existingPrice: parseFloat(rowPrice).toFixed(2),
-                        newPrice: finalPrice.toFixed(2),
-                        isEditing: isEditing
+                        newPrice: finalPrice.toFixed(2)
                     });
 
                     // For products that appear identical (same product, same price),
@@ -6390,20 +6140,9 @@
                         .value, 10);
                     let newQuantity = currentQty + saleQuantity;
 
-                    // In edit mode, get the max quantity from the row's data attribute (set during initial load)
-                    // This represents the true available stock (current stock + quantity in original sale)
-                    let maxAllowed = adjustedBatchQuantity;
-                    if (isEditing) {
-                        const rowMaxQty = existingRow.getAttribute('data-max-quantity');
-                        if (rowMaxQty) {
-                            maxAllowed = allowDecimal ? parseFloat(rowMaxQty) : parseInt(rowMaxQty, 10);
-                            console.log(`Edit mode: Using row's max quantity (${maxAllowed}) instead of current stock (${adjustedBatchQuantity})`);
-                        }
-                    }
-
                     // Use parseFloat for decimal allowed, parseInt for integer
-                    if (newQuantity > maxAllowed && product.stock_alert !== 0) {
-                        toastr.error(`You cannot add more than ${maxAllowed} units of this product.`,
+                    if (newQuantity > adjustedBatchQuantity && product.stock_alert !== 0) {
+                        toastr.error(`You cannot add more than ${adjustedBatchQuantity} units of this product.`,
                             'Warning');
                         return;
                     }
@@ -6426,8 +6165,6 @@
             row.setAttribute('data-batch-id', batchId);
             row.setAttribute('data-unit-price', finalPrice);
             row.setAttribute('data-price-source', priceType);
-            // Store max quantity for edit mode validation
-            row.setAttribute('data-max-quantity', adjustedBatchQuantity);
 
             row.innerHTML = `
         <td class="text-center counter-cell" style="vertical-align: middle; font-weight: bold; color: #000;"></td>
@@ -7600,59 +7337,27 @@
                             saleInvoiceElement.textContent = `Invoice No: ${saleDetails.sale.invoice_no}`;
                         }
 
-                        // Clear existing billing body before setting location
-                        const billingBody = document.getElementById('billing-body');
-                        if (billingBody) {
-                            billingBody.innerHTML = '';
-                            console.log('Billing body cleared for edit mode');
-                        }
-
                         // Set the locationId based on the sale's location_id
                         if (saleDetails.sale && saleDetails.sale.location_id) {
                             locationId = saleDetails.sale.location_id;
                             selectedLocationId = saleDetails.sale
                                 .location_id; // Ensure global variable is updated
-
-                            // Update the location dropdown WITHOUT triggering change event
-                            const $locationSelect = $('#locationSelect');
-                            const $locationSelectDesktop = $('#locationSelectDesktop');
-
-                            // Use jQuery .val() for proper dropdown update
-                            if ($locationSelect.length) {
-                                const locationIdStr = saleDetails.sale.location_id.toString();
-
-                                // Verify the option exists
-                                const optionExists = $locationSelect.find(`option[value="${locationIdStr}"]`).length > 0;
-
-                                if (optionExists) {
-                                    $locationSelect.val(locationIdStr);
-                                    console.log('✅ Location ID set to:', locationIdStr, '- Option exists in dropdown');
-                                } else {
-                                    console.error('❌ Location option not found in dropdown for ID:', locationIdStr);
-                                    console.log('Available options:', $locationSelect.find('option').map(function() {
-                                        return $(this).val() + ': ' + $(this).text();
-                                    }).get());
-                                }
+                            // Update the location dropdown
+                            const locationSelect = document.getElementById('locationSelect');
+                            if (locationSelect) {
+                                locationSelect.value = saleDetails.sale.location_id
+                                    .toString(); // Ensure value matches option value type
+                                console.log('Location ID set to:', saleDetails.sale.location_id);
+                                // Manually trigger the change event to refresh products
+                                $(locationSelect).trigger('change'); // Use jQuery to trigger the event
                             }
-                            if ($locationSelectDesktop.length) {
-                                $locationSelectDesktop.val(saleDetails.sale.location_id.toString());
-                            }
+                        }
 
-                            // Fetch products for the product grid display
-                            // This allows users to see available products while editing
-                            if (selectedLocationId) {
-                                currentProductsPage = 1;
-                                hasMoreProducts = true;
-                                allProducts = [];
-                                posProduct.innerHTML = '';
-                                fetchPaginatedProducts(true);
-                                console.log('📦 Fetching products for display in edit mode');
-                            }
-
-                            // Check sales rep button visibility if applicable
-                            if (isSalesRep && selectedLocationId) {
-                                checkAndToggleSalesRepButtons(selectedLocationId);
-                            }
+                        // Clear existing billing body before adding edit products
+                        const billingBody = document.getElementById('billing-body');
+                        if (billingBody) {
+                            billingBody.innerHTML = '';
+                            console.log('Billing body cleared for edit mode');
                         }
 
                         // Populate sale products

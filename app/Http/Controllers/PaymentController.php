@@ -779,8 +779,13 @@ class PaymentController extends Controller
 
                     Log::info('Ledger deletion result', ['result' => $result]);
 
-                    // Now safe to delete the payment record since ledger is handled
-                    $payment->delete();
+                    // ✅ CRITICAL FIX: Mark payment as deleted instead of hard delete
+                    $payment->update([
+                        'status' => 'deleted',
+                        'deleted_at' => now(),
+                        'deleted_by' => auth()->id(),
+                        'notes' => ($payment->notes ?? '') . ' | [DELETED: Manual deletion - ' . now()->format('Y-m-d H:i:s') . ']'
+                    ]);
 
                     Log::info('Payment deleted successfully with proper reversal accounting', [
                         'payment_id' => $payment->id,
@@ -2330,8 +2335,13 @@ class PaymentController extends Controller
                     'performed_at' => Carbon::now(),
                 ]);
 
-                // Delete the payment
-                $payment->delete();
+                // ✅ CRITICAL FIX: Mark payment as deleted instead of hard delete
+                $payment->update([
+                    'status' => 'deleted',
+                    'deleted_at' => now(),
+                    'deleted_by' => Auth::id(),
+                    'notes' => ($payment->notes ?? '') . ' | [DELETED: ' . ($request->reason ?? 'No reason provided') . ' - ' . now()->format('Y-m-d H:i:s') . ']'
+                ]);
 
                 // Update related tables and balances
                 if ($entityType === 'sale') {

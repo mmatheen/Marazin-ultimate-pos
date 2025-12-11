@@ -34,10 +34,10 @@ class ExpenseController extends Controller
     {
         $expenseParentCategories = ExpenseParentCategory::all();
         $expenseSubCategories = ExpenseSubCategory::all();
-        
+
         // Get all locations for now (can be filtered by user access later)
         $locations = Location::all();
-        
+
         return view('expense.expense_list', compact('expenseParentCategories', 'expenseSubCategories', 'locations'));
     }
 
@@ -49,13 +49,13 @@ class ExpenseController extends Controller
         // Generate expense number for new expenses
         $lastExpense = Expense::latest('id')->first();
         $expenseNo = 'EXP-' . date('Y') . '-' . str_pad(($lastExpense ? $lastExpense->id + 1 : 1), 4, '0', STR_PAD_LEFT);
-        
+
         // Get all locations for now (can be filtered by user access later)
         $locations = Location::all();
-        
+
         // Get all suppliers
         $suppliers = Supplier::orderBy('first_name')->get();
-        
+
         return view('expense.create_expense', compact('expenseNo', 'locations', 'suppliers'));
     }
 
@@ -91,7 +91,7 @@ class ExpenseController extends Controller
 
         // Removed supplier_id filter since using paid_to text field now
 
-        if ($request->has('start_date') && $request->has('end_date') && 
+        if ($request->has('start_date') && $request->has('end_date') &&
             $request->start_date != '' && $request->end_date != '') {
             $query->byDateRange($request->start_date, $request->end_date);
         }
@@ -169,15 +169,15 @@ class ExpenseController extends Controller
             $requestedPaidAmount = floatval($request->paid_amount);
             $paidAmount = $requestedPaidAmount;
             $overpaidAmount = 0;
-            
+
             // Check for overpayment
             if ($requestedPaidAmount > $totalAmount) {
                 $overpaidAmount = $requestedPaidAmount - $totalAmount;
                 $paidAmount = $totalAmount; // Cap paid amount at total
             }
-            
+
             $dueAmount = $totalAmount - $paidAmount;
-            
+
             if ($paidAmount >= $totalAmount) {
                 $paymentStatus = 'paid';
                 $dueAmount = 0;
@@ -294,7 +294,7 @@ class ExpenseController extends Controller
     public function edit(int $id)
     {
         $expense = Expense::with(['expenseItems', 'expenseParentCategory', 'expenseSubCategory'])->find($id);
-        
+
         if (!$expense) {
             return response()->json([
                 'status' => 404,
@@ -323,7 +323,7 @@ class ExpenseController extends Controller
     public function update(Request $request, int $id)
     {
         $expense = Expense::find($id);
-        
+
         if (!$expense) {
             return response()->json([
                 'status' => 404,
@@ -362,7 +362,7 @@ class ExpenseController extends Controller
             $oldTotalAmount = $expense->total_amount;
             $oldPaidAmount = $expense->paid_amount;
             $oldSupplierId = $expense->supplier_id;
-            
+
             // Handle file upload
             $attachmentPath = $expense->attachment;
             if ($request->hasFile('attachment')) {
@@ -378,15 +378,15 @@ class ExpenseController extends Controller
             $requestedPaidAmount = floatval($request->paid_amount ?? $expense->paid_amount);
             $paidAmount = $requestedPaidAmount;
             $overpaidAmount = 0;
-            
+
             // Check for overpayment
             if ($requestedPaidAmount > $newTotalAmount) {
                 $overpaidAmount = $requestedPaidAmount - $newTotalAmount;
                 $paidAmount = $newTotalAmount; // Cap paid amount at total
             }
-            
+
             $dueAmount = $newTotalAmount - $paidAmount;
-            
+
             if ($paidAmount >= $newTotalAmount) {
                 $paymentStatus = 'paid';
                 $dueAmount = 0;
@@ -426,7 +426,7 @@ class ExpenseController extends Controller
 
             // Delete existing items and create new ones
             $expense->expenseItems()->delete();
-            
+
             foreach ($request->items as $item) {
                 ExpenseItem::create([
                     'expense_id' => $expense->id,
@@ -444,7 +444,7 @@ class ExpenseController extends Controller
             if ($request->has('paid_amount') && $requestedPaidAmount != $oldPaidAmount) {
                 // Delete existing payment records
                 $expense->payments()->delete();
-                
+
                 // Create new payment record if amount paid
                 if ($paidAmount > 0) {
                     ExpensePayment::create([
@@ -491,7 +491,7 @@ class ExpenseController extends Controller
     public function destroy(int $id)
     {
         $expense = Expense::find($id);
-        
+
         if (!$expense) {
             return response()->json([
                 'status' => 404,
@@ -504,15 +504,15 @@ class ExpenseController extends Controller
             // Delete related records
             $expense->expenseItems()->delete();
             $expense->payments()->delete();
-            
+
             // Delete attachment file
             if ($expense->attachment && Storage::disk('public')->exists($expense->attachment)) {
                 Storage::disk('public')->delete($expense->attachment);
             }
-            
+
             // Delete expense
             $expense->delete();
-            
+
             DB::commit();
 
             return response()->json([
@@ -535,7 +535,7 @@ class ExpenseController extends Controller
     public function getSubCategories($parentCategoryId)
     {
         $subCategories = ExpenseSubCategory::where('main_expense_category_id', $parentCategoryId)->get();
-        
+
         return response()->json([
             'status' => 200,
             'data' => $subCategories
@@ -600,7 +600,7 @@ class ExpenseController extends Controller
         try {
             // Get all locations - simplified approach for expense creation
             $locations = Location::select('id', 'name')->get();
-            
+
             return response()->json([
                 'status' => true,
                 'message' => 'Locations fetched successfully',
@@ -632,7 +632,7 @@ class ExpenseController extends Controller
                         'balance' => $supplier->formatted_expense_balance ?? 'Rs.0.00'
                     ];
                 });
-            
+
             return response()->json([
                 'status' => true,
                 'message' => 'Suppliers fetched successfully',
@@ -653,7 +653,7 @@ class ExpenseController extends Controller
     public function addPayment(Request $request, int $id)
     {
         $expense = Expense::find($id);
-        
+
         if (!$expense) {
             return response()->json([
                 'status' => 404,
@@ -681,16 +681,16 @@ class ExpenseController extends Controller
             $requestedPaymentAmount = floatval($request->payment_amount);
             $currentPaidAmount = $expense->paid_amount;
             $dueAmount = $expense->due_amount;
-            
+
             // Handle overpayment scenario
             $actualPaymentAmount = $requestedPaymentAmount;
             $overpaidAmount = 0;
-            
+
             if ($requestedPaymentAmount > $dueAmount) {
                 $overpaidAmount = $requestedPaymentAmount - $dueAmount;
                 $actualPaymentAmount = $dueAmount; // Only pay what's due
             }
-            
+
             $newPaidAmount = $currentPaidAmount + $actualPaymentAmount;
             $newDueAmount = $expense->total_amount - $newPaidAmount;
 
@@ -763,7 +763,7 @@ class ExpenseController extends Controller
     public function getPaymentHistory(int $id)
     {
         $expense = Expense::with(['payments.creator', 'location'])->find($id);
-        
+
         if (!$expense) {
             return response()->json([
                 'status' => 404,
@@ -805,7 +805,7 @@ class ExpenseController extends Controller
     public function editPayment(Request $request, int $paymentId)
     {
         $payment = ExpensePayment::with('expense')->find($paymentId);
-        
+
         if (!$payment) {
             return response()->json([
                 'status' => 404,
@@ -928,7 +928,7 @@ class ExpenseController extends Controller
     public function deletePayment(int $paymentId)
     {
         $payment = ExpensePayment::with('expense')->find($paymentId);
-        
+
         if (!$payment) {
             return response()->json([
                 'status' => 404,
@@ -960,8 +960,13 @@ class ExpenseController extends Controller
                 $expense->handlePaymentDeletion($payment->id, $deletedAmount);
             }
 
-            // Delete payment record
-            $payment->delete();
+            // ✅ CRITICAL FIX: Mark payment as deleted instead of hard delete
+            $payment->update([
+                'status' => 'deleted',
+                'deleted_at' => now(),
+                'deleted_by' => auth()->id(),
+                'notes' => ($payment->notes ?? '') . ' | [DELETED: Expense payment removed - ' . now()->format('Y-m-d H:i:s') . ']'
+            ]);
 
             // Update expense totals
             $expense->update([
@@ -1000,7 +1005,7 @@ class ExpenseController extends Controller
     public function getPayment(int $paymentId)
     {
         $payment = ExpensePayment::with('expense')->find($paymentId);
-        
+
         if (!$payment) {
             return response()->json([
                 'status' => 404,
@@ -1037,7 +1042,7 @@ class ExpenseController extends Controller
         try {
             $supplier = Supplier::with(['balanceLogs.expense', 'balanceLogs.payment', 'balanceLogs.creator'])
                 ->find($supplierId);
-            
+
             if (!$supplier) {
                 return response()->json([
                     'status' => 404,

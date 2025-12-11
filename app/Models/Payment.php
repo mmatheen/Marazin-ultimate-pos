@@ -74,12 +74,17 @@ class Payment extends Model
     {
         parent::boot();
 
+        // ✅ CRITICAL FIX: Add global scope to exclude deleted payments by default
+        static::addGlobalScope('excludeDeleted', function ($query) {
+            $query->where('status', '!=', 'deleted');
+        });
+
         static::creating(function ($payment) {
             // Don't set cheque_status to null - let default value handle it
             if ($payment->cheque_status === null) {
                 unset($payment->cheque_status);
             }
-            
+
             // Set appropriate cheque_status based on payment method
             if (!isset($payment->cheque_status) && isset($payment->payment_method)) {
                 $payment->cheque_status = ($payment->payment_method === 'cheque') ? 'pending' : 'pending';
@@ -186,7 +191,12 @@ class Payment extends Model
 
     public function scopeDeleted($query)
     {
-        return $query->where('status', 'deleted');
+        return $query->withoutGlobalScope('excludeDeleted')->where('status', 'deleted');
+    }
+
+    public function scopeWithDeleted($query)
+    {
+        return $query->withoutGlobalScope('excludeDeleted');
     }
 
     // Scopes for cheque management
@@ -238,18 +248,18 @@ class Payment extends Model
     }
 
     // Helper methods
-    
+
     /**
      * Update cheque status - DEPRECATED: Use ChequeService instead
      * This method is maintained for backward compatibility only
-     * 
+     *
      * @deprecated Use \App\Services\ChequeService::updateChequeStatus() instead
      */
     public function updateChequeStatus($newStatus, $remarks = null, $bankCharges = 0, $userId = null)
     {
         // Delegate to ChequeService for centralized handling
         $chequeService = app(\App\Services\ChequeService::class);
-        
+
         $result = $chequeService->updateChequeStatus(
             $this->id,
             $newStatus,
@@ -257,10 +267,10 @@ class Payment extends Model
             $bankCharges,
             $userId
         );
-        
+
         // Refresh the model instance to reflect changes
         $this->refresh();
-        
+
         return $this;
     }
 
@@ -272,7 +282,7 @@ class Payment extends Model
         if (!$this->sale) return;
 
         $sale = $this->sale;
-        
+
         // Calculate new totals excluding bounced cheques
         $totalReceived = $sale->payments()->sum('amount');
         $bouncedCheques = $sale->payments()
@@ -280,7 +290,7 @@ class Payment extends Model
             ->where('cheque_status', 'bounced')
             ->sum('amount');
         $newTotalPaid = $totalReceived - $bouncedCheques;
-        
+
         // Update payment status
         $paymentStatus = 'Due';
         if ($newTotalPaid >= $sale->final_total) {
@@ -288,7 +298,7 @@ class Payment extends Model
         } elseif ($newTotalPaid > 0) {
             $paymentStatus = 'Partial';
         }
-        
+
         // Force update the sale using direct DB update
         DB::table('sales')
             ->where('id', $sale->id)
@@ -320,14 +330,14 @@ class Payment extends Model
         if ($this->payment_method !== 'cheque' || $this->cheque_status !== 'pending') {
             return null;
         }
-        
+
         return Carbon::now()->diffInDays($this->cheque_valid_date, false);
     }
 
     public function getIsOverdueAttribute()
     {
-        return $this->payment_method === 'cheque' && 
-               $this->cheque_status === 'pending' && 
+        return $this->payment_method === 'cheque' &&
+               $this->cheque_status === 'pending' &&
                $this->cheque_valid_date < Carbon::now();
     }
 
@@ -366,7 +376,7 @@ class Payment extends Model
     }
 
     // Recovery system helper methods
-    
+
     /**
      * Get recovery chain summary for bounced payment
      */
@@ -378,7 +388,7 @@ class Payment extends Model
         }
 
         $recoveries = $this->recoveryPayments()->with(['createdBy', 'updatedBy'])->get();
-        
+
         return [
             'original_payment' => [
                 'id' => $this->id,

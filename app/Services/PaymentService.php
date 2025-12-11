@@ -23,7 +23,7 @@ class PaymentService
 
     /**
      * Parse flexible date formats for cheque dates
-     * 
+     *
      * @param string|null $dateString
      * @return string|null
      */
@@ -32,7 +32,7 @@ class PaymentService
         if (empty($dateString)) {
             return null;
         }
-        
+
         try {
             // Handle different date formats
             if (preg_match('/^\d{2}-\d{2}-\d{4}$/', $dateString)) {
@@ -57,7 +57,7 @@ class PaymentService
 
     /**
      * Record a sale payment
-     * 
+     *
      * @param array $paymentData
      * @param Sale $sale
      * @return Payment
@@ -65,8 +65,8 @@ class PaymentService
     public function recordSalePayment(array $paymentData, Sale $sale): Payment
     {
         return DB::transaction(function () use ($paymentData, $sale) {
-            $paymentDate = isset($paymentData['payment_date']) 
-                ? Carbon::parse($paymentData['payment_date']) 
+            $paymentDate = isset($paymentData['payment_date'])
+                ? Carbon::parse($paymentData['payment_date'])
                 : now();
 
             $payment = Payment::create([
@@ -94,10 +94,10 @@ class PaymentService
 
             // Record payment in ledger (Enhanced: Include all customers for proper tracking)
             // Skip only if explicitly requested or for specific statuses
-            $skipLedger = ($paymentData['skip_ledger'] ?? false) || 
-                          ($sale->status === 'draft') || 
+            $skipLedger = ($paymentData['skip_ledger'] ?? false) ||
+                          ($sale->status === 'draft') ||
                           ($sale->status === 'quotation');
-                          
+
             if (!$skipLedger) {
                 $this->unifiedLedgerService->recordSalePayment($payment, $sale);
             }
@@ -111,7 +111,7 @@ class PaymentService
 
     /**
      * Edit existing payment with proper ledger management
-     * 
+     *
      * @param Payment $payment
      * @param array $newPaymentData
      * @return Payment
@@ -178,7 +178,7 @@ class PaymentService
 
     /**
      * Delete payment with proper ledger reversal
-     * 
+     *
      * @param Payment $payment
      * @param string $reason
      * @return bool
@@ -201,10 +201,21 @@ class PaymentService
                 ]);
             }
 
-            // Soft delete or mark as deleted instead of hard delete
+            // ✅ CRITICAL FIX: Mark payment as deleted instead of hard delete
             $payment->update([
+                'status' => 'deleted',
+                'deleted_at' => now(),
+                'deleted_by' => auth()->id(),
                 'notes' => ($payment->notes ?? '') . " | DELETED: {$reason}",
                 'payment_status' => 'cancelled'
+            ]);
+
+            Log::info('Payment marked as deleted', [
+                'payment_id' => $payment->id,
+                'reference_no' => $payment->reference_no,
+                'amount' => $payment->amount,
+                'reason' => $reason,
+                'deleted_by' => auth()->id()
             ]);
 
             // Update sale payment status
@@ -216,15 +227,16 @@ class PaymentService
 
     /**
      * Update sale payment status based on total paid
-     * 
+     *
      * @param Sale $sale
      * @return void
      */
     public function updateSalePaymentStatus(Sale $sale): void
     {
-        // Calculate total paid excluding cancelled/bounced payments
+        // Calculate total paid excluding cancelled/bounced/deleted payments
         $totalPaid = Payment::where('reference_id', $sale->id)
             ->where('payment_type', 'sale')
+            ->where('status', '!=', 'deleted') // ✅ CRITICAL FIX: Exclude deleted payments
             ->where(function($query) {
                 $query->where('payment_status', '!=', 'bounced')
                       ->where('payment_status', '!=', 'cancelled')
@@ -234,11 +246,10 @@ class PaymentService
 
         // Update sale totals
         $sale->total_paid = $totalPaid;
-        
+        $sale->total_due = $sale->final_total - $totalPaid;
+
         // Determine payment status
-        $totalDue = $sale->final_total - $totalPaid;
-        
-        if ($totalDue <= 0.01) {
+        if ($sale->total_due <= 0.01) {
             $sale->payment_status = 'Paid';
         } elseif ($totalPaid > 0) {
             $sale->payment_status = 'Partial';
@@ -251,7 +262,7 @@ class PaymentService
 
     /**
      * Record a purchase payment
-     * 
+     *
      * @param array $paymentData
      * @param Purchase $purchase
      * @return Payment
@@ -268,8 +279,8 @@ class PaymentService
             // If the paid amount exceeds total due, adjust it
             $paidAmount = min($paymentData['amount'], $totalDue);
 
-            $paymentDate = isset($paymentData['payment_date']) 
-                ? Carbon::parse($paymentData['payment_date']) 
+            $paymentDate = isset($paymentData['payment_date'])
+                ? Carbon::parse($paymentData['payment_date'])
                 : now();
 
             $payment = Payment::create([
@@ -305,7 +316,7 @@ class PaymentService
 
     /**
      * Record a purchase return payment
-     * 
+     *
      * @param array $paymentData
      * @param PurchaseReturn $purchaseReturn
      * @return Payment
@@ -322,8 +333,8 @@ class PaymentService
             // If the paid amount exceeds total due, adjust it
             $paidAmount = min($paymentData['amount'], $totalDue);
 
-            $paymentDate = isset($paymentData['payment_date']) 
-                ? Carbon::parse($paymentData['payment_date']) 
+            $paymentDate = isset($paymentData['payment_date'])
+                ? Carbon::parse($paymentData['payment_date'])
                 : now();
 
             $payment = Payment::create([
@@ -360,7 +371,7 @@ class PaymentService
     /**
      * Handle purchase payment with smart create/update/delete logic
      * Eliminates duplication from PurchaseController
-     * 
+     *
      * @param array $paymentData
      * @param Purchase $purchase
      * @return Payment|null
@@ -384,12 +395,12 @@ class PaymentService
                 ->where('payment_type', 'purchase')
                 ->where('status', '!=', 'deleted')
                 ->get();
-                
+
             // Check for ANY existing payments (including deleted) for audit trail
             $allPayments = Payment::where('reference_id', $purchase->id)
                 ->where('payment_type', 'purchase')
                 ->get();
-                
+
             $hasActivePayments = $activePayments->count() > 0;
             $hasAnyPayments = $allPayments->count() > 0;
 
@@ -401,32 +412,32 @@ class PaymentService
             ]);
 
             if ($hasActivePayments) {
-                // ✅ SCENARIO 1: CREATE NEW PAYMENT (mark old as deleted for audit)
+                // ✅ SCENARIO 1: CREATE NEW PAYMENT (mark zold as deleted for audit)
                 // Better for audit trail - preserve payment history
                 Log::info('PaymentService: Creating new payment, marking old as deleted', [
                     'existing_payments' => $activePayments->count(),
                     'new_amount' => $paymentData['amount']
                 ]);
-                
+
                 // Mark existing active payments as deleted (for audit trail)
                 foreach ($activePayments as $oldPayment) {
                     // ✅ CRITICAL FIX: Reverse the old payment in ledger before marking as deleted
                     $this->unifiedLedgerService->deletePayment($oldPayment, 'Payment replaced during purchase edit', auth()->id());
-                    
+
                     $oldPayment->update([
                         'status' => 'deleted',
                         'notes' => ($oldPayment->notes ?? '') . ' [REPLACED BY NEW PAYMENT: ' . now()->format('Y-m-d H:i:s') . ']'
                     ]);
                 }
-                
+
                 // Create new payment entry
                 $paymentData['notes'] = ($paymentData['notes'] ?? '') . ' [NEW PAYMENT: ' . now()->format('Y-m-d H:i:s') . ']';
                 return $this->createFirstPurchasePayment($paymentData, $purchase);
-                
+
             } elseif ($hasAnyPayments) {
                 // ✅ SCENARIO 2: CREATE NEW PAYMENT (previous were deleted)
                 return $this->createPurchasePaymentAfterDeletion($paymentData, $purchase, $allPayments);
-                
+
             } else {
                 // ✅ SCENARIO 3: CREATE FIRST PAYMENT
                 return $this->createFirstPurchasePayment($paymentData, $purchase);
@@ -436,7 +447,7 @@ class PaymentService
 
     /**
      * Update existing active purchase payment
-     * 
+     *
      * @param Payment $payment
      * @param array $newData
      * @param Purchase $purchase
@@ -452,8 +463,8 @@ class PaymentService
         ]);
 
         // Parse dates with flexible format support
-        $paymentDate = isset($newData['payment_date']) 
-            ? $this->parseFlexibleDate($newData['payment_date']) 
+        $paymentDate = isset($newData['payment_date'])
+            ? $this->parseFlexibleDate($newData['payment_date'])
             : $payment->payment_date;
 
         // Update payment record
@@ -487,7 +498,7 @@ class PaymentService
 
     /**
      * Create new payment after previous payments were deleted
-     * 
+     *
      * @param array $paymentData
      * @param Purchase $purchase
      * @param \Illuminate\Support\Collection $deletedPayments
@@ -509,13 +520,13 @@ class PaymentService
         }
 
         $paymentData['notes'] = ($paymentData['notes'] ?? '') . ' [NEW PAYMENT AFTER EDIT: ' . now()->format('Y-m-d H:i:s') . ']';
-        
+
         return $this->createFirstPurchasePayment($paymentData, $purchase);
     }
 
     /**
      * Create first payment for purchase
-     * 
+     *
      * @param array $paymentData
      * @param Purchase $purchase
      * @return Payment
@@ -550,7 +561,7 @@ class PaymentService
 
     /**
      * Delete purchase payment with proper audit trail
-     * 
+     *
      * @param Payment $payment
      * @param string $reason
      * @return bool
@@ -581,7 +592,7 @@ class PaymentService
 
     /**
      * Update purchase payment status based on active payments (excluding deleted ones)
-     * 
+     *
      * @param Purchase $purchase
      * @return void
      */
@@ -598,7 +609,7 @@ class PaymentService
 
         // Use small tolerance for floating point comparison
         $tolerance = 0.01;
-        
+
         if (($purchase->final_total - $totalPaid) <= $tolerance) {
             $purchase->payment_status = 'Paid';
         } elseif ($totalPaid > $tolerance) {
@@ -608,7 +619,7 @@ class PaymentService
         }
 
         $purchase->save();
-        
+
         Log::info('PaymentService: Updated purchase payment status', [
             'purchase_id' => $purchase->id,
             'total_paid' => $totalPaid,
@@ -619,7 +630,7 @@ class PaymentService
 
     /**
      * Update purchase return payment status based on total paid
-     * 
+     *
      * @param PurchaseReturn $purchaseReturn
      * @return void
      */
@@ -642,7 +653,7 @@ class PaymentService
 
     /**
      * Delete a payment and update related records
-     * 
+     *
      * @param Payment $payment
      * @return void
      */
@@ -652,8 +663,21 @@ class PaymentService
             // Remove ledger entries for this payment
             $this->unifiedLedgerService->deleteLedgerEntries($payment->reference_no, $payment->supplier_id, 'supplier');
 
-            // Delete the payment
-            $payment->delete();
+            // ✅ CRITICAL FIX: Mark payment as deleted instead of hard delete
+            $payment->update([
+                'status' => 'deleted',
+                'deleted_at' => now(),
+                'deleted_by' => auth()->id(),
+                'notes' => ($payment->notes ?? '') . ' | [DELETED: ' . now()->format('Y-m-d H:i:s') . ']'
+            ]);
+
+            Log::info('Payment marked as deleted', [
+                'payment_id' => $payment->id,
+                'reference_no' => $payment->reference_no,
+                'amount' => $payment->amount,
+                'payment_type' => $payment->payment_type,
+                'deleted_by' => auth()->id()
+            ]);
 
             // Update payment status based on type
             if ($payment->payment_type === 'purchase') {
@@ -674,7 +698,7 @@ class PaymentService
 
     /**
      * Update a payment and recalculate ledger
-     * 
+     *
      * @param Payment $payment
      * @param array $updateData
      * @return Payment
@@ -715,7 +739,7 @@ class PaymentService
 
     /**
      * Get payment summary for a supplier
-     * 
+     *
      * @param int $supplierId
      * @param Carbon|null $fromDate
      * @param Carbon|null $toDate
