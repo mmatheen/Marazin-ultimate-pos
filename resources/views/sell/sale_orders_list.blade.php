@@ -194,28 +194,42 @@
 
                             // Show change status for non-completed/cancelled orders - check both status fields
                             const actualStatus = row.order_status || row.status || 'pending';
-                            if (actualStatus !== 'completed' && actualStatus !== 'cancelled') {
+
+                            // Change Status - Only for pending orders (not confirmed, completed, or cancelled)
+                            @can('edit sale-order')
+                            if (actualStatus === 'pending' || actualStatus === 'draft') {
                                 actions += `
                                         <li><button type="button" value="${row.id}" class="change-status dropdown-item"><i class="feather-refresh-cw text-primary"></i> Change Status</button></li>
                                 `;
+                            }
+                            @endcan
 
-                                // ✅ Only show Convert to Invoice for confirmed orders
-                                if (actualStatus === 'confirmed') {
-                                    actions += `
+                            // Convert to Invoice - Only for Super Admin and Admin roles, not Sales Rep
+                            @can('convert sale-order to invoice')
+                            if (actualStatus === 'confirmed') {
+                                actions += `
                                         <li><button type="button" value="${row.id}" class="convert-invoice dropdown-item"><i class="feather-file-text text-success"></i> Convert to Invoice</button></li>
-                                    `;
-                                }
+                                `;
+                            }
+                            @endcan
 
+                            // Edit - Only for non-confirmed, non-completed, non-cancelled orders
+                            @can('edit sale-order')
+                            if (actualStatus !== 'confirmed' && actualStatus !== 'completed' && actualStatus !== 'cancelled') {
                                 actions += `
                                         <li><button type="button" value="${row.id}" class="edit_btn dropdown-item"><i class="feather-edit text-info"></i> Edit</button></li>
                                 `;
                             }
+                            @endcan
 
+                            // Delete - Only for admin roles, not Sales Rep
+                            @can('delete sale-order')
                             if (actualStatus !== 'completed') {
                                 actions += `
                                         <li><button type="button" value="${row.id}" class="delete_btn dropdown-item"><i class="feather-trash-2 text-danger"></i> Delete</button></li>
                                 `;
                             }
+                            @endcan
 
                             actions += `
                                     </ul>

@@ -43,7 +43,7 @@ class LocationController extends Controller
         // Sales Rep gets their accessible locations
         elseif ($this->isSalesRep($user)) {
             $locations = $this->getSalesRepAccessibleLocations($user);
-        } 
+        }
         // Regular users (including regular admin) see only their assigned locations
         else {
             $locations = $user->locations()->with('parent', 'children')->orderBy('id', 'asc')->get();
@@ -74,13 +74,16 @@ class LocationController extends Controller
 
     /**
      * Get locations accessible to sales rep based on their assignments
+     * Sales reps get access to:
+     * 1. Their assigned sub-locations (vehicles)
+     * 2. The parent locations of those sub-locations
      */
     private function getSalesRepAccessibleLocations($user)
     {
         // Get all active sales rep assignments for this user
         $salesRepAssignments = \App\Models\SalesRep::where('user_id', $user->id)
             ->where('status', 'active')
-            ->with(['subLocation'])
+            ->with(['subLocation.parent'])
             ->get();
 
         if ($salesRepAssignments->isEmpty()) {
@@ -88,44 +91,37 @@ class LocationController extends Controller
         }
 
         // Get all sublocation IDs the sales rep is assigned to
-        $assignedLocationIds = $salesRepAssignments
+        $assignedSubLocationIds = $salesRepAssignments
             ->pluck('subLocation.id')
             ->filter()
             ->unique()
-            ->values();
+            ->values()
+            ->toArray();
 
-        if ($assignedLocationIds->isEmpty()) {
+        if (empty($assignedSubLocationIds)) {
             return collect();
         }
 
-        // Return the assigned sublocations (vehicles)
-        return Location::whereIn('id', $assignedLocationIds)
+        // Get parent location IDs from the assigned sub-locations
+        $parentLocationIds = $salesRepAssignments
+            ->pluck('subLocation.parent_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->toArray();
+
+        // Combine sub-location IDs and parent location IDs
+        $accessibleLocationIds = array_merge($assignedSubLocationIds, $parentLocationIds);
+        $accessibleLocationIds = array_unique($accessibleLocationIds);
+
+        // Return both assigned sublocations AND their parent locations
+        return Location::whereIn('id', $accessibleLocationIds)
             ->with('parent', 'children')
+            ->orderBy('parent_id', 'asc') // Parents first, then children
             ->orderBy('id', 'asc')
             ->get();
     }
 
-    private function getSalesRepLocations($user)
-    {
-        $vehicle = $user->vehicle;
-
-        if (!$vehicle) {
-            return collect(); // No vehicle → no access
-        }
-
-        if ($vehicle->vehicle_type === 'bike') {
-            // Bike: Only main locations (no parent)
-            return Location::whereNull('parent_id')->with('parent', 'children')->orderBy('id', 'asc')->get();
-        } else {
-            // Van/Other: Only sub-locations (has parent) with vehicle details
-            return Location::whereNotNull('parent_id')
-                ->whereNotNull('vehicle_number')
-                ->whereNotNull('vehicle_type')
-                ->with('parent', 'children')
-                ->orderBy('id', 'asc')
-                ->get();
-        }
-    }
 
     /**
      * Store a newly created location.
@@ -138,7 +134,7 @@ class LocationController extends Controller
         }
 
         $isSubLocation = !empty($request->parent_id);
-        
+
         // Build validation rules based on location type
         $validationRules = [
             'name' => [
@@ -266,7 +262,7 @@ class LocationController extends Controller
             if ($isSubLocation) {
                 // For sublocations - inherit parent contact details but allow different logo and invoice layout
                 $parentLocation = Location::find($request->parent_id);
-                
+
                 $locationData += [
                     // Inherited from parent
                     'address' => $parentLocation->address,
@@ -276,7 +272,7 @@ class LocationController extends Controller
                     'email' => $parentLocation->email,
                     'mobile' => $parentLocation->mobile,
                     'telephone_no' => $parentLocation->telephone_no,
-                    
+
                     // Sublocation specific
                     'vehicle_number' => $request->vehicle_number,
                     'vehicle_type' => $request->vehicle_type,
@@ -322,7 +318,7 @@ class LocationController extends Controller
             ], 500);
         }
     }
-    
+
 
     private function generateLocationId()
     {
@@ -392,7 +388,7 @@ class LocationController extends Controller
             }
 
             $isSubLocation = !empty($request->parent_id);
-        
+
             // Build validation rules based on location type (same as store method)
             $validationRules = [
                 'name' => [
@@ -464,7 +460,7 @@ class LocationController extends Controller
                         function ($attribute, $value, $fail) use ($id, $request) {
                             if ($value) {
                                 $location = Location::find($id);
-                                
+
                                 // Check if email exists in other locations
                                 $emailExists = Location::where('email', $value)
                                     ->where('id', '!=', $id)
@@ -475,7 +471,7 @@ class LocationController extends Controller
                                               ->where('id', '!=', $location->parent_id);
                                     })
                                     ->exists();
-                                
+
                                 if ($emailExists) {
                                     $fail('The email has already been taken by another location.');
                                 }
@@ -520,7 +516,7 @@ class LocationController extends Controller
             ];
 
 
-            
+
 
             $validator = Validator::make($request->all(), $validationRules, $customMessages);
 
@@ -539,7 +535,7 @@ class LocationController extends Controller
                     if ($location->logo_image && file_exists(public_path($location->logo_image))) {
                         unlink(public_path($location->logo_image));
                     }
-                    
+
                     $file = $request->file('logo_image');
                     $filename = time() . '_' . $location->location_id . '.' . $file->getClientOriginalExtension();
                     $file->move(public_path('storage/location_logos'), $filename);
@@ -556,7 +552,7 @@ class LocationController extends Controller
                 if ($isSubLocation) {
                     // For sublocations - inherit parent contact details but allow different logo and invoice layout
                     $parentLocation = Location::find($request->parent_id);
-                    
+
                     $updateData += [
                         // Inherited from parent
                         'address' => $parentLocation->address,
@@ -566,7 +562,7 @@ class LocationController extends Controller
                         'email' => $parentLocation->email,
                         'mobile' => $parentLocation->mobile,
                         'telephone_no' => $parentLocation->telephone_no,
-                        
+
                         // Sublocation specific
                         'vehicle_number' => $request->vehicle_number,
                         'vehicle_type' => $request->vehicle_type,
@@ -589,9 +585,9 @@ class LocationController extends Controller
                         'invoice_layout_pos' => $request->invoice_layout_pos ?? '80mm',
                     ];
                 }
-                
+
                 $location->update($updateData);
-                
+
                 // Load relationships for response
                 $location->load('parent', 'children');
 
@@ -677,7 +673,7 @@ class LocationController extends Controller
     public function searchByVehicleNumber(Request $request)
     {
         $vehicleNumber = $request->query('vehicle_number');
-        
+
         if (!$vehicleNumber) {
             return response()->json([
                 'status' => false,
@@ -709,7 +705,7 @@ class LocationController extends Controller
     public function getLocationHierarchy($id)
     {
         $location = Location::with('parent', 'children')->find($id);
-        
+
         if (!$location) {
             return response()->json([
                 'status' => false,
@@ -760,7 +756,7 @@ class LocationController extends Controller
             $user->load('roles');
         }
 
-        return $user->roles->pluck('name')->contains('Master Super Admin') || 
+        return $user->roles->pluck('name')->contains('Master Super Admin') ||
                $user->roles->pluck('key')->contains('master_super_admin');
     }
 

@@ -177,6 +177,9 @@ class RolesAndPermissionsSeeder extends Seeder
                 'save draft',
                 'create sale-order',
                 'view sale-order',
+                'edit sale-order',
+                'delete sale-order',
+                'convert sale-order to invoice',
                 'suspend sale',
                 'credit sale',
                 'card payment',
@@ -490,10 +493,27 @@ class RolesAndPermissionsSeeder extends Seeder
                 'view product',
                 'view product details',
 
+                // Locations (needed for POS)
+                'view location',
+
+                // Categories and Brands (needed for POS filtering)
+                'view main-category',
+                'view sub-category',
+                'view brand',
+
+                // Pricing Permissions - Default Access to Retail and MRP
+                'select retail price',
+                'select max retail price',
+
                 // Limited POS
                 'access pos',
                 'save draft',
                 'suspend sale',
+
+                // Sale Orders - Limited Access
+                'create sale-order',
+                'view sale-order',
+                'edit sale-order',
 
                 // Profile
                 'view own-profile',
@@ -559,6 +579,7 @@ class RolesAndPermissionsSeeder extends Seeder
         $newPermissionLogic = [
             'create sale-order' => ['save draft', 'create sale'],
             'view sale-order' => ['save draft', 'view all sales', 'view own sales'],
+            'edit sale-order' => ['save draft', 'create sale'],
             'manage cheque' => ['cheque payment', 'create payment'],
             'view cheque' => ['cheque payment', 'view payments'],
             'approve cheque' => ['cheque payment', 'edit payment'],
