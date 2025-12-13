@@ -47,22 +47,22 @@ class ProductController extends Controller
      */
     private function getCachedDropdownData()
     {
-        $user = auth()->user();
+        $user = auth()->
         $userId = $user ? $user->id : 0;
 
         // Cache key should include user ID to prevent location data leakage between users
-        $cacheKey = "product_dropdown_data_user_{$userId}";
+       ey = "product_dropdown_data_user_{$userId}";
 
         return Cache::remember($cacheKey, 300, function () use ($user) { // Cache for 5 minutes per user
             // Get locations with proper user access filtering
-            $locations = $this->getUserAccessibleLocations($user);
+           = $this->getUserAccessibleLocations($user);
 
             // Add selection flags for frontend
             $locationsWithSelection = $locations->map(function($location) use ($locations) {
                 return [
                     'id' => $location->id,
                     'name' => $location->name,
-                    'selected' => $locations->count() === 1 // Auto-select if only one location
+                    'selected' => $locations->count() === 1 // Autonly one location
                 ];
             });
 
@@ -72,7 +72,7 @@ class ProductController extends Controller
                 'brands' => Brand::select('id', 'name')->get(),
                 'units' => Unit::select('id', 'name', 'allow_decimal')->get(),
                 'locations' => $locationsWithSelection,
-                'auto_select_single_location' => $locations->count() === 1,
+                'auto_select_singleation' => $locations->count() === 1,
             ];
         });
     }
@@ -83,22 +83,20 @@ class ProductController extends Controller
     private function getUserAccessibleLocations($user)
     {
         if (!$user) {
-            Log::warning('getUserAccessibleLocations called with null user');
-            return collect([]); // Return empty collection if no user
+            Log::warning('getUserAccessibleLocations called with null use          return collect([]); // Return empty collection if no user
         }
 
         // Load user roles if not already loaded
-        if (!$user->relationLoaded('roles')) {
+ f (!$user->relationLoaded('roles')) {
             $user->load('roles');
         }
 
-        // Check if user is Master Super Admin or has bypass permission
-        $isMasterSuperAdmin = $user->roles->pluck('name')->contains('Master Super Admin') ||
-                              $user->roles->pluck('key')->contains('master_super_admin');
+        // Check if user is Master Super Admin or has bypass permissio
+        $isMasterSuperAdmin = $user->roles->pluck('name')->contains('Master Super Admin')                            $user->roles->pluck('key')->contains('master_super_admin');
 
         $hasBypassPermission = false;
         foreach ($user->roles as $role) {
-            if ($role->bypass_location_scope ?? false) {
+            if ($role->bypass_location_scope ?? f
                 $hasBypassPermission = true;
                 break;
             }
@@ -108,7 +106,7 @@ class ProductController extends Controller
             try {
                 $hasBypassPermission = $user->hasPermissionTo('override location scope');
             } catch (\Exception $e) {
-                // Permission doesn't exist, continue without bypass
+                // Permission exist, continue without bypass
                 $hasBypassPermission = false;
             }
         }
@@ -116,7 +114,7 @@ class ProductController extends Controller
         Log::info('Location access check', [
             'user_id' => $user->id,
             'is_master_super_admin' => $isMasterSuperAdmin,
-            'has_bypass_permission' => $hasBypassPermission,
+            'has_bypassion' => $hasBypassPermission,
             'user_roles' => $user->roles->pluck('name')->toArray()
         ]);
 
@@ -130,7 +128,7 @@ class ProductController extends Controller
             $locations = Location::select('locations.id', 'locations.name')
                 ->join('location_user', 'locations.id', '=', 'location_user.location_id')
                 ->where('location_user.user_id', $user->id)
-                ->get();
+               ->get();
             Log::info('Regular user, returning assigned locations', [
                 'user_id' => $user->id,
                 'count' => $locations->count(),
@@ -275,11 +273,10 @@ class ProductController extends Controller
             }
 
             // For initial page load (non-AJAX)
-            $products = Product::where('id', $productId)->get(); // Only load the current product initially
+            $productswhere('id', $productId)->get(); // Only load the current product initially
             $locations = $this->getUserAccessibleLocations(auth()->user());
 
-            return view('product.product_stock_history', compact('products', 'locations'))->with($responseData);
-
+            return view('product.product_stock_history', compact('products', 'locations'))->with($responseData
         } catch (\Exception $e) {
             Log::error('Error in getStockHistory: ' . $e->getMessage(), [
                 'product_id' => $productId,
@@ -289,15 +286,15 @@ class ProductController extends Controller
 
             if (request()->ajax()) {
                 return response()->json([
-                    'error' => 'Error loading stock history: ' . $e->getMessage(),
+        'error' => 'Error loading stock history: ' . $e->getMessage(),
                     'product' => null,
-                    'stock_histories' => [],
+                   'stock_histories' => [],
                     'stock_type_sums' => [],
                     'current_stock' => 0,
                 ], 500);
             }
 
-            return redirect()->back()->withErrors('Error loading stock history. Please try again.');
+            return redirect()->back()->withErrors('Errorck history. Please try again.');
         }
     }
 
@@ -318,7 +315,7 @@ class ProductController extends Controller
             // Log location access for debugging
             $user = auth()->user();
             if ($user) {
-                Log::info('Initial product details - User: ' . $user->id . ', Locations: ' . count($dropdownData['locations']) . ', Auto-select: ' . ($dropdownData['auto_select_single_location'] ? 'true' : 'false'));
+                Log::info('Initial product details - User ' . $user->id . ', Locations: ' . count($dropdownData['locations']) . ', Auto-select: ' . ($drpdownData['auto_select_single_location'] ? 'true' : 'false'));
             }
 
             // Check if we have any data to return
@@ -338,7 +335,7 @@ class ProductController extends Controller
                 ]);
             } else {
                 return response()->json([
-                    'status' => 404,
+        'status' => 404,
                     'message' => "No Records Found!"
                 ]);
             }
@@ -377,8 +374,8 @@ class ProductController extends Controller
         if ($getValue->count() > 0) {
             return response()->json([
                 'status' => 200,
-                'message' => $getValue
-            ]);
+                'message' = $getValue
+           ]);
         } else {
             return response()->json([
                 'status' => 404,
@@ -456,24 +453,22 @@ class ProductController extends Controller
             ]);
         } else {
             return response()->json([
-                'status' => 500,
+               'status' => 500,
                 'message' => 'Error fetching products',
             ]);
-        }
+       }
     }
 
 
     public function editProduct($id)
     {
-        // Fetch the product with only necessary relationships
+        // Fetch the product with onlynecessary relationships
         $product = Product::with(['locations:id,name', 'mainCategory:id,mainCategoryName', 'brand:id,name', 'unit:id,name'])
             ->select('id', 'product_name', 'sku', 'description', 'pax', 'original_price', 'retail_price',
                     'whole_sale_price', 'special_price', 'max_retail_price', 'alert_quantity', 'product_type',
                     'is_imei_or_serial_no', 'is_for_selling', 'product_image', 'main_category_id',
                     'sub_category_id', 'brand_id', 'unit_id')
-            ->find($id);
-
-        // Check if the product exists
+            ->find($id      // Check if the product exists
         if (!$product) {
             if (request()->ajax() || request()->is('api/*')) {
                 return response()->json([
@@ -619,7 +614,7 @@ class ProductController extends Controller
 
         try {
             if ($request->has('sku') && !empty($request->sku)) {
-                // Use provided SKU (we already checked duplicates earlier)
+                // Use provided SKU (we alreicates earlier)
                 $product->fill(array_merge($data, ['sku' => (string) $request->sku]));
                 $product->save();
             } else {
@@ -627,9 +622,9 @@ class ProductController extends Controller
                 // Get all numeric SKUs sorted ascending
                 $existingSkus = Product::whereRaw('sku REGEXP "^[0-9]+$"')
                     ->orderByRaw('CAST(sku AS UNSIGNED) ASC')
-                    ->pluck('sku')
+    ->pluck('sku')
                     ->map(function($sku) {
-                        return (int)$sku;
+                   )$sku;
                     })
                     ->toArray();
 
@@ -736,16 +731,16 @@ class ProductController extends Controller
                 $query->where('stock_type', StockHistory::STOCK_TYPE_OPENING);
             })
             ->with(['locationBatches.stockHistories' => function ($query) {
-                $query->where('stock_type', StockHistory::STOCK_TYPE_OPENING);
+               k_type', StockHistory::STOCK_TYPE_OPENING);
             }])
             ->get();
 
         // Fetch existing IMEIs
-        $imeis = ImeiNumber::where('product_id', $productId)
+        $imeis= ImeiNumber::where('product_id', $productId)
             ->orderBy('id')
             ->pluck('imei_number', 'id');
 
-        // Determine if decimals are allowed for this product
+        // D are allowed for this product
         $allowDecimal = $product->unit && $product->unit->allow_decimal;
 
         $openingStock = [
@@ -900,8 +895,7 @@ class ProductController extends Controller
                         'qty' => $locationData['qty'],
                     ];
                 }
-
-                $message = count($batchIds) > 0 ? 'Opening Stock updated successfully!' : 'Opening Stock saved successfully!';
+         $message = count($batchIds) > 0 ? 'Opening Stock updated successfully!' : 'Opening Stock saved successfully!';
             });
 
             return response()->json([
@@ -909,7 +903,7 @@ class ProductController extends Controller
                 'message' => $message,
                 'product' => $product,
                 'batches' => $batchIds,
-            ]);
+    ]);
         } catch (\Exception $e) {
             return response()->json(['status' => 500, 'message' => 'An error occurred: ' . $e->getMessage()]);
         }
@@ -921,8 +915,8 @@ class ProductController extends Controller
         // Debug log to see what we're receiving
         Log::info('saveOrUpdateImei called with data:', $request->all());
 
-        // Determine which format to use based on the request data
-        $hasLocationId = $request->has('location_id') && $request->filled('location_id');
+        // Determine which format to use based on the reuest data
+        $hasLocationId = $request->has('location_id') && $request->filn_id');
         $hasBatches = $request->has('batches');
 
         Log::info("Detection: hasLocationId={$hasLocationId}, hasBatches={$hasBatches}");
@@ -949,7 +943,7 @@ class ProductController extends Controller
             }
         } else {
             Log::info('Using new format (intelligent batch selection) - default fallback');
-            return $this->saveOrUpdateImeiNewFormat($request);
+return $this->saveOrUpdateImeiNewFormat($request);
         }
     }
 
@@ -1029,7 +1023,7 @@ class ProductController extends Controller
                     if ($imeiModel) {
                         $operation = 'update';
                         $imeiModel->touch();
-                        Log::info("Updated existing IMEI", ['imei' => $imei, 'id' => $imeiModel->id]);
+                        Log::info("Updated existing IMEI", ['imei'=> $imeiModel->id]);
                     } else {
                         $operation = 'save';
                         $newImei = ImeiNumber::create([
@@ -1128,7 +1122,7 @@ class ProductController extends Controller
                         } else {
                             $operation = 'save';
                             ImeiNumber::create([
-                                'product_id' => $request->product_id,
+                                'product_id'=> $request->product_id,
                                 'batch_id' => $batchInfo['batch_id'],
                                 'location_id' => $batchInfo['location_id'],
                                 'imei_number' => $imei,
@@ -1184,8 +1178,7 @@ class ProductController extends Controller
             ->select(
                 'batches.id as batch_id',
                 'batches.batch_no',
-                'location_batches.qty as available_qty',
-                'batches.created_at'
+                'location_batches.qty as avail                'batches.created_at'
             )
             ->orderBy('batches.id') // FIFO - older batches first
             ->get();
@@ -1210,7 +1203,7 @@ class ProductController extends Controller
         foreach ($batches as $batch) {
             // Cast to ensure proper typing
             $batchObj = (object) [
-                /** @noinspection PhpPossiblePolymorphicInvocationInspection */
+                /** @noinspection PhpPossiblePootion */
                 'batch_id' => (int) $batch->batch_id,
                 /** @noinspection PhpPossiblePolymorphicInvocationInspection */
                 'batch_no' => (string) $batch->batch_no,
@@ -1369,10 +1362,10 @@ class ProductController extends Controller
                 'batches' => $batches->flatMap(function ($batch) {
                     return $batch->locationBatches->map(function ($locationBatch) use ($batch) {
                         return [
-                            'batch_id' => $locationBatch->batch_id,
+                            'batch_id' => $locatioh_id,
                             'location_id' => $locationBatch->location_id,
                             'quantity' => $locationBatch->qty,
-                            'batch_no' => $batch->batch_no,
+                           => $batch->batch_no,
                             'expiry_date' => $batch->expiry_date,
                             'stock_histories' => $locationBatch->stockHistories->map(function ($stockHistory) {
                                 return [
@@ -1399,7 +1392,7 @@ class ProductController extends Controller
 
             // DataTable params (legacy support)
             $perPageDataTable = $request->input('length', 100); // DataTable uses 'length'
-            $startDataTable = $request->input('start', 0);
+    rtDataTable = $request->input('start', 0);
             $pageDataTable = intval($startDataTable / $perPageDataTable) + 1;
 
             // Standard pagination params (for POS)
@@ -1408,7 +1401,7 @@ class ProductController extends Controller
 
             // Use standard pagination if 'per_page' or 'page' parameters are provided
             $perPage = $request->has('per_page') || $request->has('page') ? $perPageStandard : $perPageDataTable;
-            $page = $request->has('per_page') || $request->has('page') ? $pageStandard : $pageDataTable;
+            $page = $request->has('pquest->has('page') ? $pageStandard : $pageDataTable;
 
             // DataTable search and ordering
             $search = $request->input('search.value'); // DataTables sends global search as 'search.value'
@@ -1657,7 +1650,7 @@ class ProductController extends Controller
                         'special_price' => $product->special_price,
                         'max_retail_price' => $product->max_retail_price,
                         'is_active' => $product->is_active,
-                    ],
+                   ],
                     'total_stock' => $totalStock,
                     'batches' => $filteredBatches->mapWithKeys(function ($batch) use ($allowDecimal) {
                         return [$batch->id => [
@@ -1668,7 +1661,7 @@ class ProductController extends Controller
                             'special_price' => $batch->special_price,
                             'retail_price' => $batch->retail_price,
                             'max_retail_price' => $batch->max_retail_price,
-                            'expiry_date' => $batch->expiry_date,
+                            'expiry_date' => $batch->expiry_dat
                             'total_batch_quantity' => $allowDecimal
                                 ? round($batch->locationBatches->sum(fn($lb) => (float)$lb->qty), 2)
                                 : (int)$batch->locationBatches->sum(fn($lb) => (int)$lb->qty),
@@ -1759,7 +1752,7 @@ class ProductController extends Controller
         $perPage = $request->input('per_page', 15);
 
         $query = Product::with([
-            'locations:id,name',
+            'location
             'unit:id,name,short_name,allow_decimal',
             'discounts' => function ($query) {
                 $query->where('is_active', true);
@@ -1769,17 +1762,17 @@ class ProductController extends Controller
                     'id',
                     'batch_no',
                     'product_id',
-                    'unit_cost',
+          cost',
                     'wholesale_price',
                     'special_price',
                     'retail_price',
                     'max_retail_price',
                     'expiry_date'
-                ]);
+      ;
             },
             'batches.locationBatches' => function ($q) use ($locationId) {
                 if ($locationId) {
-                    $q->where('location_id', $locationId);
+                    $q->where('location_id', $locationd);
                 }
                 $q->select(['id', 'batch_id', 'location_id', 'qty'])
                     ->with('location:id,name');
@@ -1802,7 +1795,7 @@ class ProductController extends Controller
             $productsWithMatchingImei = $imeiQuery->pluck('product_id')->toArray();
 
             // Use ORDER BY with CASE statements to prioritize exact matches
-            $query->where(function ($q) use ($search, $productsWithMatchingImei) {
+            $query->where(function ($q) use ($search $productsWithMatchingImei) {
                 $q->where('product_name', 'like', "%{$search}%")
                     ->orWhere('sku', 'like', "%{$search}%")
                     ->orWhere('description', 'like', "%{$search}%");
@@ -1814,7 +1807,6 @@ class ProductController extends Controller
             });
 
             // Build order by clause with IMEI priority if applicable
-            // Priority: IMEI match > Exact SKU > Exact Name > SKU starts with > Name starts with > Name contains > Description contains
             if (!empty($productsWithMatchingImei)) {
                 $query->orderByRaw("
                     CASE
@@ -1823,19 +1815,17 @@ class ProductController extends Controller
                         WHEN LOWER(product_name) = LOWER(?) THEN 2
                         WHEN sku LIKE ? THEN 3
                         WHEN LOWER(product_name) LIKE LOWER(?) THEN 4
-                        WHEN LOWER(product_name) LIKE LOWER(?) THEN 5
-                        WHEN description LIKE ? THEN 6
-                        ELSE 7
+                        WHEN description LIKE ? THEN 5
+                        ELSE 6
                     END,
-                    CHAR_LENGTH(product_name) ASC,
+                    CHAR_LENGTH(sku) ASC,
                     product_name ASC
                 ", array_merge($productsWithMatchingImei, [
-                    $search,                    // Exact SKU match (priority 1)
-                    $search,                    // Exact product name match (priority 2)
+            $search,                    // Exact SKU match (priority 1)
+                    $search,                    // Exact product name maority 2)
                     $search . '%',              // SKU starts with search term (priority 3)
                     $search . '%',              // Product name starts with search term (priority 4)
-                    '%' . $search . '%',        // Product name contains search term (priority 5)
-                    '%' . $search . '%'         // Description contains search term (priority 6)
+                    '%' . $search . '%'         // Description contains search term (priority 5)
                 ]));
             } else {
                 $query->orderByRaw("
@@ -1844,27 +1834,24 @@ class ProductController extends Controller
                         WHEN LOWER(product_name) = LOWER(?) THEN 2
                         WHEN sku LIKE ? THEN 3
                         WHEN LOWER(product_name) LIKE LOWER(?) THEN 4
-                        WHEN LOWER(product_name) LIKE LOWER(?) THEN 5
-                        WHEN description LIKE ? THEN 6
-                        ELSE 7
+                        WHEN description LIKE ? THEN 5
+                        ELSE 6
                     END,
-                    CHAR_LENGTH(product_name) ASC,
+                    CHAR_LENGTH(sku) ASC,
                     product_name ASC
                 ", [
                     $search,                    // Exact SKU match (priority 1)
                     $search,                    // Exact product name match (priority 2)
                     $search . '%',              // SKU starts with search term (priority 3)
                     $search . '%',              // Product name starts with search term (priority 4)
-                    '%' . $search . '%',        // Product name contains search term (priority 5)
-                    '%' . $search . '%'         // Description contains search term (priority 6)
+                    '%' . $search . '%'         // Description contains search term (priority 5)
                 ]);
             }
         } else {
             $query->orderBy('product_name', 'ASC');
         }
 
-        // Increase result limit to ensure we get all matching products, especially for partial matches
-        $products = $query->take($perPage * 3)->get();
+        $products = $query->take($perPage)->get();
 
         // Get product IDs for IMEI filtering
         $productIds = $products->pluck('id');
@@ -1996,12 +1983,9 @@ class ProductController extends Controller
             ];
         });
 
-        // Limit results to requested per_page after sorting and filtering
-        $limitedResults = $results->take($perPage);
-
         return response()->json([
             'status' => 200,
-            'data' => $limitedResults->values(),
+            'data' => $results,
         ]);
     }
 
@@ -2179,9 +2163,7 @@ class ProductController extends Controller
     {
         try {
             $result = DB::transaction(function () use ($id) {
-                $product = Product::with('batches')->find($id);
-
-                if (!$product) {
+                $product = Product::with('batches')->find($i               if (!$product) {
                     return [
                         'status' => 404,
                         'message' => "No Such Product Found!"
@@ -2218,8 +2200,7 @@ class ProductController extends Controller
     }
 
     public function exportBlankTemplate()
-    {
-        return Excel::download(new ExportProductTemplate(true), 'Import_Product_Template.xlsx');
+    {l::download(new ExportProductTemplate(true), 'Import_Product_Template.xlsx');
     }
 
     public function exportProducts()
@@ -2249,8 +2230,7 @@ class ProductController extends Controller
         // Check user access to the selected location
         $userLocationIds = $user->locations->pluck('id')->toArray();
         if (!in_array($selectedLocationId, $userLocationIds)) {
-            return response()->json([
-                'status' => 403,
+            return             'status' => 403,
                 'message' => 'You do not have access to the selected location.'
             ]);
         }
@@ -2476,8 +2456,7 @@ class ProductController extends Controller
      */
     public function quickAdd(Request $request)
     {
-        try {
-            // Validate request
+        t      // Validate request
             $request->validate([
                 'sku' => 'required|string|unique:products,sku',
                 'name' => 'required|string|max:255',
@@ -2490,18 +2469,17 @@ class ProductController extends Controller
 
             DB::beginTransaction();
 
-            // Get or create a default unit (using correct field names from migration)
+             Get or create a default unit (using correct field names from migration)
             $defaultUnit = Unit::firstOrCreate(
                 ['name' => 'Pc(s)'],
                 [
                     'short_name' => 'Pc',
-                    'allow_decimal' => false
-                ]
+                    'allow_decimal' => false      ]
             );
 
             // Get or create a default brand (using correct field name from migration)
             $defaultBrand = Brand::firstOrCreate(
-                ['name' => 'Quick Add'],  // Migration uses 'name' not 'brand_name'
+                ['name' => 'Quigration uses 'name' not 'brand_name'
                 ['description' => 'Auto-created brand for quick add products']
             );
 
@@ -2540,8 +2518,7 @@ class ProductController extends Controller
                 'whole_sale_price' => $enteredPrice,  // For wholesaler customers
                 'special_price' => $enteredPrice,   // Alternative price option
                 'max_retail_price' => $enteredPrice, // Maximum retail price
-                'is_active' => true
-            ]);
+                'is_active' =    ]);
 
             $batch = null; // Initialize batch variable
 
@@ -2557,12 +2534,12 @@ class ProductController extends Controller
                     'unit_cost' => $enteredPrice, // Required field
                     'wholesale_price' => $enteredPrice, // Required field for wholesaler pricing
                     'special_price' => $enteredPrice, // Required field for special pricing
-                    'retail_price' => $enteredPrice, // Required field for retailer pricing
-                    'max_retail_price' => $enteredPrice // Required field for maximum pricing
+                    'retail_price' => $enteredPrice, // Required field for retailer pric             'max_retail_price' => $enteredPrice // Required field for maximum pricing
                 ]);
 
                 // Create location batch for limited stock
-                $locationBatch = LocationBatch::create([
+                $lo
+cationBatch = LocationBatch::create([
                     'batch_id' => $batch->id,
                     'location_id' => $request->location_id,
                     'qty' => $quantity // Actual quantity for limited stock

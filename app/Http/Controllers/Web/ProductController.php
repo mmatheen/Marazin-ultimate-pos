@@ -1592,10 +1592,10 @@ class ProductController extends Controller
                     return $query->where('is_active', true);
                 })
                 // Filter by location if provided (show ALL products assigned to that location, including 0 stock)
-                // Stock filtering is handled by the stockStatus filter below
                 ->when($locationId, function ($query) use ($locationId) {
                     return $query->whereHas('locations', function ($q) use ($locationId) {
                         $q->where('locations.id', $locationId);
+                        // Show all products assigned to the selected location (even with 0 stock)
                     });
                 });
 
@@ -1928,7 +1928,7 @@ class ProductController extends Controller
     {
         $locationId = $request->input('location_id');
         $search = $request->input('search');
-        $perPage = $request->input('per_page', 30); // Increased from 15 to 30 for autocomplete
+        $perPage = $request->input('per_page', 100); // Increased to 100 for better autocomplete results
 
         $query = Product::with([
             'locations:id,name',
@@ -1960,87 +1960,44 @@ class ProductController extends Controller
         // Only show active products in POS/autocomplete
         ->where('is_active', true);
 
-        // Filter by location stock if location is specified
+        // Filter by location FIRST - only show products assigned to the selected location
         if ($locationId) {
-            $query->whereHas('batches.locationBatches', function ($q) use ($locationId) {
-                $q->where('location_id', $locationId)
-                  ->where('qty', '>', 0);
+            $query->whereHas('locations', function ($q) use ($locationId) {
+                $q->where('locations.id', $locationId);
             });
         }
 
         if ($search) {
-            // Include IMEI search - First check if any products have matching IMEI numbers
-            $imeiQuery = ImeiNumber::where('imei_number', 'like', "%{$search}%");
-            if ($locationId) {
-                $imeiQuery->where('location_id', $locationId);
-            }
-            $productsWithMatchingImei = $imeiQuery->pluck('product_id')->toArray();
-
-            // Use ORDER BY with CASE statements to prioritize exact matches
-            $query->where(function ($q) use ($search, $productsWithMatchingImei) {
+            // Enhanced search to include partial word matching
+            $query->where(function ($q) use ($search) {
                 $q->where('product_name', 'like', "%{$search}%")
                     ->orWhere('sku', 'like', "%{$search}%")
                     ->orWhere('description', 'like', "%{$search}%");
-
-                // Add IMEI search condition
-                if (!empty($productsWithMatchingImei)) {
-                    $q->orWhereIn('id', $productsWithMatchingImei);
-                }
-            });
-
-            // Build order by clause with IMEI priority if applicable
-            // Priority: IMEI match > Exact SKU > Exact Name > SKU starts with > Name starts with > Name contains > Description contains
-            if (!empty($productsWithMatchingImei)) {
-                $query->orderByRaw("
-                    CASE
-                        WHEN id IN (" . implode(',', array_fill(0, count($productsWithMatchingImei), '?')) . ") THEN 0
-                        WHEN sku = ? THEN 1
-                        WHEN LOWER(product_name) = LOWER(?) THEN 2
-                        WHEN sku LIKE ? THEN 3
-                        WHEN LOWER(product_name) LIKE LOWER(?) THEN 4
-                        WHEN LOWER(product_name) LIKE LOWER(?) THEN 5
-                        WHEN description LIKE ? THEN 6
-                        ELSE 7
-                    END,
-                    CHAR_LENGTH(product_name) ASC,
-                    product_name ASC
-                ", array_merge($productsWithMatchingImei, [
-                    $search,                    // Exact SKU match (priority 1)
-                    $search,                    // Exact product name match (priority 2)
-                    $search . '%',              // SKU starts with search term (priority 3)
-                    $search . '%',              // Product name starts with search term (priority 4)
-                    '%' . $search . '%',        // Product name contains search term (priority 5)
-                    '%' . $search . '%'         // Description contains search term (priority 6)
-                ]));
-            } else {
-                $query->orderByRaw("
-                    CASE
-                        WHEN sku = ? THEN 1
-                        WHEN LOWER(product_name) = LOWER(?) THEN 2
-                        WHEN sku LIKE ? THEN 3
-                        WHEN LOWER(product_name) LIKE LOWER(?) THEN 4
-                        WHEN LOWER(product_name) LIKE LOWER(?) THEN 5
-                        WHEN description LIKE ? THEN 6
-                        ELSE 7
-                    END,
-                    CHAR_LENGTH(product_name) ASC,
-                    product_name ASC
-                ", [
-                    $search,                    // Exact SKU match (priority 1)
-                    $search,                    // Exact product name match (priority 2)
-                    $search . '%',              // SKU starts with search term (priority 3)
-                    $search . '%',              // Product name starts with search term (priority 4)
-                    '%' . $search . '%',        // Product name contains search term (priority 5)
-                    '%' . $search . '%'         // Description contains search term (priority 6)
-                ]);
-            }
+            })->orderByRaw("
+                CASE
+                    WHEN sku = ? THEN 1
+                    WHEN LOWER(product_name) = LOWER(?) THEN 2
+                    WHEN sku LIKE ? THEN 3
+                    WHEN LOWER(product_name) LIKE LOWER(?) THEN 4
+                    WHEN product_name LIKE ? THEN 5
+                    WHEN description LIKE ? THEN 6
+                    ELSE 7
+                END,
+                CHAR_LENGTH(product_name) ASC,
+                product_name ASC
+            ", [
+                $search,                    // Exact SKU match (priority 1)
+                $search,                    // Exact product name match (priority 2)
+                $search . '%',              // SKU starts with search term (priority 3)
+                $search . '%',              // Product name starts with search term (priority 4)
+                '%' . $search . '%',        // Product name contains search term anywhere (priority 5)
+                '%' . $search . '%'         // Description contains search term (priority 6)
+            ]);
         } else {
             $query->orderBy('product_name', 'ASC');
         }
 
-        // Increase result limit to get more matching products (especially for partial text searches like "np")
-        // Take more candidates (perPage * 5) to ensure we capture all relevant matches before filtering
-        $products = $query->take($perPage * 5)->get();
+        $products = $query->take($perPage)->get();
 
         // Get product IDs for IMEI filtering
         $productIds = $products->pluck('id');
@@ -2067,6 +2024,12 @@ class ProductController extends Controller
                     return $batch->locationBatches->isNotEmpty();
                 }
             });
+
+            // Skip this product if it has no batches at the selected location
+            // This ensures only products with actual stock in the location are shown in autocomplete
+            // if ($locationId && $filteredBatches->isEmpty()) {
+            //     return null;
+            // }
 
             // Determine if allow_decimal is true for this product's unit
             $allowDecimal = $product->unit && $product->unit->allow_decimal;
@@ -2214,14 +2177,11 @@ class ProductController extends Controller
                 'discounts' => $activeDiscounts,
                 'imei_numbers' => $productImeis
             ];
-        });
-
-        // Limit results to requested per_page after sorting and filtering
-        $limitedResults = $results->take($perPage);
+        })->filter()->values(); // Remove null values and re-index
 
         return response()->json([
             'status' => 200,
-            'data' => $limitedResults->values(),
+            'data' => $results,
         ]);
     }
 
