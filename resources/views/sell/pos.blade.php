@@ -31,6 +31,24 @@
         href="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.6/jquery.inputmask.min.css">
 
     <link rel="stylesheet" href="{{ asset('assets/css/pos_page_style/pos-main.css') }}">
+
+    <!-- Sales Rep Payment Button Control CSS -->
+    <style>
+        /* Force hide payment buttons for sales reps on parent location */
+        .sales-rep-hide-payment {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+
+        /* Force show sale order button */
+        .sales-rep-show-sale-order {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+    </style>
 </head>
 
 <body>
@@ -736,7 +754,7 @@
                     <div class="modal-body p-0">
                         <div class="list-group list-group-flush">
                             @can('cash payment')
-                                <button type="button"
+                                <button type="button" id="mobileCashBtn"
                                     class="list-group-item list-group-item-action d-flex align-items-center p-3 mobile-payment-btn"
                                     data-payment="cash" data-bs-dismiss="modal">
                                     <div class="payment-icon bg-success text-white rounded-circle me-3">
@@ -751,7 +769,7 @@
                             @endcan
 
                             @can('card payment')
-                                <button type="button"
+                                <button type="button" id="mobileCardBtn"
                                     class="list-group-item list-group-item-action d-flex align-items-center p-3 mobile-payment-btn"
                                     data-payment="card" data-bs-dismiss="modal">
                                     <div class="payment-icon bg-primary text-white rounded-circle me-3">
@@ -766,7 +784,7 @@
                             @endcan
 
                             @can('cheque payment')
-                                <button type="button"
+                                <button type="button" id="mobileChequeBtn"
                                     class="list-group-item list-group-item-action d-flex align-items-center p-3 mobile-payment-btn"
                                     data-payment="cheque" data-bs-dismiss="modal">
                                     <div class="payment-icon bg-warning text-white rounded-circle me-3">
@@ -781,7 +799,7 @@
                             @endcan
 
                             @can('credit sale')
-                                <button type="button"
+                                <button type="button" id="mobileCreditBtn"
                                     class="list-group-item list-group-item-action d-flex align-items-center p-3 mobile-payment-btn"
                                     data-payment="credit" data-bs-dismiss="modal">
                                     <div class="payment-icon bg-info text-white rounded-circle me-3">
@@ -796,7 +814,7 @@
                             @endcan
 
                             @can('multiple payment methods')
-                                <button type="button"
+                                <button type="button" id="mobileMultiplePayBtn"
                                     class="list-group-item list-group-item-action d-flex align-items-center p-3 mobile-payment-btn"
                                     data-payment="multiple" data-bs-dismiss="modal" data-bs-toggle="modal"
                                     data-bs-target="#paymentModal">
@@ -812,69 +830,85 @@
                             @endcan
                         </div>
 
-                        <!-- Other Actions Section -->
-                        <div class="border-top mt-2">
-                            <div class="p-3 bg-light">
-                                <h6 class="text-muted mb-3"><i class="fas fa-ellipsis-h me-2"></i>Other Actions</h6>
+                        <!-- Other Actions Section - Enhanced Beautiful Design -->
+                        <div class="mt-3">
+                            <div class="px-3 py-2">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="flex-grow-1">
+                                        <hr class="my-0">
+                                    </div>
+                                    <span class="px-3 text-muted small fw-semibold">OR</span>
+                                    <div class="flex-grow-1">
+                                        <hr class="my-0">
+                                    </div>
+                                </div>
+
                                 <div class="row g-2">
                                     @can('save draft')
-                                        <div class="col-6">
-                                            <button type="button" class="btn btn-outline-info w-100 mobile-action-btn"
-                                                data-action="draft" data-bs-dismiss="modal">
-                                                <i class="fas fa-edit d-block mb-1"></i>
-                                                <small>Draft</small>
+                                        <div class="col-6" id="mobileDraftBtnCol">
+                                            <button type="button" class="btn btn-light border w-100 mobile-action-btn shadow-sm"
+                                                data-action="draft" data-bs-dismiss="modal"
+                                                style="border-radius: 12px; padding: 12px 8px;">
+                                                <i class="fas fa-edit text-info d-block mb-1" style="font-size: 1.25rem;"></i>
+                                                <small class="fw-semibold text-dark">Draft</small>
                                             </button>
                                         </div>
                                     @endcan
 
                                     @can('create sale-order')
-                                        <div class="col-6">
-                                            <button type="button" class="btn btn-outline-success w-100 mobile-action-btn"
-                                                data-action="sale-order" data-bs-dismiss="modal">
-                                                <i class="fas fa-shopping-cart d-block mb-1"></i>
-                                                <small>Sale Order</small>
+                                        <div class="col-12" id="mobileSaleOrderBtnCol">
+                                            <button type="button" class="btn btn-success w-100 mobile-action-btn shadow-sm"
+                                                data-action="sale-order" data-bs-dismiss="modal"
+                                                style="border-radius: 12px; padding: 14px 16px;">
+                                                <i class="fas fa-shopping-cart me-2" style="font-size: 1.1rem;"></i>
+                                                <span class="fw-semibold">Create Sale Order</span>
                                             </button>
                                         </div>
                                     @endcan
 
                                     @can('create quotation')
-                                        <div class="col-6">
-                                            <button type="button" class="btn btn-outline-warning w-100 mobile-action-btn"
-                                                data-action="quotation" data-bs-dismiss="modal">
-                                                <i class="fas fa-file-alt d-block mb-1"></i>
-                                                <small>Quotation</small>
+                                        <div class="col-6" id="mobileQuotationBtnCol">
+                                            <button type="button" class="btn btn-light border w-100 mobile-action-btn shadow-sm"
+                                                data-action="quotation" data-bs-dismiss="modal"
+                                                style="border-radius: 12px; padding: 12px 8px;">
+                                                <i class="fas fa-file-alt text-warning d-block mb-1" style="font-size: 1.25rem;"></i>
+                                                <small class="fw-semibold text-dark">Quotation</small>
                                             </button>
                                         </div>
                                     @endcan
 
                                     @can('create job-ticket')
-                                        <div class="col-6">
+                                        <div class="col-6" id="mobileJobTicketBtnCol">
                                             <button type="button"
-                                                class="btn btn-outline-secondary w-100 mobile-action-btn"
-                                                data-action="job-ticket" data-bs-dismiss="modal">
-                                                <i class="fas fa-ticket-alt d-block mb-1"></i>
-                                                <small>Job Ticket</small>
+                                                class="btn btn-light border w-100 mobile-action-btn shadow-sm"
+                                                data-action="job-ticket" data-bs-dismiss="modal"
+                                                style="border-radius: 12px; padding: 12px 8px;">
+                                                <i class="fas fa-ticket-alt text-secondary d-block mb-1" style="font-size: 1.25rem;"></i>
+                                                <small class="fw-semibold text-dark">Job Ticket</small>
                                             </button>
                                         </div>
                                     @endcan
 
                                     @can('suspend sale')
-                                        <div class="col-6">
-                                            <button type="button" class="btn btn-outline-danger w-100 mobile-action-btn"
+                                        <div class="col-6" id="mobileSuspendBtnCol">
+                                            <button type="button" class="btn btn-light border w-100 mobile-action-btn shadow-sm"
                                                 data-action="suspend" data-bs-dismiss="modal" data-bs-toggle="modal"
-                                                data-bs-target="#suspendModal">
-                                                <i class="fas fa-pause d-block mb-1"></i>
-                                                <small>Suspend</small>
+                                                data-bs-target="#suspendModal"
+                                                style="border-radius: 12px; padding: 12px 8px;">
+                                                <i class="fas fa-pause text-danger d-block mb-1" style="font-size: 1.25rem;"></i>
+                                                <small class="fw-semibold text-dark">Suspend</small>
                                             </button>
                                         </div>
                                     @endcan
+                                </div>
 
-                                    <div class="col-12">
-                                        <button type="button" class="btn btn-outline-danger w-100"
-                                            id="mobile-cancel-button">
-                                            <i class="fas fa-times me-2"></i>Cancel Order
-                                        </button>
-                                    </div>
+                                <div class="mt-3">
+                                    <button type="button" class="btn btn-outline-secondary w-100"
+                                        id="mobile-cancel-button"
+                                        style="border-radius: 12px; padding: 12px 16px; border-width: 2px;">
+                                        <i class="fas fa-times-circle me-2"></i>
+                                        <span class="fw-semibold">Cancel Order</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>

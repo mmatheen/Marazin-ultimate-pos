@@ -230,12 +230,35 @@
         $('#locationSelect').on('change', handleLocationChange);
         $('#locationSelectDesktop').on('change', handleLocationChange);
 
-        // Ensure all buttons are visible by default (for non-sales rep users)
-        // Sales rep button visibility will be controlled by checkAndToggleSalesRepButtons()
-        setTimeout(() => {
-            if (!isSalesRep) {
-                showAllSalesRepButtons();
+        // Update mobile menu when modal opens
+        $(document).on('show.bs.modal', '#mobileMenuModal', function() {
+            if (isSalesRep) {
+                const selection = getSalesRepSelection();
+                if (selection && selection.vehicle && selection.route) {
+                    setTimeout(() => updateMobileSalesRepDisplay(selection), 100);
+                }
             }
+        });
+
+        // Control payment button visibility for sales reps
+        $(document).on('show.bs.modal', '#mobilePaymentModal', function() {
+            setTimeout(() => {
+                if (isSalesRep) {
+                    const locationSelect = document.getElementById('locationSelect');
+                    if (locationSelect && locationSelect.value) {
+                        checkAndToggleSalesRepButtons(locationSelect.value);
+                    } else {
+                        hideSalesRepButtonsExceptSaleOrder();
+                    }
+                } else {
+                    showAllSalesRepButtons();
+                }
+            }, 50);
+        });
+
+        // Show all buttons by default for non-sales reps
+        setTimeout(() => {
+            if (!isSalesRep) showAllSalesRepButtons();
         }, 1000);
 
         // Safely call fetchCategories with error handling
@@ -1027,6 +1050,11 @@
                 setTimeout(() => {
                     updateSalesRepDisplay(storedSelection);
 
+                    // Check if this is a parent location and hide buttons immediately
+                    if (storedSelection.vehicle && storedSelection.vehicle.id) {
+                        checkAndToggleSalesRepButtons(storedSelection.vehicle.id);
+                    }
+
                     // Also apply customer filtering immediately
                     setTimeout(() => {
                         filterCustomersByRoute(storedSelection);
@@ -1286,111 +1314,65 @@
                 }
 
                 if (validAssignment) {
-                    console.log('Valid assignment found, updating display');
-                    // Update selection with current assignment data but preserve existing route selection
                     const updatedSelection = {
-                        ...selection, // Preserve existing selection
+                        ...selection,
                         canSell: validAssignment.can_sell || selection.canSell || true
                     };
                     storeSalesRepSelection(updatedSelection);
 
-                    // Only update display if not already restored early
+                    // Update display only once
                     if (!window.hasStoredSalesRepSelection) {
                         updateSalesRepDisplay(updatedSelection);
-                    } else {
-                        // Just ensure the display has the correct data
-                        console.log('Display already restored, ensuring correct data is shown');
-                        setTimeout(() => updateSalesRepDisplay(updatedSelection), 100);
                     }
 
                     restrictLocationAccess(updatedSelection);
-                    // Apply customer filtering after a short delay
-                    setTimeout(() => {
-                        filterCustomersByRoute(updatedSelection);
-                    }, 1000); // Increased delay to ensure all other operations complete
+                    setTimeout(() => filterCustomersByRoute(updatedSelection), 1000);
                 } else {
-                    console.log(
-                        'No exact assignment match found, but selection exists - attempting to preserve selection'
-                    );
-                    // Instead of immediately clearing, try to use the existing selection
-                    // This handles cases where the backend data structure might have changed slightly
+                    // Attempt to preserve existing selection
                     if (selection && selection.vehicle && selection.route) {
-                        console.log('Preserving existing selection despite validation failure');
-                        // Set a default canSell value if not present
                         if (typeof selection.canSell === 'undefined') {
-                            selection.canSell = true; // Default to allow sales
+                            selection.canSell = true;
                         }
 
-                        // Check if the vehicle at least exists in assignments (more lenient check)
                         const vehicleExists = assignments.some(a =>
                             a.sub_location && a.sub_location.id === selection.vehicle.id
                         );
 
                         if (vehicleExists) {
-                            console.log('Vehicle found in assignments, preserving selection');
-                            // Try to update display with existing selection
                             try {
-                                // Only update display if not already restored early
                                 if (!window.hasStoredSalesRepSelection) {
                                     updateSalesRepDisplay(selection);
-                                } else {
-                                    console.log(
-                                        'Display already restored early, just ensuring customer filtering');
                                 }
-
                                 restrictLocationAccess(selection);
-                                // Apply customer filtering after a short delay
-                                setTimeout(() => {
-                                    filterCustomersByRoute(selection);
-                                }, 1000); // Increased delay
-                                console.log('Successfully preserved and applied existing selection');
+                                setTimeout(() => filterCustomersByRoute(selection), 1000);
                             } catch (error) {
-                                console.error('Error applying preserved selection:', error);
-                                // Only clear and show modal if there's an actual error
+                                console.error('Error applying selection:', error);
                                 clearSalesRepSelection();
-                                if (typeof showSalesRepModal === 'function') {
-                                    showSalesRepModal();
-                                }
+                                if (typeof showSalesRepModal === 'function') showSalesRepModal();
                             }
                         } else {
-                            console.log('Vehicle not found in current assignments, showing modal');
                             clearSalesRepSelection();
-                            if (typeof showSalesRepModal === 'function') {
-                                showSalesRepModal();
-                            }
+                            if (typeof showSalesRepModal === 'function') showSalesRepModal();
                         }
                     } else {
-                        console.log('Selection is invalid or incomplete, showing modal');
                         clearSalesRepSelection();
-                        if (typeof showSalesRepModal === 'function') {
-                            showSalesRepModal();
-                        } else {
-                            console.error('showSalesRepModal function not found');
-                        }
+                        if (typeof showSalesRepModal === 'function') showSalesRepModal();
                     }
                 }
             }
 
-            // Set up event listeners
             setupSalesRepEventListeners();
         }
 
         function setupSalesRepEventListeners() {
-            console.log('Setting up sales rep event listeners');
-
             // Listen for selection confirmation
             window.addEventListener('salesRepSelectionConfirmed', function(event) {
-                console.log('Sales rep selection confirmed event received:', event.detail);
                 const selection = event.detail;
-                salesRepCustomersFiltered = false; // Reset flag for new selection
-                salesRepCustomersLoaded = false; // Reset loaded flag to allow fresh filtering
+                salesRepCustomersFiltered = false;
+                salesRepCustomersLoaded = false;
                 updateSalesRepDisplay(selection);
                 restrictLocationAccess(selection);
-
-                // Filter customers but don't auto-select
-                setTimeout(() => {
-                    filterCustomersByRoute(selection);
-                }, 500);
+                setTimeout(() => filterCustomersByRoute(selection), 500);
             });
 
             // Change selection button (Desktop)
@@ -1488,29 +1470,65 @@
             });
         }
 
-        function updateSalesRepDisplay(selection) {
-            console.log('Updating sales rep display with selection:', selection);
+        /**
+         * Update mobile menu sales rep display
+         */
+        function updateMobileSalesRepDisplay(selection) {
+            if (!selection || !selection.vehicle || !selection.route) return;
 
+            const salesRepDisplayMenu = document.getElementById('salesRepDisplayMenu');
+            const selectedVehicleDisplayMenu = document.getElementById('selectedVehicleDisplayMenu');
+            const selectedRouteDisplayMenu = document.getElementById('selectedRouteDisplayMenu');
+            const salesAccessBadgeMenu = document.getElementById('salesAccessBadgeMenu');
+
+            if (!salesRepDisplayMenu || !selectedVehicleDisplayMenu || !selectedRouteDisplayMenu || !salesAccessBadgeMenu) {
+                console.error('❌ Mobile menu elements not found');
+                return;
+            }
+
+            const vehicleText = `${selection.vehicle.name} (${selection.vehicle.vehicle_number || 'N/A'})`;
+            const routeText = selection.route.name;
+
+            // Update text content
+            selectedVehicleDisplayMenu.textContent = vehicleText;
+            selectedRouteDisplayMenu.textContent = routeText;
+
+            // Force visibility with inline styles
+            selectedVehicleDisplayMenu.setAttribute('style', 'display: inline-block !important; visibility: visible !important; opacity: 1 !important;');
+            selectedRouteDisplayMenu.setAttribute('style', 'display: inline-block !important; visibility: visible !important; opacity: 1 !important;');
+            salesAccessBadgeMenu.setAttribute('style', 'display: inline-block !important; visibility: visible !important; opacity: 1 !important;');
+
+            // Update access badge
+            if (selection.canSell) {
+                salesAccessBadgeMenu.className = 'badge bg-success';
+                salesAccessBadgeMenu.textContent = 'Sales Allowed';
+            } else {
+                salesAccessBadgeMenu.className = 'badge bg-warning text-dark';
+                salesAccessBadgeMenu.textContent = 'View Only';
+            }
+
+            // Show container
+            salesRepDisplayMenu.setAttribute('style', 'display: block !important; visibility: visible !important;');
+
+            console.log('✅ Mobile menu updated:', { vehicle: vehicleText, route: routeText });
+        }
+
+        /**
+         * Update desktop sales rep display
+         */
+        function updateDesktopSalesRepDisplay(selection) {
             const salesRepDisplay = document.getElementById('salesRepDisplay');
             const selectedVehicleDisplay = document.getElementById('selectedVehicleDisplay');
             const selectedRouteDisplay = document.getElementById('selectedRouteDisplay');
             const salesAccessBadge = document.getElementById('salesAccessBadge');
             const salesAccessText = document.getElementById('salesAccessText');
 
-            if (!salesRepDisplay) {
-                console.error('Sales rep display element not found, retrying...');
-                // Retry after DOM elements are fully loaded
-                setTimeout(() => updateSalesRepDisplay(selection), 500);
+            if (!salesRepDisplay || !selectedVehicleDisplay || !selectedRouteDisplay) {
+                console.error('Desktop display elements not found');
                 return;
             }
 
-            if (!selectedVehicleDisplay || !selectedRouteDisplay) {
-                console.error('Sales rep display child elements not found, retrying...');
-                setTimeout(() => updateSalesRepDisplay(selection), 500);
-                return;
-            }
-
-            // Update display text with proper fallbacks
+            // Update display text
             selectedVehicleDisplay.textContent = selection.vehicle && selection.vehicle.name ?
                 `${selection.vehicle.name} (${selection.vehicle.vehicle_number || 'N/A'})` : 'Unknown Vehicle';
             selectedRouteDisplay.textContent = selection.route && selection.route.name ?
@@ -1526,99 +1544,43 @@
                 }
             }
 
-            // Show the display with proper flex styling and special class
+            // Show desktop display
             salesRepDisplay.style.display = 'flex';
             salesRepDisplay.classList.add('d-flex', 'sales-rep-visible');
             salesRepDisplay.classList.remove('d-none');
 
-            // Also update mobile menu display
-            const salesRepDisplayMenu = document.getElementById('salesRepDisplayMenu');
-            const selectedVehicleDisplayMenu = document.getElementById('selectedVehicleDisplayMenu');
-            const selectedRouteDisplayMenu = document.getElementById('selectedRouteDisplayMenu');
-            const salesAccessBadgeMenu = document.getElementById('salesAccessBadgeMenu');
+            console.log('✅ Desktop display updated');
+        }
 
-            console.log('Mobile menu elements found:', {
-                salesRepDisplayMenu: !!salesRepDisplayMenu,
-                selectedVehicleDisplayMenu: !!selectedVehicleDisplayMenu,
-                selectedRouteDisplayMenu: !!selectedRouteDisplayMenu,
-                salesAccessBadgeMenu: !!salesAccessBadgeMenu
-            });
+        /**
+         * Update both desktop and mobile sales rep displays
+         */
+        function updateSalesRepDisplay(selection) {
+            if (!selection || !selection.vehicle || !selection.route) return;
 
-            if (salesRepDisplayMenu && selectedVehicleDisplayMenu && selectedRouteDisplayMenu && salesAccessBadgeMenu) {
-                // Prepare vehicle text
-                const vehicleText = selection.vehicle && selection.vehicle.name ?
-                    `${selection.vehicle.name} (${selection.vehicle.vehicle_number || 'N/A'})` : 'Unknown Vehicle';
-                const routeText = selection.route && selection.route.name ?
-                    selection.route.name : 'Unknown Route';
+            // Update desktop and mobile displays
+            updateDesktopSalesRepDisplay(selection);
+            updateMobileSalesRepDisplay(selection);
 
-                console.log('Updating mobile menu with:', {
-                    vehicle: vehicleText,
-                    route: routeText,
-                    canSell: selection.canSell
-                });
-
-                // Update mobile menu text
-                selectedVehicleDisplayMenu.textContent = vehicleText;
-                selectedRouteDisplayMenu.textContent = routeText;
-
-                // Update access badge for mobile
-                if (selection.canSell) {
-                    salesAccessBadgeMenu.className = 'badge bg-success';
-                    salesAccessBadgeMenu.textContent = 'Sales Allowed';
-                } else {
-                    salesAccessBadgeMenu.className = 'badge bg-warning text-dark';
-                    salesAccessBadgeMenu.textContent = 'View Only';
-                }
-
-                // Show mobile menu display
-                salesRepDisplayMenu.style.display = 'block';
-
-                console.log('Mobile menu sales rep display updated and shown');
-                console.log('Mobile menu display style:', salesRepDisplayMenu.style.display);
-                console.log('Vehicle text set to:', selectedVehicleDisplayMenu.textContent);
-                console.log('Route text set to:', selectedRouteDisplayMenu.textContent);
-            } else {
-                console.error('One or more mobile menu elements not found!');
-            }
-
-            console.log('Sales rep display updated and made visible with data:', {
-                vehicle: selection.vehicle?.name,
-                route: selection.route?.name,
-                canSell: selection.canSell
-            });
-
-            // Store the selection to localStorage for better persistence across page refreshes
+            // Store selection for persistence
             try {
                 localStorage.setItem('salesRepSelection', JSON.stringify(selection));
-                console.log('Sales rep selection stored in localStorage for persistence');
             } catch (e) {
-                console.warn('Failed to store selection in localStorage:', e);
+                console.warn('Failed to store selection:', e);
             }
 
-            // Filter customers only if not already loaded for this session
+            // Filter customers if not already loaded
             if (!salesRepCustomersLoaded) {
-                setTimeout(() => {
-                    filterCustomersByRoute(selection);
-                }, 500);
-            } else {
-                console.log('Customers already loaded, skipping filter in updateSalesRepDisplay');
+                setTimeout(() => filterCustomersByRoute(selection), 500);
             }
         }
 
         function restrictLocationAccess(selection) {
-            console.log('Restricting location access for sales rep');
-            console.log('Sales rep has access to assigned vehicle and parent location');
-
-            // *** SKIP AUTO-SELECTION IN EDIT MODE ***
-            // When editing a sale, the location is already set from the sale data
-            // Auto-selecting the vehicle would override the correct location
+            // Skip auto-selection in edit mode
             if (isEditing) {
-                console.log('⏭️ Edit mode active - Skipping auto-selection of vehicle location');
+                console.log('⏭️ Edit mode - Skipping auto-selection');
                 return;
             }
-
-            // For sales reps, the backend already returns both sub-locations and parent locations
-            // Ensure locations are loaded (use cache or fetch) before auto-selecting
 
             const autoSelectVehicle = () => {
                 const locationSelect = document.getElementById('locationSelect');
@@ -2663,38 +2625,104 @@
          * Hide all payment buttons except Sale Order for sales rep on parent location
          */
         function hideSalesRepButtonsExceptSaleOrder() {
-            // Hide all buttons except Sale Order
-            $('#draftButton').hide();
-            $('#quotationButton').hide();
-            $('#suspendButton, button[data-bs-target="#suspendModal"]').hide();
-            $('#creditSaleButton').hide();
-            $('#cardButton').hide();
-            $('#chequeButton').hide();
-            $('#cashButton').hide();
-            $('button[data-bs-target="#paymentModal"]').hide(); // Multiple Pay button
+            console.log('🔒 Hiding all payment buttons except Sale Order (Sales Rep - Parent Location)');
 
-            // Show Sale Order button
-            $('#saleOrderButton').show();
+            // Hide all desktop buttons except Sale Order using CSS class
+            $('#draftButton').addClass('sales-rep-hide-payment');
+            $('#quotationButton').addClass('sales-rep-hide-payment');
+            $('#suspendButton, button[data-bs-target="#suspendModal"]').addClass('sales-rep-hide-payment');
+            $('#creditSaleButton').addClass('sales-rep-hide-payment');
+            $('#cardButton').addClass('sales-rep-hide-payment');
+            $('#chequeButton').addClass('sales-rep-hide-payment');
+            $('#cashButton').addClass('sales-rep-hide-payment');
+            $('button[data-bs-target="#paymentModal"]').addClass('sales-rep-hide-payment');
 
-            console.log('✅ Only Sale Order button visible for parent location');
+            // Hide mobile payment buttons using CSS class with IDs
+            $('#mobileCashBtn').addClass('sales-rep-hide-payment');
+            $('#mobileCardBtn').addClass('sales-rep-hide-payment');
+            $('#mobileChequeBtn').addClass('sales-rep-hide-payment');
+            $('#mobileCreditBtn').addClass('sales-rep-hide-payment');
+            $('#mobileMultiplePayBtn').addClass('sales-rep-hide-payment');
+
+            // Also add class using selectors as backup
+            $('.mobile-payment-btn[data-payment="cash"]').addClass('sales-rep-hide-payment');
+            $('.mobile-payment-btn[data-payment="card"]').addClass('sales-rep-hide-payment');
+            $('.mobile-payment-btn[data-payment="cheque"]').addClass('sales-rep-hide-payment');
+            $('.mobile-payment-btn[data-payment="credit"]').addClass('sales-rep-hide-payment');
+            $('.mobile-payment-btn[data-payment="multiple"]').addClass('sales-rep-hide-payment');
+
+            // Hide mobile action buttons except Sale Order using CSS class
+            $('#mobileDraftBtnCol').addClass('sales-rep-hide-payment');
+            $('#mobileQuotationBtnCol').addClass('sales-rep-hide-payment');
+            $('#mobileJobTicketBtnCol').addClass('sales-rep-hide-payment');
+            $('#mobileSuspendBtnCol').addClass('sales-rep-hide-payment');
+
+            // Also add class using selectors as backup
+            $('.mobile-action-btn[data-action="draft"]').parent().addClass('sales-rep-hide-payment');
+            $('.mobile-action-btn[data-action="quotation"]').parent().addClass('sales-rep-hide-payment');
+            $('.mobile-action-btn[data-action="job-ticket"]').parent().addClass('sales-rep-hide-payment');
+            $('.mobile-action-btn[data-action="suspend"]').parent().addClass('sales-rep-hide-payment');
+
+            // Show Sale Order button (desktop and mobile) - remove hide class and add show class
+            $('#saleOrderButton').removeClass('sales-rep-hide-payment').addClass('sales-rep-show-sale-order');
+            $('#mobileSaleOrderBtnCol').removeClass('sales-rep-hide-payment').addClass('sales-rep-show-sale-order');
+            $('.mobile-action-btn[data-action="sale-order"]').parent().removeClass('sales-rep-hide-payment').addClass('sales-rep-show-sale-order');
+
+            // Log current visibility state for debugging
+            console.log('✅ Mobile Payment Buttons Status:', {
+                cashHidden: $('#mobileCashBtn').hasClass('sales-rep-hide-payment'),
+                cardHidden: $('#mobileCardBtn').hasClass('sales-rep-hide-payment'),
+                creditHidden: $('#mobileCreditBtn').hasClass('sales-rep-hide-payment'),
+                saleOrderVisible: $('#mobileSaleOrderBtnCol').hasClass('sales-rep-show-sale-order')
+            });
+
+            console.log('✅ Only Sale Order button visible for parent location (desktop & mobile)');
         }
 
         /**
          * Show all buttons for sales rep when sub-location is selected
          */
         function showAllSalesRepButtons() {
-            // Show all buttons
-            $('#draftButton').show();
-            $('#quotationButton').show();
-            $('#suspendButton, button[data-bs-target="#suspendModal"]').show();
-            $('#creditSaleButton').show();
-            $('#cardButton').show();
-            $('#chequeButton').show();
-            $('#cashButton').show();
-            $('button[data-bs-target="#paymentModal"]').show(); // Multiple Pay button
-            $('#saleOrderButton').show();
+            // Remove hide class from all desktop buttons
+            $('#draftButton').removeClass('sales-rep-hide-payment');
+            $('#quotationButton').removeClass('sales-rep-hide-payment');
+            $('#suspendButton, button[data-bs-target="#suspendModal"]').removeClass('sales-rep-hide-payment');
+            $('#creditSaleButton').removeClass('sales-rep-hide-payment');
+            $('#cardButton').removeClass('sales-rep-hide-payment');
+            $('#chequeButton').removeClass('sales-rep-hide-payment');
+            $('#cashButton').removeClass('sales-rep-hide-payment');
+            $('button[data-bs-target="#paymentModal"]').removeClass('sales-rep-hide-payment');
+            $('#saleOrderButton').removeClass('sales-rep-hide-payment');
 
-            console.log('✅ All buttons visible for sub-location');
+            // Remove hide class from mobile payment buttons using IDs
+            $('#mobileCashBtn').removeClass('sales-rep-hide-payment');
+            $('#mobileCardBtn').removeClass('sales-rep-hide-payment');
+            $('#mobileChequeBtn').removeClass('sales-rep-hide-payment');
+            $('#mobileCreditBtn').removeClass('sales-rep-hide-payment');
+            $('#mobileMultiplePayBtn').removeClass('sales-rep-hide-payment');
+
+            // Also remove class using selectors as backup
+            $('.mobile-payment-btn[data-payment="cash"]').removeClass('sales-rep-hide-payment');
+            $('.mobile-payment-btn[data-payment="card"]').removeClass('sales-rep-hide-payment');
+            $('.mobile-payment-btn[data-payment="cheque"]').removeClass('sales-rep-hide-payment');
+            $('.mobile-payment-btn[data-payment="credit"]').removeClass('sales-rep-hide-payment');
+            $('.mobile-payment-btn[data-payment="multiple"]').removeClass('sales-rep-hide-payment');
+
+            // Remove hide class from mobile action buttons using IDs
+            $('#mobileDraftBtnCol').removeClass('sales-rep-hide-payment');
+            $('#mobileSaleOrderBtnCol').removeClass('sales-rep-hide-payment');
+            $('#mobileQuotationBtnCol').removeClass('sales-rep-hide-payment');
+            $('#mobileJobTicketBtnCol').removeClass('sales-rep-hide-payment');
+            $('#mobileSuspendBtnCol').removeClass('sales-rep-hide-payment');
+
+            // Also remove class using selectors as backup
+            $('.mobile-action-btn[data-action="draft"]').parent().removeClass('sales-rep-hide-payment');
+            $('.mobile-action-btn[data-action="quotation"]').parent().removeClass('sales-rep-hide-payment');
+            $('.mobile-action-btn[data-action="job-ticket"]').parent().removeClass('sales-rep-hide-payment');
+            $('.mobile-action-btn[data-action="suspend"]').parent().removeClass('sales-rep-hide-payment');
+            $('.mobile-action-btn[data-action="sale-order"]').parent().removeClass('sales-rep-hide-payment');
+
+            console.log('✅ All buttons visible for sub-location (desktop & mobile)');
         }
 
         // Request retry tracking
