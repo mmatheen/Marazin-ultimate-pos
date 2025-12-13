@@ -136,14 +136,14 @@ class ProductController extends Controller
 
             // API always returns JSON
             return response()->json($responseData);
-            
+
         } catch (\Exception $e) {
             Log::error('Error in API getStockHistory: ' . $e->getMessage(), [
                 'product_id' => $productId,
                 'location_id' => $locationId,
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'error' => 'Error loading stock history: ' . $e->getMessage(),
                 'product' => null,
@@ -162,10 +162,10 @@ class ProductController extends Controller
             $subCategories = SubCategory::with('mainCategory')->get();
             $brands = Brand::all();
             $units = Unit::all();
-            
+
             // Use proper location filtering instead of Location::all()
             $locations = $this->getUserAccessibleLocations(auth()->user());
-            
+
             // Add selection flags for frontend
             $locationsWithSelection = $locations->map(function($location) use ($locations) {
                 return [
@@ -174,7 +174,7 @@ class ProductController extends Controller
                     'selected' => $locations->count() === 1 // Auto-select if only one location
                 ];
             });
-            
+
             Log::info('API initialProductDetails called', [
                 'user_id' => auth()->id(),
                 'locations_count' => $locations->count(),
@@ -205,14 +205,14 @@ class ProductController extends Controller
                 'user_id' => auth()->id(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'status' => 500,
                 'message' => 'Error loading product details'
             ]);
         }
     }
-    
+
     /**
      * Get locations accessible to the current user
      */
@@ -222,16 +222,16 @@ class ProductController extends Controller
             Log::warning('getUserAccessibleLocations called with null user (API)');
             return collect([]); // Return empty collection if no user
         }
-        
+
         // Load user roles if not already loaded
         if (!$user->relationLoaded('roles')) {
             $user->load('roles');
         }
-        
+
         // Check if user is Master Super Admin or has bypass permission
-        $isMasterSuperAdmin = $user->roles->pluck('name')->contains('Master Super Admin') || 
+        $isMasterSuperAdmin = $user->roles->pluck('name')->contains('Master Super Admin') ||
                               $user->roles->pluck('key')->contains('master_super_admin');
-        
+
         $hasBypassPermission = false;
         foreach ($user->roles as $role) {
             if ($role->bypass_location_scope ?? false) {
@@ -239,7 +239,7 @@ class ProductController extends Controller
                 break;
             }
         }
-        
+
         if (!$hasBypassPermission) {
             try {
                 $hasBypassPermission = $user->hasPermissionTo('override location scope');
@@ -248,14 +248,14 @@ class ProductController extends Controller
                 $hasBypassPermission = false;
             }
         }
-        
+
         Log::info('API Location access check', [
             'user_id' => $user->id,
             'is_master_super_admin' => $isMasterSuperAdmin,
             'has_bypass_permission' => $hasBypassPermission,
             'user_roles' => $user->roles->pluck('name')->toArray()
         ]);
-        
+
         if ($isMasterSuperAdmin || $hasBypassPermission) {
             // Master Super Admin or users with bypass permission see all locations
             $locations = Location::select('id', 'name')->get();
@@ -268,7 +268,7 @@ class ProductController extends Controller
                 ->where('location_user.user_id', $user->id)
                 ->get();
             Log::info('API Regular user, returning assigned locations', [
-                'user_id' => $user->id, 
+                'user_id' => $user->id,
                 'count' => $locations->count(),
                 'locations' => $locations->toArray()
             ]);
@@ -523,7 +523,7 @@ class ProductController extends Controller
                         return (int)$sku;
                     })
                     ->toArray();
-                
+
                 // Find the first gap in the sequence
                 $nextSkuNumber = 1;
                 foreach ($existingSkus as $existingSku) {
@@ -534,9 +534,9 @@ class ProductController extends Controller
                         break;
                     }
                 }
-                
+
                 $generatedSku = str_pad($nextSkuNumber, 4, '0', STR_PAD_LEFT);
-                
+
                 Log::info('API auto-generated SKU (gap-filling)', [
                     'existing_skus' => $existingSkus,
                     'next_number' => $nextSkuNumber,
@@ -645,12 +645,12 @@ class ProductController extends Controller
             'batches' => $batches->flatMap(function ($batch) use ($allowDecimal) {
                 return $batch->locationBatches->map(function ($locationBatch) use ($batch, $allowDecimal) {
                     $location = Location::find($locationBatch->location_id);
-                    
+
                     // Format quantity based on unit's allow_decimal property
-                    $formattedQuantity = $allowDecimal 
+                    $formattedQuantity = $allowDecimal
                         ? number_format((float)$locationBatch->qty, 2, '.', '')
                         : (int)$locationBatch->qty;
-                    
+
                     return [
                         'batch_id' => $locationBatch->batch_id,
                         'location_id' => $locationBatch->location_id,
@@ -816,22 +816,22 @@ class ProductController extends Controller
         // Determine which format to use based on the request data
         $hasLocationId = $request->has('location_id') && $request->filled('location_id');
         $hasBatches = $request->has('batches');
-        
+
         Log::info("API Detection: hasLocationId={$hasLocationId}, hasBatches={$hasBatches}");
 
         // Priority logic:
         // 1. If request has location_id, use new format (intelligent batch selection)
         // 2. If request has batches array with valid structure, use old format
         // 3. Otherwise, use new format as default
-        
+
         if ($hasLocationId) {
             Log::info('API Using new format (intelligent batch selection) - location_id present');
             return $this->saveOrUpdateImeiNewFormat($request);
         } elseif ($hasBatches && is_array($request->batches) && !empty($request->batches)) {
             // Validate that batches have proper structure
-            $hasValidBatchStructure = isset($request->batches[0]['batch_id']) && 
+            $hasValidBatchStructure = isset($request->batches[0]['batch_id']) &&
                                     isset($request->batches[0]['location_id']);
-            
+
             if ($hasValidBatchStructure) {
                 Log::info('API Using old format (manual batch assignment) - valid batches structure');
                 return $this->saveOrUpdateImeiOldFormat($request);
@@ -866,7 +866,7 @@ class ProductController extends Controller
         try {
             $operation = 'save'; // Default to save
             $savedCount = 0;
-            
+
             DB::transaction(function () use ($request, &$operation, &$savedCount) {
                 $validImeis = collect($request->imeis)
                     ->filter(fn($imei) => $imei !== null && trim($imei) !== '')
@@ -943,7 +943,7 @@ class ProductController extends Controller
                         ]);
                     }
                 }
-                
+
                 Log::info("API Transaction completed", [
                     'total_processed' => count($batchAssignments),
                     'saved_count' => $savedCount,
@@ -1131,7 +1131,7 @@ class ProductController extends Controller
             // Assign IMEIs to this batch ONLY up to exact available capacity
             $imeisToAssignCount = min($exactAvailableCapacity, count($remainingImeis));
             $imeisToAssign = array_slice($remainingImeis, 0, $imeisToAssignCount);
-            
+
             Log::info("API EXACT assignment to batch", [
                 'batch_id' => $batch->batch_id,
                 'batch_no' => $batch->batch_no,
@@ -1139,7 +1139,7 @@ class ProductController extends Controller
                 'imeis_to_assign_count' => $imeisToAssignCount,
                 'imeis_to_assign' => $imeisToAssign
             ]);
-            
+
             foreach ($imeisToAssign as $imei) {
                 $assignments[] = [
                     'imei' => $imei,
@@ -1150,7 +1150,7 @@ class ProductController extends Controller
 
             // Remove assigned IMEIs from remaining list
             $remainingImeis = array_slice($remainingImeis, $imeisToAssignCount);
-            
+
             Log::info("API Batch assignment completed", [
                 'batch_id' => $batch->batch_id,
                 'assigned_count' => $imeisToAssignCount,
@@ -1169,7 +1169,7 @@ class ProductController extends Controller
                     ->count();
                 return max(0, $batch->available_qty - $existingAvailableCount);
             });
-            
+
             Log::error("API Insufficient total batch capacity", [
                 'unassigned_count' => $unassignedCount,
                 'total_available_capacity' => $totalAvailableCapacity,
@@ -1177,7 +1177,7 @@ class ProductController extends Controller
                 'product_id' => $productId,
                 'location_id' => $locationId
             ]);
-            
+
             throw new \Exception("Insufficient batch capacity. Cannot assign {$unassignedCount} IMEI(s). Total available capacity: {$totalAvailableCapacity}. Please add more stock or use a different location.");
         }
 
@@ -1255,7 +1255,7 @@ class ProductController extends Controller
      public function getImeis($productId, Request $request)
     {
         $locationId = $request->input('location_id');
-        
+
         // Get the product info
         $product = Product::find($productId);
         if (!$product) {
@@ -1264,15 +1264,15 @@ class ProductController extends Controller
                 'message' => 'Product not found'
             ], 404);
         }
-        
+
         $query = ImeiNumber::where('product_id', $productId)
             ->with(['location:id,name', 'batch:id,batch_no']);
-            
+
         // Filter by location if provided
         if ($locationId && $locationId !== '') {
             $query->where('location_id', $locationId);
         }
-        
+
         $imeis = $query->get()->map(function ($imei) {
             return [
                 'id' => $imei->id,
@@ -1350,11 +1350,11 @@ class ProductController extends Controller
             $perPageDataTable = $request->input('length', 100); // DataTable uses 'length'
             $startDataTable = $request->input('start', 0);
             $pageDataTable = intval($startDataTable / $perPageDataTable) + 1;
-            
+
             // Standard pagination params (for POS)
             $perPageStandard = $request->input('per_page', 24);
             $pageStandard = $request->input('page', 1);
-            
+
             // Use standard pagination if 'per_page' or 'page' parameters are provided
             $perPage = $request->has('per_page') || $request->has('page') ? $perPageStandard : $perPageDataTable;
             $page = $request->has('per_page') || $request->has('page') ? $pageStandard : $pageDataTable;
@@ -1488,11 +1488,11 @@ class ProductController extends Controller
             // Load IMEIs grouped by product ID (filter by location if specified)
             $imeisQuery = ImeiNumber::whereIn('product_id', $productIds)
                 ->with(['location:id,name']);
-            
+
             if ($locationId) {
                 $imeisQuery->where('location_id', $locationId);
             }
-            
+
             $imeis = $imeisQuery->get()->groupBy('product_id');
 
             // Prepare response data
@@ -1505,7 +1505,7 @@ class ProductController extends Controller
                 $filteredBatches = $productBatches->filter(function ($batch) use ($locationId) {
                     if ($locationId) {
                         // If location is specified, only include batches that have stock in that location
-                        return $batch->locationBatches->isNotEmpty() && 
+                        return $batch->locationBatches->isNotEmpty() &&
                                $batch->locationBatches->where('location_id', $locationId)->isNotEmpty();
                     } else {
                         // If no location specified, include all batches with any location stock
@@ -1534,7 +1534,7 @@ class ProductController extends Controller
                         })
                     );
                 }
-                
+
                 if ($allowDecimal) {
                     $totalStock = round($totalStock, 2);
                 } else {
@@ -1605,7 +1605,7 @@ class ProductController extends Controller
                     'total_stock' => $totalStock,
                     'batches' => $filteredBatches->map(function ($batch) use ($allowDecimal, $locationId) {
                         // Filter location batches based on location filter
-                        $locationBatches = $locationId 
+                        $locationBatches = $locationId
                             ? $batch->locationBatches->where('location_id', $locationId)
                             : $batch->locationBatches;
 
@@ -1631,7 +1631,7 @@ class ProductController extends Controller
                             })
                         ];
                     }),
-                    'locations' => $locationId ? 
+                    'locations' => $locationId ?
                         // If location filter is applied, show the filtered location data
                         $filteredBatches->flatMap(function($batch) {
                             return $batch->locationBatches->map(function($lb) {
@@ -1642,7 +1642,7 @@ class ProductController extends Controller
                                 ];
                             });
                         })->unique('location_id')->values()->toArray() :
-                        // If no location filter, show all locations where this product exists  
+                        // If no location filter, show all locations where this product exists
                         $filteredBatches->flatMap(function($batch) {
                             return $batch->locationBatches->map(function($lb) {
                                 return [
@@ -1745,44 +1745,87 @@ class ProductController extends Controller
         });
 
         if ($search) {
+            // Include IMEI search - First check if any products have matching IMEI numbers
+            $imeiQuery = ImeiNumber::where('imei_number', 'like', "%{$search}%");
+            if ($locationId) {
+                $imeiQuery->where('location_id', $locationId);
+            }
+            $productsWithMatchingImei = $imeiQuery->pluck('product_id')->toArray();
+
             // Use ORDER BY with CASE statements to prioritize exact matches
-            $query->where(function ($q) use ($search) {
+            $query->where(function ($q) use ($search, $productsWithMatchingImei) {
                 $q->where('product_name', 'like', "%{$search}%")
                     ->orWhere('sku', 'like', "%{$search}%")
                     ->orWhere('description', 'like', "%{$search}%");
-            })->orderByRaw("
-                CASE 
-                    WHEN sku = ? THEN 1
-                    WHEN LOWER(product_name) = LOWER(?) THEN 2
-                    WHEN sku LIKE ? THEN 3
-                    WHEN LOWER(product_name) LIKE LOWER(?) THEN 4
-                    WHEN description LIKE ? THEN 5
-                    ELSE 6
-                END,
-                CHAR_LENGTH(sku) ASC,
-                product_name ASC
-            ", [
-                $search,                    // Exact SKU match (priority 1)
-                $search,                    // Exact product name match (priority 2)
-                $search . '%',              // SKU starts with search term (priority 3)
-                $search . '%',              // Product name starts with search term (priority 4)
-                '%' . $search . '%'         // Description contains search term (priority 5)
-            ]);
+
+                // Add IMEI search condition
+                if (!empty($productsWithMatchingImei)) {
+                    $q->orWhereIn('id', $productsWithMatchingImei);
+                }
+            });
+
+            // Build order by clause with IMEI priority if applicable
+            // Priority: IMEI match > Exact SKU > Exact Name > SKU starts with > Name starts with > Name contains > Description contains
+            if (!empty($productsWithMatchingImei)) {
+                $query->orderByRaw("
+                    CASE
+                        WHEN id IN (" . implode(',', array_fill(0, count($productsWithMatchingImei), '?')) . ") THEN 0
+                        WHEN sku = ? THEN 1
+                        WHEN LOWER(product_name) = LOWER(?) THEN 2
+                        WHEN sku LIKE ? THEN 3
+                        WHEN LOWER(product_name) LIKE LOWER(?) THEN 4
+                        WHEN LOWER(product_name) LIKE LOWER(?) THEN 5
+                        WHEN description LIKE ? THEN 6
+                        ELSE 7
+                    END,
+                    CHAR_LENGTH(product_name) ASC,
+                    product_name ASC
+                ", array_merge($productsWithMatchingImei, [
+                    $search,                    // Exact SKU match (priority 1)
+                    $search,                    // Exact product name match (priority 2)
+                    $search . '%',              // SKU starts with search term (priority 3)
+                    $search . '%',              // Product name starts with search term (priority 4)
+                    '%' . $search . '%',        // Product name contains search term (priority 5)
+                    '%' . $search . '%'         // Description contains search term (priority 6)
+                ]));
+            } else {
+                $query->orderByRaw("
+                    CASE
+                        WHEN sku = ? THEN 1
+                        WHEN LOWER(product_name) = LOWER(?) THEN 2
+                        WHEN sku LIKE ? THEN 3
+                        WHEN LOWER(product_name) LIKE LOWER(?) THEN 4
+                        WHEN LOWER(product_name) LIKE LOWER(?) THEN 5
+                        WHEN description LIKE ? THEN 6
+                        ELSE 7
+                    END,
+                    CHAR_LENGTH(product_name) ASC,
+                    product_name ASC
+                ", [
+                    $search,                    // Exact SKU match (priority 1)
+                    $search,                    // Exact product name match (priority 2)
+                    $search . '%',              // SKU starts with search term (priority 3)
+                    $search . '%',              // Product name starts with search term (priority 4)
+                    '%' . $search . '%',        // Product name contains search term (priority 5)
+                    '%' . $search . '%'         // Description contains search term (priority 6)
+                ]);
+            }
         } else {
             $query->orderBy('product_name', 'ASC');
         }
 
-        $products = $query->take($perPage)->get();
+        // Increase result limit to ensure we get all matching products, especially for partial matches
+        $products = $query->take($perPage * 3)->get();
 
         // Get product IDs for IMEI filtering
         $productIds = $products->pluck('id');
         $imeisQuery = ImeiNumber::whereIn('product_id', $productIds)
             ->with(['location:id,name']);
-            
+
         if ($locationId) {
             $imeisQuery->where('location_id', $locationId);
         }
-        
+
         $imeis = $imeisQuery->get()->groupBy('product_id');
 
         $results = $products->map(function ($product) use ($locationId, $imeis) {
@@ -1792,7 +1835,7 @@ class ProductController extends Controller
             $filteredBatches = $productBatches->filter(function ($batch) use ($locationId) {
                 if ($locationId) {
                     // If location is specified, only include batches that have stock in that location
-                    return $batch->locationBatches->isNotEmpty() && 
+                    return $batch->locationBatches->isNotEmpty() &&
                            $batch->locationBatches->where('location_id', $locationId)->isNotEmpty();
                 } else {
                     // If no location specified, include all batches with any location stock
@@ -1819,7 +1862,7 @@ class ProductController extends Controller
                     });
                 });
             }
-            
+
             if ($allowDecimal) {
                 $totalStock = round($totalStock, 2);
             } else {
@@ -1888,7 +1931,7 @@ class ProductController extends Controller
                 'total_stock' => $product->stock_alert == 0 ? 'Unlimited' : $totalStock,
                 'batches' => $filteredBatches->map(function ($batch) use ($allowDecimal, $locationId) {
                     // Filter location batches based on location filter
-                    $locationBatches = $locationId 
+                    $locationBatches = $locationId
                         ? $batch->locationBatches->where('location_id', $locationId)
                         : $batch->locationBatches;
 
@@ -1924,9 +1967,12 @@ class ProductController extends Controller
             ];
         });
 
+        // Limit results to requested per_page after sorting and filtering
+        $limitedResults = $results->take($perPage);
+
         return response()->json([
             'status' => 200,
-            'data' => $results,
+            'data' => $limitedResults->values(),
         ]);
     }
 
@@ -2063,7 +2109,7 @@ class ProductController extends Controller
             $result = DB::transaction(function () use ($id) {
                 $product = Product::with([
                     'batches.salesProducts',
-                    'batches.purchaseProducts', 
+                    'batches.purchaseProducts',
                     'batches.purchaseReturns',
                     'batches.saleReturns',
                     'batches.stockAdjustments',
@@ -2159,7 +2205,7 @@ class ProductController extends Controller
                 'product_id' => $id,
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'status' => 500,
                 'message' => "Error deleting product: " . $e->getMessage()
@@ -2195,7 +2241,7 @@ class ProductController extends Controller
         // Verify that the selected location is assigned to the current user
         $user = auth()->user();
         $selectedLocationId = $request->input('import_location');
-        
+
         // Check user access to the selected location
         $userLocationIds = $user->locations->pluck('id')->toArray();
         if (!in_array($selectedLocationId, $userLocationIds)) {
@@ -2441,13 +2487,13 @@ class ProductController extends Controller
     {
         try {
             $product = Product::findOrFail($id);
-            
+
             // Toggle the is_active status
             $product->is_active = !$product->is_active;
             $product->save();
-            
+
             $statusText = $product->is_active ? 'activated' : 'deactivated';
-            
+
             return response()->json([
                 'success' => true,
                 'message' => "Product has been {$statusText} successfully!",

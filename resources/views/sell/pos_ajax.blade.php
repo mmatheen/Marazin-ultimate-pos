@@ -2474,7 +2474,8 @@
                 }
             }
 
-            const url = `/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=${perPage}`;
+            // Add stock_status=in_stock filter for POS to only show products with stock
+            const url = `/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=${perPage}&stock_status=in_stock`;
 
             // Add CSRF token and headers to prevent 419 errors
             const fetchOptions = {
@@ -2689,10 +2690,11 @@
                 const batches = normalizeBatches(stock);
 
                 if (!batches || batches.length === 0) {
+                    console.log(`Product ${stock.product?.product_name || 'Unknown'} filtered out: No batches`);
                     return false;
                 }
 
-                return batches.some(batch =>
+                const hasStock = batches.some(batch =>
                     Array.isArray(batch.location_batches) && batch.location_batches.some(lb =>
                         lb.location_id == selectedLocationId &&
                         (
@@ -2707,7 +2709,15 @@
                         )
                     )
                 );
+
+                if (!hasStock) {
+                    console.log(`Product ${stock.product?.product_name || 'Unknown'} filtered out: No stock at location ${selectedLocationId}`);
+                }
+
+                return hasStock;
             });
+
+            console.log(`displayProducts: Total products received: ${products.length}, After filtering: ${filteredProducts.length}, Append mode: ${append}`);
 
             filteredProducts.forEach(stock => {
                 const product = stock.product;
