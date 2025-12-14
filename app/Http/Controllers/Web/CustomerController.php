@@ -15,6 +15,7 @@ use App\Models\Location; // Ensure Location model is imported
 use App\Models\User; // Ensure User model is imported
 use App\Exports\CustomerExport;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Helpers\BalanceHelper;
 
 class CustomerController extends Controller
 {
@@ -46,33 +47,56 @@ class CustomerController extends Controller
             return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
         }
 
-        // Start with bypassing location scope, but apply sales rep filtering if needed
-        $query = Customer::withoutLocationScope()->with(['sales', 'salesReturns', 'payments', 'city']);
-
-        // Apply sales rep route filtering if user is a sales rep
+        // Check if user is a sales rep once and cache the result
         $salesRep = \App\Models\SalesRep::where('user_id', $user->id)
             ->where('status', 'active')
+            ->with(['route.cities'])
             ->first();
+
+        // Start with bypassing location scope, only eager load city relation
+        $query = Customer::withoutLocationScope()
+            ->with('city:id,name')
+            ->select([
+                'id', 'prefix', 'first_name', 'last_name', 'mobile_no', 'email',
+                'address', 'location_id', 'opening_balance', 'credit_limit',
+                'city_id', 'customer_type'
+            ]);
+
+        // Apply sales rep route filtering if user is a sales rep
         if ($salesRep) {
-            $query = $this->applySalesRepFilter($query, $user);
+            $query = $this->applySalesRepFilter($query, $salesRep);
         }
 
-        $customers = $query->orderBy('first_name')->get()->map(function ($customer) {
+        $customers = $query->orderBy('first_name')->get();
+
+        // Fetch all customer balances in one optimized query using BalanceHelper
+        $customerIds = $customers->pluck('id')->toArray();
+        $balances = BalanceHelper::getBulkCustomerBalances($customerIds);
+
+        $customers = $customers->map(function ($customer) use ($balances) {
+            // Concatenate full name in PHP instead of using accessor
+            $fullName = trim(($customer->prefix ? $customer->prefix . ' ' : '') .
+                            $customer->first_name . ' ' .
+                            ($customer->last_name ?? ''));
+
+            // Get the calculated balance from BalanceHelper (single source of truth)
+            $currentBalance = $balances->get($customer->id, (float)$customer->opening_balance);
+
             return [
                 'id' => $customer->id,
                 'prefix' => $customer->prefix,
                 'first_name' => $customer->first_name,
                 'last_name' => $customer->last_name,
-                'full_name' => $customer->full_name,
+                'full_name' => $fullName,
                 'mobile_no' => $customer->mobile_no,
                 'email' => $customer->email,
                 'address' => $customer->address,
                 'location_id' => $customer->location_id,
-                'opening_balance' => (float)$customer->opening_balance, // ✅ Fetch actual opening balance from customer table
-                'current_balance' => (float)$customer->getCurrentTotalBalance(), // Current total due from ledger
-                'total_sale_due' => (float)$customer->total_sale_due,
-                'total_return_due' => (float)$customer->total_return_due,
-                'current_due' => (float)$customer->current_due,
+                'opening_balance' => (float)$customer->opening_balance,
+                'current_balance' => (float)$currentBalance, // Accurate balance from unified ledger
+                'total_sale_due' => 0.0, // Deprecated - balance is in current_balance
+                'total_return_due' => 0.0, // Deprecated - included in current_balance
+                'current_due' => (float)$currentBalance, // Same as current_balance
                 'city_id' => $customer->city_id,
                 'city_name' => $customer->city?->name ?? '',
                 'credit_limit' => (float)$customer->credit_limit,
@@ -84,24 +108,25 @@ class CustomerController extends Controller
             'status' => 200,
             'message' => $customers,
             'total_customers' => $customers->count(),
-            'sales_rep_info' => $user->isSalesRep() ? $this->getSalesRepInfo($user) : null
+            'sales_rep_info' => $salesRep ? $this->getSalesRepInfoFromCache($salesRep) : null
         ]);
     }
 
-    private function applySalesRepFilter($query, $user)
+    /**
+     * Apply sales rep route-based filtering to customer query
+     * Only shows customers in cities assigned to the sales rep's route
+     */
+    private function applySalesRepFilter($query, $salesRep)
     {
-        $salesRep = SalesRep::where('user_id', $user->id)
-            ->where('status', 'active')
-            ->with(['route.cities'])
-            ->first();
-
         if ($salesRep && $salesRep->route) {
             $routeCityIds = $salesRep->route->cities->pluck('id')->toArray();
 
             if (!empty($routeCityIds)) {
+                // Filter customers by assigned cities
                 $query->whereIn('city_id', $routeCityIds);
             } else {
-                $query->whereNull('city_id');
+                // If route has no cities, show no customers (empty result)
+                $query->whereRaw('1 = 0');
             }
         }
 
@@ -115,6 +140,20 @@ class CustomerController extends Controller
             ->with(['route.cities'])
             ->first();
 
+        if (!$salesRep || !$salesRep->route) {
+            return null;
+        }
+
+        return [
+            'route_name' => $salesRep->route->name,
+            'assigned_cities' => $salesRep->route->cities->pluck('name')->toArray(),
+            'total_cities' => $salesRep->route->cities->count(),
+            'sales_rep_id' => $salesRep->id
+        ];
+    }
+
+    private function getSalesRepInfoFromCache($salesRep)
+    {
         if (!$salesRep || !$salesRep->route) {
             return null;
         }

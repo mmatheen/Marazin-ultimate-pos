@@ -1,19 +1,29 @@
 <script type="text/javascript">
     $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
-        
+
+        // Check if current user is a sales rep (check early)
+        var isSalesRep = @json(auth()->user()->hasRole('Sales Rep'));
+
         // Initialize DataTable
         try {
             initializeCustomerTable();
         } catch (error) {
             console.error('Error initializing customer table:', error);
         }
-        
-        fetchCustomerData();
-        fetchCities();
 
-        // Check if current user is a sales rep
-        var isSalesRep = @json(auth()->user()->hasRole('Sales Rep'));
+        // For sales reps in POS, skip initial customer load - route filtering will handle it
+        // Only fetch all customers for non-sales reps or when not on POS page
+        const isPOSPage = window.location.pathname.includes('/pos-create') || window.location.pathname.includes('/pos');
+        if (!isSalesRep || !isPOSPage) {
+            fetchCustomerData();
+        } else {
+            console.log('📌 Sales rep on POS: Skipping initial customer load, waiting for route-based filtering');
+            // Add placeholder option for sales reps
+            $('#customer-id').html('<option value="">Please Select</option>');
+        }
+
+        fetchCities();
 
         // Build validation rules conditionally
         var validationRules = {
@@ -178,99 +188,99 @@
                     }
                 },
                 columns: [
-                    { 
-                        data: null, 
+                    {
+                        data: null,
                         render: function(data, type, row, meta) {
                             return meta.row + meta.settings._iDisplayStart + 1;
                         },
                         title: 'ID',
                         orderable: false
                     },
-                    { 
-                        data: 'prefix', 
+                    {
+                        data: 'prefix',
                         title: 'Prefix',
                         defaultContent: '',
                         render: function(data, type, row) {
                             return data || '';
                         }
                     },
-                    { 
-                        data: 'first_name', 
+                    {
+                        data: 'first_name',
                         title: 'First Name',
                         defaultContent: ''
                     },
-                    { 
-                        data: 'last_name', 
+                    {
+                        data: 'last_name',
                         title: 'Last Name',
                         defaultContent: '',
                         render: function(data, type, row) {
                             return data || '';
                         }
                     },
-                    { 
-                        data: 'mobile_no', 
+                    {
+                        data: 'mobile_no',
                         title: 'Mobile No',
                         defaultContent: ''
                     },
-                    { 
-                        data: 'email', 
+                    {
+                        data: 'email',
                         title: 'Email',
                         defaultContent: '',
                         render: function(data, type, row) {
                             return data || '';
                         }
                     },
-                    { 
-                        data: 'city_name', 
-                        title: 'City', 
+                    {
+                        data: 'city_name',
+                        title: 'City',
                         defaultContent: '',
                         render: function(data, type, row) {
                             return data || '';
                         }
                     },
-                    { 
-                        data: 'customer_type', 
+                    {
+                        data: 'customer_type',
                         title: 'Customer Type',
                         defaultContent: 'Not Set',
                         render: function(data, type, row) {
                             return data ? data.charAt(0).toUpperCase() + data.slice(1) : 'Not Set';
                         }
                     },
-                    { 
-                        data: 'address', 
-                        title: 'Address', 
+                    {
+                        data: 'address',
+                        title: 'Address',
                         defaultContent: '',
                         render: function(data, type, row) {
                             return data || '';
                         }
                     },
-                    { 
-                        data: 'opening_balance', 
-                        title: 'Opening Balance', 
+                    {
+                        data: 'opening_balance',
+                        title: 'Opening Balance',
                         defaultContent: '0',
                         render: function(data, type, row) {
                             return data || '0';
                         }
                     },
-                    { 
-                        data: 'credit_limit', 
-                        title: 'Credit Limit', 
+                    {
+                        data: 'credit_limit',
+                        title: 'Credit Limit',
                         defaultContent: '0',
                         render: function(data, type, row) {
                             return data || '0';
                         }
                     },
-                    { 
-                        data: 'total_sale_due', 
-                        title: 'Total Sale Due', 
+                    {
+                        data: 'total_sale_due',
+                        title: 'Total Sale Due',
                         defaultContent: '0',
                         render: function(data, type, row) {
                             return data || '0';
                         }
                     },
-                    { 
-                        data: 'total_return_due', 
-                        title: 'Total Return Due', 
+                    {
+                        data: 'total_return_due',
+                        title: 'Total Return Due',
                         defaultContent: '0',
                         render: function(data, type, row) {
                             return data || '0';
@@ -281,7 +291,7 @@
                         title: 'Action',
                         render: function(data, type, row) {
                             let actions = '<div class="btn-group" role="group">';
-                            
+
                             // Dropdown for Sales Reports
                             actions += `
                                 <div class="btn-group me-2" role="group">
@@ -298,7 +308,7 @@
                                     </ul>
                                 </div>
                             `;
-                            
+
                             @can('view customer')
                                 actions += `<button type="button" value="${row.id}" class="ledger_btn btn btn-outline-primary btn-sm me-2"><i class="feather-book-open text-primary"></i> Ledger</button>`;
                             @endcan
@@ -308,7 +318,7 @@
                             @can('delete customer')
                                 actions += `<button type="button" value="${row.id}" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>`;
                             @endcan
-                            
+
                             actions += '</div>';
                             return actions;
                         },
@@ -741,12 +751,28 @@
 
 
         function fetchCustomerData() {
+            // Prevent multiple simultaneous loads
+            if (window.customerDataLoading) {
+                console.log('⏸️ Customer data already loading, skipping duplicate request');
+                return $.Deferred().reject('Already loading').promise();
+            }
+
+            window.customerDataLoading = true;
+            console.log('📥 Fetching customer data from /customer-get-all');
+
             return $.ajax({
                 url: '/customer-get-all',
                 method: 'GET',
                 dataType: 'json',
                 success: function(data) {
                     const customerSelect = $('#customer-id');
+
+                    // Don't clear dropdown if it's already been populated by route filtering
+                    if (window.salesRepCustomersLoaded) {
+                        console.log('⏭️ Customers already loaded by route filtering, skipping');
+                        return;
+                    }
+
                     customerSelect.empty();
 
                     if (data && data.status === 200 && Array.isArray(data.message)) {
@@ -798,6 +824,10 @@
                 },
                 error: function(xhr, status, error) {
                     console.error('Error fetching customer data:', error);
+                },
+                complete: function() {
+                    window.customerDataLoading = false;
+                    console.log('✅ Customer data loading completed');
                 }
             });
         }
@@ -858,7 +888,7 @@
 
 
 
-      
+
         window.customerFunctions = {
             fetchCustomerData: fetchCustomerData,
             // other functions NOT exposed unless added here

@@ -206,7 +206,6 @@
 
         // Image failure cache to prevent repeated 404 errors
         let failedImages = new Set();
-        let imageAttempts = new Map(); // Track attempts per image
 
         // Customer filter debounce tracking
         let isCurrentlyFiltering = false;
@@ -466,10 +465,9 @@
         }
 
         /**
-         * Get safe image URL with fallback handling
+         * Get safe image URL with fallback
          */
         function getSafeImageUrl(product) {
-            // Default fallback image
             const fallbackImage = '/assets/images/No Product Image Available.png';
 
             if (!product || !product.product_image || product.product_image.trim() === '') {
@@ -478,78 +476,46 @@
 
             const imageName = product.product_image.trim();
 
-            // If this image has failed before, return fallback immediately
             if (failedImages.has(imageName)) {
                 return fallbackImage;
             }
 
-            // If it's already a full URL (starts with http or /), use it as is
             if (imageName.startsWith('http') || imageName.startsWith('/')) {
                 return imageName;
             }
 
-            // For relative filenames, prioritize assets/images path (where images actually are)
             return `/assets/images/${imageName}`;
         }
 
         /**
-         * Create image element with error handling and fallback
+         * Create image element with error handling
          */
         function createSafeImage(product, styles = '', className = '', title = '') {
             const fallbackImage = '/assets/images/No Product Image Available.png';
-            const primaryImage = getSafeImageUrl(product);
-
             const img = document.createElement('img');
-            img.src = primaryImage;
+
+            img.src = getSafeImageUrl(product);
             if (styles) img.style.cssText = styles;
             if (className) img.className = className;
             if (title) img.title = title;
-            img.alt = product?.product_name || 'Product Image';
-
-            // Add loading="lazy" for better performance
+            img.alt = product?.product_name || 'Product';
             img.loading = 'lazy';
 
-            // Handle image load errors with optimized fallback logic
             img.onerror = function() {
-                const originalImage = product?.product_image?.trim();
+                if (this.src === fallbackImage) return;
 
-                // If already showing fallback or no original image, stop trying
-                if (this.src === fallbackImage || !originalImage) {
+                const originalImage = product?.product_image?.trim();
+                if (!originalImage) {
+                    this.src = fallbackImage;
                     return;
                 }
 
-                // Track attempts for this specific image
-                const attemptKey = originalImage;
-                const currentAttempts = imageAttempts.get(attemptKey) || 0;
-
-                // Limit to 2 attempts max (primary + one alternative)
-                if (currentAttempts >= 2) {
-                    // Mark as failed and use fallback
+                // Try storage path once if not already tried
+                if (!this.src.includes('/storage/products/')) {
+                    this.src = `/storage/products/${originalImage}`;
+                } else {
                     failedImages.add(originalImage);
                     this.src = fallbackImage;
-                    imageAttempts.delete(attemptKey); // Clean up
-                    return;
-                }
-
-                // First attempt failed, try storage path as alternative
-                if (currentAttempts === 0 && !this.src.includes('/storage/products/')) {
-                    imageAttempts.set(attemptKey, 1);
-                    this.src = `/storage/products/${originalImage}`;
-                    return;
-                }
-
-                // All attempts failed, use fallback
-                imageAttempts.set(attemptKey, 2);
-                failedImages.add(originalImage);
-                this.src = fallbackImage;
-                imageAttempts.delete(attemptKey); // Clean up
-            };
-
-            // Success handler - remove from attempts tracking
-            img.onload = function() {
-                const originalImage = product?.product_image?.trim();
-                if (originalImage) {
-                    imageAttempts.delete(originalImage);
                 }
             };
 
@@ -557,59 +523,33 @@
         }
 
         /**
-         * Check if image exists before loading (reduces 404 errors)
-         */
-        function preloadImage(src, callback) {
-            const img = new Image();
-            img.onload = () => callback(true, src);
-            img.onerror = () => callback(false, src);
-            img.src = src;
-        }
-
-        /**
-         * Image health check - scan and report missing images (simplified)
+         * Check image health (optional diagnostic)
          */
         function checkImageHealth() {
             const images = document.querySelectorAll('img[src*="assets/images"], img[src*="storage/products"]');
-            let missingCount = 0;
-            const totalCount = images.length;
+            const missingCount = Array.from(images).filter(img =>
+                !img.src.includes('No Product Image Available.png') &&
+                img.naturalWidth === 0 &&
+                img.complete
+            ).length;
 
-            console.log(`🖼️ Checking ${totalCount} product images...`);
-
-            // Only log summary, not individual images (reduces console noise)
-            images.forEach(img => {
-                if (img.src.includes('No Product Image Available.png')) return;
-                if (img.naturalWidth === 0 && img.complete) {
-                    missingCount++;
-                }
-            });
-
-            console.log(`📊 Image Health Check: ${missingCount}/${totalCount} images missing`);
-            if (missingCount > 0) {
-                console.log(`💡 Tip: ${failedImages.size} unique images cached as failed`);
-            } else {
-                console.log('🎉 All product images are loading correctly!');
-            }
+            console.log(`🖼️ Checking ${images.length} product images...`);
+            console.log(`📊 Image Health: ${missingCount}/${images.length} missing`);
+            if (missingCount === 0) console.log('🎉 All images loading correctly!');
         }
 
         /**
-         * Force refresh product images by clearing cache and reloading
+         * Refresh product images
          */
         function refreshProductImages() {
-            console.log('🔄 Refreshing product images...');
-
-            // Clear any cached image data
-            const productCards = document.querySelectorAll('.product-card img');
-            productCards.forEach(img => {
-                if (img.src && !img.src.includes('No Product Image Available.png')) {
-                    const product = {
-                        product_image: img.alt || img.dataset.originalName || ''
-                    };
+            const images = document.querySelectorAll('.product-card img');
+            images.forEach(img => {
+                if (img.dataset.productImage) {
+                    const product = { product_image: img.dataset.productImage };
                     img.src = getSafeImageUrl(product);
                 }
             });
-
-            console.log(`Refreshed ${productCards.length} product images`);
+            if (images.length > 0) console.log(`🔄 Refreshed ${images.length} images`);
         }
 
         /**
@@ -1055,17 +995,9 @@
                         checkAndToggleSalesRepButtons(storedSelection.vehicle.id);
                     }
 
-                    // Also apply customer filtering immediately
+                    // Apply customer filtering only ONCE on page load - no need for validation after
                     setTimeout(() => {
                         filterCustomersByRoute(storedSelection);
-
-                        // Validate customers after filtering with longer delay and only once
-                        setTimeout(() => {
-                            if (!window.validationPerformed) {
-                                window.validationPerformed = true;
-                                validateCustomerRouteMatch();
-                            }
-                        }, 2000); // Increased delay to ensure filtering completes
                     }, 300);
                 }, 100);
 
@@ -1112,16 +1044,43 @@
         }
 
         function protectSalesRepCustomerFiltering() {
+            // DISABLED: Mutation observer removed to prevent unwanted customer re-selection
+            // After sale creation, customer should stay at "Please Select" without auto-reselection
+            console.log('Customer filtering protection - mutation observer disabled');
+            return;
+
             let debounceTimer = null;
             let lastFilterTime = 0;
-            const FILTER_COOLDOWN = 3000; // 3 seconds cooldown between filters
+            const FILTER_COOLDOWN = 10000; // 10 seconds to prevent duplicate calls
 
             // Monitor when new options are added to the customer dropdown
             const observer = new MutationObserver(function(mutations) {
+                // Don't filter if customers are already loaded for this session
+                if (salesRepCustomersLoaded) {
+                    return;
+                }
+
+                // Don't filter if we're in a customer reset process
+                if (window.salesRepCustomerResetInProgress || window.preventAutoSelection) {
+                    console.log('⏸️ Customer reset in progress, skipping auto-selection');
+                    return;
+                }
+
+                // Check if reset happened recently (within last 5 seconds)
+                if (window.lastCustomerResetTime && (Date.now() - window.lastCustomerResetTime) < 5000) {
+                    console.log('⏸️ Customer was reset recently, skipping auto-selection');
+                    return;
+                }
+
                 // Prevent too frequent filtering
                 const now = Date.now();
                 if (now - lastFilterTime < FILTER_COOLDOWN) {
-                    console.log('Customer filtering on cooldown, skipping...');
+                    console.log('⏸️ Customer filtering on cooldown, skipping...');
+                    return;
+                }
+
+                // Don't filter if already in progress
+                if (filteringInProgress || isCurrentlyFiltering) {
                     return;
                 }
 
@@ -1323,10 +1282,11 @@
                     // Update display only once
                     if (!window.hasStoredSalesRepSelection) {
                         updateSalesRepDisplay(updatedSelection);
+                        // Only filter if not already done during page load
+                        if (!salesRepCustomersLoaded) {
+                            setTimeout(() => filterCustomersByRoute(updatedSelection), 1000);
+                        }
                     }
-
-                    restrictLocationAccess(updatedSelection);
-                    setTimeout(() => filterCustomersByRoute(updatedSelection), 1000);
                 } else {
                     // Attempt to preserve existing selection
                     if (selection && selection.vehicle && selection.route) {
@@ -1344,7 +1304,10 @@
                                     updateSalesRepDisplay(selection);
                                 }
                                 restrictLocationAccess(selection);
-                                setTimeout(() => filterCustomersByRoute(selection), 1000);
+                                // Only filter if not already done
+                                if (!salesRepCustomersLoaded) {
+                                    setTimeout(() => filterCustomersByRoute(selection), 1000);
+                                }
                             } catch (error) {
                                 console.error('Error applying selection:', error);
                                 clearSalesRepSelection();
@@ -1368,6 +1331,7 @@
             // Listen for selection confirmation
             window.addEventListener('salesRepSelectionConfirmed', function(event) {
                 const selection = event.detail;
+                // Reset flags for new selection
                 salesRepCustomersFiltered = false;
                 salesRepCustomersLoaded = false;
                 updateSalesRepDisplay(selection);
@@ -1650,19 +1614,37 @@
         }
 
         let filteringInProgress = false;
+        let lastSuccessfulFilter = null; // Track last successful filter to prevent duplicates
+        let filterRequestId = 0; // Track filter request IDs
 
         function filterCustomersByRoute(selection) {
             if (filteringInProgress || isCurrentlyFiltering) {
+                console.log('⏸️ Customer filtering already in progress, skipping...');
                 return; // Already filtering, skip
             }
 
+            // Prevent filtering while customer data is still being loaded
+            if (window.customerDataLoading) {
+                console.log('⏸️ Waiting for initial customer data to load before filtering...');
+                setTimeout(() => filterCustomersByRoute(selection), 500);
+                return;
+            }
+
             // Check if auto-selection is currently prevented (e.g., after form reset)
-            if (window.preventAutoSelection) {
+            if (window.preventAutoSelection || window.salesRepCustomerResetInProgress) {
+                console.log('⏸️ Auto-selection prevented - customer was recently reset');
+                return;
+            }
+
+            // Check if reset happened recently (within last 5 seconds) - prevent filtering
+            if (window.lastCustomerResetTime && (Date.now() - window.lastCustomerResetTime) < 5000) {
+                console.log('⏸️ Customer was reset recently, skipping filter to prevent re-selection');
                 return;
             }
 
             // Check if customers already loaded for this session
             if (salesRepCustomersLoaded) {
+                console.log('✓ Customers already loaded for this session');
                 return; // Only log once, not repeatedly
             }
 
@@ -1670,11 +1652,23 @@
                 return;
             }
 
+            // Check if we already filtered with the same route recently (within 5 seconds)
+            const routeKey = `route_${selection.route.id}_${JSON.stringify(selection.route.cities?.map(c => c.id).sort())}`;
+            if (lastSuccessfulFilter === routeKey) {
+                const timeSinceLastFilter = Date.now() - lastCustomerFilterCall;
+                if (timeSinceLastFilter < 5000) {
+                    console.log('⏭️ Same route already filtered recently, skipping duplicate call');
+                    return;
+                }
+            }
+
             // Set both flags to prevent recursive calls
             filteringInProgress = true;
             isCurrentlyFiltering = true;
+            filterRequestId++; // Increment request ID
+            const currentRequestId = filterRequestId;
 
-            console.log('🔍 Filtering customers for route:', selection.route.name);
+            console.log(`🔍 [Request #${currentRequestId}] Filtering customers for route:`, selection.route.name);
 
             if (!selection.route.cities || selection.route.cities.length === 0) {
                 console.log('⚠️ No cities found for selected route, trying fallback filtering');
@@ -1727,20 +1721,27 @@
                 })
                 .then(response => response.json())
                 .then(data => {
-                    console.log('✅ Filter customers response:', data);
+                    // Check if this response is still relevant (not outdated by a newer request)
+                    if (currentRequestId !== filterRequestId) {
+                        console.log(`⏭️ [Request #${currentRequestId}] Outdated, skipping (current: #${filterRequestId})`);
+                        return;
+                    }
+
+                    console.log(`✅ [Request #${currentRequestId}] Filter customers response:`, data);
                     if (data.status && data.customers) {
                         populateFilteredCustomers(data.customers, selection.route.name);
                         salesRepCustomersFiltered = true; // Mark that filtering has been applied
                         salesRepCustomersLoaded = true; // Mark that customers are loaded for this session
-                        console.log('✅ Customer filtering completed successfully for route:', selection.route.name);
+                        lastSuccessfulFilter = routeKey; // Store successful filter key
+                        console.log(`✅ [Request #${currentRequestId}] Customer filtering completed for route:`, selection.route.name);
                     } else {
-                        console.error('❌ Failed to filter customers:', data.message || 'Unknown error');
+                        console.error(`❌ [Request #${currentRequestId}] Failed to filter customers:`, data.message || 'Unknown error');
                         // Fallback to route name filtering
                         fallbackRouteFiltering(selection);
                     }
                 })
                 .catch(error => {
-                    console.error('❌ Error filtering customers:', error);
+                    console.error(`❌ [Request #${currentRequestId}] Error filtering customers:`, error);
                     // Fallback to route name filtering
                     fallbackRouteFiltering(selection);
                 })
@@ -1847,7 +1848,8 @@
                 const option = $(
                     `<option value="${customer.id}" data-customer-type="${customer.customer_type || 'retailer'}">${displayText}</option>`
                 );
-                option.data('due', customer.current_due || 0);
+                // Use current_balance if current_due is not available (for filtered customers)
+                option.data('due', customer.current_due || customer.current_balance || 0);
                 option.data('credit_limit', customer.credit_limit || 0);
                 customerSelect.append(option);
             });
@@ -1870,7 +1872,8 @@
                 const option = $(
                     `<option value="${customer.id}" data-customer-type="${customer.customer_type || 'retailer'}">${displayText}</option>`
                 );
-                option.data('due', customer.current_due || 0);
+                // Use current_balance if current_due is not available (for filtered customers)
+                option.data('due', customer.current_due || customer.current_balance || 0);
                 option.data('credit_limit', customer.credit_limit || 0);
                 customerSelect.append(option);
             });
@@ -1878,25 +1881,9 @@
             // Refresh Select2 and trigger change event to update due/credit display
             customerSelect.trigger('change');
 
-            // Auto-select appropriate customer based on user type
-            setTimeout(() => {
-                // Check if auto-selection is currently prevented (e.g., after form reset)
-                if (window.preventAutoSelection) {
-                    console.log('Auto-selection prevented - form was recently reset');
-                    return;
-                }
-
-                if (isSalesRep) {
-                    // For sales reps, DO NOT auto-select any customer
-                    // Keep the dropdown at "Please Select" so user must choose
-                    customerSelect.val('').trigger('change');
-                    console.log('Sales rep: Customer dropdown ready - user must select a customer');
-                } else {
-                    // For non-sales reps, select Walk-in customer
-                    customerSelect.val('1').trigger('change');
-                }
-            }, 100);
-
+            // REMOVED: Auto-selection after filtering to prevent unwanted re-selection
+            // Customer should stay at "Please Select" after sale creation
+            // User will manually select customer when needed
 
             // Show info message with breakdown
             if (typeof toastr !== 'undefined' && routeName) {
@@ -8208,24 +8195,23 @@
                             // IMMEDIATE form reset and UI feedback - don't wait for async operations
                             resetForm();
 
-                            // Extra safety check for sales rep customer reset after successful billing
+                            // Extra safety checks for sales rep customer reset after successful billing
                             if (isSalesRep) {
-                                setTimeout(() => {
-                                    const customerSelect = $('#customer-id');
-                                    if (customerSelect.val() && customerSelect.val() !== '') {
-                                        console.log('BILLING SUCCESS: Customer was auto-selected after reset, forcing back to "Please Select"');
-                                        customerSelect.val('').trigger('change');
-                                    }
-                                }, 100);
+                                window.salesRepCustomerResetInProgress = true;
+                                window.lastCustomerResetTime = Date.now();
 
-                                // Additional check after 300ms for any delayed customer filtering
                                 setTimeout(() => {
                                     const customerSelect = $('#customer-id');
                                     if (customerSelect.val() && customerSelect.val() !== '') {
-                                        console.log('BILLING SUCCESS: Customer was auto-selected after reset (delayed check), forcing back to "Please Select"');
+                                        console.log('🔄 Resetting customer to "Please Select" after sale');
                                         customerSelect.val('').trigger('change');
                                     }
-                                }, 300);
+
+                                    // Keep protection flag longer to prevent re-selection
+                                    setTimeout(() => {
+                                        window.salesRepCustomerResetInProgress = false;
+                                    }, 3000);
+                                }, 500);
                             }
 
                             // Call onComplete immediately for button re-enabling
@@ -8343,30 +8329,22 @@
                                     typeof window.customerFunctions
                                     .fetchCustomerData === 'function') {
 
-                                    window.customerFunctions.fetchCustomerData()
-                                        .then(function() {
-                                            console.log(
-                                                'Customer data refreshed after successful sale'
-                                            );
-
-                                            // Restore customer selection if needed
-                                            if (currentCustomerId &&
-                                                currentCustomerId !== '1') {
-                                                setTimeout(function() {
-                                                    $('#customer-id')
-                                                        .val(
-                                                            currentCustomerId
-                                                        );
-                                                    $('#customer-id')
-                                                        .trigger(
-                                                            'change');
-                                                }, 100);
-                                            }
-                                        }).catch(function(error) {
-                                            console.error(
-                                                'Failed to refresh customer data:',
-                                                error);
-                                        });
+                                    // For sales reps, skip customer data refresh to keep route-filtered customers
+                                    // For non-sales reps, refresh customer data
+                                    if (!isSalesRep) {
+                                        window.customerFunctions.fetchCustomerData()
+                                            .then(function() {
+                                                console.log(
+                                                    'Customer data refreshed after successful sale'
+                                                );
+                                            }).catch(function(error) {
+                                                console.error(
+                                                    'Failed to refresh customer data:',
+                                                    error);
+                                            });
+                                    } else {
+                                        console.log('Sales rep: Keeping route-filtered customers, skipping full customer refresh');
+                                    }
                                 }
                             }, 200); // Small delay to let UI update first
 
@@ -9526,15 +9504,16 @@
                 const customerSelect = $('#customer-id');
 
                 if (isSalesRep) {
-                    // For sales reps, reset to "Please Select" - don't auto-select any customer
                     customerSelect.val('').trigger('change');
-                    console.log('Sales rep: Customer reset to "Please Select"');
 
-                    // Set a flag to prevent any auto-selection for a short period
                     window.preventAutoSelection = true;
+                    window.salesRepCustomerResetInProgress = true;
+                    window.lastCustomerResetTime = Date.now();
+
                     setTimeout(() => {
                         window.preventAutoSelection = false;
-                    }, 1000); // Prevent auto-selection for 1 second after reset
+                        window.salesRepCustomerResetInProgress = false;
+                    }, 3000);
                 } else {
                     // For non-sales reps, reset to Walk-in Customer (ID = 1)
                     // Try by value first (most reliable)
@@ -9561,27 +9540,25 @@
             function resetForm() {
                 // Reset editing mode
                 isEditing = false;
-                currentEditingSaleId = null; // Reset the editing sale ID
+                currentEditingSaleId = null;
 
                 resetToWalkingCustomer();
 
-                // For sales reps, ensure customer stays reset with additional safeguard
+                // For sales reps, ensure customer stays reset
                 if (isSalesRep) {
                     setTimeout(() => {
                         const customerSelect = $('#customer-id');
                         if (customerSelect.val() && customerSelect.val() !== '') {
-                            console.log('Customer auto-selected after reset, forcing back to empty');
                             customerSelect.val('').trigger('change');
                         }
-                    }, 200); // Check after a short delay
 
-                    setTimeout(() => {
-                        const customerSelect = $('#customer-id');
-                        if (customerSelect.val() && customerSelect.val() !== '') {
-                            console.log('Customer auto-selected after reset (second check), forcing back to empty');
-                            customerSelect.val('').trigger('change');
-                        }
-                    }, 500); // Check again after 500ms
+                        // Extended protection to prevent mutation observer from re-selecting
+                        window.salesRepCustomerResetInProgress = true;
+                        window.lastCustomerResetTime = Date.now();
+                        setTimeout(() => {
+                            window.salesRepCustomerResetInProgress = false;
+                        }, 3000);
+                    }, 500);
                 }
 
                 const quantityInputs = document.querySelectorAll('.quantity-input');

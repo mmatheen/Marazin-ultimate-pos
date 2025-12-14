@@ -13,19 +13,19 @@
             opacity: 1 !important;
         }
 
-        /* General Styles */
+        /* General Styles - COMPACT UI */
         body {
             font-family: 'Roboto', sans-serif;
-            font-size: 14px;
-            line-height: 1.5;
+            font-size: 13px;
+            line-height: 1.4;
             background-color: #dedede;
             overflow-x: hidden;
             min-height: 100vh;
         }
 
         .container-fluid {
-            padding-left: 15px;
-            padding-right: 15px;
+            padding-left: 12px;
+            padding-right: 12px;
             margin-left: auto;
             margin-right: auto;
             width: 100%;
@@ -64,10 +64,43 @@
             text-overflow: ellipsis;
         }
 
-        /* Ensure cards don't overflow */
+        /* Ensure cards don't overflow - COMPACT */
         .card {
             overflow: hidden;
             word-wrap: break-word;
+        }
+
+        /* Make all form inputs more compact */
+        .form-control, .form-select, input[type="text"], input[type="number"], textarea {
+            height: 32px !important;
+            padding: 4px 8px !important;
+            font-size: 13px !important;
+            line-height: 1.4 !important;
+        }
+
+        textarea.form-control {
+            height: auto !important;
+            min-height: 60px !important;
+        }
+
+        /* Compact card body padding */
+        .card-body {
+            padding: 8px !important;
+        }
+
+        /* Compact table styling */
+        table {
+            font-size: 12px !important;
+        }
+
+        table th, table td {
+            padding: 4px 6px !important;
+            vertical-align: middle !important;
+        }
+
+        table th {
+            font-size: 11px !important;
+            font-weight: 600 !important;
         }
 
         .is-invalidRed {
@@ -359,17 +392,17 @@
             .product-card {
                 min-height: 140px;
             }
-            
+
             .product-card img {
                 width: 60px !important;
                 height: 60px !important;
             }
-            
+
             .product-card h6 {
                 font-size: 11px;
                 margin: 5px 0;
             }
-            
+
             .product-card .badge {
                 font-size: 9px;
                 padding: 2px 6px;
@@ -380,17 +413,17 @@
             .product-card {
                 min-height: 160px;
             }
-            
+
             .product-card img {
                 width: 70px !important;
                 height: 70px !important;
             }
-            
+
             .product-card h6 {
                 font-size: 12px;
                 margin: 6px 0;
             }
-            
+
             .product-card .badge {
                 font-size: 10px;
                 padding: 3px 7px;
@@ -594,7 +627,7 @@
                 font-size: 12px;
                 padding: 8px 10px;
             }
-            
+
             .offcanvas {
                 width: 50% !important;
             }
@@ -617,17 +650,17 @@
                 font-size: 10px;
                 padding: 5px 8px;
             }
-            
+
             .offcanvas {
                 width: 70% !important;
             }
-            
+
             .category-footer,
             .brand-footer {
                 flex-direction: column;
                 gap: 5px;
             }
-            
+
             .category-footer button,
             .brand-footer button {
                 width: 100%;
@@ -652,29 +685,29 @@
                 font-size: 8px;
                 padding: 5px 6px;
             }
-            
+
             .offcanvas {
                 width: 85% !important;
             }
-            
+
             .category-container {
                 gap: 8px;
             }
-            
+
             .category-footer,
             .brand-footer {
                 flex-direction: column;
                 gap: 5px;
                 margin-top: 10px;
             }
-            
+
             .category-footer button,
             .brand-footer button {
                 width: 100%;
                 font-size: 11px;
                 padding: 8px;
             }
-            
+
             .category-card h6,
             .brand-card h6,
             .subcategory-card h6 {
@@ -842,27 +875,30 @@
 
         .customer-select2 .select2-container--default .select2-selection--single {
             border-radius: 5px 0 0 5px !important;
-            height: 38px !important;
+            height: 32px !important;
             display: flex !important;
             align-items: center !important;
-            padding: 0 12px !important;
+            padding: 0 8px !important;
+            font-size: 13px !important;
         }
 
         .customer-select2 .select2-container--default .select2-selection--single .select2-selection__rendered {
-            line-height: 38px !important;
+            line-height: 32px !important;
             padding-left: 0 !important;
+            font-size: 13px !important;
         }
 
         .customer-select2 .select2-container--default .select2-selection--single .select2-selection__arrow {
-            height: 38px !important;
+            height: 32px !important;
         }
 
         .customer-select2 #addCustomerButton {
-            height: 38px !important;
+            height: 32px !important;
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
-            padding: 0 15px !important;
+            padding: 0 12px !important;
+            font-size: 13px !important;
         }
 
         .batch-dropdown {
@@ -1827,9 +1863,9 @@
             }
         }
 
-        /* Customer Credit Information Styling */
+        /* Customer Credit Information Styling - COMPACT */
         .customer-credit-info {
-            margin-top: 8px;
+            margin-top: 4px;
         }
 
         .customer-credit-info .border {
@@ -1839,6 +1875,7 @@
 
         .customer-credit-info .col-4 {
             transition: background-color 0.2s ease;
+            padding: 4px 8px !important;
         }
 
         .customer-credit-info .col-4:hover {
@@ -1846,14 +1883,14 @@
         }
 
         .customer-credit-info small {
-            font-size: 11px;
+            font-size: 9px;
             font-weight: 500;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
         }
 
         .customer-credit-info .fw-bold {
-            font-size: 14px;
+            font-size: 11px;
             font-weight: 600;
         }
 
@@ -2875,7 +2912,7 @@
         .table-responsive {
             overflow-x: auto;
         }
-   
+
          .btn-gradient {
             background: linear-gradient(85deg, #1e90ff, #1e90ff, #87cefa);
             border: none;
@@ -2897,87 +2934,87 @@
         }
 
         /* ===== MOBILE RESPONSIVE IMPROVEMENTS ===== */
-        
+
         /* Mobile container adjustments */
         @media (max-width: 575px) {
             .container-fluid {
                 padding-left: 5px;
                 padding-right: 5px;
             }
-            
+
             .card.bg-white.p-1 {
                 padding: 5px !important;
             }
-            
+
             /* Improve mobile header */
             .d-md-none {
                 padding: 5px;
             }
-            
+
             .d-md-none .form-select {
                 font-size: 12px;
                 padding: 5px 8px;
             }
-            
+
             .d-md-none .btn {
                 padding: 5px 8px;
                 font-size: 12px;
             }
         }
-        
+
         /* Tablet responsive improvements */
         @media (min-width: 576px) and (max-width: 991px) {
             .container-fluid {
                 padding-left: 8px;
                 padding-right: 8px;
             }
-            
+
             .card.bg-white.p-1 {
                 padding: 8px !important;
             }
         }
-        
+
         /* Product grid container responsive */
         @media (max-width: 767px) {
             #posProduct {
                 padding: 5px !important;
             }
-            
+
             #posProduct .row {
                 margin: 0 -5px;
             }
-            
+
             #posProduct [class*="col-"] {
                 padding: 0 5px;
                 margin-bottom: 10px;
             }
         }
-        
+
         /* Fix mobile modal and offcanvas */
         @media (max-width: 575px) {
             .modal-dialog {
                 margin: 5px;
                 max-width: calc(100% - 10px);
             }
-            
+
             .modal-content {
                 border-radius: 8px;
             }
-            
+
             .modal-header {
                 padding: 10px 15px;
             }
-            
+
             .modal-body {
                 padding: 10px 15px;
                 max-height: 60vh;
             }
-            
+
             .modal-footer {
                 padding: 10px 15px;
             }
         }
-        
+
         /* Mobile button improvements */
         @media (max-width: 575px) {
             .bottom-fixed .btn {
@@ -2988,15 +3025,15 @@
                 text-align: center;
                 white-space: nowrap;
             }
-            
+
             .bottom-fixed h4 {
                 font-size: 16px;
             }
-            
+
             .bottom-fixed #total {
                 font-size: 18px;
             }
-            
+
             .bottom-fixed #items-count {
                 font-size: 12px;
             }

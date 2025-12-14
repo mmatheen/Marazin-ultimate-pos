@@ -35,7 +35,7 @@
             <div class="col-md-3">
                 <div class="form-group">
                     {{-- @if (Auth::check() && Auth::user()->locations->count() > 0) --}}
-                    <select class="form-control form-select" id="location_dropdown">
+                    <select class="form-control selectBox" id="location_dropdown">
                       <option value="">All Location</option>
                     </select>
 
@@ -44,10 +44,10 @@
             </div>
             <div class="col-md-3">
                 <div class="form-group">
-                    <div id="reportrange"
-                        style="background: #fff; cursor: pointer; padding: 5px 10px; border: 1px solid #ccc; width: 100%">
+                    <div id="reportrange" class="form-control"
+                        style="background: #fff; cursor: pointer; display: flex; align-items: center; white-space: nowrap;">
                         <i class="fa fa-calendar"></i>&nbsp;
-                        <span></span> <i class="fa fa-caret-down"></i>
+                        <span style="flex: 1;"></span> <i class="fa fa-caret-down"></i>
                     </div>
                 </div>
             </div>
@@ -262,6 +262,32 @@
                         <div id="recentSalesList" style="max-height: 350px; overflow-y: auto;">
                             <div class="text-center py-4">
                                 <div class="spinner-border text-success" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Products Not Related to Any Sales -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-box" style="color: #ff9800;"></i> Products with Stock but No Sales
+                                <small class="text-muted" style="font-size: 11px; font-weight: normal;">(Products in inventory that haven't been sold yet)</small>
+                            </h5>
+                            <span class="badge bg-warning" id="noSalesProductsCount">0</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="noSalesProductsList" style="max-height: 400px; overflow-y: auto;">
+                            <div class="text-center py-4">
+                                <div class="spinner-border text-secondary" role="status">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
                             </div>
@@ -495,6 +521,9 @@
             });
 
             let combinedChart;
+            let dashboardDataCache = null;
+            let lastFetchTime = null;
+            const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
 
             function formatCurrency(amount) {
                 return 'Rs. ' + parseFloat(amount).toLocaleString('en-IN', {
@@ -504,6 +533,22 @@
             }
 
             function fetchDashboardData(start, end, locationId = null) {
+                // Check if we have valid cached data
+                const now = Date.now();
+                const cacheKey = `${start.format('YYYY-MM-DD')}_${end.format('YYYY-MM-DD')}_${locationId}`;
+
+                if (dashboardDataCache &&
+                    dashboardDataCache.key === cacheKey &&
+                    lastFetchTime &&
+                    (now - lastFetchTime) < CACHE_DURATION) {
+                    console.log('Using cached dashboard data');
+                    updateDashboardUI(dashboardDataCache.data);
+                    return;
+                }
+
+                // Show loading indicators
+                showLoadingState();
+
                 $.ajax({
                     url: "/dashboard-data",
                     type: "GET",
@@ -514,24 +559,47 @@
                         location_id: locationId
                     },
                     success: function(response) {
-                        $("#totalSales").text(formatCurrency(response.totalSales));
-                        $("#totalPurchases").text(formatCurrency(response.totalPurchases));
-                        $("#totalSalesReturn").text(formatCurrency(response.totalSalesReturn));
-                        $("#totalPurchaseReturn").text(formatCurrency(response.totalPurchaseReturn));
-                        $("#totalSalesDue").text(formatCurrency(response.totalSalesDue));
-                        $("#totalPurchasesDue").text(formatCurrency(response.totalPurchasesDue));
-                        $("#totalSalesReturnDue").text(formatCurrency(response.totalSalesReturnDue));
-                        $("#totalPurchaseReturnDue").text(formatCurrency(response
-                            .totalPurchaseReturnDue));
-                        $("#stockTransfer").text(response.stockTransfer);
-                        $("#totalProducts").text(response.totalProducts);
+                        // Cache the response
+                        dashboardDataCache = {
+                            key: cacheKey,
+                            data: response
+                        };
+                        lastFetchTime = now;
 
-                        updateCharts(response);
-                        updateTopProducts(response.topProducts);
-                        updateLowStock(response.lowStockProducts);
-                        updateRecentSales(response.recentSales);
+                        updateDashboardUI(response);
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error fetching dashboard data:', error);
+                        hideLoadingState();
                     }
                 });
+            }
+
+            function showLoadingState() {
+                // Optional: Add loading indicators
+            }
+
+            function hideLoadingState() {
+                // Optional: Remove loading indicators
+            }
+
+            function updateDashboardUI(response) {
+                $("#totalSales").text(formatCurrency(response.totalSales));
+                $("#totalPurchases").text(formatCurrency(response.totalPurchases));
+                $("#totalSalesReturn").text(formatCurrency(response.totalSalesReturn));
+                $("#totalPurchaseReturn").text(formatCurrency(response.totalPurchaseReturn));
+                $("#totalSalesDue").text(formatCurrency(response.totalSalesDue));
+                $("#totalPurchasesDue").text(formatCurrency(response.totalPurchasesDue));
+                $("#totalSalesReturnDue").text(formatCurrency(response.totalSalesReturnDue));
+                $("#totalPurchaseReturnDue").text(formatCurrency(response.totalPurchaseReturnDue));
+                $("#stockTransfer").text(response.stockTransfer);
+                $("#totalProducts").text(response.totalProducts);
+
+                updateCharts(response);
+                updateTopProducts(response.topProducts);
+                updateLowStock(response.lowStockProducts);
+                updateRecentSales(response.recentSales);
+                updateNoSalesProducts(response.noSalesProducts);
             }
 
             function updateCharts(data) {
@@ -762,13 +830,71 @@
                 $('#recentSalesList').html(html);
             }
 
+            function updateNoSalesProducts(products) {
+                if (!products || products.length === 0) {
+                    $('#noSalesProductsList').html('<p class="text-muted text-center py-4"><i class="fas fa-check-circle text-success"></i><br>Great! All products with stock have been sold at least once!</p>');
+                    $('#noSalesProductsCount').text('0');
+                    return;
+                }
+
+                $('#noSalesProductsCount').text(products.length);
+
+                let html = '<div class="table-responsive"><table class="table table-hover table-sm mb-0">';
+                html += '<thead><tr>';
+                html += '<th style="font-size: 12px; font-weight: 600;">Product Name</th>';
+                html += '<th style="font-size: 12px; font-weight: 600;">SKU</th>';
+                html += '<th style="font-size: 12px; font-weight: 600;">Category</th>';
+                html += '<th style="font-size: 12px; font-weight: 600;">Current Stock</th>';
+                html += '<th style="font-size: 12px; font-weight: 600;">Retail Price</th>';
+                html += '<th style="font-size: 12px; font-weight: 600;">Stock Value</th>';
+                html += '<th style="font-size: 12px; font-weight: 600;">Purchases</th>';
+                html += '<th style="font-size: 12px; font-weight: 600;">Added Date</th>';
+                html += '</tr></thead><tbody>';
+
+                products.forEach((product) => {
+                    const stock = parseInt(product.current_stock || 0);
+                    const stockBadge = stock > 0
+                        ? `<span class="badge bg-success">${stock}</span>`
+                        : `<span class="badge bg-danger">0</span>`;
+
+                    const addedDate = new Date(product.created_at);
+                    const dateStr = addedDate.toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                    });
+
+                    const stockValue = parseFloat(product.stock_value || 0);
+                    const purchaseCount = parseInt(product.purchase_count || 0);
+
+                    html += `
+                        <tr>
+                            <td style="font-size: 12px;">
+                                <strong>${product.product_name || 'N/A'}</strong>
+                                ${product.brand ? `<br><small class="text-muted">${product.brand}</small>` : ''}
+                            </td>
+                            <td style="font-size: 12px;">${product.sku || 'N/A'}</td>
+                            <td style="font-size: 12px;">${product.category || 'N/A'}</td>
+                            <td style="font-size: 12px;">${stockBadge}</td>
+                            <td style="font-size: 12px;">${formatCurrency(product.retail_price || 0)}</td>
+                            <td style="font-size: 12px;"><strong>${formatCurrency(stockValue)}</strong></td>
+                            <td style="font-size: 12px;"><span class="badge bg-info">${purchaseCount}</span></td>
+                            <td style="font-size: 12px;">${dateStr}</td>
+                        </tr>
+                    `;
+                });
+
+                html += '</tbody></table></div>';
+                $('#noSalesProductsList').html(html);
+            }
+
             // Date range picker
             $(function() {
                 var today = moment();
 
                 function cb(start, end) {
-                    $('#reportrange span').html(start.format('MMMM D, YYYY') + ' - ' + end.format(
-                        'MMMM D, YYYY'));
+                    $('#reportrange span').html(start.format('MMM D, YYYY') + ' - ' + end.format(
+                        'MMM D, YYYY'));
 
                     // Get selected location ID
                     const selectedLocationId = $('#location_dropdown').val();

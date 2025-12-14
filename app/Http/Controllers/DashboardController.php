@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
@@ -26,222 +27,313 @@ class DashboardController extends Controller
     {
         $startDate = $request->query('startDate');
         $endDate = $request->query('endDate');
-        $selectedLocationId = $request->query('location_id'); // Get selected location from frontend
+        $selectedLocationId = $request->query('location_id');
 
-        // Get user's accessible locations
+        // Create unique cache key based on parameters
+        $userId = auth()->id();
+        $cacheKey = "dashboard_data_{$userId}_{$startDate}_{$endDate}_{$selectedLocationId}";
+
+        // Cache for 5 minutes (300 seconds)
+        return Cache::remember($cacheKey, 300, function() use ($request, $startDate, $endDate, $selectedLocationId) {
+            return $this->fetchDashboardData($startDate, $endDate, $selectedLocationId);
+        });
+    }
+
+    private function fetchDashboardData($startDate, $endDate, $selectedLocationId)
+    {
+
+        // Get user's accessible locations (optimized)
         $user = auth()->user();
-        $userLocations = ($user->role === 'Super Admin' || !$user->locations || $user->locations->isEmpty()) ? null : $user->locations->pluck('id');
+        $userLocations = ($user->role === 'Super Admin' || !$user->locations || $user->locations->isEmpty())
+            ? null
+            : $user->locations->pluck('id')->toArray();
 
         // Determine which locations to filter by
         $locationFilter = null;
         if ($selectedLocationId) {
-            // If a specific location is selected, use only that location (if user has access)
-            if ($userLocations === null || $userLocations->contains($selectedLocationId)) {
+            if ($userLocations === null || in_array($selectedLocationId, $userLocations)) {
                 $locationFilter = [$selectedLocationId];
             }
         } else {
-            // If "All Location" is selected, use user's accessible locations
-            $locationFilter = $userLocations ? $userLocations->toArray() : null;
+            $locationFilter = $userLocations;
         }
 
-        // Apply location filter for sales - EXCLUDE SALE ORDERS, only count actual final sales
-        $salesQuery = DB::table('sales')
+        // Sales filter condition (reusable)
+        $salesFilter = function($query) {
+            $query->where('transaction_type', 'invoice')
+                  ->orWhere(function($subQuery) {
+                      $subQuery->whereNull('transaction_type')->where('status', 'final');
+                  });
+        };
+
+        // Sales filter condition (reusable)
+        $salesFilter = function($query) {
+            $query->where('transaction_type', 'invoice')
+                  ->orWhere(function($subQuery) {
+                      $subQuery->whereNull('transaction_type')->where('status', 'final');
+                  });
+        };
+
+        // Optimized: Get all metrics in fewer queries using aggregation
+        $salesMetrics = DB::table('sales')
+            ->selectRaw('
+                SUM(final_total) as total_sales,
+                SUM(total_due) as total_sales_due
+            ')
             ->whereBetween('sales_date', [$startDate, $endDate])
-            ->where(function($query) {
-                $query->where('transaction_type', 'invoice') // Only invoices
-                      ->orWhere(function($subQuery) {
-                          $subQuery->whereNull('transaction_type') // Legacy sales without transaction_type
-                                   ->where('status', 'final'); // Only final status
-                      });
-            });
-        if ($locationFilter) {
-            $salesQuery->whereIn('location_id', $locationFilter);
-        }
+            ->where($salesFilter)
+            ->when($locationFilter, fn($q) => $q->whereIn('location_id', $locationFilter))
+            ->first();
 
-        $totalSales = $salesQuery->sum('final_total');
-        $totalSalesDue = $salesQuery->sum('total_due');
+        $purchaseMetrics = DB::table('purchases')
+            ->selectRaw('
+                SUM(final_total) as total_purchases,
+                SUM(total_due) as total_purchases_due
+            ')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->when($locationFilter, fn($q) => $q->whereIn('location_id', $locationFilter))
+            ->first();
 
-        // Apply location filter for purchases
-        $purchasesQuery = DB::table('purchases')
-            ->whereBetween('created_at', [$startDate, $endDate]);
-        if ($locationFilter) {
-            $purchasesQuery->whereIn('location_id', $locationFilter);
-        }
+        $returnMetrics = DB::table(DB::raw('(
+            SELECT "purchase" as type, return_total, total_due, location_id, created_at FROM purchase_returns
+            UNION ALL
+            SELECT "sales" as type, return_total, total_due, location_id, created_at FROM sales_returns
+        ) as returns'))
+            ->selectRaw('
+                SUM(CASE WHEN type = "purchase" THEN return_total ELSE 0 END) as total_purchase_return,
+                SUM(CASE WHEN type = "purchase" THEN total_due ELSE 0 END) as total_purchase_return_due,
+                SUM(CASE WHEN type = "sales" THEN return_total ELSE 0 END) as total_sales_return,
+                SUM(CASE WHEN type = "sales" THEN total_due ELSE 0 END) as total_sales_return_due
+            ')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->when($locationFilter, fn($q) => $q->whereIn('location_id', $locationFilter))
+            ->first();
 
-        $totalPurchases = $purchasesQuery->sum('final_total');
-        $totalPurchasesDue = $purchasesQuery->sum('total_due');
+        $stockTransfer = DB::table('stock_transfers')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->when($locationFilter, fn($q) => $q->whereIn('from_location_id', $locationFilter))
+            ->sum('final_total');
 
-        // Apply location filter for purchase returns
-        $purchaseReturnQuery = DB::table('purchase_returns')
-            ->whereBetween('created_at', [$startDate, $endDate]);
-        if ($locationFilter) {
-            $purchaseReturnQuery->whereIn('location_id', $locationFilter);
-        }
+        $totalProducts = DB::table('products')->count('id');
 
-        $totalPurchaseReturn = $purchaseReturnQuery->sum('return_total');
-        $totalPurchaseReturnDue = $purchaseReturnQuery->sum('total_due');
+        $totalProducts = DB::table('products')->count('id');
 
-        // Apply location filter for sales returns
-        $salesReturnQuery = DB::table('sales_returns')
-            ->whereBetween('created_at', [$startDate, $endDate]);
-        if ($locationFilter) {
-            $salesReturnQuery->whereIn('location_id', $locationFilter);
-        }
-
-        $totalSalesReturn = $salesReturnQuery->sum('return_total');
-        $totalSalesReturnDue = $salesReturnQuery->sum('total_due');
-
-        // Apply location filter for stock transfers
-        $stockTransferQuery = DB::table('stock_transfers')
-            ->whereBetween('created_at', [$startDate, $endDate]);
-        if ($locationFilter) {
-            $stockTransferQuery->whereIn('from_location_id', $locationFilter);
-        }
-
-        $stockTransfer = $stockTransferQuery->sum('final_total');
-
-        // Apply location filter for products count
-        $productsQuery = DB::table('products');
-
-        $totalProducts = $productsQuery->count();
-
-        // Fetch sales dates and amounts with location filter - EXCLUDE SALE ORDERS
-        $salesDataQuery = DB::table('sales')
-            ->select(DB::raw('DATE(sales_date) as date'), DB::raw('SUM(final_total) as amount'))
+        // Optimized: Get chart data in single query
+        $chartData = DB::table('sales')
+            ->selectRaw('DATE(sales_date) as date, SUM(final_total) as sales_amount')
             ->whereBetween('sales_date', [$startDate, $endDate])
-            ->where(function($query) {
-                $query->where('transaction_type', 'invoice') // Only invoices
-                      ->orWhere(function($subQuery) {
-                          $subQuery->whereNull('transaction_type') // Legacy sales without transaction_type
-                                   ->where('status', 'final'); // Only final status
-                      });
-            });
-        if ($locationFilter) {
-            $salesDataQuery->whereIn('location_id', $locationFilter);
-        }
+            ->where($salesFilter)
+            ->when($locationFilter, fn($q) => $q->whereIn('location_id', $locationFilter))
+            ->groupBy(DB::raw('DATE(sales_date)'))
+            ->get();
 
-        $salesData = $salesDataQuery->groupBy(DB::raw('DATE(sales_date)'))->get();
-        $salesDates = $salesData->pluck('date');
-        $salesAmounts = $salesData->pluck('amount');
+        $salesDates = $chartData->pluck('date');
+        $salesAmounts = $chartData->pluck('sales_amount');
 
-        // Fetch purchase dates and amounts with location filter
-        $purchaseDataQuery = DB::table('purchases')
-            ->select(DB::raw('DATE(created_at) as date'), DB::raw('SUM(final_total) as amount'))
-            ->whereBetween('created_at', [$startDate, $endDate]);
-        if ($locationFilter) {
-            $purchaseDataQuery->whereIn('location_id', $locationFilter);
-        }
+        $purchaseChartData = DB::table('purchases')
+            ->selectRaw('DATE(created_at) as date, SUM(final_total) as purchase_amount')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->when($locationFilter, fn($q) => $q->whereIn('location_id', $locationFilter))
+            ->groupBy(DB::raw('DATE(created_at)'))
+            ->get();
 
-        $purchaseData = $purchaseDataQuery->groupBy(DB::raw('DATE(created_at)'))->get();
-        $purchaseDates = $purchaseData->pluck('date');
-        $purchaseAmounts = $purchaseData->pluck('amount');
+        $purchaseDates = $purchaseChartData->pluck('date');
+        $purchaseAmounts = $purchaseChartData->pluck('purchase_amount');
 
-        // Get top selling products
-        $topProductsQuery = DB::table('sales_products')
+        $purchaseDates = $purchaseChartData->pluck('date');
+        $purchaseAmounts = $purchaseChartData->pluck('purchase_amount');
+
+        // Optimized: Top selling products with index hints
+        $topProducts = DB::table('sales_products')
             ->join('sales', 'sales_products.sale_id', '=', 'sales.id')
             ->join('products', 'sales_products.product_id', '=', 'products.id')
-            ->select(
-                'products.product_name',
-                'products.sku',
-                DB::raw('SUM(sales_products.quantity) as quantity_sold'),
-                DB::raw('SUM(sales_products.quantity * sales_products.price) as total_sales')
-            )
+            ->selectRaw('
+                products.id,
+                products.product_name,
+                products.sku,
+                SUM(sales_products.quantity) as quantity_sold,
+                SUM(sales_products.quantity * sales_products.price) as total_sales
+            ')
             ->whereBetween('sales.sales_date', [$startDate, $endDate])
-            ->where(function($query) {
-                $query->where('sales.transaction_type', 'invoice')
-                      ->orWhere(function($subQuery) {
-                          $subQuery->whereNull('sales.transaction_type')
-                                   ->where('sales.status', 'final');
-                      });
-            });
-
-        if ($locationFilter) {
-            $topProductsQuery->whereIn('sales.location_id', $locationFilter);
-        }
-
-        $topProducts = $topProductsQuery
+            ->where($salesFilter)
+            ->when($locationFilter, fn($q) => $q->whereIn('sales.location_id', $locationFilter))
             ->groupBy('products.id', 'products.product_name', 'products.sku')
-            ->orderBy('total_sales', 'desc')
+            ->orderByDesc('total_sales')
             ->limit(10)
             ->get();
 
-        // Calculate sales percentage for each product
-        $maxSales = $topProducts->max('total_sales');
-        $topProducts = $topProducts->map(function($product) use ($maxSales) {
-            $product->sales_percentage = $maxSales > 0 ? ($product->total_sales / $maxSales) * 100 : 0;
+        $maxSales = $topProducts->max('total_sales') ?: 1;
+        $topProducts->transform(function($product) use ($maxSales) {
+            $product->sales_percentage = ($product->total_sales / $maxSales) * 100;
             return $product;
         });
 
-        // Get low stock products
-        $lowStockQuery = DB::table('products')
+        $topProducts->transform(function($product) use ($maxSales) {
+            $product->sales_percentage = ($product->total_sales / $maxSales) * 100;
+            return $product;
+        });
+
+        // Optimized: Low stock products
+        $lowStockProducts = DB::table('products')
             ->leftJoin('batches', 'products.id', '=', 'batches.product_id')
             ->leftJoin('location_batches', 'batches.id', '=', 'location_batches.batch_id')
-            ->select(
-                'products.id',
-                'products.product_name',
-                'products.sku',
-                'products.alert_quantity',
-                DB::raw('COALESCE(SUM(location_batches.qty), 0) as current_stock')
-            )
+            ->selectRaw('
+                products.id,
+                products.product_name,
+                products.sku,
+                products.alert_quantity,
+                COALESCE(SUM(location_batches.qty), 0) as current_stock
+            ')
             ->whereNotNull('products.alert_quantity')
-            ->groupBy('products.id', 'products.product_name', 'products.sku', 'products.alert_quantity');
-
-        if ($locationFilter) {
-            $lowStockQuery->whereIn('location_batches.location_id', $locationFilter);
-        }
-
-        $lowStockProducts = $lowStockQuery
-            ->havingRaw('COALESCE(SUM(location_batches.qty), 0) <= products.alert_quantity')
-            ->orderBy('current_stock', 'asc')
+            ->when($locationFilter, fn($q) => $q->whereIn('location_batches.location_id', $locationFilter))
+            ->groupBy('products.id', 'products.product_name', 'products.sku', 'products.alert_quantity')
+            ->havingRaw('current_stock <= products.alert_quantity')
+            ->orderBy('current_stock')
             ->limit(10)
             ->get();
 
-        // Get recent sales
-        $recentSalesQuery = DB::table('sales')
-            ->leftJoin('sales_products', function($join) {
-                $join->on('sales.id', '=', 'sales_products.sale_id')
-                     ->whereRaw('sales_products.id = (SELECT id FROM sales_products WHERE sale_id = sales.id LIMIT 1)');
-            })
-            ->leftJoin('products', 'sales_products.product_id', '=', 'products.id')
-            ->leftJoin('main_categories', 'products.main_category_id', '=', 'main_categories.id')
-            ->select(
-                'sales.id',
-                'sales.invoice_no',
-                'sales.final_total',
-                'sales.status',
-                'sales.sales_date',
-                'sales.created_at',
-                'products.product_name',
-                'main_categories.mainCategoryName as category'
-            )
-            ->whereBetween('sales.sales_date', [$startDate, $endDate])
-            ->where(function($query) {
-                $query->where('sales.transaction_type', 'invoice')
-                      ->orWhere(function($subQuery) {
-                          $subQuery->whereNull('sales.transaction_type')
-                                   ->where('sales.status', 'final');
-                      });
-            });
-
-        if ($locationFilter) {
-            $recentSalesQuery->whereIn('sales.location_id', $locationFilter);
-        }
-
-        $recentSales = $recentSalesQuery
-            ->orderBy('sales.created_at', 'desc')
+        $lowStockProducts = DB::table('products')
+            ->leftJoin('batches', 'products.id', '=', 'batches.product_id')
+            ->leftJoin('location_batches', 'batches.id', '=', 'location_batches.batch_id')
+            ->selectRaw('
+                products.id,
+                products.product_name,
+                products.sku,
+                products.alert_quantity,
+                COALESCE(SUM(location_batches.qty), 0) as current_stock
+            ')
+            ->whereNotNull('products.alert_quantity')
+            ->when($locationFilter, fn($q) => $q->whereIn('location_batches.location_id', $locationFilter))
+            ->groupBy('products.id', 'products.product_name', 'products.sku', 'products.alert_quantity')
+            ->havingRaw('current_stock <= products.alert_quantity')
+            ->orderBy('current_stock')
             ->limit(10)
+            ->get();
+
+        // Optimized: Recent sales with subquery
+        $recentSales = DB::table('sales')
+            ->leftJoin(DB::raw('(
+                SELECT sale_id, product_id,
+                       ROW_NUMBER() OVER (PARTITION BY sale_id ORDER BY id) as rn
+                FROM sales_products
+            ) sp'), function($join) {
+                $join->on('sales.id', '=', 'sp.sale_id')
+                     ->where('sp.rn', '=', 1);
+            })
+            ->leftJoin('products', 'sp.product_id', '=', 'products.id')
+            ->leftJoin('main_categories', 'products.main_category_id', '=', 'main_categories.id')
+            ->selectRaw('
+                sales.id,
+                sales.invoice_no,
+                sales.final_total,
+                sales.status,
+                sales.sales_date,
+                sales.created_at,
+                products.product_name,
+                main_categories.mainCategoryName as category
+            ')
+            ->whereBetween('sales.sales_date', [$startDate, $endDate])
+            ->where($salesFilter)
+            ->when($locationFilter, fn($q) => $q->whereIn('sales.location_id', $locationFilter))
+            ->orderByDesc('sales.created_at')
+            ->limit(10)
+            ->get();
+
+        $recentSales = DB::table('sales')
+            ->leftJoin(DB::raw('(
+                SELECT sale_id, product_id,
+                       ROW_NUMBER() OVER (PARTITION BY sale_id ORDER BY id) as rn
+                FROM sales_products
+            ) sp'), function($join) {
+                $join->on('sales.id', '=', 'sp.sale_id')
+                     ->where('sp.rn', '=', 1);
+            })
+            ->leftJoin('products', 'sp.product_id', '=', 'products.id')
+            ->leftJoin('main_categories', 'products.main_category_id', '=', 'main_categories.id')
+            ->selectRaw('
+                sales.id,
+                sales.invoice_no,
+                sales.final_total,
+                sales.status,
+                sales.sales_date,
+                sales.created_at,
+                products.product_name,
+                main_categories.mainCategoryName as category
+            ')
+            ->whereBetween('sales.sales_date', [$startDate, $endDate])
+            ->where($salesFilter)
+            ->when($locationFilter, fn($q) => $q->whereIn('sales.location_id', $locationFilter))
+            ->orderByDesc('sales.created_at')
+            ->limit(10)
+            ->get();
+
+        // Optimized: Products with stock but no sales
+        $stockSubquery = DB::table('batches')
+            ->join('location_batches', 'batches.id', '=', 'location_batches.batch_id')
+            ->selectRaw('
+                batches.product_id,
+                SUM(location_batches.qty) as total_stock
+            ')
+            ->when($locationFilter, fn($q) => $q->whereIn('location_batches.location_id', $locationFilter))
+            ->groupBy('batches.product_id')
+            ->havingRaw('total_stock > 0');
+
+        $noSalesProducts = DB::table('products')
+            ->joinSub($stockSubquery, 'stock', 'products.id', '=', 'stock.product_id')
+            ->leftJoin('sales_products', 'products.id', '=', 'sales_products.product_id')
+            ->leftJoin('main_categories', 'products.main_category_id', '=', 'main_categories.id')
+            ->leftJoin('brands', 'products.brand_id', '=', 'brands.id')
+            ->selectRaw('
+                products.id,
+                products.product_name,
+                products.sku,
+                products.retail_price,
+                products.original_price,
+                products.created_at,
+                main_categories.mainCategoryName as category,
+                brands.name as brand,
+                stock.total_stock as current_stock,
+                (stock.total_stock * products.original_price) as stock_value,
+                (SELECT COUNT(*) FROM purchase_products WHERE product_id = products.id) as purchase_count
+            ')
+            ->whereNull('sales_products.id')
+            ->orderByDesc('stock.total_stock')
+            ->limit(50)
+            ->get();
+
+        $noSalesProducts = DB::table('products')
+            ->joinSub($stockSubquery, 'stock', 'products.id', '=', 'stock.product_id')
+            ->leftJoin('sales_products', 'products.id', '=', 'sales_products.product_id')
+            ->leftJoin('main_categories', 'products.main_category_id', '=', 'main_categories.id')
+            ->leftJoin('brands', 'products.brand_id', '=', 'brands.id')
+            ->selectRaw('
+                products.id,
+                products.product_name,
+                products.sku,
+                products.retail_price,
+                products.original_price,
+                products.created_at,
+                main_categories.mainCategoryName as category,
+                brands.name as brand,
+                stock.total_stock as current_stock,
+                (stock.total_stock * products.original_price) as stock_value,
+                (SELECT COUNT(*) FROM purchase_products WHERE product_id = products.id) as purchase_count
+            ')
+            ->whereNull('sales_products.id')
+            ->orderByDesc('stock.total_stock')
+            ->limit(50)
             ->get();
 
         return response()->json([
-            'totalSales' => $totalSales,
-            'totalPurchases' => $totalPurchases,
-            'totalSalesReturn' => $totalSalesReturn,
-            'totalPurchaseReturn' => $totalPurchaseReturn,
-            'totalSalesDue' => $totalSalesDue,
-            'totalPurchasesDue' => $totalPurchasesDue,
-            'totalPurchaseReturnDue' => $totalPurchaseReturnDue,
-            'totalSalesReturnDue' => $totalSalesReturnDue,
-            'stockTransfer' => $stockTransfer,
+            'totalSales' => $salesMetrics->total_sales ?? 0,
+            'totalPurchases' => $purchaseMetrics->total_purchases ?? 0,
+            'totalSalesReturn' => $returnMetrics->total_sales_return ?? 0,
+            'totalPurchaseReturn' => $returnMetrics->total_purchase_return ?? 0,
+            'totalSalesDue' => $salesMetrics->total_sales_due ?? 0,
+            'totalPurchasesDue' => $purchaseMetrics->total_purchases_due ?? 0,
+            'totalPurchaseReturnDue' => $returnMetrics->total_purchase_return_due ?? 0,
+            'totalSalesReturnDue' => $returnMetrics->total_sales_return_due ?? 0,
+            'stockTransfer' => $stockTransfer ?? 0,
             'totalProducts' => $totalProducts,
             'salesDates' => $salesDates,
             'salesAmounts' => $salesAmounts,
@@ -250,6 +342,19 @@ class DashboardController extends Controller
             'topProducts' => $topProducts,
             'lowStockProducts' => $lowStockProducts,
             'recentSales' => $recentSales,
+            'noSalesProducts' => $noSalesProducts,
         ]);
+    }
+
+    // Clear cache when sales, purchases, or products are updated
+    public function clearDashboardCache()
+    {
+        $userId = auth()->id();
+        $pattern = "dashboard_data_{$userId}_*";
+
+        // Clear all dashboard cache for this user
+        Cache::flush(); // Or use more specific cache clearing based on your cache driver
+
+        return response()->json(['message' => 'Dashboard cache cleared successfully']);
     }
 }
