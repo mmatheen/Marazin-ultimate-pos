@@ -2510,6 +2510,20 @@
             });
 
             // Don't auto-select first option - let user or system choose
+            // Auto-select location based on user type
+            if (!isSalesRep && !isEditing) {
+                // For non-sales rep users, auto-select first parent location
+                const firstParentLocation = parentLocations[0];
+                if (firstParentLocation) {
+                    setTimeout(() => {
+                        locationSelect.val(firstParentLocation.id).trigger('change');
+                        locationSelectDesktop.val(firstParentLocation.id).trigger('change');
+                        console.log('✅ Auto-selected first location for regular user:', firstParentLocation.name);
+                    }, 200);
+                }
+            }
+            // For sales reps, location will be auto-selected by restrictLocationAccess()
+
             // Trigger change event (optional: useful if other logic depends on it)
             if (locationSelect.val()) {
                 locationSelect.trigger('change');
