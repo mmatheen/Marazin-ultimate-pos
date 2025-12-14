@@ -48,6 +48,34 @@
             visibility: visible !important;
             opacity: 1 !important;
         }
+
+        /* Ensure offcanvas appears above mobile product modal */
+        #offcanvasCategory,
+        #offcanvasBrand,
+        #offcanvasSubcategory {
+            z-index: 10500 !important;
+        }
+
+        .offcanvas-backdrop {
+            z-index: 10499 !important;
+        }
+
+        #mobileProductModal {
+            z-index: 10400 !important;
+        }
+
+        /* Mobile Quantity Modal - highest z-index */
+        #mobileQuantityModal {
+            z-index: 10600 !important;
+        }
+
+        #mobileQuantityModal .modal-backdrop {
+            z-index: 10599 !important;
+        }
+
+        #mobileQuantityModal .modal-dialog {
+            z-index: 10601 !important;
+        }
     </style>
 </head>
 
@@ -61,12 +89,16 @@
                 <div class="card bg-white p-1">
                     <!-- Mobile View: Single Row -->
                     <div class="d-md-none">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <select id="locationSelect" class="form-select" style="max-width: calc(100% - 50px);">
+                        <div class="d-flex justify-content-between align-items-center gap-2">
+                            <select id="locationSelect" class="form-select" style="flex: 1;">
                                 <option value="" selected disabled>Select Location</option>
                             </select>
-                            <button class="btn btn-primary ms-2" type="button" data-bs-toggle="modal"
-                                data-bs-target="#mobileMenuModal">
+                            <button class="btn btn-primary" type="button" data-bs-toggle="modal"
+                                data-bs-target="#mobileProductModal" title="Product List">
+                                <i class="fas fa-box-open"></i>
+                            </button>
+                            <button class="btn btn-primary" type="button" data-bs-toggle="modal"
+                                data-bs-target="#mobileMenuModal" title="Menu">
                                 <i class="fas fa-bars"></i>
                             </button>
                         </div>
@@ -341,8 +373,7 @@
                             </div>
                             <div class="col-4">
                                 <button type="button" class="menu-card w-100" data-bs-dismiss="modal"
-                                    id="toggleProductListMobile"
-                                    onclick="document.getElementById('toggleProductList').click()">
+                                    data-bs-toggle="modal" data-bs-target="#mobileProductModal">
                                     <div class="menu-icon bg-secondary text-white">
                                         <i class="fas fa-box-open"></i>
                                     </div>
@@ -695,6 +726,60 @@
             <div class="offcanvas-body">
                 <div id="subcategoryContainer" class="subcategory-container">
                     <!-- Subcategories will be dynamically injected here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Product View Modal -->
+        <div class="modal fade" id="mobileProductModal" tabindex="-1" aria-labelledby="mobileProductModalLabel">
+            <div class="modal-dialog modal-fullscreen">
+                <div class="modal-content">
+                    <div class="modal-header bg-white border-bottom sticky-top">
+                        <h5 class="modal-title" id="mobileProductModalLabel">
+                            <i class="fas fa-box me-2"></i>Products
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-2" id="mobileProductModalBody" style="overflow-y: auto; height: calc(100vh - 120px);">
+                        <!-- Filter Buttons -->
+                        <div class="mb-3 d-flex gap-2 flex-wrap sticky-top bg-white pb-2" style="z-index: 1;">
+                            <button type="button" class="btn btn-primary btn-sm" id="mobileAllProductsBtn">
+                                <i class="fas fa-box"></i> All Products
+                            </button>
+                            <button type="button" class="btn btn-primary btn-sm" id="mobileCategoryBtn">
+                                <i class="fas fa-th-large"></i> Category
+                            </button>
+                            <button type="button" class="btn btn-primary btn-sm" id="mobileBrandBtn">
+                                <i class="fas fa-tags"></i> Brand
+                            </button>
+                        </div>
+                        <!-- Product Grid -->
+                        <div class="row g-2" id="mobileProductGrid">
+                            <!-- Products will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Quantity Input Modal -->
+        <div class="modal fade" id="mobileQuantityModal" tabindex="-1" aria-labelledby="mobileQuantityModalLabel">
+            <div class="modal-dialog modal-dialog-centered modal-sm">
+                <div class="modal-content">
+                    <div class="modal-header border-0 pb-0">
+                        <h6 class="modal-title" id="mobileQtyProductName">Product Name</h6>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-center py-3">
+                        <small class="text-muted d-block mb-2" id="mobileQtyAvailable">Available: 0</small>
+                        <input type="number" class="form-control form-control-lg text-center fw-bold" id="mobileQtyInput"
+                               placeholder="0" min="1" step="1" autofocus style="font-size: 24px; height: 60px;">
+                        <small class="text-danger d-block mt-2" id="mobileQtyError" style="display: none;"></small>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="mobileQtyConfirm">Add</button>
+                    </div>
                 </div>
             </div>
         </div>

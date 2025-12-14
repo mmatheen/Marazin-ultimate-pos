@@ -1,68 +1,56 @@
-<!-- Sales Rep Vehicle and Route Selection Modal -->
-<div class="modal fade" id="salesRepSelectionModal" tabindex="-1" aria-labelledby="salesRepSelectionModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
+<!-- Sales Rep Vehicle and Route Selection Modal - REQUIRED SELECTION -->
+<div class="modal fade" id="salesRepSelectionModal" tabindex="-1" aria-labelledby="salesRepSelectionModalLabel"
+     data-bs-backdrop="static" data-bs-keyboard="false" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border">
+            <div class="modal-header bg-white border-bottom">
                 <h5 class="modal-title" id="salesRepSelectionModalLabel">
-                    <i class="fas fa-truck me-2"></i>Select Vehicle and Route
+                    Select Your Vehicle and Route
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <div class="alert alert-info mb-3">
-                    <i class="fas fa-info-circle me-2"></i>
-                    Please select your assigned vehicle and route to proceed with sales.
+            <div class="modal-body p-4" style="max-height: 70vh; overflow-y: auto;">
+                <div class="alert alert-info mb-4">
+                    <strong>Important:</strong> You must select your vehicle and route to continue.
                 </div>
 
                 <!-- Vehicle Selection -->
-                <div class="card mb-3">
-                    <div class="card-header">
-                        <h6 class="mb-0"><i class="fas fa-truck me-2"></i>Vehicle Selection</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="row" id="vehicleSelectionContainer">
-                            <!-- Vehicle options will be populated here -->
-                        </div>
+                <div class="mb-4">
+                    <h6 class="mb-3 text-dark">Step 1: Select Vehicle</h6>
+                    <div id="vehicleSelectionContainer">
+                        <!-- Vehicle options will be populated here -->
                     </div>
                 </div>
 
                 <!-- Route Selection -->
-                <div class="card" id="routeSelectionCard" style="display: none;">
-                    <div class="card-header">
-                        <h6 class="mb-0"><i class="fas fa-route me-2"></i>Route Selection</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="row" id="routeSelectionContainer">
-                            <!-- Route options will be populated here -->
-                        </div>
+                <div class="mb-4" id="routeSelectionCard" style="display: none;">
+                    <h6 class="mb-3 text-dark">Step 2: Select Route</h6>
+                    <div id="routeSelectionContainer">
+                        <!-- Route options will be populated here -->
                     </div>
                 </div>
 
                 <!-- Selected Information -->
-                <div class="card mt-3" id="selectionSummary" style="display: none;">
-                    <div class="card-header bg-success text-white">
-                        <h6 class="mb-0"><i class="fas fa-check me-2"></i>Selection Summary</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <strong>Vehicle:</strong> <span id="selectedVehicleName">-</span><br>
-                                <small class="text-muted">Number: <span id="selectedVehicleNumber">-</span></small>
-                            </div>
-                            <div class="col-md-6">
-                                <strong>Route:</strong> <span id="selectedRouteName">-</span><br>
-                                <small class="text-muted">Cities: <span id="selectedRouteCities">-</span></small>
-                            </div>
+                <div class="mt-4 p-3 bg-light border rounded" id="selectionSummary" style="display: none;">
+                    <h6 class="mb-3">Your Selection</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <strong class="d-block text-muted mb-1">Vehicle:</strong>
+                            <div id="selectedVehicleName" class="fw-bold">-</div>
+                            <small class="text-muted" id="selectedVehicleNumber">-</small>
+                        </div>
+                        <div class="col-md-6">
+                            <strong class="d-block text-muted mb-1">Route:</strong>
+                            <div id="selectedRouteName" class="fw-bold">-</div>
+                            <small class="text-muted">
+                                <span id="selectedRouteCitiesCount">0</span> cities
+                            </small>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="fas fa-times me-2"></i>Cancel
-                </button>
-                <button type="button" class="btn btn-primary" id="confirmSelectionBtn" disabled>
-                    <i class="fas fa-check me-2"></i>Confirm Selection
+            <div class="modal-footer border-top bg-white">
+                <button type="button" class="btn btn-primary px-4" id="confirmSelectionBtn" disabled>
+                    Confirm and Continue
                 </button>
             </div>
         </div>
@@ -70,29 +58,49 @@
 </div>
 
 <style>
+/* Ensure modal appears above all POS elements */
+#salesRepSelectionModal {
+    z-index: 9999 !important;
+}
+
+#salesRepSelectionModal .modal-dialog {
+    z-index: 10000 !important;
+}
+
+#salesRepSelectionModal .modal-content {
+    z-index: 10001 !important;
+}
+
 .vehicle-option, .route-option {
     cursor: pointer;
-    transition: all 0.3s ease;
-    border: 2px solid transparent;
+    transition: border-color 0.2s;
+    border: 2px solid #dee2e6;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 4px;
 }
 
 .vehicle-option:hover, .route-option:hover {
-    border-color: #007bff;
-    transform: translateY(-2px);
+    border-color: #0d6efd;
 }
 
 .vehicle-option.selected, .route-option.selected {
-    border-color: #28a745;
+    border-color: #0d6efd;
     background-color: #f8f9fa;
 }
 
-.vehicle-option .card-body, .route-option .card-body {
-    padding: 1rem;
+#confirmSelectionBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
-.access-badge {
-    font-size: 0.75em;
-    padding: 0.25rem 0.5rem;
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.card {
+    transition: all 0.3s ease;
 }
 </style>
 
@@ -109,18 +117,18 @@ document.addEventListener('DOMContentLoaded', function() {
             // Check if cached data is from today (to ensure fresh status updates)
             const lastFetch = localStorage.getItem('salesRepAssignmentsFetchTime');
             const today = new Date().toDateString();
-            
+
             if (lastFetch && new Date(lastFetch).toDateString() === today) {
                 salesRepAssignments = window.salesRepAssignments;
                 populateVehicleOptions();
                 return Promise.resolve(true);
             }
         }
-        
+
         // Clear cached data and fetch fresh assignments
         window.salesRepAssignments = null;
         localStorage.removeItem('salesRepAssignmentsFetchTime');
-        
+
         return fetch('/sales-rep/my-assignments', {
             method: 'GET',
             headers: {
@@ -180,33 +188,23 @@ document.addEventListener('DOMContentLoaded', function() {
         Object.values(vehicleGroups).forEach(vehicleGroup => {
             const sublocation = vehicleGroup.sublocation;
             const activeRoutes = vehicleGroup.routes.filter(route => route.status === 'active');
-            
+
             const vehicleCard = document.createElement('div');
-            vehicleCard.className = 'col-md-6 mb-3';
+            vehicleCard.className = 'vehicle-option';
             vehicleCard.innerHTML = `
-                <div class="card vehicle-option" data-vehicle-id="${sublocation.id}">
-                    <div class="card-body">
-                        <h6 class="card-title">
-                            <i class="fas fa-truck me-2"></i>${sublocation.name}
-                        </h6>
-                        <p class="card-text">
-                            <small class="text-muted">
-                                Vehicle: ${sublocation.vehicle_number || 'N/A'}<br>
-                                Type: ${sublocation.vehicle_type || 'N/A'}<br>
-                                Routes: ${activeRoutes.length} active
-                            </small>
-                        </p>
-                        <div class="mt-2">
-                            ${activeRoutes.map(route => `
-                                <span class="badge ${route.can_sell ? 'bg-success' : 'bg-warning'} me-1">
-                                    ${route.name} ${route.can_sell ? '(Sell)' : '(View)'}
-                                </span>
-                            `).join('')}
-                        </div>
+                <div data-vehicle-id="${sublocation.id}">
+                    <h6 class="mb-2">
+                        <i class="fas fa-truck me-2"></i>${sublocation.name}
+                    </h6>
+                    <div class="text-muted small mb-2">
+                        <div><strong>Location:</strong> ${sublocation.parent?.name || 'Main Location'}</div>
+                        <div><strong>Number:</strong> ${sublocation.vehicle_number || 'N/A'}</div>
+                        <div><strong>Type:</strong> ${sublocation.vehicle_type || 'Lorry'}</div>
+                        <div><strong>Routes:</strong> ${activeRoutes.length} active</div>
                     </div>
                 </div>
             `;
-            
+
             vehicleCard.addEventListener('click', () => selectVehicle(sublocation, vehicleGroup.routes));
             container.appendChild(vehicleCard);
         });
@@ -226,7 +224,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show route selection
         populateRouteOptions(routes);
         document.getElementById('routeSelectionCard').style.display = 'block';
-        
+
         updateSelectionSummary();
     }
 
@@ -238,32 +236,42 @@ document.addEventListener('DOMContentLoaded', function() {
         const activeRoutes = routes.filter(route => route.status === 'active');
 
         if (activeRoutes.length === 0) {
-            container.innerHTML = '<div class="col-12"><div class="alert alert-warning">No active routes found for this vehicle.</div></div>';
+            container.innerHTML = '<div class="col-12"><div class="alert alert-warning"><i class="fas fa-exclamation-circle me-2"></i>No active routes found for this vehicle.</div></div>';
             return;
         }
 
         activeRoutes.forEach(route => {
+            const cityCount = route.cities?.length || 0;
+            const citiesBadges = route.cities?.map(city =>
+                `<span class="badge bg-light text-dark border me-1 mb-1">${city.name}</span>`
+            ).join('') || '<span class="text-muted">No cities</span>';
+            const routeId = 'route-' + route.id;
+
             const routeCard = document.createElement('div');
-            routeCard.className = 'col-md-6 mb-3';
+            routeCard.className = 'route-option';
             routeCard.innerHTML = `
-                <div class="card route-option" data-route-id="${route.id}">
-                    <div class="card-body">
-                        <h6 class="card-title">
-                            <i class="fas fa-route me-2"></i>${route.name}
-                            <span class="badge ${route.can_sell ? 'bg-success' : 'bg-warning'} access-badge ms-2">
-                                ${route.can_sell ? 'Sales Allowed' : 'View Only'}
-                            </span>
-                        </h6>
-                        <p class="card-text">
-                            <small class="text-muted">
-                                Status: ${route.status}<br>
-                                Cities: ${route.cities?.map(city => city.name).join(', ') || 'N/A'}
-                            </small>
-                        </p>
+                <div data-route-id="${route.id}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="fas fa-route me-2"></i>
+                            <strong>${route.name}</strong>
+                            ${route.can_sell ? '' : '<small class="text-muted ms-2">(View Only)</small>'}
+                        </div>
+                        <div>
+                            <span class="text-muted me-2">${cityCount} cities</span>
+                            <a href="#" class="text-primary text-decoration-none view-cities-link" data-bs-toggle="collapse" data-bs-target="#${routeId}" onclick="event.stopPropagation()">
+                                <small>View</small>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="collapse mt-2" id="${routeId}">
+                        <div class="p-2 bg-light border rounded d-flex flex-wrap">
+                            ${citiesBadges}
+                        </div>
                     </div>
                 </div>
             `;
-            
+
             routeCard.addEventListener('click', () => selectRoute(route));
             container.appendChild(routeCard);
         });
@@ -286,7 +294,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to update selection summary
     function updateSelectionSummary() {
         const summaryDiv = document.getElementById('selectionSummary');
-        
+
         if (selectedVehicle) {
             document.getElementById('selectedVehicleName').textContent = selectedVehicle.name;
             document.getElementById('selectedVehicleNumber').textContent = selectedVehicle.vehicle_number || 'N/A';
@@ -294,8 +302,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (selectedRoute) {
             document.getElementById('selectedRouteName').textContent = selectedRoute.name;
-            document.getElementById('selectedRouteCities').textContent = 
-                selectedRoute.cities?.map(city => city.name).join(', ') || 'N/A';
+            document.getElementById('selectedRouteCitiesCount').textContent = selectedRoute.cities?.length || 0;
             summaryDiv.style.display = 'block';
         }
     }
@@ -309,7 +316,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 route: selectedRoute,
                 canSell: selectedRoute.can_sell
             };
-            
+
             // Store selection in both session and local storage for persistence
             try {
                 const selectionJson = JSON.stringify(selection);
@@ -319,7 +326,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } catch (e) {
                 console.error('Failed to store sales rep selection:', e);
             }
-            
+
             // Dispatch custom event
             window.dispatchEvent(new CustomEvent('salesRepSelectionConfirmed', {
                 detail: selection
@@ -361,19 +368,19 @@ document.addEventListener('DOMContentLoaded', function() {
             // First check sessionStorage (current session)
             let stored = sessionStorage.getItem('salesRepSelection');
             let parsed = stored ? JSON.parse(stored) : null;
-            
+
             // If not found in sessionStorage, check localStorage (persistent across refreshes)
             if (!parsed) {
                 stored = localStorage.getItem('salesRepSelection');
                 parsed = stored ? JSON.parse(stored) : null;
-                
+
                 // If found in localStorage, also store in sessionStorage for current session
                 if (parsed) {
                     sessionStorage.setItem('salesRepSelection', JSON.stringify(parsed));
                     console.log('Restored sales rep selection from localStorage to sessionStorage');
                 }
             }
-            
+
             return parsed;
         } catch (e) {
             console.warn('Error parsing sales rep selection from storage:', e);
@@ -392,7 +399,7 @@ document.addEventListener('DOMContentLoaded', function() {
     window.refreshSalesRepAssignments = function() {
         window.salesRepAssignments = null;
         localStorage.removeItem('salesRepAssignmentsFetchTime');
-        
+
         // Also clear any invalid selections
         const currentSelection = window.getSalesRepSelection();
         if (currentSelection) {
@@ -400,12 +407,12 @@ document.addEventListener('DOMContentLoaded', function() {
             loadSalesRepAssignments(true).then(success => {
                 if (success) {
                     // Check if current selection is still valid (not expired)
-                    const isStillValid = salesRepAssignments.some(assignment => 
+                    const isStillValid = salesRepAssignments.some(assignment =>
                         assignment.sub_location?.id === currentSelection.vehicle?.id &&
                         assignment.route?.id === currentSelection.route?.id &&
                         assignment.status === 'active'
                     );
-                    
+
                     if (!isStillValid) {
                         window.clearSalesRepSelection();
                         console.log('Cleared invalid/expired sales rep selection');
@@ -416,7 +423,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         }
-        
+
         console.log('Sales rep assignments cache refreshed');
     };
 });

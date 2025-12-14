@@ -980,6 +980,18 @@
 
             // Early restoration to prevent display flicker on page refresh
             const storedSelection = getSalesRepSelection();
+            const currentUserId = @json(auth()->user()->id);
+
+            // Check if stored selection belongs to a different user
+            if (storedSelection && storedSelection.userId && storedSelection.userId !== currentUserId) {
+                console.log('🔄 Stored selection belongs to different user, clearing it');
+                clearSalesRepSelection();
+                salesRepCustomersFiltered = false;
+                salesRepCustomersLoaded = false;
+                window.hasStoredSalesRepSelection = false;
+                return;
+            }
+
             if (storedSelection && storedSelection.vehicle && storedSelection.route) {
                 console.log('Restoring sales rep display from storage on page load:', storedSelection);
 
@@ -1225,6 +1237,21 @@
 
             // Store assignments globally for modal
             window.salesRepAssignments = assignments;
+
+            // Check if this is a different sales rep than the stored one
+            const storedSelection = getSalesRepSelection();
+            const currentUserId = @json(auth()->user()->id);
+
+            if (storedSelection && storedSelection.userId && storedSelection.userId !== currentUserId) {
+                console.log('🔄 Different sales rep detected, clearing previous customer data');
+                // Clear the old sales rep's customer data
+                clearSalesRepSelection();
+                // Reset customer filtering flags
+                salesRepCustomersFiltered = false;
+                salesRepCustomersLoaded = false;
+                // Clear customer dropdown
+                $('#customer-id').empty().append('<option value="">Please Select</option>');
+            }
 
             // Ensure sales rep display is ready to be shown (remove any hiding)
             const salesRepDisplay = document.getElementById('salesRepDisplay');
@@ -2077,11 +2104,17 @@
         // ---- Sales Rep Session Management ----
         function storeSalesRepSelection(selection) {
             try {
-                const selectionJson = JSON.stringify(selection);
+                // Add current user ID to selection to track which sales rep it belongs to
+                const selectionWithUser = {
+                    ...selection,
+                    userId: @json(auth()->user()->id),
+                    timestamp: Date.now()
+                };
+                const selectionJson = JSON.stringify(selectionWithUser);
                 // Store in both sessionStorage (for current session) and localStorage (for persistence)
                 sessionStorage.setItem('salesRepSelection', selectionJson);
                 localStorage.setItem('salesRepSelection', selectionJson);
-                console.log('Sales rep selection stored in both session and local storage');
+                console.log('Sales rep selection stored with user ID:', selectionWithUser.userId);
             } catch (e) {
                 console.error('Failed to store sales rep selection:', e);
             }
@@ -2865,9 +2898,19 @@
                     if (reset) {
                         console.log('Displaying all products (reset mode)');
                         displayProducts(allProducts, false);
+                        // Also update mobile modal if it's open
+                        const mobileModal = document.getElementById('mobileProductModal');
+                        if (mobileModal && mobileModal.classList.contains('show')) {
+                            displayMobileProducts(allProducts, false);
+                        }
                     } else {
                         console.log(`Displaying ${data.data.length} new products (append mode)`);
                         displayProducts(data.data, true);
+                        // Also append to mobile modal if it's open
+                        const mobileModal = document.getElementById('mobileProductModal');
+                        if (mobileModal && mobileModal.classList.contains('show')) {
+                            displayMobileProducts(data.data, true);
+                        }
                     }
 
                     if (data.data.length === 0 || data.data.length < perPage) {
@@ -3059,6 +3102,289 @@
             });
 
             console.log(`DisplayProducts: Added ${newlyAddedCards.length} new product cards, append mode: ${append}`);
+        }
+
+        // ---- DISPLAY PRODUCTS IN MOBILE MODAL ----
+        function displayMobileProducts(products, append = false) {
+            const mobileProductGrid = document.getElementById('mobileProductGrid');
+            if (!mobileProductGrid) return;
+
+            if (!append) {
+                mobileProductGrid.innerHTML = '';
+            }
+
+            if (!selectedLocationId || products.length === 0) {
+                if (!append) {
+                    mobileProductGrid.innerHTML = '<div class="col-12"><p class="text-center">No products found.</p></div>';
+                }
+                return;
+            }
+
+            console.log(`DisplayMobileProducts: ${products.length} products, append=${append}, location=${selectedLocationId}`);
+
+            // Filter products with stock > 0 or unlimited stock
+            const filteredProducts = products.filter(stock => {
+                const product = stock.product;
+                if (product.stock_alert === 0) return true;
+
+                const hasDecimal = product.unit && (product.unit.allow_decimal === true || product.unit.allow_decimal === 1);
+                const stockLevel = hasDecimal ? parseFloat(stock.total_stock) : parseInt(stock.total_stock);
+                return stockLevel > 0;
+            });
+
+            filteredProducts.forEach(stock => {
+                const product = stock.product;
+                let locationQty = 0;
+
+                const batches = normalizeBatches(stock);
+                batches.forEach(batch => {
+                    batch.location_batches.forEach(lb => {
+                        if (lb.location_id == selectedLocationId) locationQty += parseFloat(lb.quantity);
+                    });
+                });
+                stock.total_stock = product.stock_alert === 0 ? 0 : locationQty;
+
+                const unitName = product.unit && product.unit.name ? product.unit.name : 'Pc(s)';
+                let quantityDisplay;
+                if (product.stock_alert === 0) {
+                    quantityDisplay = `Unlimited`;
+                } else if (product.unit && (product.unit.allow_decimal === true || product.unit.allow_decimal === 1)) {
+                    quantityDisplay = `${parseFloat(stock.total_stock).toFixed(4).replace(/\.?0+$/, '')} ${unitName}`;
+                } else {
+                    quantityDisplay = `${parseInt(stock.total_stock, 10)} ${unitName}`;
+                }
+
+                // Create mobile card (3 per row)
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'col-4';
+
+                const productCard = document.createElement('div');
+                productCard.className = 'card h-100 border';
+                productCard.style.cursor = 'pointer';
+                productCard.setAttribute('data-id', product.id);
+
+                const img = createSafeImage(product, 'width: 100%; height: 80px; object-fit: cover;');
+
+                const cardBody = document.createElement('div');
+                cardBody.className = 'card-body p-2';
+                cardBody.innerHTML = `
+                    <h6 class="mb-1" style="font-size: 11px; line-height: 1.2;">${product.product_name}</h6>
+                    <small class="text-muted d-block mb-1" style="font-size: 9px;">SKU: ${product.sku || 'N/A'}</small>
+                    <span class="badge ${product.stock_alert === 0 ? 'bg-info' : stock.total_stock > 0 ? 'bg-success' : 'bg-warning'}" style="font-size: 9px;">
+                        ${quantityDisplay}
+                    </span>
+                `;
+
+                productCard.appendChild(img);
+                productCard.appendChild(cardBody);
+                cardDiv.appendChild(productCard);
+                mobileProductGrid.appendChild(cardDiv);
+
+                // Add click event - show quantity input modal
+                productCard.addEventListener('click', () => {
+                    const productId = productCard.getAttribute('data-id');
+                    const productStock = allProducts.find(stock => String(stock.product.id) === productId);
+                    if (productStock) {
+                        showMobileQuantityModal(productStock);
+                    }
+                });
+            });
+
+            console.log(`DisplayMobileProducts: Added ${filteredProducts.length} products`);
+        }
+
+        // Show mobile quantity modal
+        function showMobileQuantityModal(productStock) {
+            const product = productStock.product;
+            const hasDecimal = product.unit && (product.unit.allow_decimal === true || product.unit.allow_decimal === 1);
+
+            // Calculate available stock
+            let locationQty = 0;
+            const batches = normalizeBatches(productStock);
+            batches.forEach(batch => {
+                batch.location_batches.forEach(lb => {
+                    if (lb.location_id == selectedLocationId) locationQty += parseFloat(lb.quantity);
+                });
+            });
+
+            const availableStock = product.stock_alert === 0 ? Infinity : locationQty;
+            const unitName = product.unit && product.unit.name ? product.unit.name : 'Pc(s)';
+
+            // Check if product already exists in billing table
+            const billingBody = document.getElementById('billing-body');
+            const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
+                const productIdElement = row.querySelector('.product-id');
+                return productIdElement && productIdElement.textContent == product.id;
+            });
+
+            let currentQtyInTable = 0;
+            if (existingRow) {
+                const qtyInput = existingRow.querySelector('.quantity-input');
+                if (qtyInput) {
+                    currentQtyInTable = parseFloat(qtyInput.value) || 0;
+                }
+            }
+
+            // Set modal content
+            document.getElementById('mobileQtyProductName').textContent = product.product_name;
+            if (product.stock_alert === 0) {
+                document.getElementById('mobileQtyAvailable').textContent = 'Available: Unlimited';
+            } else {
+                const stockDisplay = hasDecimal
+                    ? parseFloat(availableStock).toFixed(4).replace(/\.?0+$/, '')
+                    : parseInt(availableStock, 10);
+                document.getElementById('mobileQtyAvailable').textContent = `Available: ${stockDisplay} ${unitName}` +
+                    (currentQtyInTable > 0 ? ` | In Cart: ${currentQtyInTable}` : '');
+            }
+
+            // Setup input - pre-fill with current quantity if exists
+            const qtyInput = document.getElementById('mobileQtyInput');
+            qtyInput.value = currentQtyInTable > 0 ? currentQtyInTable : '';
+            qtyInput.step = hasDecimal ? '0.0001' : '1';
+            qtyInput.min = hasDecimal ? '0.0001' : '1';
+            document.getElementById('mobileQtyError').style.display = 'none';
+
+            // Show modal
+            const qtyModal = new bootstrap.Modal(document.getElementById('mobileQuantityModal'));
+            qtyModal.show();
+
+            // Focus input after modal is shown
+            document.getElementById('mobileQuantityModal').addEventListener('shown.bs.modal', function() {
+                qtyInput.focus();
+            }, { once: true });
+
+            // Handle confirm button
+            const confirmBtn = document.getElementById('mobileQtyConfirm');
+            const newConfirmBtn = confirmBtn.cloneNode(true);
+            confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+
+            newConfirmBtn.addEventListener('click', function() {
+                const qty = parseFloat(qtyInput.value);
+                const errorDiv = document.getElementById('mobileQtyError');
+
+                // Validate quantity
+                if (!qty || qty <= 0) {
+                    errorDiv.textContent = 'Please enter a valid quantity';
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+
+                // Check decimal validation
+                if (!hasDecimal && qty % 1 !== 0) {
+                    errorDiv.textContent = `This product does not allow decimal quantities`;
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+
+                // Check stock availability (if not unlimited)
+                if (product.stock_alert !== 0 && qty > availableStock) {
+                    errorDiv.textContent = `Only ${hasDecimal ? parseFloat(availableStock).toFixed(4).replace(/\.?0+$/, '') : parseInt(availableStock, 10)} ${unitName} available`;
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+
+                // Add product to table with quantity (this will update if exists or add new)
+                addProductToTable(product, qty);
+
+                // Close quantity modal
+                qtyModal.hide();
+
+                // Keep product modal open - don't close it
+                // const productModal = bootstrap.Modal.getInstance(document.getElementById('mobileProductModal'));
+                // if (productModal) {
+                //     productModal.hide();
+                // }
+
+                toastr.success(`${product.product_name} ${existingRow ? 'updated' : 'added to cart'}`);
+            });
+
+            // Handle Enter key
+            qtyInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    newConfirmBtn.click();
+                }
+            });
+        }
+
+        // Sync mobile products when modal opens
+        const mobileProductModal = document.getElementById('mobileProductModal');
+        if (mobileProductModal) {
+            mobileProductModal.addEventListener('show.bs.modal', function() {
+                displayMobileProducts(allProducts);
+            });
+        }
+
+        // Mobile "All Products" button handler
+        const mobileAllProductsBtn = document.getElementById('mobileAllProductsBtn');
+        if (mobileAllProductsBtn) {
+            mobileAllProductsBtn.addEventListener('click', function() {
+                if (!selectedLocationId) {
+                    toastr.error('Please select a location first', 'Location Required');
+                    return;
+                }
+
+                // Reset filter and reload all products
+                currentFilter = null;
+                currentProductsPage = 1;
+                hasMoreProducts = true;
+                allProducts = [];
+
+                // Fetch all products for selected location
+                showLoader();
+                fetchPaginatedProducts(true);
+            });
+        }
+
+        // Mobile Category button handler
+        const mobileCategoryBtn = document.getElementById('mobileCategoryBtn');
+        if (mobileCategoryBtn) {
+            mobileCategoryBtn.addEventListener('click', function() {
+                // Don't close modal, just open category offcanvas
+                const offcanvas = new bootstrap.Offcanvas(document.getElementById('offcanvasCategory'));
+                offcanvas.show();
+            });
+        }
+
+        // Mobile Brand button handler
+        const mobileBrandBtn = document.getElementById('mobileBrandBtn');
+        if (mobileBrandBtn) {
+            mobileBrandBtn.addEventListener('click', function() {
+                // Don't close modal, just open brand offcanvas
+                const offcanvas = new bootstrap.Offcanvas(document.getElementById('offcanvasBrand'));
+                offcanvas.show();
+            });
+        }
+
+        // Lazy loading for mobile product modal
+        const mobileProductModalBody = document.getElementById('mobileProductModalBody');
+        if (mobileProductModalBody) {
+            let isLoadingMobileProducts = false;
+
+            mobileProductModalBody.addEventListener('scroll', function() {
+                // Check if scrolled near bottom (within 100px)
+                const scrollTop = this.scrollTop;
+                const scrollHeight = this.scrollHeight;
+                const clientHeight = this.clientHeight;
+
+                if (scrollTop + clientHeight >= scrollHeight - 100 && !isLoadingMobileProducts && hasMoreProducts && selectedLocationId) {
+                    isLoadingMobileProducts = true;
+                    console.log('Mobile modal: Loading more products...');
+
+                    // Load next page of products
+                    if (currentFilter) {
+                        // Load filtered products
+                        fetchFilteredProducts(currentFilter.type, currentFilter.id, false);
+                    } else {
+                        // Load all products
+                        fetchProductStocks(false);
+                    }
+
+                    // Reset loading flag after a delay
+                    setTimeout(() => {
+                        isLoadingMobileProducts = false;
+                    }, 1000);
+                }
+            });
         }
 
         // ---- SIMPLIFIED AUTOCOMPLETE WITH BARCODE SCANNER SUPPORT ----
@@ -4531,9 +4857,19 @@
                         // Display the filtered products
                         if (reset) {
                             displayProducts(allProducts, false);
+                            // Also update mobile modal if it's open
+                            const mobileModal = document.getElementById('mobileProductModal');
+                            if (mobileModal && mobileModal.classList.contains('show')) {
+                                displayMobileProducts(allProducts, false);
+                            }
                         } else {
                             // For pagination, append new products
                             displayProducts(data.data, true);
+                            // Also append to mobile modal if it's open
+                            const mobileModal = document.getElementById('mobileProductModal');
+                            if (mobileModal && mobileModal.classList.contains('show')) {
+                                displayMobileProducts(data.data, true);
+                            }
                         }
 
                         console.log(`Loaded ${data.data.length} filtered products. Has more: ${hasMoreProducts}`);
@@ -4598,8 +4934,20 @@
         let priceType = 'retail';
         let selectedRow;
 
-        function addProductToTable(product, searchTerm = '', matchType = '') {
-            console.log("Product to be added:", product, "Search term:", searchTerm, "Match type:", matchType);
+        function addProductToTable(product, searchTermOrQty = '', matchType = '') {
+            // Check if second parameter is a number (quantity from mobile modal)
+            const isMobileQuantity = typeof searchTermOrQty === 'number';
+            const mobileQty = isMobileQuantity ? searchTermOrQty : null;
+            const searchTerm = isMobileQuantity ? '' : (searchTermOrQty || '');
+
+            console.log("===== addProductToTable DEBUG =====");
+            console.log("Product:", product);
+            console.log("searchTermOrQty:", searchTermOrQty, "Type:", typeof searchTermOrQty);
+            console.log("isMobileQuantity:", isMobileQuantity);
+            console.log("mobileQty:", mobileQty);
+            console.log("searchTerm:", searchTerm);
+            console.log("matchType:", matchType);
+            console.log("===================================");
 
             if (!stockData || stockData.length === 0) {
                 console.error('stockData is not defined or empty');
@@ -4646,7 +4994,8 @@
                     priceResult.price,
                     "all", // batchId is "all"
                     0, // unlimited stock, so quantity is 0
-                    currentCustomer.customer_type
+                    currentCustomer.customer_type,
+                    mobileQty || 1 // pass mobile quantity or default to 1
                 );
                 return;
             }
@@ -4780,7 +5129,8 @@
                     priceResult.price,
                     "all", // batchId is "all"
                     totalQty,
-                    currentCustomer.customer_type
+                    currentCustomer.customer_type,
+                    mobileQty || 1 // pass mobile quantity or default to 1
                 );
             } else {
                 // Multiple prices found → show modal (user must select batch)
@@ -6213,15 +6563,14 @@
         async function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType,
             saleQuantity = 1, imeis = [], discountType = null, discountAmount = null, selectedBatch = null) {
 
-            console.log('addProductToBillingBody called with:', {
-                productId: product.id,
-                productName: product.product_name,
-                batchId: batchId,
-                batchIdType: typeof batchId,
-                price: price,
-                saleQuantity: saleQuantity,
-                imeis: imeis
-            });
+            console.log('===== addProductToBillingBody DEBUG =====');
+            console.log('saleQuantity received:', saleQuantity, 'Type:', typeof saleQuantity);
+            console.log('productId:', product.id);
+            console.log('productName:', product.product_name);
+            console.log('batchId:', batchId);
+            console.log('price:', price);
+            console.log('imeis:', imeis);
+            console.log('==========================================');
 
             // Warning for specific batch IDs that might cause stock issues
             if (batchId && batchId !== 'all' && batchId !== '' && imeis.length === 0) {
@@ -6412,8 +6761,8 @@
 
             // Determine initial quantity value for input
             let initialQuantityValue;
-            if (isEditing && saleQuantity !== undefined) {
-                // In edit mode, use the actual sale quantity
+            if (saleQuantity !== undefined && saleQuantity > 0 && imeis.length === 0) {
+                // Use provided saleQuantity (from mobile modal or edit mode) - but not for IMEI products
                 initialQuantityValue = allowDecimal ? parseFloat(saleQuantity).toFixed(2).replace(/\.?0+$/,
                     '') : parseInt(saleQuantity, 10);
             } else if (imeis.length > 0) {
@@ -6477,7 +6826,19 @@
                     const quantityInput = existingRow.querySelector('.quantity-input');
                     let currentQty = allowDecimal ? parseFloat(quantityInput.value) : parseInt(quantityInput
                         .value, 10);
-                    let newQuantity = currentQty + saleQuantity;
+
+                    // Check if this is from mobile modal (mobileQty passed means we want to SET the quantity, not ADD)
+                    // When saleQuantity > 1 and we have an existing row, check if it matches the mobile use case
+                    let newQuantity;
+                    const isMobileUpdate = saleQuantity > 1 && currentQty > 0;
+
+                    if (isMobileUpdate) {
+                        // Mobile modal: Replace quantity (don't add)
+                        newQuantity = saleQuantity;
+                    } else {
+                        // Normal: Add to existing quantity
+                        newQuantity = currentQty + saleQuantity;
+                    }
 
                     // In edit mode, get the max quantity from the row's data attribute (set during initial load)
                     // This represents the true available stock (current stock + quantity in original sale)
