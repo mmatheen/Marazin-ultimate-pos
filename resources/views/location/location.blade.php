@@ -145,6 +145,7 @@
                                         <th>Email</th>
                                         <th>Mobile</th>
                                         <th>Invoice Layout</th>
+                                        <th>Footer Note</th>
                                         <th>Logo</th>
                                         <th>Action</th>
 

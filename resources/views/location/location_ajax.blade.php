@@ -380,6 +380,10 @@
                         }
                     },
                     {
+                        data: 'footer_note',
+                        render: data => data ? `<span style="font-size: 11px;">${data}</span>` : '—'
+                    },
+                    {
                         data: 'logo_url',
                         render: data => data ?
                             `<img src="${data}" alt="Logo" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">` :
