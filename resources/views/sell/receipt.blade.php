@@ -440,6 +440,11 @@
         @endif
 
         <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
+        @if ($location && $location->footer_note)
+            <div style="font-size: 11px; color: #000; font-weight: bold; text-align: center; margin-bottom: 5px;">
+                {{ $location->footer_note }}
+            </div>
+        @endif
         <div class="attribute" style="font-size: 8px; color: #000; font-weight: normal !important; text-align: center;">
             SOFTWARE: MARAZIN PVT.LTD | WWW.MARAZIN.LK | +94 70 123 0959
         </div>

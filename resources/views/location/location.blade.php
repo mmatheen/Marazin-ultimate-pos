@@ -455,6 +455,18 @@
                                                     </div>
                                                 </div>
                                             </div>
+
+                                            <!-- Footer Note Section -->
+                                            <div class="col-md-12">
+                                                <div class="mb-3">
+                                                    <div class="form-group local-forms">
+                                                        <label>Receipt Footer Note (Optional)</label>
+                                                        <textarea class="form-control" id="edit_footer_note" name="footer_note" rows="2" placeholder="e.g., Come again! Thank you for your business!"></textarea>
+                                                        <span class="text-danger" id="footer_note_error"></span>
+                                                        <small class="text-muted">This message will appear at the bottom of your receipts. Leave blank to use default message.</small>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

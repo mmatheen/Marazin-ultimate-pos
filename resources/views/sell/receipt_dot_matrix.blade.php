@@ -547,7 +547,11 @@
 
             <div class="software-info">
                 Software by Marazin Pvt.Ltd |
-                Thank you for your business!
+                @if ($location && $location->footer_note)
+                    {{ $location->footer_note }}
+                @else
+                    Thank you for your business!
+                @endif
             </div>
 
             <div class="perforation-bottom"></div>

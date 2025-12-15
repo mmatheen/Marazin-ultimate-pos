@@ -26,6 +26,7 @@ class Location extends Model
         'vehicle_number',
         'vehicle_type',
         'invoice_layout_pos',
+        'footer_note',
     ];
 
     protected $appends = ['logo_url'];
@@ -143,7 +144,7 @@ class Location extends Model
         if ($this->isSublocation() && !$this->hasVehicleDetails()) {
             throw new \InvalidArgumentException('Sublocations must have vehicle_number and vehicle_type.');
         }
-        
+
         return true;
     }
 

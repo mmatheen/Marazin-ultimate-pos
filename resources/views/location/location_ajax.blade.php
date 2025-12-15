@@ -257,7 +257,8 @@
             $('#edit_logo_image').val('');
             $('#logo_preview').html('');
             $('#edit_invoice_layout_pos').val('80mm');
-            
+            $('#edit_footer_note').val('');
+
             // Reset field labels to original state
             $('#edit_logo_image').closest('.form-group').find('label').html('Location Logo<span class="login-danger"></span>');
             $('#edit_invoice_layout_pos').closest('.form-group').find('label').html('Receipt Layout for POS <span class="login-danger">*</span>');
@@ -438,6 +439,7 @@
                         $('#edit_vehicle_number').val(d.vehicle_number || '');
                         $('#edit_vehicle_type').val(d.vehicle_type || '');
                         $('#edit_invoice_layout_pos').val(d.invoice_layout_pos || '80mm');
+                        $('#edit_footer_note').val(d.footer_note || '');
 
                         // Display existing logo if available (for both main locations and sublocations)
                         if (d.logo_url) {
@@ -474,7 +476,7 @@
             }
 
             let formData = new FormData(this);
-            
+
             // Note: Both main locations and sublocations can have their own logo and invoice layout
             let id = $('#edit_id').val(); // for edit
             let url = id ? 'location-update/' + id : 'location-store';

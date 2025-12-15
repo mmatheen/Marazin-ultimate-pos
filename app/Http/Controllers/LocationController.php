@@ -278,6 +278,7 @@ class LocationController extends Controller
                     'vehicle_type' => $request->vehicle_type,
                     'logo_image' => $logoImagePath, // Use uploaded logo or null
                     'invoice_layout_pos' => $request->invoice_layout_pos ?? '80mm',
+                    'footer_note' => $request->footer_note,
                 ];
             } else {
                 // For main locations - use provided details
@@ -291,6 +292,7 @@ class LocationController extends Controller
                     'telephone_no' => $request->telephone_no,
                     'logo_image' => $logoImagePath,
                     'invoice_layout_pos' => $request->invoice_layout_pos ?? '80mm',
+                    'footer_note' => $request->footer_note,
                 ];
             }
 
@@ -568,6 +570,7 @@ class LocationController extends Controller
                         'vehicle_type' => $request->vehicle_type,
                         'logo_image' => $logoImagePath, // Use uploaded logo or keep existing
                         'invoice_layout_pos' => $request->invoice_layout_pos ?? '80mm',
+                        'footer_note' => $request->footer_note,
                     ];
                 } else {
                     // For main locations - use provided details
@@ -583,6 +586,7 @@ class LocationController extends Controller
                         'vehicle_number' => null,
                         'vehicle_type' => null,
                         'invoice_layout_pos' => $request->invoice_layout_pos ?? '80mm',
+                        'footer_note' => $request->footer_note,
                     ];
                 }
 

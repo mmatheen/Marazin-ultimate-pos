@@ -548,7 +548,11 @@
 
     {{-- Footer --}}
     <div class="footer">
-        <p><strong>Come again! Thank you for your business!</strong></p>
+        @if ($location && $location->footer_note)
+            <p><strong>{{ $location->footer_note }}</strong></p>
+        @else
+            <p><strong>Come again! Thank you for your business!</strong></p>
+        @endif
         <p style="text-transform: uppercase;">SOFTWARE: MARAZIN PVT.LTD | WWW.MARAZIN.LK | +94 70 123 0959</p>
     </div>
 </body>
