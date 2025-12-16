@@ -896,7 +896,10 @@ class PaymentController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($request) {
+            $bulkReference = null;
+            $totalAmount = 0;
+
+            DB::transaction(function () use ($request, &$bulkReference, &$totalAmount) {
                 // Generate meaningful bulk reference based on payment content
                 $bulkReference = $this->generateMeaningfulBulkReference($request);
                 $totalAmount = 0;
@@ -917,7 +920,7 @@ class PaymentController extends Controller
                             'reference_id' => null,
                             'reference_no' => $bulkReference,
                             'customer_id' => $request->customer_id,
-                            'notes' => ($request->notes ?? '') . " - Opening balance payment " . ($groupIndex + 1),
+                            'notes' => $request->notes ?? null,
                         ];
 
                         // Add method-specific fields
@@ -959,7 +962,7 @@ class PaymentController extends Controller
                                 'reference_id' => $bill['sale_id'],
                                 'reference_no' => $bulkReference,
                                 'customer_id' => $request->customer_id,
-                                'notes' => ($request->notes ?? '') . " - Flexible bulk payment group " . ($groupIndex + 1),
+                                'notes' => $request->notes ?? null,
                             ];
 
                             // Add method-specific fields
@@ -1004,8 +1007,8 @@ class PaymentController extends Controller
             return response()->json([
                 'status' => 200,
                 'message' => 'Multi-method bulk payment processed successfully!',
-                'bulk_reference' => $bulkReference ?? null,
-                'total_amount' => $totalAmount ?? 0
+                'bulk_reference' => $bulkReference,
+                'total_amount' => $totalAmount
             ]);
 
         } catch (\Exception $e) {
@@ -1186,7 +1189,10 @@ class PaymentController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($request) {
+            $bulkReference = null;
+            $totalAmount = 0;
+
+            DB::transaction(function () use ($request, &$bulkReference, &$totalAmount) {
                 $bulkReference = $this->generateMeaningfulBulkReference($request);
                 $totalAmount = 0;
                 $processedGroups = [];
@@ -1206,7 +1212,7 @@ class PaymentController extends Controller
                             'reference_id' => null,
                             'reference_no' => $bulkReference,
                             'supplier_id' => $request->supplier_id,
-                            'notes' => ($request->notes ?? '') . " - Opening balance payment " . ($groupIndex + 1),
+                            'notes' => $request->notes ?? null,
                         ];
 
                         // Add method-specific fields
@@ -1248,7 +1254,7 @@ class PaymentController extends Controller
                                 'reference_id' => $bill['purchase_id'],
                                 'reference_no' => $bulkReference,
                                 'supplier_id' => $request->supplier_id,
-                                'notes' => ($request->notes ?? '') . " - Flexible bulk payment group " . ($groupIndex + 1),
+                                'notes' => $request->notes ?? null,
                             ];
 
                             // Add method-specific fields
@@ -1293,8 +1299,8 @@ class PaymentController extends Controller
             return response()->json([
                 'status' => 200,
                 'message' => 'Multi-method bulk purchase payment processed successfully!',
-                'bulk_reference' => $bulkReference ?? null,
-                'total_amount' => $totalAmount ?? 0
+                'bulk_reference' => $bulkReference,
+                'total_amount' => $totalAmount
             ]);
 
         } catch (\Exception $e) {
@@ -2922,50 +2928,35 @@ class PaymentController extends Controller
     private function generateMeaningfulBulkReference($request)
     {
         $paymentType = $request->payment_type;
-        $dateStr = date('Ymd');
+        $dateStr = date('ymd'); // YYMMDD
+
+        // Determine payment category (sale or purchase)
+        $category = isset($request->customer_id) ? 'SALE' : 'SUPP';
+
+        // Get the last reference number globally (not filtered by date)
+        $lastPayment = \App\Models\Payment::where('reference_no', 'LIKE', "BLK-%-{$category}%")
+            ->orderBy('id', 'desc')
+            ->first();
+
+        // Extract the sequence number and increment
+        $sequenceNumber = 1;
+        if ($lastPayment && $lastPayment->reference_no) {
+            // Extract last 4 digits from reference like "BLK-251216-SALE0001"
+            preg_match('/-' . $category . '(\d{4})$/', $lastPayment->reference_no, $matches);
+            if (!empty($matches[1])) {
+                $sequenceNumber = intval($matches[1]) + 1;
+            }
+        }
+
+        // Format sequence with leading zeros (4 digits)
+        $formattedSequence = str_pad($sequenceNumber, 4, '0', STR_PAD_LEFT);
 
         if ($paymentType === 'opening_balance') {
             // For opening balance payments
-            if (isset($request->customer_id)) {
-                $customer = \App\Models\Customer::find($request->customer_id);
-                $customerName = $customer ? substr($customer->first_name, 0, 3) : 'CUST';
-                return "OB-BULK-{$customerName}-{$dateStr}";
-            } else if (isset($request->supplier_id)) {
-                $supplier = \App\Models\Supplier::find($request->supplier_id);
-                $supplierName = $supplier ? substr($supplier->name, 0, 3) : 'SUPP';
-                return "OB-BULK-{$supplierName}-{$dateStr}";
-            }
+            return "BLK-{$dateStr}-{$category}OB{$formattedSequence}";
         } else {
-            // For sale/purchase payments, collect reference numbers
-            $referenceNumbers = [];
-
-            foreach ($request->payment_groups as $group) {
-                if (isset($group['bills'])) {
-                    foreach ($group['bills'] as $bill) {
-                        if (isset($bill['sale_id'])) {
-                            $sale = \App\Models\Sale::find($bill['sale_id']);
-                            if ($sale && $sale->invoice_no) {
-                                $referenceNumbers[] = $sale->invoice_no;
-                            }
-                        } else if (isset($bill['purchase_id'])) {
-                            $purchase = \App\Models\Purchase::find($bill['purchase_id']);
-                            if ($purchase && $purchase->reference_no) {
-                                $referenceNumbers[] = $purchase->reference_no;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (!empty($referenceNumbers)) {
-                // Limit to first 3 reference numbers to keep reference manageable
-                $referenceList = implode(',', array_slice($referenceNumbers, 0, 3));
-                $suffix = count($referenceNumbers) > 3 ? '+' . (count($referenceNumbers) - 3) : '';
-                return "BULK-{$referenceList}{$suffix}";
-            } else {
-                // Fallback for unknown cases
-                return "BULK-PAYMENT-{$dateStr}";
-            }
+            // For sale/purchase payments
+            return "BLK-{$dateStr}-{$category}{$formattedSequence}";
         }
     }
 }

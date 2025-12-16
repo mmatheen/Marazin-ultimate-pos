@@ -463,24 +463,41 @@ class Sale extends Model
         // Stock was already deducted during sale order creation,
         // so we don't need to check stock availability again.
         // We just verify that all items in the sale order have valid batches
+        // Note: Unlimited stock products (stock_alert = 0) don't require batch validation
 
         $invalidItems = [];
 
         foreach ($this->products as $item) {
-            // Verify the batch still exists and is valid
-            $locationBatch = \App\Models\LocationBatch::where('batch_id', $item->batch_id)
-                ->where('location_id', $item->location_id)
-                ->first();
+            $product = $item->product;
 
-            if (!$locationBatch) {
-                $product = $item->product;
-                $productName = $product ? $product->product_name : 'Unknown Product';
+            // Skip validation for unlimited stock products (stock_alert = 0)
+            // These products don't require batch management
+            if ($product && $product->stock_alert == 0) {
+                Log::info("Skipping batch validation for unlimited stock product", [
+                    'product_id' => $product->id,
+                    'product_name' => $product->product_name
+                ]);
+                continue;
+            }
 
-                $invalidItems[] = [
-                    'product' => $productName,
-                    'batch_id' => $item->batch_id,
-                    'location_id' => $item->location_id
-                ];
+            // For manageable stock products, batch_id can be null for old sales
+            // that were created before the product was changed to manageable stock
+            // Only validate if batch_id is present
+            if (!empty($item->batch_id)) {
+                // Verify the batch still exists and is valid
+                $locationBatch = \App\Models\LocationBatch::where('batch_id', $item->batch_id)
+                    ->where('location_id', $item->location_id)
+                    ->first();
+
+                if (!$locationBatch) {
+                    $productName = $product ? $product->product_name : 'Unknown Product';
+
+                    $invalidItems[] = [
+                        'product' => $productName,
+                        'batch_id' => $item->batch_id,
+                        'location_id' => $item->location_id
+                    ];
+                }
             }
         }
 
@@ -504,9 +521,31 @@ class Sale extends Model
      * Update stock history when converting SO to Invoice
      * Stock was already deducted during sale order creation,
      * so we just need to update the stock history type from 'sale_order' to 'sale'
+     * Note: Unlimited stock products (stock_alert = 0) don't have stock history records
      */
     protected function updateStockOnConversion($item)
     {
+        $product = $item->product;
+
+        // Skip stock update for unlimited stock products (stock_alert = 0)
+        // These products don't have batch or stock history management
+        if ($product && $product->stock_alert == 0) {
+            Log::info("Skipping stock history update for unlimited stock product", [
+                'product_id' => $product->id,
+                'product_name' => $product->product_name
+            ]);
+            return;
+        }
+
+        // Skip if batch_id is null (old sales from when product was unlimited stock)
+        if (empty($item->batch_id)) {
+            Log::info("Skipping stock history update for item with null batch_id", [
+                'product_id' => $item->product_id,
+                'location_id' => $item->location_id
+            ]);
+            return;
+        }
+
         // Find the location batch
         $locationBatch = \App\Models\LocationBatch::where('batch_id', $item->batch_id)
             ->where('location_id', $item->location_id)
@@ -585,7 +624,7 @@ class Sale extends Model
 
         return $availableStock + $soldQuantity;
     }
-  
+
     public static function generateInvoiceNo($locationId)
     {
         return DB::transaction(function () use ($locationId) {

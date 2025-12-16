@@ -2016,20 +2016,17 @@ class ProductController extends Controller
             // Filter batches with locationBatches based on location filter
             $filteredBatches = $productBatches->filter(function ($batch) use ($locationId) {
                 if ($locationId) {
-                    // If location is specified, only include batches that have stock in that location
-                    return $batch->locationBatches->isNotEmpty() &&
-                           $batch->locationBatches->where('location_id', $locationId)->isNotEmpty();
+                    // If location is specified, only include batches that have location assignment
+                    // Frontend will handle actual stock quantity validation
+                    return $batch->locationBatches->where('location_id', $locationId)->isNotEmpty();
                 } else {
-                    // If no location specified, include all batches with any location stock
+                    // If no location specified, include all batches with any location assignment
                     return $batch->locationBatches->isNotEmpty();
                 }
             });
 
-            // Skip this product if it has no batches at the selected location
-            // This ensures only products with actual stock in the location are shown in autocomplete
-            // if ($locationId && $filteredBatches->isEmpty()) {
-            //     return null;
-            // }
+            // Don't filter by stock quantity - frontend handles stock validation
+            // Return all products assigned to the location regardless of current stock level
 
             // Determine if allow_decimal is true for this product's unit
             $allowDecimal = $product->unit && $product->unit->allow_decimal;
@@ -2759,6 +2756,12 @@ class ProductController extends Controller
                     // Check if the product unit allows decimals
                     $allowDecimal = $product->unit && $product->unit->allow_decimal;
 
+                    // Calculate total stock from location batches for consistency
+                    $totalLocationStock = $batch->locationBatches->sum('qty');
+
+                    // Use location-based stock total as the accurate stock count
+                    $actualQty = $totalLocationStock > 0 ? $totalLocationStock : $batch->qty;
+
                     return [
                         'id' => $batch->id,
                         'batch_no' => $batch->batch_no,
@@ -2768,7 +2771,7 @@ class ProductController extends Controller
                         'retail_price' => $batch->retail_price,
                         'max_retail_price' => $batch->max_retail_price,
                         'expiry_date' => $batch->expiry_date,
-                        'qty' => $allowDecimal ? round((float)$batch->qty, 2) : (int)$batch->qty,
+                        'qty' => $allowDecimal ? round((float)$actualQty, 2) : (int)$actualQty,
                         'locations' => $batch->locationBatches->map(function($lb) use ($allowDecimal) {
                             return [
                                 'id' => $lb->location->id,

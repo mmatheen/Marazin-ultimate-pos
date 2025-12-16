@@ -465,9 +465,24 @@
             </div>
         </div>
 
+        <!-- Payment Notes Section -->
+        <div id="notesSection" class="row mb-3" style="display: none;">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body">
+                        <label for="notes" class="form-label">
+                            <i class="fas fa-sticky-note"></i> Payment Notes / Description
+                        </label>
+                        <textarea id="notes" name="notes" class="form-control" rows="3" placeholder="Enter any additional notes or description for this payment (optional)..."></textarea>
+                        <small class="text-muted">This note will be saved with the payment record for future reference.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Submit Button (Hidden by default) -->
-        <div id="submitButtonSection" style="display: none;">
-            <button type="button" id="submitBulkPayment" class="btn btn-primary btn-lg w-100">
+        <div id="submitButtonSection" class="text-center" style="display: none;">
+            <button type="button" id="submitBulkPayment" class="btn btn-primary btn-lg" style="min-width: 250px; max-width: 400px;">
                 <i class="fas fa-credit-card"></i> Submit Payment
             </button>
         </div>
@@ -586,6 +601,42 @@
                 </button>
                 <button type="button" id="submitFlexiblePayment" class="btn btn-success">
                     <i class="fas fa-credit-card"></i> Process Multi-Method Payment
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Receipt Modal -->
+<div class="modal fade" id="paymentReceiptModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-check-circle"></i> Payment Successful
+                </h5>
+            </div>
+            <div class="modal-body text-center py-4">
+                <div class="mb-3">
+                    <i class="fas fa-receipt fa-3x text-success mb-3"></i>
+                    <h5>Payment Reference Number</h5>
+                </div>
+                <div class="alert alert-info" style="font-size: 18px; font-weight: bold; font-family: monospace;">
+                    <span id="receiptReferenceNo">-</span>
+                </div>
+                <div class="mb-3">
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="copyReferenceNumber()">
+                        <i class="fas fa-copy"></i> Copy Reference Number
+                    </button>
+                </div>
+                <div class="text-muted">
+                    <small><strong>Total Amount:</strong> Rs. <span id="receiptTotalAmount">0.00</span></small>
+                </div>
+                <p class="mt-3 text-muted small">Save this reference number for future payment tracking and verification.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" onclick="closeReceiptAndReload()">
+                    <i class="fas fa-check"></i> OK
                 </button>
             </div>
         </div>
@@ -716,6 +767,7 @@ $(document).ready(function() {
         togglePaymentFields();
         // Show payment method section
         $('#paymentMethodSection').show();
+        $('#notesSection').show();
         $('#submitButtonSection').show();
     }, 1500);
 
@@ -751,6 +803,7 @@ $(document).on('change', '#customerSelect', function() {
         console.log('No customer selected - hiding sections');
         $('#customerSummarySection').hide();
         $('#paymentMethodSection').hide();
+        $('#notesSection').hide();
         $('#submitButtonSection').hide();
         return;
     }
@@ -760,6 +813,7 @@ $(document).on('change', '#customerSelect', function() {
     // Show customer summary and payment method section
     $('#customerSummarySection').show();
     $('#paymentMethodSection').show();
+    $('#notesSection').show();
     $('#submitButtonSection').show();
 
     // Get customer data from the selected option
@@ -1338,8 +1392,10 @@ function togglePaymentFields() {
 
     // Show submit button if payment method is selected and customer is chosen
     if ($('#customerSelect').val() && paymentMethod !== '') {
+        $('#notesSection').show();
         $('#submitButtonSection').show();
     } else {
+        $('#notesSection').hide();
         $('#submitButtonSection').hide();
     }
 }
@@ -1879,7 +1935,7 @@ function addFlexiblePayment() {
                     <label class="form-label small">Payment Method</label>
                     <select class="form-select payment-method-select" data-payment-id="${paymentId}">
                         <option value="">Choose Payment Method</option>
-                        <option value="cash">💵 Cash</option>
+                        <option value="cash" selected>💵 Cash</option>
                         <option value="cheque">📄 Cheque</option>
                         <option value="card">💳 Card</option>
                         <option value="bank_transfer">🏦 Bank Transfer</option>
@@ -2323,19 +2379,13 @@ function submitMultiMethodPayment() {
         },
         success: function(response) {
             if (response.status === 200) {
-                toastr.success(response.message);
+                // Show receipt modal with reference number
+                $('#receiptReferenceNo').text(response.bulk_reference || 'N/A');
+                $('#receiptTotalAmount').text(parseFloat(response.total_amount || 0).toFixed(2));
 
-                // Show success details
-                setTimeout(() => {
-                    toastr.info(`Reference: ${response.bulk_reference}<br>Amount: Rs. ${response.total_amount}`, 'Payment Details', {
-                        timeOut: 10000
-                    });
-                }, 1000);
-
-                // Reset form and refresh
-                setTimeout(() => {
-                    window.location.reload();
-                }, 2000);
+                // Hide submit button and show receipt modal
+                $('#submitBulkPayment').prop('disabled', false).html('<i class="fas fa-credit-card"></i> Submit Payment');
+                $('#paymentReceiptModal').modal('show');
             }
         },
         error: function(xhr) {
@@ -2821,6 +2871,31 @@ $(document).ready(function() {
         toastr.success(`Added ${bill.invoice_no} to payment`);
     });
 });
+
+// Copy reference number function
+function copyReferenceNumber() {
+    const refNumber = $('#receiptReferenceNo').text();
+    navigator.clipboard.writeText(refNumber).then(() => {
+        toastr.success('Reference number copied to clipboard!');
+    }).catch(() => {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = refNumber;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        toastr.success('Reference number copied!');
+    });
+}
+
+// Close receipt modal and reload
+function closeReceiptAndReload() {
+    $('#paymentReceiptModal').modal('hide');
+    setTimeout(() => {
+        window.location.reload();
+    }, 300);
+}
 
 </script>
 @endsection
