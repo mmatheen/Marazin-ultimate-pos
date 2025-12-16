@@ -1079,6 +1079,7 @@ public function fetchActivityLog(Request $request)
                     'cheque_bank_branch' => $payment->cheque_bank_branch ?? '',
                     'cheque_valid_date' => $payment->cheque_valid_date ? \Carbon\Carbon::parse($payment->cheque_valid_date)->format('Y-m-d') : '',
                     'cheque_status' => $payment->cheque_status ? ucfirst($payment->cheque_status) : '',
+                    'notes' => $payment->notes ?? '',
                 ];
             });
 
@@ -1226,15 +1227,35 @@ public function fetchActivityLog(Request $request)
      */
     public function paymentReportExportPdf(Request $request)
     {
-        $data = $this->getPaymentReportDataArray($request);
-        $summaryData = $this->calculatePaymentSummary($request);
+        try {
+            Log::info('PDF Export Request:', $request->all());
 
-        $pdf = Pdf::loadView('reports.payment_report_pdf', compact('data', 'summaryData', 'request'))
-            ->setPaper('a4', 'landscape');
+            // Use the same data structure as the screen view (collections)
+            $collections = $this->getPaymentCollectionsForExport($request);
+            $summaryData = $this->calculatePaymentSummary($request);
 
-        $filename = 'payment-report-' . date('Y-m-d-H-i-s') . '.pdf';
+            Log::info('PDF Export Collections Count:', ['count' => count($collections)]);
 
-        return $pdf->download($filename);
+            $pdf = Pdf::loadView('reports.payment_report_pdf', compact('collections', 'summaryData', 'request'))
+                ->setPaper('a4', 'portrait');
+
+            $filename = 'payment-report-' . date('Y-m-d-H-i-s') . '.pdf';
+
+            // Return with explicit headers to force download
+            return response()->streamDownload(function() use ($pdf) {
+                echo $pdf->output();
+            }, $filename, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Cache-Control' => 'no-cache, no-store, must-revalidate',
+                'Pragma' => 'no-cache',
+                'Expires' => '0'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('PDF Export Error: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return response()->json(['error' => 'Failed to generate PDF: ' . $e->getMessage()], 500);
+        }
     }
 
     /**
@@ -1242,11 +1263,145 @@ public function fetchActivityLog(Request $request)
      */
     public function paymentReportExportExcel(Request $request)
     {
-        $data = $this->getPaymentReportDataArray($request);
+        try {
+            Log::info('Excel Export Request:', $request->all());
 
-        $filename = 'payment-report-' . date('Y-m-d-H-i-s') . '.xlsx';
+            $data = $this->getPaymentReportDataArray($request);
 
-        return Excel::download(new \App\Exports\PaymentReportExport($data), $filename);
+            Log::info('Excel Export Data Count:', ['count' => $data->count()]);
+
+            $filename = 'payment-report-' . date('Y-m-d-H-i-s') . '.xlsx';
+
+            return Excel::download(new \App\Exports\PaymentReportExport($data), $filename, \Maatwebsite\Excel\Excel::XLSX, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Cache-Control' => 'no-cache, no-store, must-revalidate',
+                'Pragma' => 'no-cache',
+                'Expires' => '0'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Excel Export Error: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to generate Excel: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Get payment collections in grouped format for export (same as screen view)
+     */
+    private function getPaymentCollectionsForExport($request)
+    {
+        $query = \App\Models\Payment::with(['customer', 'supplier', 'sale', 'purchase', 'purchaseReturn'])
+            ->select('payments.*');
+
+        // Apply same filters as paymentReportData
+        if ($request->has('customer_id') && $request->customer_id != '') {
+            $query->where('customer_id', $request->customer_id);
+        }
+
+        if ($request->has('supplier_id') && $request->supplier_id != '') {
+            $query->where('supplier_id', $request->supplier_id);
+        }
+
+        if ($request->has('location_id') && $request->location_id != '') {
+            $query->where(function($q) use ($request) {
+                $q->whereHas('sale', function($saleQuery) use ($request) {
+                    $saleQuery->where('location_id', $request->location_id);
+                })
+                ->orWhereHas('purchase', function($purchaseQuery) use ($request) {
+                    $purchaseQuery->where('location_id', $request->location_id);
+                })
+                ->orWhereHas('purchaseReturn', function($returnQuery) use ($request) {
+                    $returnQuery->where('location_id', $request->location_id);
+                });
+            });
+        }
+
+        if ($request->has('payment_method') && $request->payment_method != '') {
+            $query->where('payment_method', $request->payment_method);
+        }
+
+        if ($request->has('payment_type') && $request->payment_type != '') {
+            $query->where('payment_type', $request->payment_type);
+        }
+
+        if ($request->has('start_date') && $request->start_date != '') {
+            $query->whereDate('payment_date', '>=', $request->start_date);
+        }
+
+        if ($request->has('end_date') && $request->end_date != '') {
+            $query->whereDate('payment_date', '<=', $request->end_date);
+        }
+
+        $payments = $query->orderBy('payment_date', 'desc')
+                          ->orderBy('reference_no', 'desc')
+                          ->orderBy('id', 'desc')
+                          ->get();
+
+        // Group payments by reference_no
+        $collections = [];
+        $groupedPayments = $payments->groupBy('reference_no');
+
+        foreach ($groupedPayments as $referenceNo => $paymentGroup) {
+            $firstPayment = $paymentGroup->first();
+            $locationName = '';
+
+            if ($firstPayment->sale) {
+                $locationName = optional($firstPayment->sale->location)->name ?? '';
+            } elseif ($firstPayment->purchase) {
+                $locationName = optional($firstPayment->purchase->location)->name ?? '';
+            } elseif ($firstPayment->purchaseReturn) {
+                $locationName = optional($firstPayment->purchaseReturn->location)->name ?? '';
+            }
+
+            $paymentsData = $paymentGroup->map(function($payment) {
+                $invoiceNo = '';
+                $invoiceValue = 0;
+                $invoiceDate = '';
+
+                if ($payment->payment_type === 'sale' && $payment->sale) {
+                    $invoiceNo = $payment->sale->invoice_no ?? '';
+                    $invoiceValue = (float) ($payment->sale->final_total ?? 0);
+                    $invoiceDate = $payment->sale->sales_date ? \Carbon\Carbon::parse($payment->sale->sales_date)->format('Y-m-d') : '';
+                } elseif ($payment->payment_type === 'purchase' && $payment->purchase) {
+                    $invoiceNo = $payment->purchase->invoice_no ?? '';
+                    $invoiceValue = (float) ($payment->purchase->grand_total ?? 0);
+                    $invoiceDate = $payment->purchase->purchase_date ? \Carbon\Carbon::parse($payment->purchase->purchase_date)->format('Y-m-d') : '';
+                } elseif ($payment->purchaseReturn) {
+                    $invoiceNo = $payment->purchaseReturn->invoice_no ?? '';
+                    $invoiceValue = (float) ($payment->purchaseReturn->grand_total ?? 0);
+                    $invoiceDate = $payment->purchaseReturn->return_date ? \Carbon\Carbon::parse($payment->purchaseReturn->return_date)->format('Y-m-d') : '';
+                }
+
+                return [
+                    'id' => $payment->id,
+                    'payment_date' => $payment->payment_date,
+                    'invoice_date' => $invoiceDate,
+                    'invoice_no' => $invoiceNo,
+                    'invoice_value' => $invoiceValue,
+                    'amount' => (float) $payment->amount,
+                    'payment_method' => $payment->payment_method,
+                    'payment_type' => $payment->payment_type,
+                    'cheque_number' => $payment->cheque_number,
+                    'cheque_bank_branch' => $payment->cheque_bank_branch,
+                    'cheque_valid_date' => $payment->cheque_valid_date,
+                    'notes' => $payment->notes,
+                ];
+            });
+
+            $collections[] = [
+                'reference_no' => $referenceNo,
+                'payment_date' => $firstPayment->payment_date,
+                'customer_name' => $firstPayment->customer ? $firstPayment->customer->full_name : '',
+                'customer_address' => $firstPayment->customer ? $firstPayment->customer->address : '',
+                'supplier_name' => $firstPayment->supplier ? $firstPayment->supplier->full_name : '',
+                'location' => $locationName,
+                'total_amount' => (float) $paymentGroup->sum('amount'),
+                'payments' => $paymentsData->toArray(),
+                'is_bulk' => (strpos($referenceNo, 'BLK-') === 0 || strpos($referenceNo, 'BULK-') === 0) && count($paymentsData) > 1
+            ];
+        }
+
+        return $collections;
     }
 
     /**

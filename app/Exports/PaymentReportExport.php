@@ -28,18 +28,21 @@ class PaymentReportExport implements FromCollection, WithHeadings, WithMapping, 
         return [
             'Payment ID',
             'Payment Date',
+            'Invoice Date',
+            'Invoice No',
+            'Invoice Value',
             'Amount',
             'Payment Method',
-            'Payment Type', 
+            'Payment Type',
             'Reference No',
-            'Invoice No',
             'Customer Name',
             'Supplier Name',
             'Location',
             'Cheque Number',
+            'Bank & Branch',
+            'Due Date',
             'Cheque Status',
             'Notes',
-            'Created At'
         ];
     }
 
@@ -47,33 +50,44 @@ class PaymentReportExport implements FromCollection, WithHeadings, WithMapping, 
     {
         $locationName = '';
         $invoiceNo = '';
-        
+        $invoiceValue = 0;
+        $invoiceDate = '';
+
         if ($payment->sale) {
             $locationName = optional($payment->sale->location)->name ?? '';
             $invoiceNo = $payment->sale->invoice_no ?? '';
+            $invoiceValue = $payment->sale->final_total ?? 0;
+            $invoiceDate = $payment->sale->sales_date ? \Carbon\Carbon::parse($payment->sale->sales_date)->format('Y-m-d') : '';
         } elseif ($payment->purchase) {
             $locationName = optional($payment->purchase->location)->name ?? '';
             $invoiceNo = $payment->purchase->invoice_no ?? '';
+            $invoiceValue = $payment->purchase->grand_total ?? 0;
+            $invoiceDate = $payment->purchase->purchase_date ? \Carbon\Carbon::parse($payment->purchase->purchase_date)->format('Y-m-d') : '';
         } elseif ($payment->purchaseReturn) {
             $locationName = optional($payment->purchaseReturn->location)->name ?? '';
             $invoiceNo = $payment->purchaseReturn->invoice_no ?? '';
+            $invoiceValue = $payment->purchaseReturn->grand_total ?? 0;
+            $invoiceDate = $payment->purchaseReturn->return_date ? \Carbon\Carbon::parse($payment->purchaseReturn->return_date)->format('Y-m-d') : '';
         }
 
         return [
             $payment->id,
             $payment->payment_date ? \Carbon\Carbon::parse($payment->payment_date)->format('Y-m-d') : '',
+            $invoiceDate,
+            $invoiceNo,
+            $invoiceValue,
             $payment->amount,
             ucfirst($payment->payment_method),
             ucfirst($payment->payment_type),
             $payment->reference_no ?? '',
-            $invoiceNo,
             $payment->customer ? $payment->customer->full_name : '',
             $payment->supplier ? $payment->supplier->full_name : '',
             $locationName,
             $payment->cheque_number ?? '',
+            $payment->cheque_bank_branch ?? '',
+            $payment->cheque_valid_date ? \Carbon\Carbon::parse($payment->cheque_valid_date)->format('Y-m-d') : '',
             $payment->cheque_status ? ucfirst($payment->cheque_status) : '',
             $payment->notes ?? '',
-            $payment->created_at ? $payment->created_at->format('Y-m-d H:i:s') : '',
         ];
     }
 
@@ -82,7 +96,7 @@ class PaymentReportExport implements FromCollection, WithHeadings, WithMapping, 
         return [
             // Style the first row as header
             1 => ['font' => ['bold' => true, 'size' => 12]],
-            
+
             // Auto-size columns
             'A:N' => ['alignment' => ['horizontal' => 'left']],
         ];

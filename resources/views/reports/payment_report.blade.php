@@ -246,16 +246,16 @@
         .collection-group {
             background: #ffffff;
             border: 1px solid #dee2e6;
-            border-radius: 8px;
-            margin-bottom: 25px;
+            border-radius: 6px;
+            margin-bottom: 15px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.08);
         }
 
         .collection-header {
             background: #4a5568;
             color: white;
-            padding: 15px 20px;
-            border-radius: 8px 8px 0 0;
+            padding: 10px 15px;
+            border-radius: 6px 6px 0 0;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -294,7 +294,7 @@
             display: flex;
             justify-content: space-between;
             flex-wrap: wrap;
-            padding: 15px 20px;
+            padding: 10px 15px;
             background: #f8f9fa;
             border-bottom: 1px solid #e9ecef;
         }
@@ -314,13 +314,17 @@
         }
 
         .nested-table {
-            padding: 0 20px 15px 20px;
+            padding: 0 15px 10px 15px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .nested-table table {
             background: white;
             font-size: 13px;
             margin-bottom: 0;
+            min-width: 100%;
+            white-space: nowrap;
         }
 
         .nested-table thead th {
@@ -328,22 +332,26 @@
             color: #495057;
             font-weight: 600;
             border-bottom: 2px solid #dee2e6;
-            padding: 10px;
+            padding: 7px 10px !important;
+            line-height: 1.3;
+            font-size: 13px;
         }
 
         .nested-table tbody td {
-            padding: 10px;
+            padding: 6px 10px !important;
+            line-height: 1.4;
             vertical-align: middle;
+            font-size: 13px;
         }
 
-        .nested-table .table-striped tbody tr:nth-of-type(odd) {
-            background-color: rgba(0,0,0,.02);
+        .nested-table .table-striped > tbody > tr:nth-of-type(odd) {
+            background-color: #f9fafb;
         }
 
         .collection-footer {
             background: #f8f9fa;
-            padding: 15px 20px;
-            border-radius: 0 0 8px 8px;
+            padding: 10px 15px;
+            border-radius: 0 0 6px 6px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -374,9 +382,89 @@
         .no-collection-group {
             background: #fff;
             border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
+            border-radius: 6px;
+            padding: 8px;
+            margin-bottom: 12px;
+        }
+
+        .no-collection-group table {
+            font-size: 13px;
+            margin-bottom: 0;
+        }
+
+        .no-collection-group thead th {
+            padding: 7px 10px !important;
+            line-height: 1.3;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .no-collection-group tbody td {
+            padding: 6px 10px !important;
+            line-height: 1.4;
+            vertical-align: middle;
+            font-size: 13px;
+        }
+
+        .no-collection-group .badge {
+            font-size: 11px;
+            padding: 3px 8px;
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .collection-header {
+                flex-direction: column;
+                align-items: flex-start !important;
+            }
+
+            .collection-header > div {
+                width: 100%;
+                margin-bottom: 8px;
+            }
+
+            .collection-header > div:last-child {
+                text-align: left !important;
+            }
+
+            .collection-details {
+                flex-direction: column;
+            }
+
+            .collection-info {
+                min-width: 100%;
+                margin-bottom: 10px;
+            }
+
+            .nested-table {
+                padding: 0 10px 10px 10px;
+            }
+
+            .nested-table table {
+                font-size: 11px;
+            }
+
+            .nested-table thead th {
+                padding: 5px 6px !important;
+                font-size: 11px;
+            }
+
+            .nested-table tbody td {
+                padding: 4px 6px !important;
+                font-size: 11px;
+            }
+
+            .no-collection-group {
+                padding: 6px;
+            }
+
+            .summary-item .card-title {
+                font-size: 1rem;
+            }
+
+            .summary-item .card-text {
+                font-size: 0.7rem;
+            }
         }
 
         @media print {
@@ -501,21 +589,16 @@
                                 <div class="col-md-6">
                                     <li><a class="dropdown-item" href="#" data-value="hide all">Hide All Columns</a></li>
                                     <li><a class="dropdown-item" href="#" data-value="show all">Show All Columns</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="0">Payment ID</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="1">Date</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="2">Amount</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="0">Invoice Date</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="1">Invoice No.</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="2">Invoice Value</a></li>
                                     <li><a class="dropdown-item" href="#" data-value="3">Payment Method</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="4">Payment Type</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="5">Reference No</a></li>
                                 </div>
                                 <div class="col-md-6">
-                                    <li><a class="dropdown-item" href="#" data-value="6">Invoice No</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="7">Customer</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="8">Supplier</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="9">Location</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="10">Cheque No</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="11">Status</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="12">Actions</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="4">Cheque No.</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="5">Bank & Branch</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="6">Due Date</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="7">Amount</a></li>
                                 </div>
                             </div>
                         </ul>
@@ -660,6 +743,56 @@
         </div>
     </div>
     <script>
+    // Configuration Constants
+    const PAYMENT_METHOD_CONFIG = {
+        cash: { badge: 'bg-success', label: 'Cash', color: 'white' },
+        card: { badge: '', label: 'Card', color: '#6f42c1' },
+        cheque: { badge: '', label: 'Cheque', color: '#fd7e14' },
+        bank_transfer: { badge: 'bg-info', label: 'Bank Transfer', color: 'white' }
+    };
+
+    const BADGE_STYLES = 'font-size: 11px; padding: 4px 10px;';
+
+    const COLUMN_HEADERS = {
+        collection: ['Invoice Date', 'Invoice No.', 'Invoice Value', 'Payment Method', 'Cheque No.', 'Bank & Branch', 'Due Date', 'Amount'],
+        single: ['Payment ID', 'Date', 'Customer/Supplier', 'Invoice No.', 'Payment Method', 'Payment Type', 'Reference No', 'Amount']
+    };
+
+    // Utility Functions
+    function formatCurrency(amount, decimals = 2) {
+        return 'Rs ' + parseFloat(amount).toLocaleString(undefined, {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
+    }
+
+    function getPaymentMethodBadge(method) {
+        const methodLower = method.toLowerCase();
+        const config = PAYMENT_METHOD_CONFIG[methodLower];
+
+        if (config) {
+            const bgClass = config.badge || '';
+            const bgColor = config.badge ? '' : `background-color: ${config.color}; color: white;`;
+            return `<span class="badge ${bgClass}" style="${bgColor} ${BADGE_STYLES}">${config.label}</span>`;
+        }
+        return `<span class="badge bg-secondary" style="${BADGE_STYLES}">${method}</span>`;
+    }
+
+    function generateCollectionId(referenceNo, index) {
+        return referenceNo ? referenceNo.replace(/[^a-zA-Z0-9]/g, '-') : 'single-' + index;
+    }
+
+    function isCollectionGroup(collection) {
+        return collection.reference_no &&
+               (collection.reference_no.startsWith('BLK-') || collection.reference_no.startsWith('BULK-')) &&
+               collection.payments.length > 1;
+    }
+
+    function createTableHeaders(type) {
+        const headers = COLUMN_HEADERS[type];
+        return `<thead class="table-light"><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>`;
+    }
+
     $(document).ready(function() {
         // Initialize Select2
         $('.selectBox').select2({
@@ -694,22 +827,37 @@
         // Ensure callback is called after initialization
         cb(start, end);
 
+        // Helpers for filter data
+        function getFilterDataWithToken() {
+            var dateRange = $('#reportrange').data('daterangepicker');
+            return {
+                _token: "{{ csrf_token() }}",
+                customer_id: $('#customerFilter').val() || '',
+                supplier_id: $('#supplierFilter').val() || '',
+                location_id: $('#locationFilter').val() || '',
+                payment_method: $('#paymentMethodFilter').val() || '',
+                payment_type: $('#paymentTypeFilter').val() || '',
+                start_date: dateRange ? dateRange.startDate.format('YYYY-MM-DD') : '',
+                end_date: dateRange ? dateRange.endDate.format('YYYY-MM-DD') : ''
+            };
+        }
+
+        function getFilterData() {
+            var dateRange = $('#reportrange').data('daterangepicker');
+            return {
+                customer_id: $('#customerFilter').val() || '',
+                supplier_id: $('#supplierFilter').val() || '',
+                location_id: $('#locationFilter').val() || '',
+                payment_method: $('#paymentMethodFilter').val() || '',
+                payment_type: $('#paymentTypeFilter').val() || '',
+                start_date: dateRange ? dateRange.startDate.format('YYYY-MM-DD') : '',
+                end_date: dateRange ? dateRange.endDate.format('YYYY-MM-DD') : ''
+            };
+        }
+
         // Load payment collections
         function loadPaymentCollections() {
-            var filters = {
-                _token: "{{ csrf_token() }}",
-                customer_id: $('#customerFilter').val(),
-                supplier_id: $('#supplierFilter').val(),
-                location_id: $('#locationFilter').val(),
-                payment_method: $('#paymentMethodFilter').val(),
-                payment_type: $('#paymentTypeFilter').val(),
-            };
-
-            var dateRange = $('#reportrange').data('daterangepicker');
-            if (dateRange) {
-                filters.start_date = dateRange.startDate.format('YYYY-MM-DD');
-                filters.end_date = dateRange.endDate.format('YYYY-MM-DD');
-            }
+            var filters = getFilterDataWithToken();
 
             $.ajax({
                 url: "{{ route('payment.report.data') }}",
@@ -726,6 +874,75 @@
             });
         }
 
+        function renderPaymentRow(payment) {
+            const paymentMethodBadge = getPaymentMethodBadge(payment.payment_method);
+
+            return `
+                <tr>
+                    <td>${payment.invoice_date || payment.payment_date}</td>
+                    <td>${payment.invoice_no || '-'}</td>
+                    <td class="text-end">${formatCurrency(payment.invoice_value || 0)}</td>
+                    <td>${paymentMethodBadge}</td>
+                    <td>${payment.cheque_number || '-'}</td>
+                    <td>${payment.cheque_bank_branch || '-'}</td>
+                    <td>${payment.cheque_valid_date || '-'}</td>
+                    <td class="text-end text-success fw-bold">${formatCurrency(payment.amount)}</td>
+                </tr>`;
+        }
+
+        function renderSinglePaymentRow(payment) {
+            return `
+                <tr>
+                    <td>${payment.id}</td>
+                    <td>${payment.payment_date}</td>
+                    <td>${payment.customer_name || payment.supplier_name || '-'}</td>
+                    <td>${payment.invoice_no || '-'}</td>
+                    <td>${payment.payment_method}</td>
+                    <td><span class="badge bg-info">${payment.payment_type}</span></td>
+                    <td>${payment.reference_no || '-'}</td>
+                    <td class="text-end text-success fw-bold">${formatCurrency(payment.amount)}</td>
+                </tr>`;
+        }
+
+        function renderCollectionHeader(collection, collectionId) {
+            const contactName = collection.customer_name || collection.supplier_name || 'N/A';
+            const paymentCount = collection.payments.length;
+            const notesHtml = collection.payments[0]?.notes
+                ? `<div class="flex-grow-1 text-center align-self-center mb-2 mb-md-0"><small style="color: #e0e0e0;"><i class="fas fa-sticky-note me-1"></i> ${collection.payments[0].notes}</small></div>`
+                : '';
+
+            return `
+                <div class="collection-header d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center" data-bs-toggle="collapse" data-bs-target="#collection-${collectionId}" aria-expanded="true">
+                    <div class="flex-grow-1 mb-2 mb-md-0">
+                        <h6>
+                            <i class="fas fa-receipt me-2"></i>
+                            Collection Receipt: ${collection.reference_no}
+                        </h6>
+                        <small>${collection.payment_date} | ${contactName}</small>
+                    </div>
+                    ${notesHtml}
+                    <div class="text-start text-md-end">
+                        <span class="badge bg-white text-dark me-2">${paymentCount} Payment${paymentCount > 1 ? 's' : ''}</span>
+                        <span class="badge bg-success">${formatCurrency(collection.total_amount)}</span>
+                        <i class="fas fa-chevron-up collapse-icon ms-2"></i>
+                    </div>
+                </div>`;
+        }
+
+        function renderCollectionDetails(collection) {
+            return `
+                <div class="collection-details">
+                    <div class="collection-info">
+                        <p><strong>Customer:</strong> ${collection.customer_name || 'N/A'}</p>
+                        <p><strong>Address:</strong> ${collection.customer_address || 'N/A'}</p>
+                    </div>
+                    <div class="collection-info">
+                        <p><strong>Collection Date:</strong> ${collection.payment_date}</p>
+                        <p><strong>Location:</strong> ${collection.location || 'N/A'}</p>
+                    </div>
+                </div>`;
+        }
+
         function renderCollections(collections) {
             if (!collections || collections.length === 0) {
                 $('#paymentCollectionsContainer').html(
@@ -737,100 +954,35 @@
             let html = '';
 
             collections.forEach(function(collection, index) {
-                const collectionId = collection.reference_no ? collection.reference_no.replace(/[^a-zA-Z0-9]/g, '-') : 'single-' + index;
-                const isCollectionGroup = collection.reference_no && (collection.reference_no.startsWith('BLK-') || collection.reference_no.startsWith('BULK-')) && collection.payments.length > 1;
+                const collectionId = generateCollectionId(collection.reference_no, index);
+                const isBulkCollection = isCollectionGroup(collection);
 
-                if (isCollectionGroup) {
+                if (isBulkCollection) {
                     // Bulk collection group
                     html += `
                         <div class="collection-group">
-                            <div class="collection-header" data-bs-toggle="collapse" data-bs-target="#collection-${collectionId}" aria-expanded="true">
-                                <div>
-                                    <h6>
-                                        <i class="fas fa-receipt me-2"></i>
-                                        Collection Receipt: ${collection.reference_no}
-                                    </h6>
-                                    <small>${collection.payment_date} | ${collection.customer_name || collection.supplier_name || 'N/A'}</small>
-                                </div>
-                                <div>
-                                    <span class="badge bg-white text-dark me-2">${collection.payments.length} Payment${collection.payments.length > 1 ? 's' : ''}</span>
-                                    <span class="badge bg-success">Rs ${parseFloat(collection.total_amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                                    <i class="fas fa-chevron-up collapse-icon ms-2"></i>
-                                </div>
-                            </div>
-
+                            ${renderCollectionHeader(collection, collectionId)}
                             <div class="collapse show" id="collection-${collectionId}">
-                                <div class="collection-details">
-                                    <div class="collection-info">
-                                        <p><strong>Customer:</strong> ${collection.customer_name || 'N/A'}</p>
-                                        <p><strong>Address:</strong> ${collection.customer_address || 'N/A'}</p>
-                                    </div>
-                                    <div class="collection-info">
-                                        <p><strong>Collection Date:</strong> ${collection.payment_date}</p>
-                                        <p><strong>Location:</strong> ${collection.location || 'N/A'}</p>
-                                    </div>
-                                </div>
-
+                                ${renderCollectionDetails(collection)}
                                 <div class="nested-table">
+                                    <div class="table-responsive">
                                     <table class="table table-striped table-bordered table-sm">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>Invoice Date</th>
-                                                <th>Invoice No.</th>
-                                                <th>Invoice Value</th>
-                                                <th>Payment Method</th>
-                                                <th>Payment Details</th>
-                                                <th>Amount</th>
-                                            </tr>
-                                        </thead>
+                                        ${createTableHeaders('collection')}
                                         <tbody>`;
 
                     collection.payments.forEach(function(payment) {
-                        // Determine payment method badge color
-                        let paymentMethodBadge = '';
-                        if (payment.payment_method.toLowerCase() === 'cash') {
-                            paymentMethodBadge = '<span class="badge bg-success">Cash</span>';
-                        } else if (payment.payment_method.toLowerCase() === 'card') {
-                            paymentMethodBadge = '<span class="badge bg-primary">Card</span>';
-                        } else if (payment.payment_method.toLowerCase() === 'cheque') {
-                            paymentMethodBadge = '<span class="badge bg-warning">Cheque</span>';
-                        } else if (payment.payment_method.toLowerCase() === 'bank_transfer') {
-                            paymentMethodBadge = '<span class="badge bg-info">Bank Transfer</span>';
-                        } else {
-                            paymentMethodBadge = '<span class="badge bg-secondary">' + payment.payment_method + '</span>';
-                        }
-
-                        // Build cheque details only for cheque payments
-                        let chequeDetails = '-';
-                        if (payment.payment_method.toLowerCase() === 'cheque' && payment.cheque_number) {
-                            chequeDetails = `<strong>Cheque No:</strong> ${payment.cheque_number}<br>`;
-                            if (payment.cheque_bank_branch) {
-                                chequeDetails += `<strong>Bank:</strong> ${payment.cheque_bank_branch}<br>`;
-                            }
-                            if (payment.cheque_valid_date) {
-                                chequeDetails += `<strong>Due:</strong> ${payment.cheque_valid_date}`;
-                            }
-                        }
-
-                        html += `
-                            <tr>
-                                <td>${payment.invoice_date || payment.payment_date}</td>
-                                <td>${payment.invoice_no || '-'}</td>
-                                <td class="text-end">Rs ${parseFloat(payment.invoice_value || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                                <td>${paymentMethodBadge}</td>
-                                <td style="font-size: 12px;">${chequeDetails}</td>
-                                <td class="text-end text-success fw-bold">Rs ${parseFloat(payment.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                            </tr>`;
+                        html += renderPaymentRow(payment);
                     });
 
                     html += `
                                         </tbody>
                                     </table>
+                                    </div>
                                 </div>
 
                                 <div class="collection-footer">
                                     <span class="total-label">Total Collection Amount:</span>
-                                    <span class="total-amount">Rs ${parseFloat(collection.total_amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                    <span class="total-amount">${formatCurrency(collection.total_amount)}</span>
                                 </div>
                             </div>
                         </div>`;
@@ -840,32 +992,11 @@
                         <div class="no-collection-group">
                             <div class="table-responsive">
                                 <table class="table table-striped table-bordered table-sm mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Payment ID</th>
-                                            <th>Date</th>
-                                            <th>Customer/Supplier</th>
-                                            <th>Invoice No.</th>
-                                            <th>Payment Method</th>
-                                            <th>Payment Type</th>
-                                            <th>Reference No</th>
-                                            <th>Amount</th>
-                                        </tr>
-                                    </thead>
+                                    ${createTableHeaders('single')}
                                     <tbody>`;
 
                     collection.payments.forEach(function(payment) {
-                        html += `
-                            <tr>
-                                <td>${payment.id}</td>
-                                <td>${payment.payment_date}</td>
-                                <td>${payment.customer_name || payment.supplier_name || '-'}</td>
-                                <td>${payment.invoice_no || '-'}</td>
-                                <td>${payment.payment_method}</td>
-                                <td><span class="badge bg-info">${payment.payment_type}</span></td>
-                                <td>${payment.reference_no || '-'}</td>
-                                <td class="text-end text-success fw-bold">Rs ${parseFloat(payment.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                            </tr>`;
+                        html += renderSinglePaymentRow(payment);
                     });
 
                     html += `
@@ -954,8 +1085,56 @@
             updateSummary();
         });
 
-        // Column visibility - Not applicable for grouped view
-        $('#columnVisibilityDropdown').hide();
+        // Column visibility functionality
+        // Mark all columns as visible by default
+        $('#columnVisibilityDropdown a').each(function() {
+            var value = $(this).data('value');
+            if (value !== 'hide all' && value !== 'show all') {
+                $(this).addClass('selected-column');
+            }
+        });
+
+        $('#columnVisibilityDropdown a').on('click', function(e) {
+            e.preventDefault();
+            var value = $(this).data('value');
+
+            if (value === 'show all') {
+                $('#columnVisibilityDropdown a').removeClass('selected-column');
+                $(this).addClass('selected-column');
+                $('#columnVisibilityDropdown a').each(function() {
+                    var val = $(this).data('value');
+                    if (val !== 'hide all' && val !== 'show all') {
+                        $(this).addClass('selected-column');
+                    }
+                });
+                $('#columnVisibilityDropdown a[data-value="hide all"]').removeClass('selected-column');
+                // Show all columns
+                $('.nested-table table thead th, .nested-table table tbody td').show();
+                $('.no-collection-group table thead th, .no-collection-group table tbody td').show();
+            } else if (value === 'hide all') {
+                $('#columnVisibilityDropdown a').removeClass('selected-column');
+                $(this).addClass('selected-column');
+                // Hide all data columns (keep first and last visible for structure)
+                $('.nested-table table thead th:not(:first):not(:last), .nested-table table tbody td:not(:first):not(:last)').hide();
+                $('.no-collection-group table thead th:not(:first):not(:last), .no-collection-group table tbody td:not(:first):not(:last)').hide();
+            } else {
+                // Toggle individual column
+                $(this).toggleClass('selected-column');
+                var columnIndex = parseInt(value);
+                var isVisible = $(this).hasClass('selected-column');
+
+                if (isVisible) {
+                    $('.nested-table table thead th:eq(' + columnIndex + '), .nested-table table tbody td:nth-child(' + (columnIndex + 1) + ')').show();
+                    $('.no-collection-group table thead th:eq(' + columnIndex + '), .no-collection-group table tbody td:nth-child(' + (columnIndex + 1) + ')').show();
+                } else {
+                    $('.nested-table table thead th:eq(' + columnIndex + '), .nested-table table tbody td:nth-child(' + (columnIndex + 1) + ')').hide();
+                    $('.no-collection-group table thead th:eq(' + columnIndex + '), .no-collection-group table tbody td:nth-child(' + (columnIndex + 1) + ')').hide();
+                }
+            }
+        });
+
+        // Add visual feedback for selected columns
+        $('<style>.selected-column { background-color: #e7f3ff !important; font-weight: bold; }</style>').appendTo('head');
 
         // Export functions
         $('#exportPdf').click(function(e) {
@@ -969,57 +1148,97 @@
         });
 
         function exportReport(format) {
-            var form = $('<form method="POST" action="' +
-                "{{ route('payment.report.export.pdf') }}" + '">');
+            try {
+                var action = format === 'excel'
+                    ? "{{ route('payment.report.export.excel') }}"
+                    : "{{ route('payment.report.export.pdf') }}";
 
-            if (format === 'excel') {
-                form.attr('action', "{{ route('payment.report.export.excel') }}");
+                console.log('Export format:', format);
+                console.log('Export URL:', action);
+
+                // Get filter data
+                var formData = getFilterData();
+                console.log('Filter data:', formData);
+
+                // Create a native DOM form element (not jQuery)
+                var form = document.createElement('form');
+                form.method = 'POST';
+                form.action = action;
+                form.target = '_self'; // Force same window download
+                form.style.display = 'none';
+
+                // Add CSRF token
+                var csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = '_token';
+                csrfInput.value = '{{ csrf_token() }}';
+                form.appendChild(csrfInput);
+
+                // Add all filter fields to form
+                for (var key in formData) {
+                    if (formData.hasOwnProperty(key)) {
+                        var input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = key;
+                        input.value = formData[key] || '';
+                        form.appendChild(input);
+                    }
+                }
+
+                // Append to body and submit using native method
+                document.body.appendChild(form);
+                console.log('Form created and appended to body');
+
+                // Use native submit to avoid jQuery/AJAX interference
+                form.submit();
+                console.log('Form submitted');
+
+                // Remove form after a delay
+                setTimeout(function() {
+                    if (form.parentNode) {
+                        form.parentNode.removeChild(form);
+                        console.log('Form removed');
+                    }
+                }, 2000);
+
+            } catch (error) {
+                console.error('Export error:', error);
+                alert('An error occurred while exporting. Please check the console for details.');
             }
+        }
 
-            form.append('<input type="hidden" name="_token" value="{{ csrf_token() }}">');
-            form.append('<input type="hidden" name="customer_id" value="' + $('#customerFilter').val() + '">');
-            form.append('<input type="hidden" name="supplier_id" value="' + $('#supplierFilter').val() + '">');
-            form.append('<input type="hidden" name="location_id" value="' + $('#locationFilter').val() + '">');
-            form.append('<input type="hidden" name="payment_method" value="' + $('#paymentMethodFilter').val() + '">');
-            form.append('<input type="hidden" name="payment_type" value="' + $('#paymentTypeFilter').val() + '">');
+        function updateSummaryCards(summaryData) {
+            const summaryMap = {
+                'totalAmount': 'total_amount',
+                'cashTotal': 'cash_total',
+                'cardTotal': 'card_total',
+                'chequeTotal': 'cheque_total',
+                'bankTransferTotal': 'bank_transfer_total',
+                'salePayments': 'sale_payments',
+                'purchasePayments': 'purchase_payments'
+            };
 
-            var dateRange = $('#reportrange').data('daterangepicker');
-            if (dateRange) {
-                form.append('<input type="hidden" name="start_date" value="' + dateRange.startDate.format('YYYY-MM-DD') + '">');
-                form.append('<input type="hidden" name="end_date" value="' + dateRange.endDate.format('YYYY-MM-DD') + '">');
+            Object.keys(summaryMap).forEach(function(elementId) {
+                const dataKey = summaryMap[elementId];
+                const value = summaryData[dataKey] || 0;
+                $('#' + elementId).text(formatCurrency(value));
+            });
+
+            if (summaryData.other_total && summaryData.other_total > 0) {
+                $('#otherTotal').text(formatCurrency(summaryData.other_total));
             }
-
-            $('body').append(form);
-            form.submit();
-            form.remove();
         }
 
         function updateSummary() {
+            var filterData = getFilterData();
+
             $.ajax({
                 url: "{{ route('payment.report') }}",
                 type: 'GET',
-                data: {
-                    customer_id: $('#customerFilter').val(),
-                    supplier_id: $('#supplierFilter').val(),
-                    location_id: $('#locationFilter').val(),
-                    payment_method: $('#paymentMethodFilter').val(),
-                    payment_type: $('#paymentTypeFilter').val(),
-                    start_date: $('#reportrange').data('daterangepicker').startDate.format('YYYY-MM-DD'),
-                    end_date: $('#reportrange').data('daterangepicker').endDate.format('YYYY-MM-DD'),
-                    ajax_summary: true
-                },
+                data: $.extend({}, filterData, { ajax_summary: true }),
                 success: function(response) {
                     if (response.summaryData) {
-                        $('#totalAmount').text('Rs ' + parseFloat(response.summaryData.total_amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-                        $('#cashTotal').text('Rs ' + parseFloat(response.summaryData.cash_total).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-                        $('#cardTotal').text('Rs ' + parseFloat(response.summaryData.card_total).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-                        $('#chequeTotal').text('Rs ' + parseFloat(response.summaryData.cheque_total).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-                        $('#bankTransferTotal').text('Rs ' + parseFloat(response.summaryData.bank_transfer_total || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-                        if (response.summaryData.other_total && response.summaryData.other_total > 0) {
-                            $('#otherTotal').text('Rs ' + parseFloat(response.summaryData.other_total).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-                        }
-                        $('#salePayments').text('Rs ' + parseFloat(response.summaryData.sale_payments).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-                        $('#purchasePayments').text('Rs ' + parseFloat(response.summaryData.purchase_payments).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+                        updateSummaryCards(response.summaryData);
                     }
                 }
             });
