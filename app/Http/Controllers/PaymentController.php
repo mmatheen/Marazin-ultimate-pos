@@ -2928,20 +2928,25 @@ class PaymentController extends Controller
     private function generateMeaningfulBulkReference($request)
     {
         $paymentType = $request->payment_type;
-        $dateStr = date('ymd'); // YYMMDD
 
-        // Determine payment category (sale or purchase)
-        $category = isset($request->customer_id) ? 'SALE' : 'SUPP';
+        // Determine payment category with shorter codes
+        if (isset($request->customer_id)) {
+            // Sales/Customer payments
+            $category = $paymentType === 'opening_balance' ? 'SOB' : 'S';
+        } else {
+            // Purchase/Supplier payments
+            $category = $paymentType === 'opening_balance' ? 'POB' : 'P';
+        }
 
-        // Get the last reference number globally (not filtered by date)
-        $lastPayment = \App\Models\Payment::where('reference_no', 'LIKE', "BLK-%-{$category}%")
+        // Get the last reference number for this category
+        $lastPayment = \App\Models\Payment::where('reference_no', 'LIKE', "BLK-{$category}%")
             ->orderBy('id', 'desc')
             ->first();
 
         // Extract the sequence number and increment
         $sequenceNumber = 1;
         if ($lastPayment && $lastPayment->reference_no) {
-            // Extract last 4 digits from reference like "BLK-251216-SALE0001"
+            // Extract last 4 digits from reference like "BLK-S0001"
             preg_match('/-' . $category . '(\d{4})$/', $lastPayment->reference_no, $matches);
             if (!empty($matches[1])) {
                 $sequenceNumber = intval($matches[1]) + 1;
@@ -2951,12 +2956,6 @@ class PaymentController extends Controller
         // Format sequence with leading zeros (4 digits)
         $formattedSequence = str_pad($sequenceNumber, 4, '0', STR_PAD_LEFT);
 
-        if ($paymentType === 'opening_balance') {
-            // For opening balance payments
-            return "BLK-{$dateStr}-{$category}OB{$formattedSequence}";
-        } else {
-            // For sale/purchase payments
-            return "BLK-{$dateStr}-{$category}{$formattedSequence}";
-        }
+        return "BLK-{$category}{$formattedSequence}";
     }
 }
