@@ -134,39 +134,57 @@
         }
 
         .summary-item .card-body {
-            padding: 1.5rem 1rem;
+            padding: 0.75rem 0.5rem;
         }
 
         .summary-item .card-title {
             font-weight: bold;
-            font-size: 1.75rem;
-            line-height: 1.2;
-            margin-bottom: 0.5rem;
+            font-size: 1.25rem;
+            line-height: 1.3;
+            margin-bottom: 0.25rem;
         }
 
         .summary-item .card-text {
-            font-size: 0.875rem;
+            font-size: 0.75rem;
             font-weight: 500;
             color: #6b7280;
             margin-bottom: 0;
         }
 
         /* Responsive font sizes */
-        @media (max-width: 768px) {
+        @media (max-width: 1400px) {
             .summary-item .card-title {
-                font-size: 1.5rem;
+                font-size: 1.15rem;
             }
             .summary-item .card-text {
-                font-size: 0.8rem;
+                font-size: 0.7rem;
+            }
+        }
+
+        @media (max-width: 992px) {
+            .summary-item .card-title {
+                font-size: 1.1rem;
+            }
+            .summary-item .card-text {
+                font-size: 0.68rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .summary-item .card-title {
+                font-size: 1.2rem;
+            }
+            .summary-item .card-text {
+                font-size: 0.7rem;
             }
         }
 
         @media (max-width: 576px) {
             .summary-item .card-title {
-                font-size: 1.25rem;
+                font-size: 1rem;
             }
             .summary-item .card-text {
-                font-size: 0.75rem;
+                font-size: 0.65rem;
             }
         }
 
@@ -195,6 +213,14 @@
             color: #dc2626; /* Clean Red */
         }
 
+        .card-bank .card-title {
+            color: #8b5cf6; /* Purple */
+        }
+
+        .card-other .card-title {
+            color: #f59e0b; /* Amber */
+        }
+
         .payment-method-card {
             background: #fff;
             border: 1px solid #e1e5e9;
@@ -215,8 +241,162 @@
             font-weight: bold;
             color: #27ae60;
         }
+
+        /* Collection Group Styling */
+        .collection-group {
+            background: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        }
+
+        .collection-header {
+            background: #4a5568;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-bottom: 3px solid #2d3748;
+        }
+
+        .collection-header:hover {
+            background: #2d3748;
+        }
+
+        .collection-header h6 {
+            margin: 0;
+            font-weight: 600;
+            font-size: 16px;
+            color: #ffffff;
+        }
+
+        .collection-header h6 i {
+            color: #ffffff;
+        }
+
+        .collection-header .badge {
+            font-size: 13px;
+            padding: 6px 12px;
+            font-weight: 500;
+        }
+
+        .collection-header small {
+            opacity: 0.9;
+            font-size: 13px;
+        }
+
+        .collection-details {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .collection-info {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .collection-info p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        .collection-info strong {
+            color: #495057;
+        }
+
+        .nested-table {
+            padding: 0 20px 15px 20px;
+        }
+
+        .nested-table table {
+            background: white;
+            font-size: 13px;
+            margin-bottom: 0;
+        }
+
+        .nested-table thead th {
+            background: #f1f3f5;
+            color: #495057;
+            font-weight: 600;
+            border-bottom: 2px solid #dee2e6;
+            padding: 10px;
+        }
+
+        .nested-table tbody td {
+            padding: 10px;
+            vertical-align: middle;
+        }
+
+        .nested-table .table-striped tbody tr:nth-of-type(odd) {
+            background-color: rgba(0,0,0,.02);
+        }
+
+        .collection-footer {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-radius: 0 0 8px 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            border-top: 2px solid #dee2e6;
+        }
+
+        .collection-footer .total-label {
+            font-size: 16px;
+            color: #2d3748;
+            font-weight: 600;
+        }
+
+        .collection-footer .total-amount {
+            font-size: 20px;
+            color: #16a34a;
+            font-weight: 700;
+        }
+
+        .collapse-icon {
+            transition: transform 0.3s ease;
+        }
+
+        .collapsed .collapse-icon {
+            transform: rotate(-180deg);
+        }
+
+        .no-collection-group {
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        @media print {
+            .collection-header {
+                background: #4a5568 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .collection-group {
+                page-break-inside: avoid;
+                margin-bottom: 20px;
+            }
+
+            .btn-group, .student-group-form {
+                display: none !important;
+            }
+        }
     </style>
-    
+
     <div class="content container-fluid">
         <div class="row">
             <div class="page-header">
@@ -235,50 +415,68 @@
 
             <!-- Summary Cards -->
             <div class="row mb-4">
-                <div class="col-lg-2 col-md-4 col-sm-6 col-12 mb-3">
+                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 col-12 mb-3">
                     <div class="card summary-item card-total h-100">
-                        <div class="card-body text-center p-3">
-                            <h4 id="totalAmount" class="card-title mb-2">Rs {{ number_format($summaryData['total_amount'], 2) }}</h4>
+                        <div class="card-body text-center p-2">
+                            <h4 id="totalAmount" class="card-title mb-1">Rs {{ number_format($summaryData['total_amount'], 2) }}</h4>
                             <p class="card-text mb-0">Total Payments</p>
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-2 col-md-4 col-sm-6 col-12 mb-3">
+                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 col-12 mb-3">
                     <div class="card summary-item card-cash h-100">
-                        <div class="card-body text-center p-3">
-                            <h4 id="cashTotal" class="card-title mb-2">Rs {{ number_format($summaryData['cash_total'], 2) }}</h4>
+                        <div class="card-body text-center p-2">
+                            <h4 id="cashTotal" class="card-title mb-1">Rs {{ number_format($summaryData['cash_total'], 2) }}</h4>
                             <p class="card-text mb-0">Cash Payments</p>
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-2 col-md-4 col-sm-6 col-12 mb-3">
+                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 col-12 mb-3">
                     <div class="card summary-item card-card h-100">
-                        <div class="card-body text-center p-3">
-                            <h4 id="cardTotal" class="card-title mb-2">Rs {{ number_format($summaryData['card_total'], 2) }}</h4>
+                        <div class="card-body text-center p-2">
+                            <h4 id="cardTotal" class="card-title mb-1">Rs {{ number_format($summaryData['card_total'], 2) }}</h4>
                             <p class="card-text mb-0">Card Payments</p>
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-2 col-md-4 col-sm-6 col-12 mb-3">
+                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 col-12 mb-3">
                     <div class="card summary-item card-cheque h-100">
-                        <div class="card-body text-center p-3">
-                            <h4 id="chequeTotal" class="card-title mb-2">Rs {{ number_format($summaryData['cheque_total'], 2) }}</h4>
+                        <div class="card-body text-center p-2">
+                            <h4 id="chequeTotal" class="card-title mb-1">Rs {{ number_format($summaryData['cheque_total'], 2) }}</h4>
                             <p class="card-text mb-0">Cheque Payments</p>
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-2 col-md-4 col-sm-6 col-12 mb-3">
+                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 col-12 mb-3">
+                    <div class="card summary-item card-bank h-100">
+                        <div class="card-body text-center p-2">
+                            <h4 id="bankTransferTotal" class="card-title mb-1">Rs {{ number_format($summaryData['bank_transfer_total'] ?? 0, 2) }}</h4>
+                            <p class="card-text mb-0">Bank Transfer</p>
+                        </div>
+                    </div>
+                </div>
+                @if(isset($summaryData['other_total']) && $summaryData['other_total'] > 0)
+                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 col-12 mb-3">
+                    <div class="card summary-item card-other h-100">
+                        <div class="card-body text-center p-2">
+                            <h4 id="otherTotal" class="card-title mb-1">Rs {{ number_format($summaryData['other_total'], 2) }}</h4>
+                            <p class="card-text mb-0">Other Methods</p>
+                        </div>
+                    </div>
+                </div>
+                @endif
+                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 col-12 mb-3">
                     <div class="card summary-item card-sale h-100">
-                        <div class="card-body text-center p-3">
-                            <h4 id="salePayments" class="card-title mb-2">Rs {{ number_format($summaryData['sale_payments'], 2) }}</h4>
+                        <div class="card-body text-center p-2">
+                            <h4 id="salePayments" class="card-title mb-1">Rs {{ number_format($summaryData['sale_payments'], 2) }}</h4>
                             <p class="card-text mb-0">Sale Payments</p>
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-2 col-md-4 col-sm-6 col-12 mb-3">
+                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 col-12 mb-3">
                     <div class="card summary-item card-purchase h-100">
-                        <div class="card-body text-center p-3">
-                            <h4 id="purchasePayments" class="card-title mb-2">Rs {{ number_format($summaryData['purchase_payments'], 2) }}</h4>
+                        <div class="card-body text-center p-2">
+                            <h4 id="purchasePayments" class="card-title mb-1">Rs {{ number_format($summaryData['purchase_payments'], 2) }}</h4>
                             <p class="card-text mb-0">Purchase Payments</p>
                         </div>
                     </div>
@@ -427,32 +625,15 @@
                 <div class="col-md-12">
                     <div class="card">
                         <div class="card-header">
-                            <h5 class="card-title">Payment Details</h5>
+                            <h5 class="card-title">Payment Details - Grouped by Collection</h5>
                         </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-striped table-bordered" id="paymentTable" width="100%">
-                                    <thead>
-                                        <tr>
-                                            <th>Payment ID</th>
-                                            <th>Date</th>
-                                            <th>Amount</th>
-                                            <th>Payment Method</th>
-                                            <th>Payment Type</th>
-                                            <th>Reference No</th>
-                                            <th>Invoice No</th>
-                                            <th>Customer</th>
-                                            <th>Supplier</th>
-                                            <th>Location</th>
-                                            <th>Cheque No</th>
-                                            <th>Status</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Data will be loaded via AJAX -->
-                                    </tbody>
-                                </table>
+                        <div class="card-body" id="paymentCollectionsContainer">
+                            <!-- Collections will be loaded here via AJAX -->
+                            <div class="text-center p-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-3">Loading payment collections...</p>
                             </div>
                         </div>
                     </div>
@@ -513,85 +694,198 @@
         // Ensure callback is called after initialization
         cb(start, end);
 
-        // Initialize DataTable
-        var table = $('#paymentTable').DataTable({
-            processing: true,
-            serverSide: false,
-            ajax: {
+        // Load payment collections
+        function loadPaymentCollections() {
+            var filters = {
+                _token: "{{ csrf_token() }}",
+                customer_id: $('#customerFilter').val(),
+                supplier_id: $('#supplierFilter').val(),
+                location_id: $('#locationFilter').val(),
+                payment_method: $('#paymentMethodFilter').val(),
+                payment_type: $('#paymentTypeFilter').val(),
+            };
+
+            var dateRange = $('#reportrange').data('daterangepicker');
+            if (dateRange) {
+                filters.start_date = dateRange.startDate.format('YYYY-MM-DD');
+                filters.end_date = dateRange.endDate.format('YYYY-MM-DD');
+            }
+
+            $.ajax({
                 url: "{{ route('payment.report.data') }}",
                 type: "POST",
-                data: function(d) {
-                    d._token = "{{ csrf_token() }}";
-                    d.customer_id = $('#customerFilter').val();
-                    d.supplier_id = $('#supplierFilter').val();
-                    d.location_id = $('#locationFilter').val();
-                    d.payment_method = $('#paymentMethodFilter').val();
-                    d.payment_type = $('#paymentTypeFilter').val();
-                    
-                    var dateRange = $('#reportrange').data('daterangepicker');
-                    if (dateRange) {
-                        d.start_date = dateRange.startDate.format('YYYY-MM-DD');
-                        d.end_date = dateRange.endDate.format('YYYY-MM-DD');
-                    }
-                }
-            },
-            columns: [
-                { data: 'id', name: 'id' },
-                { data: 'payment_date', name: 'payment_date' },
-                { 
-                    data: 'amount', 
-                    name: 'amount',
-                    render: function(data, type, row) {
-                        return '<span class="text-success fw-bold">Rs ' + data + '</span>';
-                    }
+                data: filters,
+                success: function(response) {
+                    renderCollections(response.collections);
                 },
-                { data: 'payment_method', name: 'payment_method' },
-                { data: 'payment_type', name: 'payment_type' },
-                { data: 'reference_no', name: 'reference_no' },
-                { data: 'invoice_no', name: 'invoice_no' },
-                { data: 'customer_name', name: 'customer_name' },
-                { data: 'supplier_name', name: 'supplier_name' },
-                { data: 'location', name: 'location' },
-                { data: 'cheque_number', name: 'cheque_number' },
-                { 
-                    data: 'cheque_status', 
-                    name: 'cheque_status',
-                    render: function(data, type, row) {
-                        if (row.payment_method !== 'Cheque') return '-';
-                        var badgeClass = '';
-                        switch(data) {
-                            case 'Pending': badgeClass = 'warning'; break;
-                            case 'Cleared': badgeClass = 'success'; break;
-                            case 'Bounced': badgeClass = 'danger'; break;
-                            default: badgeClass = 'secondary';
+                error: function(xhr) {
+                    $('#paymentCollectionsContainer').html(
+                        '<div class="alert alert-danger">Error loading payment collections. Please try again.</div>'
+                    );
+                }
+            });
+        }
+
+        function renderCollections(collections) {
+            if (!collections || collections.length === 0) {
+                $('#paymentCollectionsContainer').html(
+                    '<div class="alert alert-info">No payment collections found for the selected filters.</div>'
+                );
+                return;
+            }
+
+            let html = '';
+
+            collections.forEach(function(collection, index) {
+                const collectionId = collection.reference_no ? collection.reference_no.replace(/[^a-zA-Z0-9]/g, '-') : 'single-' + index;
+                const isCollectionGroup = collection.reference_no && (collection.reference_no.startsWith('BLK-') || collection.reference_no.startsWith('BULK-')) && collection.payments.length > 1;
+
+                if (isCollectionGroup) {
+                    // Bulk collection group
+                    html += `
+                        <div class="collection-group">
+                            <div class="collection-header" data-bs-toggle="collapse" data-bs-target="#collection-${collectionId}" aria-expanded="true">
+                                <div>
+                                    <h6>
+                                        <i class="fas fa-receipt me-2"></i>
+                                        Collection Receipt: ${collection.reference_no}
+                                    </h6>
+                                    <small>${collection.payment_date} | ${collection.customer_name || collection.supplier_name || 'N/A'}</small>
+                                </div>
+                                <div>
+                                    <span class="badge bg-white text-dark me-2">${collection.payments.length} Payment${collection.payments.length > 1 ? 's' : ''}</span>
+                                    <span class="badge bg-success">Rs ${parseFloat(collection.total_amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                    <i class="fas fa-chevron-up collapse-icon ms-2"></i>
+                                </div>
+                            </div>
+
+                            <div class="collapse show" id="collection-${collectionId}">
+                                <div class="collection-details">
+                                    <div class="collection-info">
+                                        <p><strong>Customer:</strong> ${collection.customer_name || 'N/A'}</p>
+                                        <p><strong>Address:</strong> ${collection.customer_address || 'N/A'}</p>
+                                    </div>
+                                    <div class="collection-info">
+                                        <p><strong>Collection Date:</strong> ${collection.payment_date}</p>
+                                        <p><strong>Location:</strong> ${collection.location || 'N/A'}</p>
+                                    </div>
+                                </div>
+
+                                <div class="nested-table">
+                                    <table class="table table-striped table-bordered table-sm">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Invoice Date</th>
+                                                <th>Invoice No.</th>
+                                                <th>Invoice Value</th>
+                                                <th>Payment Method</th>
+                                                <th>Payment Details</th>
+                                                <th>Amount</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>`;
+
+                    collection.payments.forEach(function(payment) {
+                        // Determine payment method badge color
+                        let paymentMethodBadge = '';
+                        if (payment.payment_method.toLowerCase() === 'cash') {
+                            paymentMethodBadge = '<span class="badge bg-success">Cash</span>';
+                        } else if (payment.payment_method.toLowerCase() === 'card') {
+                            paymentMethodBadge = '<span class="badge bg-primary">Card</span>';
+                        } else if (payment.payment_method.toLowerCase() === 'cheque') {
+                            paymentMethodBadge = '<span class="badge bg-warning">Cheque</span>';
+                        } else if (payment.payment_method.toLowerCase() === 'bank_transfer') {
+                            paymentMethodBadge = '<span class="badge bg-info">Bank Transfer</span>';
+                        } else {
+                            paymentMethodBadge = '<span class="badge bg-secondary">' + payment.payment_method + '</span>';
                         }
-                        return '<span class="badge bg-' + badgeClass + '">' + data + '</span>';
-                    }
-                },
-                { 
-                    data: 'id',
-                    name: 'actions',
-                    orderable: false,
-                    searchable: false,
-                    render: function(data, type, row) {
-                        return '<button class="btn btn-sm btn-info view-payment" data-id="' + data + '">' +
-                               '<i class="fas fa-eye"></i> View</button>';
-                    }
+
+                        // Build cheque details only for cheque payments
+                        let chequeDetails = '-';
+                        if (payment.payment_method.toLowerCase() === 'cheque' && payment.cheque_number) {
+                            chequeDetails = `<strong>Cheque No:</strong> ${payment.cheque_number}<br>`;
+                            if (payment.cheque_bank_branch) {
+                                chequeDetails += `<strong>Bank:</strong> ${payment.cheque_bank_branch}<br>`;
+                            }
+                            if (payment.cheque_valid_date) {
+                                chequeDetails += `<strong>Due:</strong> ${payment.cheque_valid_date}`;
+                            }
+                        }
+
+                        html += `
+                            <tr>
+                                <td>${payment.invoice_date || payment.payment_date}</td>
+                                <td>${payment.invoice_no || '-'}</td>
+                                <td class="text-end">Rs ${parseFloat(payment.invoice_value || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                                <td>${paymentMethodBadge}</td>
+                                <td style="font-size: 12px;">${chequeDetails}</td>
+                                <td class="text-end text-success fw-bold">Rs ${parseFloat(payment.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                            </tr>`;
+                    });
+
+                    html += `
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="collection-footer">
+                                    <span class="total-label">Total Collection Amount:</span>
+                                    <span class="total-amount">Rs ${parseFloat(collection.total_amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                </div>
+                            </div>
+                        </div>`;
+                } else {
+                    // Single payment (not part of bulk collection)
+                    html += `
+                        <div class="no-collection-group">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-bordered table-sm mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Payment ID</th>
+                                            <th>Date</th>
+                                            <th>Customer/Supplier</th>
+                                            <th>Invoice No.</th>
+                                            <th>Payment Method</th>
+                                            <th>Payment Type</th>
+                                            <th>Reference No</th>
+                                            <th>Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>`;
+
+                    collection.payments.forEach(function(payment) {
+                        html += `
+                            <tr>
+                                <td>${payment.id}</td>
+                                <td>${payment.payment_date}</td>
+                                <td>${payment.customer_name || payment.supplier_name || '-'}</td>
+                                <td>${payment.invoice_no || '-'}</td>
+                                <td>${payment.payment_method}</td>
+                                <td><span class="badge bg-info">${payment.payment_type}</span></td>
+                                <td>${payment.reference_no || '-'}</td>
+                                <td class="text-end text-success fw-bold">Rs ${parseFloat(payment.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                            </tr>`;
+                    });
+
+                    html += `
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>`;
                 }
-            ],
-            dom: 'Bfrtip',
-            buttons: [
-                'copy', 'csv', 'excel', 'pdf', 'print'
-            ],
-            order: [[1, 'desc']],
-            responsive: true,
-            scrollX: true
-        });
+            });
+
+            $('#paymentCollectionsContainer').html(html);
+        }
+
+        // Initial load
+        loadPaymentCollections();
 
         // Contact Type onChange event
         $('#contactTypeFilter').change(function() {
             var contactType = $(this).val();
-            
+
             if (contactType === 'customer') {
                 // Show customer dropdown, hide supplier dropdown
                 $('#customerFilterContainer').show();
@@ -615,9 +909,9 @@
                 // Reset payment type filter
                 updatePaymentTypeOptions('all');
             }
-            
+
             // Reload data
-            table.ajax.reload();
+            loadPaymentCollections();
             updateSummary();
         });
 
@@ -625,7 +919,7 @@
         function updatePaymentTypeOptions(type) {
             var paymentTypeFilter = $('#paymentTypeFilter');
             paymentTypeFilter.empty();
-            
+
             if (type === 'sale') {
                 paymentTypeFilter.append('<option value="">All Sale Types</option>');
                 paymentTypeFilter.append('<option value="sale">Sale Payment</option>');
@@ -641,7 +935,7 @@
                 paymentTypeFilter.append('<option value="return">Return Payment</option>');
                 paymentTypeFilter.append('<option value="recovery">Recovery Payment</option>');
             }
-            
+
             paymentTypeFilter.trigger('change');
         }
 
@@ -650,93 +944,18 @@
 
         // onChange events for all filters
         $('#customerFilter, #supplierFilter, #locationFilter, #paymentMethodFilter, #paymentTypeFilter').change(function() {
-            table.ajax.reload();
+            loadPaymentCollections();
             updateSummary();
         });
 
         // Date range onChange event
         $('#reportrange').on('apply.daterangepicker', function() {
-            table.ajax.reload();
+            loadPaymentCollections();
             updateSummary();
         });
 
-        // Column visibility
-        $('#columnVisibilityDropdown a').click(function(e) {
-            e.preventDefault();
-            var value = $(this).data('value');
-            
-            if (value === 'hide all') {
-                for (var i = 0; i < table.columns().count(); i++) {
-                    table.column(i).visible(false);
-                }
-            } else if (value === 'show all') {
-                for (var i = 0; i < table.columns().count(); i++) {
-                    table.column(i).visible(true);
-                }
-            } else {
-                var column = table.column(value);
-                column.visible(!column.visible());
-            }
-        });
-
-        // View payment details
-        $(document).on('click', '.view-payment', function() {
-            var paymentId = $(this).data('id');
-            
-            $.ajax({
-                url: "{{ route('payment.detail', '') }}/" + paymentId,
-                type: 'GET',
-                success: function(response) {
-                    var html = '<div class="row">';
-                    html += '<div class="col-md-6">';
-                    html += '<h6>Payment Information</h6>';
-                    html += '<p><strong>Payment ID:</strong> ' + response.payment.id + '</p>';
-                    html += '<p><strong>Date:</strong> ' + response.formatted_date + '</p>';
-                    html += '<p><strong>Amount:</strong> $' + response.formatted_amount + '</p>';
-                    html += '<p><strong>Method:</strong> ' + response.payment.payment_method + '</p>';
-                    html += '<p><strong>Type:</strong> ' + response.payment.payment_type + '</p>';
-                    html += '<p><strong>Reference:</strong> ' + (response.payment.reference_no || 'N/A') + '</p>';
-                    
-                    if (response.payment.payment_method === 'cheque') {
-                        html += '<h6 class="mt-3">Cheque Details</h6>';
-                        html += '<p><strong>Cheque No:</strong> ' + (response.payment.cheque_number || 'N/A') + '</p>';
-                        html += '<p><strong>Bank:</strong> ' + (response.payment.cheque_bank_branch || 'N/A') + '</p>';
-                        html += '<p><strong>Status:</strong> ' + (response.payment.cheque_status || 'N/A') + '</p>';
-                    }
-                    
-                    html += '</div>';
-                    html += '<div class="col-md-6">';
-                    
-                    if (response.payment.customer) {
-                        html += '<h6>Customer Details</h6>';
-                        html += '<p><strong>Name:</strong> ' + response.payment.customer.first_name + ' ' + response.payment.customer.last_name + '</p>';
-                        html += '<p><strong>Mobile:</strong> ' + (response.payment.customer.mobile_no || 'N/A') + '</p>';
-                    }
-                    
-                    if (response.payment.supplier) {
-                        html += '<h6>Supplier Details</h6>';
-                        html += '<p><strong>Name:</strong> ' + response.payment.supplier.supplier_name + '</p>';
-                    }
-                    
-                    html += '<p><strong>Location:</strong> ' + (response.location_name || 'N/A') + '</p>';
-                    html += '<p><strong>Invoice No:</strong> ' + (response.invoice_no || 'N/A') + '</p>';
-                    
-                    if (response.payment.notes) {
-                        html += '<h6 class="mt-3">Notes</h6>';
-                        html += '<p>' + response.payment.notes + '</p>';
-                    }
-                    
-                    html += '</div>';
-                    html += '</div>';
-                    
-                    $('#paymentDetailContent').html(html);
-                    $('#paymentDetailModal').modal('show');
-                },
-                error: function() {
-                    alert('Error loading payment details');
-                }
-            });
-        });
+        // Column visibility - Not applicable for grouped view
+        $('#columnVisibilityDropdown').hide();
 
         // Export functions
         $('#exportPdf').click(function(e) {
@@ -750,26 +969,26 @@
         });
 
         function exportReport(format) {
-            var form = $('<form method="POST" action="' + 
+            var form = $('<form method="POST" action="' +
                 "{{ route('payment.report.export.pdf') }}" + '">');
-            
+
             if (format === 'excel') {
                 form.attr('action', "{{ route('payment.report.export.excel') }}");
             }
-            
+
             form.append('<input type="hidden" name="_token" value="{{ csrf_token() }}">');
             form.append('<input type="hidden" name="customer_id" value="' + $('#customerFilter').val() + '">');
             form.append('<input type="hidden" name="supplier_id" value="' + $('#supplierFilter').val() + '">');
             form.append('<input type="hidden" name="location_id" value="' + $('#locationFilter').val() + '">');
             form.append('<input type="hidden" name="payment_method" value="' + $('#paymentMethodFilter').val() + '">');
             form.append('<input type="hidden" name="payment_type" value="' + $('#paymentTypeFilter').val() + '">');
-            
+
             var dateRange = $('#reportrange').data('daterangepicker');
             if (dateRange) {
                 form.append('<input type="hidden" name="start_date" value="' + dateRange.startDate.format('YYYY-MM-DD') + '">');
                 form.append('<input type="hidden" name="end_date" value="' + dateRange.endDate.format('YYYY-MM-DD') + '">');
             }
-            
+
             $('body').append(form);
             form.submit();
             form.remove();
@@ -795,6 +1014,10 @@
                         $('#cashTotal').text('Rs ' + parseFloat(response.summaryData.cash_total).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
                         $('#cardTotal').text('Rs ' + parseFloat(response.summaryData.card_total).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
                         $('#chequeTotal').text('Rs ' + parseFloat(response.summaryData.cheque_total).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+                        $('#bankTransferTotal').text('Rs ' + parseFloat(response.summaryData.bank_transfer_total || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+                        if (response.summaryData.other_total && response.summaryData.other_total > 0) {
+                            $('#otherTotal').text('Rs ' + parseFloat(response.summaryData.other_total).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+                        }
                         $('#salePayments').text('Rs ' + parseFloat(response.summaryData.sale_payments).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
                         $('#purchasePayments').text('Rs ' + parseFloat(response.summaryData.purchase_payments).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
                     }

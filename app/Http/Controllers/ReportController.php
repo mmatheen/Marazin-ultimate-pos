@@ -58,10 +58,10 @@ class ReportController extends Controller
         // Build query for products with all necessary relationships
         $query = Product::select('products.*') // Explicitly select all product columns
             ->with([
-            'mainCategory', 
-            'subCategory', 
-            'brand', 
-            'unit', 
+            'mainCategory',
+            'subCategory',
+            'brand',
+            'unit',
             'batches' => function($q) {
                 $q->with(['locationBatches' => function($lb) {
                     $lb->with('location')->where('qty', '>', 0);
@@ -114,7 +114,7 @@ class ReportController extends Controller
                         // Use ONLY batch prices, not product table prices
                         $unitCost = floatval($batch->unit_cost ?? 0);
                         $retailPrice = floatval($batch->retail_price ?? 0);
-                        
+
                         $stockByPurchasePrice = $currentStock * $unitCost;
                         $stockBySalePrice = $currentStock * $retailPrice;
                         $potentialProfit = $stockBySalePrice - $stockByPurchasePrice;
@@ -195,7 +195,7 @@ class ReportController extends Controller
                         // Use ONLY batch prices, not product table prices
                         $unitCost = floatval($batch->unit_cost ?? 0);
                         $retailPrice = floatval($batch->retail_price ?? 0);
-                        
+
                         $totalStockByPurchasePrice += ($currentStock * $unitCost);
                         $totalStockBySalePrice += ($currentStock * $retailPrice);
                         $totalPotentialProfit += (($currentStock * $retailPrice) - ($currentStock * $unitCost));
@@ -218,7 +218,7 @@ class ReportController extends Controller
      */
     public function activityLogPage()
     {
-        
+
         return view('reports.activity_log');
     }
 
@@ -309,7 +309,7 @@ public function fetchActivityLog(Request $request)
     {
         $locations = Location::all();
         $brands = Brand::all();
-        
+
         // Default date range - current month
         $startDate = $request->start_date ?? Carbon::now()->startOfMonth()->format('Y-m-d');
         $endDate = $request->end_date ?? Carbon::now()->endOfMonth()->format('Y-m-d');
@@ -330,8 +330,8 @@ public function fetchActivityLog(Request $request)
         ]);
 
         return view('reports.profit_loss_report', compact(
-            'reportData', 
-            'locations', 
+            'reportData',
+            'locations',
             'brands',
             'startDate',
             'endDate',
@@ -347,10 +347,10 @@ public function fetchActivityLog(Request $request)
     {
         try {
             $filters = $this->getFilters($request);
-            
+
             // Always get summary data
             $summary = $this->profitLossService->getOverallSummary($filters);
-            
+
             // Get specific report data based on type
             switch ($filters['report_type']) {
                 case 'product':
@@ -376,15 +376,15 @@ public function fetchActivityLog(Request $request)
                         ['description' => 'Average Order Value', 'amount' => $summary['average_order_value']],
                     ];
             }
-            
+
             return response()->json([
                 'summary' => $summary,
                 'data' => $reportData
             ]);
-            
+
         } catch (\Exception $e) {
             Log::error('P&L Report Error: ' . $e->getMessage());
-            
+
             return response()->json([
                 'error' => 'Failed to generate report: ' . $e->getMessage(),
                 'summary' => ['total_sales' => 0, 'total_cost' => 0, 'gross_profit' => 0, 'profit_margin' => 0],
@@ -400,11 +400,11 @@ public function fetchActivityLog(Request $request)
     {
         $filters = $this->getFilters($request);
         $reportData = $this->profitLossService->generateReport($filters);
-        
+
         $pdf = Pdf::loadView('reports.profit_loss_pdf', compact('reportData', 'filters'));
-        
+
         $filename = 'profit-loss-report-' . date('Y-m-d-H-i-s') . '.pdf';
-        
+
         return $pdf->download($filename);
     }
 
@@ -415,7 +415,7 @@ public function fetchActivityLog(Request $request)
     {
         $filters = $this->getFilters($request);
         $filename = 'profit-loss-report-' . date('Y-m-d-H-i-s') . '.xlsx';
-        
+
         return Excel::download(new ProfitLossExport($filters), $filename);
     }
 
@@ -426,7 +426,7 @@ public function fetchActivityLog(Request $request)
     {
         $filters = $this->getFilters($request);
         $filename = 'profit-loss-report-' . date('Y-m-d-H-i-s') . '.csv';
-        
+
         return Excel::download(new ProfitLossExport($filters), $filename, \Maatwebsite\Excel\Excel::CSV);
     }
 
@@ -438,12 +438,12 @@ public function fetchActivityLog(Request $request)
         if (!$productId) {
             return response()->json(['error' => 'Product ID is required'], 400);
         }
-        
+
         $filters = $this->getFilters($request);
         $filters['product_id'] = $productId;
-        
+
         $productDetails = $this->profitLossService->getProductDetailedReport($filters);
-        
+
         return response()->json($productDetails);
     }
 
@@ -454,7 +454,7 @@ public function fetchActivityLog(Request $request)
     {
         $filters = $this->getFilters($request);
         $fifoBreakdown = $this->profitLossService->getFifoCostBreakdown($productId, $filters);
-        
+
         return response()->json($fifoBreakdown);
     }
 
@@ -569,7 +569,7 @@ public function fetchActivityLog(Request $request)
     private function getDueDataForDataTables($request)
     {
         $reportType = $request->input('report_type', 'customer'); // customer or supplier
-        
+
         Log::info('Due Report Request', [
             'report_type' => $reportType,
             'customer_id' => $request->customer_id,
@@ -579,21 +579,21 @@ public function fetchActivityLog(Request $request)
             'start_date' => $request->start_date,
             'end_date' => $request->end_date,
         ]);
-        
+
         // Get data and summary
         if ($reportType === 'customer') {
             $data = $this->getCustomerDueDataArray($request);
         } else {
             $data = $this->getSupplierDueDataArray($request);
         }
-        
+
         Log::info('Due Report Data Count', ['count' => count($data)]);
-        
+
         // Calculate summary
         $summary = $this->calculateDueSummaryFromData($data, $reportType);
-        
+
         Log::info('Due Report Summary', $summary);
-        
+
         return response()->json([
             'data' => $data,
             'summary' => $summary
@@ -652,11 +652,11 @@ public function fetchActivityLog(Request $request)
         foreach ($sales as $sale) {
             // Only include if there's actual due amount and not paid
             if ($sale->total_due <= 0 || $sale->payment_status === 'paid') continue;
-            
+
             $salesDate = Carbon::parse($sale->sales_date);
             $dueDate = $salesDate; // You can modify this if you have a separate due_date field
             $dueDays = Carbon::now()->diffInDays($salesDate, false);
-            
+
             $data[] = [
                 'id' => $sale->id,
                 'invoice_no' => $sale->invoice_no ?? 'N/A',
@@ -729,11 +729,11 @@ public function fetchActivityLog(Request $request)
         foreach ($purchases as $purchase) {
             // Only include if there's actual due amount and not paid
             if ($purchase->total_due <= 0 || $purchase->payment_status === 'paid') continue;
-            
+
             $purchaseDate = Carbon::parse($purchase->purchase_date);
             $dueDate = $purchaseDate; // You can modify this if you have a separate due_date field
             $dueDays = Carbon::now()->diffInDays($purchaseDate, false);
-            
+
             $data[] = [
                 'id' => $purchase->id,
                 'reference_no' => $purchase->reference_no ?? 'N/A',
@@ -765,7 +765,7 @@ public function fetchActivityLog(Request $request)
 
         foreach ($data as $row) {
             $totalDue += $row['total_due'];
-            
+
             if ($reportType === 'customer') {
                 $uniqueParties[$row['customer_name']] = true;
             } else {
@@ -790,7 +790,7 @@ public function fetchActivityLog(Request $request)
     private function getDueStatus($dueDays)
     {
         $days = abs($dueDays);
-        
+
         if ($days <= 7) {
             return 'recent';
         } elseif ($days <= 30) {
@@ -808,7 +808,7 @@ public function fetchActivityLog(Request $request)
     private function calculateDueSummary($request)
     {
         $reportType = $request->input('report_type', 'customer');
-        
+
         if ($reportType === 'customer') {
             $query = Sale::whereIn('payment_status', ['partial', 'due'])
                 ->where('total_due', '>', 0)
@@ -879,16 +879,16 @@ public function fetchActivityLog(Request $request)
     public function dueReportExportPdf(Request $request)
     {
         $reportType = $request->input('report_type', 'customer');
-        $data = $reportType === 'customer' 
+        $data = $reportType === 'customer'
             ? $this->getCustomerDueDataArray($request)
             : $this->getSupplierDueDataArray($request);
-        
+
         $summaryData = $this->calculateDueSummaryFromData($data, $reportType);
-        
+
         $pdf = Pdf::loadView('reports.due_report_pdf', compact('data', 'summaryData', 'reportType'));
-        
+
         $filename = 'due-report-' . $reportType . '-' . date('Y-m-d-H-i-s') . '.pdf';
-        
+
         return $pdf->download($filename);
     }
 
@@ -898,12 +898,12 @@ public function fetchActivityLog(Request $request)
     public function dueReportExportExcel(Request $request)
     {
         $reportType = $request->input('report_type', 'customer');
-        $data = $reportType === 'customer' 
+        $data = $reportType === 'customer'
             ? $this->getCustomerDueDataArray($request)
             : $this->getSupplierDueDataArray($request);
-        
+
         $filename = 'due-report-' . $reportType . '-' . date('Y-m-d-H-i-s') . '.xlsx';
-        
+
         return Excel::download(new \App\Exports\DueReportExport($data, $reportType), $filename);
     }
 
@@ -913,12 +913,12 @@ public function fetchActivityLog(Request $request)
     public function dueReportExportCsv(Request $request)
     {
         $reportType = $request->input('report_type', 'customer');
-        $data = $reportType === 'customer' 
+        $data = $reportType === 'customer'
             ? $this->getCustomerDueDataArray($request)
             : $this->getSupplierDueDataArray($request);
-        
+
         $filename = 'due-report-' . $reportType . '-' . date('Y-m-d-H-i-s') . '.csv';
-        
+
         return Excel::download(new \App\Exports\DueReportExport($data, $reportType), $filename, \Maatwebsite\Excel\Excel::CSV);
     }
 
@@ -937,12 +937,12 @@ public function fetchActivityLog(Request $request)
 
         // Get all locations for filter dropdown
         $locations = Location::all();
-        
+
         // Get all customers and suppliers for filter dropdown
         $customers = \App\Models\Customer::select('id', 'first_name', 'last_name')
             ->orderBy('first_name')
             ->get();
-            
+
         $suppliers = \App\Models\Supplier::select('id', 'first_name', 'last_name')
             ->orderBy('first_name')
             ->get();
@@ -998,42 +998,102 @@ public function fetchActivityLog(Request $request)
             $query->whereDate('payment_date', '<=', $request->end_date);
         }
 
-        $payments = $query->orderBy('payment_date', 'desc')->get();
+        $payments = $query->orderBy('payment_date', 'desc')
+                          ->orderBy('reference_no', 'desc')
+                          ->orderBy('id', 'desc')
+                          ->get();
 
-        $data = $payments->map(function($payment) {
+        // Group payments by reference_no (for bulk payments like BLK-S0001)
+        $collections = [];
+        $groupedPayments = $payments->groupBy('reference_no');
+
+        foreach ($groupedPayments as $referenceNo => $paymentGroup) {
+            $firstPayment = $paymentGroup->first();
             $locationName = '';
-            $invoiceNo = '';
-            
-            if ($payment->sale) {
-                $locationName = optional($payment->sale->location)->name ?? '';
-                $invoiceNo = $payment->sale->invoice_no ?? '';
-            } elseif ($payment->purchase) {
-                $locationName = optional($payment->purchase->location)->name ?? '';
-                $invoiceNo = $payment->purchase->invoice_no ?? '';
-            } elseif ($payment->purchaseReturn) {
-                $locationName = optional($payment->purchaseReturn->location)->name ?? '';
-                $invoiceNo = $payment->purchaseReturn->invoice_no ?? '';
+
+            if ($firstPayment->sale) {
+                $locationName = optional($firstPayment->sale->location)->name ?? '';
+            } elseif ($firstPayment->purchase) {
+                $locationName = optional($firstPayment->purchase->location)->name ?? '';
+            } elseif ($firstPayment->purchaseReturn) {
+                $locationName = optional($firstPayment->purchaseReturn->location)->name ?? '';
             }
 
-            return [
-                'id' => $payment->id,
-                'payment_date' => $payment->payment_date ? \Carbon\Carbon::parse($payment->payment_date)->format('Y-m-d') : '',
-                'amount' => number_format($payment->amount, 2),
-                'payment_method' => ucfirst($payment->payment_method),
-                'payment_type' => ucfirst($payment->payment_type),
-                'reference_no' => $payment->reference_no ?? '',
-                'invoice_no' => $invoiceNo,
-                'customer_name' => $payment->customer ? $payment->customer->full_name : '',
-                'supplier_name' => $payment->supplier ? $payment->supplier->full_name : '',
-                'location' => $locationName,
-                'cheque_number' => $payment->cheque_number ?? '',
-                'cheque_status' => $payment->cheque_status ? ucfirst($payment->cheque_status) : '',
-                'notes' => $payment->notes ?? '',
-                'created_at' => $payment->created_at ? $payment->created_at->format('Y-m-d H:i:s') : '',
-            ];
-        });
+            $paymentsData = $paymentGroup->map(function($payment) {
+                $invoiceNo = '';
+                $invoiceValue = 0;
+                $invoiceDate = '';
+                $deliveryDate = '';
 
-        return response()->json(['data' => $data]);
+                // Get invoice details based on payment type
+                if ($payment->payment_type === 'sale' && $payment->sale) {
+                    $invoiceNo = $payment->sale->invoice_no ?? '';
+                    $invoiceValue = (float) ($payment->sale->final_total ?? 0); // Use final_total for sales
+                    $invoiceDate = $payment->sale->sales_date ? \Carbon\Carbon::parse($payment->sale->sales_date)->format('Y-m-d') : '';
+                    $deliveryDate = $payment->sale->expected_delivery_date ? \Carbon\Carbon::parse($payment->sale->expected_delivery_date)->format('Y-m-d') : '';
+                } elseif ($payment->payment_type === 'purchase' && $payment->purchase) {
+                    $invoiceNo = $payment->purchase->invoice_no ?? '';
+                    $invoiceValue = (float) ($payment->purchase->grand_total ?? 0);
+                    $invoiceDate = $payment->purchase->purchase_date ? \Carbon\Carbon::parse($payment->purchase->purchase_date)->format('Y-m-d') : '';
+                } elseif (($payment->payment_type === 'purchase_return' || $payment->payment_type === 'sale_return_with_bill' || $payment->payment_type === 'sale_return_without_bill') && $payment->purchaseReturn) {
+                    $invoiceNo = $payment->purchaseReturn->invoice_no ?? '';
+                    $invoiceValue = (float) ($payment->purchaseReturn->grand_total ?? 0);
+                    $invoiceDate = $payment->purchaseReturn->return_date ? \Carbon\Carbon::parse($payment->purchaseReturn->return_date)->format('Y-m-d') : '';
+                }
+
+                // Fallback: Try to find the related sale/purchase by reference_id
+                if ($invoiceValue == 0 && $payment->reference_id) {
+                    if ($payment->payment_type === 'sale') {
+                        $sale = \App\Models\Sale::find($payment->reference_id);
+                        if ($sale) {
+                            $invoiceNo = $sale->invoice_no ?? '';
+                            $invoiceValue = (float) ($sale->final_total ?? 0); // Use final_total
+                            $invoiceDate = $sale->sales_date ? \Carbon\Carbon::parse($sale->sales_date)->format('Y-m-d') : '';
+                            $deliveryDate = $sale->expected_delivery_date ? \Carbon\Carbon::parse($sale->expected_delivery_date)->format('Y-m-d') : '';
+                        }
+                    } elseif ($payment->payment_type === 'purchase') {
+                        $purchase = \App\Models\Purchase::find($payment->reference_id);
+                        if ($purchase) {
+                            $invoiceNo = $purchase->invoice_no ?? '';
+                            $invoiceValue = (float) ($purchase->grand_total ?? 0);
+                            $invoiceDate = $purchase->purchase_date ? \Carbon\Carbon::parse($purchase->purchase_date)->format('Y-m-d') : '';
+                        }
+                    }
+                }
+
+                return [
+                    'id' => $payment->id,
+                    'payment_date' => $payment->payment_date ? \Carbon\Carbon::parse($payment->payment_date)->format('Y-m-d') : '',
+                    'amount' => (float) $payment->amount, // Return raw number for proper calculation
+                    'amount_formatted' => number_format($payment->amount, 2), // Formatted version for display if needed
+                    'payment_method' => ucfirst($payment->payment_method),
+                    'payment_type' => ucfirst($payment->payment_type),
+                    'reference_no' => $payment->reference_no ?? '',
+                    'invoice_no' => $invoiceNo,
+                    'invoice_value' => $invoiceValue,
+                    'invoice_date' => $invoiceDate,
+                    'delivery_date' => $deliveryDate,
+                    'customer_name' => $payment->customer ? $payment->customer->full_name : '',
+                    'supplier_name' => $payment->supplier ? $payment->supplier->full_name : '',
+                    'cheque_number' => $payment->cheque_number ?? '',
+                    'cheque_bank_branch' => $payment->cheque_bank_branch ?? '',
+                    'cheque_valid_date' => $payment->cheque_valid_date ? \Carbon\Carbon::parse($payment->cheque_valid_date)->format('Y-m-d') : '',
+                    'cheque_status' => $payment->cheque_status ? ucfirst($payment->cheque_status) : '',
+                ];
+            });
+
+            $collections[] = [
+                'reference_no' => $referenceNo,
+                'payment_date' => $firstPayment->payment_date ? \Carbon\Carbon::parse($firstPayment->payment_date)->format('Y-m-d') : '',
+                'customer_name' => $firstPayment->customer ? $firstPayment->customer->full_name : ($firstPayment->supplier ? $firstPayment->supplier->full_name : ''),
+                'customer_address' => $firstPayment->customer ? ($firstPayment->customer->address ?? '') : ($firstPayment->supplier ? ($firstPayment->supplier->address ?? '') : ''),
+                'location' => $locationName,
+                'total_amount' => (float) $paymentGroup->sum('amount'), // Return as float for proper calculation
+                'payments' => $paymentsData->toArray(),
+            ];
+        }
+
+        return response()->json(['collections' => $collections]);
     }
 
     /**
@@ -1042,9 +1102,9 @@ public function fetchActivityLog(Request $request)
     public function paymentDetail($id)
     {
         $payment = \App\Models\Payment::with([
-            'customer', 
-            'supplier', 
-            'sale.location', 
+            'customer',
+            'supplier',
+            'sale.location',
             'purchase.location',
             'purchaseReturn.location',
             'createdBy',
@@ -1111,6 +1171,8 @@ public function fetchActivityLog(Request $request)
         $cashTotal = (clone $query)->where('payment_method', 'cash')->sum('amount');
         $cardTotal = (clone $query)->where('payment_method', 'card')->sum('amount');
         $chequeTotal = (clone $query)->where('payment_method', 'cheque')->sum('amount');
+        $bankTransferTotal = (clone $query)->where('payment_method', 'bank_transfer')->sum('amount');
+        $otherTotal = (clone $query)->whereNotIn('payment_method', ['cash', 'card', 'cheque', 'bank_transfer'])->sum('amount');
         $totalAmount = $query->sum('amount');
 
         // Calculate totals by payment type
@@ -1122,6 +1184,8 @@ public function fetchActivityLog(Request $request)
             'cash_total' => $cashTotal,
             'card_total' => $cardTotal,
             'cheque_total' => $chequeTotal,
+            'bank_transfer_total' => $bankTransferTotal,
+            'other_total' => $otherTotal,
             'sale_payments' => $salePayments,
             'purchase_payments' => $purchasePayments,
         ];
@@ -1164,12 +1228,12 @@ public function fetchActivityLog(Request $request)
     {
         $data = $this->getPaymentReportDataArray($request);
         $summaryData = $this->calculatePaymentSummary($request);
-        
+
         $pdf = Pdf::loadView('reports.payment_report_pdf', compact('data', 'summaryData', 'request'))
             ->setPaper('a4', 'landscape');
-        
+
         $filename = 'payment-report-' . date('Y-m-d-H-i-s') . '.pdf';
-        
+
         return $pdf->download($filename);
     }
 
@@ -1179,9 +1243,9 @@ public function fetchActivityLog(Request $request)
     public function paymentReportExportExcel(Request $request)
     {
         $data = $this->getPaymentReportDataArray($request);
-        
+
         $filename = 'payment-report-' . date('Y-m-d-H-i-s') . '.xlsx';
-        
+
         return Excel::download(new \App\Exports\PaymentReportExport($data), $filename);
     }
 
