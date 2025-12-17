@@ -85,7 +85,7 @@
                             </div>
                             <div class="col-lg-2 col-md-6">
                                 <div class="form-group local-forms">
-                                  
+
                                     <button type="button" class="btn btn-outline-secondary w-100" id="clearFiltersBtn" style="height: 40px;">
                                         <i class="fas fa-times"></i> Clear
                                     </button>
@@ -371,54 +371,83 @@
 
 
         <!-- Apply Discount Modal -->
-        <div class="modal fade" id="applyDiscountModal" tabindex="-1" aria-labelledby="applyDiscountModalLabel"
-            aria-hidden="true">
-            <div class="modal-dialog">
+        <!-- Apply Discount Modal -->
+        <div class="modal fade" id="applyDiscountModal" tabindex="-1" role="dialog" aria-labelledby="applyDiscountModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="applyDiscountModalLabel">Apply Discount to Selected Products</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
                     </div>
-                    <div class="modal-body">
-                        <form id="discountForm">
-                            <div class="mb-3">
-                                <label for="discountName" class="form-label">Discount Name</label>
-                                <input type="text" class="form-control" id="discountName" required>
+                    <form id="discountForm">
+                        @csrf
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="discountName">Discount Name *</label>
+                                        <input type="text" class="form-control" id="discountName" name="name" required>
+                                        <div class="invalid-feedback" id="name-error"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="discountDescription">Description</label>
+                                        <textarea class="form-control" id="discountDescription" name="description" rows="2"></textarea>
+                                        <div class="invalid-feedback" id="description-error"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="discountType">Discount Type *</label>
+                                        <select class="form-control" id="discountType" name="type" required>
+                                            <option value="">Select Type</option>
+                                            <option value="fixed">Fixed Amount</option>
+                                            <option value="percentage">Percentage</option>
+                                        </select>
+                                        <div class="invalid-feedback" id="type-error"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="discountAmount">Amount *</label>
+                                        <input type="number" step="0.01" min="0" class="form-control" id="discountAmount" name="amount" required>
+                                        <small class="form-text text-muted">For percentage: Max 100%. For fixed amount: Should not exceed product price.</small>
+                                        <div class="invalid-feedback" id="amount-error"></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="startDate">Start Date *</label>
+                                        <input type="date" class="form-control" id="startDate" name="start_date" required>
+                                        <div class="invalid-feedback" id="start_date-error"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="endDate">End Date (Optional)</label>
+                                        <input type="date" class="form-control" id="endDate" name="end_date">
+                                        <div class="invalid-feedback" id="end_date-error"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="isActive" name="is_active" value="1" checked>
+                                            <label class="form-check-label" for="isActive">Active</label>
+                                        </div>
+                                    </div>
+                                    <div id="selected-products-info" class="mt-3">
+                                        <div class="alert alert-info">
+                                            <strong><i class="fas fa-info-circle"></i> Selected Products:</strong>
+                                            <div id="selected-products-count">0 products selected</div>
+                                        </div>
+                                    </div>
+                                    <div id="discount-validation-warning" class="mt-2" style="display:none;">
+                                        <div class="alert alert-warning">
+                                            <i class="fas fa-exclamation-triangle"></i> <span id="validation-message"></span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="mb-3">
-                                <label for="discountDescription" class="form-label">Description</label>
-                                <textarea class="form-control" id="discountDescription" rows="3"></textarea>
-                            </div>
-                            <div class="mb-3">
-                                <label for="discountType" class="form-label">Discount Type</label>
-                                <select class="form-select" id="discountType" required>
-                                    <option value="">Select Type</option>
-                                    <option value="fixed">Fixed Amount</option>
-                                    <option value="percentage">Percentage</option>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label for="discountAmount" class="form-label">Amount</label>
-                                <input type="number" class="form-control" id="discountAmount" step="0.01" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="startDate" class="form-label">Start Date</label>
-                                <input type="datetime-local" class="form-control" id="startDate" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="endDate" class="form-label">End Date (Optional)</label>
-                                <input type="datetime-local" class="form-control" id="endDate">
-                            </div>
-                            <div class="mb-3 form-check">
-                                <input type="checkbox" class="form-check-input" id="isActive">
-                                <label class="form-check-label" for="isActive">Active</label>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <button type="button" class="btn btn-primary" id="saveDiscountButton">Save Discount</button>
-                    </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                            <button type="button" class="btn btn-primary" id="saveDiscountButton">Apply Discount</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>

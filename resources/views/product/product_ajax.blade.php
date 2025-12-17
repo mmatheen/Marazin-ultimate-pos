@@ -141,7 +141,7 @@
         margin-top: 5px;
         text-align: right;
     }
-    
+
     .price-legend .legend-item {
         display: inline-block;
         margin-left: 15px;
@@ -329,12 +329,12 @@
     // =============================
     // Prevents multiple redundant API calls to /initial-product-details
     // Previously called 3+ times on page load, now cached after first call
-    
+
     // Simple cache object to store fetched data
     const dataCache = {};
-    
+
     // Use global variables for initial product data
-    
+
     // Function to clear cache (useful for refreshing data)
     function clearDataCache() {
         Object.keys(dataCache).forEach(key => delete dataCache[key]);
@@ -343,7 +343,7 @@
         window.initialProductData = null; // Clear cached initial data
         console.log('🗑️ Data cache cleared and reload flags reset');
     }
-    
+
     // Make cache clearing available globally for debugging
     window.clearProductDataCache = clearDataCache;
 
@@ -357,7 +357,7 @@
         }
 
         console.log('🔄 Fetching data from:', url);
-        
+
         $.ajax({
             url: url,
             type: 'GET',
@@ -387,7 +387,7 @@
                 // Cache the processed response for future use
                 dataCache[url] = processedResponse;
                 console.log('✅ Cached data for:', url);
-                
+
                 successCallback(processedResponse);
             },
             error: errorCallback || function(xhr, status, error) {
@@ -396,7 +396,7 @@
                     error: error,
                     responseText: xhr.responseText
                 });
-                
+
                 if (typeof toastr !== 'undefined') {
                     if (status === 'timeout') {
                         toastr.warning('Request timed out for ' + url.split('/').pop() + '. Using defaults...', 'Timeout Warning');
@@ -534,12 +534,12 @@
             console.log(`✅ Using cached initial product data (${cacheAge}ms old) - no API call needed`);
             const data = window.initialProductData;
             populateInitialDropdowns(
-                data.mainCategories, 
-                data.subCategories, 
-                data.brands, 
-                data.units, 
+                data.mainCategories,
+                data.subCategories,
+                data.brands,
+                data.units,
                 data.locations,
-                data.autoSelectSingle, 
+                data.autoSelectSingle,
                 callback
             );
             return;
@@ -557,23 +557,23 @@
                     locations: response.message.locations,
                     autoSelectSingle: response.message.auto_select_single_location
                 };
-                
+
                 // Store subcategories globally for compatibility
                 subCategories = window.initialProductData.subCategories;
-                
+
                 // Mark as loaded with timestamp
                 window.initialProductDataLoaded = true;
                 window.initialDataFetchTime = Date.now();
-                
+
                 console.log('✅ Initial product data fetched and cached successfully');
-                
+
                 populateInitialDropdowns(
-                    window.initialProductData.mainCategories, 
-                    window.initialProductData.subCategories, 
-                    window.initialProductData.brands, 
-                    window.initialProductData.units, 
+                    window.initialProductData.mainCategories,
+                    window.initialProductData.subCategories,
+                    window.initialProductData.brands,
+                    window.initialProductData.units,
                     window.initialProductData.locations,
-                    window.initialProductData.autoSelectSingle, 
+                    window.initialProductData.autoSelectSingle,
                     callback
                 );
             } else {
@@ -803,24 +803,157 @@
         }
     }
 
+    // Variable to store selected products price data
+    let selectedProductsPriceData = [];
+
+    // Function to fetch and display selected products price range
+    function loadSelectedProductsPrices() {
+        if (selectedProductIds.length === 0) {
+            $('#selected-products-info').hide();
+            $('#discount-validation-warning').hide();
+            selectedProductsPriceData = [];
+            return;
+        }
+
+        // Show loading state
+        $('#selected-products-count').html('<i class="fas fa-spinner fa-spin"></i> Loading prices...');
+
+        $.ajax({
+            url: '/discounts/validate-prices',
+            type: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            data: {
+                product_ids: selectedProductIds
+            },
+            success: function(response) {
+                if (response.valid && response.products) {
+                    selectedProductsPriceData = response.products;
+
+                    // Calculate overall min and max prices from batches
+                    let allMinPrices = [];
+                    let allMaxPrices = [];
+                    let totalBatches = 0;
+                    let totalStock = 0;
+
+                    response.products.forEach(function(product) {
+                        if (product.min_price > 0) allMinPrices.push(product.min_price);
+                        if (product.max_price > 0) allMaxPrices.push(product.max_price);
+                        totalBatches += product.batch_count || 0;
+                        totalStock += product.total_stock || 0;
+                    });
+
+                    const overallMinPrice = allMinPrices.length > 0 ? Math.min(...allMinPrices) : 0;
+                    const overallMaxPrice = allMaxPrices.length > 0 ? Math.max(...allMaxPrices) : 0;
+
+                    let priceInfo = '<div><strong><i class="fas fa-check-circle text-success"></i> ' + response.products.length + ' product(s) selected</strong></div>';
+                    priceInfo += '<small class="text-muted">Total batches: ' + totalBatches + ', Total stock: ' + totalStock + '</small><br>';
+
+                    if (overallMinPrice > 0 || overallMaxPrice > 0) {
+                        if (overallMinPrice === overallMaxPrice) {
+                            priceInfo += '<small><strong>Batch retail price:</strong> Rs. ' + overallMaxPrice.toFixed(2) + '</small>';
+                        } else {
+                            priceInfo += '<small><strong>Batch retail price range:</strong> Rs. ' + overallMinPrice.toFixed(2) + ' - Rs. ' + overallMaxPrice.toFixed(2) + '</small>';
+                        }
+                    }
+
+                    $('#selected-products-count').html(priceInfo);
+                    $('#selected-products-info').show();
+
+                    // Validate discount if amount is already entered
+                    validateDiscountAmount();
+                }
+            },
+            error: function(xhr) {
+                console.error('Error loading product prices:', xhr);
+                $('#selected-products-count').html('<span class="text-danger"><i class="fas fa-exclamation-triangle"></i> Error loading prices</span>');
+                toastr.warning('Could not load product prices. Please proceed with caution.', 'Warning');
+            }
+        });
+    }
+
+    // Function to validate discount amount against product prices
+    function validateDiscountAmount() {
+        const discountType = $('#discountType').val();
+        const discountAmount = parseFloat($('#discountAmount').val());
+
+        if (!discountType || !discountAmount || selectedProductsPriceData.length === 0) {
+            $('#discount-validation-warning').hide();
+            return;
+        }
+
+        let hasIssue = false;
+        let issueMessage = '';
+
+        if (discountType === 'percentage') {
+            if (discountAmount > 100) {
+                hasIssue = true;
+                issueMessage = 'Percentage discount cannot exceed 100%';
+            } else if (discountAmount === 100) {
+                issueMessage = 'Warning: 100% discount will make products free';
+                hasIssue = true;
+            }
+        } else if (discountType === 'fixed') {
+            // Check if fixed discount exceeds any product's price
+            const allMaxPrices = selectedProductsPriceData
+                .map(p => p.max_price)
+                .filter(price => price > 0);
+
+            if (allMaxPrices.length > 0) {
+                const minProductPrice = Math.min(...allMaxPrices);
+
+                if (discountAmount >= minProductPrice) {
+                    hasIssue = true;
+                    issueMessage = 'Fixed discount (Rs. ' + discountAmount.toFixed(2) + ') exceeds the lowest product price (Rs. ' + minProductPrice.toFixed(2) + ')';
+                }
+            }
+        }
+
+        if (hasIssue) {
+            $('#validation-message').text(issueMessage);
+            $('#discount-validation-warning').show();
+        } else {
+            $('#discount-validation-warning').hide();
+        }
+    }
+
+    // Update selected products count and prices when modal opens
+    $('#applyDiscountModal').on('show.bs.modal', function() {
+        loadSelectedProductsPrices();
+    });
+
+    // Validate discount when type or amount changes
+    $('#discountType, #discountAmount').on('change input', function() {
+        validateDiscountAmount();
+    });
 
     $('#saveDiscountButton').on('click', function() {
         const discountData = {
-            name: $('#discountName').val(), // Fixed typo (was discounTName)
+            name: $('#discountName').val(),
             description: $('#discountDescription').val(),
             type: $('#discountType').val(),
             amount: $('#discountAmount').val(),
             start_date: $('#startDate').val(),
             end_date: $('#endDate').val() || null,
-            is_active: $('#isActive').is(':checked') ? 1 :
-            0, // Convert to 1/0 instead of true/false
+            is_active: $('#isActive').is(':checked') ? 1 : 0,
             product_ids: selectedProductIds
         };
 
         // Validate required fields
-        if (!discountData.name || !discountData.type || !discountData.amount || !discountData
-            .start_date) {
+        if (!discountData.name || !discountData.type || !discountData.amount || !discountData.start_date) {
             toastr.error('Please fill all required fields', 'Error');
+            return;
+        }
+
+        // Validate discount amount
+        if (discountData.type === 'percentage' && (parseFloat(discountData.amount) < 0 || parseFloat(discountData.amount) > 100)) {
+            toastr.error('Percentage discount must be between 0 and 100', 'Validation Error');
+            return;
+        }
+
+        if (parseFloat(discountData.amount) <= 0) {
+            toastr.error('Discount amount must be greater than 0', 'Validation Error');
             return;
         }
 
@@ -836,10 +969,11 @@
                     toastr.success(response.message, 'Success');
                     $('#applyDiscountModal').modal('hide');
                     $('#discountForm')[0].reset();
+                    selectedProductIds = [];
+                    selectedProductsPriceData = [];
                     fetchProductData();
                 } else {
-                    toastr.error(response.message || 'Failed to apply discount',
-                        'Error');
+                    toastr.error(response.message || 'Failed to apply discount', 'Error');
                 }
             },
             error: function(xhr) {
@@ -922,7 +1056,7 @@
 
     // Track if categories/brands/locations have been loaded to prevent duplicate requests
     let categoriesAndBrandsLoaded = false;
-    
+
     // Fetch and cache category, brand, location data with timeout protection
     function fetchCategoriesAndBrands(callback) {
         // Skip if already loaded
@@ -931,13 +1065,13 @@
             callback();
             return;
         }
-        
+
         console.log('🔄 Fetching categories, brands, and locations...');
-        
+
         let loaded = 0;
         const totalRequests = 3;
         let hasFinished = false;
-        
+
         // Set a maximum timeout to prevent indefinite waiting
         const maxTimeout = setTimeout(function() {
             if (!hasFinished) {
@@ -947,7 +1081,7 @@
                 callback();
             }
         }, 20000); // 20 seconds max wait
-        
+
         function checkComplete() {
             if (++loaded === totalRequests && !hasFinished) {
                 hasFinished = true;
@@ -957,7 +1091,7 @@
                 callback();
             }
         }
-        
+
         fetchData('/main-category-get-all', function(response) {
             try {
                 if (Array.isArray(response.message)) {
@@ -971,7 +1105,7 @@
             }
             checkComplete();
         });
-        
+
         fetchData('/brand-get-all', function(response) {
             try {
                 if (Array.isArray(response.message)) {
@@ -985,7 +1119,7 @@
             }
             checkComplete();
         });
-        
+
         fetchData('/location-get-all', function(response) {
             try {
                 if (Array.isArray(response.message)) {
@@ -1074,8 +1208,8 @@
                     <ul class="dropdown-menu" aria-labelledby="actionsDropdown-${row.product.id}">
                         <li><a class="dropdown-item view-product" href="#" data-product-id="${row.product.id}"><i class="fas fa-eye"></i> View</a></li>
                         <li><a class="dropdown-item" href="/edit-product/${row.product.id}"><i class="fas fa-edit"></i> Edit</a></li>
-                        ${window.canEditBatchPrices ? 
-                            `<li><a class="dropdown-item edit-batch-prices" href="#" data-product-id="${row.product.id}"><i class="fas fa-dollar-sign"></i> Edit Batch Prices</a></li>` 
+                        ${window.canEditBatchPrices ?
+                            `<li><a class="dropdown-item edit-batch-prices" href="#" data-product-id="${row.product.id}"><i class="fas fa-dollar-sign"></i> Edit Batch Prices</a></li>`
                             : ''}
                         ${statusButton}
                         <li><a class="dropdown-item" href="/edit-opening-stock/${row.product.id}"><i class="fas fa-plus"></i> Add or Edit Opening Stock</a></li>
@@ -1106,9 +1240,19 @@
                 type: 'GET',
                 dataType: 'json', // Ensure jQuery expects JSON
                 cache: true, // Enable caching
+                timeout: 60000, // 60 second timeout for large datasets
                 data: function(d) {
                     // DataTables sends search and paging params in 'd'
                     const locationId = $('#locationFilter').val();
+
+                    // Warn user if trying to load all records
+                    if (d.length === -1) {
+                        console.warn('⚠️ Loading all records - this may take a while...');
+                        toastr.info('Loading all products... This may take a moment.', 'Please Wait', {
+                            timeOut: 3000
+                        });
+                    }
+
                     const requestData = {
                         draw: d.draw,
                         start: d.start,
@@ -1177,10 +1321,30 @@
                     console.error('Status Code:', xhr.status);
                     console.error('Response Text:', xhr.responseText);
 
-                    // Show a user-friendly error
-                    toastr.error(
-                        'Failed to load product data. Please check your server response.',
-                        'Error');
+                    // Show specific error messages based on error type
+                    if (status === 'timeout') {
+                        toastr.error(
+                            'Request timed out. Try using filters or smaller page sizes instead of "All".',
+                            'Timeout Error', {
+                                timeOut: 5000
+                            });
+                    } else if (xhr.status === 500) {
+                        toastr.error(
+                            'Server error. The dataset may be too large. Try using filters or pagination.',
+                            'Server Error', {
+                                timeOut: 5000
+                            });
+                    } else if (xhr.status === 0) {
+                        toastr.error(
+                            'Network error. Please check your connection and try again.',
+                            'Connection Error');
+                    } else {
+                        toastr.error(
+                            'Failed to load product data. Try using smaller page sizes or apply filters.',
+                            'Error', {
+                                timeOut: 5000
+                            });
+                    }
                 }
             },
             columns: [{
@@ -1307,17 +1471,17 @@
 
                             // Simply find the most recent batch with a valid retail price
                             // The batches are already ordered by created_at desc from backend
-                            const batchWithPrice = row.product.batches.find(batch => 
-                                batch.retail_price !== null && 
-                                batch.retail_price !== undefined && 
+                            const batchWithPrice = row.product.batches.find(batch =>
+                                batch.retail_price !== null &&
+                                batch.retail_price !== undefined &&
                                 batch.retail_price !== '' &&
                                 parseFloat(batch.retail_price) > 0
                             );
-                            
+
                             if (batchWithPrice) {
                                 displayPrice = batchWithPrice.retail_price;
                                 priceSource = 'batch';
-                                
+
                                 if (row.product.id === 51) {
                                     console.log('Selected batch for product 51:', batchWithPrice);
                                     console.log('Display price:', displayPrice);
@@ -1370,8 +1534,8 @@
                 }
             ],
             lengthMenu: [
-                [10, 25, 50, 100],
-                [10, 25, 50, 100]
+                [10, 25, 50, 100, -1],
+                [10, 25, 50, 100, "All"]
             ],
             pageLength: 10,
             ordering: false,
@@ -1446,7 +1610,7 @@
             }
         });
 
-        // Toggle product status - single event handler  
+        // Toggle product status - single event handler
         $('.btn-toggle-status').on('click', function(event) {
             event.preventDefault();
             event.stopPropagation();
@@ -1723,19 +1887,19 @@
     // Clear Filters Button Handler
     $('#clearFiltersBtn').on('click', function() {
         console.log('🧹 Clearing all filters...');
-        
+
         // Clear all filter dropdowns to their default "Select..." options
         $('#productNameFilter').val('').trigger('change');
         $('#categoryFilter').val('').trigger('change');
         $('#brandFilter').val('').trigger('change');
         $('#locationFilter').val('').trigger('change');
         $('#stockStatusFilter').val('').trigger('change');
-        
+
         // If using Select2, also trigger Select2 events for proper clearing
         if (typeof $.fn.select2 !== 'undefined') {
             $('#productNameFilter, #categoryFilter, #brandFilter, #locationFilter, #stockStatusFilter').select2();
         }
-        
+
         // Reload DataTable to show all products (no filters applied)
         if ($.fn.DataTable.isDataTable('#productTable')) {
             try {
@@ -1746,26 +1910,26 @@
                 toastr.error('Error reloading product list', 'Error');
             }
         }
-        
+
         console.log('✅ Filters cleared and table reloaded');
     });
 
     // On page load: fetch categories/brands/locations, then initialize DataTable
     $(document).ready(function() {
         console.log('🚀 Initializing product page...');
-        
+
         // Initialize buttons based on current page mode
         const isEditPage = window.location.pathname.includes('/edit-product/');
         if (!isEditPage) {
             // Ensure buttons are in add mode by default
             resetButtonsForAddMode();
         }
-        
+
         // Only fetch initial data once and handle both form validation and DataTable initialization
         fetchInitialDropdowns(function() {
             // First validate form and update buttons
             validateFormAndUpdateButtons();
-            
+
             // Then initialize DataTable if we're on a list page
             if (typeof fetchCategoriesAndBrands === 'function' && typeof fetchProductData === 'function') {
                 fetchCategoriesAndBrands(function() {
@@ -1813,7 +1977,7 @@
         // Reset dropdowns (only clear selections, not options)
         resetAllDropdowns();
 
-        // Disable buttons initially 
+        // Disable buttons initially
         allButtons.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary');
 
         // Focus on first field and validate
@@ -1856,7 +2020,7 @@
         // Reset dropdowns in the product form only (clear selections, not options)
         resetAllDropdowns();
 
-        // Disable buttons initially 
+        // Disable buttons initially
         allButtons.prop('disabled', true).removeClass('btn-primary').addClass('btn-secondary');
 
         // Focus on first field and validate
@@ -1864,14 +2028,14 @@
             $('input[name="product_name"]').focus();
             validateFormAndUpdateButtons();
         }, 300);
-        
+
         console.log('✅ Product form reset without affecting purchase data');
     }
 
     // Enhanced function to reset all dropdowns with proper placeholders
     function resetAllDropdowns() {
         console.log('🔄 Resetting dropdown selections (preserving option data)');
-        
+
         // Define dropdowns with their placeholders
         const dropdownConfig = {
             '#edit_unit_id': 'Select Unit',
@@ -1894,7 +2058,7 @@
                 if ($dropdown.hasClass('select2-hidden-accessible')) {
                     // For Select2 dropdowns - just clear the selection, don't destroy or empty the options
                     $dropdown.val(null).trigger('change');
-                    
+
                     // Update the placeholder display
                     const $container = $dropdown.next('.select2-container');
                     if ($container.length) {
@@ -1930,7 +2094,7 @@
             // Only reset sub-category selection, not the options
             const $subCategory = $('#edit_sub_category_id');
             $subCategory.val('').trigger('change');
-            
+
             // Update placeholder display for sub-category
             if ($subCategory.hasClass('select2-hidden-accessible')) {
                 const $container = $subCategory.next('.select2-container');
@@ -1941,7 +2105,7 @@
                 }
             }
         }, 200);
-        
+
         console.log('✅ All dropdown selections reset, option data preserved');
     }
 
@@ -2034,7 +2198,7 @@
                             // Add mode - normal behavior
                             toastr.clear(); // Clear any existing notifications
                             toastr.success(response.message, 'Success');
-                            
+
                             // Only reset form if NOT in purchase context (to prevent clearing purchase table)
                             if ($('#purchase_product').length === 0) {
                                 resetFormAndValidation();
@@ -2042,7 +2206,7 @@
                                 // In purchase context - only reset the product form, not the purchase data
                                 resetProductFormOnly();
                             }
-                            
+
                             // Only fetch and add to purchase table if it exists
                             if ($('#purchase_product').length > 0) {
                                 fetchLastAddedProducts();
@@ -2392,9 +2556,9 @@
                 <td>
                     <input type="number" class="form-control quantity-input"
                         name="locations[` + index + `][qty]"
-                        value="" 
-                        step="${quantityAttrs.step}" 
-                        min="${quantityAttrs.min}" 
+                        value=""
+                        step="${quantityAttrs.step}"
+                        min="${quantityAttrs.min}"
                         pattern="${quantityAttrs.pattern}">
                 </td>
                 <td>
@@ -2412,7 +2576,7 @@
                         name="locations[` + index + `][expiry_date]"
                         value="">
                 </td>
-                
+
                         <td>
                 <button type="button" class="btn btn-danger btn-sm removeRowBtn"><i class="fas fa-trash"></i></button>
             </td>
@@ -2807,7 +2971,7 @@
             }
         });
 
-       
+
         function handleFormSubmission(isEditMode, productId, $button, saveAndAddAnother = false) {
             let form = $('#openingStockForm')[0];
             let formData = new FormData(form);
@@ -3235,10 +3399,10 @@
                                         <td>${(() => {
                                             let displayPrice = product.retail_price || 0;
                                             let priceSource = 'Default Product Price';
-                                            
+
                                             // Get current location filter from the main page
                                             const selectedLocationId = $('#locationFilter').val();
-                                            
+
                                             // Check if product has batches (ordered by newest first)
                                             if (product.batches && product.batches.length > 0) {
                                                 let batchWithPrice = null;
@@ -3246,16 +3410,16 @@
                                                 if (selectedLocationId) {
                                                     // Find batches that exist in the selected location
                                                     const locationSpecificBatches = product.batches.filter(batch => {
-                                                        return batch.location_batches && batch.location_batches.some(locBatch => 
-                                                            locBatch.location_id == selectedLocationId && 
+                                                        return batch.location_batches && batch.location_batches.some(locBatch =>
+                                                            locBatch.location_id == selectedLocationId &&
                                                             parseFloat(locBatch.qty || 0) > 0 // Has stock in this location
                                                         );
                                                     });
 
                                                     // Find the most recent batch with valid price for this location
-                                                    batchWithPrice = locationSpecificBatches.find(batch => 
-                                                        batch.retail_price !== null && 
-                                                        batch.retail_price !== undefined && 
+                                                    batchWithPrice = locationSpecificBatches.find(batch =>
+                                                        batch.retail_price !== null &&
+                                                        batch.retail_price !== undefined &&
                                                         batch.retail_price !== '' &&
                                                         parseFloat(batch.retail_price) > 0
                                                     );
@@ -3268,9 +3432,9 @@
 
                                                 // If no location-specific batch found or no location selected, use any batch
                                                 if (!batchWithPrice) {
-                                                    batchWithPrice = product.batches.find(batch => 
-                                                        batch.retail_price !== null && 
-                                                        batch.retail_price !== undefined && 
+                                                    batchWithPrice = product.batches.find(batch =>
+                                                        batch.retail_price !== null &&
+                                                        batch.retail_price !== undefined &&
                                                         batch.retail_price !== '' &&
                                                         parseFloat(batch.retail_price) > 0
                                                     );
@@ -3279,12 +3443,12 @@
                                                         priceSource = `Latest Batch Price (${batchWithPrice.batch_no || 'N/A'})`;
                                                     }
                                                 }
-                                                
+
                                                 if (batchWithPrice) {
                                                     displayPrice = batchWithPrice.retail_price;
                                                 }
                                             }
-                                            
+
                                             return `Rs.${parseFloat(displayPrice).toFixed(2)}<br><small class="text-muted">${priceSource}</small>`;
                                         })()}
                                         </td>
@@ -3324,12 +3488,12 @@
             const data = window.initialProductData;
             if (typeof populateInitialDropdowns === 'function') {
                 populateInitialDropdowns(
-                    data.mainCategories, 
-                    data.subCategories, 
-                    data.brands, 
-                    data.units, 
+                    data.mainCategories,
+                    data.subCategories,
+                    data.brands,
+                    data.units,
                     data.locations,
-                    data.autoSelectSingle, 
+                    data.autoSelectSingle,
                     callback
                 );
             } else if (callback) {
@@ -3357,21 +3521,21 @@
                         locations: response.message.locations,
                         autoSelectSingle: response.message.auto_select_single_location
                     };
-                    
+
                     // Mark as loaded with timestamp
                     window.initialProductDataLoaded = true;
                     window.initialDataFetchTime = Date.now();
-                    
+
                     console.log('✅ Initial product data fetched and cached successfully');
-                    
+
                     if (typeof populateInitialDropdowns === 'function') {
                         populateInitialDropdowns(
-                            window.initialProductData.mainCategories, 
-                            window.initialProductData.subCategories, 
-                            window.initialProductData.brands, 
-                            window.initialProductData.units, 
+                            window.initialProductData.mainCategories,
+                            window.initialProductData.subCategories,
+                            window.initialProductData.brands,
+                            window.initialProductData.units,
                             window.initialProductData.locations,
-                            window.initialProductData.autoSelectSingle, 
+                            window.initialProductData.autoSelectSingle,
                             callback
                         );
                     } else if (callback) {
@@ -3795,8 +3959,8 @@
                         <div class="row mt-2">
                             <div class="col-12">
                                 <small class="text-muted">
-                                    <strong>Cost Price:</strong> ${parseFloat(batch.original_price || 0).toFixed(2)} | 
-                                    <strong>Expiry:</strong> ${expiryDate} | 
+                                    <strong>Cost Price:</strong> ${parseFloat(batch.original_price || 0).toFixed(2)} |
+                                    <strong>Expiry:</strong> ${expiryDate} |
                                     <strong>Locations:</strong> ${locationsText}
                                 </small>
                             </div>

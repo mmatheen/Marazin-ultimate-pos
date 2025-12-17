@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Web;
 
+use App\Http\Controllers\Controller;
 use App\Models\Sale;
 use App\Models\Unit;
 use App\Models\Batch;
@@ -17,11 +18,11 @@ use App\Models\LocationBatch;
 use App\Imports\importProduct;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ExportProductTemplate;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 use App\Events\StockUpdated;
@@ -33,109 +34,13 @@ class ProductController extends Controller
 {
     function __construct()
     {
-        $this->middleware('permission:view product', ['only' => ['index', 'show', 'product', 'getStockHistory']]);
-        $this->middleware('permission:create product', ['only' => ['store', 'addProduct']]);
-        $this->middleware('permission:edit product', ['only' => ['edit', 'update']]);
-        $this->middleware('permission:delete product', ['only' => ['destroy']]);
-        $this->middleware('permission:import product', ['only' => ['importProduct', 'downloadProductImportTemplate']]);
-        $this->middleware('permission:export product', ['only' => ['exportProduct']]);
-        $this->middleware('permission:duplicate product', ['only' => ['duplicateProduct']]);
-    }
-
-    /**
-     * Get cached dropdown data for performance optimization
-     */
-    private function getCachedDropdownData()
-    {
-        $user = auth()->
-        $userId = $user ? $user->id : 0;
-
-        // Cache key should include user ID to prevent location data leakage between users
-       ey = "product_dropdown_data_user_{$userId}";
-
-        return Cache::remember($cacheKey, 300, function () use ($user) { // Cache for 5 minutes per user
-            // Get locations with proper user access filtering
-           = $this->getUserAccessibleLocations($user);
-
-            // Add selection flags for frontend
-            $locationsWithSelection = $locations->map(function($location) use ($locations) {
-                return [
-                    'id' => $location->id,
-                    'name' => $location->name,
-                    'selected' => $locations->count() === 1 // Autonly one location
-                ];
-            });
-
-            return [
-                'mainCategories' => MainCategory::select('id', 'mainCategoryName')->get(),
-                'subCategories' => SubCategory::select('id', 'subCategoryname', 'main_category_id')->get(),
-                'brands' => Brand::select('id', 'name')->get(),
-                'units' => Unit::select('id', 'name', 'allow_decimal')->get(),
-                'locations' => $locationsWithSelection,
-                'auto_select_singleation' => $locations->count() === 1,
-            ];
-        });
-    }
-
-    /**
-     * Get locations accessible to the current user
-     */
-    private function getUserAccessibleLocations($user)
-    {
-        if (!$user) {
-            Log::warning('getUserAccessibleLocations called with null use          return collect([]); // Return empty collection if no user
-        }
-
-        // Load user roles if not already loaded
- f (!$user->relationLoaded('roles')) {
-            $user->load('roles');
-        }
-
-        // Check if user is Master Super Admin or has bypass permissio
-        $isMasterSuperAdmin = $user->roles->pluck('name')->contains('Master Super Admin')                            $user->roles->pluck('key')->contains('master_super_admin');
-
-        $hasBypassPermission = false;
-        foreach ($user->roles as $role) {
-            if ($role->bypass_location_scope ?? f
-                $hasBypassPermission = true;
-                break;
-            }
-        }
-
-        if (!$hasBypassPermission) {
-            try {
-                $hasBypassPermission = $user->hasPermissionTo('override location scope');
-            } catch (\Exception $e) {
-                // Permission exist, continue without bypass
-                $hasBypassPermission = false;
-            }
-        }
-
-        Log::info('Location access check', [
-            'user_id' => $user->id,
-            'is_master_super_admin' => $isMasterSuperAdmin,
-            'has_bypassion' => $hasBypassPermission,
-            'user_roles' => $user->roles->pluck('name')->toArray()
-        ]);
-
-        if ($isMasterSuperAdmin || $hasBypassPermission) {
-            // Master Super Admin or users with bypass permission see all locations
-            $locations = Location::select('id', 'name')->get();
-            Log::info('User has admin/bypass access, returning all locations', ['count' => $locations->count()]);
-            return $locations;
-        } else {
-            // Regular users see only their assigned locations
-            $locations = Location::select('locations.id', 'locations.name')
-                ->join('location_user', 'locations.id', '=', 'location_user.location_id')
-                ->where('location_user.user_id', $user->id)
-               ->get();
-            Log::info('Regular user, returning assigned locations', [
-                'user_id' => $user->id,
-                'count' => $locations->count(),
-                'locations' => $locations->toArray()
-            ]);
-            return $locations;
-        }
+        $this->middleware('permission:view product', ['only' => ['product', 'index', 'getProductDetails', 'getLastProduct', 'getProductsByCategory', 'initialProductDetails', 'getStockHistory', 'getAllProductStocks', 'autocompleteStock', 'getNotifications', 'OpeningStockGetAll', 'getImeis', 'showSubCategoryDetailsUsingByMainCategoryId', 'updatePrice']]);
+        $this->middleware('permission:create product', ['only' => ['addProduct', 'storeOrUpdate']]);
+        $this->middleware('permission:edit product', ['only' => ['editProduct']]);
+        $this->middleware('permission:delete product', ['only' => ['deleteImei']]);
+        $this->middleware('permission:import product', ['only' => ['importProduct', 'importProductStore']]);
+        $this->middleware('permission:export product', ['only' => ['exportBlankTemplate', 'exportProducts']]);
+        $this->middleware('permission:edit batch prices', ['only' => ['getProductBatches', 'updateBatchPrices']]);
     }
 
     public function product()
@@ -196,30 +101,6 @@ class ProductController extends Controller
                 return $locBatch->stockHistories;
             });
 
-            // Log for debugging
-            Log::info('Stock History Debug', [
-                'product_id' => $productId,
-                'location_id' => $locationId,
-                'location_batches_count' => $product->locationBatches->count(),
-                'stock_histories_count' => $stockHistories->count(),
-                'request_params' => request()->all()
-            ]);
-
-            // Additional debug: Log location batch details when filtering
-            if ($locationId) {
-                Log::info('Location Filtering Debug', [
-                    'filtered_location_id' => $locationId,
-                    'location_batches' => $product->locationBatches->map(function($lb) {
-                        return [
-                            'id' => $lb->id,
-                            'location_id' => $lb->location_id,
-                            'location_name' => $lb->location->name ?? 'Unknown',
-                            'stock_histories_count' => $lb->stockHistories->count()
-                        ];
-                    })->toArray()
-                ]);
-            }
-
             if ($stockHistories->isEmpty()) {
                 if (request()->ajax()) {
                     return response()->json([
@@ -228,7 +109,7 @@ class ProductController extends Controller
                         'stock_histories' => [],
                         'stock_type_sums' => [],
                         'current_stock' => 0,
-                    ], 200); // Return 200 instead of 404 for better UX
+                    ]);
                 }
                 return redirect()->back()->withErrors('No stock history found for this product.');
             }
@@ -247,6 +128,7 @@ class ProductController extends Controller
                 StockHistory::STOCK_TYPE_SALE_REVERSAL,
                 StockHistory::STOCK_TYPE_TRANSFER_IN,
             ];
+
             $outTypes = [
                 StockHistory::STOCK_TYPE_SALE,
                 StockHistory::STOCK_TYPE_ADJUSTMENT,
@@ -273,82 +155,122 @@ class ProductController extends Controller
             }
 
             // For initial page load (non-AJAX)
-            $productswhere('id', $productId)->get(); // Only load the current product initially
+            $products = Product::where('id', $productId)->get(); // Only load the current product initially
             $locations = $this->getUserAccessibleLocations(auth()->user());
 
-            return view('product.product_stock_history', compact('products', 'locations'))->with($responseData
+            return view('product.product_stock_history', compact('products', 'locations'))->with($responseData);
+
         } catch (\Exception $e) {
-            Log::error('Error in getStockHistory: ' . $e->getMessage(), [
-                'product_id' => $productId,
-                'location_id' => $locationId,
-                'trace' => $e->getTraceAsString()
-            ]);
+            Log::error('Error in Web getStockHistory: ' . $e->getMessage());
 
             if (request()->ajax()) {
                 return response()->json([
-        'error' => 'Error loading stock history: ' . $e->getMessage(),
+                    'error' => 'Error loading stock history: ' . $e->getMessage(),
                     'product' => null,
-                   'stock_histories' => [],
+                    'stock_histories' => [],
                     'stock_type_sums' => [],
                     'current_stock' => 0,
                 ], 500);
             }
 
-            return redirect()->back()->withErrors('Errorck history. Please try again.');
+            return redirect()->back()->withErrors('Error loading stock history. Please try again.');
         }
     }
-
 
     public function initialProductDetails()
     {
         try {
-            // Use cached dropdown data for better performance (now includes user-specific location filtering)
-            $dropdownData = $this->getCachedDropdownData();
+            $mainCategories = MainCategory::all();
+            $subCategories = SubCategory::with('mainCategory')->get();
+            $brands = Brand::all();
+            $units = Unit::all();
 
-            // Get subcategories with main category relationship for the frontend
-            $subCategories = Cache::remember('product_subcategories_with_main', 300, function () {
-                return SubCategory::with(['mainCategory:id,mainCategoryName'])
-                    ->select('id', 'subCategoryname', 'main_category_id')
-                    ->get();
+            // Use proper location filtering instead of Location::all()
+            $locations = $this->getUserAccessibleLocations(auth()->user());
+
+            // Add selection flags for frontend
+            $locationsWithSelection = $locations->map(function($location) use ($locations) {
+                return [
+                    'id' => $location->id,
+                    'name' => $location->name,
+                    'selected' => $locations->count() === 1 // Auto-select if only one location
+                ];
             });
 
-            // Log location access for debugging
-            $user = auth()->user();
-            if ($user) {
-                Log::info('Initial product details - User ' . $user->id . ', Locations: ' . count($dropdownData['locations']) . ', Auto-select: ' . ($drpdownData['auto_select_single_location'] ? 'true' : 'false'));
-            }
-
-            // Check if we have any data to return
-            if ($dropdownData['mainCategories']->count() > 0 || $subCategories->count() > 0 ||
-                $dropdownData['brands']->count() > 0 || $dropdownData['units']->count() > 0 ||
-                count($dropdownData['locations']) > 0) {
+            // Check if all collections have records
+            if ($mainCategories->count() > 0 || $subCategories->count() > 0 || $brands->count() > 0 || $units->count() > 0 || $locations->count() > 0) {
                 return response()->json([
                     'status' => 200,
                     'message' => [
-                        'brands' => $dropdownData['brands'],
+                        'brands' => $brands,
                         'subCategories' => $subCategories,
-                        'mainCategories' => $dropdownData['mainCategories'],
-                        'units' => $dropdownData['units'],
-                        'locations' => $dropdownData['locations'],
-                        'auto_select_single_location' => $dropdownData['auto_select_single_location'] ?? false,
+                        'mainCategories' => $mainCategories,
+                        'units' => $units,
+                        'locations' => $locationsWithSelection,
+                        'auto_select_single_location' => $locations->count() === 1,
                     ]
                 ]);
             } else {
                 return response()->json([
-        'status' => 404,
+                    'status' => 404,
                     'message' => "No Records Found!"
                 ]);
             }
         } catch (\Exception $e) {
-            Log::error('Error in initialProductDetails: ' . $e->getMessage(), [
-                'user_id' => auth()->id(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            Log::error('Error in Web initialProductDetails: ' . $e->getMessage());
 
             return response()->json([
                 'status' => 500,
                 'message' => 'Error loading product details'
             ]);
+        }
+    }
+
+    /**
+     * Get locations accessible to the current user
+     */
+    private function getUserAccessibleLocations($user)
+    {
+        if (!$user) {
+            return collect([]);
+        }
+
+        // Load user roles if not already loaded
+        if (!$user->relationLoaded('roles')) {
+            $user->load('roles');
+        }
+
+        // Check if user is Master Super Admin or has bypass permission
+        $isMasterSuperAdmin = $user->roles->pluck('name')->contains('Master Super Admin') ||
+                              $user->roles->pluck('key')->contains('master_super_admin');
+
+        $hasBypassPermission = false;
+        foreach ($user->roles as $role) {
+            if ($role->bypass_location_scope ?? false) {
+                $hasBypassPermission = true;
+                break;
+            }
+        }
+
+        if (!$hasBypassPermission) {
+            try {
+                $hasBypassPermission = $user->hasPermissionTo('override location scope');
+            } catch (\Exception $e) {
+                // Permission doesn't exist, continue without bypass
+                $hasBypassPermission = false;
+            }
+        }
+
+        if ($isMasterSuperAdmin || $hasBypassPermission) {
+            // Master Super Admin or users with bypass permission see all locations
+            return Location::select('id', 'name')->get();
+        } else {
+            // Regular users see only their assigned locations
+            $locations = Location::select('locations.id', 'locations.name')
+                ->join('location_user', 'locations.id', '=', 'location_user.location_id')
+                ->where('location_user.user_id', $user->id)
+                ->get();
+            return $locations;
         }
     }
 
@@ -374,8 +296,8 @@ class ProductController extends Controller
         if ($getValue->count() > 0) {
             return response()->json([
                 'status' => 200,
-                'message' = $getValue
-           ]);
+                'message' => $getValue
+            ]);
         } else {
             return response()->json([
                 'status' => 404,
@@ -453,41 +375,31 @@ class ProductController extends Controller
             ]);
         } else {
             return response()->json([
-               'status' => 500,
+                'status' => 500,
                 'message' => 'Error fetching products',
             ]);
-       }
+        }
     }
 
 
     public function editProduct($id)
     {
-        // Fetch the product with onlynecessary relationships
-        $product = Product::with(['locations:id,name', 'mainCategory:id,mainCategoryName', 'brand:id,name', 'unit:id,name'])
-            ->select('id', 'product_name', 'sku', 'description', 'pax', 'original_price', 'retail_price',
-                    'whole_sale_price', 'special_price', 'max_retail_price', 'alert_quantity', 'product_type',
-                    'is_imei_or_serial_no', 'is_for_selling', 'product_image', 'main_category_id',
-                    'sub_category_id', 'brand_id', 'unit_id')
-            ->find($id      // Check if the product exists
+        // Fetch the product and related data
+        $product = Product::with(['locations', 'mainCategory', 'brand', 'unit'])->find($id);
+
+        // Check if the product exists
         if (!$product) {
-            if (request()->ajax() || request()->is('api/*')) {
-                return response()->json([
-                    'status' => 404,
-                    'message' => 'Product not found'
-                ], 404);
-            }
-            abort(404, 'Product not found');
+            return response()->json([
+                'status' => 404,
+                'message' => 'Product not found'
+            ], 404);
         }
 
-        // Get cached dropdown data for better performance
-        $dropdownData = $this->getCachedDropdownData();
-
-        // Extract data from cache
-        $mainCategories = $dropdownData['mainCategories'];
-        $subCategories = $dropdownData['subCategories'];
-        $brands = $dropdownData['brands'];
-        $units = $dropdownData['units'];
-        $locations = $dropdownData['locations'];
+        $mainCategories = MainCategory::all();
+        $subCategories = SubCategory::all();
+        $brands = Brand::all();
+        $units = Unit::all();
+        $locations = Location::all();
 
         // Check if the request is AJAX
         if (request()->ajax() || request()->is('api/*')) {
@@ -511,13 +423,6 @@ class ProductController extends Controller
 
     public function storeOrUpdate(Request $request, $id = null)
     {
-        // Log incoming request for debugging
-        Log::info('Product storeOrUpdate called', [
-            'id' => $id,
-            'sku' => $request->sku,
-            'product_name' => $request->product_name
-        ]);
-
         // Validation rules
         $rules = [
             'product_name' => 'required|string|max:255',
@@ -568,7 +473,7 @@ class ProductController extends Controller
         // Retrieve or create the product
         $product = $id ? Product::find($id) : new Product;
 
-        if (!$product && $id) {
+        if (!$product) {
             return response()->json(['status' => 404, 'message' => 'Product not found!']);
         }
 
@@ -614,7 +519,7 @@ class ProductController extends Controller
 
         try {
             if ($request->has('sku') && !empty($request->sku)) {
-                // Use provided SKU (we alreicates earlier)
+                // Use provided SKU (we already checked duplicates earlier)
                 $product->fill(array_merge($data, ['sku' => (string) $request->sku]));
                 $product->save();
             } else {
@@ -622,9 +527,9 @@ class ProductController extends Controller
                 // Get all numeric SKUs sorted ascending
                 $existingSkus = Product::whereRaw('sku REGEXP "^[0-9]+$"')
                     ->orderByRaw('CAST(sku AS UNSIGNED) ASC')
-    ->pluck('sku')
+                    ->pluck('sku')
                     ->map(function($sku) {
-                   )$sku;
+                        return (int)$sku;
                     })
                     ->toArray();
 
@@ -731,16 +636,16 @@ class ProductController extends Controller
                 $query->where('stock_type', StockHistory::STOCK_TYPE_OPENING);
             })
             ->with(['locationBatches.stockHistories' => function ($query) {
-               k_type', StockHistory::STOCK_TYPE_OPENING);
+                $query->where('stock_type', StockHistory::STOCK_TYPE_OPENING);
             }])
             ->get();
 
         // Fetch existing IMEIs
-        $imeis= ImeiNumber::where('product_id', $productId)
+        $imeis = ImeiNumber::where('product_id', $productId)
             ->orderBy('id')
             ->pluck('imei_number', 'id');
 
-        // D are allowed for this product
+        // Determine if decimals are allowed for this product
         $allowDecimal = $product->unit && $product->unit->allow_decimal;
 
         $openingStock = [
@@ -895,7 +800,8 @@ class ProductController extends Controller
                         'qty' => $locationData['qty'],
                     ];
                 }
-         $message = count($batchIds) > 0 ? 'Opening Stock updated successfully!' : 'Opening Stock saved successfully!';
+
+                $message = count($batchIds) > 0 ? 'Opening Stock updated successfully!' : 'Opening Stock saved successfully!';
             });
 
             return response()->json([
@@ -903,23 +809,23 @@ class ProductController extends Controller
                 'message' => $message,
                 'product' => $product,
                 'batches' => $batchIds,
-    ]);
+            ]);
         } catch (\Exception $e) {
             return response()->json(['status' => 500, 'message' => 'An error occurred: ' . $e->getMessage()]);
         }
     }
 
 
-    public function saveOrUpdateImei(Request $request)
+     public function saveOrUpdateImei(Request $request)
     {
         // Debug log to see what we're receiving
-        Log::info('saveOrUpdateImei called with data:', $request->all());
+        Log::info('API saveOrUpdateImei called with data:', $request->all());
 
-        // Determine which format to use based on the reuest data
-        $hasLocationId = $request->has('location_id') && $request->filn_id');
+        // Determine which format to use based on the request data
+        $hasLocationId = $request->has('location_id') && $request->filled('location_id');
         $hasBatches = $request->has('batches');
 
-        Log::info("Detection: hasLocationId={$hasLocationId}, hasBatches={$hasBatches}");
+        Log::info("API Detection: hasLocationId={$hasLocationId}, hasBatches={$hasBatches}");
 
         // Priority logic:
         // 1. If request has location_id, use new format (intelligent batch selection)
@@ -927,7 +833,7 @@ class ProductController extends Controller
         // 3. Otherwise, use new format as default
 
         if ($hasLocationId) {
-            Log::info('Using new format (intelligent batch selection) - location_id present');
+            Log::info('API Using new format (intelligent batch selection) - location_id present');
             return $this->saveOrUpdateImeiNewFormat($request);
         } elseif ($hasBatches && is_array($request->batches) && !empty($request->batches)) {
             // Validate that batches have proper structure
@@ -935,20 +841,20 @@ class ProductController extends Controller
                                     isset($request->batches[0]['location_id']);
 
             if ($hasValidBatchStructure) {
-                Log::info('Using old format (manual batch assignment) - valid batches structure');
+                Log::info('API Using old format (manual batch assignment) - valid batches structure');
                 return $this->saveOrUpdateImeiOldFormat($request);
             } else {
-                Log::warning('Invalid batch structure, falling back to new format');
+                Log::warning('API Invalid batch structure, falling back to new format');
                 return $this->saveOrUpdateImeiNewFormat($request);
             }
         } else {
-            Log::info('Using new format (intelligent batch selection) - default fallback');
-return $this->saveOrUpdateImeiNewFormat($request);
+            Log::info('API Using new format (intelligent batch selection) - default fallback');
+            return $this->saveOrUpdateImeiNewFormat($request);
         }
     }
 
     /**
-     * Handle the new format with intelligent batch selection
+     * Handle the new format with intelligent batch selection (API version)
      */
     private function saveOrUpdateImeiNewFormat(Request $request)
     {
@@ -961,7 +867,7 @@ return $this->saveOrUpdateImeiNewFormat($request);
         ]);
 
         if ($validator->fails()) {
-            Log::error('Validation failed for new format:', $validator->messages()->toArray());
+            Log::error('API Validation failed for new format:', $validator->messages()->toArray());
             return response()->json(['status' => 400, 'errors' => $validator->messages()]);
         }
 
@@ -974,7 +880,7 @@ return $this->saveOrUpdateImeiNewFormat($request);
                     ->filter(fn($imei) => $imei !== null && trim($imei) !== '')
                     ->values();
 
-                Log::info("Processing IMEIs for new format", [
+                Log::info("API Processing IMEIs for new format", [
                     'product_id' => $request->product_id,
                     'location_id' => $request->location_id,
                     'imeis' => $validImeis->toArray()
@@ -984,14 +890,14 @@ return $this->saveOrUpdateImeiNewFormat($request);
                     throw new \Exception("No valid IMEI numbers provided.");
                 }
 
-                // Get intelligent batch assignments for the IMEIs
+                // Get exact batch assignments for the IMEIs (strict capacity enforcement)
                 $batchAssignments = $this->getIntelligentBatchAssignments(
                     $request->product_id,
                     $request->location_id,
                     $validImeis->toArray()
                 );
 
-                Log::info("Batch assignments calculated", ['assignments' => $batchAssignments]);
+                Log::info("API Batch assignments calculated", ['assignments' => $batchAssignments]);
 
                 if (empty($batchAssignments)) {
                     throw new \Exception("No available batches found for this product at the specified location.");
@@ -1001,7 +907,7 @@ return $this->saveOrUpdateImeiNewFormat($request);
                     $imei = $assignment['imei'];
                     $batchId = $assignment['batch_id'];
 
-                    Log::info("Processing IMEI assignment", [
+                    Log::info("API Processing IMEI assignment", [
                         'imei' => $imei,
                         'batch_id' => $batchId,
                         'batch_no' => $assignment['batch_no']
@@ -1009,7 +915,7 @@ return $this->saveOrUpdateImeiNewFormat($request);
 
                     // Check for duplicate IMEI, regardless of location/status
                     if (ImeiNumber::isDuplicate($imei)) {
-                        Log::warning("Duplicate IMEI detected", ['imei' => $imei]);
+                        Log::warning("API Duplicate IMEI detected", ['imei' => $imei]);
                         throw new \Exception("IMEI number $imei is already associated with another product or sold.");
                     }
 
@@ -1023,7 +929,7 @@ return $this->saveOrUpdateImeiNewFormat($request);
                     if ($imeiModel) {
                         $operation = 'update';
                         $imeiModel->touch();
-                        Log::info("Updated existing IMEI", ['imei'=> $imeiModel->id]);
+                        Log::info("API Updated existing IMEI", ['imei' => $imei, 'id' => $imeiModel->id]);
                     } else {
                         $operation = 'save';
                         $newImei = ImeiNumber::create([
@@ -1036,7 +942,7 @@ return $this->saveOrUpdateImeiNewFormat($request);
                             'updated_at' => now(),
                         ]);
                         $savedCount++;
-                        Log::info("Created new IMEI", [
+                        Log::info("API Created new IMEI", [
                             'imei' => $imei,
                             'id' => $newImei->id,
                             'batch_id' => $batchId,
@@ -1046,7 +952,7 @@ return $this->saveOrUpdateImeiNewFormat($request);
                     }
                 }
 
-                Log::info("Transaction completed", [
+                Log::info("API Transaction completed", [
                     'total_processed' => count($batchAssignments),
                     'saved_count' => $savedCount,
                     'operation' => $operation
@@ -1054,14 +960,15 @@ return $this->saveOrUpdateImeiNewFormat($request);
             });
 
             $msg = $operation === 'update'
-                ? 'IMEI numbers updated successfully with intelligent batch selection.'
-                : 'IMEI numbers saved successfully with intelligent batch selection.';
+                ? 'IMEI numbers updated successfully'
+                : 'IMEI numbers saved successfully';
 
             return response()->json([
                 'status' => 200,
                 'message' => $msg
             ]);
         } catch (\Exception $e) {
+            Log::error('API IMEI save failed:', ['error' => $e->getMessage()]);
             return response()->json([
                 'status' => 500,
                 'message' => 'Failed to save or update IMEIs: ' . $e->getMessage()
@@ -1070,7 +977,7 @@ return $this->saveOrUpdateImeiNewFormat($request);
     }
 
     /**
-     * Handle the old format with batches array for backward compatibility
+     * Handle the old format with batches array for backward compatibility (API version)
      */
     private function saveOrUpdateImeiOldFormat(Request $request)
     {
@@ -1122,10 +1029,11 @@ return $this->saveOrUpdateImeiNewFormat($request);
                         } else {
                             $operation = 'save';
                             ImeiNumber::create([
-                                'product_id'=> $request->product_id,
+                                'product_id' => $request->product_id,
                                 'batch_id' => $batchInfo['batch_id'],
                                 'location_id' => $batchInfo['location_id'],
                                 'imei_number' => $imei,
+                                'status' => 'available',
                                 'created_at' => now(),
                                 'updated_at' => now(),
                             ]);
@@ -1151,17 +1059,12 @@ return $this->saveOrUpdateImeiNewFormat($request);
     }
 
     /**
-     * Intelligently assign IMEIs to batches based on available capacity
+     * Intelligently assign IMEIs to batches based on available capacity (API version)
      * Fills batches sequentially (FIFO - First In, First Out)
-     *
-     * @param int $productId
-     * @param int $locationId
-     * @param array $imeis
-     * @return array
      */
-    private function getIntelligentBatchAssignments(int $productId, int $locationId, array $imeis): array
+    private function getIntelligentBatchAssignments($productId, $locationId, $imeis)
     {
-        Log::info("Starting intelligent batch assignment", [
+        Log::info("API Starting EXACT batch quantity based IMEI assignment", [
             'product_id' => $productId,
             'location_id' => $locationId,
             'imei_count' => count($imeis),
@@ -1169,97 +1072,220 @@ return $this->saveOrUpdateImeiNewFormat($request);
         ]);
 
         // Get all batches for this product at the specified location, ordered by batch ID (FIFO)
-        /** @var \Illuminate\Support\Collection $batches */
+        // STRICT: Only use batches with available quantity > 0
         $batches = DB::table('location_batches')
             ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
             ->where('batches.product_id', $productId)
             ->where('location_batches.location_id', $locationId)
-            ->where('location_batches.qty', '>', 0) // Only batches with available quantity
+            ->where('location_batches.qty', '>', 0) // STRICT: Only batches with available stock
             ->select(
                 'batches.id as batch_id',
                 'batches.batch_no',
-                'location_batches.qty as avail                'batches.created_at'
+                'location_batches.qty as available_qty',
+                'batches.created_at'
             )
             ->orderBy('batches.id') // FIFO - older batches first
             ->get();
 
-        Log::info("Found batches for assignment", [
+        Log::info("API Found batches with available quantity", [
             'batch_count' => $batches->count(),
             'batches' => $batches->toArray()
         ]);
 
         if ($batches->isEmpty()) {
-            Log::warning("No available batches found", [
+            Log::error("API No batches with available quantity found", [
                 'product_id' => $productId,
                 'location_id' => $locationId
             ]);
-            return [];
+            throw new \Exception("No batches with available quantity found for this product at the specified location. Please check stock levels.");
         }
 
         $assignments = [];
         $remainingImeis = $imeis;
 
-        /** @var \stdClass $batch */
         foreach ($batches as $batch) {
-            // Cast to ensure proper typing
-            $batchObj = (object) [
-                /** @noinspection PhpPossiblePootion */
-                'batch_id' => (int) $batch->batch_id,
-                /** @noinspection PhpPossiblePolymorphicInvocationInspection */
-                'batch_no' => (string) $batch->batch_no,
-                /** @noinspection PhpPossiblePolymorphicInvocationInspection */
-                'available_qty' => (int) $batch->available_qty,
-            ];
-
             if (empty($remainingImeis)) {
                 break; // All IMEIs have been assigned
             }
 
-            // Calculate how many IMEIs are already assigned to this batch
-            $existingImeiCount = ImeiNumber::where('product_id', $productId)
-                ->where('batch_id', $batchObj->batch_id)
+            // Calculate EXACT available capacity for this batch
+            // Only count IMEIs with status 'available' - sold IMEIs don't consume batch capacity
+            $existingAvailableImeiCount = ImeiNumber::where('product_id', $productId)
+                ->where('batch_id', $batch->batch_id)
                 ->where('location_id', $locationId)
+                ->where('status', 'available') // Only count available IMEIs
                 ->count();
 
-            // Calculate available capacity for this batch
-            $availableCapacity = $batchObj->available_qty - $existingImeiCount;
+            // STRICT calculation: exact available capacity
+            $exactAvailableCapacity = $batch->available_qty - $existingAvailableImeiCount;
 
-            if ($availableCapacity <= 0) {
+            Log::info("API Batch capacity analysis", [
+                'batch_id' => $batch->batch_id,
+                'batch_no' => $batch->batch_no,
+                'total_batch_qty' => $batch->available_qty,
+                'existing_available_imei_count' => $existingAvailableImeiCount,
+                'exact_available_capacity' => $exactAvailableCapacity
+            ]);
+
+            if ($exactAvailableCapacity <= 0) {
+                Log::info("API Batch is full, moving to next batch", [
+                    'batch_id' => $batch->batch_id,
+                    'available_capacity' => $exactAvailableCapacity
+                ]);
                 continue; // This batch is full, try next batch
             }
 
-            // Assign IMEIs to this batch up to its available capacity
-            $imeisToAssign = array_slice($remainingImeis, 0, $availableCapacity);
+            // Assign IMEIs to this batch ONLY up to exact available capacity
+            $imeisToAssignCount = min($exactAvailableCapacity, count($remainingImeis));
+            $imeisToAssign = array_slice($remainingImeis, 0, $imeisToAssignCount);
 
+            Log::info("API EXACT assignment to batch", [
+                'batch_id' => $batch->batch_id,
+                'batch_no' => $batch->batch_no,
+                'exact_capacity' => $exactAvailableCapacity,
+                'imeis_to_assign_count' => $imeisToAssignCount,
+                'imeis_to_assign' => $imeisToAssign
+            ]);
 
             foreach ($imeisToAssign as $imei) {
                 $assignments[] = [
                     'imei' => $imei,
-                    'batch_id' => $batchObj->batch_id,
-                    'batch_no' => $batchObj->batch_no
+                    'batch_id' => $batch->batch_id,
+                    'batch_no' => $batch->batch_no
                 ];
             }
 
             // Remove assigned IMEIs from remaining list
-            $remainingImeis = array_slice($remainingImeis, count($imeisToAssign));
+            $remainingImeis = array_slice($remainingImeis, $imeisToAssignCount);
+
+            Log::info("API Batch assignment completed", [
+                'batch_id' => $batch->batch_id,
+                'assigned_count' => $imeisToAssignCount,
+                'remaining_imeis_count' => count($remainingImeis)
+            ]);
         }
 
-        // If there are still unassigned IMEIs, it means insufficient capacity
+        // If there are still unassigned IMEIs, it means insufficient total capacity across all batches
         if (!empty($remainingImeis)) {
             $unassignedCount = count($remainingImeis);
-            Log::error("Insufficient batch capacity", [
+            $totalAvailableCapacity = $batches->sum(function ($batch) use ($productId, $locationId) {
+                $existingAvailableCount = ImeiNumber::where('product_id', $productId)
+                    ->where('batch_id', $batch->batch_id)
+                    ->where('location_id', $locationId)
+                    ->where('status', 'available') // Only count available IMEIs
+                    ->count();
+                return max(0, $batch->available_qty - $existingAvailableCount);
+            });
+
+            Log::error("API Insufficient total batch capacity", [
                 'unassigned_count' => $unassignedCount,
+                'total_available_capacity' => $totalAvailableCapacity,
                 'unassigned_imeis' => $remainingImeis,
                 'product_id' => $productId,
                 'location_id' => $locationId
             ]);
-            throw new \Exception("Insufficient batch capacity. Cannot assign {$unassignedCount} IMEI(s). Please check available batch quantities.");
+
+            throw new \Exception("Insufficient batch capacity. Cannot assign {$unassignedCount} IMEI(s). Total available capacity: {$totalAvailableCapacity}. Please add more stock or use a different location.");
         }
 
-        Log::info("Batch assignment completed successfully", [
+        Log::info("API EXACT batch assignment completed successfully", [
             'total_assignments' => count($assignments),
             'assignments' => $assignments
         ]);
+
+        return $assignments;
+    }
+
+    /**
+     * Emergency batch assignment method - only used when intelligent fails
+     * Still respects batch quantities but more lenient
+     */
+    private function getSimpleBatchAssignments($productId, $locationId, $imeis)
+    {
+        Log::info("API Using emergency batch assignment (still quantity-based)", [
+            'product_id' => $productId,
+            'location_id' => $locationId,
+            'imei_count' => count($imeis)
+        ]);
+
+        // Get batches with available quantity, fallback to any batch if needed
+        $batchesWithQty = DB::table('location_batches')
+            ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+            ->where('batches.product_id', $productId)
+            ->where('location_batches.location_id', $locationId)
+            ->where('location_batches.qty', '>', 0)
+            ->select(
+                'batches.id as batch_id',
+                'batches.batch_no',
+                'location_batches.qty as available_qty'
+            )
+            ->orderBy('batches.id')
+            ->get();
+
+        // If no batches with quantity, get any batch as last resort
+        if ($batchesWithQty->isEmpty()) {
+            Log::warning("API No batches with quantity found, using any available batch");
+
+            $anyBatch = DB::table('location_batches')
+                ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                ->where('batches.product_id', $productId)
+                ->where('location_batches.location_id', $locationId)
+                ->select('batches.id as batch_id', 'batches.batch_no')
+                ->first();
+
+            if (!$anyBatch) {
+                throw new \Exception("No batches found for this product at the specified location.");
+            }
+
+            // Assign all IMEIs to this batch (emergency mode)
+            $assignments = [];
+            foreach ($imeis as $imei) {
+                $assignments[] = [
+                    'imei' => $imei,
+                    'batch_id' => $anyBatch->batch_id,
+                    'batch_no' => $anyBatch->batch_no
+                ];
+            }
+            return $assignments;
+        }
+
+        // Use quantity-based assignment even in simple mode
+        $assignments = [];
+        $remainingImeis = $imeis;
+
+        foreach ($batchesWithQty as $batch) {
+            if (empty($remainingImeis)) {
+                break;
+            }
+
+            $existingAvailableImeiCount = ImeiNumber::where('product_id', $productId)
+                ->where('batch_id', $batch->batch_id)
+                ->where('location_id', $locationId)
+                ->where('status', 'available') // Only count available IMEIs
+                ->count();
+
+            $availableCapacity = max(0, $batch->available_qty - $existingAvailableImeiCount);
+
+            if ($availableCapacity > 0) {
+                $imeisToAssignCount = min($availableCapacity, count($remainingImeis));
+                $imeisToAssign = array_slice($remainingImeis, 0, $imeisToAssignCount);
+
+                foreach ($imeisToAssign as $imei) {
+                    $assignments[] = [
+                        'imei' => $imei,
+                        'batch_id' => $batch->batch_id,
+                        'batch_no' => $batch->batch_no
+                    ];
+                }
+
+                $remainingImeis = array_slice($remainingImeis, $imeisToAssignCount);
+            }
+        }
+
+        // If still unassigned, this is the final error
+        if (!empty($remainingImeis)) {
+            throw new \Exception("Cannot assign " . count($remainingImeis) . " IMEI(s) - insufficient batch capacity across all available batches.");
+        }
 
         return $assignments;
     }
@@ -1327,13 +1353,45 @@ return $this->saveOrUpdateImeiNewFormat($request);
         }
     }
 
-    public function getImeis($productId)
+
+    public function getImeis($productId, Request $request)
     {
-        $imeis = ImeiNumber::where('product_id', $productId)->get(['id', 'imei_number']);
+        $locationId = $request->input('location_id');
+
+        // Get the product info
+        $product = Product::find($productId);
+        if (!$product) {
+            return response()->json([
+                'status' => 404,
+                'message' => 'Product not found'
+            ], 404);
+        }
+
+        $query = ImeiNumber::where('product_id', $productId)
+            ->with(['location:id,name', 'batch:id,batch_no']);
+
+        // Filter by location if provided
+        if ($locationId && $locationId !== '') {
+            $query->where('location_id', $locationId);
+        }
+
+        $imeis = $query->get()->map(function ($imei) {
+            return [
+                'id' => $imei->id,
+                'imei_number' => $imei->imei_number,
+                'status' => $imei->status ?? 'available',
+                'location_id' => $imei->location_id,
+                'batch_id' => $imei->batch_id,
+                'location_name' => $imei->location ? $imei->location->name : 'N/A',
+                'batch_no' => $imei->batch ? $imei->batch->batch_no : 'N/A',
+                'editable' => true // Allow editing since we're fetching for management purposes
+            ];
+        });
 
         return response()->json([
             'status' => 200,
-            'imeis' => $imeis
+            'data' => $imeis,
+            'product_name' => $product->product_name
         ]);
     }
 
@@ -1362,10 +1420,10 @@ return $this->saveOrUpdateImeiNewFormat($request);
                 'batches' => $batches->flatMap(function ($batch) {
                     return $batch->locationBatches->map(function ($locationBatch) use ($batch) {
                         return [
-                            'batch_id' => $locatioh_id,
+                            'batch_id' => $locationBatch->batch_id,
                             'location_id' => $locationBatch->location_id,
                             'quantity' => $locationBatch->qty,
-                           => $batch->batch_no,
+                            'batch_no' => $batch->batch_no,
                             'expiry_date' => $batch->expiry_date,
                             'stock_histories' => $locationBatch->stockHistories->map(function ($stockHistory) {
                                 return [
@@ -1387,21 +1445,57 @@ return $this->saveOrUpdateImeiNewFormat($request);
     public function getAllProductStocks(Request $request)
     {
         try {
+            // Clear any output buffer to prevent non-JSON content
+            if (ob_get_level()) {
+                ob_clean();
+            }
+
+            // Set headers to ensure JSON response
+            header('Content-Type: application/json');
+
+            Log::info('=== getAllProductStocks method called ===');
+            Log::info('Request method: ' . $request->method());
+            Log::info('Request URL: ' . $request->fullUrl());
+            Log::info('Request parameters: ', $request->all());
+            Log::info('Memory usage at start: ' . memory_get_usage(true) / 1024 / 1024 . 'MB');
+
             $startTime = microtime(true);
             $now = now();
 
             // DataTable params (legacy support)
-            $perPageDataTable = $request->input('length', 100); // DataTable uses 'length'
-    rtDataTable = $request->input('start', 0);
-            $pageDataTable = intval($startDataTable / $perPageDataTable) + 1;
+            $lengthParam = $request->input('length', 100);
+            $startDataTable = max(0, (int)$request->input('start', 0));
+
+            // Handle "All" option (-1) from DataTables
+            $isAllRecords = ($lengthParam == -1 || $lengthParam === '-1');
+
+            if ($isAllRecords) {
+                // Increase memory limit for large datasets
+                ini_set('memory_limit', '512M');
+                set_time_limit(120); // 2 minutes max execution time
+                Log::info('Loading ALL product records');
+            }
+
+            // Calculate pagination parameters
+            if (!$isAllRecords) {
+                $perPageDataTable = min((int)$lengthParam, 100); // Limit max per page for hosting
+                $pageDataTable = $perPageDataTable > 0 ? intval($startDataTable / $perPageDataTable) + 1 : 1;
+            } else {
+                // For "All" records, we'll use get() instead of paginate()
+                $perPageDataTable = 100; // Dummy value, won't be used
+                $pageDataTable = 1;
+            }
 
             // Standard pagination params (for POS)
-            $perPageStandard = $request->input('per_page', 24);
-            $pageStandard = $request->input('page', 1);
+            $perPageStandard = min((int)$request->input('per_page', 24), 100);
+            $pageStandard = max(1, (int)$request->input('page', 1));
 
             // Use standard pagination if 'per_page' or 'page' parameters are provided
+            // Otherwise use DataTable params
             $perPage = $request->has('per_page') || $request->has('page') ? $perPageStandard : $perPageDataTable;
-            $page = $request->has('pquest->has('page') ? $pageStandard : $pageDataTable;
+            $page = $request->has('per_page') || $request->has('page') ? $pageStandard : $pageDataTable;
+
+            Log::info('Pagination params:', ['page' => $page, 'perPage' => $perPage, 'useStandard' => ($request->has('per_page') || $request->has('page'))]);
 
             // DataTable search and ordering
             $search = $request->input('search.value'); // DataTables sends global search as 'search.value'
@@ -1414,31 +1508,37 @@ return $this->saveOrUpdateImeiNewFormat($request);
             $filterCategory = $request->input('main_category_id');
             $filterSubCategory = $request->input('sub_category_id');
             $filterBrand = $request->input('brand_id');
-            $locationId = $request->input('location_id'); // Add location filtering
+            $locationId = $request->input('location_id'); // Add location filter
+            $stockStatus = $request->input('stock_status'); // Add stock status filter
 
             // Ensure location_id is properly typed (convert to integer if it's a numeric string)
             if ($locationId && is_numeric($locationId)) {
                 $locationId = (int) $locationId;
             }
 
-            // Debug: Log location filtering
-            if ($locationId) {
-                Log::info('Location filter applied in getAllProductStocks', [
-                    'location_id' => $locationId,
-                    'location_id_type' => gettype($locationId),
-                    'request_params' => $request->all()
-                ]);
+            Log::info('Filters applied:', [
+                'search' => $search,
+                'filterProductName' => $filterProductName,
+                'filterCategory' => $filterCategory,
+                'filterSubCategory' => $filterSubCategory,
+                'filterBrand' => $filterBrand,
+                'locationId' => $locationId,
+                'stockStatus' => $stockStatus
+            ]);
 
-                // Check if any location batches exist for this location
-                $locationBatchCount = \App\Models\LocationBatch::where('location_id', $locationId)->count();
-                Log::info('Location batch count for location', [
-                    'location_id' => $locationId,
-                    'location_batch_count' => $locationBatchCount
+            // Apply user location scope
+            $user = auth()->user();
+            $userAccessibleLocations = $this->getUserAccessibleLocations($user);
+            $userLocationIds = $userAccessibleLocations->pluck('id')->toArray();
+
+            // If a specific location is selected in filter, ensure user has access to it
+            if ($locationId && !empty($userLocationIds) && !in_array($locationId, $userLocationIds)) {
+                Log::warning('User attempted to access unauthorized location', [
+                    'user_id' => $user->id,
+                    'requested_location' => $locationId,
+                    'accessible_locations' => $userLocationIds
                 ]);
-            } else {
-                Log::info('No location filter - showing all locations in getAllProductStocks', [
-                    'request_params' => $request->all()
-                ]);
+                $locationId = null; // Reset to prevent unauthorized access
             }
 
             // Build product query
@@ -1466,7 +1566,13 @@ return $this->saveOrUpdateImeiNewFormat($request);
                 'is_active'
             ])
                 ->with([
-                    'locations:id,name',
+                    'locations' => function ($query) use ($userLocationIds) {
+                        $query->select('locations.id', 'locations.name');
+                        // Only load locations user has access to
+                        if (!empty($userLocationIds)) {
+                            $query->whereIn('locations.id', $userLocationIds);
+                        }
+                    },
                     'unit:id,name,short_name,allow_decimal', // Eager load unit
                     'discounts' => function ($query) use ($now) {
                         $query->where('is_active', true)
@@ -1482,27 +1588,34 @@ return $this->saveOrUpdateImeiNewFormat($request);
                             'special_price',
                             'retail_price',
                             'max_retail_price',
-                            'expiry_date'
-                        ]);
+                            'expiry_date',
+                            'created_at'
+                        ])->orderBy('created_at', 'desc'); // Order batches by creation date (newest first)
                     },
-                    'batches.locationBatches' => function ($query) use ($locationId) {
-                        $query->select(['id', 'batch_id', 'location_id', 'qty'])
-                            ->with('location:id,name');
-                        // Filter by location if provided
+                    'batches.locationBatches' => function ($query) use ($locationId, $userLocationIds) {
+                        // Always enforce user's accessible locations
+                        if (!empty($userLocationIds)) {
+                            $query->whereIn('location_id', $userLocationIds);
+                        }
+
+                        // Additionally filter by specific location if selected
                         if ($locationId) {
                             $query->where('location_id', $locationId);
                         }
+
+                        $query->select(['id', 'batch_id', 'location_id', 'qty'])
+                            ->with('location:id,name');
                     }
                 ])
                 // Only filter by is_active for POS (when show_all parameter is not set)
                 ->when(!$request->has('show_all'), function ($query) {
                     return $query->where('is_active', true);
                 })
-                // Filter by location if provided (only show products that exist in that location)
+                // Filter by location if provided (show ALL products assigned to that location, including 0 stock)
                 ->when($locationId, function ($query) use ($locationId) {
-                    return $query->whereHas('batches.locationBatches', function ($q) use ($locationId) {
-                        $q->where('location_id', $locationId)
-                          ->where('qty', '>', 0); // Only show products with actual stock in the location
+                    return $query->whereHas('locations', function ($q) use ($locationId) {
+                        $q->where('locations.id', $locationId);
+                        // Show all products assigned to the selected location (even with 0 stock)
                     });
                 });
 
@@ -1529,6 +1642,48 @@ return $this->saveOrUpdateImeiNewFormat($request);
                 $query->where('brand_id', $filterBrand);
             }
 
+            // Apply stock status filter
+            if (!empty($stockStatus)) {
+                switch ($stockStatus) {
+                    case 'in_stock':
+                        // Products with stock > 0 in any location (or selected location)
+                        $query->whereHas('batches.locationBatches', function ($q) use ($locationId, $userLocationIds) {
+                            $q->where('qty', '>', 0);
+                            if ($locationId) {
+                                $q->where('location_id', $locationId);
+                            } elseif (!empty($userLocationIds)) {
+                                $q->whereIn('location_id', $userLocationIds);
+                            }
+                        });
+                        break;
+
+                    case 'out_of_stock':
+                        // Products with no stock in any location (or selected location)
+                        $query->whereDoesntHave('batches.locationBatches', function ($q) use ($locationId, $userLocationIds) {
+                            $q->where('qty', '>', 0);
+                            if ($locationId) {
+                                $q->where('location_id', $locationId);
+                            } elseif (!empty($userLocationIds)) {
+                                $q->whereIn('location_id', $userLocationIds);
+                            }
+                        });
+                        break;
+
+                    case 'low_stock':
+                        // Products with stock below alert quantity
+                        $query->whereHas('batches.locationBatches', function ($q) use ($locationId, $userLocationIds) {
+                            $q->where('qty', '>', 0)
+                              ->whereRaw('qty <= (SELECT alert_quantity FROM products WHERE products.id = location_batches.batch_id)');
+                            if ($locationId) {
+                                $q->where('location_id', $locationId);
+                            } elseif (!empty($userLocationIds)) {
+                                $q->whereIn('location_id', $userLocationIds);
+                            }
+                        });
+                        break;
+                }
+            }
+
             // Set ordering (if valid column)
             $validOrderCols = [
                 'id',
@@ -1546,22 +1701,59 @@ return $this->saveOrUpdateImeiNewFormat($request);
             }
 
             // Get total count before filtering
+            Log::info('Memory before total count: ' . memory_get_usage(true) / 1024 / 1024 . 'MB');
             $totalCount = Product::count();
+            Log::info('Total products count: ' . $totalCount);
 
-            // Get filtered paginated products
-            $products = $query->paginate($perPage, ['*'], 'page', $page);
+            // Handle "All" records differently to avoid pagination issues
+            Log::info('Memory before pagination: ' . memory_get_usage(true) / 1024 / 1024 . 'MB');
+            try {
+                if ($isAllRecords) {
+                    Log::info('Fetching ALL products without pagination');
+                    // Get all records without pagination
+                    $productsCollection = $query->get();
+                    $filteredCount = $productsCollection->count();
+                    $products = $productsCollection;
+
+                    Log::info("Loaded {$filteredCount} products without pagination");
+
+                    // Create a mock paginator object for compatibility
+                    $paginatorData = new \stdClass();
+                    $paginatorData->lastPage = 1;
+                    $paginatorData->firstItem = $filteredCount > 0 ? 1 : null;
+                    $paginatorData->lastItem = $filteredCount;
+                    $paginatorData->total = $filteredCount;
+                } else {
+                    Log::info("Fetching products with pagination: page={$page}, perPage={$perPage}");
+                    // Get filtered paginated products
+                    $products = $query->paginate($perPage, ['*'], 'page', $page);
+                    $filteredCount = $products->total();
+                    $paginatorData = $products;
+                }
+            } catch (\Exception $e) {
+                Log::error('Error during pagination: ' . $e->getMessage());
+                throw new \Exception('Database query failed: ' . $e->getMessage());
+            }
+            Log::info('Memory after pagination: ' . memory_get_usage(true) / 1024 / 1024 . 'MB');
 
             // Get filtered count for pagination
-            $filteredCount = $products->total();
+            if (!$isAllRecords) {
+                $filteredCount = $products->total();
+            }
+            Log::info('Filtered count: ' . $filteredCount);
 
             // Get product IDs for batch and IMEI filtering
             $productIds = $products->pluck('id');
 
-            // Load IMEIs grouped by product ID
-            $imeis = ImeiNumber::whereIn('product_id', $productIds)
-                ->with(['location:id,name'])
-                ->get()
-                ->groupBy('product_id');
+            // Load IMEIs grouped by product ID (filter by location if specified)
+            $imeisQuery = ImeiNumber::whereIn('product_id', $productIds)
+                ->with(['location:id,name']);
+
+            if ($locationId) {
+                $imeisQuery->where('location_id', $locationId);
+            }
+
+            $imeis = $imeisQuery->get()->groupBy('product_id');
 
             // Prepare response data
             $productStocks = [];
@@ -1569,21 +1761,32 @@ return $this->saveOrUpdateImeiNewFormat($request);
             foreach ($products as $product) {
                 $productBatches = $product->batches;
 
-                // Filter batches with locationBatches
-                $filteredBatches = $productBatches->filter(function ($batch) {
-                    return $batch->locationBatches->isNotEmpty();
-                });
+                // When location filter is applied, we still want to show the product even if no batches exist
+                // So we don't filter batches aggressively - just filter the location data within batches
+                $filteredBatches = $productBatches;
 
                 // Determine if allow_decimal is true for this product's unit
                 $allowDecimal = $product->unit && $product->unit->allow_decimal;
 
-                // Calculate total stock (decimal or integer based on allow_decimal)
-                $totalStock = $filteredBatches->sum(
-                    fn($batch) =>
+                // Calculate total stock based on location filter
+                if ($locationId) {
+                    // Calculate stock only for the specified location
+                    $totalStock = $filteredBatches->sum(
+                        fn($batch) =>
+                        $batch->locationBatches->where('location_id', $locationId)->sum(function ($lb) use ($allowDecimal) {
+                            return $allowDecimal ? (float)$lb->qty : (int)$lb->qty;
+                        })
+                    );
+                } else {
+                    // Calculate total stock across all locations
+                    $totalStock = $filteredBatches->sum(
+                        fn($batch) =>
                         $batch->locationBatches->sum(function ($lb) use ($allowDecimal) {
                             return $allowDecimal ? (float)$lb->qty : (int)$lb->qty;
                         })
-                );
+                    );
+                }
+
                 if ($allowDecimal) {
                     $totalStock = round($totalStock, 2);
                 } else {
@@ -1620,89 +1823,83 @@ return $this->saveOrUpdateImeiNewFormat($request);
                     ];
                 });
 
+                // Build locations array based on filter
+                $productLocations = $product->locations;
+                if ($locationId) {
+                    $productLocations = $productLocations->where('id', $locationId);
+                }
+
+                $locationData = $productLocations->map(fn($loc) => [
+                    'location_id' => $loc->id,
+                    'location_name' => $loc->name
+                ])->values();
+
+                // Ensure locationData is always an array
+                if ($locationData->isEmpty()) {
+                    $locationData = collect([]);
+                }
+
                 // Build final product stock array
                 $productStocks[] = [
                     'product' => [
                         'id' => $product->id,
-                        'product_name' => $product->product_name,
-                        'sku' => $product->sku,
+                        'product_name' => $product->product_name ?? '',
+                        'sku' => $product->sku ?? '',
                         'unit_id' => $product->unit_id,
                         'unit' => $product->unit ? [
                             'id' => $product->unit->id,
-                            'name' => $product->unit->name,
-                            'short_name' => $product->unit->short_name,
+                            'name' => $product->unit->name ?? '',
+                            'short_name' => $product->unit->short_name ?? '',
                             'allow_decimal' => (bool) ($product->unit->allow_decimal ?? 0),
                         ] : null,
                         'brand_id' => $product->brand_id,
                         'main_category_id' => $product->main_category_id,
                         'sub_category_id' => $product->sub_category_id,
                         'stock_alert' => $product->stock_alert,
-                        'alert_quantity' => $product->alert_quantity,
-                        'product_image' => $product->product_image,
-                        'description' => $product->description,
-                        'is_imei_or_serial_no' => $product->is_imei_or_serial_no,
-                        'is_for_selling' => $product->is_for_selling,
-                        'product_type' => $product->product_type,
-                        'pax' => $product->pax,
-                        'original_price' => $product->original_price,
-                        'retail_price' => $product->retail_price,
-                        'whole_sale_price' => $product->whole_sale_price,
-                        'special_price' => $product->special_price,
-                        'max_retail_price' => $product->max_retail_price,
-                        'is_active' => $product->is_active,
-                   ],
+                        'alert_quantity' => $product->alert_quantity ?? 0,
+                        'product_image' => $product->product_image ?? '',
+                        'description' => $product->description ?? '',
+                        'is_imei_or_serial_no' => $product->is_imei_or_serial_no ?? 0,
+                        'is_for_selling' => $product->is_for_selling ?? 1,
+                        'product_type' => $product->product_type ?? '',
+                        'pax' => $product->pax ?? 0,
+                        'original_price' => $product->original_price ?? 0,
+                        'retail_price' => $product->retail_price ?? 0,
+                        'whole_sale_price' => $product->whole_sale_price ?? 0,
+                        'special_price' => $product->special_price ?? 0,
+                        'max_retail_price' => $product->max_retail_price ?? 0,
+                        'is_active' => $product->is_active ?? 0,
+                    ],
                     'total_stock' => $totalStock,
-                    'batches' => $filteredBatches->mapWithKeys(function ($batch) use ($allowDecimal) {
-                        return [$batch->id => [
+                    'batches' => $filteredBatches->map(function ($batch) use ($allowDecimal, $locationId) {
+                        // Filter location batches based on location filter
+                        $locationBatches = $locationId
+                            ? $batch->locationBatches->where('location_id', $locationId)
+                            : $batch->locationBatches;
+
+                        return [
                             'id' => $batch->id,
-                            'batch_no' => $batch->batch_no,
-                            'unit_cost' => $batch->unit_cost,
-                            'wholesale_price' => $batch->wholesale_price,
-                            'special_price' => $batch->special_price,
-                            'retail_price' => $batch->retail_price,
-                            'max_retail_price' => $batch->max_retail_price,
-                            'expiry_date' => $batch->expiry_dat
+                            'batch_no' => $batch->batch_no ?? '',
+                            'unit_cost' => $batch->unit_cost ?? 0,
+                            'wholesale_price' => $batch->wholesale_price ?? 0,
+                            'special_price' => $batch->special_price ?? 0,
+                            'retail_price' => $batch->retail_price ?? 0,
+                            'max_retail_price' => $batch->max_retail_price ?? 0,
+                            'expiry_date' => $batch->expiry_date,
                             'total_batch_quantity' => $allowDecimal
-                                ? round($batch->locationBatches->sum(fn($lb) => (float)$lb->qty), 2)
-                                : (int)$batch->locationBatches->sum(fn($lb) => (int)$lb->qty),
-                            'location_batches' => $batch->locationBatches->map(function ($lb) use ($allowDecimal) {
+                                ? round($locationBatches->sum(fn($lb) => (float)($lb->qty ?? 0)), 2)
+                                : (int)$locationBatches->sum(fn($lb) => (int)($lb->qty ?? 0)),
+                            'location_batches' => $locationBatches->map(function ($lb) use ($allowDecimal) {
                                 return [
                                     'batch_id' => $lb->batch_id,
                                     'location_id' => $lb->location_id,
                                     'location_name' => optional($lb->location)->name ?? 'N/A',
-                                    'quantity' => $allowDecimal ? round((float)$lb->qty, 2) : (int)$lb->qty
+                                    'quantity' => $allowDecimal ? round((float)($lb->qty ?? 0), 2) : (int)($lb->qty ?? 0)
                                 ];
-                            })
-                        ]];
-                    }),
-                    'locations' => $locationId ?
-                        // If location filter is applied, show the filtered location data
-                        $filteredBatches->flatMap(function($batch) {
-                            return $batch->locationBatches->map(function($lb) {
-                                return [
-                                    'location_id' => $lb->location_id,
-                                    'location_name' => optional($lb->location)->name ?? 'N/A',
-                                    'quantity' => $lb->qty
-                                ];
-                            });
-                        })->unique('location_id')->values()->toArray() :
-                        // If no location filter, show all locations where this product exists
-                        $filteredBatches->flatMap(function($batch) {
-                            return $batch->locationBatches->map(function($lb) {
-                                return [
-                                    'location_id' => $lb->location_id,
-                                    'location_name' => optional($lb->location)->name ?? 'N/A',
-                                    'quantity' => $lb->qty
-                                ];
-                            });
-                        })->groupBy('location_id')->map(function($locBatches, $locId) {
-                            $firstLoc = $locBatches->first();
-                            return [
-                                'location_id' => $locId,
-                                'location_name' => $firstLoc['location_name'],
-                                'quantity' => $locBatches->sum('quantity')
-                            ];
-                        })->values()->toArray(),
+                            })->values()
+                        ];
+                    })->values(),
+                    'locations' => $locationData,
                     'has_batches' => $filteredBatches->isNotEmpty(),
                     'discounts' => $activeDiscounts,
                     'imei_numbers' => $productImeis
@@ -1719,28 +1916,53 @@ return $this->saveOrUpdateImeiNewFormat($request);
 
             // DataTables expects these keys: draw, recordsTotal, recordsFiltered, data
             return response()->json([
-                'draw' => intval($request->input('draw')), // DataTables draw count
+                'draw' => intval($request->input('draw', 0)), // DataTables draw count
                 'recordsTotal' => $totalCount,
                 'recordsFiltered' => $filteredCount,
-                'data' => $productStocks,
+                'data' => array_values($productStocks), // Ensure indexed array
                 'status' => 200,
                 'pagination' => [
                     'total' => $filteredCount,
-                    'per_page' => $perPage,
+                    'per_page' => $isAllRecords ? -1 : $perPage,
                     'current_page' => $page,
-                    'last_page' => $products->lastPage(),
-                    'from' => $products->firstItem(),
-                    'to' => $products->lastItem(),
+                    'last_page' => $paginatorData->lastPage ?? 1,
+                    'from' => $paginatorData->firstItem ?? ($filteredCount > 0 ? 1 : null),
+                    'to' => $paginatorData->lastItem ?? $filteredCount,
                 ]
             ]);
         } catch (\Exception $e) {
+            // Clear any output buffer that might contain PHP errors
+            if (ob_get_level()) {
+                ob_clean();
+            }
+
             Log::error('Error fetching product stocks:', [
                 'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+                'request_params' => $request->all(),
+                'memory_usage' => memory_get_usage(true) / 1024 / 1024 . 'MB',
+                'memory_peak' => memory_get_peak_usage(true) / 1024 / 1024 . 'MB',
+                'php_version' => PHP_VERSION,
+                'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown'
             ]);
+
+            // Set JSON header explicitly
+            header('Content-Type: application/json');
+
             return response()->json([
+                'draw' => intval($request->input('draw', 0)),
+                'recordsTotal' => 0,
+                'recordsFiltered' => 0,
+                'data' => [],
                 'status' => 500,
-                'message' => 'An error occurred while fetching product stocks.'
+                'message' => 'An error occurred while fetching product stocks.',
+                'error' => $e->getMessage(),
+                'debug' => [
+                    'memory_usage' => memory_get_usage(true) / 1024 / 1024 . 'MB',
+                    'php_version' => PHP_VERSION
+                ]
             ], 500);
         }
     }
@@ -1749,10 +1971,10 @@ return $this->saveOrUpdateImeiNewFormat($request);
     {
         $locationId = $request->input('location_id');
         $search = $request->input('search');
-        $perPage = $request->input('per_page', 15);
+        $perPage = $request->input('per_page', 100); // Increased to 100 for better autocomplete results
 
         $query = Product::with([
-            'location
+            'locations:id,name',
             'unit:id,name,short_name,allow_decimal',
             'discounts' => function ($query) {
                 $query->where('is_active', true);
@@ -1762,91 +1984,58 @@ return $this->saveOrUpdateImeiNewFormat($request);
                     'id',
                     'batch_no',
                     'product_id',
-          cost',
+                    'unit_cost',
                     'wholesale_price',
                     'special_price',
                     'retail_price',
                     'max_retail_price',
                     'expiry_date'
-      ;
+                ]);
             },
             'batches.locationBatches' => function ($q) use ($locationId) {
                 if ($locationId) {
-                    $q->where('location_id', $locationd);
+                    $q->where('location_id', $locationId);
                 }
                 $q->select(['id', 'batch_id', 'location_id', 'qty'])
                     ->with('location:id,name');
             }
-        ])->where('is_active', true) // Only show active products for POS
-        // Filter by location if provided (only show products with stock in that location)
-        ->when($locationId, function ($query) use ($locationId) {
-            return $query->whereHas('batches.locationBatches', function ($q) use ($locationId) {
-                $q->where('location_id', $locationId)
-                  ->where('qty', '>', 0);
+        ])
+        // Only show active products in POS/autocomplete
+        ->where('is_active', true);
+
+        // Filter by location FIRST - only show products assigned to the selected location
+        if ($locationId) {
+            $query->whereHas('locations', function ($q) use ($locationId) {
+                $q->where('locations.id', $locationId);
             });
-        });
+        }
 
         if ($search) {
-            // Include IMEI search - First check if any products have matching IMEI numbers
-            $imeiQuery = ImeiNumber::where('imei_number', 'like', "%{$search}%");
-            if ($locationId) {
-                $imeiQuery->where('location_id', $locationId);
-            }
-            $productsWithMatchingImei = $imeiQuery->pluck('product_id')->toArray();
-
-            // Use ORDER BY with CASE statements to prioritize exact matches
-            $query->where(function ($q) use ($search $productsWithMatchingImei) {
+            // Enhanced search to include partial word matching
+            $query->where(function ($q) use ($search) {
                 $q->where('product_name', 'like', "%{$search}%")
                     ->orWhere('sku', 'like', "%{$search}%")
                     ->orWhere('description', 'like', "%{$search}%");
-
-                // Add IMEI search condition
-                if (!empty($productsWithMatchingImei)) {
-                    $q->orWhereIn('id', $productsWithMatchingImei);
-                }
-            });
-
-            // Build order by clause with IMEI priority if applicable
-            if (!empty($productsWithMatchingImei)) {
-                $query->orderByRaw("
-                    CASE
-                        WHEN id IN (" . implode(',', array_fill(0, count($productsWithMatchingImei), '?')) . ") THEN 0
-                        WHEN sku = ? THEN 1
-                        WHEN LOWER(product_name) = LOWER(?) THEN 2
-                        WHEN sku LIKE ? THEN 3
-                        WHEN LOWER(product_name) LIKE LOWER(?) THEN 4
-                        WHEN description LIKE ? THEN 5
-                        ELSE 6
-                    END,
-                    CHAR_LENGTH(sku) ASC,
-                    product_name ASC
-                ", array_merge($productsWithMatchingImei, [
-            $search,                    // Exact SKU match (priority 1)
-                    $search,                    // Exact product name maority 2)
-                    $search . '%',              // SKU starts with search term (priority 3)
-                    $search . '%',              // Product name starts with search term (priority 4)
-                    '%' . $search . '%'         // Description contains search term (priority 5)
-                ]));
-            } else {
-                $query->orderByRaw("
-                    CASE
-                        WHEN sku = ? THEN 1
-                        WHEN LOWER(product_name) = LOWER(?) THEN 2
-                        WHEN sku LIKE ? THEN 3
-                        WHEN LOWER(product_name) LIKE LOWER(?) THEN 4
-                        WHEN description LIKE ? THEN 5
-                        ELSE 6
-                    END,
-                    CHAR_LENGTH(sku) ASC,
-                    product_name ASC
-                ", [
-                    $search,                    // Exact SKU match (priority 1)
-                    $search,                    // Exact product name match (priority 2)
-                    $search . '%',              // SKU starts with search term (priority 3)
-                    $search . '%',              // Product name starts with search term (priority 4)
-                    '%' . $search . '%'         // Description contains search term (priority 5)
-                ]);
-            }
+            })->orderByRaw("
+                CASE
+                    WHEN sku = ? THEN 1
+                    WHEN LOWER(product_name) = LOWER(?) THEN 2
+                    WHEN sku LIKE ? THEN 3
+                    WHEN LOWER(product_name) LIKE LOWER(?) THEN 4
+                    WHEN product_name LIKE ? THEN 5
+                    WHEN description LIKE ? THEN 6
+                    ELSE 7
+                END,
+                CHAR_LENGTH(product_name) ASC,
+                product_name ASC
+            ", [
+                $search,                    // Exact SKU match (priority 1)
+                $search,                    // Exact product name match (priority 2)
+                $search . '%',              // SKU starts with search term (priority 3)
+                $search . '%',              // Product name starts with search term (priority 4)
+                '%' . $search . '%',        // Product name contains search term anywhere (priority 5)
+                '%' . $search . '%'         // Description contains search term (priority 6)
+            ]);
         } else {
             $query->orderBy('product_name', 'ASC');
         }
@@ -1855,35 +2044,53 @@ return $this->saveOrUpdateImeiNewFormat($request);
 
         // Get product IDs for IMEI filtering
         $productIds = $products->pluck('id');
-        $imeiQuery = ImeiNumber::whereIn('product_id', $productIds)
+        $imeisQuery = ImeiNumber::whereIn('product_id', $productIds)
             ->with(['location:id,name']);
 
-        // Filter IMEI by location if specified
         if ($locationId) {
-            $imeiQuery->where('location_id', $locationId);
+            $imeisQuery->where('location_id', $locationId);
         }
 
-        $imeis = $imeiQuery->get()->groupBy('product_id');
+        $imeis = $imeisQuery->get()->groupBy('product_id');
 
         $results = $products->map(function ($product) use ($locationId, $imeis) {
             $productBatches = $product->batches;
 
-            // Filter batches with locationBatches
-            $filteredBatches = $productBatches->filter(function ($batch) {
-                return $batch->locationBatches->isNotEmpty();
+            // Filter batches with locationBatches based on location filter
+            $filteredBatches = $productBatches->filter(function ($batch) use ($locationId) {
+                if ($locationId) {
+                    // If location is specified, only include batches that have location assignment
+                    // Frontend will handle actual stock quantity validation
+                    return $batch->locationBatches->where('location_id', $locationId)->isNotEmpty();
+                } else {
+                    // If no location specified, include all batches with any location assignment
+                    return $batch->locationBatches->isNotEmpty();
+                }
             });
+
+            // Don't filter by stock quantity - frontend handles stock validation
+            // Return all products assigned to the location regardless of current stock level
 
             // Determine if allow_decimal is true for this product's unit
             $allowDecimal = $product->unit && $product->unit->allow_decimal;
 
             // Calculate total stock (for the location if provided)
-            $totalStock = $filteredBatches->sum(function ($batch) use ($locationId, $allowDecimal) {
-                return $batch->locationBatches->filter(function ($lb) use ($locationId) {
-                    return !$locationId || $lb->location_id == $locationId;
-                })->sum(function ($lb) use ($allowDecimal) {
-                    return $allowDecimal ? (float)$lb->qty : (int)$lb->qty;
+            if ($locationId) {
+                // Calculate stock only for the specified location
+                $totalStock = $filteredBatches->sum(function ($batch) use ($locationId, $allowDecimal) {
+                    return $batch->locationBatches->where('location_id', $locationId)->sum(function ($lb) use ($allowDecimal) {
+                        return $allowDecimal ? (float)$lb->qty : (int)$lb->qty;
+                    });
                 });
-            });
+            } else {
+                // Calculate total stock across all locations
+                $totalStock = $filteredBatches->sum(function ($batch) use ($allowDecimal) {
+                    return $batch->locationBatches->sum(function ($lb) use ($allowDecimal) {
+                        return $allowDecimal ? (float)$lb->qty : (int)$lb->qty;
+                    });
+                });
+            }
+
             if ($allowDecimal) {
                 $totalStock = round($totalStock, 2);
             } else {
@@ -1950,8 +2157,13 @@ return $this->saveOrUpdateImeiNewFormat($request);
                     'max_retail_price' => $product->max_retail_price,
                 ],
                 'total_stock' => $product->stock_alert == 0 ? 'Unlimited' : $totalStock,
-                'batches' => $filteredBatches->mapWithKeys(function ($batch) use ($allowDecimal) {
-                    return [$batch->id => [
+                'batches' => $filteredBatches->map(function ($batch) use ($allowDecimal, $locationId) {
+                    // Filter location batches based on location filter
+                    $locationBatches = $locationId
+                        ? $batch->locationBatches->where('location_id', $locationId)
+                        : $batch->locationBatches;
+
+                    return [
                         'id' => $batch->id,
                         'batch_no' => $batch->batch_no,
                         'unit_cost' => $batch->unit_cost,
@@ -1961,9 +2173,9 @@ return $this->saveOrUpdateImeiNewFormat($request);
                         'max_retail_price' => $batch->max_retail_price,
                         'expiry_date' => $batch->expiry_date,
                         'total_batch_quantity' => $allowDecimal
-                            ? round($batch->locationBatches->sum(fn($lb) => (float)$lb->qty), 2)
-                            : (int)$batch->locationBatches->sum(fn($lb) => (int)$lb->qty),
-                        'location_batches' => $batch->locationBatches->map(function ($lb) use ($allowDecimal) {
+                            ? round($locationBatches->sum(fn($lb) => (float)$lb->qty), 2)
+                            : (int)$locationBatches->sum(fn($lb) => (int)$lb->qty),
+                        'location_batches' => $locationBatches->map(function ($lb) use ($allowDecimal) {
                             return [
                                 'batch_id' => $lb->batch_id,
                                 'location_id' => $lb->location_id,
@@ -1971,17 +2183,41 @@ return $this->saveOrUpdateImeiNewFormat($request);
                                 'quantity' => $allowDecimal ? round((float)$lb->qty, 2) : (int)$lb->qty
                             ];
                         })
-                    ]];
+                    ];
                 }),
-                'locations' => $product->locations->map(fn($loc) => [
-                    'location_id' => $loc->id,
-                    'location_name' => $loc->name
-                ]),
+                'locations' => $locationId ?
+                    // If location filter is applied, show the filtered location data
+                    $filteredBatches->flatMap(function($batch) {
+                        return $batch->locationBatches->map(function($lb) {
+                            return [
+                                'location_id' => $lb->location_id,
+                                'location_name' => optional($lb->location)->name ?? 'N/A',
+                                'quantity' => $lb->qty
+                            ];
+                        });
+                    })->unique('location_id')->values()->toArray() :
+                    // If no location filter, show all locations where this product exists
+                    $filteredBatches->flatMap(function($batch) {
+                        return $batch->locationBatches->map(function($lb) {
+                            return [
+                                'location_id' => $lb->location_id,
+                                'location_name' => optional($lb->location)->name ?? 'N/A',
+                                'quantity' => $lb->qty
+                            ];
+                        });
+                    })->groupBy('location_id')->map(function($locBatches, $locId) {
+                        $firstLoc = $locBatches->first();
+                        return [
+                            'location_id' => $locId,
+                            'location_name' => $firstLoc['location_name'],
+                            'quantity' => $locBatches->sum('quantity')
+                        ];
+                    })->values()->toArray(),
                 'has_batches' => $filteredBatches->isNotEmpty(),
                 'discounts' => $activeDiscounts,
                 'imei_numbers' => $productImeis
             ];
-        });
+        })->filter()->values(); // Remove null values and re-index
 
         return response()->json([
             'status' => 200,
@@ -2126,49 +2362,75 @@ return $this->saveOrUpdateImeiNewFormat($request);
         return view('product.import_product');
     }
 
-    public function toggleStatus(int $id)
-    {
-        try {
-            $product = Product::find($id);
-
-            if (!$product) {
-                return response()->json([
-                    'status' => 404,
-                    'message' => "Product not found!"
-                ]);
-            }
-
-            // Toggle the is_active status
-            $product->is_active = !$product->is_active;
-            $product->save();
-
-            $statusText = $product->is_active ? 'activated' : 'deactivated';
-
-            return response()->json([
-                'status' => 200,
-                'message' => "Product has been {$statusText} successfully!",
-                'is_active' => $product->is_active
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => 500,
-                'message' => 'Failed to update product status: ' . $e->getMessage()
-            ]);
-        }
-    }
-
 
     public function destroy(int $id)
     {
         try {
             $result = DB::transaction(function () use ($id) {
-                $product = Product::with('batches')->find($i               if (!$product) {
+                $product = Product::with([
+                    'batches.salesProducts',
+                    'batches.purchaseProducts',
+                    'batches.purchaseReturns',
+                    'batches.saleReturns',
+                    'batches.stockAdjustments',
+                    'batches.stockTransfers'
+                ])->find($id);
+
+                if (!$product) {
                     return [
                         'status' => 404,
                         'message' => "No Such Product Found!"
                     ];
                 }
+
+                // Check if product is used in any important tables
+                $hasTransactions = false;
+                $usedInTables = [];
+
+                if ($product->batches->isNotEmpty()) {
+                    foreach ($product->batches as $batch) {
+                        if ($batch->salesProducts->isNotEmpty()) {
+                            $hasTransactions = true;
+                            $usedInTables[] = 'Sales';
+                        }
+                        if ($batch->purchaseProducts->isNotEmpty()) {
+                            $hasTransactions = true;
+                            $usedInTables[] = 'Purchases';
+                        }
+                        if ($batch->purchaseReturns->isNotEmpty()) {
+                            $hasTransactions = true;
+                            $usedInTables[] = 'Purchase Returns';
+                        }
+                        if ($batch->saleReturns->isNotEmpty()) {
+                            $hasTransactions = true;
+                            $usedInTables[] = 'Sale Returns';
+                        }
+                        if ($batch->stockAdjustments->isNotEmpty()) {
+                            $hasTransactions = true;
+                            $usedInTables[] = 'Stock Adjustments';
+                        }
+                        if ($batch->stockTransfers->isNotEmpty()) {
+                            $hasTransactions = true;
+                            $usedInTables[] = 'Stock Transfers';
+                        }
+                    }
+                }
+
+                // If product is used in any transaction, prevent deletion
+                if ($hasTransactions) {
+                    $usedInTables = array_unique($usedInTables);
+                    return [
+                        'status' => 403,
+                        'can_delete' => false,
+                        'message' => "Cannot delete this product! It is being used in: " . implode(', ', $usedInTables) . ". Please deactivate the product instead.",
+                        'used_in' => $usedInTables,
+                        'product_status' => $product->is_active ? 'active' : 'inactive'
+                    ];
+                }
+
+                // Product is safe to delete - only exists in product_locations
+                // Delete location_product pivot records
+                DB::table('location_product')->where('product_id', $id)->delete();
 
                 // Delete all related batches and their location batches
                 if ($product->batches->isNotEmpty()) {
@@ -2181,26 +2443,39 @@ return $this->saveOrUpdateImeiNewFormat($request);
                     Batch::whereIn('id', $batchIds)->delete();
                 }
 
-                // Delete the product
+                // Delete IMEI numbers if any
+                DB::table('imei_numbers')->where('product_id', $id)->delete();
+
+                // Delete discount associations
+                DB::table('discount_product')->where('product_id', $id)->delete();
+
+                // Finally delete the product
                 $product->delete();
 
                 return [
                     'status' => 200,
-                    'message' => "Product and all associated batches deleted successfully!"
+                    'can_delete' => true,
+                    'message' => "Product deleted successfully!"
                 ];
             });
 
-            return response()->json($result);
+            return response()->json($result, $result['status']);
         } catch (\Exception $e) {
+            Log::error('Product deletion error: ' . $e->getMessage(), [
+                'product_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
                 'status' => 500,
                 'message' => "Error deleting product: " . $e->getMessage()
-            ]);
+            ], 500);
         }
     }
 
     public function exportBlankTemplate()
-    {l::download(new ExportProductTemplate(true), 'Import_Product_Template.xlsx');
+    {
+        return Excel::download(new ExportProductTemplate(true), 'Import_Product_Template.xlsx');
     }
 
     public function exportProducts()
@@ -2230,7 +2505,8 @@ return $this->saveOrUpdateImeiNewFormat($request);
         // Check user access to the selected location
         $userLocationIds = $user->locations->pluck('id')->toArray();
         if (!in_array($selectedLocationId, $userLocationIds)) {
-            return             'status' => 403,
+            return response()->json([
+                'status' => 403,
                 'message' => 'You do not have access to the selected location.'
             ]);
         }
@@ -2244,75 +2520,30 @@ return $this->saveOrUpdateImeiNewFormat($request);
 
             // Check if file upload was successful
             if ($file->isValid()) {
-                try {
-                    // Create an instance of the import class
-                    $import = new importProduct();
+                // Create an instance of the import class
+                $import = new importProduct();
 
-                    // Process the Excel file
-                    Excel::import($import, $file);
+                // Process the Excel file
+                Excel::import($import, $file);
 
-                    // Get validation errors and data from the import process
-                    $validationErrors = $import->getValidationErrors();
-                    $records = $import->getData();
-                    $successCount = count($records);
-                    $errorCount = count($validationErrors);
+                // Get validation errors from the import process
+                $validationErrors = $import->getValidationErrors();
+                $records = $import->getData();
 
-                    // If there are validation errors, return them in the response
-                    if (!empty($validationErrors)) {
-                        return response()->json([
-                            'status' => 401, // Changed to match frontend expectation
-                            'message' => "Import failed due to validation errors. Please fix the following issues and try again.",
-                            'validation_errors' => $validationErrors,
-                            'success_count' => $successCount,
-                            'error_count' => $errorCount,
-                            'has_errors' => true
-                        ]);
-                    }
-
-                    // If no validation errors and we reach here, assume success
-                    // The products are being created even if $records is empty due to how the import works
-                    if ($successCount === 0) {
-                        // Count actual products created in the last few seconds as a fallback
-                        $recentProductCount = \App\Models\Product::where('created_at', '>=', now()->subMinutes(1))->count();
-
-                        if ($recentProductCount > 0) {
-                            // Products were actually created, so it's a success
-                            return response()->json([
-                                'status' => 200,
-                                'data' => [],
-                                'message' => "Import successful! {$recentProductCount} products imported successfully.",
-                                'success_count' => $recentProductCount,
-                                'error_count' => 0,
-                                'has_errors' => false
-                            ]);
-                        } else {
-                            return response()->json([
-                                'status' => 401,
-                                'message' => "No products were imported. Please check your Excel file format and ensure it contains valid data.",
-                                'validation_errors' => ['No valid rows found in the Excel file. Please check that your file has data and follows the correct format.'],
-                                'success_count' => 0,
-                                'error_count' => 1,
-                                'has_errors' => true
-                            ]);
-                        }
-                    }
-
+                // If there are validation errors, return them in the response
+                if (!empty($validationErrors)) {
                     return response()->json([
-                        'status' => 200,
-                        'data' => $records,
-                        'message' => "Import successful! {$successCount} products imported successfully.",
-                        'success_count' => $successCount,
-                        'error_count' => 0,
-                        'has_errors' => false
-                    ]);
+                        'status' => 401,
+                        'validation_errors' => $validationErrors, // Return specific error messages
 
-                } catch (\Exception $e) {
-                    Log::error('Product import failed: ' . $e->getMessage());
-                    return response()->json([
-                        'status' => 500,
-                        'message' => "Import failed due to an unexpected error: " . $e->getMessage()
                     ]);
                 }
+
+                return response()->json([
+                    'status' => 200,
+                    'data' => $records,
+                    'message' => "Import Products Excel file uploaded successfully!"
+                ]);
             } else {
                 return response()->json([
                     'status' => 500,
@@ -2328,6 +2559,39 @@ return $this->saveOrUpdateImeiNewFormat($request);
     }
 
 
+    public function getProductLocations(Request $request)
+    {
+        $productIds = $request->input('product_ids', []);
+
+        if (empty($productIds)) {
+            return response()->json(['status' => 'error', 'message' => 'No products selected.'], 400);
+        }
+
+        try {
+            $products = Product::with(['locations' => function($query) {
+                $query->select('locations.id', 'locations.name');
+            }])
+            ->whereIn('id', $productIds)
+            ->get(['id', 'product_name'])
+            ->map(function($product) {
+                return [
+                    'id' => $product->id,
+                    'name' => $product->product_name,
+                    'locations' => $product->locations->map(function($location) {
+                        return [
+                            'id' => $location->id,
+                            'name' => $location->name
+                        ];
+                    })
+                ];
+            });
+
+            return response()->json(['status' => 'success', 'data' => $products]);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
     public function saveChanges(Request $request)
     {
         $productIds = $request->input('product_ids', []);
@@ -2342,63 +2606,74 @@ return $this->saveOrUpdateImeiNewFormat($request);
 
         try {
             foreach ($productIds as $productId) {
-                // 1. Existing locations for the product
-                $existingLocations = DB::table('location_product')
+                // 1. Get existing locations with their current stock
+                $existingLocationData = DB::table('location_product')
                     ->where('product_id', $productId)
-                    ->pluck('location_id')
-                    ->toArray();
+                    ->get()
+                    ->keyBy('location_id');
 
-                // 2. Remove unselected locations from location_product
-                DB::table('location_product')
-                    ->where('product_id', $productId)
-                    ->whereNotIn('location_id', $locationIds)
-                    ->delete();
+                // 2. Only remove locations that have zero stock and are not in the new selection
+                $locationsToRemove = [];
+                foreach ($existingLocationData as $locationId => $locationData) {
+                    if (!in_array($locationId, $locationIds) && $locationData->qty == 0) {
+                        $locationsToRemove[] = $locationId;
+                    }
+                }
 
-                // 3. Insert or update selected locations in location_product
+                // Remove only zero-stock locations that are not selected
+                if (!empty($locationsToRemove)) {
+                    DB::table('location_product')
+                        ->where('product_id', $productId)
+                        ->whereIn('location_id', $locationsToRemove)
+                        ->delete();
+                }
+
+                // 3. Add new locations (only if they don't already exist)
                 foreach ($locationIds as $locationId) {
-                    DB::table('location_product')->updateOrInsert(
-                        [
+                    if (!isset($existingLocationData[$locationId])) {
+                        // This is a new location for this product
+                        DB::table('location_product')->insert([
                             'product_id' => $productId,
                             'location_id' => $locationId,
-                        ],
-                        [
                             'qty' => 0,
                             'updated_at' => $now,
                             'created_at' => $now,
-                        ]
-                    );
+                        ]);
+                    }
+                    // If location already exists, keep it unchanged (preserve stock)
                 }
 
-                // 4. Get all batch IDs related to the product
+                // 4. Handle batches for new locations only
                 $batchIds = DB::table('batches')
                     ->where('product_id', $productId)
                     ->pluck('id')
                     ->toArray();
 
                 foreach ($batchIds as $batchId) {
-                    // 5. Fetch existing location_batches records for the batch
+                    // Get existing batch locations
                     $existingBatchLocations = DB::table('location_batches')
                         ->where('batch_id', $batchId)
-                        ->pluck('location_id', 'id')
+                        ->pluck('location_id')
                         ->toArray();
 
-                    // 6. Update only the location_id in location_batches (Qty should not change)
-                    foreach ($existingBatchLocations as $locationBatchId => $existingLocationId) {
-                        if (!in_array($existingLocationId, $locationIds)) {
-                            // Change location_id only if it's not in the newly selected locations
-                            DB::table('location_batches')
-                                ->where('id', $locationBatchId)
-                                ->update([
-                                    'location_id' => reset($locationIds), // Assign the first selected location
-                                    'updated_at' => $now,
-                                ]);
+                    // Add batch entries for new locations only
+                    foreach ($locationIds as $locationId) {
+                        if (!in_array($locationId, $existingBatchLocations) && !isset($existingLocationData[$locationId])) {
+                            // This is a completely new location for this product
+                            DB::table('location_batches')->insert([
+                                'batch_id' => $batchId,
+                                'location_id' => $locationId,
+                                'qty' => 0,
+                                'created_at' => $now,
+                                'updated_at' => $now,
+                            ]);
                         }
                     }
                 }
             }
 
             DB::commit();
-            return response()->json(['status' => 'success', 'message' => 'Changes saved successfully.']);
+            return response()->json(['status' => 'success', 'message' => 'Locations added successfully. Existing location stock preserved.']);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
@@ -2452,153 +2727,203 @@ return $this->saveOrUpdateImeiNewFormat($request);
     }
 
     /**
-     * Quick Add Product (for POS when product not found)
+     * Toggle product active/inactive status
      */
-    public function quickAdd(Request $request)
+    public function toggleStatus(int $id)
     {
-        t      // Validate request
-            $request->validate([
-                'sku' => 'required|string|unique:products,sku',
-                'name' => 'required|string|max:255',
-                'price' => 'required|numeric|min:0',
-                'location_id' => 'required|exists:locations,id',
-                'category' => 'nullable|string',
-                'stock_type' => 'nullable|in:unlimited,limited', // Optional: unlimited (default) or limited
-                'quantity' => 'nullable|numeric|min:1' // Only required if stock_type is limited
-            ]);
+        try {
+            $product = Product::find($id);
 
-            DB::beginTransaction();
-
-             Get or create a default unit (using correct field names from migration)
-            $defaultUnit = Unit::firstOrCreate(
-                ['name' => 'Pc(s)'],
-                [
-                    'short_name' => 'Pc',
-                    'allow_decimal' => false      ]
-            );
-
-            // Get or create a default brand (using correct field name from migration)
-            $defaultBrand = Brand::firstOrCreate(
-                ['name' => 'Quigration uses 'name' not 'brand_name'
-                ['description' => 'Auto-created brand for quick add products']
-            );
-
-            // Get or create category (using correct field name from migration)
-            $categoryId = null;
-            if ($request->category && $request->category !== '') {
-                $category = MainCategory::firstOrCreate(
-                    ['mainCategoryName' => ucfirst($request->category)],  // Migration uses 'mainCategoryName'
-                    ['description' => 'Auto-created category for quick add products']
-                );
-                $categoryId = $category->id;
-            } else {
-                // Create default category if none provided
-                $defaultCategory = MainCategory::firstOrCreate(
-                    ['mainCategoryName' => 'General'],  // Migration uses 'mainCategoryName'
-                    ['description' => 'Default category for quick add products']
-                );
-                $categoryId = $defaultCategory->id;
-            }
-
-            // Determine stock type - default to unlimited (0), but allow override
-            $stockAlert = $request->input('stock_type', 'unlimited') === 'limited' ? 1 : 0;
-
-            // Create the product with ALL required fields - set all prices to the entered price
-            $enteredPrice = (float) $request->price;
-
-            $product = Product::create([
-                'product_name' => $request->name,
-                'sku' => $request->sku,
-                'unit_id' => $defaultUnit->id,
-                'brand_id' => $defaultBrand->id,  // Required field
-                'main_category_id' => $categoryId,  // Required field
-                'stock_alert' => $stockAlert, // 0 = Unlimited, 1 = Limited stock
-                'original_price' => $enteredPrice,  // Required field
-                'retail_price' => $enteredPrice,    // For retailer customers
-                'whole_sale_price' => $enteredPrice,  // For wholesaler customers
-                'special_price' => $enteredPrice,   // Alternative price option
-                'max_retail_price' => $enteredPrice, // Maximum retail price
-                'is_active' =    ]);
-
-            $batch = null; // Initialize batch variable
-
-            // Only create batch and location batch for LIMITED stock products (stock_alert = 1)
-            if ($stockAlert === 1) {
-                $quantity = $request->input('quantity', 100);
-
-                // Create a batch for this product with ALL required fields - all prices same as entered
-                $batch = Batch::create([
-                    'batch_no' => 'QA-' . time(), // Quick Add batch number
-                    'product_id' => $product->id,
-                    'qty' => $quantity, // Default quantity for limited stock
-                    'unit_cost' => $enteredPrice, // Required field
-                    'wholesale_price' => $enteredPrice, // Required field for wholesaler pricing
-                    'special_price' => $enteredPrice, // Required field for special pricing
-                    'retail_price' => $enteredPrice, // Required field for retailer pric             'max_retail_price' => $enteredPrice // Required field for maximum pricing
-                ]);
-
-                // Create location batch for limited stock
-                $lo
-cationBatch = LocationBatch::create([
-                    'batch_id' => $batch->id,
-                    'location_id' => $request->location_id,
-                    'qty' => $quantity // Actual quantity for limited stock
-                ]);
-
-                // Create stock history record for opening stock
-                StockHistory::create([
-                    'loc_batch_id' => $locationBatch->id,
-                    'quantity' => $quantity,
-                    'stock_type' => StockHistory::STOCK_TYPE_OPENING
-                ]);
-
-                // Attach product to location with actual quantity
-                $product->locations()->attach($request->location_id, [
-                    'qty' => $quantity // Set actual quantity for this location
-                ]);
-            } else {
-                // For UNLIMITED stock products (stock_alert = 0) - Only attach to location, no batches
-                $product->locations()->attach($request->location_id, [
-                    'qty' => 0 // 0 indicates unlimited stock in location_product pivot
+            if (!$product) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => "Product not found!"
                 ]);
             }
 
-            DB::commit();
+            // Toggle the is_active status
+            $product->is_active = !$product->is_active;
+            $product->save();
 
-            // Return the created product with batch info and relationships
-            $productWithBatch = Product::with(['unit', 'mainCategory', 'batches.locationBatches'])
-                ->find($product->id);
-
-            // Add batch information to product for frontend pricing
-            if ($batch) {
-                $productWithBatch->batch_id = $batch->id;
-                $productWithBatch->batch_no = $batch->batch_no;
-                $productWithBatch->stock_quantity = $request->input('quantity', 100);
-            }
+            $statusText = $product->is_active ? 'activated' : 'deactivated';
 
             return response()->json([
-                'success' => true,
-                'message' => 'Product created successfully',
-                'product' => $productWithBatch,
-                'batch' => $batch // Include batch data for frontend
+                'status' => 200,
+                'message' => "Product has been {$statusText} successfully!",
+                'is_active' => $product->is_active
             ]);
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            DB::rollback();
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $e->errors()
-            ], 422);
 
         } catch (\Exception $e) {
-            DB::rollback();
-            Log::error('Quick Add Product Error: ' . $e->getMessage());
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to update product status: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Get all batches for a specific product with their prices
+     */
+    public function getProductBatches($productId)
+    {
+        try {
+            $product = Product::with(['unit:id,name,short_name,allow_decimal'])->findOrFail($productId);
+
+            $batches = Batch::where('product_id', $productId)
+                ->with(['locationBatches.location:id,name'])
+                ->select([
+                    'id',
+                    'batch_no',
+                    'product_id',
+                    'unit_cost as original_price',
+                    'wholesale_price',
+                    'special_price',
+                    'retail_price',
+                    'max_retail_price',
+                    'expiry_date',
+                    'qty',
+                    'created_at'
+                ])
+                ->orderBy('created_at', 'desc')
+                ->get();
 
             return response()->json([
-                'success' => false,
-                'message' => 'Failed to create product: ' . $e->getMessage()
+                'status' => 200,
+                'product' => [
+                    'id' => $product->id,
+                    'product_name' => $product->product_name,
+                    'sku' => $product->sku,
+                    'unit' => $product->unit
+                ],
+                'batches' => $batches->map(function($batch) use ($product) {
+                    // Check if the product unit allows decimals
+                    $allowDecimal = $product->unit && $product->unit->allow_decimal;
+
+                    // Calculate total stock from location batches for consistency
+                    $totalLocationStock = $batch->locationBatches->sum('qty');
+
+                    // Use location-based stock total as the accurate stock count
+                    $actualQty = $totalLocationStock > 0 ? $totalLocationStock : $batch->qty;
+
+                    return [
+                        'id' => $batch->id,
+                        'batch_no' => $batch->batch_no,
+                        'original_price' => $batch->original_price,
+                        'wholesale_price' => $batch->wholesale_price,
+                        'special_price' => $batch->special_price,
+                        'retail_price' => $batch->retail_price,
+                        'max_retail_price' => $batch->max_retail_price,
+                        'expiry_date' => $batch->expiry_date,
+                        'qty' => $allowDecimal ? round((float)$actualQty, 2) : (int)$actualQty,
+                        'locations' => $batch->locationBatches->map(function($lb) use ($allowDecimal) {
+                            return [
+                                'id' => $lb->location->id,
+                                'name' => $lb->location->name,
+                                'qty' => $allowDecimal ? round((float)$lb->qty, 2) : (int)$lb->qty
+                            ];
+                        })
+                    ];
+                })
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching product batches: ' . $e->getMessage());
+            return response()->json([
+                'status' => 500,
+                'message' => 'Error fetching product batches'
             ], 500);
+        }
+    }
+
+    /**
+     * Update batch prices (excluding original_price/cost price)
+     */
+    public function updateBatchPrices(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'batches' => 'required|array|min:1',
+            'batches.*.id' => 'required|exists:batches,id',
+            'batches.*.wholesale_price' => 'required|numeric|min:0',
+            'batches.*.special_price' => 'required|numeric|min:0',
+            'batches.*.retail_price' => 'required|numeric|min:0',
+            'batches.*.max_retail_price' => 'required|numeric|min:0',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 400,
+                'errors' => $validator->messages()
+            ]);
+        }
+
+        try {
+            DB::transaction(function () use ($request) {
+                foreach ($request->batches as $batchData) {
+                    $batch = Batch::findOrFail($batchData['id']);
+
+                    // Update only the editable prices (not original_price/unit_cost)
+                    $batch->update([
+                        'wholesale_price' => $batchData['wholesale_price'],
+                        'special_price' => $batchData['special_price'],
+                        'retail_price' => $batchData['retail_price'],
+                        'max_retail_price' => $batchData['max_retail_price'],
+                    ]);
+                }
+            });
+
+            // Clear product-related caches after batch prices update
+            $this->clearProductCaches();
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Batch prices updated successfully!',
+                'cache_cleared' => true
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error updating batch prices: ' . $e->getMessage());
+            return response()->json([
+                'status' => 500,
+                'message' => 'Error updating batch prices'
+            ], 500);
+        }
+    }
+
+    /**
+     * Clear all product-related caches
+     */
+    private function clearProductCaches()
+    {
+        try {
+            // Clear specific cache patterns
+            $patterns = [
+                'product_dropdown_data_user_*',
+                'product_stocks_*',
+                'autocomplete_stock_*'
+            ];
+
+            // Get all current users to clear their specific caches
+            $userIds = DB::table('users')->pluck('id');
+
+            foreach ($userIds as $userId) {
+                Cache::forget("product_dropdown_data_user_{$userId}");
+            }
+
+            // Clear other product-related caches
+            Cache::forget('all_products');
+            Cache::forget('all_categories');
+            Cache::forget('all_brands');
+
+            // If using cache tags (Redis, Memcached)
+            try {
+                if (method_exists(Cache::getStore(), 'tags')) {
+                    Cache::tags(['products', 'batches', 'stocks'])->flush();
+                }
+            } catch (\Exception $e) {
+                // Ignore if tags are not supported
+            }
+
+            Log::info('Product caches cleared after batch price update');
+        } catch (\Exception $e) {
+            Log::warning('Could not clear product caches: ' . $e->getMessage());
         }
     }
 }

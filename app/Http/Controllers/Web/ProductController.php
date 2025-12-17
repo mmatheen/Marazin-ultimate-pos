@@ -1462,16 +1462,36 @@ class ProductController extends Controller
             $startTime = microtime(true);
             $now = now();
 
-            // DataTable params with validation (legacy support)
-            $perPageDataTable = min((int)$request->input('length', 50), 100); // Limit max per page for hosting
+            // DataTable params (legacy support)
+            $lengthParam = $request->input('length', 100);
             $startDataTable = max(0, (int)$request->input('start', 0));
-            $pageDataTable = intval($startDataTable / $perPageDataTable) + 1;
+
+            // Handle "All" option (-1) from DataTables
+            $isAllRecords = ($lengthParam == -1 || $lengthParam === '-1');
+
+            if ($isAllRecords) {
+                // Increase memory limit for large datasets
+                ini_set('memory_limit', '512M');
+                set_time_limit(120); // 2 minutes max execution time
+                Log::info('Loading ALL product records');
+            }
+
+            // Calculate pagination parameters
+            if (!$isAllRecords) {
+                $perPageDataTable = min((int)$lengthParam, 100); // Limit max per page for hosting
+                $pageDataTable = $perPageDataTable > 0 ? intval($startDataTable / $perPageDataTable) + 1 : 1;
+            } else {
+                // For "All" records, we'll use get() instead of paginate()
+                $perPageDataTable = 100; // Dummy value, won't be used
+                $pageDataTable = 1;
+            }
 
             // Standard pagination params (for POS)
             $perPageStandard = min((int)$request->input('per_page', 24), 100);
             $pageStandard = max(1, (int)$request->input('page', 1));
 
             // Use standard pagination if 'per_page' or 'page' parameters are provided
+            // Otherwise use DataTable params
             $perPage = $request->has('per_page') || $request->has('page') ? $perPageStandard : $perPageDataTable;
             $page = $request->has('per_page') || $request->has('page') ? $pageStandard : $pageDataTable;
 
@@ -1685,10 +1705,31 @@ class ProductController extends Controller
             $totalCount = Product::count();
             Log::info('Total products count: ' . $totalCount);
 
-            // Get filtered paginated products with error handling
+            // Handle "All" records differently to avoid pagination issues
             Log::info('Memory before pagination: ' . memory_get_usage(true) / 1024 / 1024 . 'MB');
             try {
-                $products = $query->paginate($perPage, ['*'], 'page', $page);
+                if ($isAllRecords) {
+                    Log::info('Fetching ALL products without pagination');
+                    // Get all records without pagination
+                    $productsCollection = $query->get();
+                    $filteredCount = $productsCollection->count();
+                    $products = $productsCollection;
+
+                    Log::info("Loaded {$filteredCount} products without pagination");
+
+                    // Create a mock paginator object for compatibility
+                    $paginatorData = new \stdClass();
+                    $paginatorData->lastPage = 1;
+                    $paginatorData->firstItem = $filteredCount > 0 ? 1 : null;
+                    $paginatorData->lastItem = $filteredCount;
+                    $paginatorData->total = $filteredCount;
+                } else {
+                    Log::info("Fetching products with pagination: page={$page}, perPage={$perPage}");
+                    // Get filtered paginated products
+                    $products = $query->paginate($perPage, ['*'], 'page', $page);
+                    $filteredCount = $products->total();
+                    $paginatorData = $products;
+                }
             } catch (\Exception $e) {
                 Log::error('Error during pagination: ' . $e->getMessage());
                 throw new \Exception('Database query failed: ' . $e->getMessage());
@@ -1696,7 +1737,9 @@ class ProductController extends Controller
             Log::info('Memory after pagination: ' . memory_get_usage(true) / 1024 / 1024 . 'MB');
 
             // Get filtered count for pagination
-            $filteredCount = $products->total();
+            if (!$isAllRecords) {
+                $filteredCount = $products->total();
+            }
             Log::info('Filtered count: ' . $filteredCount);
 
             // Get product IDs for batch and IMEI filtering
@@ -1880,11 +1923,11 @@ class ProductController extends Controller
                 'status' => 200,
                 'pagination' => [
                     'total' => $filteredCount,
-                    'per_page' => $perPage,
+                    'per_page' => $isAllRecords ? -1 : $perPage,
                     'current_page' => $page,
-                    'last_page' => $products->lastPage(),
-                    'from' => $products->firstItem(),
-                    'to' => $products->lastItem(),
+                    'last_page' => $paginatorData->lastPage ?? 1,
+                    'from' => $paginatorData->firstItem ?? ($filteredCount > 0 ? 1 : null),
+                    'to' => $paginatorData->lastItem ?? $filteredCount,
                 ]
             ]);
         } catch (\Exception $e) {
