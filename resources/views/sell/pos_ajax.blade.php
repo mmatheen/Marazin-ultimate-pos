@@ -465,7 +465,7 @@
             categoryBtn = getCachedElement('category-btn');
             allProductsBtn = getCachedElement('allProductsBtn');
             subcategoryBackBtn = getCachedElement('subcategoryBackBtn');
-            
+
             // Log which elements were successfully found
             console.log('DOM elements initialization:', {
                 posProduct: posProduct ? 'Found ✓' : 'NOT FOUND ✗',
@@ -2673,20 +2673,20 @@
             currentProductsPage = 1;
             hasMoreProducts = true;
             allProducts = [];
-            
+
             // Ensure posProduct is initialized
             if (!posProduct) {
                 posProduct = document.getElementById('posProduct');
                 console.log('⚠️ posProduct re-initialized in handleLocationChange');
             }
-            
+
             if (posProduct) {
                 posProduct.innerHTML = '';
                 console.log(`📍 Location changed to: ${selectedLocationId}`);
             } else {
                 console.error('❌ posProduct element not found in handleLocationChange!');
             }
-            
+
             if (selectedLocationId) {
                 console.log(`🔄 Fetching products for location: ${selectedLocationId}`);
                 fetchPaginatedProducts(true);
@@ -2903,7 +2903,7 @@
                 }
             }
 
-            const url = `/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=${perPage}`;
+            const url = `/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=${perPage}&with_stock=1`;
 
             // Add CSRF token and headers to prevent 419 errors
             const fetchOptions = {
@@ -3048,8 +3048,10 @@
                         }
                     }
 
+                    // Check if there are more pages to load
                     if (data.data.length === 0 || data.data.length < perPage) {
                         hasMoreProducts = false;
+                        console.log('📍 Reached last page of products');
                     } else {
                         hasMoreProducts = true;
                         currentProductsPage++;
@@ -3160,7 +3162,7 @@
             // The API already filters by location, we just display what we receive
             const filteredProducts = products.filter(stock => {
                 const product = stock.product;
-                
+
                 // Check for unlimited stock first
                 if (product.stock_alert === 0) {
                     console.log(`✓ ${product.product_name}: UNLIMITED stock`);
@@ -3170,9 +3172,9 @@
                 // Get the total_stock directly from the response
                 const stockLevel = parseFloat(stock.total_stock) || 0;
                 const hasStock = stockLevel > 0;
-                
+
                 console.log(`${hasStock ? '✓' : '✗'} ${product.product_name}: stock=${stockLevel}`);
-                
+
                 return hasStock;
             });
 

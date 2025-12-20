@@ -1482,6 +1482,7 @@ class ProductController extends Controller
             $filterBrand = $request->input('brand_id');
             $locationId = $request->input('location_id'); // Add location filter
             $stockStatus = $request->input('stock_status'); // Add stock status filter
+            $withStock = $request->input('with_stock'); // Add with_stock filter for POS
 
             // Ensure location_id is properly typed (convert to integer if it's a numeric string)
             if ($locationId && is_numeric($locationId)) {
@@ -1597,6 +1598,23 @@ class ProductController extends Controller
             }
             if (!empty($filterBrand)) {
                 $query->where('brand_id', $filterBrand);
+            }
+
+            // Apply with_stock filter (for POS - only show products with stock > 0)
+            if ($withStock == '1' || $withStock === true) {
+                $query->where(function ($q) use ($locationId, $userLocationIds) {
+                    // Include products with unlimited stock (stock_alert = 0)
+                    $q->where('stock_alert', 0)
+                      // OR products with actual stock > 0 in selected location
+                      ->orWhereHas('batches.locationBatches', function ($bq) use ($locationId, $userLocationIds) {
+                          $bq->where('qty', '>', 0);
+                          if ($locationId) {
+                              $bq->where('location_id', $locationId);
+                          } elseif (!empty($userLocationIds)) {
+                              $bq->whereIn('location_id', $userLocationIds);
+                          }
+                      });
+                });
             }
 
             // Apply stock status filter
