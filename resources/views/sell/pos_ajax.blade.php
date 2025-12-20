@@ -3199,18 +3199,11 @@
                     return;
                 }
 
-                let locationQty = 0;
+                // FIXED: Use total_stock from backend response directly
+                // Backend already calculates correct stock for the location
+                // No need to recalculate here - just use what backend sends
+                console.log(`Product: ${product.product_name}, Stock: ${stock.total_stock}`);
 
-                // Use the existing normalizeBatches function to handle both array and object formats
-                const batches = normalizeBatches(stock);
-
-                batches.forEach(batch => {
-                    batch.location_batches.forEach(lb => {
-                        if (lb.location_id == selectedLocationId) locationQty +=
-                            parseFloat(lb.quantity);
-                    });
-                });
-                stock.total_stock = product.stock_alert === 0 ? 0 : locationQty;
                 // Show unit name (e.g., "Pc(s)", "kg", etc.) based on product.unit
                 const unitName = product.unit && product.unit.name ? product.unit.name : 'Pc(s)';
                 // Format quantity: decimal if allowed, else integer
