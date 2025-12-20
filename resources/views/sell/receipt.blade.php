@@ -164,8 +164,11 @@
                 <tbody>
                     <tr>
                         <td>
-                            <div style="font-size: 12px; color: #000; margin-bottom: 4px;">{{ $customer->first_name }}
+                            <div style="font-size: 12px; color: #000; margin-bottom: 2px;">{{ $customer->first_name }}
                                 {{ $customer->last_name }}</div>
+                            @if($customer->mobile_no)
+                                <div style="font-size: 10px; color: #000; margin-bottom: 2px;">{{ $customer->mobile_no }}</div>
+                            @endif
                             <div style="font-size: 10px; color: #000;">
                                 [{{ date('d-m-Y ', strtotime($sale->sales_date)) }}]
                                 {{ \Carbon\Carbon::now('Asia/Colombo')->format('h:i A') }}
@@ -259,19 +262,19 @@
                 <tr>
                     <td valign="top" style="padding: 1px 2px !important;">&nbsp;</td>
                     <td valign="top" style="padding: 1px 2px !important;">
-                        <span style="text-decoration: line-through">
+                        <span style="text-decoration: line-through; font-size: 11px;">
                             {{ number_format($item['product']->product->max_retail_price, 0, '.', ',') }}
                         </span>
-                        ({{ number_format($item['product']->product->max_retail_price - $item['product']->price, 0, '.', ',') }})
+                        <span style="font-size: 11px;">({{ number_format($item['product']->product->max_retail_price - $item['product']->price, 0, '.', ',') }})</span>
                     </td>
                     <td align="left" valign="top" style="padding: 1px 2px !important;">
-                        <span>{{ number_format($item['product']->price, 0, '.', ',') }}</span>
+                        <span style="font-size: 12px; font-weight: 500;">{{ number_format($item['product']->price, 0, '.', ',') }}</span>
                     </td>
                     <td align="center" valign="top" style="padding: 1px 2px !important; white-space: nowrap;">
-                        <span style="font-size: 8px;">&times;</span> <span style="font-size: 11px; font-weight: 500;">{{ $item['quantity'] }}</span> <small style="font-size: 7px;">PCS</small>
+                        <span style="font-size: 9px;">&times;</span> <span style="font-size: 12px; font-weight: 500;">{{ $item['quantity'] }}</span> <small style="font-size: 8px;">PCS</small>
                     </td>
                     <td valign="top" align="right" style="padding: 1px 2px !important;">
-                        <span style="font-weight: bold;">
+                        <span style="font-weight: bold; font-size: 13px;">
                             {{ number_format($item['amount'], 0, '.', ',') }}
                         </span>
                     </td>
@@ -295,7 +298,7 @@
                 <tbody>
                     <tr>
                         <td align="right"><strong>SUBTOTAL</strong></td>
-                        <td width="80" align="right" style="font-weight: bold;">
+                        <td width="80" align="right" style="font-weight: bold; font-size: 13px;">
                             {{ number_format($sale->subtotal, 0, '.', ',') }}</td>
                     </tr>
                     @if ($sale->discount_amount > 0)
@@ -309,7 +312,7 @@
                                     @endif
                                 </strong>
                             </td>
-                            <td width="80" align="right">
+                            <td width="80" align="right" style="font-size: 13px;">
                                 @if ($sale->discount_type == 'percentage')
                                     -{{ number_format(($sale->subtotal * $sale->discount_amount) / 100, 0, '.', ',') }}
                                 @else
@@ -321,14 +324,14 @@
                     @if ($sale->shipping_charges > 0)
                         <tr>
                             <td align="right"><strong>SHIPPING</strong></td>
-                            <td width="80" align="right">
+                            <td width="80" align="right" style="font-size: 13px;">
                                 {{ number_format($sale->shipping_charges, 0, '.', ',') }}
                             </td>
                         </tr>
                     @endif
                     <tr>
                         <td align="right"><strong>TOTAL</strong></td>
-                        <td width="80" align="right" style="font-weight: bold;">
+                        <td width="80" align="right" style="font-weight: bold; font-size: 14px;">
                             {{ number_format($sale->final_total, 0, '.', ',') }}</td>
                     </tr>
                     {{-- Only show payment details for final sales, not for quotations, drafts, or sale orders --}}
@@ -336,24 +339,24 @@
                         @if (!is_null($amount_given) && $amount_given > 0)
                             <tr>
                                 <td align="right"><strong>AMOUNT GIVEN</strong></td>
-                                <td width="80" align="right">{{ number_format($amount_given, 0, '.', ',') }}</td>
+                                <td width="80" align="right" style="font-size: 13px;">{{ number_format($amount_given, 0, '.', ',') }}</td>
                             </tr>
                         @endif
                         <tr>
                             <td align="right"><strong>PAID</strong></td>
-                            <td width="80" align="right">{{ number_format($sale->total_paid, 0, '.', ',') }}</td>
+                            <td width="80" align="right" style="font-size: 13px;">{{ number_format($sale->total_paid, 0, '.', ',') }}</td>
                         </tr>
                         @if (!is_null($balance_amount) && $balance_amount > 0)
                             <tr>
                                 <td align="right"><strong>BALANCE GIVEN</strong></td>
-                                <td width="80" align="right">{{ number_format($balance_amount, 0, '.', ',') }}</td>
+                                <td width="80" align="right" style="font-size: 13px;">{{ number_format($balance_amount, 0, '.', ',') }}</td>
                             </tr>
                         @endif
                         @if (!is_null($sale->total_due) && $sale->total_due > 0)
                             <tr>
                                 <td align="right"><strong>BALANCE DUE</strong></td>
                                 <td width="80" align="right">
-                                    <div style="padding: 4px; display: inline-block; min-width: 60px; text-align: right;">
+                                    <div style="padding: 4px; display: inline-block; min-width: 60px; text-align: right; font-size: 14px; font-weight: bold;">
                                         ({{ number_format($sale->total_due, 0, '.', ',') }})
                                     </div>
                                 </td>
@@ -369,7 +372,7 @@
                              <tr>
                                 <td align="right"><strong>TOTAL OUTSTANDING DUE</strong></td>
                                 <td width="80" align="right">
-                                    <div style="padding: 4px; display: inline-block; min-width: 60px; text-align: right;">
+                                    <div style="padding: 4px; display: inline-block; min-width: 60px; text-align: right; font-size: 14px; font-weight: bold;">
                                        Rs {{ number_format($customer_outstanding_balance, 0, '.', ',') }}
                                     </div>
                                 </td>
@@ -401,15 +404,15 @@
         <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
         <div style="display: flex; text-align: center;">
             <div style="flex: 1; border-right: 2px dashed black; padding: 4px;">
-                <strong style="font-size: 16px;">{{ count($products) }}</strong><br>
+                <strong style="font-size: 18px;">{{ count($products) }}</strong><br>
                 <span style="font-size: 10px;">TOTAL ITEMS</span>
             </div>
             <div style="flex: 1; border-right: 2px dashed black; padding: 4px;">
-                <strong style="font-size: 16px;">{{ $products->sum('quantity') }}</strong><br>
+                <strong style="font-size: 18px;">{{ $products->sum('quantity') }}</strong><br>
                 <span style="font-size: 10px;">TOTAL QTY</span>
             </div>
             <div style="flex: 1; padding: 4px;">
-                <strong style="font-size: 16px;">{{ number_format($total_all_discounts, 0, '.', ',') }}</strong><br>
+                <strong style="font-size: 18px;">{{ number_format($total_all_discounts, 0, '.', ',') }}</strong><br>
                 <span style="font-size: 10px;"> TOTAL DISCOUNT</span>
             </div>
         </div>
