@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Log;
 use App\Models\Location; // Ensure Location model is imported
 use App\Models\User; // Ensure User model is imported
 use App\Exports\CustomerExport;
+use App\Exports\CustomerTemplateExport;
+use App\Imports\CustomerImport;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Helpers\BalanceHelper;
 
@@ -27,6 +29,7 @@ class CustomerController extends Controller
         $this->middleware('permission:edit customer', ['only' => ['edit', 'update']]);
         $this->middleware('permission:delete customer', ['only' => ['destroy']]);
         $this->middleware('permission:export customer', ['only' => ['export']]);
+        $this->middleware('permission:import customer', ['only' => ['importCustomer', 'importCustomerStore']]);
     }
 
     public function Customer()
@@ -35,6 +38,11 @@ class CustomerController extends Controller
         $customerGroups = CustomerGroup::all();
 
         return view('contact.customer.customer', compact('cities', 'customerGroups'));
+    }
+
+    public function importCustomer()
+    {
+        return view('contact.customer.import_customer');
     }
 
 
@@ -840,5 +848,88 @@ class CustomerController extends Controller
                 'message' => 'Failed to record recovery payment'
             ], 500);
         }
+    }
+
+    /**
+     * Export blank customer import template
+     */
+    public function exportCustomerBlankTemplate()
+    {
+        return Excel::download(new CustomerTemplateExport(true), 'Import_Customer_Template.xlsx');
+    }
+
+    /**
+     * Export all customers with data
+     */
+    public function exportCustomers()
+    {
+        return Excel::download(new CustomerTemplateExport(), 'Customers_Export_' . date('Y-m-d') . '.xlsx');
+    }
+
+    /**
+     * Import customers from Excel file
+     */
+    public function importCustomerStore(Request $request)
+    {
+        // Validate the request file and optional city
+        $validator = Validator::make($request->all(), [
+            'file' => 'required|mimes:xlsx,xls',
+            'import_city' => 'nullable|integer|exists:cities,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 400,
+                'errors' => $validator->messages()
+            ]);
+        }
+
+        // Use default location ID 1
+        $selectedLocationId = 1;
+
+        // Get optional city override (if selected, all customers will use this city)
+        $overrideCityId = $request->input('import_city') ? (int)$request->input('import_city') : null;
+
+        // Check if the file is present in the request
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+
+            // Check if file upload was successful
+            if ($file->isValid()) {
+                // Create an instance of the import class with optional city override
+                $import = new CustomerImport($selectedLocationId, $overrideCityId);
+
+                // Process the Excel file
+                Excel::import($import, $file);
+
+                // Get validation errors from the import process
+                $validationErrors = $import->getValidationErrors();
+                $records = $import->getData();
+
+                // If there are validation errors, return them in the response
+                if (!empty($validationErrors)) {
+                    return response()->json([
+                        'status' => 401,
+                        'validation_errors' => $validationErrors,
+                    ]);
+                }
+
+                return response()->json([
+                    'status' => 200,
+                    'data' => $records,
+                    'message' => "Import Customers Excel file uploaded successfully!"
+                ]);
+            } else {
+                return response()->json([
+                    'status' => 500,
+                    'message' => "File upload failed. Please try again."
+                ]);
+            }
+        }
+
+        return response()->json([
+            'status' => 400,
+            'message' => "No file uploaded or file is invalid."
+        ]);
     }
 }

@@ -42,8 +42,8 @@
                     </li>
                 @endcanany
 
-                @canany(['view supplier', 'view customer', 'view customer-group'])
-                    <li class="submenu {{ set_active(['supplier', 'customer', 'customer-ledger', 'supplier-ledger', 'account-ledger', 'unified-ledger', 'customer-group', 'import-contact']) }}">
+                @canany(['view supplier', 'view customer', 'view customer-group', 'import customer'])
+                    <li class="submenu {{ set_active(['supplier', 'customer', 'customer-ledger', 'supplier-ledger', 'account-ledger', 'unified-ledger', 'customer-group', 'import-contact', 'import-customer']) }}">
                         <a href="#">
                             <i class="fas fa-address-book"></i>
                             <span class="sidebar-text">Contacts</span>
@@ -56,6 +56,10 @@
 
                             @can('view customer')
                                 <li><a href="{{ route('customer') }}" class="{{ set_active(['customer']) }}">Customer</a></li>
+                            @endcan
+
+                            @can('import customer')
+                                <li><a href="{{ route('import-customer') }}" class="{{ set_active(['import-customer']) }}">Import Customers</a></li>
                             @endcan
 
                             {{-- @canany(['view customer', 'view supplier'])

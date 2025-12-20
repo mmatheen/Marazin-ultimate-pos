@@ -144,6 +144,12 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/customer-get-by-id/{id}', [CustomerController::class, 'show']);
         Route::get('/customer-export', [CustomerController::class, 'export'])->name('customer.export');
 
+        // Customer Import/Export Routes
+        Route::get('/import-customer', [CustomerController::class, 'importCustomer'])->name('import-customer');
+        Route::post('/import-customer-excel-store', [CustomerController::class, 'importCustomerStore'])->name('import-customer-excel-store');
+        Route::get('/excel-customer-blank-template-export', [CustomerController::class, 'exportCustomerBlankTemplate'])->name('excel-customer-blank-template-export');
+        Route::get('/customers/export-template', [CustomerController::class, 'exportCustomers'])->name('customers.export-template');
+
         // Floating Balance Routes
         Route::get('/customer/credit-info/{id}', [CustomerController::class, 'getCreditInfo']);
         Route::post('/floating-balance/customer/{id}/recovery-payment', [CustomerController::class, 'recordRecoveryPayment']);
