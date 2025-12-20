@@ -465,7 +465,17 @@
             categoryBtn = getCachedElement('category-btn');
             allProductsBtn = getCachedElement('allProductsBtn');
             subcategoryBackBtn = getCachedElement('subcategoryBackBtn');
-            console.log('DOM elements cached successfully');
+            
+            // Log which elements were successfully found
+            console.log('DOM elements initialization:', {
+                posProduct: posProduct ? 'Found ✓' : 'NOT FOUND ✗',
+                billingBody: billingBody ? 'Found ✓' : 'NOT FOUND ✗',
+                discountInput: discountInput ? 'Found ✓' : 'NOT FOUND ✗',
+                finalValue: finalValue ? 'Found ✓' : 'NOT FOUND ✗',
+                categoryBtn: categoryBtn ? 'Found ✓' : 'NOT FOUND ✗',
+                allProductsBtn: allProductsBtn ? 'Found ✓' : 'NOT FOUND ✗',
+                subcategoryBackBtn: subcategoryBackBtn ? 'Found ✓' : 'NOT FOUND ✗'
+            });
         }
 
         /**
@@ -2663,8 +2673,26 @@
             currentProductsPage = 1;
             hasMoreProducts = true;
             allProducts = [];
-            posProduct.innerHTML = '';
-            if (selectedLocationId) fetchPaginatedProducts(true);
+            
+            // Ensure posProduct is initialized
+            if (!posProduct) {
+                posProduct = document.getElementById('posProduct');
+                console.log('⚠️ posProduct re-initialized in handleLocationChange');
+            }
+            
+            if (posProduct) {
+                posProduct.innerHTML = '';
+                console.log(`📍 Location changed to: ${selectedLocationId}`);
+            } else {
+                console.error('❌ posProduct element not found in handleLocationChange!');
+            }
+            
+            if (selectedLocationId) {
+                console.log(`🔄 Fetching products for location: ${selectedLocationId}`);
+                fetchPaginatedProducts(true);
+            } else {
+                console.log('⚠️ No location selected');
+            }
 
             // Always clear billing body when user manually changes location
             // This ensures products from previous location are removed
@@ -2962,20 +2990,36 @@
                     isLoadingProducts = false;
                     retryCount = 0; // Reset on successful fetch
 
-                    console.log('Products fetched successfully:', data);
-                    console.log(`Pagination: page=${currentProductsPage}, reset=${reset}, received=${data.data ? data.data.length : 0} products`);
+                    console.log('✅ Products fetched successfully:', data);
+                    console.log(`📊 Pagination: page=${currentProductsPage}, reset=${reset}, received=${data.data ? data.data.length : 0} products`);
 
                     if (!data || data.status !== 200 || !Array.isArray(data.data)) {
-                        console.warn('Invalid data structure received:', data);
-                        if (reset) posProduct.innerHTML = '<p class="text-center">No products found.</p>';
+                        console.warn('⚠️ Invalid data structure received:', data);
+                        if (reset) {
+                            // Ensure posProduct is initialized before using it
+                            if (!posProduct) {
+                                posProduct = document.getElementById('posProduct');
+                            }
+                            if (posProduct) {
+                                posProduct.innerHTML = '<p class="text-center">No products found.</p>';
+                            }
+                        }
                         return;
                     }
 
                     if (reset) {
                         allProducts = [];
                         stockData = [];
-                        posProduct.innerHTML = '';
-                        console.log('Reset mode: Cleared allProducts array and posProduct HTML');
+                        // Ensure posProduct is initialized before clearing it
+                        if (!posProduct) {
+                            posProduct = document.getElementById('posProduct');
+                        }
+                        if (posProduct) {
+                            posProduct.innerHTML = '';
+                            console.log('🔄 Reset mode: Cleared allProducts array and posProduct HTML');
+                        } else {
+                            console.error('❌ posProduct element not found during reset!');
+                        }
                     }
 
                     console.log(`Before adding: allProducts.length = ${allProducts.length}`);
@@ -3080,21 +3124,37 @@
 
         // ---- DISPLAY PRODUCTS ----
         function displayProducts(products, append = false) {
+            // CRITICAL FIX: Ensure posProduct is initialized
+            if (!posProduct) {
+                posProduct = document.getElementById('posProduct');
+                console.log('⚠️ posProduct was null, re-initialized:', posProduct);
+            }
+
+            if (!posProduct) {
+                console.error('❌ posProduct element not found in DOM!');
+                return;
+            }
+
             if (!append) {
                 posProduct.innerHTML = '';
             }
 
-            if (!selectedLocationId || products.length === 0) {
+            console.log(`DisplayProducts called: ${products.length} products, append=${append}, location=${selectedLocationId}`);
+
+            // CRITICAL FIX: Show products even if selectedLocationId is not set (for initial load)
+            // The API already filters by location, so we can display what we receive
+            if (products.length === 0) {
                 if (!append) {
                     posProduct.innerHTML = '<p class="text-center">No products found.</p>';
                 }
+                console.log('No products to display');
                 return;
             }
 
-            console.log(`DisplayProducts called: ${products.length} products, append=${append}, location=${selectedLocationId}`);
-
             // Track newly added cards for event listener attachment
             const newlyAddedCards = [];
+
+            console.log(`🔍 Starting to process ${products.length} products for display...`);
 
             // Filter to show only products with stock > 0 at selected location
             // OR products with unlimited stock (stock_alert === 0)
@@ -3103,6 +3163,7 @@
 
                 // Unlimited stock products always show
                 if (product.stock_alert === 0) {
+                    console.log(`✓ Product ${product.product_name} has unlimited stock (stock_alert=0)`);
                     return true;
                 }
 
@@ -3111,10 +3172,23 @@
                 const hasDecimal = product.unit && (product.unit.allow_decimal === true || product.unit.allow_decimal === 1);
                 const stockLevel = hasDecimal ? parseFloat(stock.total_stock) : parseInt(stock.total_stock);
 
-                return stockLevel > 0;
+                const hasStock = stockLevel > 0;
+                console.log(`${hasStock ? '✓' : '✗'} Product ${product.product_name}: stock=${stockLevel}, hasDecimal=${hasDecimal}`);
+                
+                return hasStock;
             });
 
-            console.log(`Filtered products: ${filteredProducts.length} out of ${products.length} have stock at location ${selectedLocationId}`);
+            console.log(`📊 Filtered products: ${filteredProducts.length} out of ${products.length} have stock at location ${selectedLocationId}`);
+
+            if (filteredProducts.length === 0) {
+                console.warn('⚠️ No products passed the filter! All products filtered out.');
+                if (!append) {
+                    posProduct.innerHTML = '<p class="text-center text-warning">No products with stock available at this location.</p>';
+                }
+                return;
+            }
+
+            console.log(`🎨 Rendering ${filteredProducts.length} product cards...`);
 
             filteredProducts.forEach(stock => {
                 const product = stock.product;
@@ -3192,7 +3266,8 @@
                 });
             });
 
-            console.log(`DisplayProducts: Added ${newlyAddedCards.length} new product cards, append mode: ${append}`);
+            console.log(`✅ DisplayProducts: Added ${newlyAddedCards.length} new product cards to DOM, append mode: ${append}`);
+            console.log(`📦 Total cards in posProduct: ${posProduct.children.length}`);
         }
 
         // ---- DISPLAY PRODUCTS IN MOBILE MODAL ----
