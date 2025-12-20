@@ -3156,32 +3156,30 @@
 
             console.log(`🔍 Starting to process ${products.length} products for display...`);
 
-            // Filter to show only products with stock > 0 at selected location
-            // OR products with unlimited stock (stock_alert === 0)
+            // FIXED: Simplified - show products with stock > 0 or unlimited stock
+            // The API already filters by location, we just display what we receive
             const filteredProducts = products.filter(stock => {
                 const product = stock.product;
-
-                // Unlimited stock products always show
+                
+                // Check for unlimited stock first
                 if (product.stock_alert === 0) {
-                    console.log(`✓ Product ${product.product_name} has unlimited stock (stock_alert=0)`);
+                    console.log(`✓ ${product.product_name}: UNLIMITED stock`);
                     return true;
                 }
 
-                // Check if product has stock at the selected location
-                // The API already filtered by location, so we just need to check stock quantity
-                const hasDecimal = product.unit && (product.unit.allow_decimal === true || product.unit.allow_decimal === 1);
-                const stockLevel = hasDecimal ? parseFloat(stock.total_stock) : parseInt(stock.total_stock);
-
+                // Get the total_stock directly from the response
+                const stockLevel = parseFloat(stock.total_stock) || 0;
                 const hasStock = stockLevel > 0;
-                console.log(`${hasStock ? '✓' : '✗'} Product ${product.product_name}: stock=${stockLevel}, hasDecimal=${hasDecimal}`);
+                
+                console.log(`${hasStock ? '✓' : '✗'} ${product.product_name}: stock=${stockLevel}`);
                 
                 return hasStock;
             });
 
-            console.log(`📊 Filtered products: ${filteredProducts.length} out of ${products.length} have stock at location ${selectedLocationId}`);
+            console.log(`📊 Filtered: ${filteredProducts.length} out of ${products.length} products have stock`);
 
             if (filteredProducts.length === 0) {
-                console.warn('⚠️ No products passed the filter! All products filtered out.');
+                console.warn('⚠️ No products with stock at this location');
                 if (!append) {
                     posProduct.innerHTML = '<p class="text-center text-warning">No products with stock available at this location.</p>';
                 }
