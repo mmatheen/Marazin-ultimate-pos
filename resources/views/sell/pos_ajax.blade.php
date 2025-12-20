@@ -219,13 +219,31 @@
         };
 
         // ---- INIT ----
-        // Check if user is sales rep and handle vehicle/route selection
-        // This must be called FIRST before any display restoration
-        checkSalesRepStatus();
+        // CRITICAL: Fetch locations FIRST to ensure dropdown is populated
+        // before any auto-selection logic runs (sales rep or edit mode)
+        fetchAllLocations(false, function() {
+            console.log('✅ Locations loaded, now checking sales rep status and edit mode');
 
-        // Protect sales rep customer filtering from being overridden
-        protectSalesRepCustomerFiltering();
-        fetchAllLocations();
+            // Check if user is sales rep and handle vehicle/route selection
+            // This must be called AFTER locations are loaded
+            checkSalesRepStatus();
+
+            // Protect sales rep customer filtering from being overridden
+            protectSalesRepCustomerFiltering();
+
+            // Check for edit mode AFTER locations are loaded
+            let saleId = null;
+            const pathSegments = window.location.pathname.split('/');
+            saleId = pathSegments[pathSegments.length - 1];
+
+            if (!isNaN(saleId) && saleId !== 'pos' && saleId !== 'list-sale') {
+                console.log('📝 Edit mode detected for sale ID:', saleId);
+                fetchEditSale(saleId);
+            } else {
+                console.log('✅ New sale mode');
+            }
+        });
+
         $('#locationSelect').on('change', handleLocationChange);
         $('#locationSelectDesktop').on('change', handleLocationChange);
 
@@ -1309,6 +1327,15 @@
                     // Update display only once
                     if (!window.hasStoredSalesRepSelection) {
                         updateSalesRepDisplay(updatedSelection);
+
+                        // Auto-select vehicle location for sales rep (skip in edit mode)
+                        if (!isEditing) {
+                            console.log('🚗 Auto-selecting sales rep vehicle location:', updatedSelection.vehicle?.name);
+                            restrictLocationAccess(updatedSelection);
+                        } else {
+                            console.log('⏭️ Skipping auto-selection - edit mode active');
+                        }
+
                         // Only filter if not already done during page load
                         if (!salesRepCustomersLoaded) {
                             setTimeout(() => filterCustomersByRoute(updatedSelection), 1000);
@@ -1330,7 +1357,15 @@
                                 if (!window.hasStoredSalesRepSelection) {
                                     updateSalesRepDisplay(selection);
                                 }
-                                restrictLocationAccess(selection);
+
+                                // Auto-select vehicle location (skip in edit mode)
+                                if (!isEditing) {
+                                    console.log('🚗 Auto-selecting vehicle location for sales rep');
+                                    restrictLocationAccess(selection);
+                                } else {
+                                    console.log('⏭️ Skipping auto-selection - edit mode active');
+                                }
+
                                 // Only filter if not already done
                                 if (!salesRepCustomersLoaded) {
                                     setTimeout(() => filterCustomersByRoute(selection), 1000);
@@ -2458,11 +2493,16 @@
         }
 
         // ---- LOCATION ----
-        function fetchAllLocations(forceRefresh = false) {
+        function fetchAllLocations(forceRefresh = false, callback = null) {
             // Check cache first
             if (!forceRefresh && cachedLocations && locationCacheExpiry && Date.now() < locationCacheExpiry) {
                 console.log('✅ Using cached locations (', cachedLocations.length, 'items)');
                 populateLocationDropdown(cachedLocations);
+
+                // Execute callback if provided
+                if (typeof callback === 'function') {
+                    callback();
+                }
                 return;
             }
 
@@ -2479,6 +2519,11 @@
                         console.log('💾 Locations cached for 5 minutes');
 
                         populateLocationDropdown(response.data);
+
+                        // Execute callback if provided
+                        if (typeof callback === 'function') {
+                            callback();
+                        }
                     } else {
                         console.error('Error fetching locations:', response.message);
                     }
@@ -8116,18 +8161,8 @@
         }
 
 
-
-
-
-        let saleId = null;
-        const pathSegments = window.location.pathname.split('/');
-        saleId = pathSegments[pathSegments.length - 1];
-
-        if (!isNaN(saleId) && saleId !== 'pos' && saleId !== 'list-sale') {
-            fetchEditSale(saleId);
-        } else {
-            // console.warn('Invalid or missing saleId:', saleId);
-        }
+        // Sale edit detection - handled in init section after fetchAllLocations completes
+        // This ensures location dropdown is populated before trying to set the value
 
         function fetchEditSale(saleId) {
             // Set editing mode to true
@@ -8181,46 +8216,59 @@
                             selectedLocationId = saleDetails.sale
                                 .location_id; // Ensure global variable is updated
 
-                            // Update the location dropdown WITHOUT triggering change event
-                            const $locationSelect = $('#locationSelect');
-                            const $locationSelectDesktop = $('#locationSelectDesktop');
-
-                            // Use jQuery .val() for proper dropdown update
-                            if ($locationSelect.length) {
+                            // Function to set location with retry logic
+                            const setLocationWithRetry = (retryCount = 0, maxRetries = 5) => {
+                                const $locationSelect = $('#locationSelect');
+                                const $locationSelectDesktop = $('#locationSelectDesktop');
                                 const locationIdStr = saleDetails.sale.location_id.toString();
 
-                                // Verify the option exists
+                                // Check if option exists in dropdown
                                 const optionExists = $locationSelect.find(`option[value="${locationIdStr}"]`).length > 0;
 
                                 if (optionExists) {
+                                    // Option exists - set the value
                                     $locationSelect.val(locationIdStr);
-                                    console.log('✅ Location ID set to:', locationIdStr, '- Option exists in dropdown');
+                                    $locationSelectDesktop.val(locationIdStr);
+                                    console.log('✅ Location ID set to:', locationIdStr, '(attempt', retryCount + 1, ')');
+
+                                    // Don't trigger change event to avoid refetching products
+                                    // Just update the UI to reflect the selected location
+                                    // Products will be fetched after this function completes
+                                    console.log('📍 Location set for edit mode - products will be fetched next');
+
+                                    // Fetch products for the product grid display after location is set
+                                    // This allows users to see available products while editing
+                                    if (selectedLocationId) {
+                                        currentProductsPage = 1;
+                                        hasMoreProducts = true;
+                                        allProducts = [];
+                                        posProduct.innerHTML = '';
+                                        fetchPaginatedProducts(true);
+                                        console.log('📦 Fetching products for display in edit mode');
+                                    }
+
+                                    // Check sales rep button visibility if applicable
+                                    if (isSalesRep && selectedLocationId) {
+                                        checkAndToggleSalesRepButtons(selectedLocationId);
+                                    }
+                                } else if (retryCount < maxRetries) {
+                                    // Option doesn't exist yet - retry after delay
+                                    console.log('⏳ Location option not found yet, retrying...', 'attempt', retryCount + 1);
+                                    setTimeout(() => setLocationWithRetry(retryCount + 1, maxRetries), 200);
                                 } else {
-                                    console.error('❌ Location option not found in dropdown for ID:', locationIdStr);
+                                    // Max retries reached
+                                    console.error('❌ Location option not found after', maxRetries, 'attempts. ID:', locationIdStr);
                                     console.log('Available options:', $locationSelect.find('option').map(function() {
                                         return $(this).val() + ': ' + $(this).text();
                                     }).get());
+
+                                    // Show error to user
+                                    toastr.error('Unable to load sale location. The location may have been deleted or you may not have access.', 'Location Error');
                                 }
-                            }
-                            if ($locationSelectDesktop.length) {
-                                $locationSelectDesktop.val(saleDetails.sale.location_id.toString());
-                            }
+                            };
 
-                            // Fetch products for the product grid display
-                            // This allows users to see available products while editing
-                            if (selectedLocationId) {
-                                currentProductsPage = 1;
-                                hasMoreProducts = true;
-                                allProducts = [];
-                                posProduct.innerHTML = '';
-                                fetchPaginatedProducts(true);
-                                console.log('📦 Fetching products for display in edit mode');
-                            }
-
-                            // Check sales rep button visibility if applicable
-                            if (isSalesRep && selectedLocationId) {
-                                checkAndToggleSalesRepButtons(selectedLocationId);
-                            }
+                            // Start location setting with retry logic
+                            setLocationWithRetry();
                         }
 
                         // Populate sale products
