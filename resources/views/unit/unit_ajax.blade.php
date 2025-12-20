@@ -1,7 +1,7 @@
 <script type="text/javascript">
     $(document).ready(function() {
         // Only initialize on unit page, not on purchase/other pages
-        if ($('#units').length) {
+        if ($('#unit').length) {
             console.log('✅ Initializing unit page');
             var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
             showFetchData();
