@@ -592,6 +592,29 @@ class LocationController extends Controller
 
                 $location->update($updateData);
 
+                // If this is a main location (parent), cascade contact details to all sublocations
+                if (!$isSubLocation && $location->children()->exists()) {
+                    $contactDetails = [
+                        'address' => $request->address,
+                        'province' => $request->province,
+                        'district' => $request->district,
+                        'city' => $request->city ?? '',
+                        'email' => $request->email ?? '',
+                        'mobile' => $request->mobile ?? 0,
+                        'telephone_no' => $request->telephone_no,
+                    ];
+
+                    // Update all child sublocations with parent's contact details
+                    $location->children()->update($contactDetails);
+
+                    Log::info('Main location contact details cascaded to sublocations', [
+                        'parent_location_id' => $location->id,
+                        'parent_location_name' => $location->name,
+                        'children_count' => $location->children()->count(),
+                        'updated_by' => auth()->id()
+                    ]);
+                }
+
                 // Load relationships for response
                 $location->load('parent', 'children');
 
