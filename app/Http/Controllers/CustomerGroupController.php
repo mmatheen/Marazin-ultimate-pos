@@ -18,7 +18,7 @@ class CustomerGroupController extends Controller
     }
 
     public function customerGroup(){
-        $SellingPriceGroups = SellingPriceGroup::all(); // this course come from modal
+        $SellingPriceGroups = SellingPriceGroup::select('id', 'name')->get();
         return view('contact.customer_group.customer_group',compact('SellingPriceGroups'));
     }
     public function index()

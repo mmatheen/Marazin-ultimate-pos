@@ -90,15 +90,15 @@ class SaleController extends Controller
 
         if (!empty($payments)) {
             $actualPaymentAmount = array_sum(array_column($payments, 'amount'));
-            
+
             // Check payment methods
             foreach ($payments as $payment) {
                 $paymentMethod = $payment['payment_method'] ?? '';
-                
+
                 if ($paymentMethod === 'credit') {
                     $hasCreditPayment = true;
                 }
-                
+
                 // Skip credit limit validation for cheque payments
                 if ($paymentMethod === 'cheque') {
                     $hasChequePayment = true;
@@ -121,10 +121,10 @@ class SaleController extends Controller
 
         // Get customer's current outstanding balance (calculate fresh from ledger)
         $currentBalance = $customer->calculateBalanceFromLedger();
-        
+
         // Calculate available credit remaining
         $availableCredit = max(0, $customer->credit_limit - $currentBalance);
-        
+
         // Check if the credit amount exceeds available credit
         if ($remainingBalance > $availableCredit) {
             // Format error message with clear breakdown
@@ -137,14 +137,14 @@ class SaleController extends Controller
             $errorMessage .= "• Total Sale Amount: Rs. " . number_format($finalTotal, 2) . "\n";
             $errorMessage .= "• Payment Received: Rs. " . number_format($actualPaymentAmount, 2) . "\n";
             $errorMessage .= "• Credit Amount Required: Rs. " . number_format($remainingBalance, 2) . "\n\n";
-            
+
             if ($availableCredit > 0) {
                 $errorMessage .= "Maximum credit sale allowed: Rs. " . number_format($availableCredit, 2) . "\n";
                 $errorMessage .= "Exceeds limit by: Rs. " . number_format($remainingBalance - $availableCredit, 2);
             } else {
                 $errorMessage .= "No credit available. Please settle previous outstanding amount or pay full amount.";
             }
-            
+
             throw new \Exception($errorMessage);
         }
 
@@ -186,7 +186,7 @@ class SaleController extends Controller
         return response()->json(['sales' => $sales], 200);
     }
 
-    
+
     public function salesDetails($id)
     {
         try {
@@ -444,7 +444,7 @@ class SaleController extends Controller
             foreach ($request->payments as $payment) {
                 if (isset($payment['payment_method']) && $payment['payment_method'] === 'cheque') {
                     return response()->json([
-                        'status' => 400, 
+                        'status' => 400,
                         'message' => 'Cheque payment is not allowed for Walk-In Customer. Please choose another payment method or select a different customer.',
                         'errors' => ['payment_method' => ['Cheque payment is not allowed for Walk-In Customer.']]
                     ]);
@@ -456,14 +456,14 @@ class SaleController extends Controller
         if ($request->customer_id == 1 && $request->status !== 'suspend') {
             $finalTotal = $request->final_total ?? $request->total_amount ?? 0;
             $totalPayments = 0;
-            
+
             // Calculate total payments made
             if (!empty($request->payments)) {
                 foreach ($request->payments as $payment) {
                     $totalPayments += $payment['amount'] ?? 0;
                 }
             }
-            
+
             // Only block if there's insufficient payment (credit sale)
             if ($totalPayments < $finalTotal) {
                 return response()->json([
@@ -613,7 +613,7 @@ class SaleController extends Controller
                             'reference_id' => $sale->id,
                             'customer_id' => $sale->customer_id,
                         ]);
-                        
+
                         // Record payment in unified ledger
                         $this->unifiedLedgerService->recordSalePayment($payment);
                     }
@@ -634,14 +634,14 @@ class SaleController extends Controller
                     if ($customerChanged) {
                         // Customer changed - use special handling method
                         $this->unifiedLedgerService->editSaleWithCustomerChange(
-                            $sale, 
-                            $oldCustomerId, 
-                            $request->customer_id, 
+                            $sale,
+                            $oldCustomerId,
+                            $request->customer_id,
                             $oldFinalTotal,
                             'Customer changed during sale edit'
                         );
                     } else {
-                        // Same customer - use existing editSale method  
+                        // Same customer - use existing editSale method
                         $this->unifiedLedgerService->editSale($sale, $oldFinalTotal, 'Sale amount updated');
                     }
                 }
@@ -661,7 +661,7 @@ class SaleController extends Controller
                         if ($isUpdate) {
                             // Get old payments before deletion for proper ledger reversal
                             $oldPayments = Payment::where('reference_id', $sale->id)->get();
-                            
+
                             // Handle payment ledger entries properly for customer changes
                             if ($customerChanged) {
                                 // Customer changed - payment ledger entries already handled by editSaleWithCustomerChange
@@ -711,7 +711,7 @@ class SaleController extends Controller
                     $originalProducts = [];
                     foreach ($sale->products as $product) {
                         $originalProducts[$product->product_id][$product->batch_id] = ($originalProducts[$product->product_id][$product->batch_id] ?? 0) + $product->quantity;
-                        
+
                         if (in_array($oldStatus, ['final', 'suspend'])) {
                             $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
                         } else {
@@ -731,7 +731,7 @@ class SaleController extends Controller
                         if ($isUpdate && in_array($newStatus, ['final', 'suspend'])) {
                             $this->validateStockForUpdate($productData, $request->location_id, $originalProducts ?? []);
                         }
-                        
+
                         // Always process sale for final/suspend status
                         if (in_array($newStatus, ['final', 'suspend'])) {
                             $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE, $newStatus);
@@ -770,14 +770,14 @@ class SaleController extends Controller
 
         // Get location-specific receipt view
         $receiptView = $location ? $location->getReceiptViewName() : 'sell.receipt';
-        
+
         // Only generate invoice HTML for non-suspended sales
         $html = '';
         if ($sale->status !== 'suspend') {
             $html = view($receiptView, $viewData)->render();
         }
 
-          
+
 
 
             try {
@@ -790,20 +790,20 @@ class SaleController extends Controller
 
                     // Get location from sale for receipt template selection
                     $receiptView = $location ? $location->getReceiptViewName() : 'sell.receipt';
-                    
+
                     // Render the location-specific receipt view to HTML
                     $receiptHtml = view($receiptView, $viewData)->render();
 
                     // Generate PDF with appropriate paper size based on layout
                     $paperSize = [0, 0, 226.77, 842]; // Default 80mm x 297mm
                     $layoutType = $location ? $location->invoice_layout_pos : '80mm';
-                    
+
                     if ($layoutType === 'a4') {
                         $paperSize = 'A4';
                     } elseif ($layoutType === 'dot_matrix') {
                         $paperSize = [0, 0, 612, 792]; // 8.5" x 11"
                     }
-                    
+
                     $pdf = Pdf::loadHTML($receiptHtml)->setPaper($paperSize, 'portrait');
                     $pdfContent = $pdf->output();
 
@@ -858,7 +858,7 @@ class SaleController extends Controller
                     'error' => $e->getMessage(),
                     'location_id' => $request->location_id ?? null,
                 ]);
-                
+
                 // Retry the operation once with a new invoice number
                 try {
                     return $this->store($request, $id);
@@ -869,7 +869,7 @@ class SaleController extends Controller
                     ], 400);
                 }
             }
-            
+
             return response()->json([
                 'message' => 'Database error: ' . $e->getMessage()
             ], 400);
@@ -879,7 +879,7 @@ class SaleController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
             return response()->json(['message' => $e->getMessage()], 400);
-            
+
         }
     }
 
@@ -1191,7 +1191,7 @@ class SaleController extends Controller
         $totalQuantity = $productData['quantity'];
         $productId = $productData['product_id'];
         $batchId = $productData['batch_id'];
-        
+
         // Get original quantity sold for this product/batch combination
         $originalQuantity = 0;
         if (isset($originalProducts[$productId])) {
@@ -1208,7 +1208,7 @@ class SaleController extends Controller
             // Specific batch selected
             $currentStock = Sale::getAvailableStock($batchId, $locationId);
             $availableStock = $currentStock + $originalQuantity;
-            
+
             if ($totalQuantity > $availableStock) {
                 throw new \Exception("Batch ID {$batchId} does not have enough stock. Available: {$availableStock}, Requested: {$totalQuantity}");
             }
@@ -1219,9 +1219,9 @@ class SaleController extends Controller
                 ->where('batches.product_id', $productId)
                 ->where('location_batches.location_id', $locationId)
                 ->sum('location_batches.qty');
-                
+
             $availableStock = $currentTotalStock + $originalQuantity;
-            
+
             if ($totalQuantity > $availableStock) {
                 throw new \Exception("Not enough stock available. Available: {$availableStock}, Requested: {$totalQuantity}");
             }
@@ -1261,28 +1261,33 @@ class SaleController extends Controller
     private function restoreImeiNumbers($salesProduct)
     {
         Log::info("Restoring IMEI numbers for sale product ID {$salesProduct->id}");
-        
+
         // Get all IMEI numbers associated with this sale product
         $saleImeis = SaleImei::where('sale_product_id', $salesProduct->id)->get();
-        
-        foreach ($saleImeis as $saleImei) {
-            // Update IMEI status back to 'available'
-            $updated = ImeiNumber::where('imei_number', $saleImei->imei_number)
-                ->where('product_id', $saleImei->product_id)
-                ->where('batch_id', $saleImei->batch_id)
-                ->where('location_id', $saleImei->location_id)
-                ->update(['status' => 'available']);
-                
-            if ($updated) {
-                Log::info("IMEI {$saleImei->imei_number} restored to available status");
-            } else {
-                Log::warning("Failed to restore IMEI {$saleImei->imei_number} to available status");
-            }
-            
-            // Delete the sale IMEI record
-            $saleImei->delete();
+
+        if ($saleImeis->isEmpty()) {
+            return;
         }
-        
+
+        // Collect IMEI numbers for bulk update
+        $imeiNumbers = $saleImeis->pluck('imei_number')->toArray();
+
+        // Bulk update all IMEIs to 'available' status in one query
+        $updated = ImeiNumber::where('product_id', $salesProduct->product_id)
+            ->where('batch_id', $salesProduct->batch_id)
+            ->where('location_id', $salesProduct->location_id)
+            ->whereIn('imei_number', $imeiNumbers)
+            ->update(['status' => 'available']);
+
+        if ($updated) {
+            Log::info("Restored {$updated} IMEI numbers to available status");
+        } else {
+            Log::warning("Failed to restore IMEI numbers to available status");
+        }
+
+        // Delete all sale IMEI records in one query
+        SaleImei::where('sale_product_id', $salesProduct->id)->delete();
+
         Log::info("Completed IMEI restoration for sale product ID {$salesProduct->id}");
     }
 
@@ -1365,7 +1370,7 @@ class SaleController extends Controller
                         'final_total' => $sale->final_total, // Raw number, not formatted
                     ];
                 });
-            
+
             return response()->json($suspendedSales->values(), 200); // Ensure it returns an array
         } catch (\Exception $e) {
             logger()->error('Error fetching suspended sales: ' . $e->getMessage());
@@ -1474,7 +1479,7 @@ class SaleController extends Controller
                     }
 
                     $batchId = $product->batch_id ?? 'all';
-                    
+
                     // Get current available stock
                     $currentStock = $batchId === 'all'
                         ? DB::table('location_batches')
@@ -1483,7 +1488,7 @@ class SaleController extends Controller
                         ->where('location_batches.location_id', $product->location_id)
                         ->sum('location_batches.qty')
                         : Sale::getAvailableStock($batchId, $product->location_id);
-                    
+
                     // For editing: max allowed = current stock + quantity from this sale
                     // This represents what would be available if we "undo" this sale
                     $totalAllowedQuantity = $currentStock + $product->quantity;
@@ -1735,17 +1740,17 @@ class SaleController extends Controller
             // Get the last 3 sales of this product for this customer with price and date
             $previousPrices = collect(DB::select("
                 SELECT sp.price, sp.quantity, s.created_at, s.invoice_no
-                FROM sales_products sp 
-                JOIN sales s ON sp.sale_id = s.id 
+                FROM sales_products sp
+                JOIN sales s ON sp.sale_id = s.id
                 WHERE s.customer_id = ? AND sp.product_id = ? AND s.status = 'final'
-                ORDER BY s.created_at DESC 
+                ORDER BY s.created_at DESC
                 LIMIT 3
             ", [$customerId, $productId]))
                 ->map(function ($saleProduct) {
                     $unitPrice = floatval($saleProduct->price);
                     $quantity = floatval($saleProduct->quantity);
                     $total = $unitPrice * $quantity;
-                    
+
                     return [
                         'sale_date' => \Carbon\Carbon::parse($saleProduct->created_at)->format('Y-m-d'),
                         'invoice_no' => $saleProduct->invoice_no,
@@ -1756,8 +1761,8 @@ class SaleController extends Controller
                 });
 
             // Calculate average price if there are previous purchases
-            $averagePrice = $previousPrices->isNotEmpty() 
-                ? $previousPrices->avg('unit_price') 
+            $averagePrice = $previousPrices->isNotEmpty()
+                ? $previousPrices->avg('unit_price')
                 : null;
 
             return response()->json([

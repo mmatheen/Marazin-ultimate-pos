@@ -112,8 +112,7 @@
         let isProcessingImei = false;
         let isProgrammaticModalClose = false; // Flag to track programmatic modal closes
 
-        fetchProducts();
-        fetchLocations();
+        // Initialization will happen in consolidated $(document).ready() below
 
         // Function to print modal
         function printModal() {
@@ -242,15 +241,15 @@
         // CRITICAL FIX: Add cleanup function to prevent re-adding removed products
         function cleanupProductTrackingArrays() {
             console.log('🧹 Cleaning up product tracking arrays...');
-            
+
             // Clear all tracking arrays
             pendingImeiProducts.length = 0;
             allProducts.length = 0;
-            
+
             // Reset pagination
             currentPage = 1;
             hasMore = true;
-            
+
             console.log('✅ Product tracking arrays cleaned');
         }
 
@@ -454,17 +453,7 @@
                 .catch(error => console.error("Error fetching products:", error));
         }
 
-        $(document).ready(function() {
-            fetchLocations(); // Fetch all locations
-            initAutocomplete(); // Initialize backend autocomplete
-
-            $('#services').on('change', function() {
-                const selectedLocationId = $(this).val();
-                if (selectedLocationId) {
-                    fetchProducts(selectedLocationId);
-                }
-            });
-        });
+        // Location change handler (moved to consolidated document.ready below)
 
         function addProductToTable(product, isEditing = false, prices = {}) {
             // Use global variable or get existing instance (don't create new!)
@@ -535,9 +524,9 @@
 
                     batchHistoryHtml = earliestBatches.map(batch =>
                         `<small class="d-block text-muted">
-                            Batch: ${batch.batch_no || 'N/A'} | 
-                            Cost: ${parseFloat(batch.unit_cost || 0).toFixed(2)} | 
-                            Retail: ${parseFloat(batch.retail_price || 0).toFixed(2)} | 
+                            Batch: ${batch.batch_no || 'N/A'} |
+                            Cost: ${parseFloat(batch.unit_cost || 0).toFixed(2)} |
+                            Retail: ${parseFloat(batch.retail_price || 0).toFixed(2)} |
                             Date: ${batch.created_at ? new Date(batch.created_at).toLocaleDateString() : 'N/A'}
                         </small>`
                     ).join('');
@@ -547,7 +536,7 @@
             <tr data-id="${product.id}" data-mrp="${maxRetailPrice}" data-imei-enabled="${product.is_imei_or_serial_no || false}">
             <td>${product.id}</td>
             <td>
-                ${product.name} 
+                ${product.name}
                 <br><small>Stock: ${product.quantity}</small>
                 ${batchHistoryHtml ? `<br><div class="batch-history mt-1"><strong>Recent Batches:</strong><br>${batchHistoryHtml}</div>` : ''}
             </td>
@@ -586,12 +575,12 @@
                     updateRow($newRow);
                     updateFooter();
                 });
-                
+
                 // ✅ ADD: Custom validation for quantity based on unit type
                 $newRow.find(".purchase-quantity").on("blur", function() {
                     const allowDecimal = $(this).data('allow-decimal');
                     const value = parseFloat($(this).val());
-                    
+
                     // Only validate if unit doesn't allow decimals
                     if (allowDecimal === false || allowDecimal === "false") {
                         // Check if the value has decimal places
@@ -622,37 +611,37 @@
                 // Uses .remove-purchase-row class to avoid conflict with product_ajax.blade.php
                 $newRow.find(".remove-purchase-row").on("click", function(e) {
                     e.preventDefault();
-                    
+
                     const productName = $newRow.find('td:nth-child(2)').text().trim();
                     const quantity = $newRow.find('.purchase-quantity').val() || '0';
                     const productId = $newRow.data('id');
-                    
+
                     // Remove from DataTable directly without confirmation
                     table.row($newRow).remove().draw();
-                    
+
                     // CRITICAL FIX: Clean up ALL tracking arrays to prevent re-adding
                     const originalPendingLength = pendingImeiProducts.length;
-                    pendingImeiProducts = pendingImeiProducts.filter(product => 
+                    pendingImeiProducts = pendingImeiProducts.filter(product =>
                         product.productId != productId // Use != for loose comparison
                     );
-                    
+
                     // Clear any cached product data
                     if (typeof allProducts !== 'undefined') {
                         const originalAllLength = allProducts.length;
-                        allProducts = allProducts.filter(product => 
+                        allProducts = allProducts.filter(product =>
                             product.id != productId // Use != for loose comparison
                         );
                         console.log(`🗑️ Removed from allProducts: ${originalAllLength} -> ${allProducts.length}`);
                     }
-                    
+
                     console.log(`🗑️ Removed from pendingImeiProducts: ${originalPendingLength} -> ${pendingImeiProducts.length}`);
-                    
+
                     updateFooter();
-                    
+
                     if (typeof toastr !== 'undefined') {
                         toastr.info(`${productName} removed from purchase list`, 'Row Removed');
                     }
-                    
+
                     console.log(`✅ Cleaned up product ${productId} from all tracking arrays`);
                 });
             }
@@ -815,11 +804,11 @@
 
         function formatDate(dateStr) {
             if (!dateStr) return '';
-            
+
             try {
                 // Handle various date formats and clean malformed dates
                 let cleanDate = dateStr;
-                
+
                 // Fix malformed date format like "24T00:00:00.0000002-11-2025"
                 if (typeof cleanDate === 'string' && cleanDate.includes('T') && cleanDate.includes('-')) {
                     // Extract date parts from malformed format
@@ -827,14 +816,14 @@
                     if (parts && parts.length >= 2) {
                         cleanDate = parts;
                     }
-                    
+
                     // If still malformed, try to extract valid date pattern
                     const dateMatch = cleanDate.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
                     if (dateMatch) {
                         cleanDate = `${dateMatch[1]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[3].padStart(2, '0')}`;
                     }
                 }
-                
+
                 // ✅ FIX: Handle DD-MM-YYYY format by converting to YYYY-MM-DD for JavaScript
                 if (typeof cleanDate === 'string' && cleanDate.match(/^\d{2}-\d{2}-\d{4}$/)) {
                     // Convert DD-MM-YYYY to YYYY-MM-DD
@@ -844,23 +833,23 @@
                         console.log('Converted DD-MM-YYYY to YYYY-MM-DD:', dateStr, '->', cleanDate);
                     }
                 }
-                
+
                 const date = new Date(cleanDate);
-                
+
                 // Check if date is valid
                 if (isNaN(date.getTime())) {
                     console.warn('Invalid date detected:', dateStr, 'cleaned to:', cleanDate);
                     return '';
                 }
-                
+
                 const year = date.getFullYear();
                 const month = String(date.getMonth() + 1).padStart(2, '0');
                 const day = String(date.getDate()).padStart(2, '0');
-                
+
                 const formatted = `${day}-${month}-${year}`;
                 console.log('Date formatted:', dateStr, '->', formatted);
                 return formatted;
-                
+
             } catch (error) {
                 console.error('Error formatting date:', dateStr, error);
                 return '';
@@ -925,7 +914,7 @@
             // ✅ FIX: Check if supplier dropdown is populated before setting value
             const supplierSelect = $('#supplier-id');
             const supplierOptions = supplierSelect.find('option').length;
-            
+
             if (supplierOptions <= 1) {
                 // Suppliers not loaded yet, wait a bit and retry
                 console.log('Suppliers not loaded yet, retrying in 500ms...');
@@ -936,17 +925,17 @@
             // Set supplier and trigger change event
             console.log('Setting supplier ID:', purchase.supplier_id);
             console.log('Available supplier options:', supplierSelect.find('option').map(function() { return $(this).val() + ':' + $(this).text(); }).get());
-            
+
             supplierSelect.val(purchase.supplier_id).trigger('change');
-            
+
             // Verify if supplier was set correctly
             const selectedSupplier = supplierSelect.val();
             console.log('Supplier set to:', selectedSupplier);
-            
+
             if (selectedSupplier != purchase.supplier_id) {
                 console.warn('Supplier selection failed. Expected:', purchase.supplier_id, 'Got:', selectedSupplier);
             }
-            
+
             // Continue with other form fields
             $('#reference-no').val(purchase.reference_no);
             $('#purchase-date').val(formatDate(purchase.purchase_date));
@@ -961,18 +950,18 @@
             if (purchase.payments && purchase.payments.length > 0) {
                 const latestPayment = purchase.payments[purchase.payments.length - 1];
                 console.log('Latest payment data:', latestPayment);
-                
+
                 // ✅ CRITICAL FIX: Set paid amount field
                 $('#paid-amount').val(latestPayment.amount || '');
-                
+
                 // Set basic payment fields
                 $('#payment-date').val(formatDate(latestPayment.payment_date));
                 $('#payment-account').val(latestPayment.payment_account);
                 $('#payment-method').val(latestPayment.payment_method);
                 $('#payment-note').val(latestPayment.notes);
-                
+
                 console.log('Payment amount set to:', latestPayment.amount);
-                
+
                 // ✅ CRITICAL FIX: Trigger payment field visibility after setting payment method
                 if (typeof togglePaymentFields === 'function') {
                     togglePaymentFields();
@@ -980,7 +969,7 @@
                     // Fallback manual visibility control
                     const paymentMethod = latestPayment.payment_method;
                     $('.payment-fields').addClass('d-none'); // Hide all first
-                    
+
                     if (paymentMethod === 'cheque') {
                         $('#chequeFields').removeClass('d-none');
                     } else if (paymentMethod === 'card') {
@@ -989,7 +978,7 @@
                         $('#bankTransferFields').removeClass('d-none');
                     }
                 }
-                
+
                 // ✅ POPULATE CHEQUE FIELDS if payment method is cheque
                 if (latestPayment.payment_method === 'cheque') {
                     $('#chequeNumber').val(latestPayment.cheque_number || '');
@@ -997,7 +986,7 @@
                     $('#cheque_received_date').val(formatDate(latestPayment.cheque_received_date));
                     $('#cheque_valid_date').val(formatDate(latestPayment.cheque_valid_date));
                     $('#cheque_given_by').val(latestPayment.cheque_given_by || '');
-                    
+
                     console.log('Populated cheque fields:', {
                         cheque_number: latestPayment.cheque_number,
                         bank_branch: latestPayment.cheque_bank_branch,
@@ -1006,7 +995,7 @@
                         given_by: latestPayment.cheque_given_by
                     });
                 }
-                
+
                 // ✅ POPULATE CARD FIELDS if payment method is card
                 if (latestPayment.payment_method === 'card') {
                     $('#cardNumber').val(latestPayment.card_number || '');
@@ -1015,7 +1004,7 @@
                     $('#expiryYear').val(latestPayment.card_expiry_year || '');
                     $('#securityCode').val(latestPayment.card_security_code || '');
                 }
-                
+
                 // ✅ POPULATE BANK TRANSFER FIELDS if payment method is bank_transfer
                 if (latestPayment.payment_method === 'bank_transfer') {
                     $('#bankAccountNumber').val(latestPayment.bank_account_number || '');
@@ -1073,16 +1062,16 @@
 
         // CRITICAL FIX: Add duplicate submission protection
         let isSubmitting = false;
-        
+
         $('#purchaseButton').on('click', function(event) {
             event.preventDefault();
-            
+
             // Prevent double-click/double submission
             if (isSubmitting) {
                 console.warn('Purchase submission already in progress, ignoring duplicate click');
                 return;
             }
-            
+
             isSubmitting = true;
             $('#purchaseButton').prop('disabled', true).html('Processing...');
 
@@ -1171,7 +1160,7 @@
                     'imei-enabled') === true;
                 const dataAttribute = $(row).data('imei-enabled');
 
-                console.log(`Product ${productId} (${productName}): 
+                console.log(`Product ${productId} (${productName}):
                     - IMEI data attribute: ${dataAttribute}
                     - IMEI enabled: ${isImeiEnabled}
                     - Quantity: ${quantity}
@@ -1305,8 +1294,8 @@
                 <tr>
                     <td>${index}</td>
                     <td>
-                        <input type="text" 
-                               class="form-control purchase-imei-input" 
+                        <input type="text"
+                               class="form-control purchase-imei-input"
                                data-product-id="${productId}"
                                placeholder="Enter IMEI" />
                     </td>
@@ -1364,7 +1353,7 @@
                         <td colspan="3">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <strong>${product.productName}</strong> 
+                                    <strong>${product.productName}</strong>
                                     <span class="badge badge-info ml-2">Max Qty: ${product.quantity}</span>
                                     <span class="badge badge-success ml-1" id="progress-${productId}">0/${product.quantity} entered</span>
                                 </div>
@@ -1410,10 +1399,10 @@
                 <tr data-product-id="${productId}" data-imei-index="${rowIndex}">
                     <td>${rowIndex + 1}</td>
                     <td>
-                        <input type="text" 
-                               class="form-control form-control-sm purchase-imei-input" 
-                               placeholder="Enter IMEI for ${productName}" 
-                               data-product-id="${productId}" 
+                        <input type="text"
+                               class="form-control form-control-sm purchase-imei-input"
+                               placeholder="Enter IMEI for ${productName}"
+                               data-product-id="${productId}"
                                value="${value}" />
                     </td>
                     <td>
@@ -1511,7 +1500,7 @@
 
             // Only validate payment date if it's provided
             if ($('#payment-date').val() && !paidDate) {
-                toastr.error('Invalid payment date format.', 'Error'); 
+                toastr.error('Invalid payment date format.', 'Error');
                 $('#purchaseButton').prop('disabled', false).html(purchaseId ? 'Update Purchase' : 'Save Purchase');
                 // ✅ FIX: Reset submission state on date validation failure
                 isSubmitting = false;
@@ -1519,7 +1508,7 @@
             }
 
             formData.append('purchase_date', purchaseDate);
-            
+
             // ✅ FIX: Add payment fields if payment amount is provided
             const paidAmount = $('#paid-amount').val();
             if (paidAmount && parseFloat(paidAmount) > 0) {
@@ -1530,7 +1519,7 @@
                 formData.append('payment_method', $('#payment-method').val() || '');
                 formData.append('payment_account', $('#payment-account').val() || '');
                 formData.append('payment_note', $('#payment-note').val() || '');
-                
+
                 // Add payment method specific fields
                 const paymentMethod = $('#payment-method').val();
                 if (paymentMethod === 'cheque') {
@@ -1549,7 +1538,7 @@
                     formData.append('bank_account_number', $('#bankAccountNumber').val() || '');
                 }
             }
-            
+
             formData.append('final_total', $('#final-total').val());
 
             // FIX: Send discount and tax fields to server
@@ -1688,9 +1677,9 @@
                 <tr data-product-id="${productId}" data-imei-index="${newIndex}">
                     <td>${newIndex + 1}</td>
                     <td>
-                        <input type="text" 
-                               class="form-control purchase-imei-input" 
-                               placeholder="Enter IMEI for ${product.productName}" 
+                        <input type="text"
+                               class="form-control purchase-imei-input"
+                               placeholder="Enter IMEI for ${product.productName}"
                                data-product-id="${productId}" />
                     </td>
                     <td>
@@ -2021,10 +2010,10 @@
                         <tr data-product-id="${productId}" data-imei-index="${newRowIndex}">
                             <td>${newRowIndex + 1}</td>
                             <td>
-                                <input type="text" 
-                                       class="form-control purchase-imei-input" 
-                                       placeholder="Enter IMEI for ${product.productName}" 
-                                       data-product-id="${productId}" 
+                                <input type="text"
+                                       class="form-control purchase-imei-input"
+                                       placeholder="Enter IMEI for ${product.productName}"
+                                       data-product-id="${productId}"
                                        value="${imeiLines[imeiIndex]}" />
                             </td>
                             <td>
@@ -2117,7 +2106,7 @@
         function handleAjaxSuccess(response) {
             // CRITICAL FIX: Reset submission flag regardless of response status
             isSubmitting = false;
-            
+
             if (response.status === 400) {
                 document.getElementsByClassName('errorSound')[0].play();
 
@@ -2154,7 +2143,7 @@
             return function(xhr, status, error) {
                 // CRITICAL FIX: Reset submission flag on error
                 isSubmitting = false;
-                
+
                 // Handle validation errors returned as JSON
                 if (xhr.status === 400 && xhr.responseJSON && xhr.responseJSON.errors) {
                     document.getElementsByClassName('errorSound')[0].play();
@@ -2190,10 +2179,10 @@
         function resetFormAndValidation() {
             $('#purchaseForm')[0].reset();
             $('#purchaseForm').validate().resetForm();
-            
+
             // CRITICAL FIX: Clean up all product tracking arrays
             cleanupProductTrackingArrays();
-            
+
             // Use global variable or get existing instance (don't reinitialize!)
             if (purchaseProductTable) {
                 purchaseProductTable.clear().draw();
@@ -2205,11 +2194,19 @@
             updateFooter();
         }
 
-        // Initialize DataTable
+        // Initialize DataTable and ALL purchase page functionality
         $(document).ready(function() {
-            // Check if DataTable already initialized (prevent double initialization)
+            // Only run on add/edit purchase page, not on list page
+            if (!$('#purchase_product').length) {
+                console.log('⏭️ Skipping add purchase initialization (not on add purchase page)');
+                return;
+            }
+
+            // CONSOLIDATED INITIALIZATION - Run only once on page load
+            console.log('🚀 Initializing Purchase Page...');
+
+            // 1. Initialize DataTable
             if (!$.fn.DataTable.isDataTable('#purchase_product')) {
-                // Save DataTable instance to global variable
                 purchaseProductTable = $('#purchase_product').DataTable({
                     "pageLength": 10,
                     "ordering": true,
@@ -2218,10 +2215,24 @@
                     "lengthChange": true
                 });
             } else {
-                // DataTable already exists, just get the instance
                 purchaseProductTable = $('#purchase_product').DataTable();
             }
-            fetchProducts();
+
+            // 2. Fetch locations (only once)
+            fetchLocations();
+
+            // 3. Initialize autocomplete (only once)
+            initAutocomplete();
+
+            // 4. Setup location change handler
+            $('#services').off('change').on('change', function() {
+                const selectedLocationId = $(this).val();
+                if (selectedLocationId) {
+                    fetchProducts(selectedLocationId);
+                }
+            });
+
+            console.log('✅ Purchase Page Initialized');
         });
 
 
@@ -2402,15 +2413,15 @@
         // Uses .remove-purchase-row class to avoid conflict with product deletion in product_ajax.blade.php
         $('#purchase_product').on('click', '.remove-purchase-row', function(e) {
             e.preventDefault();
-            
+
             const $row = $(this).closest('tr');
             const productName = $row.find('td:nth-child(2)').text().trim();
             const quantity = $row.find('.purchase-quantity').val() || '0';
-            
+
             // Remove row directly without confirmation
             $row.remove();
             updateFooter();
-            
+
             if (typeof toastr !== 'undefined') {
             toastr.info(`${productName} removed from purchase list`, 'Row Removed');
             }
@@ -2555,101 +2566,123 @@
 
 
         $(document).ready(function() {
-            fetchPurchases();
+            // Only run on purchase list page, not on add purchase page
+            if (!$('#purchase-list').length) {
+                console.log('⏭️ Skipping purchase list initialization (not on list page)');
+                return;
+            }
 
-            // Fetch and display data
-            function fetchPurchases() {
+            // Function to load purchase table with current filters
+            function loadPurchaseTable() {
+                console.log('✅ Loading purchases with CLIENT-SIDE processing (INSTANT pagination)');
+
+                // Destroy existing DataTable if it exists
+                if ($.fn.DataTable.isDataTable('#purchase-list')) {
+                    $('#purchase-list').DataTable().destroy();
+                }
+
+                // Show loading state
+                $('#purchase-list tbody').html('<tr><td colspan="10" class="text-center"><i class="fa fa-spinner fa-spin fa-2x"></i> Loading purchases...</td></tr>');
+
+                // Fetch ALL data ONCE (cached 5 min on server = fast)
                 $.ajax({
                     url: '/get-all-purchases',
                     type: 'GET',
-                    dataType: 'json',
+                    data: {
+                        location_id: $('#locationFilter').val(),
+                        supplier_id: $('#supplierFilter').val(),
+                        purchasing_status: $('#purchaseStatusFilter').val(),
+                        payment_status: $('#paymentStatusFilter').val()
+                    },
                     success: function(response) {
-                        var table = $('#purchase-list').DataTable();
-                        table.clear().draw();
-                        if (response.purchases && response.purchases.length > 0) {
-                            // Sort purchases by id descending (or by purchase_date if you prefer)
-                            response.purchases.sort(function(a, b) {
-                                // Sort by id descending
-                                return b.id - a.id;
+                        console.log('✅ Loaded ' + response.purchases.length + ' purchases (with filters applied)');
 
-                                return new Date(b.purchase_date) - new Date(a
-                                    .purchase_date);
-                            });
-                            response.purchases.forEach(function(item) {
-                                let row = $('<tr data-id="' + item.id + '">');
-                                row.append(
-                                    '<td><a href="#" class="action-icon dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">' +
-                                    '<button type="button" class="btn btn-outline-info">Actions</button>' +
-                                    '</a>' +
-                                    '<div class="dropdown-menu dropdown-menu-end">' +
-                                    '<a class="dropdown-item" href="#" onclick="viewPurchase(' +
-                                    item.id +
-                                    ')"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>' +
-                                    '<a class="dropdown-item" href="/purchase/edit/' +
-                                    item.id +
-                                    '"><i class="far fa-edit me-2"></i>&nbsp;&nbsp;Edit</a>' +
-                                    '<a class="dropdown-item" href="#" onclick="openImeiManagementModal(' +
-                                    item.id +
-                                    ')"><i class="fas fa-barcode"></i>&nbsp;&nbsp;Manage IMEI</a>' +
-                                    '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-trash"></i>&nbsp;&nbsp;Delete</a>' +
-                                    '<a class="dropdown-item" href="#" onclick="openPaymentModal(event, ' +
-                                    item.id +
-                                    ')"><i class="fas fa-money-bill-alt"></i>&nbsp;&nbsp;Add payments</a>' +
-                                    '<a class="dropdown-item" href="#" onclick="openViewPaymentModal(event, ' +
-                                    item.id +
-                                    ')"><i class="fas fa-money-bill-alt"></i>&nbsp;&nbsp;View payments</a>' +
-                                    '</div></td>'
-                                );
-                                row.append('<td>' + item.purchase_date + '</td>');
-                                row.append('<td>' + item.reference_no + '</td>');
-                                row.append('<td>' + (item.location?.name ||
-                                    'Unknown') + '</td>');
-                                row.append('<td>' + (item.supplier?.first_name ||
-                                    'Unknown') + ' ' + (item.supplier
-                                    ?.last_name || '') + '</td>');
-                                row.append('<td>' + item.purchasing_status +
-                                    '</td>');
-                                let paymentStatusBadge = '';
-                                if (item.payment_status === 'Due') {
-                                    paymentStatusBadge =
-                                        '<span class="badge bg-danger">Due</span>';
-                                } else if (item.payment_status === 'Partial') {
-                                    paymentStatusBadge =
-                                        '<span class="badge bg-warning">Partial</span>';
-                                } else if (item.payment_status === 'Paid') {
-                                    paymentStatusBadge =
-                                        '<span class="badge bg-success">Paid</span>';
-                                } else {
-                                    paymentStatusBadge =
-                                        '<span class="badge bg-secondary">' + item
-                                        .payment_status + '</span>';
+                        // Initialize DataTable with client-side processing = INSTANT next/prev
+                        $('#purchase-list').DataTable({
+                            data: response.purchases,
+                        processing: false,
+                        serverSide: false,
+                        columns: [
+                            {
+                                data: null,
+                                orderable: false,
+                                searchable: false,
+                                render: function(data, type, row) {
+                                    return '<a href="#" class="action-icon dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">' +
+                                        '<button type="button" class="btn btn-outline-info">Actions</button>' +
+                                        '</a>' +
+                                        '<div class="dropdown-menu dropdown-menu-end">' +
+                                        '<a class="dropdown-item" href="#" onclick="viewPurchase(' + row.id + ')"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>' +
+                                        '<a class="dropdown-item" href="/purchase/edit/' + row.id + '"><i class="far fa-edit me-2"></i>&nbsp;&nbsp;Edit</a>' +
+                                        '<a class="dropdown-item" href="#" onclick="openImeiManagementModal(' + row.id + ')"><i class="fas fa-barcode"></i>&nbsp;&nbsp;Manage IMEI</a>' +
+                                        '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-trash"></i>&nbsp;&nbsp;Delete</a>' +
+                                        '<a class="dropdown-item" href="#" onclick="openPaymentModal(event, ' + row.id + ')"><i class="fas fa-money-bill-alt"></i>&nbsp;&nbsp;Add payments</a>' +
+                                        '<a class="dropdown-item" href="#" onclick="openViewPaymentModal(event, ' + row.id + ')"><i class="fas fa-money-bill-alt"></i>&nbsp;&nbsp;View payments</a>' +
+                                        '</div>';
                                 }
-                                row.append('<td>' + paymentStatusBadge + '</td>');
-                                row.append('<td>' + item.final_total + '</td>');
-                                row.append('<td>' + item.total_due + '</td>');
-                                // Show user name based on user object
-                                row.append('<td>' + (item.user?.user_name || item
-                                        .user?.user_name || 'Unknown') +
-                                    '</td>');
-                                table.row.add(row).draw(false);
-                            });
-                        } else {
-                            console.error(
-                                "No purchases found or response.purchases is undefined."
-                            );
-                        }
-
-                        // Initialize or reinitialize the DataTable after adding rows
-                        if ($.fn.dataTable.isDataTable('#purchase-list')) {
-                            $('#purchase-list').DataTable().destroy();
-                        }
-                        $('#purchase-list').DataTable();
+                            },
+                            { data: 'purchase_date' },
+                            { data: 'reference_no' },
+                            {
+                                data: 'location',
+                                render: function(data, type, row) {
+                                    return data ? data.name : 'Unknown';
+                                }
+                            },
+                            {
+                                data: 'supplier',
+                                render: function(data, type, row) {
+                                    if (data) {
+                                        return (data.first_name || '') + ' ' + (data.last_name || '');
+                                    }
+                                    return 'Unknown';
+                                }
+                            },
+                            { data: 'purchasing_status' },
+                            {
+                                data: 'payment_status',
+                                render: function(data, type, row) {
+                                    if (data === 'Due') {
+                                        return '<span class="badge bg-danger">Due</span>';
+                                    } else if (data === 'Partial') {
+                                        return '<span class="badge bg-warning">Partial</span>';
+                                    } else if (data === 'Paid') {
+                                        return '<span class="badge bg-success">Paid</span>';
+                                    } else {
+                                        return '<span class="badge bg-secondary">' + data + '</span>';
+                                    }
+                                }
+                            },
+                            { data: 'final_total' },
+                            { data: 'total_due' },
+                            {
+                                data: 'user',
+                                render: function(data, type, row) {
+                                    return data ? data.user_name : 'Unknown';
+                                }
+                            }
+                        ],
+                            order: [[1, 'desc']],
+                            pageLength: 10,
+                            lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]]
+                        });
                     },
                     error: function(xhr, status, error) {
-                        console.error("AJAX error: ", status, error);
+                        console.error('Error loading purchases:', error);
+                        $('#purchase-list tbody').html('<tr><td colspan="10" class="text-center text-danger">Error loading purchases. Please refresh.</td></tr>');
                     }
                 });
             }
+
+            // Initial load on page ready
+            loadPurchaseTable();
+
+            // Filter change handlers - reload data instantly (no page refresh!)
+            $('#locationFilter, #supplierFilter, #purchaseStatusFilter, #paymentStatusFilter').on('change', function() {
+                console.log('🔄 Filter changed, reloading data...');
+                loadPurchaseTable();
+            });
+
             // Show the modal when the button is clicked
             $('#bulkPaymentBtn').off('click').on('click', function() {
                 $('#bulkPaymentModal').modal('show');
@@ -2907,7 +2940,10 @@
 
             // Initialize DataTable
             $(document).ready(function() {
-                $('#purchaseTable').DataTable();
+                // Only initialize if #purchaseTable exists (bulk payment modal)
+                if ($('#purchaseTable').length) {
+                    $('#purchaseTable').DataTable();
+                }
             });
 
             // Handle payment submission
@@ -3235,7 +3271,7 @@
                     });
                 }
             });
-        });
+        }); // End of $(document).ready for purchase list page
 
         function deletePayment(paymentId) {
             // Implement the delete payment functionality here
@@ -3465,8 +3501,8 @@
 
             // Set purchase info
             $('#imeiPurchaseInfo').html(`
-                <strong>Date:</strong> ${purchase.purchase_date} | 
-                <strong>Supplier:</strong> ${purchase.supplier.first_name} ${purchase.supplier.last_name} | 
+                <strong>Date:</strong> ${purchase.purchase_date} |
+                <strong>Supplier:</strong> ${purchase.supplier.first_name} ${purchase.supplier.last_name} |
                 <strong>Location:</strong> ${purchase.location.name}
             `);
 
@@ -3538,6 +3574,11 @@
 
         // Event handlers for IMEI management
         $(document).ready(function() {
+            // Only set up IMEI handlers if modal exists
+            if (!$('#addImeiModal').length) {
+                return;
+            }
+
             // Input method change
             $('#imeiInputMethod').on('change', function() {
                 if ($(this).val() === 'individual') {

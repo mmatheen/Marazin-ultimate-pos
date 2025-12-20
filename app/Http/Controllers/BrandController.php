@@ -26,7 +26,7 @@ class BrandController extends Controller
 
     public function index()
     {
-        $getValue = Brand::all();
+        $getValue = Brand::select('id', 'name', 'created_at')->get();
         if ($getValue->count() > 0) {
             return response()->json([
                 'status' => 200,
@@ -42,9 +42,10 @@ class BrandController extends Controller
 
     public function brandDropdown()
     {
-        $brand = Brand::all();  // Fetch all brands
-        $brand = Brand::orderBy('created_at', 'desc')->get();  // Fetch all brands in last-in-first-out order
-        return response()->json($brand);  // Return the brands directly
+        $brand = Brand::select('id', 'name', 'created_at')
+            ->orderBy('created_at', 'desc')
+            ->get();
+        return response()->json($brand);
     }
     /**
      * Show the form for creating a new resource.

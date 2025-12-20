@@ -38,7 +38,7 @@ class PurchaseController extends Controller
     {
         $locations = \App\Models\Location::all();
         $suppliers = \App\Models\Supplier::orderBy('first_name')->get();
-        
+
         return view('purchase.list_purchase', compact('locations', 'suppliers'));
     }
 
@@ -108,7 +108,7 @@ class PurchaseController extends Controller
                     if ($value !== null && $value > 0) {
                         $finalTotal = $request->input('final_total', 0);
                         // Only warn if payment is more than 200% of total (very unusual)
-                        if ($value > ($finalTotal * 2)) { 
+                        if ($value > ($finalTotal * 2)) {
                             $fail("Payment amount ({$value}) is significantly higher than the purchase total ({$finalTotal}). If this is intentional (e.g., advance payment), please verify the amount is correct.");
                         }
                     }
@@ -222,7 +222,7 @@ class PurchaseController extends Controller
             // ✅ CRITICAL FIX: Add safety flag to prevent duplicate ledger entries during same request
             static $processedPurchases = [];
             $purchaseKey = 'purchase_' . $purchase->id;
-            
+
             if (!isset($processedPurchases[$purchaseKey])) {
                 // Handle ledger recording/updating
                 if ($isUpdate) {
@@ -232,7 +232,7 @@ class PurchaseController extends Controller
                     // Record purchase in ledger for new purchases
                     $this->unifiedLedgerService->recordPurchase($purchase);
                 }
-                
+
                 $processedPurchases[$purchaseKey] = true;
             }
 
@@ -251,7 +251,7 @@ class PurchaseController extends Controller
 
     /**
      * Prepare payment data array from request
-     * 
+     *
      * @param Request $request
      * @return array
      */
@@ -290,7 +290,7 @@ class PurchaseController extends Controller
 
         // CRITICAL FIX: Add transaction and validation to prevent double processing
         DB::transaction(function () use ($request, $purchase, $existingProducts) {
-            
+
             collect($request->products)->chunk(100)->each(function ($productsChunk) use ($purchase, $existingProducts, $request) {
                 foreach ($productsChunk as $productData) {
                     $productId = $productData['product_id'];
@@ -306,7 +306,7 @@ class PurchaseController extends Controller
                         $oldQuantity = $existingProduct->quantity;
                         $newQuantity = $productData['quantity'];
                         $quantityDifference = $newQuantity - $oldQuantity;
-                        
+
                         Log::info('Purchase edit: Updating existing product stock', [
                             'product_id' => $productId,
                             'old_quantity' => $oldQuantity,
@@ -343,7 +343,7 @@ class PurchaseController extends Controller
                                 'max_retail_price' => $productData['max_retail_price'],
                                 // IMPORTANT: Do NOT update batch qty here - it's handled by updateProductStock
                             ]);
-                            
+
                             Log::info('Updated batch prices for existing product', [
                                 'batch_id' => $batch->id,
                                 'product_id' => $productId,
@@ -363,7 +363,7 @@ class PurchaseController extends Controller
                             'quantity' => $productData['quantity'],
                             'purchase_id' => $purchase->id
                         ]);
-                        
+
                         $this->addNewProductToPurchase($purchase, $productData, $request->location_id);
                     }
                 }
@@ -379,7 +379,7 @@ class PurchaseController extends Controller
                     'quantity' => $productToRemove->quantity,
                     'purchase_id' => $purchase->id
                 ]);
-                
+
                 $this->removeProductFromPurchase($productToRemove, $request->location_id);
             }
         });
@@ -440,7 +440,7 @@ class PurchaseController extends Controller
         if ($originalLocationQty + $quantityDifference < 0) {
             throw new \Exception("Stock quantity cannot be reduced below zero. Location stock: {$originalLocationQty}, trying to change by: {$quantityDifference}");
         }
-        
+
         if ($originalBatchQty + $quantityDifference < 0) {
             throw new \Exception("Batch stock quantity cannot be reduced below zero. Batch stock: {$originalBatchQty}, trying to change by: {$quantityDifference}");
         }
@@ -449,7 +449,7 @@ class PurchaseController extends Controller
         DB::transaction(function () use ($locationBatch, $batch, $quantityDifference, $originalLocationQty, $originalBatchQty, $existingProduct) {
             // Update location batch quantity
             $locationBatch->increment('qty', $quantityDifference);
-            
+
             // Update batch quantity
             $batch->increment('qty', $quantityDifference);
 
@@ -478,7 +478,7 @@ class PurchaseController extends Controller
     {
         // First check if batch already exists with same batch_no and product_id
         $batchNo = $productData['batch_no'] ?? Batch::generateNextBatchNo();
-        
+
         $batch = Batch::where([
             'batch_no' => $batchNo,
             'product_id' => $productData['product_id'],
@@ -494,7 +494,7 @@ class PurchaseController extends Controller
                 // Note: Don't update unit_cost and expiry_date as they should remain from original batch
             ]);
             $batch->increment('qty', $productData['quantity']);
-            
+
             Log::info('Updated existing batch with new prices and quantity', [
                 'batch_id' => $batch->id,
                 'batch_no' => $batchNo,
@@ -516,7 +516,7 @@ class PurchaseController extends Controller
                 'retail_price' => $productData['retail_price'],
                 'max_retail_price' => $productData['max_retail_price'],
             ]);
-            
+
             Log::info('Created new batch with all prices', [
                 'batch_id' => $batch->id,
                 'batch_no' => $batchNo,
@@ -587,7 +587,7 @@ class PurchaseController extends Controller
     private function processImeiNumbers($productData, $batchId, $locationId)
     {
         $imeiNumbers = json_decode($productData['imei_numbers'], true);
-        
+
         if (is_array($imeiNumbers) && !empty($imeiNumbers)) {
             foreach ($imeiNumbers as $imeiNumber) {
                 if (!empty(trim($imeiNumber))) {
@@ -600,7 +600,7 @@ class PurchaseController extends Controller
                     ]);
                 }
             }
-            
+
             Log::info('IMEI numbers processed for product', [
                 'product_id' => $productData['product_id'],
                 'imei_count' => count($imeiNumbers),
@@ -632,7 +632,7 @@ class PurchaseController extends Controller
             $this->paymentService->updatePurchasePaymentStatus($purchase);
 
             return response()->json([
-                'status' => 200, 
+                'status' => 200,
                 'message' => 'Purchase totals recalculated successfully.',
                 'total_paid' => $purchase->total_paid,
                 'payment_status' => $purchase->payment_status
@@ -660,7 +660,7 @@ class PurchaseController extends Controller
             }
 
             return response()->json([
-                'status' => 200, 
+                'status' => 200,
                 'message' => "Successfully recalculated totals for {$updated} purchases."
             ]);
         } catch (Exception $e) {
@@ -672,26 +672,94 @@ class PurchaseController extends Controller
     public function getAllPurchase(Request $request)
     {
         try {
-            // Start with base query
-            $query = Purchase::with(['supplier', 'location', 'purchaseProducts', 'payments', 'user']);
-            
-            // Filter by supplier_id if provided (like sales controller)
-            if ($request->has('supplier_id') && $request->supplier_id) {
-                $query->where('supplier_id', $request->supplier_id);
-            }
-            
-            // Fetch purchases with related products and payment info
-            $purchases = $query->get();
+            // Build cache key based on filters
+            $cacheKey = 'purchases_all_' . md5(json_encode([
+                'supplier_id' => $request->supplier_id,
+                'location_id' => $request->location_id,
+                'purchasing_status' => $request->purchasing_status,
+                'payment_status' => $request->payment_status,
+                'start_date' => $request->start_date,
+                'end_date' => $request->end_date,
+            ]));
 
-            // Check if purchases are found
-            if ($purchases->isEmpty()) {
-                return response()->json(['message' => 'No purchases found.'], 404);
-            }
+            // Cache ALL purchases for 5 minutes (fast loading + instant pagination)
+            $purchases = \Cache::remember($cacheKey, 300, function() use ($request) {
+                $query = DB::table('purchases as p')
+                    ->select([
+                        'p.id',
+                        'p.supplier_id',
+                        'p.location_id',
+                        'p.user_id',
+                        'p.reference_no',
+                        'p.purchase_date',
+                        'p.purchasing_status',
+                        'p.payment_status',
+                        'p.final_total',
+                        'p.total_due',
+                        DB::raw("CONCAT(COALESCE(s.first_name, ''), ' ', COALESCE(s.last_name, '')) as supplier_name"),
+                        'l.name as location_name',
+                        'u.user_name'
+                    ])
+                    ->leftJoin('suppliers as s', 'p.supplier_id', '=', 's.id')
+                    ->leftJoin('locations as l', 'p.location_id', '=', 'l.id')
+                    ->leftJoin('users as u', 'p.user_id', '=', 'u.id');
 
-            // Return the purchases along with related purchase products and payment info
-            return response()->json(['purchases' => $purchases], 200);
+                // Apply filters
+                if ($request->filled('supplier_id')) {
+                    $query->where('p.supplier_id', $request->supplier_id);
+                }
+                if ($request->filled('location_id')) {
+                    $query->where('p.location_id', $request->location_id);
+                }
+                if ($request->filled('purchasing_status')) {
+                    $query->where('p.purchasing_status', $request->purchasing_status);
+                }
+                if ($request->filled('payment_status')) {
+                    $query->where('p.payment_status', $request->payment_status);
+                }
+                if ($request->filled('start_date')) {
+                    $query->whereDate('p.purchase_date', '>=', $request->start_date);
+                }
+                if ($request->filled('end_date')) {
+                    $query->whereDate('p.purchase_date', '<=', $request->end_date);
+                }
+
+                $query->orderBy('p.id', 'desc');
+
+                return $query->get();
+            });
+
+            // Format data
+            $formattedPurchases = $purchases->map(function($purchase) {
+                return [
+                    'id' => $purchase->id,
+                    'supplier_id' => $purchase->supplier_id,
+                    'location_id' => $purchase->location_id,
+                    'user_id' => $purchase->user_id,
+                    'reference_no' => $purchase->reference_no,
+                    'purchase_date' => $purchase->purchase_date,
+                    'purchasing_status' => $purchase->purchasing_status,
+                    'payment_status' => $purchase->payment_status,
+                    'final_total' => $purchase->final_total,
+                    'total_due' => $purchase->total_due,
+                    'supplier' => [
+                        'first_name' => explode(' ', $purchase->supplier_name)[0] ?? '',
+                        'last_name' => explode(' ', $purchase->supplier_name, 2)[1] ?? ''
+                    ],
+                    'location' => [
+                        'name' => $purchase->location_name
+                    ],
+                    'user' => [
+                        'user_name' => $purchase->user_name
+                    ]
+                ];
+            });
+
+            return response()->json([
+                'purchases' => $formattedPurchases
+            ], 200);
+
         } catch (\Exception $e) {
-            // Log the exception and return a generic error message
             Log::error('Error fetching purchases: ' . $e->getMessage());
             return response()->json(['message' => 'An error occurred while fetching purchases. Please try again later.'], 500);
         }
@@ -723,15 +791,15 @@ class PurchaseController extends Controller
     {
         try {
             $locationId = $request->get('location_id');
-            
+
             $query = Purchase::with(['purchaseProducts.product.unit', 'purchaseProducts.batch'])
                 ->where('supplier_id', $supplierId);
-            
+
             // Filter by location if provided
             if ($locationId) {
                 $query->where('location_id', $locationId);
             }
-            
+
             $purchases = $query->get();
 
             if ($purchases->isEmpty()) {
@@ -743,7 +811,7 @@ class PurchaseController extends Controller
             foreach ($purchases as $purchase) {
                 foreach ($purchase->purchaseProducts as $purchaseProduct) {
                     $productId = $purchaseProduct->product_id;
-                    
+
                     // Get current stock from LocationBatch for the specific location
                     $currentStock = 0;
                     if ($purchaseProduct->batch_id) {
@@ -760,7 +828,7 @@ class PurchaseController extends Controller
                             'purchases' => []
                         ];
                     }
-                    
+
                     // Only include products that have current stock > 0
                     if ($currentStock > 0) {
                         $products[$productId]['purchases'][] = [
@@ -813,7 +881,7 @@ class PurchaseController extends Controller
                 'supplier_name' => $purchase->supplier ? $purchase->supplier->first_name : 'N/A',
                 'reference_no' => $purchase->reference_no
             ]);
-            
+
             return response()->json(['status' => 200, 'purchase' => $purchase], 200);
         }
 
@@ -842,7 +910,7 @@ class PurchaseController extends Controller
             }
 
             $imeiProducts = [];
-            
+
             foreach ($purchase->purchaseProducts as $purchaseProduct) {
                 if ($purchaseProduct->product->is_imei_or_serial_no) {
                     // Count existing IMEI numbers for this batch
@@ -921,7 +989,7 @@ class PurchaseController extends Controller
         try {
             DB::transaction(function () use ($request) {
                 $purchaseProduct = \App\Models\PurchaseProduct::with(['product', 'purchase'])->find($request->purchase_product_id);
-                
+
                 if (!$purchaseProduct) {
                     throw new \Exception('Purchase product not found.');
                 }
@@ -992,7 +1060,7 @@ class PurchaseController extends Controller
             DB::transaction(function () use ($request) {
                 // Verify all IMEI numbers are available (not sold)
                 $imeiNumbers = ImeiNumber::whereIn('id', $request->imei_ids)->get();
-                
+
                 $unavailableImeis = $imeiNumbers->where('status', '!=', 'available');
                 if ($unavailableImeis->count() > 0) {
                     $unavailableList = $unavailableImeis->pluck('imei_number')->join(', ');
@@ -1037,14 +1105,14 @@ class PurchaseController extends Controller
         try {
             DB::transaction(function () use ($request) {
                 $imeiRecord = ImeiNumber::findOrFail($request->imei_id);
-                
+
                 // Check if IMEI is available for editing
                 if ($imeiRecord->status !== 'available') {
                     throw new \Exception("Cannot update IMEI number. Only available IMEI numbers can be edited.");
                 }
 
                 $oldImeiNumber = $imeiRecord->imei_number;
-                
+
                 // Update the IMEI number
                 $imeiRecord->update([
                     'imei_number' => $request->imei_number
@@ -1066,12 +1134,12 @@ class PurchaseController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Error updating IMEI number: ' . $e->getMessage());
-            
+
             // Check if it's a duplicate IMEI error
             if (str_contains($e->getMessage(), 'Duplicate entry')) {
                 return response()->json(['status' => 400, 'message' => 'This IMEI number already exists in the system.']);
             }
-            
+
             return response()->json(['status' => 500, 'message' => $e->getMessage()]);
         }
     }
@@ -1095,7 +1163,7 @@ class PurchaseController extends Controller
             // Parse IMEI numbers from text
             $separator = $request->separator ?? 'newline';
             $imeiText = trim($request->imei_text);
-            
+
             $imeiNumbers = [];
             switch ($separator) {
                 case 'comma':
@@ -1112,29 +1180,29 @@ class PurchaseController extends Controller
             // Clean and validate IMEI numbers
             $cleanedImeis = [];
             $errors = [];
-            
+
             foreach ($imeiNumbers as $index => $imei) {
                 $cleanedImei = trim($imei);
                 if (empty($cleanedImei)) continue;
-                
+
                 // Validate IMEI format
                 if (!preg_match('/^\d{10,17}$/', $cleanedImei)) {
                     $errors[] = "Line " . ($index + 1) . ": Invalid IMEI format '{$cleanedImei}' (must be 10-17 digits)";
                     continue;
                 }
-                
+
                 // Check for duplicates in the system
                 if (ImeiNumber::where('imei_number', $cleanedImei)->exists()) {
                     $errors[] = "Line " . ($index + 1) . ": IMEI '{$cleanedImei}' already exists in the system";
                     continue;
                 }
-                
+
                 // Check for duplicates within the input
                 if (in_array($cleanedImei, $cleanedImeis)) {
                     $errors[] = "Line " . ($index + 1) . ": Duplicate IMEI '{$cleanedImei}' found in input";
                     continue;
                 }
-                
+
                 $cleanedImeis[] = $cleanedImei;
             }
 
@@ -1177,37 +1245,37 @@ class PurchaseController extends Controller
                     ->where('payment_type', 'purchase')
                     ->orderBy('created_at', 'asc')
                     ->get();
-                
+
                 if ($payments->count() > 1) {
                     // Keep the latest payment, mark others as inactive
                     $latestPayment = $payments->last();
                     $duplicatePayments = $payments->take($payments->count() - 1);
-                    
+
                     Log::info('Cleaning up duplicate payments', [
                         'purchase_id' => $purchaseId,
                         'total_payments' => $payments->count(),
                         'keeping_payment_id' => $latestPayment->id,
                         'removing_count' => $duplicatePayments->count()
                     ]);
-                    
+
                     foreach ($duplicatePayments as $duplicate) {
                         // Mark payment as inactive instead of deleting
                         $duplicate->update([
                             'status' => 'inactive',
                             'notes' => ($duplicate->notes ?: '') . ' [DUPLICATE REMOVED: ' . now()->format('Y-m-d H:i:s') . ']'
                         ]);
-                        
+
                         // Also handle ledger entries for this duplicate payment
                         $this->unifiedLedgerService->deletePaymentLedger($duplicate);
                     }
                 }
             });
-            
+
             return response()->json([
                 'status' => 200,
                 'message' => 'Duplicate payments cleaned up successfully.'
             ]);
-            
+
         } catch (\Exception $e) {
             Log::error('Error cleaning up duplicate payments: ' . $e->getMessage());
             return response()->json([

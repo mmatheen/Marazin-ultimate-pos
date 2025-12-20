@@ -321,7 +321,10 @@
 
     // Initial validation check after page load
     $(document).ready(function() {
-        setTimeout(validateFormAndUpdateButtons, 500);
+        // Only run on product add/edit modal
+        if ($('#addForm').length || $('#edit_product_id').length) {
+            setTimeout(validateFormAndUpdateButtons, 500);
+        }
     });
 
     // =============================
@@ -1916,6 +1919,12 @@
 
     // On page load: fetch categories/brands/locations, then initialize DataTable
     $(document).ready(function() {
+        // Only run this on actual product page, not on purchase/sale pages
+        if (!$('#productTable').length && !$('#edit_product_id').length) {
+            console.log('⏭️ Skipping product page initialization (not on product page)');
+            return;
+        }
+
         console.log('🚀 Initializing product page...');
 
         // Initialize buttons based on current page mode
@@ -2479,6 +2488,11 @@
 
 
     $(document).ready(function() {
+        // Only run on opening stock page
+        if (!$('#product_id').length) {
+            return;
+        }
+
         const productId = $('#product_id').val();
         const productName = $('#product_name').val();
         const productSku = $('#product_sku').val();
@@ -3269,6 +3283,11 @@
 
     // Extract the product ID from the URL and fetch data if valid
     $(document).ready(function() {
+        // Only run on edit product page
+        if (!window.location.pathname.includes('/edit-product/')) {
+            return;
+        }
+
         const pathSegments = window.location.pathname.split('/');
         const productId = pathSegments[pathSegments.length - 1];
 

@@ -12,6 +12,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ProfitLossExport;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 use Illuminate\Http\Request;
 
@@ -35,12 +36,22 @@ class ReportController extends Controller
 
     public function stockHistory(Request $request)
     {
-        // Get all locations for filter dropdown
-        $locations = Location::all();
-        $categories = \App\Models\MainCategory::all();
-        $subCategories = \App\Models\SubCategory::all();
-        $brands = Brand::all();
-        $units = \App\Models\Unit::all();
+        // Get all locations for filter dropdown - cache static data
+        $locations = Cache::remember('locations_list', 3600, function() {
+            return Location::select('id', 'name')->get();
+        });
+        $categories = Cache::remember('main_categories_list', 3600, function() {
+            return \App\Models\MainCategory::select('id', 'name')->get();
+        });
+        $subCategories = Cache::remember('sub_categories_list', 3600, function() {
+            return \App\Models\SubCategory::select('id', 'name', 'main_category_id')->get();
+        });
+        $brands = Cache::remember('brands_list', 3600, function() {
+            return Brand::select('id', 'name')->get();
+        });
+        $units = Cache::remember('units_list', 3600, function() {
+            return \App\Models\Unit::select('id', 'name', 'short_name')->get();
+        });
 
         // If AJAX request for DataTables
         if ($request->ajax()) {

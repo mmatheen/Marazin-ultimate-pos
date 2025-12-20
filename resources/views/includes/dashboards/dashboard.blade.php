@@ -523,7 +523,7 @@
             let combinedChart;
             let dashboardDataCache = null;
             let lastFetchTime = null;
-            const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+            const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes in milliseconds for fast loading
 
             function formatCurrency(amount) {
                 return 'Rs. ' + parseFloat(amount).toLocaleString('en-IN', {
@@ -535,7 +535,7 @@
             function fetchDashboardData(start, end, locationId = null) {
                 // Check if we have valid cached data
                 const now = Date.now();
-                const cacheKey = `${start.format('YYYY-MM-DD')}_${end.format('YYYY-MM-DD')}_${locationId}`;
+                const cacheKey = `${start.format('YYYY-MM-DD')}_${end.format('YYYY-MM-DD')}_${locationId || 'all'}`;
 
                 if (dashboardDataCache &&
                     dashboardDataCache.key === cacheKey &&
@@ -549,16 +549,24 @@
                 // Show loading indicators
                 showLoadingState();
 
+                // Build data object - only include location_id if it has a value
+                let requestData = {
+                    startDate: start.startOf('day').format('YYYY-MM-DD HH:mm:ss'),
+                    endDate: end.endOf('day').format('YYYY-MM-DD HH:mm:ss')
+                };
+
+                // Only add location_id if it's not empty
+                if (locationId && locationId !== '' && locationId !== 'null') {
+                    requestData.location_id = locationId;
+                }
+
                 $.ajax({
                     url: "/dashboard-data",
                     type: "GET",
                     dataType: "json",
-                    data: {
-                        startDate: start.startOf('day').format('YYYY-MM-DD HH:mm:ss'),
-                        endDate: end.endOf('day').format('YYYY-MM-DD HH:mm:ss'),
-                        location_id: locationId
-                    },
+                    data: requestData,
                     success: function(response) {
+                        console.log('Dashboard data received:', response);
                         // Cache the response
                         dashboardDataCache = {
                             key: cacheKey,

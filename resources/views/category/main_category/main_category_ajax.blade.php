@@ -1,8 +1,15 @@
 <script type="text/javascript">
     $(document).ready(function() {
-        var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
-        showFetchData();
-        populateItemMainCategoryDropdown();
+        // Only initialize on main category page, not on purchase/other pages
+        if ($('#mainCategory').length) {
+            console.log('✅ Initializing main category page');
+            var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
+            showFetchData();
+        } else {
+            console.log('⏭️ Skipping main category datatable (not on category page)');
+        }
+
+        // Note: populateItemMainCategoryDropdown() will be called when modal opens, not on page load
 
         // add form and update validation rules code start
         var addAndUpdateValidationOptions = {

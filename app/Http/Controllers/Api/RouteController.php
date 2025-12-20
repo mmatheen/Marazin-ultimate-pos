@@ -19,7 +19,7 @@ class RouteController extends Controller
     public function index()
     {
         try {
-            $routes = Route::all();
+            $routes = Route::select('id', 'name', 'description', 'status', 'created_at', 'updated_at')->get();
 
             if ($routes->isEmpty()) {
                 return response()->json([
@@ -485,7 +485,7 @@ class RouteController extends Controller
     {
         $route = Route::find($id);
         if (!$route) {
-            return response()->json([                              
+            return response()->json([
 
                 'status' => false,
                 'message' => 'Route not found.',

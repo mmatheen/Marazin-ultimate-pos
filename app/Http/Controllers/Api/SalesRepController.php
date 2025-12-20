@@ -146,10 +146,10 @@ class SalesRepController extends Controller
         // Validate locations and prepare for auto-assignment if needed
         $locationsToAssign = [];
         $userLocationIds = $user->locations->pluck('id')->toArray();
-        
+
         foreach ($requestData['assignments'] as $index => $assignment) {
             $subLocationId = $assignment['sub_location_id'];
-            
+
             // Validate that the sub-location is actually a sub-location (has parent)
             $subLocation = Location::with('parent')->find($subLocationId);
             if (!$subLocation || !$subLocation->parent_id) {
@@ -197,16 +197,19 @@ class SalesRepController extends Controller
             $errors = [];
 
             foreach ($requestData['assignments'] as $assignment) {
-                foreach ($assignment['route_ids'] as $routeId) {
-                    // Check for existing active assignment
-                    $existingAssignment = SalesRep::where('user_id', $requestData['user_id'])
-                        ->where('sub_location_id', $assignment['sub_location_id'])
-                        ->where('route_id', $routeId)
-                        ->where('status', 'active')
-                        ->whereNull('end_date')
-                        ->first();
+                // Check for existing active assignments for all routes at once
+                $routeIds = $assignment['route_ids'];
+                $existingAssignments = SalesRep::where('user_id', $requestData['user_id'])
+                    ->where('sub_location_id', $assignment['sub_location_id'])
+                    ->whereIn('route_id', $routeIds)
+                    ->where('status', 'active')
+                    ->whereNull('end_date')
+                    ->pluck('route_id')
+                    ->toArray();
 
-                    if ($existingAssignment) {
+                foreach ($assignment['route_ids'] as $routeId) {
+                    // Check if this route already exists
+                    if (in_array($routeId, $existingAssignments)) {
                         $route = Route::find($routeId);
                         $location = Location::find($assignment['sub_location_id']);
                         $duplicates[] = "Route '{$route->name}' at '{$location->name}'";
@@ -336,7 +339,7 @@ class SalesRepController extends Controller
         // Check if user has access to the selected sub-location
         $userLocationIds = $user->locations->pluck('id')->toArray();
         $hasAccess = in_array($requestData['sub_location_id'], $userLocationIds);
-        
+
         if (!$hasAccess) {
             // If admin/manager, automatically assign the location to the user
             if ($isAdminOrManager) {
@@ -346,7 +349,7 @@ class SalesRepController extends Controller
                     $locationsToAssign[] = $subLocation->parent_id;
                 }
                 $user->locations()->syncWithoutDetaching($locationsToAssign);
-                
+
                 // Log this action
                 Log::info("Auto-assigned locations to user {$user->id} by admin/manager {$currentUser->id}", [
                     'user_id' => $user->id,
@@ -500,7 +503,7 @@ class SalesRepController extends Controller
         // Validate that user has access to the selected sub-location
         $user = User::with('locations')->find($requestData['user_id']);
         $hasAccess = $user->locations->contains('id', $requestData['sub_location_id']);
-        
+
         if (!$hasAccess) {
             return response()->json([
                 'status' => false,
@@ -693,7 +696,7 @@ class SalesRepController extends Controller
         // Check permissions
         $currentUser = auth()->user();
         $isAdminOrManager = $currentUser && ($currentUser->is_admin || $currentUser->roles->whereIn('name', ['admin', 'manager'])->count() > 0);
-        
+
         if (!$isAdminOrManager) {
             return response()->json([
                 'status' => false,
@@ -703,7 +706,7 @@ class SalesRepController extends Controller
 
         try {
             $user = User::with(['locations', 'roles'])->find($request->user_id);
-            
+
             // Check if user has sales rep role
             $isSalesRep = $this->validateSalesRepRole($user);
             if (!$isSalesRep) {
@@ -715,7 +718,7 @@ class SalesRepController extends Controller
 
             // Assign locations (merge with existing)
             $user->locations()->syncWithoutDetaching($request->location_ids);
-            
+
             Log::info("Admin/Manager assigned locations to user", [
                 'user_id' => $user->id,
                 'location_ids' => $request->location_ids,
@@ -779,8 +782,8 @@ class SalesRepController extends Controller
     private function validateSalesRepRole($user)
     {
         return $user->roles->contains(function($role) {
-            return $role->name === 'Sales Rep' || 
-                   $role->name === 'sales rep' || 
+            return $role->name === 'Sales Rep' ||
+                   $role->name === 'sales rep' ||
                    $role->key === 'sales_rep';
         });
     }
@@ -794,7 +797,7 @@ class SalesRepController extends Controller
     {
         try {
             $user = auth()->user();
-            
+
             if (!$user) {
                 return response()->json([
                     'status' => false,
@@ -913,18 +916,21 @@ class SalesRepController extends Controller
     {
         try {
             $updated = 0;
-            
-            // Get all assignments except cancelled ones
-            $assignments = SalesRep::where('status', '!=', SalesRep::STATUS_CANCELLED)->get();
-            
-            foreach ($assignments as $assignment) {
-                if ($assignment->updateStatusByDate()) {
-                    $updated++;
-                }
-            }
+            $totalChecked = 0;
+
+            // Process in chunks to avoid memory issues with large datasets
+            SalesRep::where('status', '!=', SalesRep::STATUS_CANCELLED)
+                ->chunk(100, function ($assignments) use (&$updated, &$totalChecked) {
+                    foreach ($assignments as $assignment) {
+                        $totalChecked++;
+                        if ($assignment->updateStatusByDate()) {
+                            $updated++;
+                        }
+                    }
+                });
 
             Log::info("Status update completed", [
-                'total_checked' => $assignments->count(),
+                'total_checked' => $totalChecked,
                 'updated_count' => $updated,
             ]);
 
@@ -932,7 +938,7 @@ class SalesRepController extends Controller
                 'status' => true,
                 'message' => "Status update completed. {$updated} assignments updated.",
                 'data' => [
-                    'total_checked' => $assignments->count(),
+                    'total_checked' => $totalChecked,
                     'updated_count' => $updated,
                 ],
             ], 200);

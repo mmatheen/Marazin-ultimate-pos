@@ -15,6 +15,7 @@ use App\Helpers\BalanceHelper;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class CustomerController extends Controller
 {
@@ -31,8 +32,12 @@ class CustomerController extends Controller
 
     public function Customer()
     {
-        $cities = City::all();
-        $customerGroups = CustomerGroup::all();
+        $cities = Cache::remember('cities_list', 3600, function() {
+            return City::select('id', 'name', 'district', 'province')->get();
+        });
+        $customerGroups = Cache::remember('customer_groups_list', 3600, function() {
+            return CustomerGroup::select('id', 'customerGroupName')->get();
+        });
 
         return view('contact.customer.customer', compact('cities', 'customerGroups'));
     }

@@ -24,8 +24,14 @@ class StockAdjustmentController extends Controller
 
     public function index()
     {
-        // Fetch all stock adjustments with related products, location, and user
-        $stockAdjustments = StockAdjustment::with('adjustmentProducts.product', 'location', 'user')->get();
+        // Fetch all stock adjustments with related products, location, and user - select only needed columns
+        $stockAdjustments = StockAdjustment::select('id', 'reference_no', 'date', 'location_id', 'adjustment_type', 'total_amount_recovered', 'reason', 'user_id', 'created_at')
+            ->with([
+                'adjustmentProducts:id,stock_adjustment_id,product_id,batch_id,quantity,unit_price,subtotal',
+                'adjustmentProducts.product:id,product_name,sku',
+                'location:id,name',
+                'user:id,user_name,full_name'
+            ])->get();
 
         // Return response as JSON
         return response()->json([

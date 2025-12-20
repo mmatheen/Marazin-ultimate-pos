@@ -1,8 +1,15 @@
 <script type="text/javascript">
     $(document).ready(function() {
-        var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
-        showFetchData();
-        populateUnitDropdown();
+        // Only initialize on unit page, not on purchase/other pages
+        if ($('#units').length) {
+            console.log('✅ Initializing unit page');
+            var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
+            showFetchData();
+        } else {
+            console.log('⏭️ Skipping unit datatable (not on unit page)');
+        }
+
+        // Note: populateUnitDropdown() will be called when modal opens, not on page load
 
         // add form and update validation rules code start
         var addAndUpdateValidationOptions = {

@@ -1,8 +1,15 @@
 <script type="text/javascript">
     $(document).ready(function () {
-    var csrfToken = $('meta[name="csrf-token"]').attr('content');  //for crf token
-        showFetchData();
-        populateBrandDropdown();
+        // Only initialize on brand page, not on purchase/other pages
+        if ($('#brands').length) {
+            console.log('✅ Initializing brand page');
+            var csrfToken = $('meta[name="csrf-token"]').attr('content');  //for crf token
+            showFetchData();
+        } else {
+            console.log('⏭️ Skipping brand datatable (not on brand page)');
+        }
+
+        // Note: populateBrandDropdown() will be called when modal opens, not on page load
 
     // add form and update validation rules code start
               var addAndUpdateValidationOptions = {

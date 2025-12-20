@@ -158,10 +158,11 @@ class ProductController extends Controller
     public function initialProductDetails()
     {
         try {
-            $mainCategories = MainCategory::all();
-            $subCategories = SubCategory::with('mainCategory')->get();
-            $brands = Brand::all();
-            $units = Unit::all();
+            $mainCategories = MainCategory::select('id', 'name')->get();
+            $subCategories = SubCategory::select('id', 'name', 'main_category_id')
+                ->with('mainCategory:id,name')->get();
+            $brands = Brand::select('id', 'name')->get();
+            $units = Unit::select('id', 'name', 'short_name', 'allow_decimal')->get();
 
             // Use proper location filtering instead of Location::all()
             $locations = $this->getUserAccessibleLocations(auth()->user());
@@ -379,11 +380,11 @@ class ProductController extends Controller
             ], 404);
         }
 
-        $mainCategories = MainCategory::all();
-        $subCategories = SubCategory::all();
-        $brands = Brand::all();
-        $units = Unit::all();
-        $locations = Location::all();
+        $mainCategories = MainCategory::select('id', 'name')->get();
+        $subCategories = SubCategory::select('id', 'name', 'main_category_id')->get();
+        $brands = Brand::select('id', 'name')->get();
+        $units = Unit::select('id', 'name', 'short_name', 'allow_decimal')->get();
+        $locations = Location::select('id', 'name')->get();
 
         // Check if the request is AJAX
         if (request()->ajax() || request()->is('api/*')) {
@@ -1735,14 +1736,10 @@ class ProductController extends Controller
             }
         ])
         // Only show active products in POS autocomplete
-        ->where('is_active', true)
-        // Filter by location if provided (only show products with stock in that location)
-        ->when($locationId, function ($query) use ($locationId) {
-            return $query->whereHas('batches.locationBatches', function ($q) use ($locationId) {
-                $q->where('location_id', $locationId)
-                  ->where('qty', '>', 0);
-            });
-        });
+        ->where('is_active', true);
+
+        // Don't filter by location - show all products but display location-specific stock
+        // This allows products to be added to purchases even if they have zero stock at the location
 
         if ($search) {
             // Include IMEI search - First check if any products have matching IMEI numbers

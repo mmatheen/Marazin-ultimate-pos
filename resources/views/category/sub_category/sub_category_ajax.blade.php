@@ -1,8 +1,15 @@
 <script type="text/javascript">
     $(document).ready(function() {
-        var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
-        showFetchData();
-        fetchSubCategoryDropdown();
+        // Only initialize on sub category page, not on purchase/other pages
+        if ($('#SubCategory').length) {
+            console.log('✅ Initializing sub category page');
+            var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
+            showFetchData();
+        } else {
+            console.log('⏭️ Skipping sub category datatable (not on sub category page)');
+        }
+
+        // Note: fetchSubCategoryDropdown() will be called when modal opens, not on page load
 
         // add form and update validation rules code start
         var addAndUpdateValidationOptions = {

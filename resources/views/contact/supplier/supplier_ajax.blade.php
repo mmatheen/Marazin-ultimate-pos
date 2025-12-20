@@ -1,8 +1,20 @@
 <script type="text/javascript">
     $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
-        showFetchData();
-        supplierGetAll();
+
+        // Only initialize datatable on supplier list page
+        if ($('#supplierTable').length) {
+            console.log('✅ Initializing supplier list page');
+            showFetchData();
+        } else {
+            console.log('⏭️ Skipping supplier datatable (not on supplier page)');
+        }
+
+        // Initialize supplier dropdown if it exists on page (for purchase/sale pages)
+        if ($('#supplier-id').length) {
+            console.log('✅ Initializing supplier dropdown for purchase/sale page');
+            supplierGetAll();
+        }
 
         // add form and update validation rules code start
         var addAndUpdateValidationOptions = {
@@ -95,7 +107,7 @@
                         row.append('<td>Rs ' + (item.balance || 0) + '</td>');
                         row.append('<td>Rs ' + item.total_purchase_due + '</td>');
                         row.append('<td>Rs ' + item.total_return_due + '</td>');
-                        
+
                         // Action buttons with dropdown
                         let actionHtml = '<div class="btn-group" role="group">' +
                             '<div class="btn-group me-2" role="group">' +
@@ -115,7 +127,7 @@
                             '@can("edit supplier")<button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
                             '@can("delete supplier")<button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +
                         '</div>';
-                        
+
                         row.append('<td>' + actionHtml + '</td>');
                         table.row.add(row).draw(false);
                     });
@@ -281,7 +293,7 @@
 
                         // ✅ FIX: Trigger custom event when suppliers are loaded
                         $(document).trigger('suppliersLoaded');
-                        
+
                     } else {
                         console.error('Failed to fetch supplier data:', data.message);
                     }

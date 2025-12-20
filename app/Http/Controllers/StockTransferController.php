@@ -24,9 +24,15 @@ class StockTransferController extends Controller
     // Fetch all stock transfers
     public function index()
     {
-        $stockTransfers = StockTransfer::with(['fromLocation', 'toLocation', 'stockTransferProducts.product'])
+        $stockTransfers = StockTransfer::select('id', 'reference_no', 'from_location_id', 'to_location_id', 'transfer_date', 'final_total', 'note', 'status', 'created_at')
+            ->with([
+                'fromLocation:id,name',
+                'toLocation:id,name',
+                'stockTransferProducts:id,stock_transfer_id,product_id,batch_id,quantity,unit_price,sub_total',
+                'stockTransferProducts.product:id,product_name,sku'
+            ])
             ->orderBy('created_at', 'desc')
-            ->orderBy('id', 'desc') // Add secondary sort by ID for consistent ordering
+            ->orderBy('id', 'desc')
             ->get();
 
         return response()->json([
@@ -55,7 +61,7 @@ class StockTransferController extends Controller
                 ->lockForUpdate()
                 ->orderByRaw('CAST(REGEXP_REPLACE(reference_no, "[^0-9]", "") AS UNSIGNED) DESC')
                 ->first();
-                
+
             if ($maxRef) {
                 // Extract only the numeric part from reference (REF124, REF124_DUP1 -> 124)
                 preg_match('/REF(\d+)/', $maxRef->reference_no, $matches);
@@ -64,15 +70,15 @@ class StockTransferController extends Controller
             } else {
                 $newRefNumber = 1;
             }
-            
+
             $newReference = 'REF' . str_pad($newRefNumber, 3, '0', STR_PAD_LEFT);
-            
+
             // Final safety check - if reference exists, keep incrementing
             while (DB::table('stock_transfers')->where('reference_no', $newReference)->exists()) {
                 $newRefNumber++;
                 $newReference = 'REF' . str_pad($newRefNumber, 3, '0', STR_PAD_LEFT);
             }
-            
+
             return $newReference;
         });
     }
@@ -187,7 +193,7 @@ class StockTransferController extends Controller
                         ->where('location_id', $request->to_location_id)
                         ->lockForUpdate()
                         ->first();
-                        
+
                     if ($toLocationBatch) {
                         $toLocationBatch->increment('qty', $product['quantity']);
                     } else {
@@ -214,10 +220,10 @@ class StockTransferController extends Controller
                 }
             });
 
-            $message = $id ? 
-                "Stock transfer updated successfully at " . now()->format('Y-m-d H:i:s') : 
+            $message = $id ?
+                "Stock transfer updated successfully at " . now()->format('Y-m-d H:i:s') :
                 "Stock transfer created successfully at " . now()->format('Y-m-d H:i:s');
-                
+
             return response()->json(['message' => $message], 201);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 400);
@@ -230,8 +236,8 @@ class StockTransferController extends Controller
     {
         try {
             $stockTransfer = StockTransfer::with([
-                'stockTransferProducts.product.batches.locationBatches', 
-                'fromLocation', 
+                'stockTransferProducts.product.batches.locationBatches',
+                'fromLocation',
                 'toLocation'
             ])->findOrFail($id);
 
@@ -254,14 +260,14 @@ class StockTransferController extends Controller
                 'id' => $id,
                 'error' => $e->getMessage()
             ]);
-            
+
             if (request()->ajax() || request()->is('api/*')) {
                 return response()->json([
                     'status' => 500,
                     'message' => 'Error loading stock transfer: ' . $e->getMessage()
                 ], 500);
             }
-            
+
             return redirect()->back()->with('error', 'Stock transfer not found.');
         }
     }
@@ -274,10 +280,10 @@ class StockTransferController extends Controller
         try {
             DB::transaction(function () use ($id) {
                 $stockTransfer = StockTransfer::with('stockTransferProducts')->findOrFail($id);
-                
+
                 // Reverse all stock movements before deleting
                 $this->reverseStockTransferMovements($stockTransfer);
-                
+
                 // Delete the stock transfer (products will be deleted via cascade)
                 $stockTransfer->delete();
             });
@@ -381,7 +387,7 @@ class StockTransferController extends Controller
                 // Prevent negative quantities
                 if ($toLocationBatch->qty >= $quantity) {
                     $toLocationBatch->decrement('qty', $quantity);
-                    
+
                     Log::info('Removed quantity from destination location', [
                         'location_batch_id' => $toLocationBatch->id,
                         'removed_quantity' => $quantity,
@@ -394,7 +400,7 @@ class StockTransferController extends Controller
                         'quantity' => -$quantity, // Negative because it's being removed
                         'stock_type' => StockHistory::STOCK_TYPE_ADJUSTMENT,
                     ]);
-                    
+
                     // Delete the location_batch if quantity becomes 0
                     if ($toLocationBatch->fresh()->qty == 0) {
                         $toLocationBatch->delete();
@@ -408,7 +414,7 @@ class StockTransferController extends Controller
                         'available_qty' => $availableQty,
                         'required_qty' => $quantity
                     ]);
-                    
+
                     // Partial reversal - remove what's available
                     if ($availableQty > 0) {
                         $toLocationBatch->update(['qty' => 0]);
