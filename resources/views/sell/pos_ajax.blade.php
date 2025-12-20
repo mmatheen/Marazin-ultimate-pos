@@ -6919,8 +6919,8 @@
             </div>
             <div style="font-size: 0.85em; color: #888; text-align:center;">${unitName}</div>
         </td>
-        <td class="text-center"><input type="number" name="discount_fixed[]" class="form-control fixed_discount text-center" value="${discountFixed.toFixed(2)}" ${!canEditDiscount && priceValidationEnabled && !isEditing ? 'readonly' : ''}></td>
-        <td class="text-center"><input type="number" name="discount_percent[]" class="form-control percent_discount text-center" value="${discountPercent.toFixed(2)}" ${!canEditDiscount && priceValidationEnabled && !isEditing ? 'readonly' : ''}></td>
+        <td class="text-center"><input type="number" name="discount_fixed[]" class="form-control fixed_discount text-center" value="${discountFixed.toFixed(2)}" ${(priceValidationEnabled === 1 && !canEditDiscount && !isEditing) ? 'readonly' : ''}></td>
+        <td class="text-center"><input type="number" name="discount_percent[]" class="form-control percent_discount text-center" value="${priceValidationEnabled === 0 ? '' : discountPercent.toFixed(2)}" ${priceValidationEnabled === 0 ? 'readonly' : ((priceValidationEnabled === 1 && !canEditDiscount && !isEditing) ? 'readonly' : '')}></td>
         <td class="text-center">
             <input type="number" value="${finalPrice.toFixed(2)}" class="form-control price-input unit-price text-center"
                 data-price="${finalPrice}"
@@ -6929,7 +6929,7 @@
                 data-wholesale-price="${batch ? batch.wholesale_price : (stockEntry.batches?.[0]?.wholesale_price || 0)}"
                 data-special-price="${batch ? batch.special_price : (stockEntry.batches?.[0]?.special_price || 0)}"
                 data-max-retail-price="${batch ? batch.max_retail_price || product.max_retail_price : product.max_retail_price}"
-                min="0" ${!canEditUnitPrice && priceValidationEnabled && !isEditing ? 'readonly' : ''}>
+                min="0" ${(priceValidationEnabled === 1 && !canEditUnitPrice && !isEditing) ? 'readonly' : ''}>
             ${customerPriceHistory && customerPriceHistory.has_previous_purchases ?
                 `<div class="text-center mt-1">
                     <i class="fas fa-chart-line text-info cursor-pointer price-history-icon"
@@ -7125,9 +7125,11 @@
             // Allow free typing, validate only on change/blur
             priceInput.addEventListener('change', () => {
                 validatePriceInput(row, priceInput);
+                recalculateDiscountsFromPrice(row);
             });
             priceInput.addEventListener('blur', () => {
                 validatePriceInput(row, priceInput);
+                recalculateDiscountsFromPrice(row);
             });
 
             // Initial price editability check
@@ -7477,6 +7479,13 @@
 
             if (!fixed || !percent) return;
 
+            // In flexible mode, allow both discount types simultaneously
+            if (priceValidationEnabled === 0) {
+                fixed.disabled = false;
+                percent.disabled = false;
+                return;
+            }
+
             const fixedVal = parseFloat(fixed.value) || 0;
             const percentVal = parseFloat(percent.value) || 0;
 
@@ -7502,14 +7511,20 @@
             const mrp = parseFloat(priceInput.getAttribute('data-max-retail-price')) || 0;
             console.log('handleDiscountToggle using MRP:', mrp);
 
-            // Disable conflicting inputs
-            if (fixedDiscountInput === input && fixedDiscountInput.value !== '') {
-                percentDiscountInput.disabled = true;
-                percentDiscountInput.value = '';
-            } else if (percentDiscountInput === input && percentDiscountInput.value !== '') {
-                fixedDiscountInput.disabled = true;
-                fixedDiscountInput.value = '';
+            // Disable conflicting inputs (skip in flexible mode)
+            if (priceValidationEnabled === 1) {
+                if (fixedDiscountInput === input && fixedDiscountInput.value !== '') {
+                    percentDiscountInput.disabled = true;
+                    percentDiscountInput.value = '';
+                } else if (percentDiscountInput === input && percentDiscountInput.value !== '') {
+                    fixedDiscountInput.disabled = true;
+                    fixedDiscountInput.value = '';
+                } else {
+                    fixedDiscountInput.disabled = false;
+                    percentDiscountInput.disabled = false;
+                }
             } else {
+                // Flexible mode: keep both discount fields enabled
                 fixedDiscountInput.disabled = false;
                 percentDiscountInput.disabled = false;
             }
@@ -7773,10 +7788,19 @@
 
             if (!priceInput || !fixedDiscountInput || !percentDiscountInput) return;
 
+            // In flexible mode, always allow price editing regardless of discounts
+            if (priceValidationEnabled === 0) {
+                priceInput.removeAttribute('readonly');
+                priceInput.style.backgroundColor = '#fff';
+                priceInput.style.cursor = 'text';
+                priceInput.title = 'Flexible mode: Edit freely';
+                return;
+            }
+
             const fixedDiscount = parseFloat(fixedDiscountInput.value) || 0;
             const percentDiscount = parseFloat(percentDiscountInput.value) || 0;
 
-            // Make price editable only if both discount fields are empty (0)
+            // In strict mode: Make price editable only if both discount fields are empty (0)
             if (fixedDiscount === 0 && percentDiscount === 0) {
                 priceInput.removeAttribute('readonly');
                 priceInput.style.backgroundColor = '#fff';
@@ -7790,6 +7814,53 @@
             }
         }
 
+        function recalculateDiscountsFromPrice(row) {
+            const priceInput = row.querySelector('.price-input');
+            const fixedDiscountInput = row.querySelector('.fixed_discount');
+            const percentDiscountInput = row.querySelector('.percent_discount');
+
+            if (!priceInput || !fixedDiscountInput || !percentDiscountInput) return;
+
+            const maxRetailPrice = parseFloat(priceInput.getAttribute('data-max-retail-price')) || 0;
+            let enteredPrice = parseFloat(priceInput.value) || 0;
+
+            // Ensure price doesn't exceed MRP
+            if (enteredPrice > maxRetailPrice && maxRetailPrice > 0) {
+                enteredPrice = maxRetailPrice;
+                priceInput.value = maxRetailPrice.toFixed(2);
+            }
+
+            if (maxRetailPrice > 0) {
+                const discountAmount = maxRetailPrice - enteredPrice;
+
+                // In flexible mode: only update fixed discount, keep percentage empty
+                if (priceValidationEnabled === 0) {
+                    fixedDiscountInput.value = discountAmount > 0 ? discountAmount.toFixed(2) : '0.00';
+                    percentDiscountInput.value = ''; // Keep empty in flexible mode
+
+                    console.log('💰 Flexible mode: Only fixed discount updated:', {
+                        mrp: maxRetailPrice,
+                        price: enteredPrice,
+                        fixedDiscount: discountAmount.toFixed(2)
+                    });
+                } else {
+                    // Strict mode: calculate both discounts
+                    const discountPercentage = ((maxRetailPrice - enteredPrice) / maxRetailPrice) * 100;
+                    fixedDiscountInput.value = discountAmount > 0 ? discountAmount.toFixed(2) : '0.00';
+                    percentDiscountInput.value = discountPercentage > 0 ? discountPercentage.toFixed(2) : '0.00';
+
+                    console.log('💰 Strict mode: Both discounts updated:', {
+                        mrp: maxRetailPrice,
+                        price: enteredPrice,
+                        fixedDiscount: discountAmount.toFixed(2),
+                        percentDiscount: discountPercentage.toFixed(2)
+                    });
+                }
+            }
+
+            updateTotals();
+        }
+
         function validatePriceInput(row, priceInput) {
             const retailPrice = parseFloat(priceInput.getAttribute('data-retail-price')) || 0;
             const wholesalePrice = parseFloat(priceInput.getAttribute('data-wholesale-price')) || 0;
@@ -7800,6 +7871,45 @@
             let minimumPrice = 0;
             let priceTypeName = '';
             let originalEnteredPrice = enteredPrice;
+
+            // ALWAYS validate: Price cannot exceed MRP (regardless of mode)
+            if (enteredPrice > maxRetailPrice && maxRetailPrice > 0) {
+                toastr.error(
+                    `Unit price cannot exceed MRP of Rs. ${maxRetailPrice.toFixed(2)}`,
+                    '🚫 Price Limit Exceeded'
+                );
+                priceInput.value = maxRetailPrice.toFixed(2);
+                enteredPrice = maxRetailPrice;
+
+                // Add visual feedback
+                priceInput.style.borderColor = '#dc3545';
+                setTimeout(() => {
+                    priceInput.style.borderColor = '';
+                }, 3000);
+            }
+
+            // Skip minimum price validation if price validation is disabled (flexible mode)
+            if (priceValidationEnabled === 0) {
+                console.log('⚡ Flexible mode: MRP checked, skipping minimum price validation');
+
+                // Recalculate discount for corrected price
+                const fixedDiscountInput = row.querySelector('.fixed_discount');
+                const percentDiscountInput = row.querySelector('.percent_discount');
+
+                if (maxRetailPrice > 0 && enteredPrice !== originalEnteredPrice) {
+                    const discountAmount = maxRetailPrice - enteredPrice;
+                    if (fixedDiscountInput) {
+                        fixedDiscountInput.value = discountAmount > 0 ? discountAmount.toFixed(2) : '0.00';
+                    }
+                    if (percentDiscountInput) {
+                        percentDiscountInput.value = '';
+                    }
+                }
+
+                disableConflictingDiscounts(row);
+                updateTotals();
+                return;
+            }
 
             // Determine minimum allowed price based on hierarchy
             if (specialPrice > 0) {
@@ -7848,11 +7958,13 @@
 
             if (maxRetailPrice > 0 && enteredPrice !== originalEnteredPrice) {
                 const discountAmount = maxRetailPrice - enteredPrice;
+
                 if (fixedDiscountInput) {
                     fixedDiscountInput.value = discountAmount > 0 ? discountAmount.toFixed(2) : '0.00';
                 }
                 if (percentDiscountInput) {
-                    percentDiscountInput.value = '';
+                    // In flexible mode, keep percentage empty
+                    percentDiscountInput.value = priceValidationEnabled === 0 ? '' : (((maxRetailPrice - enteredPrice) / maxRetailPrice) * 100).toFixed(2);
                 }
             }
 
@@ -7861,6 +7973,12 @@
         }
 
         function validateDiscountInput(row, discountInput, discountType) {
+            // Skip validation if price validation is disabled (flexible mode)
+            if (priceValidationEnabled === 0) {
+                console.log('⚡ Flexible mode: Skipping discount validation');
+                return;
+            }
+
             const priceInput = row.querySelector('.price-input');
             if (!priceInput) return;
 

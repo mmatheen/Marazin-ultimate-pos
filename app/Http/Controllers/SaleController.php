@@ -186,8 +186,10 @@ class SaleController extends Controller
         $canEditUnitPrice = $user && $user->can('edit unit price in pos');
         $canEditDiscount = $user && $user->can('edit discount in pos');
 
-        // Get price validation setting from database (1 = strict, 0 = flexible)
-        $priceValidationEnabled = \App\Models\Setting::value('enable_price_validation') ?? 1;
+        // Get price validation setting from database
+        // 1 = STRICT mode (enforce permissions - only users with permission can edit)
+        // 0 = FLEXIBLE mode (free editing - all users can edit regardless of permissions)
+        $priceValidationEnabled = (int)(\App\Models\Setting::value('enable_price_validation') ?? 1);
 
         return view('sell.pos', compact('allowedPriceTypes', 'canEditUnitPrice', 'canEditDiscount', 'priceValidationEnabled'));
     }
@@ -2630,8 +2632,10 @@ class SaleController extends Controller
             $canEditUnitPrice = $user && $user->can('edit unit price in pos');
             $canEditDiscount = $user && $user->can('edit discount in pos');
 
-            // Get price validation setting from database (1 = strict, 0 = flexible)
-            $priceValidationEnabled = \App\Models\Setting::value('enable_price_validation') ?? 1;
+            // Get price validation setting from database
+            // 1 = STRICT mode (enforce permissions - only users with permission can edit)
+            // 0 = FLEXIBLE mode (free editing - all users can edit regardless of permissions)
+            $priceValidationEnabled = (int)(\App\Models\Setting::value('enable_price_validation') ?? 1);
 
             return view('sell.pos', [
                 'saleDetails' => $saleDetails,

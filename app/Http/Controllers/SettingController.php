@@ -38,10 +38,11 @@ class SettingController extends Controller
             'primary_color' => 'nullable|string|max:7', // e.g., #4F46E5
             'font_color' => 'nullable|string|max:7',
             'secondary_color' => 'nullable|string|max:7',
-            'enable_price_validation' => 'nullable|boolean',
         ]);
 
-        // Handle checkbox - if not present, set to 0 (unchecked)
+        // Handle price validation checkbox
+        // 1 (checked) = STRICT mode - enforce permissions (only users with permission can edit prices/discounts)
+        // 0 (unchecked) = FLEXIBLE mode - free editing (all users can edit prices/discounts regardless of permissions)
         $validated['enable_price_validation'] = $request->has('enable_price_validation') ? 1 : 0;
 
         // Handle logo upload

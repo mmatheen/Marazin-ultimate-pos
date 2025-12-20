@@ -1823,7 +1823,17 @@
             const canEditDiscount = {!! json_encode($canEditDiscount ?? true) !!};
 
             // Price validation setting (1 = strict validation, 0 = flexible/free editing)
-            const priceValidationEnabled = {!! json_encode($priceValidationEnabled ?? 1) !!};
+            // When enabled (1): Enforce permissions - only users with permission can edit
+            // When disabled (0): Flexible mode - all users can freely edit regardless of permissions
+            const priceValidationEnabled = {!! json_encode((int)($priceValidationEnabled ?? 1)) !!};
+
+            // Debug: Log permission and validation settings
+            console.log('🔐 POS Price Control Settings:', {
+                canEditUnitPrice: canEditUnitPrice,
+                canEditDiscount: canEditDiscount,
+                priceValidationEnabled: priceValidationEnabled,
+                mode: priceValidationEnabled === 1 ? 'STRICT (Permission-based)' : 'FLEXIBLE (Free editing)'
+            });
 
             function calcInput(value) {
                 document.getElementById('calcDisplay').value += value;
