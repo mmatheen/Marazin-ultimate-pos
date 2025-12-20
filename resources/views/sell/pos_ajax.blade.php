@@ -226,7 +226,31 @@
 
             // Check if user is sales rep and handle vehicle/route selection
             // This must be called AFTER locations are loaded
-            checkSalesRepStatus();
+            // The callback will handle auto-selection after async check completes
+            checkSalesRepStatus(function(isUserSalesRep) {
+                console.log('✅ Sales rep check completed. Is sales rep:', isUserSalesRep);
+
+                // Now handle auto-selection based on user type
+                if (!isUserSalesRep && !isEditing) {
+                    // For non-sales rep users, auto-select first parent location
+                    const locationSelect = $('#locationSelect');
+                    const locationSelectDesktop = $('#locationSelectDesktop');
+
+                    if (cachedLocations && cachedLocations.length > 0) {
+                        const parentLocations = cachedLocations.filter(loc => !loc.parent_id);
+                        const firstParentLocation = parentLocations[0];
+
+                        if (firstParentLocation) {
+                            setTimeout(() => {
+                                locationSelect.val(firstParentLocation.id).trigger('change');
+                                locationSelectDesktop.val(firstParentLocation.id).trigger('change');
+                                console.log('✅ Auto-selected first parent location for regular user:', firstParentLocation.name);
+                            }, 200);
+                        }
+                    }
+                }
+                // For sales reps, restrictLocationAccess will handle sublocation selection
+            });
 
             // Protect sales rep customer filtering from being overridden
             protectSalesRepCustomerFiltering();
@@ -1189,7 +1213,7 @@
             }
         }
 
-        function checkSalesRepStatus() {
+        function checkSalesRepStatus(callback) {
             console.log('Checking sales rep status...');
 
             // Check if user has sales rep role
@@ -1224,22 +1248,42 @@
                         // Early restoration of sales rep display from storage (only for sales rep)
                         restoreSalesRepDisplayFromStorage();
                         handleSalesRepUser(data.data);
+
+                        // Execute callback after sales rep setup
+                        if (typeof callback === 'function') {
+                            callback(true);
+                        }
                     } else if (status === 200 && data.status === false) {
                         // User is not a sales rep (explicit response)
                         isSalesRep = false;
                         hideSalesRepDisplay();
                         console.log('User is not a sales rep (API confirmed)');
+
+                        // Execute callback for non-sales rep
+                        if (typeof callback === 'function') {
+                            callback(false);
+                        }
                     } else if (status === 200 && data.status === true && (!data.data || data.data.length ===
                             0)) {
                         // User is a sales rep but no assignments
                         isSalesRep = true;
                         console.log('User is a sales rep but has no assignments');
                         hideSalesRepDisplay(); // Hide display if no assignments
+
+                        // Execute callback
+                        if (typeof callback === 'function') {
+                            callback(true);
+                        }
                     } else {
                         // Other cases - treat as non-sales rep
                         isSalesRep = false;
                         hideSalesRepDisplay();
                         console.log('User is not a sales rep (other case)');
+
+                        // Execute callback
+                        if (typeof callback === 'function') {
+                            callback(false);
+                        }
                     }
                 })
                 .catch(error => {
@@ -1247,6 +1291,11 @@
                     isSalesRep = false;
                     hideSalesRepDisplay();
                     console.log('Not a sales rep or error:', error);
+
+                    // Execute callback for error case
+                    if (typeof callback === 'function') {
+                        callback(false);
+                    }
                 });
         }
 
@@ -1291,6 +1340,7 @@
                 console.log('Found existing sales rep selection, validating...');
                 // Validate existing selection against current assignments
                 const selection = getSalesRepSelection();
+                console.log('📋 Sales rep selection data:', selection);
 
                 // Check if we already restored the display early
                 if (window.hasStoredSalesRepSelection) {
@@ -1324,22 +1374,27 @@
                     };
                     storeSalesRepSelection(updatedSelection);
 
-                    // Update display only once
+                    // Update display only if not already restored
                     if (!window.hasStoredSalesRepSelection) {
                         updateSalesRepDisplay(updatedSelection);
+                    }
 
-                        // Auto-select vehicle location for sales rep (skip in edit mode)
-                        if (!isEditing) {
-                            console.log('🚗 Auto-selecting sales rep vehicle location:', updatedSelection.vehicle?.name);
+                    // ALWAYS call restrictLocationAccess for auto-selection (regardless of display restoration)
+                    // Auto-select vehicle location for sales rep (skip in edit mode)
+                    if (!isEditing) {
+                        console.log('🚗 [AUTO-SELECT] Triggering auto-selection for sales rep vehicle:', updatedSelection.vehicle?.name, 'ID:', updatedSelection.vehicle?.id);
+                        // Increased delay to ensure locations dropdown is fully populated and rendered
+                        setTimeout(() => {
+                            console.log('🚗 [AUTO-SELECT] Executing restrictLocationAccess now...');
                             restrictLocationAccess(updatedSelection);
-                        } else {
-                            console.log('⏭️ Skipping auto-selection - edit mode active');
-                        }
+                        }, 800);
+                    } else {
+                        console.log('⏭️ Skipping auto-selection - edit mode active');
+                    }
 
-                        // Only filter if not already done during page load
-                        if (!salesRepCustomersLoaded) {
-                            setTimeout(() => filterCustomersByRoute(updatedSelection), 1000);
-                        }
+                    // Only filter if not already done during page load
+                    if (!salesRepCustomersLoaded) {
+                        setTimeout(() => filterCustomersByRoute(updatedSelection), 1200);
                     }
                 } else {
                     // Attempt to preserve existing selection
@@ -1354,21 +1409,27 @@
 
                         if (vehicleExists) {
                             try {
+                                // Update display only if not already restored
                                 if (!window.hasStoredSalesRepSelection) {
                                     updateSalesRepDisplay(selection);
                                 }
 
+                                // ALWAYS call restrictLocationAccess for auto-selection (regardless of display restoration)
                                 // Auto-select vehicle location (skip in edit mode)
                                 if (!isEditing) {
-                                    console.log('🚗 Auto-selecting vehicle location for sales rep');
-                                    restrictLocationAccess(selection);
+                                    console.log('🚗 [AUTO-SELECT] Triggering auto-selection for vehicle:', selection.vehicle?.name, 'ID:', selection.vehicle?.id);
+                                    // Increased delay to ensure dropdown is populated
+                                    setTimeout(() => {
+                                        console.log('🚗 [AUTO-SELECT] Executing restrictLocationAccess now...');
+                                        restrictLocationAccess(selection);
+                                    }, 800);
                                 } else {
                                     console.log('⏭️ Skipping auto-selection - edit mode active');
                                 }
 
                                 // Only filter if not already done
                                 if (!salesRepCustomersLoaded) {
-                                    setTimeout(() => filterCustomersByRoute(selection), 1000);
+                                    setTimeout(() => filterCustomersByRoute(selection), 1200);
                                 }
                             } catch (error) {
                                 console.error('Error applying selection:', error);
@@ -1608,26 +1669,59 @@
                 return;
             }
 
-            const autoSelectVehicle = () => {
+            console.log('🚀 [RESTRICT-ACCESS] Starting restrictLocationAccess with selection:', selection);
+
+            const autoSelectVehicle = (retryCount = 0, maxRetries = 20) => {
+                console.log(`🔄 [RETRY ${retryCount + 1}/${maxRetries}] Attempting to select sublocation...`);
+
                 const locationSelect = document.getElementById('locationSelect');
                 const locationSelectDesktop = document.getElementById('locationSelectDesktop');
 
-                if (locationSelect && selection.vehicle && selection.vehicle.id) {
-                    // Verify the option exists before selecting
-                    const optionExists = $(locationSelect).find(`option[value="${selection.vehicle.id}"]`).length > 0;
+                if (!locationSelect) {
+                    console.error('❌ Location select element not found!');
+                    return;
+                }
 
-                    if (optionExists) {
-                        locationSelect.value = selection.vehicle.id;
-                        $(locationSelect).trigger('change');
-                        console.log('✅ Vehicle auto-selected:', selection.vehicle.id);
+                if (!selection || !selection.vehicle || !selection.vehicle.id) {
+                    console.error('❌ Invalid selection data:', selection);
+                    return;
+                }
 
-                        // Check and toggle buttons based on selected location type
-                        checkAndToggleSalesRepButtons(selection.vehicle.id);
-                    } else {
-                        console.warn('⚠️ Vehicle option not found in dropdown, will retry...');
-                        // Retry after a short delay
-                        setTimeout(autoSelectVehicle, 300);
-                    }
+                console.log('🔍 [CHECK] Looking for sublocation ID:', selection.vehicle.id, 'in dropdown...');
+
+                // Log all available options
+                const allOptions = $(locationSelect).find('option');
+                console.log('📋 [OPTIONS] Available options in dropdown:', allOptions.length);
+                allOptions.each(function(index) {
+                    console.log(`  Option ${index}: value="${$(this).val()}" text="${$(this).text()}"`);
+                });
+
+                // Verify the option exists before selecting
+                const optionExists = $(locationSelect).find(`option[value="${selection.vehicle.id}"]`).length > 0;
+                console.log('🔍 [CHECK] Option exists:', optionExists);
+
+                if (optionExists) {
+                    // Force select the sublocation, overriding any previous selection
+                    console.log('✅ [SELECT] Sublocation option found! Selecting now...');
+                    locationSelect.value = selection.vehicle.id;
+                    selectedLocationId = selection.vehicle.id; // Update global variable
+                    console.log('📍 [UPDATE] selectedLocationId updated to:', selectedLocationId);
+
+                    $(locationSelect).trigger('change');
+                    console.log('✅ [SUCCESS] Sales rep sublocation auto-selected:', selection.vehicle.id, selection.vehicle.name);
+
+                    // Check and toggle buttons based on selected location type
+                    checkAndToggleSalesRepButtons(selection.vehicle.id);
+                } else if (retryCount < maxRetries) {
+                    console.log(`⏳ [RETRY] Sublocation option not found yet (attempt ${retryCount + 1}/${maxRetries}), retrying in ${200 + (retryCount * 100)}ms...`);
+                    // Retry with exponential backoff
+                    setTimeout(() => autoSelectVehicle(retryCount + 1, maxRetries), 200 + (retryCount * 100));
+                } else {
+                    console.error('❌ [FAILED] Failed to auto-select sublocation after', maxRetries, 'attempts.');
+                    console.error('🔴 Looking for sublocation ID:', selection.vehicle.id, 'Name:', selection.vehicle.name);
+                    console.error('🔴 Final check - Available options:', $(locationSelect).find('option').map(function() {
+                        return $(this).val() + ': ' + $(this).text();
+                    }).get());
                 }
 
                 if (locationSelectDesktop && selection.vehicle && selection.vehicle.id) {
@@ -1639,40 +1733,10 @@
                 }
             };
 
-            // Check if locations are already cached
-            if (cachedLocations && locationCacheExpiry && Date.now() < locationCacheExpiry) {
-                console.log('✅ Using cached locations for sales rep restriction');
-                // Populate dropdown with cached data immediately
-                populateLocationDropdown(cachedLocations);
-                // Auto-select after dropdown is populated
-                setTimeout(autoSelectVehicle, 200);
-            } else {
-                console.log('🔄 Fetching locations for sales rep...');
-                // Fetch locations and wait for completion
-                $.ajax({
-                    url: '/location-get-all',
-                    method: 'GET',
-                    success: function(response) {
-                        if (response.status && Array.isArray(response.data)) {
-                            // Cache the locations
-                            cachedLocations = response.data;
-                            locationCacheExpiry = Date.now() + LOCATION_CACHE_DURATION;
-                            console.log('💾 Locations fetched and cached');
-
-                            // Populate dropdown
-                            populateLocationDropdown(response.data);
-
-                            // Auto-select vehicle after dropdown is populated
-                            setTimeout(autoSelectVehicle, 300);
-                        }
-                    },
-                    error: function(jqXHR, textStatus, errorThrown) {
-                        console.error('❌ Error fetching locations:', textStatus, errorThrown);
-                        // Try to auto-select anyway in case dropdown is already populated
-                        setTimeout(autoSelectVehicle, 500);
-                    }
-                });
-            }
+            // Always attempt auto-selection with proper timing to ensure dropdown is populated
+            console.log('🚗 [INIT] Initiating sales rep sublocation auto-selection for:', selection.vehicle?.name, 'ID:', selection.vehicle?.id);
+            // Increased delay to ensure dropdown is fully populated before attempting selection
+            setTimeout(autoSelectVehicle, 500);
         }
 
         let filteringInProgress = false;
@@ -2587,28 +2651,10 @@
                 locationSelectDesktop.append(optionDesktop);
             });
 
-            // Don't auto-select first option - let user or system choose
-            // Auto-select location based on user type
-            if (!isSalesRep && !isEditing) {
-                // For non-sales rep users, auto-select first parent location
-                const firstParentLocation = parentLocations[0];
-                if (firstParentLocation) {
-                    setTimeout(() => {
-                        locationSelect.val(firstParentLocation.id).trigger('change');
-                        locationSelectDesktop.val(firstParentLocation.id).trigger('change');
-                        console.log('✅ Auto-selected first location for regular user:', firstParentLocation.name);
-                    }, 200);
-                }
-            }
-            // For sales reps, location will be auto-selected by restrictLocationAccess()
-
-            // Trigger change event (optional: useful if other logic depends on it)
-            if (locationSelect.val()) {
-                locationSelect.trigger('change');
-            }
-            if (locationSelectDesktop.val()) {
-                locationSelectDesktop.trigger('change');
-            }
+            // Don't auto-select any location here - wait for sales rep check to complete
+            // Auto-selection will be handled in the callback after checkSalesRepStatus() completes
+            console.log('📋 Location dropdown populated with', locations.length, 'locations');
+            console.log('⏳ Waiting for sales rep check to complete before auto-selecting location...');
         }
 
         // ---- PAGINATED PRODUCT FETCH ----
