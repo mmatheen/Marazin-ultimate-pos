@@ -100,6 +100,11 @@ class CustomerImport implements ToCollection, WithHeadingRow
             $row['email'] = strval($row['email']);
         }
 
+        // Normalize customer_type to lowercase for validation
+        if (isset($row['customer_type']) && !empty($row['customer_type'])) {
+            $row['customer_type'] = strtolower(trim($row['customer_type']));
+        }
+
         $rules = [
             'first_name' => 'required|string|max:255',
             'last_name' => 'nullable|string|max:255',
@@ -172,6 +177,15 @@ class CustomerImport implements ToCollection, WithHeadingRow
             // Convert email to string to avoid issues
             $email = isset($row['email']) && !empty($row['email']) ? strval($row['email']) : null;
 
+            // Normalize customer_type to lowercase and trim whitespace
+            $customerType = 'retailer'; // Default value
+            if (!empty($row['customer_type'])) {
+                $normalizedType = strtolower(trim($row['customer_type']));
+                if (in_array($normalizedType, ['wholesaler', 'retailer'])) {
+                    $customerType = $normalizedType;
+                }
+            }
+
             $customerData = [
                 'prefix' => $row['prefix'] ?? null,
                 'first_name' => trim($row['first_name']),
@@ -182,7 +196,7 @@ class CustomerImport implements ToCollection, WithHeadingRow
                 'opening_balance' => !empty($row['opening_balance']) ? (float)$row['opening_balance'] : 0,
                 'credit_limit' => !empty($row['credit_limit']) ? (float)$row['credit_limit'] : null,
                 'city_id' => $cityId, // Can be null, from dropdown, or from Excel
-                'customer_type' => !empty($row['customer_type']) ? $row['customer_type'] : 'retailer',
+                'customer_type' => $customerType,
                 'location_id' => $this->locationId,
             ];
 
