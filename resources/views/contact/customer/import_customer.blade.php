@@ -87,20 +87,23 @@
                                         </div>
 
                                         <!-- City Selection (Optional) -->
-                                        <div class="col-md-12 mt-3">
-                                            <div class="mb-3">
-                                                <label for="import_city" class="form-label">
-                                                    <i class="fas fa-city"></i> Select City (Optional)
+                                        <div class="col-md-6 mt-3">
+                                            <div class="form-group local-forms">
+                                                <label for="import_city">
+                                                    <i class="fas fa-city"></i> Select City <span class="text-muted">(Optional)</span>
                                                 </label>
                                                 <select name="import_city" id="import_city" class="form-control selectBox">
-                                                    <option value="">No City - Use Excel City Names or Import Without City</option>
+                                                    <option value="">No City - Use Excel City Names</option>
                                                 </select>
-                                                <small class="text-info">
+                                                <small class="form-text text-info mt-2">
                                                     <i class="fas fa-info-circle"></i>
-                                                    <strong>Note:</strong> If you select a city here, ALL imported customers will be assigned to this city (ignoring Excel city names).
-                                                    Leave blank to use city names from Excel file or import without city.
+                                                    If selected, ALL customers will be assigned to this city
                                                 </small>
                                             </div>
+                                        </div>
+
+                                        <div class="col-md-6 mt-3">
+                                            <!-- Empty column for layout balance -->
                                         </div>
 
                                         <div class="col-md-6">
@@ -267,6 +270,13 @@
 
                 // Load cities on page load
                 loadCities();
+
+                // Initialize select2 for city dropdown
+                $('#import_city').select2({
+                    placeholder: 'No City - Use Excel City Names',
+                    allowClear: true,
+                    width: '100%'
+                });
 
                 // Display selected file name
                 $('#file').on('change', function() {
