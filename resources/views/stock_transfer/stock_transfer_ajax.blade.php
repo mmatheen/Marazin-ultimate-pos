@@ -14,7 +14,7 @@
 
         // Initialize autocomplete to search by product name OR SKU, and only show products available in the selected "From" location
         const $productSearchInput = $('#productSearch');
-        
+
         // Add Enter key support for quick selection - Updated with working POS AJAX solution
         $productSearchInput.off('keydown.autocomplete').on('keydown.autocomplete', function(event) {
             if (event.key === 'Enter') {
@@ -146,7 +146,7 @@
                     const autocompleteInstance = $productSearchInput.autocomplete("instance");
                     const menu = autocompleteInstance.menu;
                     const firstItem = menu.element.find("li:first-child");
-                    
+
                     if (firstItem.length > 0 && !firstItem.text().includes("No products found")) {
                         // Properly set the active item using jQuery UI's method
                         menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
@@ -265,13 +265,13 @@
         // Function to fetch stock transfer data
         function fetchStockTransferData(stockTransferId) {
             console.log('fetchStockTransferData called with ID:', stockTransferId);
-            
+
             // Validate that stockTransferId is a number
             if (!stockTransferId || isNaN(stockTransferId)) {
                 console.error('Invalid stock transfer ID:', stockTransferId);
                 return;
             }
-            
+
             $.ajax({
                 url: `/edit-stock-transfer/${stockTransferId}`,
                 method: 'GET',
@@ -294,10 +294,10 @@
         // Function to populate the form with stock transfer data
         function populateForm(stockTransfer) {
             console.log('populateForm called with data:', stockTransfer);
-            
+
             // Update page title and headings for editing
             const transferName = stockTransfer.reference_no || `Stock Transfer #${stockTransfer.id}`;
-            
+
             // Use setTimeout to ensure DOM is ready
             setTimeout(() => {
                 document.title = `Edit Stock Transfer`;
@@ -309,7 +309,7 @@
 
                 console.log('Page titles and breadcrumb updated for transfer:', transferName);
             }, 100);
-            
+
             // Fix: Set date in DD-MM-YYYY format
             let date = stockTransfer.transfer_date.split(' ')[0];
             if (date.includes('-')) {
@@ -318,30 +318,30 @@
             }
             console.log('Setting date:', date);
             $('#transfer_date').val(date);
-            
+
             console.log('Setting reference no:', stockTransfer.reference_no);
             $('#reference_no').val(stockTransfer.reference_no);
-            
+
             console.log('Setting status:', stockTransfer.status);
             $('#status').val(stockTransfer.status).trigger('change');
-            
+
             // Set dropdowns directly if options are already loaded
             console.log('Setting from location:', stockTransfer.from_location_id);
             $('#from_location_id').val(stockTransfer.from_location_id).trigger('change');
-            
+
             console.log('Setting to location:', stockTransfer.to_location_id);
             $('#to_location_id').val(stockTransfer.to_location_id).trigger('change');
-            
+
             // Wait for dropdowns to be populated if needed
             setTimeout(() => {
                 $('#from_location_id').val(stockTransfer.from_location_id).trigger('change');
                 $('#to_location_id').val(stockTransfer.to_location_id).trigger('change');
-                
+
                 // Clear products table before adding
                 console.log('Clearing products table and adding new products');
                 $('.add-table-items').empty();
                 productIndex = 1;
-                
+
                 // Add each product row
                 if (stockTransfer.stock_transfer_products && stockTransfer.stock_transfer_products.length > 0) {
                     console.log('Adding', stockTransfer.stock_transfer_products.length, 'products to table');
@@ -352,7 +352,7 @@
                 } else {
                     console.warn('No stock transfer products found');
                 }
-                
+
                 addTotalRow();
                 updateTotalAmount();
                 console.log('Form population completed');
@@ -362,7 +362,7 @@
         // Function to add a product to the table
         function addProductToTable(productData, isEditing = false) {
             console.log('addProductToTable called with:', { productData, isEditing, productIndex });
-            
+
             const product = productData.product;
             const existingRow = $(`tr[data-product-id="${product.id}"]`);
             if (existingRow.length > 0) {
@@ -390,7 +390,7 @@
             } else if (product.batches && typeof product.batches === 'object') {
                 batchesArr = Object.values(product.batches);
             }
-            
+
             console.log('Batches array:', batchesArr);
 
             // Only use batches from the selected "From" location
@@ -398,8 +398,8 @@
                 // Support both camelCase and snake_case for location_batches
                 const locationBatches = batch.location_batches || batch.locationBatches || [];
                 return locationBatches
-                    .filter(locBatch => 
-                        locBatch.location_id == fromLocationId && 
+                    .filter(locBatch =>
+                        locBatch.location_id == fromLocationId &&
                         parseFloat(locBatch.quantity ?? locBatch.qty) > 0
                     )
                     .map(locationBatch => ({
@@ -410,7 +410,7 @@
                         transfer_quantity: productData.quantity
                     }));
             });
-            
+
             console.log('Filtered batches:', batches);
 
             if (batches.length === 0) {
@@ -426,14 +426,14 @@
             console.log('Product unit info:', product.unit, 'Allow decimal:', allowDecimal);
 
             // Format the initial quantity value based on decimal allowance
-            const initialQuantity = allowDecimal ? 
-                parseFloat(batches[0].transfer_quantity).toFixed(4) : 
+            const initialQuantity = allowDecimal ?
+                parseFloat(batches[0].transfer_quantity).toFixed(4) :
                 Math.floor(batches[0].transfer_quantity);
 
             const quantityInput = `
-            <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]" 
-                   min="0.0001" value="${initialQuantity}" required 
-                   ${allowDecimal ? 'step="0.0001"' : 'step="1"'} 
+            <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]"
+                   min="0.0001" value="${initialQuantity}" required
+                   ${allowDecimal ? 'step="0.0001"' : 'step="1"'}
                    onchange="updateSubTotal(this)" data-allow-decimal="${allowDecimal}">
             `;
 
@@ -479,7 +479,7 @@
             `;
 
             $(".add-table-items").find("tr:last").remove();
-            $(".add-table-items").append(newRow);
+            $(".add-table-items").prepend(newRow);
             addTotalRow();
             updateTotalAmount();
             productIndex++;
@@ -528,8 +528,8 @@
             // Support both camelCase and snake_case for location_batches
             const locationBatches = batch.location_batches || batch.locationBatches || [];
             return locationBatches
-                .filter(locBatch => 
-                locBatch.location_id == fromLocationId && 
+                .filter(locBatch =>
+                locBatch.location_id == fromLocationId &&
                 parseFloat(locBatch.quantity ?? locBatch.qty) > 0
                 )
                 .map(locationBatch => ({
@@ -555,8 +555,8 @@
             `;
 
             const batchOptions = batches.map(batch => `
-            <option value="${batch.batch_id}" 
-                data-price="${batch.batch_price}" 
+            <option value="${batch.batch_id}"
+                data-price="${batch.batch_price}"
                 data-quantity="${batch.batch_quantity}"
                 data-transfer-quantity="${batch.transfer_quantity}">
                 Batch ${batch.batch_no} - Qty: ${formatQty(batch.batch_quantity)} - Price: ${batch.batch_price}
@@ -591,7 +591,7 @@
             `;
 
             $(".add-table-items").find("tr:last").remove();
-            $(".add-table-items").append(newRow);
+            $(".add-table-items").prepend(newRow);
             addTotalRow();
             updateTotalAmount();
             productIndex++;
@@ -685,15 +685,15 @@
             submitHandler: function(form, event) {
 
                 event.preventDefault();
-                
+
                 // Get submit button
                 const $submitBtn = $(form).find('button[type="submit"]');
-                
+
                 // Prevent multiple submissions
                 if ($submitBtn.prop('disabled')) {
                     return false;
                 }
-                
+
                 const fromLocationId = $('#from_location_id').val();
                 const toLocationId = $('#to_location_id').val();
                 if (fromLocationId === toLocationId) {
@@ -713,18 +713,18 @@
                     '/stock-transfer/store';
                 const method = stockTransferId ? 'PUT' : 'POST';
                 const formData = $(form).serialize();
-                
+
                 console.log('Form submission details:', {
                     stockTransferId: stockTransferId,
                     url: url,
                     method: method,
                     isEdit: !!stockTransferId
                 });
-                
+
                 // Disable button and change text
                 const originalText = $submitBtn.text();
                 $submitBtn.prop('disabled', true).text(stockTransferId ? 'Updating...' : 'Saving...');
-                
+
                 $.ajax({
                     url: url,
                     method: method,
@@ -732,7 +732,7 @@
                     success: function(response) {
                         console.log('Form submission successful:', response);
                         toastr.success(response.message);
-                        
+
                         // Small delay before redirect to allow user to see the success message
                         setTimeout(() => {
                             window.location.href = '/list-stock-transfer';
@@ -741,7 +741,7 @@
                     error: function(response) {
                         // Re-enable button on error
                         $submitBtn.prop('disabled', false).text(originalText);
-                        
+
                         if (response.responseJSON && response.responseJSON.errors) {
                             for (const [key, value] of Object.entries(response
                                     .responseJSON.errors)) {
