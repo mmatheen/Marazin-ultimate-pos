@@ -207,17 +207,26 @@
                 dataType: 'json',
                 success: function(data) {
                     const locationSelect = $('#services');
-                    locationSelect.html('<option selected disabled>Select Location</option>');
+                    // Clear existing options - same approach as supplier dropdown
+                    locationSelect.html('<option value="" selected disabled>Select Location</option>');
 
                     if (data.status === true) {
                         // Filter locations to only show parent_id === null
-                        const mainLocations = data.data.filter(location => location.parent_id ===
-                            null);
+                        const mainLocations = data.data.filter(location => location.parent_id === null);
 
                         mainLocations.forEach(function(location) {
-                            const option = $('<option></option>').val(location.id).text(
-                                location.name);
+                            const option = $('<option></option>').val(location.id).text(location.name);
                             locationSelect.append(option);
+                        });
+
+                        // ✅ Initialize Select2 for search functionality
+                        if (locationSelect.hasClass('select2-hidden-accessible')) {
+                            locationSelect.select2('destroy');
+                        }
+                        locationSelect.select2({
+                            placeholder: 'Select Location',
+                            allowClear: false,
+                            width: '100%'
                         });
 
                         // Trigger change for the first location by default

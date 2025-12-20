@@ -273,9 +273,8 @@
                                             <label for="services">Business Location <span
                                                     class="login-danger">*</span></label>
                                             <div class="input-group">
-                                                <select class="form-control form-select selectBox" data-role="tagsinput"
-                                                    id="services" name="location_id">
-                                                    <option selected disabled></option>
+                                                <select class="form-select select2" id="services" name="location_id" style="width: 100%;">
+                                                    <option value="" selected disabled>Select Location</option>
                                                 </select>
                                             </div>
                                             <span class="text-danger" id="location_id_error"></span>
@@ -826,10 +825,10 @@
                 function togglePaymentFields() {
                     const paymentMethod = $('#payment-method').val();
                     console.log('Toggling payment fields for method:', paymentMethod);
-                    
+
                     // Add class to all payment field containers for easier management
                     $('#creditCardFields, #chequeFields, #bankTransferFields').addClass('payment-fields d-none');
-                    
+
                     if (paymentMethod === 'card') {
                         $('#creditCardFields').removeClass('d-none');
                     } else if (paymentMethod === 'cheque') {
@@ -838,7 +837,7 @@
                         $('#bankTransferFields').removeClass('d-none');
                     }
                 }
-                
+
                 // Make togglePaymentFields globally accessible for purchase_ajax
                 window.togglePaymentFields = togglePaymentFields;
             });
