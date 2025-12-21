@@ -101,6 +101,80 @@
         #dueReportTable tbody tr:not(.dtrg-group):hover {
             background-color: #e3f2fd !important;
         }
+
+        /* Compact table styling for better fit */
+        #dueReportTable tbody td {
+            font-size: 11px;
+            padding: 8px 6px;
+        }
+
+        #dueReportTable .btn-sm {
+            font-size: 10px;
+            padding: 4px 8px;
+        }
+
+        #dueReportTable .badge {
+            font-size: 9px;
+            padding: 3px 6px;
+        }
+
+        /* Compact DataTables controls */
+        .dataTables_wrapper .dataTables_length,
+        .dataTables_wrapper .dataTables_filter {
+            font-size: 12px;
+        }
+
+        .dataTables_wrapper .dataTables_length select,
+        .dataTables_wrapper .dataTables_filter input {
+            font-size: 11px;
+            padding: 4px 8px;
+        }
+
+        .dt-buttons .btn {
+            font-size: 11px;
+            padding: 6px 12px;
+        }
+
+        /* Sticky table header */
+        #dueReportTable thead th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background-color: #f8f9fa !important;
+            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Ensure group headers also stick */
+        #dueReportTable tbody tr.dtrg-group td {
+            position: sticky;
+            top: 0;
+            z-index: 9;
+        }
+
+        /* Smooth scrolling */
+        .table-responsive {
+            scroll-behavior: smooth;
+        }
+
+        /* Custom scrollbar styling */
+        .table-responsive::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .table-responsive::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .table-responsive::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        .table-responsive::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
     </style>
 @endpush
 
@@ -122,30 +196,34 @@
         </div>
 
         {{-- Report Type Toggle --}}
-        <div class="card card-body mb-4">
-                <div class="student-group-form d-flex align-items-start flex-wrap gap-2">
+        <div class="card" style="border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 15px;">
+            <div class="card-body" style="padding: 16px 20px; border-bottom: 1px solid #e9ecef;">
+                <div class="d-flex align-items-center justify-content-between">
                     <div class="btn-group" role="group">
                         <input type="radio" class="btn-check" name="reportType" id="customerReport" value="customer" checked>
-                        <label class="btn btn-outline-primary" for="customerReport">
-                            <i class="fas fa-user"></i> Customer Due Report
+                        <label class="btn btn-primary" for="customerReport" style="padding: 8px 20px; font-size: 13px; font-weight: 500;">
+                            <i class="fas fa-user me-1"></i> Customer
                         </label>
 
                         <input type="radio" class="btn-check" name="reportType" id="supplierReport" value="supplier">
-                        <label class="btn btn-outline-primary" for="supplierReport">
-                            <i class="fas fa-truck"></i> Supplier Due Report
+                        <label class="btn btn-outline-primary" for="supplierReport" style="padding: 8px 20px; font-size: 13px; font-weight: 500;">
+                            <i class="fas fa-truck me-1"></i> Supplier
                         </label>
                     </div>
 
-                    <button class="btn btn-primary" type="button" data-bs-toggle="collapse"
-                        data-bs-target="#collapseFilters" aria-expanded="false" aria-controls="collapseFilters">
-                        <i class="fas fa-filter"></i> &nbsp; Filters
-                    </button>
-
-                    <div class="btn-group">
-                        <button class="btn btn-success dropdown-toggle" type="button" id="dropdownMenuButton"
-                            data-bs-toggle="dropdown" aria-expanded="false">
-                            Columns Visibility
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#collapseFilters" aria-expanded="false" aria-controls="collapseFilters" 
+                            style="padding: 8px 16px; font-size: 13px;">
+                            <i class="fas fa-filter me-1"></i> Filters
                         </button>
+
+                        <div class="btn-group">
+                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="dropdownMenuButton"
+                                data-bs-toggle="dropdown" aria-expanded="false" 
+                                style="padding: 8px 16px; font-size: 13px;">
+                                <i class="fas fa-columns me-1"></i> Columns
+                            </button>
                         <ul class="dropdown-menu p-3" aria-labelledby="dropdownMenuButton" id="columnVisibilityDropdown"
                             style="width: 400px;">
                             <div class="row">
@@ -177,138 +255,130 @@
 
             <!-- Advanced Filters -->
             <div class="collapse" id="collapseFilters">
-                <div class="card card-body mb-3">
-                    <div class="student-group-form">
-                        <form id="dueFilterForm">
-                            <div class="row">
-                                {{-- Customer Filter --}}
-                                <div class="col-lg-3 col-md-6" id="customerFilterDiv">
-                                    <div class="form-group local-forms">
-                                        <label>Customer:</label>
-                                        <select class="form-control selectBox" id="customerFilter" name="customer_id">
-                                            <option value="">All Customers</option>
-                                            @foreach($customers as $customer)
-                                                <option value="{{ $customer->id }}">
-                                                    {{ $customer->full_name }} - {{ $customer->mobile_no }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
+                <div style="background: #f8f9fa; padding: 16px 20px; border-bottom: 1px solid #dee2e6;">
+                    <form id="dueFilterForm">
+                        <div class="row g-2 align-items-center">
+                            {{-- Customer Filter --}}
+                            <div class="col-lg-3 col-md-6" id="customerFilterDiv">
+                                <select class="form-select selectBox" id="customerFilter" name="customer_id" style="font-size: 13px; height: 38px;">
+                                    <option value="">All Customers</option>
+                                    @foreach($customers as $customer)
+                                        <option value="{{ $customer->id }}">
+                                            {{ $customer->full_name }} - {{ $customer->mobile_no }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
 
-                                {{-- Supplier Filter --}}
-                                <div class="col-lg-3 col-md-6" id="supplierFilterDiv" style="display: none;">
-                                    <div class="form-group local-forms">
-                                        <label>Supplier:</label>
-                                        <select class="form-control selectBox" id="supplierFilter" name="supplier_id">
-                                            <option value="">All Suppliers</option>
-                                            @foreach($suppliers as $supplier)
-                                                <option value="{{ $supplier->id }}">
-                                                    {{ $supplier->full_name }} - {{ $supplier->mobile_no }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
+                            {{-- Supplier Filter --}}
+                            <div class="col-lg-3 col-md-6" id="supplierFilterDiv" style="display: none;">
+                                <select class="form-select selectBox" id="supplierFilter" name="supplier_id" style="font-size: 13px; height: 38px;">
+                                    <option value="">All Suppliers</option>
+                                    @foreach($suppliers as $supplier)
+                                        <option value="{{ $supplier->id }}">
+                                            {{ $supplier->full_name }} - {{ $supplier->mobile_no }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
 
-                                <div class="col-lg-3 col-md-6">
-                                    <div class="form-group local-forms">
-                                        <label>Business Location:</label>
-                                        <select class="form-control selectBox" id="locationFilter" name="location_id">
-                                            <option value="">All locations</option>
-                                            @foreach($locations as $location)
-                                                <option value="{{ $location->id }}">
-                                                    {{ $location->name }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
+                            <div class="col-lg-2 col-md-6">
+                                <select class="form-select selectBox" id="locationFilter" name="location_id" style="font-size: 13px; height: 38px;">
+                                    <option value="">All locations</option>
+                                    @foreach($locations as $location)
+                                        <option value="{{ $location->id }}">
+                                            {{ $location->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
 
-                                <div class="col-lg-3 col-md-6">
-                                    <div class="form-group local-forms">
-                                        <label>Created By User:</label>
-                                        <select class="form-control selectBox" id="userFilter" name="user_id">
-                                            <option value="">All Users</option>
-                                            @foreach($users as $user)
-                                                <option value="{{ $user->id }}">
-                                                    {{ $user->full_name }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
+                            <div class="col-lg-2 col-md-6">
+                                <select class="form-select selectBox" id="userFilter" name="user_id" style="font-size: 13px; height: 38px;">
+                                    <option value="">All Users</option>
+                                    @foreach($users as $user)
+                                        <option value="{{ $user->id }}">
+                                            {{ $user->full_name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
 
-                                <div class="col-lg-3 col-md-6">
-                                    <div class="form-group local-forms">
-                                        <label>Date Range:</label>
-                                        <div id="reportrange"
-                                            style="background: #fff; cursor: pointer; padding: 5px 10px; border: 1px solid #ccc; width: 100%">
-                                            <i class="fa fa-calendar"></i>&nbsp;
-                                            <span></span> <i class="fa fa-caret-down"></i>
-                                        </div>
-                                    </div>
+                            <div class="col-lg-2 col-md-6">
+                                <div id="reportrange" style="background: #fff; cursor: pointer; padding: 0 12px; border: 1px solid #ced4da; border-radius: 0.375rem; font-size: 13px; height: 38px; display: flex; align-items: center;">
+                                    <i class="fa fa-calendar me-2" style="font-size: 12px; color: #6c757d;"></i>
+                                    <span style="font-size: 13px;"></span>
                                 </div>
                             </div>
 
-                            <div class="row">
-                                <div class="col-lg-3 col-md-6">
-                                    <div class="form-group local-forms" style="margin-bottom: 0;">
-                                        <label style="visibility: hidden;">.</label>
-                                        <button type="button" class="btn btn-secondary d-block" id="resetFiltersBtn">
-                                            <i class="fas fa-redo"></i> Reset
-                                        </button>
-                                    </div>
-                                </div>
+                            <div class="col-auto">
+                                <button type="button" class="btn btn-secondary" id="resetFiltersBtn" style="font-size: 13px; padding: 8px 16px; height: 38px;">
+                                    <i class="fas fa-redo me-1"></i> Reset
+                                </button>
                             </div>
-                        </form>
-                    </div>
+                        </div>
+                    </form>
                 </div>
             </div>
 
         {{-- Summary Cards --}}
-        <div class="row mb-3">
-            <div class="col-xl-3 col-sm-6 col-12 d-flex">
-                <div class="card w-100" style="background-color: #dc3545;">
-                    <div class="card-body">
-                        <div class="text-white">
-                            <h6 class="text-white mb-2">
-                                <i class="fas fa-balance-scale"></i> Total Due Amount (Ledger-based)
-                            </h6>
-                            <h4 class="text-white mb-0">Rs. {{ number_format($summaryData['total_due'], 2) }}</h4>
-                            <small class="text-white-50" style="font-size: 11px;">
-                                <i class="fas fa-info-circle"></i> Includes all transactions, opening balance & adjustments
-                            </small>
+        <div class="row g-2 mb-2">
+            <div class="col-xl-3 col-sm-6">
+                <div class="card h-100" style="border: none; box-shadow: 0 2px 8px rgba(220, 53, 69, 0.15); border-radius: 10px; background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
+                    <div class="card-body" style="padding: 12px 16px;">
+                        <div class="d-flex align-items-center justify-content-between text-white">
+                            <div>
+                                <p class="mb-1" style="font-size: 11px; opacity: 0.9; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Total Due</p>
+                                <h3 class="mb-0" style="font-size: 20px; font-weight: 700;">Rs. {{ number_format($summaryData['total_due'], 2) }}</h3>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.2); border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-balance-scale" style="font-size: 20px;"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="col-xl-3 col-sm-6 col-12 d-flex">
-                <div class="card w-100" style="background-color: #ffc107;">
-                    <div class="card-body">
-                        <div class="text-dark">
-                            <h6 class="text-dark mb-2">Total Due Bills</h6>
-                            <h4 class="text-dark mb-0">{{ number_format($summaryData['total_bills']) }}</h4>
+            <div class="col-xl-3 col-sm-6">
+                <div class="card h-100" style="border: none; box-shadow: 0 2px 8px rgba(255, 193, 7, 0.15); border-radius: 10px; background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);">
+                    <div class="card-body" style="padding: 12px 16px;">
+                        <div class="d-flex align-items-center justify-content-between text-dark">
+                            <div>
+                                <p class="mb-1" style="font-size: 11px; opacity: 0.8; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Total Bills</p>
+                                <h3 class="mb-0" style="font-size: 20px; font-weight: 700;">{{ number_format($summaryData['total_bills']) }}</h3>
+                            </div>
+                            <div style="background: rgba(0,0,0,0.1); border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-file-invoice" style="font-size: 20px;"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="col-xl-3 col-sm-6 col-12 d-flex">
-                <div class="card w-100" style="background-color: #17a2b8;">
-                    <div class="card-body">
-                        <div class="text-white">
-                            <h6 class="text-white mb-2" id="partiesLabel">Total Customers</h6>
-                            <h4 class="text-white mb-0">{{ number_format($summaryData['total_parties']) }}</h4>
+            <div class="col-xl-3 col-sm-6">
+                <div class="card h-100" style="border: none; box-shadow: 0 2px 8px rgba(23, 162, 184, 0.15); border-radius: 10px; background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
+                    <div class="card-body" style="padding: 12px 16px;">
+                        <div class="d-flex align-items-center justify-content-between text-white">
+                            <div>
+                                <p class="mb-1" id="partiesLabel" style="font-size: 11px; opacity: 0.9; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Customers</p>
+                                <h3 class="mb-0" style="font-size: 20px; font-weight: 700;">{{ number_format($summaryData['total_parties']) }}</h3>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.2); border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-users" style="font-size: 20px;"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="col-xl-3 col-sm-6 col-12 d-flex">
-                <div class="card w-100" style="background-color: #007bff;">
-                    <div class="card-body">
-                        <div class="text-white">
-                            <h6 class="text-white mb-2">Average Due Per Bill</h6>
-                            <h4 class="text-white mb-0">Rs. {{ number_format($summaryData['avg_due_per_bill'], 2) }}</h4>
+            <div class="col-xl-3 col-sm-6">
+                <div class="card h-100" style="border: none; box-shadow: 0 2px 8px rgba(0, 123, 255, 0.15); border-radius: 10px; background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);">
+                    <div class="card-body" style="padding: 12px 16px;">
+                        <div class="d-flex align-items-center justify-content-between text-white">
+                            <div>
+                                <p class="mb-1" style="font-size: 11px; opacity: 0.9; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Avg Per Bill</p>
+                                <h3 class="mb-0" style="font-size: 20px; font-weight: 700;">Rs. {{ number_format($summaryData['avg_due_per_bill'], 2) }}</h3>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.2); border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-chart-line" style="font-size: 20px;"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -316,39 +386,34 @@
         </div>
 
         {{-- Table Section --}}
-        <div class="card">
-            <div class="card-body">
-                <div class="alert alert-info" style="background: #e7f3ff; border-left: 4px solid #0d6efd; border-radius: 6px; padding: 12px 16px; margin-bottom: 20px;">
-                    <div style="display: flex; align-items: start;">
-                        <i class="fas fa-info-circle" style="color: #0d6efd; font-size: 20px; margin-right: 12px; margin-top: 2px;"></i>
-                        <div style="flex: 1;">
-                            <strong style="color: #084298; display: block; margin-bottom: 4px;">Understanding Due Report Totals</strong>
-                            <p style="color: #084298; margin: 0; font-size: 13px; line-height: 1.6;">
-                                • <strong>Total Due Amount (top card):</strong> Shows complete ledger balance including opening balance, manual adjustments, and all transactions<br>
-                                • <strong>Bills Due (in table):</strong> Shows sum of individual unpaid bills only<br>
-                                • <strong>Why they differ:</strong> Customer accounts may have opening balances or ledger adjustments not tied to specific bills
-                            </p>
-                        </div>
+        <div class="card" style="border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-radius: 10px;">
+            <div class="card-body" style="padding: 12px 16px;">
+                <div class="alert" style="background: #f8f9fa; border: none; border-left: 3px solid #6c757d; border-radius: 4px; padding: 6px 12px; margin-bottom: 10px;">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-info-circle" style="color: #6c757d; font-size: 12px; margin-right: 8px;"></i>
+                        <span style="color: #495057; font-size: 11px;">
+                            <strong>Total Due:</strong> Ledger balance • <strong>Bills Due:</strong> Individual bills sum
+                        </span>
                     </div>
                 </div>
-                <div class="table-responsive">
+                <div class="table-responsive" style="max-height: calc(100vh - 260px); overflow-y: auto; overflow-x: auto;">
                     <table class="table table-bordered table-striped table-hover" id="dueReportTable">
                         <thead class="table-light">
-                            <tr>
-                                <th>Action</th>
-                                <th id="refNoHeader">Invoice No</th>
-                                <th id="partyNameHeader">Customer Name</th>
-                                <th>Mobile No</th>
-                                <th id="dateHeader">Sale Date</th>
-                                <th>Location</th>
-                                <th>Created By</th>
-                                <th>Final Total</th>
-                                <th>Total Paid</th>
-                                <th>Original Due</th>
-                                <th style="border-left: 3px solid #ff9800;">Return Amount</th>
-                                <th style="border-left: 3px solid #dc3545; font-weight: 600;">Final Due</th>
-                                <th>Payment Status</th>
-                                <th>Due Days</th>
+                            <tr style="font-size: 11px;">
+                                <th style="padding: 8px 6px;">Action</th>
+                                <th id="refNoHeader" style="padding: 8px 6px;">Invoice No</th>
+                                <th id="partyNameHeader" style="padding: 8px 6px;">Customer Name</th>
+                                <th style="padding: 8px 6px;">Mobile No</th>
+                                <th id="dateHeader" style="padding: 8px 6px;">Sale Date</th>
+                                <th style="padding: 8px 6px;">Location</th>
+                                <th style="padding: 8px 6px;">Created By</th>
+                                <th style="padding: 8px 6px;">Final Total</th>
+                                <th style="padding: 8px 6px;">Total Paid</th>
+                                <th style="padding: 8px 6px;">Original Due</th>
+                                <th style="border-left: 3px solid #ff9800; padding: 8px 6px;">Return Amt</th>
+                                <th style="border-left: 3px solid #dc3545; font-weight: 600; padding: 8px 6px;">Final Due</th>
+                                <th style="padding: 8px 6px;">Status</th>
+                                <th style="padding: 8px 6px;">Days</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -539,15 +604,12 @@
                             // The actual ledger balance will be shown in the badge
 
                             return $('<tr/>')
-                                .append('<td colspan="14" style="background: linear-gradient(to right, #f8f9fa 0%, #ffffff 100%); border-left: 4px solid #007bff; font-weight: 600; padding: 14px 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">' +
-                                    '<i class="fas fa-user-circle" style="color: #007bff; font-size: 18px; margin-right: 8px;"></i>' +
-                                    '<span style="font-size: 15px; color: #2c3e50;">' + group + '</span>' +
-                                    '<span style="margin-left: 15px; color: #95a5a6; font-weight: 400; font-size: 13px;">(' + billCount + ' bill' + (billCount > 1 ? 's' : '') + ')</span>' +
-                                    '<span style="float: right; background: #fff5f5; color: #dc3545; font-size: 16px; padding: 6px 16px; border-radius: 6px; border: 1px solid #ffe0e0; font-weight: 700;">' +
-                                    'Bills Due: Rs. ' + totalDueBills.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) +
-                                    '</span>' +
-                                    '<span style="float: right; margin-right: 15px; color: #6c757d; font-size: 12px; padding: 6px 10px; background: #fff9e6; border-radius: 4px; border: 1px solid #ffe0b3;" title="This shows the sum of individual bills displayed. The total due amount at the top includes all ledger transactions (opening balance, adjustments, etc.)">' +
-                                    '<i class="fas fa-info-circle"></i> Bill-based total' +
+                                .append('<td colspan="14" style="background: linear-gradient(to right, #f8f9fa 0%, #ffffff 100%); border-left: 4px solid #007bff; font-weight: 600; padding: 10px 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">' +
+                                    '<i class="fas fa-user-circle" style="color: #007bff; font-size: 14px; margin-right: 6px;"></i>' +
+                                    '<span style="font-size: 12px; color: #2c3e50;">' + group + '</span>' +
+                                    '<span style="margin-left: 10px; color: #95a5a6; font-weight: 400; font-size: 10px;">(' + billCount + ' bill' + (billCount > 1 ? 's' : '') + ')</span>' +
+                                    '<span style="float: right; background: #fff5f5; color: #dc3545; font-size: 13px; padding: 4px 10px; border-radius: 4px; border: 1px solid #ffe0e0; font-weight: 700;">' +
+                                    'Due: Rs. ' + totalDueBills.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) +
                                     '</span>' +
                                     '</td>');
                         }
