@@ -644,14 +644,20 @@ public function fetchActivityLog(Request $request)
         }
 
         // Now get the sales for these customers to show individual bill details
-        // Only show FINAL sales (not draft) with invoice numbers
+        // Only show FINAL sales with invoice numbers OR completed sale orders
         $query = Sale::with(['customer', 'location', 'user', 'salesReturns'])
             ->whereIn('customer_id', array_keys($customerBalances))
             ->whereIn('payment_status', ['partial', 'due'])
             ->where('total_due', '>', 0)
             ->whereNotNull('customer_id')
             ->where('status', 'final') // Only show final sales (invoices), not drafts
-            ->whereNotNull('invoice_no'); // Only show sales with invoice numbers
+            ->where(function ($q) {
+                $q->where('transaction_type', 'invoice')
+                    ->orWhere(function ($q2) {
+                        $q2->where('transaction_type', 'sale_order')
+                            ->where('order_status', 'completed');
+                    });
+            });
 
         // Apply location filter
         if ($request->has('location_id') && $request->location_id != '' && $request->location_id != null) {
