@@ -1,9 +1,11 @@
 <script type="text/javascript">
     $(document).ready(function () {
+        // Get CSRF token at the top level - available for all pages
+        var csrfToken = $('meta[name="csrf-token"]').attr('content');
+        
         // Only initialize on brand page, not on purchase/other pages
         if ($('#brands').length) {
             console.log('✅ Initializing brand page');
-            var csrfToken = $('meta[name="csrf-token"]').attr('content');  //for crf token
             showFetchData();
         } else {
             console.log('⏭️ Skipping brand datatable (not on brand page)');

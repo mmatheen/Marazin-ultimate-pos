@@ -1,9 +1,11 @@
 <script type="text/javascript">
     $(document).ready(function() {
+        // Get CSRF token at the top level - available for all pages
+        var csrfToken = $('meta[name="csrf-token"]').attr('content');
+        
         // Only initialize on unit page, not on purchase/other pages
         if ($('#unit').length) {
             console.log('✅ Initializing unit page');
-            var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
             showFetchData();
         } else {
             console.log('⏭️ Skipping unit datatable (not on unit page)');
