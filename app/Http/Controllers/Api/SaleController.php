@@ -216,11 +216,10 @@ class SaleController extends Controller
             $endDate = Carbon::parse($endDate)->endOfDay();
 
             // 1. Fetch sales filtered by sales_date, created_at (Asia/Colombo), or both
-            // Only fetch final invoices (status = 'final', transaction_type = 'invoice', and has invoice_no)
+            // Only fetch final invoices (status = 'final', transaction_type = 'invoice')
             $salesQuery = Sale::with(['customer', 'location', 'user', 'payments', 'products'])
                 ->where('status', 'final')
                 ->where('transaction_type', 'invoice')
-                ->whereNotNull('invoice_no')
                 ->where(function ($q) use ($startDate, $endDate) {
                     $q->whereBetween('sales_date', [$startDate, $endDate])
                         ->orWhereBetween(
