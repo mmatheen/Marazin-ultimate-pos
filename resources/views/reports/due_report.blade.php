@@ -866,10 +866,10 @@
             // Function to update summary cards
             function updateSummaryCards(summary) {
                 // Update the summary cards dynamically
-                $('.row.mb-3 .col-xl-3:eq(0) h4').text('Rs. ' + parseFloat(summary.total_due).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-                $('.row.mb-3 .col-xl-3:eq(1) h4').text(summary.total_bills);
-                $('.row.mb-3 .col-xl-3:eq(2) h4').text(summary.total_parties);
-                $('.row.mb-3 .col-xl-3:eq(3) h4').text('Rs. ' + parseFloat(summary.avg_due_per_bill).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+                $('.row.g-2.mb-2 .col-xl-3:eq(0) h3').text('Rs. ' + parseFloat(summary.total_due).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+                $('.row.g-2.mb-2 .col-xl-3:eq(1) h3').text(summary.total_bills);
+                $('.row.g-2.mb-2 .col-xl-3:eq(2) h3').text(summary.total_parties);
+                $('.row.g-2.mb-2 .col-xl-3:eq(3) h3').text('Rs. ' + parseFloat(summary.max_single_due).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
             }
 
             // Report type toggle
