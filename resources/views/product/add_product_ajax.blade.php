@@ -546,78 +546,83 @@
             });
         });
 
+        // Fetch main category, sub category, location, unit, brand details to select box code start
+        // This code runs on page load to populate all dropdowns
+        $.ajax({
+            url: '/initial-product-details', // Correct endpoint without /api prefix
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                if (response.status === 200) {
 
-      // Fetch main category, sub category, location, unit, brand details to select box code start
-            $.ajax({
-                url: '/api/initial-product-details', // Replace with your endpoint URL
+                    const brandSelect = $('#edit_brand_id');
+                    const mainCategorySelect = $('#edit_main_category_id');
+                    const subCategorySelect = $('#edit_sub_category_id');
+                    const unitSelect = $('#edit_unit_id');
+                    const locationSelect = $('#edit_location_id');
 
-                type: 'GET',
-                success: function(response) {
-                    if (response.status === 200) {
+                    brandSelect.empty(); // Clear existing options
+                    mainCategorySelect.empty(); // Clear existing options
+                    subCategorySelect.empty(); // Clear existing options
+                    unitSelect.empty(); // Clear existing options
+                    locationSelect.empty(); // Clear existing options
 
-                        const brandSelect = $('#edit_brand_id');
-                        const mainCategorySelect = $('#edit_main_category_id');
-                        const subCategorySelect = $('#edit_sub_category_id');
-                        const unitSelect = $('#edit_unit_id');
-                        const locationSelect = $('#edit_location_id');
+                    // Access brands and subcategories from response data
+                    const brands = response.message.brands;
+                    const mainCategories = response.message.mainCategories;
+                    const subCategories = response.message.subCategories;
+                    const units = response.message.units;
+                    const locations = response.message.locations;
 
+                    if ((brands && brands.length > 0) || (mainCategories && mainCategories.length > 0) || (subCategories && subCategories.length > 0) || (units && units.length > 0) || (locations && locations.length > 0)) {
 
-                        brandSelect.empty(); // Clear existing options
-                        mainCategorySelect.empty(); // Clear existing options
-                        subCategorySelect.empty(); // Clear existing options
-                        unitSelect.empty(); // Clear existing options
-                        locationSelect.empty(); // Clear existing options
+                        // If there are brands or subcategories, add the default options and populate with data
+                        brandSelect.append('<option value="" selected disabled>Select Product Brand</option>');
+                        mainCategorySelect.append('<option value="" selected disabled>Select Main Category</option>');
+                        subCategorySelect.append('<option value="" selected disabled>Select Sub Category</option>');
+                        unitSelect.append('<option value="" selected disabled>Select Unit</option>');
+                        locationSelect.append('<option value="" selected disabled>Select Location</option>');
 
-                        // Access brands and subcategories from response data
-                        const brands = response.message.brands;
-                        const mainCategories = response.message.mainCategories;
-                        const subCategories = response.message.subCategories;
-                        const units = response.message.units;
-                        const locations = response.message.locations;
+                        brands.forEach(brand => {
+                            brandSelect.append(`<option value="${brand.id}">${brand.name}</option>`);
+                        });
 
-                        if ((brands && brands.length > 0) || (mainCategories && mainCategories.length > 0) || (subCategories && subCategories.length > 0) || (units && units.length > 0) || (locations && locations.length > 0)) {
+                        mainCategories.forEach(mainCategory => {
+                            mainCategorySelect.append(`<option value="${mainCategory.id}">${mainCategory.mainCategoryName}</option>`);
+                        });
 
-                            // If there are brands or subcategories, add the default options and populate with data
-                            brandSelect.append('<option value="" selected disabled>Select Product Brand</option>');
-                            mainCategorySelect.append('<option value="" selected disabled>Select Main Category</option>');
-                            subCategorySelect.append('<option value="" selected disabled>Select Sub Category</option>');
-                            unitSelect.append('<option value="" selected disabled>Select Unit</option>');
-                            locationSelect.append('<option value="" selected disabled>Select Location</option>');
+                        subCategories.forEach(subCategory => {
+                            subCategorySelect.append(`<option value="${subCategory.id}">${subCategory.subCategoryname}</option>`);
+                        });
 
-                            brands.forEach(brand => {
-                                brandSelect.append(`<option value="${brand.id}">${brand.name}</option>`);
-                            });
+                        units.forEach(unit => {
+                            unitSelect.append(`<option value="${unit.id}">${unit.name}</option>`);
+                        });
 
-                            mainCategories.forEach(mainCategory => {
-                                mainCategorySelect.append(`<option value="${mainCategory.id}">${mainCategory.mainCategoryName}</option>`);
-                            });
-
-                            subCategories.forEach(subCategory => {
-                                subCategorySelect.append(`<option value="${subCategory.id}">${subCategory.subCategoryname}</option>`);
-                            });
-
-                            units.forEach(unit => {
-                                unitSelect.append(`<option value="${unit.id}">${unit.name}</option>`);
-                            });
-
-                            locations.forEach(location => {
-                                locationSelect.append(`<option value="${location.id}">${location.name}</option>`);
-                            });
-                        } else {
-                            // If no records are found, show appropriate message
-                            brandSelect.append('<option value="" selected disabled>No brands available</option>');
-                            mainCategorySelect.append('<option value="" selected disabled>No main categories available</option>');
-                            subCategorySelect.append('<option value="" selected disabled>No sub categories available</option>');
-                            unitSelect.append('<option value="" selected disabled>No units available</option>');
-                            locationSelect.append('<option value="" selected disabled>No locations available</option>');
-                        }
+                        locations.forEach(location => {
+                            locationSelect.append(`<option value="${location.id}">${location.name}</option>`);
+                        });
+                        
+                        console.log('✅ Initial product details loaded successfully');
+                    } else {
+                        // If no records are found, show appropriate message
+                        brandSelect.append('<option value="" selected disabled>No brands available</option>');
+                        mainCategorySelect.append('<option value="" selected disabled>No main categories available</option>');
+                        subCategorySelect.append('<option value="" selected disabled>No sub categories available</option>');
+                        unitSelect.append('<option value="" selected disabled>No units available</option>');
+                        locationSelect.append('<option value="" selected disabled>No locations available</option>');
+                        console.warn('⚠️ No initial product data found');
                     }
-                },
-                error: function(error) {
-                    // Handle error silently or show user-friendly message
+                } else {
+                    console.error('❌ Failed to load initial product details. Status:', response.status);
                 }
-            });
-          // Fetch main category, sub category, location, unit, brand details to select box code start
+            },
+            error: function(xhr, status, error) {
+                console.error('❌ Error loading initial product details:', error);
+                toastr.error('Failed to load product options. Please refresh the page.', 'Error');
+            }
+        });
+        // Fetch main category, sub category, location, unit, brand details to select box code end
 
 
 

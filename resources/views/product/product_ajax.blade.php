@@ -420,7 +420,7 @@
     function populateDropdown(selector, items, displayProperty) {
         const selectElement = $(selector).empty();
 
-        // Add appropriate placeholder based on selector - but NOT for location dropdown if it's multiple select
+        // Add appropriate placeholder based on selector
         const placeholders = {
             '#edit_unit_id': 'Select Unit',
             '#edit_brand_id': 'Select Brand',
@@ -429,11 +429,9 @@
             '#edit_location_id': 'Select Location'
         };
 
-        // Only add placeholder for non-multiple select dropdowns
-        if (!selector.includes('locations[]') && selector !== '#edit_location_id') {
-            const placeholder = placeholders[selector] || 'Select Option';
-            selectElement.append(`<option value="">${placeholder}</option>`);
-        }
+        // Add placeholder option for all dropdowns
+        const placeholder = placeholders[selector] || 'Select Option';
+        selectElement.append(`<option value="">${placeholder}</option>`);
 
         // Add the actual data items
         items.forEach(item => {
@@ -461,34 +459,40 @@
 
     function populateInitialDropdowns(mainCategories, subCategories, brands, units, locations,
         autoSelectSingle, callback) {
-        // Populate dropdowns with data (location dropdown will be handled specially)
+        // Populate dropdowns with data
         populateDropdown('#edit_main_category_id', mainCategories, 'mainCategoryName');
         populateDropdown('#edit_sub_category_id', subCategories, 'subCategoryname');
         populateDropdown('#edit_brand_id', brands, 'name');
         populateDropdown('#edit_unit_id', units, 'name');
 
-        // Handle location dropdown separately to avoid adding "Select Location" as an option
+        // Handle location dropdown - add placeholder and options
         const $locationSelect = $('#edit_location_id, select[name="locations[]"]');
         $locationSelect.empty(); // Clear first
+        
+        // Add placeholder option for better Select2 compatibility
+        $locationSelect.append('<option value="">Select Location</option>');
 
-        // Add only the actual location options (no placeholder option)
+        // Add location options
         locations.forEach(location => {
             const option = new Option(location.name, location.id);
             $locationSelect.append(option);
         });
 
-        // Initialize Select2 for location dropdown with proper placeholder
+        // Initialize or reinitialize Select2 for location dropdown
         setTimeout(function() {
             $locationSelect.each(function() {
                 const $this = $(this);
-                if (!$this.hasClass('select2-hidden-accessible')) {
-                    $this.select2({
-                        placeholder: 'Select Location',
-                        allowClear: true,
-                        width: '100%',
-                        multiple: $this.attr('name') === 'locations[]'
-                    });
+                // Destroy existing Select2 if any
+                if ($this.hasClass('select2-hidden-accessible')) {
+                    $this.select2('destroy');
                 }
+                // Initialize Select2 with proper configuration
+                $this.select2({
+                    placeholder: 'Select Location',
+                    allowClear: true,
+                    width: '100%',
+                    multiple: $this.attr('name') === 'locations[]' || $this.hasClass('multiple-location')
+                });
             });
         }, 100);
 
@@ -500,7 +504,7 @@
             }, 200);
         }
 
-        // Populate location filter dropdown
+        // Populate location filter dropdown (for product list page)
         populateLocationFilterDropdown(locations, autoSelectSingle);
 
         // Validate form after initialization
@@ -1920,7 +1924,8 @@
     // On page load: fetch categories/brands/locations, then initialize DataTable
     $(document).ready(function() {
         // Only run this on actual product page, not on purchase/sale pages
-        if (!$('#productTable').length && !$('#edit_product_id').length) {
+        // Check for: product table (list page), edit_product_id (edit page), or addForm (add page)
+        if (!$('#productTable').length && !$('#edit_product_id').length && !$('#addForm').length) {
             console.log('⏭️ Skipping product page initialization (not on product page)');
             return;
         }
