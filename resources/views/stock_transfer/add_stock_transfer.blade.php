@@ -116,13 +116,17 @@
             <div class="row mb-4">
                 <div class="col-md-12">
                     <div class="card card-table">
-                        <div class="card-header">
-                            <h5 class="card-title">Selected Products</h5>
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">Selected Products</h5>
+                            <div class="col-md-4">
+                                <input type="text" id="filterProducts" class="form-control form-control-sm" 
+                                       placeholder="🔍 Search in selected products...">
+                            </div>
                         </div>
                         <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-bordered">
-                                    <thead class="table-success">
+                            <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                                <table class="table table-bordered table-hover" id="selectedProductsTable">
+                                    <thead class="table-success" style="position: sticky; top: 0; z-index: 10;">
                                         <tr>
                                             <th scope="col">Product</th>
                                             <th scope="col">Batch</th>
