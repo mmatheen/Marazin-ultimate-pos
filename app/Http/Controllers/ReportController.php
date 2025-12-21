@@ -568,7 +568,7 @@ public function fetchActivityLog(Request $request)
             'total_due' => 0,
             'total_bills' => 0,
             'total_parties' => 0,
-            'avg_due_per_bill' => 0,
+            'max_single_due' => 0,
         ];
 
         return view('reports.due_report', compact('locations', 'users', 'customers', 'suppliers', 'summaryData'));
@@ -693,12 +693,13 @@ public function fetchActivityLog(Request $request)
                 'customer_mobile' => $sale->customer ? $sale->customer->mobile_no : 'N/A',
                 'sales_date' => $salesDate->format('d-M-Y'),
                 'location' => $sale->location ? $sale->location->name : 'N/A',
-                'user' => $sale->user ? $sale->user->name : 'N/A',
+                'user' => $sale->user ? ($sale->user->full_name ?? $sale->user->name) : 'N/A',
                 'final_total' => $sale->final_total,
                 'total_paid' => $sale->total_paid,
                 'original_due' => $originalDue, // Original due before returns
                 'return_amount' => $totalReturns, // Total return amount
                 'total_due' => $actualDue, // Final due after returns
+                'final_due' => $actualDue, // Same as total_due, for max calculation
                 'payment_status' => $sale->payment_status,
                 'due_days' => abs($dueDays),
                 'due_status' => $this->getDueStatus($dueDays),
@@ -772,10 +773,13 @@ public function fetchActivityLog(Request $request)
                 'supplier_mobile' => $purchase->supplier ? $purchase->supplier->mobile_no : 'N/A',
                 'purchase_date' => $purchaseDate->format('d-M-Y'),
                 'location' => $purchase->location ? $purchase->location->name : 'N/A',
-                'user' => $purchase->user ? $purchase->user->name : 'N/A',
+                'user' => $purchase->user ? ($purchase->user->full_name ?? $purchase->user->name) : 'N/A',
                 'final_total' => $purchase->final_total,
                 'total_paid' => $purchase->total_paid,
+                'original_due' => $purchase->total_due,
+                'return_amount' => 0,
                 'total_due' => $purchase->total_due,
+                'final_due' => $purchase->total_due,
                 'payment_status' => $purchase->payment_status,
                 'due_days' => abs($dueDays),
                 'due_status' => $this->getDueStatus($dueDays),
@@ -793,9 +797,15 @@ public function fetchActivityLog(Request $request)
         $totalDue = 0;
         $totalBills = count($data);
         $uniqueParties = [];
+        $maxSingleDue = 0;
 
         foreach ($data as $row) {
             $totalDue += $row['total_due'];
+
+            // Track maximum single due
+            if (isset($row['final_due']) && $row['final_due'] > $maxSingleDue) {
+                $maxSingleDue = $row['final_due'];
+            }
 
             if ($reportType === 'customer') {
                 $uniqueParties[$row['customer_name']] = true;
@@ -856,7 +866,7 @@ public function fetchActivityLog(Request $request)
             'total_due' => $actualOutstandingBalance, // Use ledger-based balance
             'total_bills' => $totalBills,
             'total_parties' => $totalParties,
-            'avg_due_per_bill' => $totalBills > 0 ? $actualOutstandingBalance / $totalBills : 0,
+            'max_single_due' => $maxSingleDue,
         ];
     }
 

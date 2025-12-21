@@ -213,14 +213,14 @@
 
                     <div class="d-flex gap-2">
                         <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse"
-                            data-bs-target="#collapseFilters" aria-expanded="false" aria-controls="collapseFilters" 
+                            data-bs-target="#collapseFilters" aria-expanded="false" aria-controls="collapseFilters"
                             style="padding: 8px 16px; font-size: 13px;">
                             <i class="fas fa-filter me-1"></i> Filters
                         </button>
 
                         <div class="btn-group">
                             <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="dropdownMenuButton"
-                                data-bs-toggle="dropdown" aria-expanded="false" 
+                                data-bs-toggle="dropdown" aria-expanded="false"
                                 style="padding: 8px 16px; font-size: 13px;">
                                 <i class="fas fa-columns me-1"></i> Columns
                             </button>
@@ -369,15 +369,15 @@
                 </div>
             </div>
             <div class="col-xl-3 col-sm-6">
-                <div class="card h-100" style="border: none; box-shadow: 0 2px 8px rgba(0, 123, 255, 0.15); border-radius: 10px; background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);">
+                <div class="card h-100" style="border: none; box-shadow: 0 2px 8px rgba(111, 66, 193, 0.15); border-radius: 10px; background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%);">
                     <div class="card-body" style="padding: 12px 16px;">
                         <div class="d-flex align-items-center justify-content-between text-white">
                             <div>
-                                <p class="mb-1" style="font-size: 11px; opacity: 0.9; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Avg Per Bill</p>
-                                <h3 class="mb-0" style="font-size: 20px; font-weight: 700;">Rs. {{ number_format($summaryData['avg_due_per_bill'], 2) }}</h3>
+                                <p class="mb-1" style="font-size: 11px; opacity: 0.9; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Max Single Due</p>
+                                <h3 class="mb-0" style="font-size: 20px; font-weight: 700;">Rs. {{ number_format($summaryData['max_single_due'], 2) }}</h3>
                             </div>
                             <div style="background: rgba(255,255,255,0.2); border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
-                                <i class="fas fa-chart-line" style="font-size: 20px;"></i>
+                                <i class="fas fa-arrow-up" style="font-size: 20px;"></i>
                             </div>
                         </div>
                     </div>
@@ -729,26 +729,121 @@
                             extend: 'pdfHtml5',
                             text: '<i class="fa fa-file-pdf"></i> PDF',
                             orientation: 'landscape',
-                            pageSize: 'A4',
+                            pageSize: 'A3',
+                            title: currentReportType.charAt(0).toUpperCase() + currentReportType.slice(1) + ' Due Report',
                             filename: () => currentReportType + '_due_report_' + new Date().toISOString().slice(0, 10),
                             exportOptions: {
-                                columns: ':visible:not(:first-child)'
+                                columns: ':visible:not(:first-child)',
+                                format: {
+                                    body: function(data, row, column, node) {
+                                        // Remove HTML tags and styling
+                                        data = data.replace(/<span[^>]*>/g, '');
+                                        data = data.replace(/<\/span>/g, '');
+                                        data = data.replace(/<strong>/g, '');
+                                        data = data.replace(/<\/strong>/g, '');
+                                        data = data.replace(/Rs\.\s*/g, 'Rs. ');
+                                        return data;
+                                    }
+                                }
+                            },
+                            customize: function(doc) {
+                                doc.pageOrientation = 'landscape';
+                                doc.pageSize = 'A3';
+                                doc.defaultStyle.fontSize = 8;
+                                doc.styles.tableHeader.fontSize = 9;
+                                doc.styles.tableHeader.bold = true;
+                                doc.styles.tableHeader.fillColor = '#4472C4';
+                                doc.styles.tableHeader.color = 'white';
+
+                                // Add title and date
+                                doc.content[0].text = currentReportType.charAt(0).toUpperCase() + currentReportType.slice(1) + ' Due Report';
+                                doc.content[0].style = 'header';
+                                doc.content[0].alignment = 'center';
+                                doc.content[0].fontSize = 16;
+                                doc.content[0].bold = true;
+                                doc.content[0].margin = [0, 0, 0, 10];
+
+                                // Add generated date
+                                doc.content.splice(1, 0, {
+                                    text: 'Generated on: ' + new Date().toLocaleString(),
+                                    alignment: 'center',
+                                    fontSize: 10,
+                                    margin: [0, 0, 0, 10]
+                                });
+
+                                // Style the table
+                                if (doc.content[2] && doc.content[2].table) {
+                                    doc.content[2].table.widths = Array(doc.content[2].table.body[0].length).fill('auto');
+                                    doc.content[2].layout = {
+                                        hLineWidth: function(i, node) { return 0.5; },
+                                        vLineWidth: function(i, node) { return 0.5; },
+                                        hLineColor: function(i, node) { return '#cccccc'; },
+                                        vLineColor: function(i, node) { return '#cccccc'; }
+                                    };
+                                }
                             }
                         },
                         {
                             extend: 'excelHtml5',
                             text: '<i class="fa fa-file-excel"></i> Excel',
+                            title: currentReportType.charAt(0).toUpperCase() + currentReportType.slice(1) + ' Due Report',
                             filename: () => currentReportType + '_due_report_' + new Date().toISOString().slice(0, 10),
                             exportOptions: {
-                                columns: ':visible:not(:first-child)'
+                                columns: ':visible:not(:first-child)',
+                                format: {
+                                    body: function(data, row, column, node) {
+                                        // Remove HTML tags and styling
+                                        data = data.replace(/<span[^>]*>/g, '');
+                                        data = data.replace(/<\/span>/g, '');
+                                        data = data.replace(/<strong>/g, '');
+                                        data = data.replace(/<\/strong>/g, '');
+                                        data = data.replace(/Rs\.\s*/g, 'Rs. ');
+                                        return data;
+                                    }
+                                }
+                            },
+                            customize: function(xlsx) {
+                                var sheet = xlsx.xl.worksheets['sheet1.xml'];
+
+                                // Add header row styling
+                                $('row:first c', sheet).attr('s', '2');
+
+                                // Auto-fit columns
+                                $('row c[r^="A"]', sheet).attr('s', '50');
                             }
                         },
                         {
                             extend: 'print',
                             text: '<i class="fa fa-print"></i> Print',
-                            title: currentReportType.charAt(0).toUpperCase() + currentReportType.slice(1) + ' Due Report',
+                            title: '<h2 style="text-align: center; margin-bottom: 20px;">' + currentReportType.charAt(0).toUpperCase() + currentReportType.slice(1) + ' Due Report</h2>',
+                            messageTop: '<p style="text-align: center; margin-bottom: 20px;">Generated on: ' + new Date().toLocaleString() + '</p>',
                             exportOptions: {
                                 columns: ':visible:not(:first-child)'
+                            },
+                            customize: function(win) {
+                                $(win.document.body).css('font-size', '10pt');
+                                $(win.document.body).find('table')
+                                    .addClass('compact')
+                                    .css({
+                                        'font-size': '9pt',
+                                        'border-collapse': 'collapse',
+                                        'width': '100%'
+                                    });
+                                $(win.document.body).find('table thead th')
+                                    .css({
+                                        'background-color': '#4472C4',
+                                        'color': 'white',
+                                        'font-weight': 'bold',
+                                        'padding': '8px',
+                                        'border': '1px solid #ddd'
+                                    });
+                                $(win.document.body).find('table tbody td')
+                                    .css({
+                                        'padding': '6px',
+                                        'border': '1px solid #ddd'
+                                    });
+                                $(win.document.body).find('table tbody tr:nth-child(even)')
+                                    .css('background-color', '#f9f9f9');
                             }
                         }
                     ],
