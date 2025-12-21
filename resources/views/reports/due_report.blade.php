@@ -324,60 +324,60 @@
         {{-- Summary Cards --}}
         <div class="row g-2 mb-2">
             <div class="col-xl-3 col-sm-6">
-                <div class="card h-100" style="border: none; box-shadow: 0 2px 8px rgba(220, 53, 69, 0.15); border-radius: 10px; background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
+                <div class="card h-100" style="border: 1px solid #dc3545; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-radius: 8px; background: #dc3545;">
                     <div class="card-body" style="padding: 12px 16px;">
                         <div class="d-flex align-items-center justify-content-between text-white">
                             <div>
-                                <p class="mb-1" style="font-size: 11px; opacity: 0.9; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Total Due</p>
-                                <h3 class="mb-0" style="font-size: 20px; font-weight: 700;">Rs. {{ number_format($summaryData['total_due'], 2) }}</h3>
+                                <p class="mb-1" style="font-size: 11px; font-weight: 500; text-transform: uppercase;">Total Due</p>
+                                <h3 class="mb-0" style="font-size: 22px; font-weight: 700;">Rs. {{ number_format($summaryData['total_due'], 2) }}</h3>
                             </div>
-                            <div style="background: rgba(255,255,255,0.2); border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
-                                <i class="fas fa-balance-scale" style="font-size: 20px;"></i>
+                            <div style="background: rgba(255,255,255,0.25); border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-balance-scale" style="font-size: 22px;"></i>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="col-xl-3 col-sm-6">
-                <div class="card h-100" style="border: none; box-shadow: 0 2px 8px rgba(255, 193, 7, 0.15); border-radius: 10px; background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);">
+                <div class="card h-100" style="border: 1px solid #ff9800; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-radius: 8px; background: #ff9800;">
                     <div class="card-body" style="padding: 12px 16px;">
-                        <div class="d-flex align-items-center justify-content-between text-dark">
+                        <div class="d-flex align-items-center justify-content-between text-white">
                             <div>
-                                <p class="mb-1" style="font-size: 11px; opacity: 0.8; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Total Bills</p>
-                                <h3 class="mb-0" style="font-size: 20px; font-weight: 700;">{{ number_format($summaryData['total_bills']) }}</h3>
+                                <p class="mb-1" style="font-size: 11px; font-weight: 500; text-transform: uppercase;">Total Bills</p>
+                                <h3 class="mb-0" style="font-size: 22px; font-weight: 700;">{{ number_format($summaryData['total_bills']) }}</h3>
                             </div>
-                            <div style="background: rgba(0,0,0,0.1); border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
-                                <i class="fas fa-file-invoice" style="font-size: 20px;"></i>
+                            <div style="background: rgba(255,255,255,0.25); border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-file-invoice" style="font-size: 22px;"></i>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="col-xl-3 col-sm-6">
-                <div class="card h-100" style="border: none; box-shadow: 0 2px 8px rgba(23, 162, 184, 0.15); border-radius: 10px; background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
+                <div class="card h-100" style="border: 1px solid #17a2b8; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-radius: 8px; background: #17a2b8;">
                     <div class="card-body" style="padding: 12px 16px;">
                         <div class="d-flex align-items-center justify-content-between text-white">
                             <div>
-                                <p class="mb-1" id="partiesLabel" style="font-size: 11px; opacity: 0.9; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Customers</p>
-                                <h3 class="mb-0" style="font-size: 20px; font-weight: 700;">{{ number_format($summaryData['total_parties']) }}</h3>
+                                <p class="mb-1" id="partiesLabel" style="font-size: 11px; font-weight: 500; text-transform: uppercase;">Customers</p>
+                                <h3 class="mb-0" style="font-size: 22px; font-weight: 700;">{{ number_format($summaryData['total_parties']) }}</h3>
                             </div>
-                            <div style="background: rgba(255,255,255,0.2); border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
-                                <i class="fas fa-users" style="font-size: 20px;"></i>
+                            <div style="background: rgba(255,255,255,0.25); border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-users" style="font-size: 22px;"></i>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="col-xl-3 col-sm-6">
-                <div class="card h-100" style="border: none; box-shadow: 0 2px 8px rgba(111, 66, 193, 0.15); border-radius: 10px; background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%);">
+                <div class="card h-100" style="border: 1px solid #6f42c1; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-radius: 8px; background: #6f42c1;">
                     <div class="card-body" style="padding: 12px 16px;">
                         <div class="d-flex align-items-center justify-content-between text-white">
                             <div>
-                                <p class="mb-1" style="font-size: 11px; opacity: 0.9; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Max Single Due</p>
-                                <h3 class="mb-0" style="font-size: 20px; font-weight: 700;">Rs. {{ number_format($summaryData['max_single_due'], 2) }}</h3>
+                                <p class="mb-1" style="font-size: 11px; font-weight: 500; text-transform: uppercase;">Max Single Due</p>
+                                <h3 class="mb-0" style="font-size: 22px; font-weight: 700;">Rs. {{ number_format($summaryData['max_single_due'], 2) }}</h3>
                             </div>
-                            <div style="background: rgba(255,255,255,0.2); border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
-                                <i class="fas fa-arrow-up" style="font-size: 20px;"></i>
+                            <div style="background: rgba(255,255,255,0.25); border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-arrow-up" style="font-size: 22px;"></i>
                             </div>
                         </div>
                     </div>
