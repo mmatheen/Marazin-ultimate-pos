@@ -2,7 +2,7 @@
     $(document).ready(function() {
         // Get CSRF token at the top level - available for all pages
         var csrfToken = $('meta[name="csrf-token"]').attr('content');
-        
+
         // Only initialize on main category page, not on purchase/other pages
         if ($('#mainCategory').length) {
             console.log('✅ Initializing main category page');

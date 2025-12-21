@@ -2,7 +2,7 @@
     $(document).ready(function () {
         // Get CSRF token at the top level - available for all pages
         var csrfToken = $('meta[name="csrf-token"]').attr('content');
-        
+
         // Only initialize on brand page, not on purchase/other pages
         if ($('#brands').length) {
             console.log('✅ Initializing brand page');

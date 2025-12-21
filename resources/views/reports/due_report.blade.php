@@ -3,6 +3,7 @@
 
 @push('styles')
     <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/rowgroup/1.4.0/css/rowGroup.bootstrap5.min.css">
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
     <style>
         .selected-column {
@@ -22,26 +23,26 @@
         .select2-container {
             width: 100% !important;
         }
-        
+
         .select2-container .select2-selection--single {
             height: 44px !important;
             border: 1px solid #ddd !important;
             border-radius: 5px !important;
             padding: 0 !important;
         }
-        
+
         .select2-container--default .select2-selection--single .select2-selection__rendered {
             line-height: 42px !important;
             padding-left: 12px !important;
             color: #5a5a5a !important;
             font-size: 14px !important;
         }
-        
+
         .select2-container--default .select2-selection--single .select2-selection__arrow {
             height: 42px !important;
             right: 8px !important;
         }
-        
+
         .select2-container--default .select2-selection--single .select2-selection__placeholder {
             color: #999 !important;
         }
@@ -77,6 +78,28 @@
             margin-bottom: 8px;
             display: block;
             color: #333;
+        }
+
+        /* Row Group Styling */
+        table.dataTable tbody tr.dtrg-group td {
+            font-weight: 600;
+            font-size: 15px;
+            border-top: 2px solid #e9ecef !important;
+            border-bottom: 1px solid #e9ecef !important;
+        }
+
+        table.dataTable tbody tr.dtrg-group:hover td {
+            background: linear-gradient(to right, #f0f4f8 0%, #ffffff 100%) !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08) !important;
+        }
+
+        /* Alternating row colors for better readability */
+        #dueReportTable tbody tr:not(.dtrg-group):nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        #dueReportTable tbody tr:not(.dtrg-group):hover {
+            background-color: #e3f2fd !important;
         }
     </style>
 @endpush
@@ -133,15 +156,17 @@
                                     <li><a class="dropdown-item" href="#" data-value="2">Party Name</a></li>
                                     <li><a class="dropdown-item" href="#" data-value="3">Mobile No</a></li>
                                     <li><a class="dropdown-item" href="#" data-value="4">Date</a></li>
-                                </div>
-                                <div class="col-md-6">
                                     <li><a class="dropdown-item" href="#" data-value="5">Location</a></li>
                                     <li><a class="dropdown-item" href="#" data-value="6">Created By</a></li>
+                                </div>
+                                <div class="col-md-6">
                                     <li><a class="dropdown-item" href="#" data-value="7">Final Total</a></li>
                                     <li><a class="dropdown-item" href="#" data-value="8">Total Paid</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="9">Total Due</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="10">Payment Status</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="11">Due Days</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="9">Original Due</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="10">Return Amount</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="11">Final Due</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="12">Payment Status</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="13">Due Days</a></li>
                                 </div>
                             </div>
                         </ul>
@@ -247,8 +272,13 @@
                 <div class="card w-100" style="background-color: #dc3545;">
                     <div class="card-body">
                         <div class="text-white">
-                            <h6 class="text-white mb-2">Total Due Amount</h6>
+                            <h6 class="text-white mb-2">
+                                <i class="fas fa-balance-scale"></i> Total Due Amount (Ledger-based)
+                            </h6>
                             <h4 class="text-white mb-0">Rs. {{ number_format($summaryData['total_due'], 2) }}</h4>
+                            <small class="text-white-50" style="font-size: 11px;">
+                                <i class="fas fa-info-circle"></i> Includes all transactions, opening balance & adjustments
+                            </small>
                         </div>
                     </div>
                 </div>
@@ -288,6 +318,19 @@
         {{-- Table Section --}}
         <div class="card">
             <div class="card-body">
+                <div class="alert alert-info" style="background: #e7f3ff; border-left: 4px solid #0d6efd; border-radius: 6px; padding: 12px 16px; margin-bottom: 20px;">
+                    <div style="display: flex; align-items: start;">
+                        <i class="fas fa-info-circle" style="color: #0d6efd; font-size: 20px; margin-right: 12px; margin-top: 2px;"></i>
+                        <div style="flex: 1;">
+                            <strong style="color: #084298; display: block; margin-bottom: 4px;">Understanding Due Report Totals</strong>
+                            <p style="color: #084298; margin: 0; font-size: 13px; line-height: 1.6;">
+                                • <strong>Total Due Amount (top card):</strong> Shows complete ledger balance including opening balance, manual adjustments, and all transactions<br>
+                                • <strong>Bills Due (in table):</strong> Shows sum of individual unpaid bills only<br>
+                                • <strong>Why they differ:</strong> Customer accounts may have opening balances or ledger adjustments not tied to specific bills
+                            </p>
+                        </div>
+                    </div>
+                </div>
                 <div class="table-responsive">
                     <table class="table table-bordered table-striped table-hover" id="dueReportTable">
                         <thead class="table-light">
@@ -301,7 +344,9 @@
                                 <th>Created By</th>
                                 <th>Final Total</th>
                                 <th>Total Paid</th>
-                                <th>Total Due</th>
+                                <th>Original Due</th>
+                                <th style="border-left: 3px solid #ff9800;">Return Amount</th>
+                                <th style="border-left: 3px solid #dc3545; font-weight: 600;">Final Due</th>
                                 <th>Payment Status</th>
                                 <th>Due Days</th>
                             </tr>
@@ -412,22 +457,27 @@
             function getFilters() {
                 const dateRange = $('#reportrange span').text().split(' - ');
                 let startDate = '', endDate = '';
-                
-                if (dateRange.length === 2) {
+
+                // Check if a specific customer or supplier is selected
+                const customerId = $('#customerFilter').val();
+                const supplierId = $('#supplierFilter').val();
+
+                // Only apply date filter if no specific customer/supplier is selected
+                if (!customerId && !supplierId && dateRange.length === 2) {
                     startDate = moment(dateRange[0], 'MMMM D, YYYY').format('YYYY-MM-DD');
                     endDate = moment(dateRange[1], 'MMMM D, YYYY').format('YYYY-MM-DD');
                 }
 
                 const filters = {
                     report_type: currentReportType,
-                    customer_id: $('#customerFilter').val() || '',
-                    supplier_id: $('#supplierFilter').val() || '',
+                    customer_id: customerId || '',
+                    supplier_id: supplierId || '',
                     location_id: $('#locationFilter').val() || '',
                     user_id: $('#userFilter').val() || '',
                     start_date: startDate,
                     end_date: endDate
                 };
-                
+
                 console.log('Filters:', filters);
                 return filters;
             }
@@ -460,13 +510,55 @@
                             console.error('Response:', xhr.responseText);
                         }
                     },
+                    "rowGroup": {
+                        "dataSrc": function(row) {
+                            return currentReportType === 'customer' ? row.customer_name : row.supplier_name;
+                        },
+                        "startRender": function(rows, group) {
+                            let totalDueBills = 0;
+                            let totalFinal = 0;
+                            let totalPaid = 0;
+                            let billCount = rows.count();
+                            let customerId = null;
+                            let customerName = group;
+
+                            rows.every(function() {
+                                let data = this.data();
+                                totalDueBills += parseFloat(data.total_due || 0);
+                                totalFinal += parseFloat(data.final_total || 0);
+                                totalPaid += parseFloat(data.total_paid || 0);
+
+                                // Get customer ID from the first row
+                                if (customerId === null) {
+                                    customerId = data.customer_id;
+                                }
+                            });
+
+                            // The totalDueBills is just the sum of individual bills shown
+                            // But we need to show the actual ledger-based balance for this customer
+                            // The actual ledger balance will be shown in the badge
+
+                            return $('<tr/>')
+                                .append('<td colspan="14" style="background: linear-gradient(to right, #f8f9fa 0%, #ffffff 100%); border-left: 4px solid #007bff; font-weight: 600; padding: 14px 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">' +
+                                    '<i class="fas fa-user-circle" style="color: #007bff; font-size: 18px; margin-right: 8px;"></i>' +
+                                    '<span style="font-size: 15px; color: #2c3e50;">' + group + '</span>' +
+                                    '<span style="margin-left: 15px; color: #95a5a6; font-weight: 400; font-size: 13px;">(' + billCount + ' bill' + (billCount > 1 ? 's' : '') + ')</span>' +
+                                    '<span style="float: right; background: #fff5f5; color: #dc3545; font-size: 16px; padding: 6px 16px; border-radius: 6px; border: 1px solid #ffe0e0; font-weight: 700;">' +
+                                    'Bills Due: Rs. ' + totalDueBills.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) +
+                                    '</span>' +
+                                    '<span style="float: right; margin-right: 15px; color: #6c757d; font-size: 12px; padding: 6px 10px; background: #fff9e6; border-radius: 4px; border: 1px solid #ffe0b3;" title="This shows the sum of individual bills displayed. The total due amount at the top includes all ledger transactions (opening balance, adjustments, etc.)">' +
+                                    '<i class="fas fa-info-circle"></i> Bill-based total' +
+                                    '</span>' +
+                                    '</td>');
+                        }
+                    },
                     "columns": [
-                        { 
+                        {
                             "data": null,
                             "orderable": false,
                             "render": function(data, type, row) {
-                                let viewUrl = currentReportType === 'customer' 
-                                    ? "{{ url('sales') }}/" + row.id 
+                                let viewUrl = currentReportType === 'customer'
+                                    ? "{{ url('sales') }}/" + row.id
                                     : "{{ url('purchases') }}/" + row.id;
                                 return `<div class="dropdown">
                                     <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
@@ -478,7 +570,7 @@
                                 </div>`;
                             }
                         },
-                        { 
+                        {
                             "data": function(row) {
                                 return currentReportType === 'customer' ? row.invoice_no : row.reference_no;
                             },
@@ -486,7 +578,7 @@
                                 return '<strong>' + data + '</strong>';
                             }
                         },
-                        { 
+                        {
                             "data": function(row) {
                                 return currentReportType === 'customer' ? row.customer_name : row.supplier_name;
                             },
@@ -494,40 +586,57 @@
                                 return '<strong>' + data + '</strong>';
                             }
                         },
-                        { 
+                        {
                             "data": function(row) {
                                 return currentReportType === 'customer' ? row.customer_mobile : row.supplier_mobile;
                             }
                         },
-                        { 
+                        {
                             "data": function(row) {
                                 return currentReportType === 'customer' ? row.sales_date : row.purchase_date;
                             }
                         },
                         { "data": "location" },
                         { "data": "user" },
-                        { 
+                        {
                             "data": "final_total",
                             "className": "text-end",
                             "render": function(data) {
                                 return 'Rs. ' + parseFloat(data).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                             }
                         },
-                        { 
+                        {
                             "data": "total_paid",
                             "className": "text-end",
                             "render": function(data) {
                                 return 'Rs. ' + parseFloat(data).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                             }
                         },
-                        { 
-                            "data": "total_due",
-                            "className": "text-end text-danger",
+                        {
+                            "data": "original_due",
+                            "className": "text-end",
                             "render": function(data) {
-                                return '<strong>Rs. ' + parseFloat(data).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong>';
+                                return '<span style="color: #6c757d;">Rs. ' + parseFloat(data).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</span>';
                             }
                         },
-                        { 
+                        {
+                            "data": "return_amount",
+                            "className": "text-end",
+                            "render": function(data) {
+                                if (parseFloat(data) > 0) {
+                                    return '<span style="color: #ff9800; border-left: 3px solid #ff9800; padding-left: 8px; display: inline-block;"><strong>- Rs. ' + parseFloat(data).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></span>';
+                                }
+                                return '<span style="color: #adb5bd; border-left: 3px solid #e9ecef; padding-left: 8px; display: inline-block;">Rs. 0.00</span>';
+                            }
+                        },
+                        {
+                            "data": "total_due",
+                            "className": "text-end",
+                            "render": function(data) {
+                                return '<span style="color: #dc3545; border-left: 3px solid #dc3545; padding-left: 8px; display: inline-block;"><strong>Rs. ' + parseFloat(data).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></span>';
+                            }
+                        },
+                        {
                             "data": "payment_status",
                             "className": "text-center",
                             "render": function(data) {
@@ -535,7 +644,7 @@
                                 return '<span class="badge ' + badgeClass + '">' + data.toUpperCase() + '</span>';
                             }
                         },
-                        { 
+                        {
                             "data": "due_days",
                             "className": "text-center",
                             "render": function(data, type, row) {
@@ -543,14 +652,15 @@
                                 if (row.due_status === 'medium') badgeClass = 'badge-medium';
                                 if (row.due_status === 'old') badgeClass = 'badge-old';
                                 if (row.due_status === 'critical') badgeClass = 'badge-critical';
-                                
+
                                 return '<span class="badge ' + badgeClass + '">' + data + ' days</span>';
                             }
                         }
                     ],
                     "pageLength": 25,
                     "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-                    "order": [[4, 'desc']],
+                    "order": [[2, 'asc'], [4, 'desc']],
+                    "orderFixed": [[2, 'asc']],
                     "dom": '<"dt-top"B><"dt-controls"<"dt-length"l><"dt-search"f>>rtip',
                     "buttons": [
                         {
@@ -608,7 +718,7 @@
             // Report type toggle
             $('input[name="reportType"]').on('change', function() {
                 currentReportType = $(this).val();
-                
+
                 // Update UI labels
                 if (currentReportType === 'customer') {
                     $('#customerFilterDiv').show();
@@ -629,7 +739,7 @@
                     // Clear customer filter
                     $('#customerFilter').val(null).trigger('change');
                 }
-                
+
                 // Reload table
                 table.ajax.reload();
             });
@@ -651,12 +761,12 @@
                 $('#supplierFilter').val(null).trigger('change');
                 $('#locationFilter').val(null).trigger('change');
                 $('#userFilter').val(null).trigger('change');
-                
+
                 // Reset date range
                 $('#reportrange').data('daterangepicker').setStartDate(moment());
                 $('#reportrange').data('daterangepicker').setEndDate(moment());
                 setDateRange(moment(), moment());
-                
+
                 // Reload table
                 table.ajax.reload();
             });
@@ -713,3 +823,7 @@
         });
     </script>
 @endsection
+
+@push('scripts')
+    <script src="https://cdn.datatables.net/rowgroup/1.4.0/js/dataTables.rowGroup.min.js"></script>
+@endpush

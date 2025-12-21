@@ -612,48 +612,61 @@ public function fetchActivityLog(Request $request)
     }
 
     /**
-     * Get customer due data as array
+     * Get customer due data as array - LEDGER-BASED APPROACH
      */
     private function getCustomerDueDataArray($request)
     {
-        $query = Sale::with(['customer', 'location', 'user'])
+        // First, get all customers with outstanding balances from the ledger
+        $customerBalances = [];
+
+        // Get all customers who have transactions
+        $customerIds = \App\Models\Ledger::where('contact_type', 'customer')
+            ->where('status', 'active')
+            ->distinct()
+            ->pluck('contact_id');
+
+        // Calculate balance for each customer and filter those with due amounts
+        foreach ($customerIds as $customerId) {
+            $balance = \App\Helpers\BalanceHelper::getCustomerBalance($customerId);
+            if ($balance > 0) {
+                $customerBalances[$customerId] = $balance;
+            }
+        }
+
+        // If specific customer filter is applied
+        if ($request->has('customer_id') && $request->customer_id != '' && $request->customer_id != null) {
+            $filterCustomerId = $request->customer_id;
+            if (isset($customerBalances[$filterCustomerId])) {
+                $customerBalances = [$filterCustomerId => $customerBalances[$filterCustomerId]];
+            } else {
+                $customerBalances = [];
+            }
+        }
+
+        // Now get the sales for these customers to show individual bill details
+        $query = Sale::with(['customer', 'location', 'user', 'salesReturns'])
+            ->whereIn('customer_id', array_keys($customerBalances))
             ->whereIn('payment_status', ['partial', 'due'])
             ->where('total_due', '>', 0)
             ->whereNotNull('customer_id');
 
-        // Apply filters
-        if ($request->has('customer_id') && $request->customer_id != '' && $request->customer_id != null) {
-            $query->where('customer_id', $request->customer_id);
-        }
-
+        // Apply location filter
         if ($request->has('location_id') && $request->location_id != '' && $request->location_id != null) {
             $query->where('location_id', $request->location_id);
         }
 
+        // Apply user filter
         if ($request->has('user_id') && $request->user_id != '' && $request->user_id != null) {
             $query->where('user_id', $request->user_id);
         }
 
-        // Date range filter
-        if ($request->has('start_date') && $request->start_date != '' && $request->start_date != null) {
+        // Date range filter - only apply if no specific customer is selected
+        if ((!$request->has('customer_id') || $request->customer_id == '') && $request->has('start_date') && $request->start_date != '' && $request->start_date != null) {
             $query->whereDate('sales_date', '>=', $request->start_date);
         }
 
-        if ($request->has('end_date') && $request->end_date != '' && $request->end_date != null) {
+        if ((!$request->has('customer_id') || $request->customer_id == '') && $request->has('end_date') && $request->end_date != '' && $request->end_date != null) {
             $query->whereDate('sales_date', '<=', $request->end_date);
-        }
-
-        // Due days range filter
-        if ($request->has('due_days_from') && $request->due_days_from != '' && $request->due_days_from != null) {
-            $dueDaysFrom = (int)$request->due_days_from;
-            $dateFrom = Carbon::now()->subDays($dueDaysFrom)->format('Y-m-d');
-            $query->whereDate('sales_date', '<=', $dateFrom);
-        }
-
-        if ($request->has('due_days_to') && $request->due_days_to != '' && $request->due_days_to != null) {
-            $dueDaysTo = (int)$request->due_days_to;
-            $dateTo = Carbon::now()->subDays($dueDaysTo)->format('Y-m-d');
-            $query->whereDate('sales_date', '>=', $dateTo);
         }
 
         $sales = $query->orderBy('sales_date', 'desc')->get();
@@ -661,15 +674,20 @@ public function fetchActivityLog(Request $request)
         // Format data for DataTables
         $data = [];
         foreach ($sales as $sale) {
-            // Only include if there's actual due amount and not paid
-            if ($sale->total_due <= 0 || $sale->payment_status === 'paid') continue;
+            // Calculate actual due amount after considering returns
+            $totalReturns = $sale->salesReturns()->sum('return_total');
+            $originalDue = $sale->total_due;
+            $actualDue = $originalDue - $totalReturns;
+
+            // Only include if there's actual due amount after returns
+            if ($actualDue <= 0) continue;
 
             $salesDate = Carbon::parse($sale->sales_date);
-            $dueDate = $salesDate; // You can modify this if you have a separate due_date field
             $dueDays = Carbon::now()->diffInDays($salesDate, false);
 
             $data[] = [
                 'id' => $sale->id,
+                'customer_id' => $sale->customer_id, // Include customer_id for grouping
                 'invoice_no' => $sale->invoice_no ?? 'N/A',
                 'customer_name' => $sale->customer ? $sale->customer->full_name : 'N/A',
                 'customer_mobile' => $sale->customer ? $sale->customer->mobile_no : 'N/A',
@@ -678,7 +696,9 @@ public function fetchActivityLog(Request $request)
                 'user' => $sale->user ? $sale->user->name : 'N/A',
                 'final_total' => $sale->final_total,
                 'total_paid' => $sale->total_paid,
-                'total_due' => $sale->total_due,
+                'original_due' => $originalDue, // Original due before returns
+                'return_amount' => $totalReturns, // Total return amount
+                'total_due' => $actualDue, // Final due after returns
                 'payment_status' => $sale->payment_status,
                 'due_days' => abs($dueDays),
                 'due_status' => $this->getDueStatus($dueDays),
@@ -787,11 +807,56 @@ public function fetchActivityLog(Request $request)
         $totalParties = count($uniqueParties);
         $avgDuePerBill = $totalBills > 0 ? $totalDue / $totalBills : 0;
 
+        // 🔥 CRITICAL FIX: Use BalanceHelper for actual outstanding balance
+        // The total_due calculated above is just from individual bills
+        // But the actual outstanding balance includes all ledger transactions
+        $actualOutstandingBalance = 0;
+
+        if ($reportType === 'customer') {
+            // Get unique customer IDs from the data
+            $uniqueCustomerIds = [];
+            foreach ($data as $row) {
+                if (isset($row['id'])) {
+                    // Get the sale to find customer_id
+                    $sale = \App\Models\Sale::find($row['id']);
+                    if ($sale && $sale->customer_id) {
+                        $uniqueCustomerIds[$sale->customer_id] = true;
+                    }
+                }
+            }
+
+            // Calculate total outstanding for all customers with due bills
+            foreach (array_keys($uniqueCustomerIds) as $customerId) {
+                $balance = \App\Helpers\BalanceHelper::getCustomerBalance($customerId);
+                if ($balance > 0) {
+                    $actualOutstandingBalance += $balance;
+                }
+            }
+        } else {
+            // For suppliers
+            $uniqueSupplierIds = [];
+            foreach ($data as $row) {
+                if (isset($row['id'])) {
+                    $purchase = \App\Models\Purchase::find($row['id']);
+                    if ($purchase && $purchase->supplier_id) {
+                        $uniqueSupplierIds[$purchase->supplier_id] = true;
+                    }
+                }
+            }
+
+            foreach (array_keys($uniqueSupplierIds) as $supplierId) {
+                $balance = \App\Helpers\BalanceHelper::getSupplierBalance($supplierId);
+                if ($balance > 0) {
+                    $actualOutstandingBalance += $balance;
+                }
+            }
+        }
+
         return [
-            'total_due' => $totalDue,
+            'total_due' => $actualOutstandingBalance, // Use ledger-based balance
             'total_bills' => $totalBills,
             'total_parties' => $totalParties,
-            'avg_due_per_bill' => $avgDuePerBill,
+            'avg_due_per_bill' => $totalBills > 0 ? $actualOutstandingBalance / $totalBills : 0,
         ];
     }
 

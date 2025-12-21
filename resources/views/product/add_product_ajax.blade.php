@@ -114,11 +114,11 @@
         function checkFormValidityAndEnableButtons() {
             // Custom validation check including locations array
             let isFormValid = true;
-            
+
             // Check required fields manually
             const requiredFields = [
                 'input[name="product_name"]',
-                'select[name="unit_id"]', 
+                'select[name="unit_id"]',
                 'select[name="brand_id"]',
                 'select[name="main_category_id"]',
                 'select[name="sub_category_id"]',
@@ -127,7 +127,7 @@
                 'input[name="special_price"]',
                 'input[name="original_price"]'
             ];
-            
+
             // Check each required field
             requiredFields.forEach(function(selector) {
                 const field = $(selector);
@@ -135,15 +135,15 @@
                     isFormValid = false;
                 }
             });
-            
+
             // Special check for locations array
             const selectedLocations = $('select[name="locations[]"]').val();
             if (!selectedLocations || selectedLocations.length === 0) {
                 isFormValid = false;
             }
-            
+
             const buttons = $('#onlySaveProductButton, #SaveProductButtonAndAnother, #openingStockAndProduct');
-            
+
             if (isFormValid && !isSubmitting) {
                 buttons.prop('disabled', false);
                 buttons.removeClass('btn-secondary').addClass('btn-primary');
@@ -156,7 +156,7 @@
         // Ensure buttons are enabled by default on page load
         const allButtons = $('#onlySaveProductButton, #SaveProductButtonAndAnother, #openingStockAndProduct');
         allButtons.prop('disabled', false);
-        
+
         // Monitor key fields for changes to re-enable buttons
         $('#addForm').on('change keyup blur input', 'input, select, textarea', function() {
             // Small delay to let validation complete
@@ -191,14 +191,14 @@
             const sku = $(this).val().trim();
             const productId = $('#product_id').val(); // Get product ID if editing
             const errorSpan = $('#sku_error');
-            
+
             // Only validate if SKU is provided
             if (sku === '') {
                 errorSpan.html(''); // Clear error
                 $(this).removeClass('is-invalidRed').removeClass('is-validGreen');
                 return;
             }
-            
+
             // Check for duplicate SKU via AJAX
             $.ajax({
                 url: '/product/check-sku',
@@ -284,31 +284,31 @@
         function resetFormAndValidation() {
             // Reset the form fields
             $('#addForm')[0].reset();
-            
+
             // Reset the validation messages and states
             $('#addForm').validate().resetForm();
             $('#addForm').find('.is-invalidRed').removeClass('is-invalidRed');
             $('#addForm').find('.is-validGreen').removeClass('is-validGreen');
-            
+
             // Reset the image to the default
             $('#selectedImage').attr('src', '/assets/img/No Product Image Available.png');
-            
+
             // Reset all dropdown selections to default "Select" options with proper values
             resetAllDropdowns();
-            
+
             // Clear any custom error messages
             $('.text-danger').html('');
             $('#sku_error').html('');
-            
+
             // Clear all input fields explicitly
             $('input[type="text"], input[type="number"], textarea').val('');
-            
+
             // Clear checkboxes and radio buttons
             $('input[type="checkbox"], input[type="radio"]').prop('checked', false);
-            
+
             // Re-enable all buttons
             $('#onlySaveProductButton, #SaveProductButtonAndAnother, #openingStockAndProduct').prop('disabled', false);
-            
+
             // Focus on first field for better UX
             setTimeout(function() {
                 $('input[name="product_name"]').focus();
@@ -320,16 +320,16 @@
             // List of all dropdown selectors
             const dropdowns = [
                 '#edit_brand_id',
-                '#edit_main_category_id', 
+                '#edit_main_category_id',
                 '#edit_sub_category_id',
                 '#edit_unit_id',
                 '#edit_location_id'
             ];
-            
+
             // Reset each dropdown
             dropdowns.forEach(function(selector) {
                 const $dropdown = $(selector);
-                
+
                 // Check if it's a Select2 dropdown
                 if ($dropdown.hasClass('select2-hidden-accessible')) {
                     // For Select2 dropdowns, clear selection and trigger change
@@ -339,26 +339,26 @@
                     $dropdown.prop('selectedIndex', 0);
                 }
             });
-            
+
             // Special handling for locations array (multiple Select2) - Enhanced Reset
             const $locationSelectors = [
-                'select[name="locations[]"]', 
-                '.multiple-location', 
+                'select[name="locations[]"]',
+                '.multiple-location',
                 '#edit_location_id',
                 '.location-select'
             ];
-            
+
             $locationSelectors.forEach(function(selector) {
                 const $locationSelect = $(selector);
                 if ($locationSelect.length) {
                     // Clear the value first
                     $locationSelect.val(null);
-                    
+
                     // If it's a Select2 dropdown, handle it specially
                     if ($locationSelect.hasClass('select2-hidden-accessible')) {
                         // Clear selection and trigger change
                         $locationSelect.trigger('change');
-                        
+
                         // Force clear the visual display
                         const select2Container = $locationSelect.next('.select2-container');
                         if (select2Container.length) {
@@ -367,7 +367,7 @@
                                 '<span class="select2-selection__placeholder">Select Location</span>'
                             );
                         }
-                        
+
                         // Additional cleanup - destroy and reinitialize if needed
                         try {
                             $locationSelect.select2('destroy');
@@ -386,12 +386,12 @@
                     }
                 }
             });
-            
+
             // Trigger change event on main category to reset dependent sub-category
             setTimeout(function() {
                 $('#edit_main_category_id').trigger('change');
             }, 50);
-            
+
             // Additional aggressive cleanup for any remaining Select2 artifacts
             setTimeout(function() {
                 $('.select2-selection__choice').remove();
@@ -401,7 +401,7 @@
                         $this.html('<span class="select2-selection__placeholder">Select Location</span>');
                     }
                 });
-                
+
                 // Force clear any visible selected items in location dropdowns
                 $('select[name="locations[]"]').each(function() {
                     $(this).val(null).trigger('change');
@@ -422,7 +422,7 @@
             // Custom validation check
             let isValid = true;
             let errorMessages = [];
-            
+
             // Check required fields
             if (!$('input[name="product_name"]').val()) {
                 errorMessages.push('Product Name is required');
@@ -444,14 +444,14 @@
                 errorMessages.push('Sub Category is required');
                 isValid = false;
             }
-            
+
             // Check locations array
             const locations = $('select[name="locations[]"]').val();
             if (!locations || locations.length === 0) {
                 errorMessages.push('Business Location is required');
                 isValid = false;
             }
-            
+
             if (!$('input[name="retail_price"]').val()) {
                 errorMessages.push('Retail Price is required');
                 isValid = false;
@@ -468,13 +468,13 @@
                 errorMessages.push('Cost Price is required');
                 isValid = false;
             }
-            
+
             if (!isValid) {
                 document.getElementsByClassName('warningSound')[0].play(); // for sound
                 toastr.error(errorMessages.join('<br>'), 'Please fill required fields', {
                     allowHtml: true
                 });
-                
+
                 // NEVER disable buttons for validation errors - let user try again immediately
                 $(this).prop('disabled', false);
                 $('#SaveProductButtonAndAnother').prop('disabled', false);
@@ -510,16 +510,16 @@
                     if (response.status == 400) {
                         // Clear previous error messages
                         $('.text-danger').html('');
-                        
+
                         // Show validation errors
                         $.each(response.errors, function(key, err_value) {
                             $('#' + key + '_error').html(err_value);
                         });
-                        
+
                         // Re-enable button and reset submitting flag for validation errors
                         isSubmitting = false;
                         $('#onlySaveProductButton').prop('disabled', false);
-                        
+
                         document.getElementsByClassName('warningSound')[0].play(); // for sound
                         toastr.error('Please fix the validation errors and try again', 'Validation Error');
                     } else {
@@ -602,7 +602,7 @@
                         locations.forEach(location => {
                             locationSelect.append(`<option value="${location.id}">${location.name}</option>`);
                         });
-                        
+
                         console.log('✅ Initial product details loaded successfully');
                     } else {
                         // If no records are found, show appropriate message
@@ -656,7 +656,7 @@
             // Custom validation check
             let isValid = true;
             let errorMessages = [];
-            
+
             // Check required fields
             if (!$('input[name="product_name"]').val()) {
                 errorMessages.push('Product Name is required');
@@ -678,14 +678,14 @@
                 errorMessages.push('Sub Category is required');
                 isValid = false;
             }
-            
+
             // Check locations array
             const locations = $('select[name="locations[]"]').val();
             if (!locations || locations.length === 0) {
                 errorMessages.push('Business Location is required');
                 isValid = false;
             }
-            
+
             if (!$('input[name="retail_price"]').val()) {
                 errorMessages.push('Retail Price is required');
                 isValid = false;
@@ -702,13 +702,13 @@
                 errorMessages.push('Cost Price is required');
                 isValid = false;
             }
-            
+
             if (!isValid) {
                 document.getElementsByClassName('warningSound')[0].play(); // for sound
                 toastr.error(errorMessages.join('<br>'), 'Please fill required fields', {
                     allowHtml: true
                 });
-                
+
                 // NEVER disable buttons for validation errors - let user try again immediately
                 $('#onlySaveProductButton').prop('disabled', false);
                 $(this).prop('disabled', false);
@@ -744,35 +744,35 @@
                     if (response.status == 400) {
                         // Clear previous error messages
                         $('.text-danger').html('');
-                        
+
                         // Show validation errors
                         $.each(response.errors, function(key, err_value) {
                             $('#' + key + '_error').html(err_value);
                         });
-                        
+
                         // Re-enable button and reset submitting flag for validation errors
                         isSubmitting = false;
                         $('#SaveProductButtonAndAnother').prop('disabled', false);
-                        
+
                         document.getElementsByClassName('warningSound')[0].play(); // for sound
                         toastr.error('Please fix the validation errors and try again', 'Validation Error');
                     } else {
                         document.getElementsByClassName('successSound')[0].play(); // for sound
                         toastr.success(response.message + ' - Form cleared for next product', 'Added');
-                        
+
                         // Extra aggressive form reset for "Save & Add Another"
                         setTimeout(function() {
                             resetFormAndValidation();
-                            
+
                             // Force clear all visible values
                             $('input, textarea').val('');
                             $('select').prop('selectedIndex', 0);
-                            
+
                             // Aggressive Select2 reset - Multiple attempts for stubborn dropdowns
                             $('.select2-hidden-accessible').each(function() {
                                 const $this = $(this);
                                 $this.val(null).trigger('change');
-                                
+
                                 // Extra cleanup for location dropdowns
                                 if ($this.attr('name') === 'locations[]' || $this.hasClass('multiple-location')) {
                                     // Clear any selected values
@@ -781,12 +781,12 @@
                                     $this.append('<option value="" disabled>Select Location</option>');
                                 }
                             });
-                            
+
                             // Specifically target location dropdowns with multiple methods
                             $('select[name="locations[]"]').each(function() {
                                 const $select = $(this);
                                 $select.val([]).trigger('change'); // Empty array for multiple select
-                                
+
                                 // Force visual clear
                                 const $container = $select.next('.select2-container');
                                 if ($container.length) {
@@ -795,19 +795,19 @@
                                         .html('<span class="select2-selection__placeholder">Select Location</span>');
                                 }
                             });
-                            
+
                             // Reset validation states
                             $('.is-invalidRed, .is-validGreen').removeClass('is-invalidRed is-validGreen');
                             $('.text-danger').html('');
-                            
+
                             // Additional cleanup after a longer delay
                             setTimeout(function() {
                                 $('.select2-selection__choice').remove();
                                 $('select[name="locations[]"]').val([]).trigger('change');
                             }, 300);
-                            
+
                         }, 100);
-                        
+
                         // Stay on same page to add another product (don't redirect)
                     }
                 }
@@ -843,7 +843,7 @@
             // Custom validation check
             let isValid = true;
             let errorMessages = [];
-            
+
             // Check required fields
             if (!$('input[name="product_name"]').val()) {
                 errorMessages.push('Product Name is required');
@@ -865,14 +865,14 @@
                 errorMessages.push('Sub Category is required');
                 isValid = false;
             }
-            
+
             // Check locations array
             const locations = $('select[name="locations[]"]').val();
             if (!locations || locations.length === 0) {
                 errorMessages.push('Business Location is required');
                 isValid = false;
             }
-            
+
             if (!$('input[name="retail_price"]').val()) {
                 errorMessages.push('Retail Price is required');
                 isValid = false;
@@ -889,13 +889,13 @@
                 errorMessages.push('Cost Price is required');
                 isValid = false;
             }
-            
+
             if (!isValid) {
                 document.getElementsByClassName('warningSound')[0].play(); // for sound
                 toastr.error(errorMessages.join('<br>'), 'Please fill required fields', {
                     allowHtml: true
                 });
-                
+
                 // NEVER disable buttons for validation errors - let user try again immediately
                 $('#onlySaveProductButton').prop('disabled', false);
                 $('#SaveProductButtonAndAnother').prop('disabled', false);
@@ -930,16 +930,16 @@
                     if (response.status == 400) {
                         // Clear previous error messages
                         $('.text-danger').html('');
-                        
+
                         // Show validation errors
                         $.each(response.errors, function(key, err_value) {
                             $('#' + key + '_error').html(err_value);
                         });
-                        
+
                         // Re-enable button and reset submitting flag for validation errors
                         isSubmitting = false;
                         $('#openingStockAndProduct').prop('disabled', false);
-                        
+
                         document.getElementsByClassName('warningSound')[0].play(); // for sound
                         toastr.error('Please fix the validation errors and try again', 'Validation Error');
                     } else {

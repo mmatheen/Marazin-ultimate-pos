@@ -468,7 +468,7 @@
         // Handle location dropdown - add placeholder and options
         const $locationSelect = $('#edit_location_id, select[name="locations[]"]');
         $locationSelect.empty(); // Clear first
-        
+
         // Add placeholder option for better Select2 compatibility
         $locationSelect.append('<option value="">Select Location</option>');
 
@@ -1923,14 +1923,21 @@
 
     // On page load: fetch categories/brands/locations, then initialize DataTable
     $(document).ready(function() {
-        // Only run this on actual product page, not on purchase/sale pages
-        // Check for: product table (list page), edit_product_id (edit page), or addForm (add page)
-        if (!$('#productTable').length && !$('#edit_product_id').length && !$('#addForm').length) {
+        // Detect page type to decide when to load initial product details
+        const hasProductTable = $('#productTable').length > 0; // Product list page
+        const hasEditProductId = $('#edit_product_id').length > 0; // Edit product page
+        const hasProductModal = $('#new_purchase_product').length > 0; // Purchase page with product modal
+
+        // Check if addForm exists but is NOT inside a modal (real add product page)
+        const hasAddForm = $('#addForm').length > 0 && $('#addForm').closest('.modal').length === 0;
+
+        // Skip initialization completely if not on any product-related page
+        if (!hasProductTable && !hasAddForm && !hasEditProductId && !hasProductModal) {
             console.log('⏭️ Skipping product page initialization (not on product page)');
             return;
         }
 
-        console.log('🚀 Initializing product page...');
+        console.log('🚀 Product page detected...');
 
         // Initialize buttons based on current page mode
         const isEditPage = window.location.pathname.includes('/edit-product/');
@@ -1939,22 +1946,49 @@
             resetButtonsForAddMode();
         }
 
-        // Only fetch initial data once and handle both form validation and DataTable initialization
-        fetchInitialDropdowns(function() {
-            // First validate form and update buttons
-            validateFormAndUpdateButtons();
+        // Load initial dropdowns ONLY for pages that need it immediately
+        // For purchase/sale pages with modal, load when modal opens (see modal event handler below)
+        if (hasProductTable || hasAddForm || hasEditProductId) {
+            console.log('📥 Loading initial product details for immediate use...');
+            fetchInitialDropdowns(function() {
+                // First validate form and update buttons
+                validateFormAndUpdateButtons();
 
-            // Then initialize DataTable if we're on a list page
-            if (typeof fetchCategoriesAndBrands === 'function' && typeof fetchProductData === 'function') {
-                fetchCategoriesAndBrands(function() {
-                    // First initialize the DataTable
-                    fetchProductData();
-                    // Then populate the filter options with ALL available categories and brands
-                    setTimeout(function() {
-                        populateAllFilterOptions();
-                    }, 100); // Small delay to ensure DataTable is fully initialized
-                });
-            }
+                // ONLY load categories/brands for filter dropdowns if on product list page
+                if (hasProductTable && typeof fetchCategoriesAndBrands === 'function' && typeof fetchProductData === 'function') {
+                    console.log('📊 Product list page detected - loading filter data...');
+                    fetchCategoriesAndBrands(function() {
+                        // First initialize the DataTable
+                        fetchProductData();
+                        // Then populate the filter options with ALL available categories and brands
+                        setTimeout(function() {
+                            populateAllFilterOptions();
+                        }, 100); // Small delay to ensure DataTable is fully initialized
+                    });
+                } else {
+                    console.log('✅ Add/Edit product page - filter data not needed');
+                }
+            });
+        } else if (hasProductModal) {
+            console.log('⏸️ Purchase/Sale page detected - will load product details when modal opens');
+        }
+    });
+
+    // Load initial product details when Add Product Modal is opened (for purchase/sale pages)
+    $(document).on('show.bs.modal', '#new_purchase_product', function() {
+        console.log('🔓 Add Product Modal opening...');
+
+        // Check if data is already loaded
+        if (window.initialProductDataLoaded && window.initialProductData) {
+            console.log('✅ Initial product data already cached - no need to reload');
+            return;
+        }
+
+        // Load initial dropdowns only when modal opens
+        console.log('📥 Loading initial product details for modal...');
+        fetchInitialDropdowns(function() {
+            console.log('✅ Product details loaded successfully for modal');
+            validateFormAndUpdateButtons();
         });
     });
 
