@@ -644,11 +644,14 @@ public function fetchActivityLog(Request $request)
         }
 
         // Now get the sales for these customers to show individual bill details
+        // Only show FINAL sales (not draft) with invoice numbers
         $query = Sale::with(['customer', 'location', 'user', 'salesReturns'])
             ->whereIn('customer_id', array_keys($customerBalances))
             ->whereIn('payment_status', ['partial', 'due'])
             ->where('total_due', '>', 0)
-            ->whereNotNull('customer_id');
+            ->whereNotNull('customer_id')
+            ->where('status', 'final') // Only show final sales (invoices), not drafts
+            ->whereNotNull('invoice_no'); // Only show sales with invoice numbers
 
         // Apply location filter
         if ($request->has('location_id') && $request->location_id != '' && $request->location_id != null) {
@@ -714,10 +717,13 @@ public function fetchActivityLog(Request $request)
      */
     private function getSupplierDueDataArray($request)
     {
+        // Only show final purchases (not draft) with reference numbers
         $query = \App\Models\Purchase::with(['supplier', 'location', 'user'])
             ->whereIn('payment_status', ['partial', 'due'])
             ->where('total_due', '>', 0)
-            ->whereNotNull('supplier_id');
+            ->whereNotNull('supplier_id')
+            ->where('status', 'final') // Only show final purchases, not drafts
+            ->whereNotNull('reference_no'); // Only show purchases with reference numbers
 
         // Apply filters
         if ($request->has('supplier_id') && $request->supplier_id != '' && $request->supplier_id != null) {

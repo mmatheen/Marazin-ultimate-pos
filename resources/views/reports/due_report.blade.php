@@ -482,6 +482,7 @@
             // Initialize Date Range Picker
             const start = moment();
             const end = moment();
+            let dateFilterApplied = false; // Track if user has applied date filter
 
             function setDateRange(start, end) {
                 $('#reportrange span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));
@@ -496,7 +497,8 @@
                     'Last 7 Days': [moment().subtract(6, 'days'), moment()],
                     'Last 30 Days': [moment().subtract(29, 'days'), moment()],
                     'This Month': [moment().startOf('month'), moment().endOf('month')],
-                    'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+                    'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')],
+                    'All Records': [moment().subtract(10, 'years'), moment()] // Show all records option
                 }
             }, setDateRange);
 
@@ -520,23 +522,15 @@
 
             // Get filter values
             function getFilters() {
-                const dateRange = $('#reportrange span').text().split(' - ');
-                let startDate = '', endDate = '';
-
-                // Check if a specific customer or supplier is selected
-                const customerId = $('#customerFilter').val();
-                const supplierId = $('#supplierFilter').val();
-
-                // Only apply date filter if no specific customer/supplier is selected
-                if (!customerId && !supplierId && dateRange.length === 2) {
-                    startDate = moment(dateRange[0], 'MMMM D, YYYY').format('YYYY-MM-DD');
-                    endDate = moment(dateRange[1], 'MMMM D, YYYY').format('YYYY-MM-DD');
-                }
+                // Don't apply date filter by default - show all records
+                // Date filter will only apply when explicitly changed by user
+                let startDate = '';
+                let endDate = '';
 
                 const filters = {
                     report_type: currentReportType,
-                    customer_id: customerId || '',
-                    supplier_id: supplierId || '',
+                    customer_id: $('#customerFilter').val() || '',
+                    supplier_id: $('#supplierFilter').val() || '',
                     location_id: $('#locationFilter').val() || '',
                     user_id: $('#userFilter').val() || '',
                     start_date: startDate,
@@ -734,8 +728,13 @@
                             filename: () => currentReportType + '_due_report_' + new Date().toISOString().slice(0, 10),
                             exportOptions: {
                                 columns: ':visible:not(:first-child)',
+                                orthogonal: 'export',
                                 format: {
                                     body: function(data, row, column, node) {
+                                        // Check if this is a group row
+                                        if ($(node).parent().hasClass('dtrg-group')) {
+                                            return data;
+                                        }
                                         // Remove HTML tags and styling
                                         data = data.replace(/<span[^>]*>/g, '');
                                         data = data.replace(/<\/span>/g, '');
@@ -747,40 +746,114 @@
                                 }
                             },
                             customize: function(doc) {
+                                // Use landscape orientation for better fit
                                 doc.pageOrientation = 'landscape';
-                                doc.pageSize = 'A3';
-                                doc.defaultStyle.fontSize = 8;
-                                doc.styles.tableHeader.fontSize = 9;
+                                doc.pageSize = 'A4';
+                                doc.defaultStyle.fontSize = 6.5;
+                                doc.styles.tableHeader.fontSize = 7;
                                 doc.styles.tableHeader.bold = true;
                                 doc.styles.tableHeader.fillColor = '#4472C4';
                                 doc.styles.tableHeader.color = 'white';
 
-                                // Add title and date
+                                // Add title
                                 doc.content[0].text = currentReportType.charAt(0).toUpperCase() + currentReportType.slice(1) + ' Due Report';
                                 doc.content[0].style = 'header';
                                 doc.content[0].alignment = 'center';
-                                doc.content[0].fontSize = 16;
+                                doc.content[0].fontSize = 12;
                                 doc.content[0].bold = true;
-                                doc.content[0].margin = [0, 0, 0, 10];
+                                doc.content[0].margin = [0, 0, 0, 3];
 
                                 // Add generated date
                                 doc.content.splice(1, 0, {
                                     text: 'Generated on: ' + new Date().toLocaleString(),
                                     alignment: 'center',
-                                    fontSize: 10,
-                                    margin: [0, 0, 0, 10]
+                                    fontSize: 7,
+                                    margin: [0, 0, 0, 5]
                                 });
 
-                                // Style the table
+                                // Get actual data from DataTable to calculate correct totals
+                                var tableData = table.rows({ search: 'applied' }).data();
+                                var groupedData = {};
+
+                                // Group data by customer/supplier name from actual data
+                                tableData.each(function(row) {
+                                    var groupKey = currentReportType === 'customer' ? row.customer_name : row.supplier_name;
+
+                                    if (!groupedData[groupKey]) {
+                                        groupedData[groupKey] = {
+                                            rows: [],
+                                            totalDue: 0
+                                        };
+                                    }
+                                    groupedData[groupKey].rows.push(row);
+                                    groupedData[groupKey].totalDue += parseFloat(row.total_due || 0);
+                                });
+
+                                // Style the table with grouping
                                 if (doc.content[2] && doc.content[2].table) {
-                                    doc.content[2].table.widths = Array(doc.content[2].table.body[0].length).fill('auto');
+                                    var body = doc.content[2].table.body;
+                                    var headers = body[0];
+
+                                    // Rebuild table with group headers using actual data
+                                    var newBody = [headers];
+                                    var dataRowIndex = 1;
+
+                                    Object.keys(groupedData).forEach(function(groupKey) {
+                                        var group = groupedData[groupKey];
+
+                                        // Add group header row with correct total due
+                                        newBody.push([{
+                                            text: groupKey + ' (' + group.rows.length + ' bill' + (group.rows.length > 1 ? 's' : '') + ') - Due: Rs. ' + group.totalDue.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ","),
+                                            colSpan: headers.length,
+                                            fillColor: '#e3f2fd',
+                                            bold: true,
+                                            fontSize: 7.5,
+                                            margin: [1, 2, 1, 2]
+                                        }]);
+
+                                        // Add group data rows from body
+                                        for (var i = 0; i < group.rows.length; i++) {
+                                            if (body[dataRowIndex]) {
+                                                newBody.push(body[dataRowIndex]);
+                                                dataRowIndex++;
+                                            }
+                                        }
+                                    });
+
+                                    doc.content[2].table.body = newBody;
+
+                                    // Set specific column widths to reduce white space
+                                    // Adjust based on actual column count and content
+                                    doc.content[2].table.widths = [
+                                        '7%',   // Invoice No
+                                        '12%',  // Customer Name
+                                        '8%',   // Mobile No
+                                        '7%',   // Sale Date
+                                        '11%',  // Location
+                                        '9%',   // Created By
+                                        '7%',   // Final Total
+                                        '7%',   // Total Paid
+                                        '7%',   // Original Due
+                                        '7%',   // Return Amt
+                                        '8%',   // Final Due
+                                        '6%',   // Status
+                                        '4%'    // Days
+                                    ];
+
                                     doc.content[2].layout = {
                                         hLineWidth: function(i, node) { return 0.5; },
                                         vLineWidth: function(i, node) { return 0.5; },
-                                        hLineColor: function(i, node) { return '#cccccc'; },
-                                        vLineColor: function(i, node) { return '#cccccc'; }
+                                        hLineColor: function(i, node) { return '#ddd'; },
+                                        vLineColor: function(i, node) { return '#ddd'; },
+                                        paddingLeft: function(i, node) { return 1; },
+                                        paddingRight: function(i, node) { return 1; },
+                                        paddingTop: function(i, node) { return 1; },
+                                        paddingBottom: function(i, node) { return 1; }
                                     };
                                 }
+
+                                // Set page margins to reduce white space
+                                doc.pageMargins = [15, 40, 15, 20];
                             }
                         },
                         {
@@ -790,8 +863,13 @@
                             filename: () => currentReportType + '_due_report_' + new Date().toISOString().slice(0, 10),
                             exportOptions: {
                                 columns: ':visible:not(:first-child)',
+                                orthogonal: 'export',
                                 format: {
                                     body: function(data, row, column, node) {
+                                        // Check if this is a group row
+                                        if ($(node).parent().hasClass('dtrg-group')) {
+                                            return data;
+                                        }
                                         // Remove HTML tags and styling
                                         data = data.replace(/<span[^>]*>/g, '');
                                         data = data.replace(/<\/span>/g, '');
@@ -804,24 +882,95 @@
                             },
                             customize: function(xlsx) {
                                 var sheet = xlsx.xl.worksheets['sheet1.xml'];
-
-                                // Add header row styling
-                                $('row:first c', sheet).attr('s', '2');
-
-                                // Auto-fit columns
-                                $('row c[r^="A"]', sheet).attr('s', '50');
+                                
+                                // Get actual data from DataTable
+                                var tableData = table.rows({ search: 'applied' }).data();
+                                var groupedData = {};
+                                var groupIndexMap = {};
+                                
+                                // Group data by customer/supplier and track order
+                                tableData.each(function(row, idx) {
+                                    var groupKey = currentReportType === 'customer' ? row.customer_name : row.supplier_name;
+                                    
+                                    if (!groupedData[groupKey]) {
+                                        groupedData[groupKey] = {
+                                            count: 0,
+                                            totalDue: 0,
+                                            firstRowIndex: idx
+                                        };
+                                    }
+                                    groupedData[groupKey].count++;
+                                    groupedData[groupKey].totalDue += parseFloat(row.total_due || 0);
+                                    groupIndexMap[idx] = groupKey;
+                                });
+                                
+                                // Simple approach: Add group info to first row of each group
+                                // and style groups differently using cell styling
+                                var $sheet = $(sheet);
+                                var $rows = $sheet.find('row');
+                                var processedGroups = {};
+                                var currentGroup = 0;
+                                
+                                $rows.slice(1).each(function(index) {
+                                    var $row = $(this);
+                                    var $cells = $row.find('c');
+                                    
+                                    if ($cells.length > 1) {
+                                        var $customerCell = $cells.eq(1);
+                                        var customerName = $customerCell.find('t, is t').first().text();
+                                        
+                                        // Check if this is the first row of a new group
+                                        if (customerName && !processedGroups[customerName]) {
+                                            processedGroups[customerName] = true;
+                                            currentGroup++;
+                                            
+                                            // Style first row of each group differently (bold)
+                                            $cells.each(function() {
+                                                $(this).attr('s', '51');
+                                            });
+                                            
+                                            // Add group summary in the first cell
+                                            var groupInfo = groupedData[customerName];
+                                            if (groupInfo) {
+                                                var summaryText = customerName + ' [' + groupInfo.count + ' bills | Due: Rs. ' + 
+                                                    groupInfo.totalDue.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ']';
+                                                
+                                                // Update the customer name cell with group info
+                                                var $t = $customerCell.find('t, is t').first();
+                                                if ($t.length) {
+                                                    $t.text(summaryText);
+                                                }
+                                            }
+                                        } else {
+                                            // Apply alternating group styling
+                                            var style = (currentGroup % 2 === 0) ? '50' : '0';
+                                            $cells.each(function() {
+                                                if (!$(this).attr('s') || $(this).attr('s') === '0') {
+                                                    $(this).attr('s', style);
+                                                }
+                                            });
+                                        }
+                                    }
+                                });
+                                
+                                // Style header row
+                                $rows.first().find('c').attr('s', '2');
                             }
                         },
                         {
                             extend: 'print',
                             text: '<i class="fa fa-print"></i> Print',
+                            text: '<i class="fa fa-print"></i> Print',
                             title: '<h2 style="text-align: center; margin-bottom: 20px;">' + currentReportType.charAt(0).toUpperCase() + currentReportType.slice(1) + ' Due Report</h2>',
                             messageTop: '<p style="text-align: center; margin-bottom: 20px;">Generated on: ' + new Date().toLocaleString() + '</p>',
                             exportOptions: {
-                                columns: ':visible:not(:first-child)'
+                                columns: ':visible:not(:first-child)',
+                                orthogonal: 'export'
                             },
                             customize: function(win) {
                                 $(win.document.body).css('font-size', '10pt');
+
+                                // Style the table
                                 $(win.document.body).find('table')
                                     .addClass('compact')
                                     .css({
@@ -829,6 +978,8 @@
                                         'border-collapse': 'collapse',
                                         'width': '100%'
                                     });
+
+                                // Style headers
                                 $(win.document.body).find('table thead th')
                                     .css({
                                         'background-color': '#4472C4',
@@ -837,12 +988,25 @@
                                         'padding': '8px',
                                         'border': '1px solid #ddd'
                                     });
+
+                                // Style regular rows
                                 $(win.document.body).find('table tbody td')
                                     .css({
                                         'padding': '6px',
                                         'border': '1px solid #ddd'
                                     });
-                                $(win.document.body).find('table tbody tr:nth-child(even)')
+
+                                // Style group rows (if they exist)
+                                $(win.document.body).find('table tbody tr.dtrg-group td')
+                                    .css({
+                                        'background-color': '#e3f2fd',
+                                        'font-weight': 'bold',
+                                        'padding': '8px',
+                                        'border': '2px solid #4472C4'
+                                    });
+
+                                // Alternate row colors
+                                $(win.document.body).find('table tbody tr:not(.dtrg-group):nth-child(even)')
                                     .css('background-color', '#f9f9f9');
                             }
                         }
@@ -908,6 +1072,24 @@
 
             // Auto-reload on date range change
             $('#reportrange').on('apply.daterangepicker', function(ev, picker) {
+                dateFilterApplied = true; // User has explicitly selected a date range
+
+                // Update the getFilters function to include the selected date range
+                const originalGetFilters = getFilters;
+                getFilters = function() {
+                    const filters = originalGetFilters();
+
+                    if (dateFilterApplied) {
+                        const dateRange = $('#reportrange span').text().split(' - ');
+                        if (dateRange.length === 2) {
+                            filters.start_date = moment(dateRange[0], 'MMMM D, YYYY').format('YYYY-MM-DD');
+                            filters.end_date = moment(dateRange[1], 'MMMM D, YYYY').format('YYYY-MM-DD');
+                        }
+                    }
+
+                    return filters;
+                };
+
                 table.ajax.reload();
             });
 
@@ -919,12 +1101,15 @@
                 $('#locationFilter').val(null).trigger('change');
                 $('#userFilter').val(null).trigger('change');
 
-                // Reset date range
+                // Reset date range display
                 $('#reportrange').data('daterangepicker').setStartDate(moment());
                 $('#reportrange').data('daterangepicker').setEndDate(moment());
                 setDateRange(moment(), moment());
 
-                // Reload table
+                // Reset date filter flag to show all records
+                dateFilterApplied = false;
+
+                // Reload table - will show all records
                 table.ajax.reload();
             });
 
