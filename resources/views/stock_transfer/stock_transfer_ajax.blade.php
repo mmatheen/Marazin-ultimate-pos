@@ -434,7 +434,7 @@
             <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]"
                    min="0.0001" value="${initialQuantity}" required
                    ${allowDecimal ? 'step="0.0001"' : 'step="1"'}
-                   onchange="updateSubTotal(this)" data-allow-decimal="${allowDecimal}">
+                   data-allow-decimal="${allowDecimal}">
             `;
 
             // Format quantity for display: show decimals only if allowed
