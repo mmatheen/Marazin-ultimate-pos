@@ -129,14 +129,22 @@
                 event.preventDefault();
                 return false;
             }
+            console.log('Autocomplete select triggered:', ui.item);
+            console.log('locationFilteredProducts:', locationFilteredProducts);
+            
             // Find the product by name or SKU (case-insensitive)
             const selectedProduct = locationFilteredProducts.find(data =>
                 (data.product.product_name && data.product.product_name.toLowerCase() === ui.item.value.toLowerCase()) ||
                 (data.product.sku && data.product.sku.toLowerCase() === ui.item.value.toLowerCase())
             );
+            
+            console.log('Selected product found:', selectedProduct);
+            
             if (selectedProduct) {
                 addProductWithBatches(selectedProduct);
                 $(this).val('');
+            } else {
+                console.error('Product not found in locationFilteredProducts');
             }
             return false;
             },
@@ -487,15 +495,20 @@
 
         function addProductWithBatches(productData) {
             const fromLocationId = $('#from_location_id').val();
+            console.log('addProductWithBatches called:', {productData, fromLocationId});
+            
             if (!fromLocationId) {
             toastr.warning("Please select a 'From' location before adding products.");
             return;
             }
 
             const product = productData.product;
+            console.log('Product details:', product);
+            
             const existingRow = $(`tr[data-product-id="${product.id}"]`);
 
             if (existingRow.length > 0) {
+            console.log('Product already exists, updating quantity');
             const quantityInput = existingRow.find('.quantity-input');
             const newQuantity = parseFloat(quantityInput.val()) + 1;
             quantityInput.val(newQuantity);
@@ -514,6 +527,8 @@
             } else if (product.batches && typeof product.batches === 'object') {
             batchesArr = Object.values(product.batches);
             }
+            
+            console.log('Batches array:', batchesArr);
 
             // Determine if decimals are allowed for this product
             const allowDecimal = product.unit && product.unit.allow_decimal;
@@ -540,6 +555,8 @@
                 transfer_quantity: parseFloat(locationBatch.quantity ?? locationBatch.qty)
                 }));
             });
+            
+            console.log('Filtered batches for location:', batches);
 
             if (batches.length === 0) {
             console.warn(`No batches available in selected location for product: ${product.product_name}`);
