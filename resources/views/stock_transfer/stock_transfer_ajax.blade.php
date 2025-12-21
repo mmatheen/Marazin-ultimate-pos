@@ -36,22 +36,22 @@
                 if (itemToAdd && itemToAdd.value !== '') {
                     console.log('Enter key pressed, item to add:', itemToAdd);
                     console.log('Searching in locationFilteredProducts:', locationFilteredProducts);
-                    
+
                     // Find the product by name or SKU (case-insensitive)
                     const selectedProduct = locationFilteredProducts.find(data => {
                         const productName = data.product?.product_name || '';
                         const productSku = data.product?.sku || '';
                         const searchValue = itemToAdd.value.toLowerCase();
                         const labelValue = itemToAdd.label ? itemToAdd.label.toLowerCase() : '';
-                        
+
                         return productName.toLowerCase() === searchValue ||
                                productSku.toLowerCase() === searchValue ||
                                labelValue.includes(productName.toLowerCase()) ||
                                labelValue.includes(productSku.toLowerCase());
                     });
-                    
+
                     console.log('Selected product found via Enter:', selectedProduct);
-                    
+
                     if (selectedProduct) {
                         addProductWithBatches(selectedProduct);
                         $(this).val('');
@@ -146,23 +146,23 @@
             }
             console.log('Autocomplete select triggered:', ui.item);
             console.log('locationFilteredProducts:', locationFilteredProducts);
-            
+
             // Find the product by matching against product name or SKU
             const selectedProduct = locationFilteredProducts.find(data => {
                 const productName = data.product?.product_name || '';
                 const productSku = data.product?.sku || '';
                 const searchValue = ui.item.value.toLowerCase();
                 const labelValue = ui.item.label ? ui.item.label.toLowerCase() : '';
-                
+
                 // Match if the value equals product name OR if the label contains the product name/sku
                 return productName.toLowerCase() === searchValue ||
                        productSku.toLowerCase() === searchValue ||
                        (labelValue.includes(productName.toLowerCase()) && productName) ||
                        (productSku && labelValue.includes('(' + productSku.toLowerCase() + ')'));
             });
-            
+
             console.log('Selected product found:', selectedProduct);
-            
+
             if (selectedProduct) {
                 addProductWithBatches(selectedProduct);
                 $(this).val('');
@@ -242,6 +242,8 @@
     }
 
     // Fetch all locations and filter for "From" and "To"
+    let stockTransferDataFetched = false; // Flag to prevent duplicate fetches
+
     $.ajax({
         url: '/location-get-all?context=all_locations',
         method: 'GET',
@@ -257,10 +259,11 @@
 
 
                 // If editing an existing transfer, restore selected values after dropdowns are populated
-                if (stockTransferId && stockTransferId !== 'add-stock-transfer' && window.location.pathname.includes('/edit-stock-transfer/')) {
+                if (stockTransferId && stockTransferId !== 'add-stock-transfer' && window.location.pathname.includes('/edit-stock-transfer/') && !stockTransferDataFetched) {
                     console.log('Checking for stock transfer ID:', stockTransferId);
                     console.log('Current pathname:', window.location.pathname);
                     console.log('Attempting to fetch stock transfer data for ID:', stockTransferId);
+                    stockTransferDataFetched = true; // Set flag to prevent duplicate fetch
                     // Fetch stock transfer data after a short delay to ensure dropdowns are ready
                     setTimeout(() => {
                         fetchStockTransferData(stockTransferId);
@@ -286,14 +289,6 @@
             addTotalRow();
             // No need to prefetch products, autocomplete will fetch as user types
         });
-
-        if (stockTransferId && stockTransferId !== 'add-stock-transfer' && window.location.pathname.includes('/edit-stock-transfer/')) {
-            console.log('Secondary check - Attempting to fetch stock transfer data for ID:', stockTransferId);
-            // Also try to fetch after locations are loaded
-            setTimeout(() => {
-                fetchStockTransferData(stockTransferId);
-            }, 1000);
-        }
 
         // fetchProductsData is no longer needed, autocomplete handles fetching
 
@@ -523,7 +518,7 @@
         function addProductWithBatches(productData) {
             const fromLocationId = $('#from_location_id').val();
             console.log('addProductWithBatches called:', {productData, fromLocationId});
-            
+
             if (!fromLocationId) {
             toastr.warning("Please select a 'From' location before adding products.");
             return;
@@ -531,7 +526,7 @@
 
             const product = productData.product;
             console.log('Product details:', product);
-            
+
             const existingRow = $(`tr[data-product-id="${product.id}"]`);
 
             if (existingRow.length > 0) {
@@ -554,7 +549,7 @@
             } else if (product.batches && typeof product.batches === 'object') {
             batchesArr = Object.values(product.batches);
             }
-            
+
             console.log('Batches array:', batchesArr);
 
             // Determine if decimals are allowed for this product
@@ -582,7 +577,7 @@
                 transfer_quantity: parseFloat(locationBatch.quantity ?? locationBatch.qty)
                 }));
             });
-            
+
             console.log('Filtered batches for location:', batches);
 
             if (batches.length === 0) {
@@ -651,7 +646,7 @@
             const subtotal = quantity * unitPrice;
             row.find(".sub_total").val(subtotal.toFixed(2));
             updateTotalAmount();
-            
+
             // Re-apply filter after batch change
             applyProductFilter();
         });
@@ -675,7 +670,7 @@
             row.find(".unit-price").val(unitPrice.toFixed(2));
             row.find(".sub_total").val(subtotal.toFixed(2));
             updateTotalAmount();
-            
+
             // Re-apply filter after quantity change
             applyProductFilter();
         });
@@ -683,7 +678,7 @@
         $(document).on("click", ".remove-btn", function() {
             $(this).closest(".add-row").remove();
             updateTotalAmount();
-            
+
             // Re-apply filter after removing a product
             applyProductFilter();
             return false;
@@ -839,14 +834,17 @@
 
         // Function to apply product filter
         function applyProductFilter() {
+            // Check if filter input exists before applying filter
+            if (!$('#filterProducts').length) return;
+
             const searchTerm = $('#filterProducts').val().toLowerCase();
             let visibleCount = 0;
             let firstVisibleRow = null;
-            
+
             $('.add-table-items tr.add-row').each(function() {
                 const productName = $(this).find('td:first').text().toLowerCase();
                 const batchInfo = $(this).find('.batch-select option:selected').text().toLowerCase();
-                
+
                 if (!searchTerm || productName.includes(searchTerm) || batchInfo.includes(searchTerm)) {
                     $(this).show();
                     $(this).css('background-color', searchTerm ? '#fffacd' : ''); // Highlight found items
@@ -859,7 +857,7 @@
                     $(this).css('background-color', '');
                 }
             });
-            
+
             // Show a message if no products found
             if (visibleCount === 0 && $('.add-table-items tr.add-row').length > 0 && searchTerm) {
                 if ($('.no-products-found').length === 0) {
@@ -873,21 +871,23 @@
                 }
             } else {
                 $('.no-products-found').remove();
-                
+
                 // Auto-scroll to first visible product if searching
                 if (searchTerm && firstVisibleRow) {
                     const tableContainer = $('.table-responsive');
-                    const rowPosition = firstVisibleRow.position().top;
-                    tableContainer.scrollTop(tableContainer.scrollTop() + rowPosition - 100);
+                    if (tableContainer.length) {
+                        const rowPosition = firstVisibleRow.position().top;
+                        tableContainer.scrollTop(tableContainer.scrollTop() + rowPosition - 100);
+                    }
                 }
             }
         }
-        
+
         // Add filter functionality for selected products table
         $('#filterProducts').on('keyup', function() {
             applyProductFilter();
         });
-        
+
         // Add clear button functionality
         $('#filterProducts').on('input', function() {
             if ($(this).val() === '') {

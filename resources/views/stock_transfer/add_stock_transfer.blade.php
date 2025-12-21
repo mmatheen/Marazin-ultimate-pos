@@ -119,7 +119,7 @@
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h5 class="card-title mb-0">Selected Products</h5>
                             <div class="col-md-4">
-                                <input type="text" id="filterProducts" class="form-control form-control-sm" 
+                                <input type="text" id="filterProducts" class="form-control form-control-sm"
                                        placeholder="🔍 Search in selected products...">
                             </div>
                         </div>
@@ -188,24 +188,24 @@
     </div>
 
     @include('stock_transfer.stock_transfer_ajax')
-    
+
     <script>
         // Check if we're in edit mode and update titles immediately
         $(document).ready(function() {
             const currentUrl = window.location.href;
             console.log('Current URL:', currentUrl);
-            
+
             if (currentUrl.includes('/edit-stock-transfer/')) {
                 const pathParts = currentUrl.split('/');
                 const stockTransferId = pathParts[pathParts.length - 1];
-                
+
                 if (stockTransferId && stockTransferId !== 'add-stock-transfer') {
                     // Update page title immediately for edit mode
                     $('#main-page-title').text('Edit Stock Transfer');
                     $('#breadcrumb-title').text('Edit Stock Transfer');
                     document.title = 'Edit Stock Transfer';
                     $('#stock-management-link').text('Stock Transfers');
-                    
+
                     console.log('Initial edit mode UI updates applied');
                 }
             }
