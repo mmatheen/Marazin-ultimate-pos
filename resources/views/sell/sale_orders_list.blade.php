@@ -206,7 +206,8 @@
 
                             // Convert to Invoice - Only for Super Admin and Admin roles, not Sales Rep
                             @can('convert sale-order to invoice')
-                            if (actualStatus === 'confirmed') {
+                            // ✅ SAFETY CHECK: Only show convert button if it's actually a sale_order (not already an invoice)
+                            if (actualStatus === 'confirmed' && row.transaction_type === 'sale_order' && !row.invoice_no) {
                                 actions += `
                                         <li><button type="button" value="${row.id}" class="convert-invoice dropdown-item"><i class="feather-file-text text-success"></i> Convert to Invoice</button></li>
                                 `;

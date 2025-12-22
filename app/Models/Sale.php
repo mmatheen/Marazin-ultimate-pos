@@ -253,12 +253,23 @@ class Sale extends Model
      */
     public function convertToInvoice()
     {
+        // ✅ PRIMARY CHECK: Must be a sale order
         if (!$this->isSaleOrder()) {
+            // If it's already an invoice, give clear error message
+            if ($this->transaction_type === 'invoice') {
+                throw new \Exception('This record is already an invoice (Invoice No: ' . ($this->invoice_no ?? 'N/A') . ')');
+            }
             throw new \Exception('Only Sale Orders can be converted to invoices');
         }
 
+        // ✅ ADDITIONAL CHECK: Prevent double conversion
         if ($this->order_status === 'completed') {
-            throw new \Exception('This Sale Order has already been converted');
+            throw new \Exception('This Sale Order has already been converted to an invoice');
+        }
+
+        // ✅ CHECK: Must have invoice_no to be considered converted
+        if (!empty($this->invoice_no) && $this->transaction_type === 'invoice') {
+            throw new \Exception('This Sale Order was already converted to Invoice No: ' . $this->invoice_no);
         }
 
         // ✅ BUSINESS RULE: Order must be confirmed before conversion
@@ -281,124 +292,79 @@ class Sale extends Model
         $this->load('products.imeis');
 
         return DB::transaction(function () {
-            // Create new invoice record
-            $invoice = new Sale();
-            $invoice->fill([
-                'transaction_type' => 'invoice',
-                'customer_id' => $this->customer_id,
-                'location_id' => $this->location_id,
-                'user_id' => $this->user_id, // Keep same user (sales rep)
-                'sales_date' => now(),
-                'sale_type' => $this->sale_type,
-                'status' => 'final',
-                'subtotal' => $this->subtotal,
-                'discount_type' => $this->discount_type,
-                'discount_amount' => $this->discount_amount,
-                'final_total' => $this->final_total,
-                'total_paid' => 0,
-                'payment_status' => 'Due',
-                'order_notes' => $this->order_notes,
-            ]);
+            // ✅ SIMPLE APPROACH: Just update THIS sale order to become an invoice
+            // No need to create new record, just change the type and add invoice number
 
             // Generate invoice number
-            $invoice->invoice_no = self::generateInvoiceNo($this->location_id);
-            $invoice->save();
+            $invoiceNo = self::generateInvoiceNo($this->location_id);
 
-            // Copy sale order items to invoice
+            // Update THIS record from sale_order to invoice
+            $this->update([
+                'transaction_type' => 'invoice',
+                'invoice_no' => $invoiceNo,
+                'sales_date' => now(),
+                'status' => 'final',
+                'order_status' => 'completed', // Keep for reference
+                'total_paid' => 0,
+                'total_due' => $this->final_total,
+                'payment_status' => 'Due',
+            ]);
+
+            // Update stock history type (from sale_order to sale)
             foreach ($this->products as $item) {
-                $newItem = new SalesProduct();
-                $newItem->fill([
-                    'sale_id' => $invoice->id,
-                    'product_id' => $item->product_id,
-                    'batch_id' => $item->batch_id,
-                    'location_id' => $item->location_id,
-                    'quantity' => $item->quantity,
-                    'price_type' => $item->price_type,
-                    'price' => $item->price,
-                    'discount_amount' => $item->discount_amount,
-                    'discount_type' => $item->discount_type,
-                    'tax' => $item->tax,
-                ]);
-                $newItem->save();
-
-                // ✅ Copy IMEI numbers from sale order to invoice
-                // Load IMEIs if not already loaded
-                if (!$item->relationLoaded('imeis')) {
-                    $item->load('imeis');
-                }
-
-                Log::info("Converting product {$item->product_id}, IMEI count: " . $item->imeis->count());
-
-                if ($item->imeis && $item->imeis->count() > 0) {
-                    foreach ($item->imeis as $imei) {
-                        $newImei = new SaleImei();
-                        $newImei->fill([
-                            'sale_id' => $invoice->id,
-                            'sale_product_id' => $newItem->id,
-                            'product_id' => $imei->product_id,
-                            'batch_id' => $imei->batch_id,
-                            'location_id' => $imei->location_id,
-                            'imei_number' => $imei->imei_number,
-                        ]);
-                        $newImei->save();
-                        Log::info("Copied IMEI: {$imei->imei_number} to invoice {$invoice->id}");
-                    }
-                } else {
-                    Log::warning("No IMEIs found for product {$item->product_id} in sale order {$this->id}");
-                }
-
-                // Update stock (reduce inventory)
                 $this->updateStockOnConversion($item);
             }
 
-            // Mark sale order as completed
-            $this->update([
-                'order_status' => 'completed',
-                'converted_to_sale_id' => $invoice->id,
+            Log::info("Sale Order {$this->order_number} converted to Invoice {$invoiceNo}", [
+                'sale_id' => $this->id,
+                'order_number' => $this->order_number,
+                'invoice_no' => $invoiceNo,
+                'approach' => 'updated same record'
             ]);
 
-            Log::info("Sale Order {$this->order_number} converted to Invoice {$invoice->invoice_no}", [
-                'sale_order_id' => $this->id,
-                'invoice_id' => $invoice->id,
-                'invoice_no' => $invoice->invoice_no,
-                'stock_reduced' => true
-            ]);
+            // Refresh the model to get updated data
+            $this->refresh();
 
-            return $invoice;
+            return $this;
         });
     }
 
     /**
-     * Revert invoice conversion (for cancelled invoices)
-     * This restores stock and changes sale order back to "confirmed"
+     * Revert invoice back to sale order (for cancelled invoices)
+     * Since we now just update the same record, reverting is even simpler
      */
-    public function revertInvoiceConversion($invoiceId)
+    public function revertToSaleOrder()
     {
-        return DB::transaction(function () use ($invoiceId) {
-            $invoice = Sale::findOrFail($invoiceId);
-
-            // Validate this is an invoice converted from this sale order
-            if ($invoice->transaction_type !== 'invoice') {
-                throw new \Exception('Not an invoice');
-            }
-
-            if ($this->converted_to_sale_id != $invoiceId) {
-                throw new \Exception('This invoice was not created from this sale order');
+        return DB::transaction(function () {
+            // Validate this is an invoice that can be reverted
+            if ($this->transaction_type !== 'invoice') {
+                throw new \Exception('This is not an invoice');
             }
 
             // Check if invoice has payments
-            if ($invoice->total_paid > 0) {
+            if ($this->total_paid > 0) {
                 throw new \Exception('Cannot revert invoice with payments. Please process refund first.');
             }
 
+            // Store invoice number for logging
+            $invoiceNo = $this->invoice_no;
+
+            // ✅ SIMPLE: Just change THIS record back to sale_order
+            $this->update([
+                'transaction_type' => 'sale_order',
+                'order_status' => 'confirmed',
+                'status' => 'final',
+                'payment_status' => 'Due',
+                // Keep invoice_no for reference/history
+            ]);
+
             // Revert stock history type back to sale_order
-            foreach ($invoice->products as $item) {
+            foreach ($this->products as $item) {
                 $locationBatch = \App\Models\LocationBatch::where('batch_id', $item->batch_id)
                     ->where('location_id', $item->location_id)
                     ->first();
 
                 if ($locationBatch) {
-                    // Find the stock history record for this sale and change it back to sale_order
                     $stockHistory = \App\Models\StockHistory::where('loc_batch_id', $locationBatch->id)
                         ->where('stock_type', \App\Models\StockHistory::STOCK_TYPE_SALE)
                         ->where('quantity', -$item->quantity)
@@ -409,7 +375,6 @@ class Sale extends Model
                         ->first();
 
                     if ($stockHistory) {
-                        // Change stock type back to sale_order
                         $stockHistory->update([
                             'stock_type' => \App\Models\StockHistory::STOCK_TYPE_SALE_ORDER
                         ]);
@@ -420,35 +385,18 @@ class Sale extends Model
                             'location_id' => $item->location_id,
                             'quantity' => $item->quantity
                         ]);
-                    } else {
-                        Log::warning("Stock history record not found for invoice reversion", [
-                            'batch_id' => $item->batch_id,
-                            'location_id' => $item->location_id,
-                            'product_id' => $item->product_id,
-                            'quantity' => $item->quantity
-                        ]);
                     }
                 }
             }
 
-            // Mark invoice as cancelled
-            $invoice->update([
-                'status' => 'cancelled',
-                'payment_status' => 'Cancelled'
+            Log::info("Invoice {$invoiceNo} reverted back to Sale Order {$this->order_number}", [
+                'sale_id' => $this->id,
+                'order_number' => $this->order_number,
+                'invoice_no' => $invoiceNo,
+                'approach' => 'updated same record'
             ]);
 
-            // Restore sale order to confirmed status
-            $this->update([
-                'order_status' => 'confirmed',
-                'converted_to_sale_id' => null,
-            ]);
-
-            Log::info("Invoice {$invoice->invoice_no} reverted, Sale Order {$this->order_number} restored to confirmed", [
-                'sale_order_id' => $this->id,
-                'invoice_id' => $invoice->id,
-                'stock_restored' => true
-            ]);
-
+            $this->refresh();
             return true;
         });
     }

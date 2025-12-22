@@ -389,27 +389,16 @@ class SaleController extends Controller
                 ], 400);
             }
 
-            // Find the original sale order
-            $saleOrder = Sale::where('converted_to_sale_id', $invoiceId)
-                ->where('transaction_type', 'sale_order')
-                ->first();
-
-            if (!$saleOrder) {
-                return response()->json([
-                    'status' => 400,
-                    'message' => 'Original Sale Order not found'
-                ], 400);
-            }
-
-            // Revert the conversion
-            $saleOrder->revertInvoiceConversion($invoiceId);
+            // ✅ SIMPLE: Just revert THIS invoice back to sale order
+            // No need to find original sale order - it's the same record!
+            $invoice->revertToSaleOrder();
 
             return response()->json([
                 'status' => 200,
-                'message' => 'Invoice cancelled successfully. Sale Order restored to confirmed status.',
+                'message' => 'Invoice cancelled successfully. Reverted back to Sale Order.',
                 'sale_order' => [
-                    'id' => $saleOrder->id,
-                    'order_number' => $saleOrder->order_number,
+                    'id' => $invoice->id,
+                    'order_number' => $invoice->order_number,
                     'status' => 'confirmed'
                 ],
                 'redirect_url' => route('sale-orders-list')
@@ -450,6 +439,7 @@ class SaleController extends Controller
             // Check if this is specifically for sale orders list page
             if ($request->has('sale_orders') && $request->get('sale_orders') == 'true') {
                 // Only return sale orders for sale orders list page
+                // ✅ Once converted to invoice, transaction_type changes, so they won't show here
                 $sales = Sale::with('products.product', 'customer', 'location', 'payments', 'user')
                     ->where('transaction_type', 'sale_order')
                     ->orderBy('created_at', 'desc')
@@ -747,7 +737,10 @@ class SaleController extends Controller
             $endDate = Carbon::parse($endDate)->endOfDay();
 
             // 1. Fetch sales filtered by sales_date, created_at (Asia/Colombo), or both
+            // ✅ SIMPLE: Just show final invoices (sale orders become invoices when converted)
             $salesQuery = Sale::with(['customer', 'location', 'user', 'payments', 'products'])
+                ->where('status', 'final')
+                ->where('transaction_type', 'invoice') // Only show invoices
                 ->where(function ($q) use ($startDate, $endDate) {
                     $q->whereBetween('sales_date', [$startDate, $endDate])
                         ->orWhereBetween(
