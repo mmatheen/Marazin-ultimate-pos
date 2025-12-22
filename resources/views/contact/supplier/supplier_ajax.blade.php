@@ -3,7 +3,7 @@
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
 
         // Only initialize datatable on supplier list page
-        if ($('#supplierTable').length) {
+        if ($('#supplier').length) {
             console.log('✅ Initializing supplier list page');
             showFetchData();
         } else {
