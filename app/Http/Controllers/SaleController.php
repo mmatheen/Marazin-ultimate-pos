@@ -1244,16 +1244,7 @@ class SaleController extends Controller
 
                 // Debug: Check if final_total and customer_id were saved correctly
                 $sale->refresh();
-                Log::info('🔍 SALE DATA AFTER SAVE:', [
-                    'sale_id' => $sale->id,
-                    'request_customer_id' => $request->customer_id,
-                    'saved_customer_id' => $sale->customer_id,
-                    'expected_final_total' => $finalTotal,
-                    'actual_final_total_in_db' => $sale->final_total,
-                    'shipping_charges_in_db' => $sale->shipping_charges,
-                    'subtotal_in_db' => $sale->subtotal,
-                    'is_update' => $isUpdate
-                ]);
+
 
                 // ----- Job Ticket Logic -----
                 if ($sale->status === 'jobticket') {
