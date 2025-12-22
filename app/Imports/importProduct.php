@@ -49,7 +49,7 @@ class importProduct implements ToCollection, WithHeadingRow
     {
         // First pass: Validate all rows without inserting anything
         $this->validateAllRows($rows);
-
+        
         // If there are any validation errors, don't proceed with import
         if (!empty($this->validationErrors)) {
             Log::error("Import cancelled due to validation errors:", $this->validationErrors);
@@ -58,12 +58,12 @@ class importProduct implements ToCollection, WithHeadingRow
 
         // Second pass: Import all rows (only if validation passed)
         DB::beginTransaction();
-
+        
         try {
             $processedCount = 0;
             foreach ($rows as $index => $row) {
                 $excelRowNumber = $index + 2; // Excel row number (accounting for header)
-
+                
                 try {
                     $result = $this->processRow($row->toArray(), $excelRowNumber);
                     if ($result !== null) {
@@ -76,9 +76,9 @@ class importProduct implements ToCollection, WithHeadingRow
                     continue;
                 }
             }
-
+            
             DB::commit();
-
+            
         } catch (\Exception $e) {
             DB::rollBack();
             $this->validationErrors[] = "Import failed: " . $e->getMessage();
@@ -98,12 +98,12 @@ class importProduct implements ToCollection, WithHeadingRow
 
         // Remove any extra whitespace
         $date = trim($date);
-
+        
         // If already in correct format, return as is
         if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
             return $date;
         }
-
+        
         // Try to parse various date formats with exact matching
         $formats = [
             'Y/m/d',    // 2026/05/26
@@ -130,7 +130,7 @@ class importProduct implements ToCollection, WithHeadingRow
             $year = (int)$matches[1];
             $month = (int)$matches[2];
             $day = (int)$matches[3];
-
+            
             // Validate the date components
             if (checkdate($month, $day, $year)) {
                 return sprintf('%04d-%02d-%02d', $year, $month, $day);
@@ -154,30 +154,21 @@ class importProduct implements ToCollection, WithHeadingRow
     {
         // Map Excel column headers to expected field names
         $this->mapExcelHeaders($rowArray);
-
+        
         // Clean numeric fields - convert empty strings or whitespace to null
         $numericFields = [
-            'stock_alert_quantity',
+            'stock_alert_quantity', 
             'alert_quantity',
-            'original_price',
-            'retail_price',
-            'whole_sale_price',
-            'special_price',
-            'max_retail_price',
-            'qty',
+            'original_price', 
+            'retail_price', 
+            'whole_sale_price', 
+            'special_price', 
+            'max_retail_price', 
+            'qty', 
             'pax',
             'is_imei_or_serial_no',
             'is_for_selling',
             'product_type'
-        ];
-
-        // Price fields that need special handling for Excel formulas
-        $priceFields = [
-            'original_price',
-            'retail_price',
-            'whole_sale_price',
-            'special_price',
-            'max_retail_price'
         ];
 
         foreach ($numericFields as $field) {
@@ -187,31 +178,18 @@ class importProduct implements ToCollection, WithHeadingRow
                 if ($value === '' || $value === ' ' || $value === '  ') {
                     $rowArray[$field] = null;
                 } else {
-                    // Special handling for price fields to clean Excel formula results
-                    if (in_array($field, $priceFields) && $value !== null && $value !== '') {
-                        // Remove any non-numeric characters except decimal point and minus sign
-                        $cleanedValue = preg_replace('/[^0-9.\-]/', '', $value);
-
-                        // Convert to float and round to 2 decimal places
-                        if (is_numeric($cleanedValue)) {
-                            $rowArray[$field] = round((float)$cleanedValue, 2);
-                        } else {
-                            $rowArray[$field] = $value; // Keep original if not numeric (will fail validation)
-                        }
-                    } else {
-                        $rowArray[$field] = $value;
-                    }
+                    $rowArray[$field] = $value;
                 }
             }
         }
 
         // Clean string fields - trim whitespace
         $stringFields = [
-            'product_name',
-            'sku',
-            'unit_name',
-            'brand_name',
-            'main_category_name',
+            'product_name', 
+            'sku', 
+            'unit_name', 
+            'brand_name', 
+            'main_category_name', 
             'sub_category_name',
             'product_image_name',
             'description',
@@ -240,10 +218,10 @@ class importProduct implements ToCollection, WithHeadingRow
             // This column contains IMEI numbers, not 0/1 values
             // Set the IMEI flag to 1 and move the IMEI data to description if description is empty
             $imeiData = $rowArray['is_imeiserial_no'];
-
+            
             // Set the flag to 1 since this product has IMEI numbers
             $rowArray['is_imei_or_serial_no'] = 1;
-
+            
             // If description is empty, use the IMEI data as description
             // If description is not empty, keep existing description
             if (empty($rowArray['description'])) {
@@ -253,7 +231,7 @@ class importProduct implements ToCollection, WithHeadingRow
             // No IMEI data found, set flag to 0
             $rowArray['is_imei_or_serial_no'] = 0;
         }
-
+        
         // Handle other standard mappings
         $headerMapping = [
             // Map Excel headers to expected field names
@@ -279,7 +257,7 @@ class importProduct implements ToCollection, WithHeadingRow
         foreach ($rows as $index => $row) {
             $rowArray = $row->toArray();
             $excelRowNumber = $index + 2; // Excel row number (accounting for header)
-
+            
             // Skip empty rows during validation
             if (empty(array_filter($rowArray))) {
                 continue;
@@ -311,18 +289,18 @@ class importProduct implements ToCollection, WithHeadingRow
             // Validate IMEI numbers if provided - Check if is_imei_or_serial_no is 1 and extract from description
             $imeiFieldValue = null;
             $isImeiProduct = false;
-
+            
             // Check if is_imei_or_serial_no is set to 1 (should be set by mapExcelHeaders)
             if (isset($rowArray['is_imei_or_serial_no'])) {
                 $imeiFlag = trim($rowArray['is_imei_or_serial_no']);
                 $isImeiProduct = ($imeiFlag == '1' || $imeiFlag == 1 || strtolower($imeiFlag) == 'true');
             }
-
+            
             // For IMEI products, extract IMEI numbers from description
             if ($isImeiProduct && !empty($rowArray['description'])) {
                 $imeiFieldValue = $rowArray['description'];
             }
-
+            
             if (!empty($imeiFieldValue)) {
                 $imeiList = preg_split('/[\/,]+/', $imeiFieldValue);
                 $imeiList = array_map('trim', $imeiList);
@@ -438,11 +416,11 @@ class importProduct implements ToCollection, WithHeadingRow
 
             // First check if user has selected a specific location in session
             $selectedLocationId = session()->get('selected_location');
-
+            
             if ($selectedLocationId) {
                 // Verify that the selected location is assigned to the user
                 $userLocationIds = $authUser->locations->pluck('id')->toArray();
-
+                
                 if (in_array($selectedLocationId, $userLocationIds)) {
                     $authLocationId = $selectedLocationId;
                 } else {
@@ -459,23 +437,23 @@ class importProduct implements ToCollection, WithHeadingRow
 
             // Resolve or create related models
             $unit = Unit::firstOrCreate(
-                ['name' => $row['unit_name']],
+                ['name' => $row['unit_name']], 
                 ['location_id' => $authLocationId]
             );
-
-            $brand = !empty($row['brand_name']) ?
+            
+            $brand = !empty($row['brand_name']) ? 
                 Brand::firstOrCreate(
-                    ['name' => $row['brand_name']],
+                    ['name' => $row['brand_name']], 
                     ['location_id' => $authLocationId]
                 ) : null;
-
-            $mainCategory = !empty($row['main_category_name']) ?
+            
+            $mainCategory = !empty($row['main_category_name']) ? 
                 MainCategory::firstOrCreate(
-                    ['mainCategoryName' => $row['main_category_name']],
+                    ['mainCategoryName' => $row['main_category_name']], 
                     ['location_id' => $authLocationId]
                 ) : null;
-
-            $subCategory = !empty($row['sub_category_name']) && $mainCategory ?
+            
+            $subCategory = !empty($row['sub_category_name']) && $mainCategory ? 
                 SubCategory::firstOrCreate([
                     'subCategoryname' => $row['sub_category_name'],
                     'main_category_id' => $mainCategory->id,
@@ -483,17 +461,17 @@ class importProduct implements ToCollection, WithHeadingRow
 
             // Check if product already exists (by ID or SKU) to prevent duplicates
             $product = null;
-
+            
             // First, try to find by ID if provided in Excel
             if (!empty($row['id'])) {
                 $product = Product::find($row['id']);
             }
-
+            
             // If not found by ID, try to find by SKU to prevent duplicate SKUs
             if (!$product && !empty($row['sku'])) {
                 $product = Product::where('sku', $row['sku'])->first();
             }
-
+            
             // Prepare product data
             $productData = [
                 'product_name' => $row['product_name'],
@@ -516,7 +494,7 @@ class importProduct implements ToCollection, WithHeadingRow
                 'special_price' => $row['special_price'] ?? null,
                 'max_retail_price' => $row['max_retail_price'] ?? null,
             ];
-
+            
             // Update existing product or create new one
             if ($product) {
                 // Update existing product
@@ -535,7 +513,7 @@ class importProduct implements ToCollection, WithHeadingRow
                 ->where('location_id', $authLocationId)
                 ->where('product_id', $productId)
                 ->first();
-
+            
             if (!$existingLocationProduct) {
                 DB::table('location_product')->insert([
                     'location_id' => $authLocationId,
@@ -549,35 +527,35 @@ class importProduct implements ToCollection, WithHeadingRow
             // Handle Batch, LocationBatch, StockHistory - Check IMEI first to determine quantity
             $actualQty = $row['qty'] ?? 0;
             $imeiCount = 0;
-
+            
             // Check for IMEI - use enhanced detection logic
             $imeiFieldValue = null;
             $isImeiProduct = false;
-
+            
             // Check if is_imei_or_serial_no is set to 1 (should be set by mapExcelHeaders)
             if (isset($row['is_imei_or_serial_no'])) {
                 $imeiFlag = trim($row['is_imei_or_serial_no']);
                 $isImeiProduct = ($imeiFlag == '1' || $imeiFlag == 1 || strtolower($imeiFlag) == 'true');
             }
-
+            
             // For IMEI products, extract IMEI numbers from description
             if ($isImeiProduct && !empty($row['description'])) {
                 $imeiFieldValue = $row['description'];
             }
-
+            
             // If IMEI numbers are provided, count them to determine actual quantity
             if (!empty($imeiFieldValue)) {
                 $imeiList = preg_split('/[\/,]+/', $imeiFieldValue);
                 $imeiList = array_map('trim', $imeiList);
                 $imeiList = array_filter($imeiList); // Remove empty entries
                 $imeiCount = count($imeiList);
-
-
+                
+                
                 // If qty is 0 or not provided, use IMEI count as quantity
                 if (empty($actualQty) || $actualQty == 0) {
                     $actualQty = $imeiCount;
                 }
-
+                
                 // Validate that IMEI count matches quantity if both are provided
                 if (!empty($row['qty']) && $row['qty'] > 0 && $imeiCount != $row['qty']) {
                     Log::warning("IMEI count ({$imeiCount}) doesn't match quantity ({$row['qty']}) for row {$excelRowNumber}. Using IMEI count as actual quantity.");
@@ -636,26 +614,26 @@ class importProduct implements ToCollection, WithHeadingRow
                     ->where('location_id', $authLocationId)
                     ->where('product_id', $productId)
                     ->update(['qty' => $actualQty]);
-
+                    
             }
 
             // Handle IMEI/Serial Numbers - Use same enhanced detection logic
             $imeiFieldValue = null;
             $isImeiProduct = false;
-
+            
             // Check if is_imei_or_serial_no is set to 1 (should be set by mapExcelHeaders)
             if (isset($row['is_imei_or_serial_no'])) {
                 $imeiFlag = trim($row['is_imei_or_serial_no']);
                 $isImeiProduct = ($imeiFlag == '1' || $imeiFlag == 1 || strtolower($imeiFlag) == 'true');
             }
-
+            
             // For IMEI products, extract IMEI numbers from description
             if ($isImeiProduct && !empty($row['description'])) {
                 $imeiFieldValue = $row['description'];
             }
-
+            
             if (!empty($imeiFieldValue)) {
-
+                
                 // Ensure we have a batch for IMEI products (should be created above)
                 if (!isset($batch)) {
                     // This should not happen with the new logic, but adding as fallback
@@ -677,7 +655,7 @@ class importProduct implements ToCollection, WithHeadingRow
                             'expiry_date' => $formattedExpiryDate,
                         ]
                     );
-
+                    
                 }
 
                 // Split IMEIs by comma or slash and process each one
