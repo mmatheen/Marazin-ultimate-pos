@@ -48,7 +48,7 @@
                                     <th>Mobile No</th>
                                     <th>Email</th>
                                     <th>Address</th>
-                                    <th>Location ID</th>
+                                    {{-- <th>Location ID</th> --}}
                                     <th>Opening Balance</th>
                                     <th>Current Balance</th>
                                     <th>Total Purchase Due</th>
