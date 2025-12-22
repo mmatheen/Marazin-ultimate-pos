@@ -439,7 +439,6 @@ class SaleController extends Controller
             // Check if this is specifically for sale orders list page
             if ($request->has('sale_orders') && $request->get('sale_orders') == 'true') {
                 // Only return sale orders for sale orders list page
-                // ✅ Once converted to invoice, transaction_type changes, so they won't show here
                 $sales = Sale::with('products.product', 'customer', 'location', 'payments', 'user')
                     ->where('transaction_type', 'sale_order')
                     ->orderBy('created_at', 'desc')
