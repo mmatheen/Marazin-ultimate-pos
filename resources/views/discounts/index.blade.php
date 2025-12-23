@@ -425,9 +425,6 @@ $(document).ready(function() {
         allowClear: true
     });
 
-    const today = new Date().toISOString().split('T')[0];
-    $('#filter_from').val(today);
-
     // Function to clear validation errors
     function clearValidationErrors(formId) {
         $(formId + ' .form-control').removeClass('is-invalid');
@@ -539,7 +536,7 @@ $(document).ready(function() {
     });
 
     $('#reset_filters').click(function () {
-        $('#filter_from').val(today);
+        $('#filter_from').val('');
         $('#filter_to').val('');
         $('#filter_status').val('');
         table.ajax.reload();
