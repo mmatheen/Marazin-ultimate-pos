@@ -111,6 +111,7 @@ class PaymentService
 
     /**
      * Edit existing payment with proper ledger management
+     * ✅ ENHANCED: Includes reversal entries, new data, and status-based handling
      *
      * @param Payment $payment
      * @param array $newPaymentData
@@ -120,59 +121,102 @@ class PaymentService
     {
         return DB::transaction(function () use ($payment, $newPaymentData) {
             $oldAmount = $payment->amount;
+            $oldStatus = $payment->status;
+            $oldPaymentStatus = $payment->payment_status;
             $newAmount = $newPaymentData['amount'];
+            $newPaymentStatus = $newPaymentData['payment_status'] ?? 'completed';
+
             $sale = Sale::findOrFail($payment->reference_id);
 
-            // Create reverse entry for old payment (if ledger tracking is enabled)
-            if ($sale->customer_id != 1) { // Skip Walk-In customers for now
-                // ✅ FIX: Use createEntry() method instead of manual creation to ensure validation
-                // For payment reversal, we need to reverse the original credit with a negative amount
-                Ledger::createEntry([
-                    'contact_id' => $payment->customer_id,
-                    'contact_type' => 'customer',
-                    'transaction_date' => now(),
-                    'reference_no' => "EDIT-REV-{$payment->reference_no}",
-                    'transaction_type' => 'payments',
-                    'amount' => -$oldAmount, // Negative amount will create proper reversal entry
-                    'notes' => "Payment Adjustment - Remove Previous Payment (LKR {$oldAmount})"
-                ]);
+            // ✅ STEP 1: Mark original payment as deleted (soft delete for audit trail)
+            $payment->update([
+                'status' => 'deleted',
+                'notes' => ($payment->notes ?? '') . ' | [DELETED: Payment edited on ' . now()->format('Y-m-d H:i:s') . ']'
+            ]);
+
+            // ✅ STEP 2: Create ledger reversal entry for old payment (Skip Walk-In customers)
+            if ($sale->customer_id != 1) {
+                // Mark original ledger entry as reversed
+                $originalLedgerEntry = Ledger::where('reference_no', $payment->reference_no)
+                    ->where('transaction_type', 'payments')
+                    ->where('contact_id', $payment->customer_id)
+                    ->where('status', 'active')
+                    ->where('credit', '>', 0) // Original payment was credit
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+
+                if ($originalLedgerEntry) {
+                    $originalLedgerEntry->update([
+                        'status' => 'reversed',
+                        'notes' => $originalLedgerEntry->notes . ' [REVERSED: Payment edited on ' . now()->format('Y-m-d H:i:s') . ']'
+                    ]);
+
+                    // Create reversal entry
+                    Ledger::createEntry([
+                        'contact_id' => $payment->customer_id,
+                        'contact_type' => 'customer',
+                        'transaction_date' => now(),
+                        'reference_no' => $payment->reference_no . '-EDIT-REV-' . time(),
+                        'transaction_type' => 'payment_adjustment',
+                        'amount' => $oldAmount, // Positive creates DEBIT to reverse CREDIT
+                        'status' => 'reversed',
+                        'notes' => "REVERSAL: Payment Edit - Cancel payment Rs." . number_format($oldAmount, 2) . " [Cancels Entry ID: {$originalLedgerEntry->id}]"
+                    ]);
+                }
             }
 
-            // Update payment record
-            $payment->update([
+            // ✅ STEP 3: Create new payment record with updated data
+            $newPayment = Payment::create([
                 'payment_date' => Carbon::parse($newPaymentData['payment_date']),
                 'amount' => $newAmount,
                 'payment_method' => $newPaymentData['payment_method'],
                 'reference_no' => $newPaymentData['reference_no'] ?? $payment->reference_no,
-                'notes' => $newPaymentData['notes'] ?? $payment->notes,
-                'payment_status' => $newPaymentData['payment_status'] ?? $payment->payment_status,
-                // Update payment method specific fields
-                'card_number' => $newPaymentData['card_number'] ?? $payment->card_number,
-                'cheque_number' => $newPaymentData['cheque_number'] ?? $payment->cheque_number,
-                'cheque_bank_branch' => $newPaymentData['cheque_bank_branch'] ?? $payment->cheque_bank_branch,
-                'cheque_received_date' => $this->parseFlexibleDate($newPaymentData['cheque_received_date'] ?? $payment->cheque_received_date),
-                'cheque_valid_date' => $this->parseFlexibleDate($newPaymentData['cheque_valid_date'] ?? $payment->cheque_valid_date),
-                'cheque_status' => $newPaymentData['cheque_status'] ?? $payment->cheque_status,
+                'notes' => ($newPaymentData['notes'] ?? '') . ' [EDITED FROM: Payment ID ' . $payment->id . ']',
+                'payment_status' => $newPaymentStatus,
+                'status' => 'active', // New payment is active
+                'payment_type' => 'sale',
+                'reference_id' => $sale->id,
+                'customer_id' => $sale->customer_id,
+                // Payment method specific fields
+                'card_number' => $newPaymentData['card_number'] ?? null,
+                'card_holder_name' => $newPaymentData['card_holder_name'] ?? null,
+                'card_expiry_month' => $newPaymentData['card_expiry_month'] ?? null,
+                'card_expiry_year' => $newPaymentData['card_expiry_year'] ?? null,
+                'card_security_code' => $newPaymentData['card_security_code'] ?? null,
+                'cheque_number' => $newPaymentData['cheque_number'] ?? null,
+                'cheque_bank_branch' => $newPaymentData['cheque_bank_branch'] ?? null,
+                'cheque_received_date' => $this->parseFlexibleDate($newPaymentData['cheque_received_date'] ?? null),
+                'cheque_valid_date' => $this->parseFlexibleDate($newPaymentData['cheque_valid_date'] ?? null),
+                'cheque_given_by' => $newPaymentData['cheque_given_by'] ?? null,
+                'cheque_status' => $newPaymentData['cheque_status'] ?? 'pending',
             ]);
 
-            // Create new entry for updated payment (if ledger tracking is enabled)
-            if ($sale->customer_id != 1) { // Skip Walk-In customers for now
-                // Use the standard createEntry method for the new payment
-                Ledger::createEntry([
-                    'contact_id' => $payment->customer_id,  // ✅ FIX: Use contact_id instead of user_id
-                    'contact_type' => 'customer',
-                    'transaction_date' => Carbon::parse($newPaymentData['payment_date']),
-                    'reference_no' => $payment->reference_no,
-                    'transaction_type' => 'payments',
-                    'amount' => $newAmount,
-                    'notes' => "Payment Adjustment - New Payment Amount (LKR {$newAmount})"
-                ]);
+            // ✅ STEP 4: Create new ledger entry for updated payment (Skip Walk-In customers)
+            // Only create ledger entry if payment is completed (not pending cheques)
+            if ($sale->customer_id != 1) {
+                $skipLedger = ($newPaymentData['skip_ledger'] ?? false) ||
+                              ($newPaymentStatus === 'pending') ||
+                              ($sale->status === 'draft') ||
+                              ($sale->status === 'quotation');
+
+                if (!$skipLedger) {
+                    $this->unifiedLedgerService->recordSalePayment($newPayment, $sale);
+                }
             }
 
-            // Update sale payment status
+            // ✅ STEP 5: Update sale payment status and totals
             $this->updateSalePaymentStatus($sale);
 
-            return $payment->fresh();
+            Log::info('Payment edited successfully', [
+                'old_payment_id' => $payment->id,
+                'new_payment_id' => $newPayment->id,
+                'sale_id' => $sale->id,
+                'old_amount' => $oldAmount,
+                'new_amount' => $newAmount,
+                'customer_id' => $sale->customer_id
+            ]);
+
+            return $newPayment->fresh();
         });
     }
 
@@ -189,23 +233,40 @@ class PaymentService
             $sale = Sale::findOrFail($payment->reference_id);
 
             // Create reverse entry for the payment (if ledger tracking is enabled)
-            if ($sale->customer_id != 1) { // Skip Walk-In customers for now
-                Ledger::createEntry([
-                    'contact_id' => $payment->customer_id,  // ✅ FIX: Use contact_id instead of user_id
-                    'contact_type' => 'customer',
-                    'transaction_date' => now(),
-                    'reference_no' => "DEL-REV-{$payment->reference_no}",
-                    'transaction_type' => 'payments',
-                    'amount' => $payment->amount,
-                    'notes' => "Payment Deleted - Reverse Entry: {$reason}"
-                ]);
+            if ($sale->customer_id != 1) { // Skip Walk-In customers
+                // Mark original payment ledger entry as reversed
+                $originalLedgerEntry = Ledger::where('reference_no', $payment->reference_no)
+                    ->where('contact_id', $payment->customer_id)
+                    ->where('contact_type', 'customer')
+                    ->where('transaction_type', 'payments')
+                    ->where('status', 'active')
+                    ->where('credit', '>', 0) // Original payment was credit
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+
+                if ($originalLedgerEntry) {
+                    $originalLedgerEntry->update([
+                        'status' => 'reversed',
+                        'notes' => $originalLedgerEntry->notes . ' | [REVERSED: ' . $reason . ' on ' . now()->format('Y-m-d H:i:s') . ']'
+                    ]);
+
+                    // Create reversal entry using payment_adjustment (DEBIT to cancel the CREDIT from payment)
+                    Ledger::createEntry([
+                        'contact_id' => $payment->customer_id,
+                        'contact_type' => 'customer',
+                        'transaction_date' => now(),
+                        'reference_no' => $payment->reference_no . '-DEL-REV-' . time(),
+                        'transaction_type' => 'payment_adjustment',
+                        'amount' => $payment->amount, // Positive amount creates DEBIT to reverse payment CREDIT
+                        'status' => 'reversed',
+                        'notes' => "REVERSAL: Payment Deletion - Cancel payment Rs." . number_format($payment->amount, 2) . " | {$reason} [Cancels Entry ID: {$originalLedgerEntry->id}]"
+                    ]);
+                }
             }
 
             // ✅ CRITICAL FIX: Mark payment as deleted instead of hard delete
             $payment->update([
                 'status' => 'deleted',
-                'deleted_at' => now(),
-                'deleted_by' => auth()->id(),
                 'notes' => ($payment->notes ?? '') . " | DELETED: {$reason}",
                 'payment_status' => 'cancelled'
             ]);
@@ -666,8 +727,6 @@ class PaymentService
             // ✅ CRITICAL FIX: Mark payment as deleted instead of hard delete
             $payment->update([
                 'status' => 'deleted',
-                'deleted_at' => now(),
-                'deleted_by' => auth()->id(),
                 'notes' => ($payment->notes ?? '') . ' | [DELETED: ' . now()->format('Y-m-d H:i:s') . ']'
             ]);
 

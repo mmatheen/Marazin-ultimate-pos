@@ -8533,6 +8533,13 @@
                             discountTypeElement.value = saleDetails.sale.discount_type || 'fixed';
                         }
 
+                        // ✅ Populate sale notes textarea
+                        const saleNotesTextarea = document.getElementById('sale-notes-textarea');
+                        if (saleNotesTextarea && saleDetails.sale) {
+                            saleNotesTextarea.value = saleDetails.sale.sale_notes || '';
+                            console.log('Sale notes populated:', saleDetails.sale.sale_notes);
+                        }
+
                         // Update totals
                         updateTotals();
                     } else {
@@ -8598,7 +8605,7 @@
                     location_id: locationId,
                     status: status,
                     sale_type: "POS",
-                    sale_notes: $('#sale-notes-textarea').val() || null,
+                    sale_notes: document.getElementById('sale-notes-textarea')?.value?.trim() || null,
                     products: [],
                     discount_type: discountType,
                     discount_amount: discountAmount,
@@ -8607,6 +8614,9 @@
                     // Include shipping information in saleData
                     shipping_charges: shippingCharges,
                 };
+
+                // Debug: Log sale notes value
+                console.log('Sale Notes captured:', saleData.sale_notes);
 
                 const productRows = $('#billing-body tr');
                 if (productRows.length === 0) {

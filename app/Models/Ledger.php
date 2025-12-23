@@ -13,16 +13,16 @@ class Ledger extends Model
      * LEDGER MODEL ARCHITECTURE
      * ==========================
      * This model handles individual ledger entries with the new status-based system.
-     * 
-     * IMPORTANT: For balance calculations, use BalanceHelper class instead of 
+     *
+     * IMPORTANT: For balance calculations, use BalanceHelper class instead of
      * methods in this model to ensure consistency across the application.
-     * 
+     *
      * Key Principles:
      * 1. STATUS FILTERING: Only 'active' entries count towards balances
      * 2. UNIFIED APPROACH: BalanceHelper provides consistent calculations
      * 3. DEBIT/CREDIT LOGIC: Proper accounting principles maintained
      * 4. REVERSALS: Use status='reversed' instead of deleting entries
-     * 
+     *
      * Core Methods:
      * - createEntry(): Create new ledger entries
      * - reverseEntry(): Mark entries as reversed
@@ -129,8 +129,8 @@ class Ledger extends Model
 
     /**
      * Calculate balance using BalanceHelper (CENTRALIZED APPROACH)
-     * 
-     * @deprecated This method is deprecated. Use BalanceHelper::getCustomerBalance() 
+     *
+     * @deprecated This method is deprecated. Use BalanceHelper::getCustomerBalance()
      * or BalanceHelper::getSupplierBalance() directly for consistent balance calculations.
      */
     public static function calculateBalance($contact_id, $contact_type)
@@ -149,33 +149,33 @@ class Ledger extends Model
     public static function getRunningBalanceHistory($contact_id, $contact_type, $limit = null)
     {
         $limitClause = $limit ? "LIMIT {$limit}" : '';
-        
+
         $results = DB::select("
-            SELECT 
+            SELECT
                 *,
-                CASE 
-                    WHEN ? = 'customer' THEN 
+                CASE
+                    WHEN ? = 'customer' THEN
                         SUM(debit - credit) OVER (
-                            ORDER BY 
+                            ORDER BY
                                 CASE WHEN transaction_type = 'opening_balance' THEN 1 ELSE 2 END,
                                 CONVERT_TZ(created_at, 'UTC', 'Asia/Colombo'),
                                 id
                             ROWS UNBOUNDED PRECEDING
                         )
-                    ELSE 
+                    ELSE
                         SUM(credit - debit) OVER (
-                            ORDER BY 
+                            ORDER BY
                                 CASE WHEN transaction_type = 'opening_balance' THEN 1 ELSE 2 END,
                                 CONVERT_TZ(created_at, 'UTC', 'Asia/Colombo'),
                                 id
                             ROWS UNBOUNDED PRECEDING
                         )
                 END as running_balance
-            FROM ledgers 
-            WHERE contact_id = ? 
-                AND contact_type = ? 
+            FROM ledgers
+            WHERE contact_id = ?
+                AND contact_type = ?
                 AND status = 'active'
-            ORDER BY 
+            ORDER BY
                 CASE WHEN transaction_type = 'opening_balance' THEN 1 ELSE 2 END,
                 CONVERT_TZ(created_at, 'UTC', 'Asia/Colombo'),
                 id
@@ -193,44 +193,44 @@ class Ledger extends Model
         $statusCondition = $includeReversed ? '' : "AND status = 'active'";
         $dateConditions = '';
         $params = [$contact_type, $contact_id, $contact_type];
-        
+
         if ($fromDate) {
             $dateConditions .= " AND transaction_date >= ?";
             $params[] = $fromDate;
         }
-        
+
         if ($toDate) {
             $dateConditions .= " AND transaction_date <= ?";
             $params[] = $toDate;
         }
 
         $results = DB::select("
-            SELECT 
+            SELECT
                 *,
-                CASE 
-                    WHEN ? = 'customer' THEN 
+                CASE
+                    WHEN ? = 'customer' THEN
                         SUM(debit - credit) OVER (
-                            ORDER BY 
+                            ORDER BY
                                 CASE WHEN transaction_type = 'opening_balance' THEN 1 ELSE 2 END,
                                 transaction_date,
                                 id
                             ROWS UNBOUNDED PRECEDING
                         )
-                    ELSE 
+                    ELSE
                         SUM(credit - debit) OVER (
-                            ORDER BY 
+                            ORDER BY
                                 CASE WHEN transaction_type = 'opening_balance' THEN 1 ELSE 2 END,
                                 transaction_date,
                                 id
                             ROWS UNBOUNDED PRECEDING
                         )
                 END as running_balance
-            FROM ledgers 
-            WHERE contact_id = ? 
-                AND contact_type = ? 
+            FROM ledgers
+            WHERE contact_id = ?
+                AND contact_type = ?
                 {$statusCondition}
                 {$dateConditions}
-            ORDER BY 
+            ORDER BY
                 CASE WHEN transaction_type = 'opening_balance' THEN 1 ELSE 2 END,
                 transaction_date,
                 id
@@ -279,14 +279,14 @@ class Ledger extends Model
             // If this is a duplicate request, log it and return the existing entry
             Log::warning('Duplicate ledger entry attempted', [
                 'contact_id' => $data['contact_id'],
-                'contact_type' => $data['contact_type'], 
+                'contact_type' => $data['contact_type'],
                 'reference_no' => $data['reference_no'],
                 'transaction_type' => $data['transaction_type'],
                 'existing_amount' => $existingEntry->debit ?: $existingEntry->credit,
                 'attempted_amount' => $data['amount'],
                 'time_diff' => $existingEntry->created_at->diffInMinutes(Carbon::now()) . ' minutes ago'
             ]);
-            
+
             return $existingEntry;
         }
 
@@ -334,7 +334,7 @@ class Ledger extends Model
                 // Handle negative amounts for payment reversals
                 $amount = abs($data['amount']); // Work with positive amount
                 $isReversal = $data['amount'] < 0; // Check if this is a reversal
-                
+
                 // Check if this is a return payment based on notes
                 if (isset($data['notes']) && strpos(strtolower($data['notes']), 'return') !== false) {
                     // Return payment: when we pay customer for returns, it's a debit (money flowing out to customer)
@@ -491,10 +491,10 @@ class Ledger extends Model
                 // Payment adjustment for reversal accounting
                 // This creates the exact opposite effect of the original payment
                 $amount = abs($data['amount']);
-                
+
                 // Check if this is a return payment adjustment based on notes
                 $isReturnPayment = isset($data['notes']) && strpos(strtolower($data['notes']), 'return payment reversal') !== false;
-                
+
                 if ($isReturnPayment) {
                     // Return payment adjustment - we need to reverse the original return payment effect
                     if ($data['contact_type'] === 'customer') {
@@ -502,7 +502,7 @@ class Ledger extends Model
                         // So reversal should be CREDIT (cancel the money out)
                         $credit = $amount;
                     } else {
-                        // Original supplier return payment was CREDIT (money in from supplier) 
+                        // Original supplier return payment was CREDIT (money in from supplier)
                         // So reversal should be DEBIT (cancel the money in)
                         $debit = $amount;
                     }
@@ -520,18 +520,58 @@ class Ledger extends Model
                 }
                 break;
 
+            case 'sale_adjustment':
+                // Sale adjustment for reversal accounting (used in sale deletion/reversal)
+                // This reverses a sale entry
+                if ($data['contact_type'] === 'customer') {
+                    // Sale was DEBIT (customer owes us), so adjustment is CREDIT (cancel the debt)
+                    if ($data['amount'] < 0) {
+                        $credit = abs($data['amount']);
+                    } else {
+                        $debit = $data['amount'];
+                    }
+                } else {
+                    // For suppliers (unlikely but handle it)
+                    if ($data['amount'] < 0) {
+                        $debit = abs($data['amount']);
+                    } else {
+                        $credit = $data['amount'];
+                    }
+                }
+                break;
+
+            case 'purchase_adjustment':
+                // Purchase adjustment for reversal accounting (used in purchase deletion/reversal)
+                // This reverses a purchase entry
+                if ($data['contact_type'] === 'supplier') {
+                    // Purchase was CREDIT (we owe supplier), so adjustment is DEBIT (cancel the debt)
+                    if ($data['amount'] < 0) {
+                        $debit = abs($data['amount']);
+                    } else {
+                        $credit = $data['amount'];
+                    }
+                } else {
+                    // For customers (unlikely but handle it)
+                    if ($data['amount'] < 0) {
+                        $credit = abs($data['amount']);
+                    } else {
+                        $debit = $data['amount'];
+                    }
+                }
+                break;
+
             default:
                 // Handle dynamic transaction types with "_reversal" suffix
                 if (str_ends_with($data['transaction_type'], '_reversal')) {
                     $baseType = str_replace('_reversal', '', $data['transaction_type']);
-                    
+
                     // For reversal entries, we typically reverse the logic of the base transaction
                     switch ($baseType) {
                         case 'purchase_return':
                             // Purchase return reversal should restore what we owe supplier (credit)
                             $credit = $data['amount'];
                             break;
-                            
+
                         case 'sale':
                         case 'purchase':
                         case 'payment':
@@ -554,7 +594,7 @@ class Ledger extends Model
                                 }
                             }
                             break;
-                        
+
                         default:
                             throw new \Exception("Unknown reversal transaction type: {$data['transaction_type']}");
                     }
@@ -603,34 +643,34 @@ class Ledger extends Model
         $params = $contactType ? [$contactType] : [];
 
         $results = DB::select("
-            SELECT 
+            SELECT
                 contact_type,
                 COUNT(DISTINCT contact_id) as total_contacts,
-                CASE 
-                    WHEN contact_type = 'customer' THEN 
+                CASE
+                    WHEN contact_type = 'customer' THEN
                         COALESCE(SUM(debit - credit), 0)
-                    ELSE 
+                    ELSE
                         COALESCE(SUM(credit - debit), 0)
                 END as total_balance,
-                CASE 
-                    WHEN contact_type = 'customer' THEN 
+                CASE
+                    WHEN contact_type = 'customer' THEN
                         COALESCE(SUM(CASE WHEN (debit - credit) > 0 THEN (debit - credit) ELSE 0 END), 0)
-                    ELSE 
+                    ELSE
                         COALESCE(SUM(CASE WHEN (credit - debit) > 0 THEN (credit - debit) ELSE 0 END), 0)
                 END as positive_balance,
-                CASE 
-                    WHEN contact_type = 'customer' THEN 
+                CASE
+                    WHEN contact_type = 'customer' THEN
                         COALESCE(SUM(CASE WHEN (debit - credit) < 0 THEN ABS(debit - credit) ELSE 0 END), 0)
-                    ELSE 
+                    ELSE
                         COALESCE(SUM(CASE WHEN (credit - debit) < 0 THEN ABS(credit - debit) ELSE 0 END), 0)
                 END as negative_balance
             FROM (
-                SELECT 
+                SELECT
                     contact_id,
                     contact_type,
                     SUM(debit) as debit,
                     SUM(credit) as credit
-                FROM ledgers 
+                FROM ledgers
                 WHERE status = 'active' {$contactCondition}
                 GROUP BY contact_id, contact_type
             ) as contact_totals
@@ -701,7 +741,7 @@ class Ledger extends Model
                 'contact_name' => $contactName,
                 'notes' => $ledger->notes,
                 'formatted_type' => self::formatTransactionType($ledger->transaction_type),
-                'current_balance' => $ledger->contact_type === 'customer' 
+                'current_balance' => $ledger->contact_type === 'customer'
                     ? \App\Helpers\BalanceHelper::getCustomerBalance($ledger->contact_id)
                     : \App\Helpers\BalanceHelper::getSupplierBalance($ledger->contact_id)
             ];
@@ -745,7 +785,7 @@ class Ledger extends Model
     }
 
     /**
-     * Get advance balance for a contact  
+     * Get advance balance for a contact
      * @deprecated Use BalanceHelper::getCustomerAdvance() instead
      */
     public static function getAdvanceBalance($contact_id, $contact_type)

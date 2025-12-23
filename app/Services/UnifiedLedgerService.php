@@ -102,6 +102,16 @@ class UnifiedLedgerService
      */
     public function recordSalePayment($payment, $sale = null, $createdBy = null)
     {
+        // ✅ PERFORMANCE FIX: Skip ledger entries for Walk-In customers (customer_id = 1)
+        // Walk-In customers don't need credit tracking, so no ledger entries needed
+        if ($payment->customer_id == 1) {
+            Log::info('Skipping ledger entry for Walk-In customer payment', [
+                'payment_id' => $payment->id,
+                'amount' => $payment->amount
+            ]);
+            return null;
+        }
+
         $referenceNo = $payment->reference_no ?: ($sale ? $sale->invoice_no : 'PAY-' . $payment->id);
 
         // Use the actual creation time converted to Asia/Colombo timezone
@@ -1514,42 +1524,10 @@ class UnifiedLedgerService
             ]);
         }
 
-        // Clean up old payment entries (these will be recreated)
-        $oldPaymentEntries = Ledger::where('reference_no', $referenceNo)
-            ->where('transaction_type', 'payments')
-            ->where('contact_id', $sale->customer_id)
-            ->where('status', 'active')
-            ->where(function($query) {
-                $query->where('debit', '>', 0)->orWhere('credit', '>', 0);
-            })
-            ->get();
-
-        foreach ($oldPaymentEntries as $paymentEntry) {
-            // Mark original payment entry as reversed
-            $paymentEntry->update([
-                'status' => 'reversed',
-                'notes' => $paymentEntry->notes . ' [REVERSED: Sale updated on ' . now()->format('Y-m-d H:i:s') . ']'
-            ]);
-
-            // Create reversal entry for audit trail
-            if ($paymentEntry->credit > 0) {
-                // Create reversal entry: negative amount reverses the original payment
-                // Original payment: customer paid Rs.X (credit entry)
-                // Reversal: cancel that payment (debit entry) using negative amount
-                $reversalAmount = -$paymentEntry->credit; // Negative creates reversal effect
-
-                Ledger::createEntry([
-                    'contact_id' => $sale->customer_id,
-                    'contact_type' => 'customer',
-                    'transaction_date' => now(),
-                    'reference_no' => $referenceNo . '-PAY-REV-' . time(),
-                    'transaction_type' => 'payments',
-                    'amount' => $reversalAmount, // Negative amount = reversal instruction
-                    'status' => 'reversed', // ✅ CRITICAL FIX: Reversal entries should have status 'reversed'
-                    'notes' => "REVERSAL: Sale Edit - Payment Rs{$paymentEntry->credit} (ID: {$paymentEntry->id})",
-                ]);
-            }
-        }
+        // ✅ CRITICAL FIX: DO NOT clean up payment entries here!
+        // Payment ledger entries are managed by PaymentService when payments are created/deleted
+        // Cleaning them up here causes newly created payment entries to be marked as reversed
+        // SaleController handles payment cleanup before calling this method
 
         // Record the updated sale (creates new entry)
         // ✅ FIX: Use current time for updated sales so they appear in current date range

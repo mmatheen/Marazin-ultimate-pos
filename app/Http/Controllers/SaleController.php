@@ -1178,7 +1178,16 @@ class SaleController extends Controller
                 // ----- Store customer change information before updating sale -----
                 $oldCustomerId = $isUpdate ? $sale->getOriginal('customer_id') : null;
                 $oldFinalTotal = $isUpdate ? $sale->getOriginal('final_total') : null;
+                $oldSubtotal = $isUpdate ? $sale->getOriginal('subtotal') : null;
+                $oldDiscount = $isUpdate ? $sale->getOriginal('discount_amount') : null;
                 $customerChanged = $isUpdate && ($oldCustomerId != $request->customer_id);
+
+                // Check if financial data changed (for ledger update decision)
+                $financialDataChanged = $isUpdate && (
+                    abs($oldFinalTotal - $finalTotal) > 0.01 || // final_total changed
+                    abs($oldSubtotal - $subtotal) > 0.01 || // subtotal changed
+                    abs($oldDiscount - $discount) > 0.01 // discount changed
+                );
 
                 // ✅ CRITICAL FIX: Double-check customer exists before saving sale (use withoutGlobalScopes)
                 if (!Customer::withoutGlobalScopes()->where('id', $request->customer_id)->exists()) {
@@ -1203,6 +1212,7 @@ class SaleController extends Controller
                     'total_due' => $totalDue,
                     'amount_given' => $amountGiven,
                     'balance_amount' => $balanceAmount,
+                    'sale_notes' => $request->sale_notes,
                     // ✨ NEW: Sale Order fields (user_id is already set above)
                     'transaction_type' => $transactionType,
                     'order_number' => $orderNumber,
@@ -1272,7 +1282,7 @@ class SaleController extends Controller
                             'payment_date' => $request->sales_date ?? Carbon::now('Asia/Colombo')->format('Y-m-d'),
                             'amount' => $paymentAmount,
                             'payment_method' => 'cash',
-                            'reference_no' => $referenceNo,
+                            'reference_no' => $sale->invoice_no, // Use invoice number for consistency
                             'notes' => 'Advance payment for job ticket',
                         ];
 
@@ -1290,21 +1300,86 @@ class SaleController extends Controller
                     $this->unifiedLedgerService->recordSale($sale);
                 }
 
+                // ✅ CORRECT ORDER: Handle sale ledger updates BEFORE payment updates
+                // For sale edits: 1) Reverse old sale, 2) Create new sale, 3) Then handle payments
+                if ($isUpdate && $request->customer_id != 1) {
+                    // Check if customer has changed during edit (use pre-stored values)
+                    if ($customerChanged) {
+                        // Customer changed - use special method to handle ledger transfer
+                        Log::info('Sale edit with customer change detected', [
+                            'sale_id' => $sale->id,
+                            'old_customer_id' => $oldCustomerId,
+                            'new_customer_id' => $request->customer_id,
+                            'old_amount' => $oldFinalTotal,
+                            'new_amount' => $sale->final_total
+                        ]);
+
+                        $this->unifiedLedgerService->editSaleWithCustomerChange(
+                            $sale,
+                            $oldCustomerId,
+                            $request->customer_id,
+                            $oldFinalTotal,
+                            'Customer changed during sale edit'
+                        );
+                    } elseif ($financialDataChanged) {
+                        // Same customer but financial data changed - use regular update
+                        // Only update ledger if amounts actually changed (skip for notes-only updates)
+                        Log::info('Sale edit with financial data change detected', [
+                            'sale_id' => $sale->id,
+                            'customer_id' => $sale->customer_id,
+                            'old_final_total' => $oldFinalTotal,
+                            'new_final_total' => $sale->final_total
+                        ]);
+                        
+                        // ✅ CRITICAL FIX: Validate sale object before ledger operations
+                        if (empty($sale->customer_id)) {
+                            Log::error('CRITICAL: Sale customer_id is empty before ledger operations', [
+                                'sale_id' => $sale->id,
+                                'request_customer_id' => $request->customer_id,
+                                'sale_customer_id' => $sale->customer_id,
+                                'sale_attributes' => $sale->getAttributes(),
+                            ]);
+
+                            // Try to reload the sale from database
+                            $sale->refresh();
+                            if (empty($sale->customer_id)) {
+                                throw new \Exception("CRITICAL ERROR: Sale customer_id is missing after database refresh. Sale ID: {$sale->id}. This indicates a database constraint violation or data corruption.");
+                            }
+                        }
+                        
+                        // This creates: 1) Old sale reversal, 2) New sale entry
+                        $this->unifiedLedgerService->updateSale($sale, $referenceNo);
+                    }
+                    // Note: If only non-financial fields changed (e.g., sale_notes), ledger is not updated
+                }
+
                 // ----- Handle Payments (if not jobticket and not sale_order) -----
+                // Payments are handled AFTER sale ledger updates for correct accounting order
                 if ($sale->status !== 'jobticket' && $transactionType !== 'sale_order') {
                     $totalPaid = 0;
 
-                    // ✨ FAST PATH: Simplified payment processing for Walk-In customers
+// ✨ UNIFIED PATH: Use PaymentService for all customers (including Walk-In)
+                    // PaymentService now automatically skips ledger entries for Walk-In customers
                     if ($request->customer_id == 1 && !empty($request->payments)) {
-                        // Fast payment processing for Walk-In customers - FIXED: Exclude pending cheques
-                        $totalPaid = collect($request->payments)->sum(function($payment) {
-                            // Only count completed payments or cleared cheques
-                            if ($payment['payment_method'] === 'cheque') {
-                                return ($payment['cheque_status'] ?? 'pending') === 'cleared' ? $payment['amount'] : 0;
-                            }
-                            return $payment['amount'];
-                        });
+                        // ✅ CRITICAL FIX: Delete old payments during edit to prevent duplicates
+                        if ($isUpdate) {
+                            $oldPayments = Payment::where('reference_id', $sale->id)
+                                ->where('payment_type', 'sale')
+                                ->where('status', '!=', 'deleted')
+                                ->get();
 
+                            foreach ($oldPayments as $oldPayment) {
+                                // Mark as deleted (soft delete for audit trail)
+                                $oldPayment->update([
+                                    'status' => 'deleted',
+                                    'payment_status' => 'cancelled',
+                                    'notes' => ($oldPayment->notes ?? '') . ' | DELETED: Sale edited - payment recreated'
+                                ]);
+                            }
+                        }
+
+                        // Process Walk-In payments using PaymentService for consistency
+                        $totalPaid = 0;
                         foreach ($request->payments as $paymentData) {
                             if (!empty($paymentData['amount']) && $paymentData['amount'] > 0) {
                                 // Ensure payment_date is in proper format
@@ -1317,15 +1392,26 @@ class SaleController extends Controller
                                     }
                                 }
 
-                                Payment::create([
-                                    'reference_id' => $sale->id,
-                                    'payment_type' => 'sale',
+                                // Use PaymentService for consistency (automatically skips ledger for Walk-In)
+                                $servicePaymentData = [
                                     'payment_date' => $paymentDate,
                                     'amount' => $paymentData['amount'],
                                     'payment_method' => $paymentData['payment_method'] ?? 'cash',
+                                    'reference_no' => $sale->invoice_no,
                                     'payment_status' => 'completed',
-                                    'reference_no' => $referenceNo,
-                                ]);
+                                    'notes' => $paymentData['notes'] ?? ''
+                                ];
+
+                                $payment = $this->paymentService->recordSalePayment($servicePaymentData, $sale);
+
+                                // Count only completed payments
+                                if ($paymentData['payment_method'] === 'cheque') {
+                                    if (($paymentData['cheque_status'] ?? 'pending') === 'cleared') {
+                                        $totalPaid += $paymentData['amount'];
+                                    }
+                                } else {
+                                    $totalPaid += $paymentData['amount'];
+                                }
                             }
                         }
 
@@ -1354,21 +1440,24 @@ class SaleController extends Controller
                                 ->where('status', '!=', 'deleted')
                                 ->get();
 
-                            if ($customerChanged) {
-                                // Customer changed - payment ledger entries already handled by editSaleWithCustomerChange
-                                // ✅ CRITICAL FIX: Mark payments as deleted instead of hard delete
-                                Payment::where('reference_id', $sale->id)
-                                    ->where('status', '!=', 'deleted')
-                                    ->update([
-                                        'status' => 'deleted',
-                                        'deleted_at' => now(),
-                                        'deleted_by' => auth()->id(),
-                                        'notes' => DB::raw("CONCAT(COALESCE(notes, ''), ' | [DELETED: Customer changed during sale edit - ', NOW(), ']')")
-                                    ]);
-                            } else {
-                                // Same customer - use payment service to properly handle ledger reversal
-                                foreach ($oldPayments as $oldPayment) {
-                                    $this->paymentService->deleteSalePayment($oldPayment, 'Payment updated during sale edit');
+                            // ✅ CRITICAL FIX: Always delete old payments during edit for non-Walk-In customers
+                            // Since payments are always re-sent from frontend, we need to clean up first
+                            if ($oldPayments->count() > 0) {
+                                if ($customerChanged) {
+                                    // Customer changed - payment ledger entries already handled by editSaleWithCustomerChange
+                                    // ✅ CRITICAL FIX: Mark payments as deleted instead of hard delete
+                                    Payment::where('reference_id', $sale->id)
+                                        ->where('status', '!=', 'deleted')
+                                        ->update([
+                                            'status' => 'deleted',
+                                            'payment_status' => 'cancelled',
+                                            'notes' => DB::raw("CONCAT(COALESCE(notes, ''), ' | DELETED: Customer changed during sale edit')")
+                                        ]);
+                                } else {
+                                    // Same customer - delete old payments and use payment service to properly handle ledger reversal
+                                    foreach ($oldPayments as $oldPayment) {
+                                        $this->paymentService->deleteSalePayment($oldPayment, 'Payment updated during sale edit');
+                                    }
                                 }
                             }
                         }
@@ -1395,7 +1484,7 @@ class SaleController extends Controller
                                 'payment_date' => $paymentDate,
                                 'amount' => $paymentData['amount'],
                                 'payment_method' => $paymentData['payment_method'],
-                                'reference_no' => $referenceNo,
+                                'reference_no' => $sale->invoice_no, // Use invoice number for payment reference
                                 'notes' => $paymentData['notes'] ?? '',
                             ];
 
@@ -1547,54 +1636,15 @@ class SaleController extends Controller
                     }
                 }
 
-                // ----- Ledger (optimized) - Skip for Walk-In customers -----
-                // ✨ PERFORMANCE FIX: Skip ledger updates for Walk-In customers (no credit tracking needed)
-                if ($isUpdate) {
-                    // Check if customer has changed during edit (use pre-stored values)
-                    if ($customerChanged) {
-                        // Customer changed - use special method to handle ledger transfer
-                        Log::info('Sale edit with customer change detected', [
-                            'sale_id' => $sale->id,
-                            'old_customer_id' => $oldCustomerId,
-                            'new_customer_id' => $request->customer_id,
-                            'old_amount' => $oldFinalTotal,
-                            'new_amount' => $sale->final_total
-                        ]);
-
-                        $this->unifiedLedgerService->editSaleWithCustomerChange(
-                            $sale,
-                            $oldCustomerId,
-                            $request->customer_id,
-                            $oldFinalTotal,
-                            'Customer changed during sale edit'
-                        );
-                    } elseif ($request->customer_id != 1) {
-                        // Same customer, just amount/details changed - use regular update
-                        // ✅ CRITICAL FIX: Validate sale object before ledger operations
-                        if (empty($sale->customer_id)) {
-                            Log::error('CRITICAL: Sale customer_id is empty before ledger operations', [
-                                'sale_id' => $sale->id,
-                                'request_customer_id' => $request->customer_id,
-                                'sale_customer_id' => $sale->customer_id,
-                                'sale_attributes' => $sale->getAttributes(),
-                            ]);
-
-                            // Try to reload the sale from database
-                            $sale->refresh();
-                            if (empty($sale->customer_id)) {
-                                throw new \Exception("CRITICAL ERROR: Sale customer_id is missing after database refresh. Sale ID: {$sale->id}. This indicates a database constraint violation or data corruption.");
-                            }
-                        }
-                        $this->unifiedLedgerService->updateSale($sale, $referenceNo);
-                    }
-                    // Note: New sales are already recorded above (before payments)
-                }
-
+                // ----- Ledger (optimized) - Handled BEFORE payments above -----
+                // Note: Sale ledger entries are created BEFORE payment processing (lines ~1293-1346)
+                // This ensures correct accounting order: Sale reversal → Payment reversal → New sale → New payment
+                // Payment ledger entries are automatically created by PaymentService
+                
                 // *** CRITICAL FIX: Always recalculate customer balance after sale edits ***
                 if ($isUpdate && $request->customer_id != 1) {
                     $this->recalculateCustomerBalance($request->customer_id);
                 }
-                // Note: Payment ledger processing is handled in payment creation loop above
 
                 return $sale;
             });
@@ -2385,6 +2435,7 @@ class SaleController extends Controller
                     'total_paid',
                     'total_due',
                     'payment_status',
+                    'sale_notes', // Include sale notes
                     'created_at',
                     'updated_at'
                 ]),
