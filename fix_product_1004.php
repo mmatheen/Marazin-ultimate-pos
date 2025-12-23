@@ -32,12 +32,12 @@ echo "Batches found for this product: " . $batches->count() . "\n";
 
 foreach ($batches as $batch) {
     echo "  - Batch ID: {$batch->id}, Batch No: {$batch->batch_no}, Created: {$batch->created_at}\n";
-    
+
     // Check location_batches
     $locationBatches = DB::table('location_batches')
         ->where('batch_id', $batch->id)
         ->get();
-    
+
     foreach ($locationBatches as $lb) {
         echo "    Location Batch: Location ID {$lb->location_id}, Qty: {$lb->qty}\n";
     }
@@ -46,12 +46,12 @@ foreach ($batches as $batch) {
 // Use the first batch (FIFO)
 if ($batches->count() > 0) {
     $firstBatch = $batches->sortBy('created_at')->first();
-    
+
     echo "\nUpdating with Batch ID: {$firstBatch->id} (Batch No: {$firstBatch->batch_no})\n";
-    
+
     $saleProduct->batch_id = $firstBatch->id;
     $saleProduct->save();
-    
+
     echo "✅ Updated successfully!\n";
 } else {
     echo "\n❌ No batches available to assign\n";

@@ -26,7 +26,7 @@ class BrandController extends Controller
 
     public function index()
     {
-        $getValue = Brand::select('id', 'name', 'created_at')->get();
+        $getValue = Brand::select('id', 'name', 'description', 'created_at')->get();
         if ($getValue->count() > 0) {
             return response()->json([
                 'status' => 200,

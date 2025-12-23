@@ -4,7 +4,7 @@
         var csrfToken = $('meta[name="csrf-token"]').attr('content');
 
         // Only initialize on brand page, not on purchase/other pages
-        if ($('#brands').length) {
+        if ($('#brand').length) {
             console.log('✅ Initializing brand page');
             showFetchData();
         } else {

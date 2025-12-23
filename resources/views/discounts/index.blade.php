@@ -462,11 +462,16 @@ $(document).ready(function() {
         columns: [
             { data: 'id' },
             { data: 'name' },
-            { data: 'description' },
+            {
+                data: 'description',
+                render: function(data) {
+                    return data || '-';
+                }
+            },
             {
                 data: 'type',
                 render: function(data) {
-                    return data.charAt(0).toUpperCase() + data.slice(1);
+                    return data ? data.charAt(0).toUpperCase() + data.slice(1) : '-';
                 }
             },
             {

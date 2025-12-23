@@ -17,11 +17,11 @@ echo "Found " . $unlimitedProducts->count() . " products with unlimited stock (s
 
 foreach ($unlimitedProducts as $product) {
     echo "Product ID: {$product->id} - {$product->product_name}\n";
-    
+
     // Check if this product has any batches
     $batches = Batch::where('product_id', $product->id)->get();
     echo "  Batches: " . $batches->count() . "\n";
-    
+
     // Check if this product has any sale_products without batch_id
     $salesWithoutBatch = SalesProduct::where('product_id', $product->id)
         ->whereNull('batch_id')

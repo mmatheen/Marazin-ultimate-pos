@@ -41,10 +41,10 @@ class ReportController extends Controller
             return Location::select('id', 'name')->get();
         });
         $categories = Cache::remember('main_categories_list', 3600, function() {
-            return \App\Models\MainCategory::select('id', 'name')->get();
+            return \App\Models\MainCategory::select('id', 'mainCategoryName')->get();
         });
         $subCategories = Cache::remember('sub_categories_list', 3600, function() {
-            return \App\Models\SubCategory::select('id', 'name', 'main_category_id')->get();
+            return \App\Models\SubCategory::select('id', 'subCategoryname', 'main_category_id')->get();
         });
         $brands = Cache::remember('brands_list', 3600, function() {
             return Brand::select('id', 'name')->get();

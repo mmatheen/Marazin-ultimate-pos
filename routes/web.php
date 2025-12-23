@@ -239,7 +239,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/apply-discount', [ProductController::class, 'applyDiscount'])->name('products.applyDiscount');
 
         // Quick Add Product (for POS when product not found) - Use main ProductController
-        Route::post('/products/quick-add', [\App\Http\Controllers\ProductController::class, 'quickAdd'])->name('products.quickAdd');
+        Route::post('/products/quick-add', [ProductController::class, 'quickAdd'])->name('products.quickAdd');
 
         // Batch Price Management
         Route::get('/product/{productId}/batches', [ProductController::class, 'getProductBatches'])->name('product.batches');
