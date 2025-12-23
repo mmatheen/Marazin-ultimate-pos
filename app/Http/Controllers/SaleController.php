@@ -917,6 +917,7 @@ class SaleController extends Controller
             'sales_date' => 'required|date',
             'status' => 'required|string',
             'invoice_no' => 'nullable|string|unique:sales,invoice_no',
+            'sale_notes' => 'nullable|string|max:2000',
             //  NEW: Sale Order fields (no sales_rep_id - using user_id)
             'transaction_type' => 'nullable|string|in:invoice,sale_order',
             'expected_delivery_date' => 'nullable|date|after_or_equal:today',

@@ -107,7 +107,7 @@
             $('#edit_id').val(id);
 
             $.ajax({
-                url: 'brand-edit/' + id,
+                url: '/brand-edit/' + id,
                 type: 'get',
                 success: function(response) {
                     if (response.status == 404) {
@@ -139,7 +139,7 @@ $('#brandAddAndUpdateForm').submit(function(e) {
 
     let formData = new FormData(this);
     let id = $('#edit_id').val(); // For edit
-    let url = id ? 'brand-update/' + id : 'brand-store';
+    let url = id ? '/brand-update/' + id : '/brand-store';
     let type = 'post';
 
     $.ajax({
@@ -217,7 +217,7 @@ function populateBrandDropdown(selectedId = null) {
         $(document).on('click', '.confirm_delete_btn', function() {
             var id = $('#deleting_id').val();
             $.ajax({
-                url: 'brand-delete/' + id,
+                url: '/brand-delete/' + id,
                 type: 'delete',
                 headers: {'X-CSRF-TOKEN': csrfToken},
                 success: function(response) {

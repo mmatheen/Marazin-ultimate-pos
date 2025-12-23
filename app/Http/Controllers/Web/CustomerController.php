@@ -55,11 +55,11 @@ class CustomerController extends Controller
             return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
         }
 
-        // Check if user is a sales rep once and cache the result
-        $salesRep = \App\Models\SalesRep::where('user_id', $user->id)
+        // Check if user is a sales rep and get ALL active assignments
+        $salesRepAssignments = \App\Models\SalesRep::where('user_id', $user->id)
             ->where('status', 'active')
             ->with(['route.cities'])
-            ->first();
+            ->get();
 
         // Start with bypassing location scope, only eager load city relation
         $query = Customer::withoutLocationScope()
@@ -71,8 +71,8 @@ class CustomerController extends Controller
             ]);
 
         // Apply sales rep route filtering if user is a sales rep
-        if ($salesRep) {
-            $query = $this->applySalesRepFilter($query, $salesRep);
+        if ($salesRepAssignments->isNotEmpty()) {
+            $query = $this->applySalesRepFilter($query, $salesRepAssignments);
         }
 
         $customers = $query->orderBy('first_name')->get();
@@ -116,26 +116,36 @@ class CustomerController extends Controller
             'status' => 200,
             'message' => $customers,
             'total_customers' => $customers->count(),
-            'sales_rep_info' => $salesRep ? $this->getSalesRepInfoFromCache($salesRep) : null
+            'sales_rep_info' => $salesRepAssignments->isNotEmpty() ? $this->getSalesRepInfoFromAssignments($salesRepAssignments) : null
         ]);
     }
 
     /**
      * Apply sales rep route-based filtering to customer query
-     * Only shows customers in cities assigned to the sales rep's route
+     * Only shows customers in cities assigned to the sales rep's routes
+     * Supports multiple route assignments per sales rep
      */
-    private function applySalesRepFilter($query, $salesRep)
+    private function applySalesRepFilter($query, $salesRepAssignments)
     {
-        if ($salesRep && $salesRep->route) {
-            $routeCityIds = $salesRep->route->cities->pluck('id')->toArray();
+        // Collect all city IDs from all assigned routes
+        $allCityIds = [];
 
-            if (!empty($routeCityIds)) {
-                // Filter customers by assigned cities
-                $query->whereIn('city_id', $routeCityIds);
-            } else {
-                // If route has no cities, show no customers (empty result)
-                $query->whereRaw('1 = 0');
+        foreach ($salesRepAssignments as $assignment) {
+            if ($assignment->route && $assignment->route->cities) {
+                $cityIds = $assignment->route->cities->pluck('id')->toArray();
+                $allCityIds = array_merge($allCityIds, $cityIds);
             }
+        }
+
+        // Remove duplicates
+        $allCityIds = array_unique($allCityIds);
+
+        if (!empty($allCityIds)) {
+            // Filter customers by all assigned cities from all routes
+            $query->whereIn('city_id', $allCityIds);
+        } else {
+            // If no cities in any route, show no customers (empty result)
+            $query->whereRaw('1 = 0');
         }
 
         return $query;
@@ -171,6 +181,41 @@ class CustomerController extends Controller
             'assigned_cities' => $salesRep->route->cities->pluck('name')->toArray(),
             'total_cities' => $salesRep->route->cities->count(),
             'sales_rep_id' => $salesRep->id
+        ];
+    }
+
+    /**
+     * Get sales rep info from multiple route assignments
+     */
+    private function getSalesRepInfoFromAssignments($salesRepAssignments)
+    {
+        $allRoutes = [];
+        $allCities = [];
+        $salesRepIds = [];
+
+        foreach ($salesRepAssignments as $assignment) {
+            if ($assignment->route) {
+                $allRoutes[] = $assignment->route->name;
+                if ($assignment->route->cities) {
+                    $cities = $assignment->route->cities->pluck('name')->toArray();
+                    $allCities = array_merge($allCities, $cities);
+                }
+            }
+            $salesRepIds[] = $assignment->id;
+        }
+
+        // Remove duplicate city names
+        $allCities = array_unique($allCities);
+        $allRoutes = array_unique($allRoutes);
+
+        return [
+            'routes' => $allRoutes,
+            'route_names' => implode(', ', $allRoutes),
+            'assigned_cities' => array_values($allCities),
+            'total_cities' => count($allCities),
+            'total_routes' => count($allRoutes),
+            'sales_rep_ids' => $salesRepIds,
+            'total_assignments' => $salesRepAssignments->count()
         ];
     }
 

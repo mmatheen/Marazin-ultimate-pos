@@ -8598,6 +8598,7 @@
                     location_id: locationId,
                     status: status,
                     sale_type: "POS",
+                    sale_notes: $('#sale-notes-textarea').val() || null,
                     products: [],
                     discount_type: discountType,
                     discount_amount: discountAmount,

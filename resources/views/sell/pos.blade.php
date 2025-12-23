@@ -667,6 +667,22 @@
                                     </div>
                                 </div>
                             </div>
+                            
+                            <!-- Sale Notes Section -->
+                            <div class="row mt-2" style="margin: 0; background-color: #fff; padding: 10px;">
+                                <div class="col-md-12">
+                                    <div class="form-group mb-0">
+                                        <label for="sale-notes-textarea"
+                                            style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">
+                                            <i class="fas fa-sticky-note me-1"></i>Sale Notes / Description (Optional)
+                                        </label>
+                                        <textarea id="sale-notes-textarea" class="form-control form-control-sm" 
+                                            placeholder="Add notes, reference, or description for this sale..." 
+                                            rows="2"
+                                            style="font-size: 14px; resize: vertical;"></textarea>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

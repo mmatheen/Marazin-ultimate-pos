@@ -28,6 +28,7 @@ class Sale extends Model
         'total_paid',
         'total_due',
         'payment_status',
+        'sale_notes',
         'discount_type',
         'discount_amount',
         'amount_given',

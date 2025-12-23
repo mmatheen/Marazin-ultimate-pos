@@ -52,28 +52,60 @@ class CustomerController extends Controller
         return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
     }
 
-    // Use normal query with location scope - it will handle sales rep filtering automatically
-    $query = Customer::with(['sales', 'salesReturns', 'payments', 'city']);
+    // Check if user is a sales rep and get ALL active assignments
+    $salesRepAssignments = \App\Models\SalesRep::where('user_id', $user->id)
+        ->where('status', 'active')
+        ->with(['route.cities'])
+        ->get();
 
-    $customers = $query->orderBy('first_name')->get()->map(function ($customer) {
+    // Start with bypassing location scope, only eager load city relation
+    $query = Customer::withoutLocationScope()
+        ->with('city:id,name')
+        ->select([
+            'id', 'prefix', 'first_name', 'last_name', 'mobile_no', 'email',
+            'address', 'location_id', 'opening_balance', 'credit_limit',
+            'city_id', 'customer_type'
+        ]);
+
+    // Apply sales rep route filtering if user is a sales rep
+    if ($salesRepAssignments->isNotEmpty()) {
+        $query = $this->applySalesRepFilter($query, $salesRepAssignments);
+    }
+
+    $customers = $query->orderBy('first_name')->get();
+
+    // Fetch all customer balances in one optimized query using BalanceHelper
+    $customerIds = $customers->pluck('id')->toArray();
+    $balances = BalanceHelper::getBulkCustomerBalances($customerIds);
+
+    $customers = $customers->map(function ($customer) use ($balances) {
+        // Concatenate full name in PHP instead of using accessor
+        $fullName = trim(($customer->prefix ? $customer->prefix . ' ' : '') .
+                        $customer->first_name . ' ' .
+                        ($customer->last_name ?? ''));
+
+        // Get the calculated balance from BalanceHelper (single source of truth)
+        $currentBalance = $balances->get($customer->id, (float)$customer->opening_balance);
+
         return [
             'id' => $customer->id,
             'prefix' => $customer->prefix,
             'first_name' => $customer->first_name,
             'last_name' => $customer->last_name,
-            'full_name' => $customer->full_name,
+            'full_name' => $fullName,
             'mobile_no' => $customer->mobile_no,
             'email' => $customer->email,
             'address' => $customer->address,
             'location_id' => $customer->location_id,
-            'opening_balance' => (float)$customer->opening_balance, // ✅ Show actual opening balance from table
-            'current_balance' => (float)BalanceHelper::getCustomerBalance($customer->id),
-            'total_sale_due' => (float)$customer->total_sale_due,
-            'total_return_due' => (float)$customer->total_return_due,
-            'current_due' => (float)$customer->current_due,
+            'opening_balance' => (float)$customer->opening_balance,
+            'current_balance' => (float)$currentBalance, // Accurate balance from unified ledger
+            'total_sale_due' => 0.0, // Deprecated - balance is in current_balance
+            'total_return_due' => 0.0, // Deprecated - included in current_balance
+            'current_due' => (float)$currentBalance, // Same as current_balance
             'city_id' => $customer->city_id,
             'city_name' => $customer->city?->name ?? '',
             'credit_limit' => (float)$customer->credit_limit,
+            'customer_type' => $customer->customer_type,
         ];
     });
 
@@ -81,36 +113,36 @@ class CustomerController extends Controller
         'status' => 200,
         'message' => $customers,
         'total_customers' => $customers->count(),
-        'sales_rep_info' => $user->isSalesRep() ? $this->getSalesRepInfo($user) : null
+        'sales_rep_info' => $salesRepAssignments->isNotEmpty() ? $this->getSalesRepInfoFromAssignments($salesRepAssignments) : null
     ]);
 }
 
     /**
-     * Apply filter for sales reps based on cities in their active route assignments
+     * Apply sales rep route-based filtering to customer query
+     * Only shows customers in cities assigned to the sales rep's routes
+     * Supports multiple route assignments per sales rep
      */
-    private function applySalesRepFilter($query, $user)
+    private function applySalesRepFilter($query, $salesRepAssignments)
     {
-        // Get all **active** SalesRep assignments for this user
-        $salesRepAssignments = SalesRep::where('user_id', $user->id)
-            ->where('status', 'active') // SalesRep assignment is active
-            ->with(['route' => function ($q) {
-                $q->where('status', 'active'); // Only include routes that are active
-            }, 'route.cities'])
-            ->get();
+        // Collect all city IDs from all assigned routes
+        $allCityIds = [];
 
-        // Extract all city IDs from all active routes
-        $cityIds = $salesRepAssignments
-            ->pluck('route.cities') // Get cities from each route
-            ->flatten()
-            ->pluck('id')
-            ->unique()
-            ->toArray();
+        foreach ($salesRepAssignments as $assignment) {
+            if ($assignment->route && $assignment->route->cities) {
+                $cityIds = $assignment->route->cities->pluck('id')->toArray();
+                $allCityIds = array_merge($allCityIds, $cityIds);
+            }
+        }
 
-        if (!empty($cityIds)) {
-            $query->whereIn('city_id', $cityIds);
+        // Remove duplicates
+        $allCityIds = array_unique($allCityIds);
+
+        if (!empty($allCityIds)) {
+            // Filter customers by all assigned cities from all routes
+            $query->whereIn('city_id', $allCityIds);
         } else {
-            // No cities assigned → only show walk-in customers (city_id = null)
-            $query->whereNull('city_id');
+            // If no cities in any route, show no customers (empty result)
+            $query->whereRaw('1 = 0');
         }
 
         return $query;
@@ -118,29 +150,69 @@ class CustomerController extends Controller
 
     private function getSalesRepInfo($user)
     {
-        $salesRepAssignments = SalesRep::where('user_id', $user->id)
+        $salesRep = SalesRep::where('user_id', $user->id)
             ->where('status', 'active')
-            ->with(['route' => function ($q) {
-                $q->where('status', 'active');
-            }, 'route.cities'])
-            ->get();
+            ->with(['route.cities'])
+            ->first();
 
-        if ($salesRepAssignments->isEmpty() || !$salesRepAssignments->contains('route')) {
+        if (!$salesRep || !$salesRep->route) {
             return null;
         }
 
-        // Collect all unique cities across all active routes
-        $allCities = $salesRepAssignments
-            ->pluck('route.cities')
-            ->flatten()
-            ->unique('id');
+        return [
+            'route_name' => $salesRep->route->name,
+            'assigned_cities' => $salesRep->route->cities->pluck('name')->toArray(),
+            'total_cities' => $salesRep->route->cities->count(),
+            'sales_rep_id' => $salesRep->id
+        ];
+    }
+
+    private function getSalesRepInfoFromCache($salesRep)
+    {
+        if (!$salesRep || !$salesRep->route) {
+            return null;
+        }
 
         return [
-            'assigned_routes' => $salesRepAssignments->pluck('route.name')->filter()->toArray(),
-            'total_routes'    => $salesRepAssignments->count(),
-            'assigned_cities' => $allCities->pluck('name')->toArray(),
-            'total_cities'    => $allCities->count(),
-            'sales_rep_id'    => $salesRepAssignments->first()->id,
+            'route_name' => $salesRep->route->name,
+            'assigned_cities' => $salesRep->route->cities->pluck('name')->toArray(),
+            'total_cities' => $salesRep->route->cities->count(),
+            'sales_rep_id' => $salesRep->id
+        ];
+    }
+
+    /**
+     * Get sales rep info from multiple route assignments
+     */
+    private function getSalesRepInfoFromAssignments($salesRepAssignments)
+    {
+        $allRoutes = [];
+        $allCities = [];
+        $salesRepIds = [];
+
+        foreach ($salesRepAssignments as $assignment) {
+            if ($assignment->route) {
+                $allRoutes[] = $assignment->route->name;
+                if ($assignment->route->cities) {
+                    $cities = $assignment->route->cities->pluck('name')->toArray();
+                    $allCities = array_merge($allCities, $cities);
+                }
+            }
+            $salesRepIds[] = $assignment->id;
+        }
+
+        // Remove duplicate city names
+        $allCities = array_unique($allCities);
+        $allRoutes = array_unique($allRoutes);
+
+        return [
+            'routes' => $allRoutes,
+            'route_names' => implode(', ', $allRoutes),
+            'assigned_cities' => array_values($allCities),
+            'total_cities' => count($allCities),
+            'total_routes' => count($allRoutes),
+            'sales_rep_ids' => $salesRepIds,
+            'total_assignments' => $salesRepAssignments->count()
         ];
     }
 
@@ -171,7 +243,7 @@ class CustomerController extends Controller
             DB::beginTransaction();
 
             // Check for duplicate mobile number before creating
-            $existingCustomer = Customer::where('mobile_no', $request->mobile_no)->first();
+            $existingCustomer = Customer::withoutLocationScope()->where('mobile_no', $request->mobile_no)->first();
             if ($existingCustomer) {
                 return response()->json([
                     'status' => 400,
@@ -183,7 +255,7 @@ class CustomerController extends Controller
 
             // Check for duplicate email if provided
             if ($request->email) {
-                $existingCustomerByEmail = Customer::where('email', $request->email)->first();
+                $existingCustomerByEmail = Customer::withoutLocationScope()->where('email', $request->email)->first();
                 if ($existingCustomerByEmail) {
                     return response()->json([
                         'status' => 400,
@@ -303,7 +375,7 @@ class CustomerController extends Controller
 
     public function show(int $id)
     {
-        $customer = Customer::with(['city'])->find($id);
+        $customer = Customer::withoutLocationScope()->with(['city'])->find($id);
         return $customer ? response()->json(['status' => 200, 'customer' => $customer])
             : response()->json(['status' => 404, 'message' => "No Such Customer Found!"]);
     }
@@ -335,10 +407,40 @@ class CustomerController extends Controller
             ], 400);
         }
 
-        $customer = Customer::find($id);
+        $customer = Customer::withoutLocationScope()->find($id);
         if ($customer) {
             try {
                 DB::beginTransaction();
+
+                // Check for duplicate mobile number before updating (excluding current customer)
+                $existingCustomer = Customer::withoutLocationScope()
+                    ->where('mobile_no', $request->mobile_no)
+                    ->where('id', '!=', $id)
+                    ->first();
+                if ($existingCustomer) {
+                    return response()->json([
+                        'status' => 400,
+                        'errors' => [
+                            'mobile_no' => ['This mobile number is already registered with another customer.']
+                        ]
+                    ], 400);
+                }
+
+                // Check for duplicate email if provided (excluding current customer)
+                if ($request->email) {
+                    $existingCustomerByEmail = Customer::withoutLocationScope()
+                        ->where('email', $request->email)
+                        ->where('id', '!=', $id)
+                        ->first();
+                    if ($existingCustomerByEmail) {
+                        return response()->json([
+                            'status' => 400,
+                            'errors' => [
+                                'email' => ['This email address is already registered with another customer.']
+                            ]
+                        ], 400);
+                    }
+                }
 
                 // Store old opening balance for ledger adjustment
                 $oldOpeningBalance = $customer->opening_balance;
@@ -487,7 +589,7 @@ class CustomerController extends Controller
                 'message' => 'Cannot delete Walk-In Customer! This is a system-protected customer.'
             ], 403);
         }
-        $customer = Customer::find($id);
+        $customer = Customer::withoutLocationScope()->find($id);
         if ($customer) {
             try {
                 DB::beginTransaction();
@@ -562,7 +664,7 @@ class CustomerController extends Controller
 
         $routeCityIds = $route->cities->pluck('id')->toArray();
 
-        $query = Customer::with(['city']);
+        $query = Customer::withoutLocationScope()->with(['city']);
 
         if (!empty($routeCityIds)) {
             $query->where(function ($q) use ($routeCityIds) {
@@ -626,18 +728,37 @@ class CustomerController extends Controller
                 ->toArray();
         }
 
+        $user = auth()->user();
+
         // Get customers from these cities + walk-in customers
-        $query = Customer::with(['city']);
+        $query = Customer::withoutLocationScope()->with(['city']);
+
+        // Check if user is a sales rep
+        $isSalesRep = false;
+        if ($user) {
+            $salesRep = \App\Models\SalesRep::where('user_id', $user->id)
+                ->where('status', 'active')
+                ->first();
+            $isSalesRep = (bool) $salesRep;
+        }
 
         if (!empty($cityIds)) {
-            $query->where(function ($q) use ($cityIds) {
-                $q->whereIn('city_id', $cityIds)
-                    ->orWhereNull('city_id'); // Include walk-in customers
+            $query->where(function ($q) use ($cityIds, $isSalesRep) {
+                $q->whereIn('city_id', $cityIds);
+
+                // Only include customers without city assignment for non-sales rep users
+                if (!$isSalesRep) {
+                    $q->orWhereNull('city_id');
+                }
             });
         } else {
             // If no cities found, only show walk-in customers
             $query->whereNull('city_id');
         }
+
+        // For filterByCities, don't apply additional sales rep filtering
+        // The frontend route selection already determines which city IDs to send
+        // So we trust the city_ids provided and don't further restrict by sales rep's default route
 
         $customers = $query->orderBy('first_name')->get();
 
