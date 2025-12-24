@@ -627,8 +627,13 @@ class ProductController extends Controller
             ->whereHas('locationBatches.stockHistories', function ($query) {
                 $query->where('stock_type', StockHistory::STOCK_TYPE_OPENING);
             })
-            ->with(['locationBatches.stockHistories' => function ($query) {
-                $query->where('stock_type', StockHistory::STOCK_TYPE_OPENING);
+            ->with(['locationBatches' => function ($query) {
+                $query->with(['stockHistories' => function ($historyQuery) {
+                    $historyQuery->where('stock_type', StockHistory::STOCK_TYPE_OPENING);
+                }])
+                ->whereHas('stockHistories', function ($historyQuery) {
+                    $historyQuery->where('stock_type', StockHistory::STOCK_TYPE_OPENING);
+                });
             }])
             ->get();
 
@@ -647,10 +652,17 @@ class ProductController extends Controller
                 return $batch->locationBatches->map(function ($locationBatch) use ($batch, $allowDecimal) {
                     $location = Location::find($locationBatch->location_id);
 
+                    // Get opening stock quantity from stock_histories, not from locationBatch qty
+                    $openingStockHistory = $locationBatch->stockHistories
+                        ->where('stock_type', StockHistory::STOCK_TYPE_OPENING)
+                        ->first();
+                    
+                    $openingQuantity = $openingStockHistory ? $openingStockHistory->quantity : 0;
+
                     // Format quantity based on unit's allow_decimal property
                     $formattedQuantity = $allowDecimal
-                        ? number_format((float)$locationBatch->qty, 2, '.', '')
-                        : (int)$locationBatch->qty;
+                        ? number_format((float)$openingQuantity, 2, '.', '')
+                        : (int)$openingQuantity;
 
                     return [
                         'batch_id' => $locationBatch->batch_id,
@@ -805,6 +817,84 @@ class ProductController extends Controller
             ]);
         } catch (\Exception $e) {
             return response()->json(['status' => 500, 'message' => 'An error occurred: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Delete opening stock for a specific product
+     * This will remove all opening stock entries (stock histories with STOCK_TYPE_OPENING)
+     * and adjust the location batch quantities accordingly
+     */
+    public function deleteOpeningStock($productId)
+    {
+        try {
+            $product = Product::find($productId);
+            if (!$product) {
+                return response()->json(['status' => 404, 'message' => 'Product not found']);
+            }
+
+            DB::transaction(function () use ($product) {
+                // Get all batches for this product that have opening stock
+                $batches = Batch::where('product_id', $product->id)
+                    ->whereHas('locationBatches.stockHistories', function ($query) {
+                        $query->where('stock_type', StockHistory::STOCK_TYPE_OPENING);
+                    })
+                    ->with(['locationBatches.stockHistories'])
+                    ->get();
+
+                foreach ($batches as $batch) {
+                    foreach ($batch->locationBatches as $locationBatch) {
+                        // Get opening stock history for this location batch
+                        $openingStockHistory = $locationBatch->stockHistories
+                            ->where('stock_type', StockHistory::STOCK_TYPE_OPENING)
+                            ->first();
+
+                        if ($openingStockHistory) {
+                            $openingQuantity = $openingStockHistory->quantity;
+
+                            // Delete the opening stock history
+                            $openingStockHistory->delete();
+
+                            // Subtract opening stock quantity from location batch
+                            $newQty = max(0, $locationBatch->qty - $openingQuantity);
+                            $locationBatch->update(['qty' => $newQty]);
+
+                            // Update product location pivot table
+                            $currentLocationQty = $product->locations()
+                                ->where('location_id', $locationBatch->location_id)
+                                ->first()
+                                ->pivot
+                                ->qty ?? 0;
+                            
+                            $newLocationQty = max(0, $currentLocationQty - $openingQuantity);
+                            $product->locations()->updateExistingPivot(
+                                $locationBatch->location_id, 
+                                ['qty' => $newLocationQty]
+                            );
+
+                            // If location batch quantity is now 0 and no other stock histories exist, delete it
+                            if ($newQty == 0 && $locationBatch->stockHistories()->count() == 0) {
+                                $locationBatch->delete();
+                            }
+                        }
+                    }
+
+                    // If batch has no more location batches, delete the batch
+                    if ($batch->locationBatches()->count() == 0) {
+                        $batch->delete();
+                    }
+                }
+            });
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Opening stock deleted successfully!',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500, 
+                'message' => 'An error occurred while deleting opening stock: ' . $e->getMessage()
+            ]);
         }
     }
 

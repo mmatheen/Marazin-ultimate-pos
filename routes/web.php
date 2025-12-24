@@ -223,6 +223,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/opening-stock/{productId}', [ProductController::class, 'showOpeningStock'])->name('opening.stock');
         Route::get('/edit-opening-stock/{productId}', [ProductController::class, 'editOpeningStock'])->name('product.editOpeningStock');
         Route::post('/opening-stock/{productId}', [ProductController::class, 'storeOrUpdateOpeningStock']);
+        Route::delete('/opening-stock/{productId}', [ProductController::class, 'deleteOpeningStock'])->name('opening.stock.delete');
         Route::get('/opening-stocks-get-all', [ProductController::class, 'OpeningStockGetAll']);
         Route::get('/get-last-product', [ProductController::class, 'getLastProduct']);
         // Notifications

@@ -1220,6 +1220,7 @@
                             : ''}
                         ${statusButton}
                         <li><a class="dropdown-item" href="/edit-opening-stock/${row.product.id}"><i class="fas fa-plus"></i> Add or Edit Opening Stock</a></li>
+                        <li><a class="dropdown-item delete-opening-stock" href="#" data-product-id="${row.product.id}"><i class="fas fa-minus-circle text-danger"></i> Remove Opening Stock</a></li>
                         <li><a class="dropdown-item" href="/products/stock-history/${row.product.id}"><i class="fas fa-history"></i> Product Stock History</a></li>
                         ${row.product.is_imei_or_serial_no === 1
                             ? `<li><a class="dropdown-item show-imei-modal" href="#" data-product-id="${row.product.id}"><i class="fas fa-barcode"></i> IMEI Entry</a></li>`
@@ -2985,6 +2986,76 @@
                         swal("Error!", errorMessage, "error");
                         button.prop('disabled', false).html(
                             '<i class="fas fa-trash"></i>');
+                    }
+                });
+            });
+        });
+
+        // Delete opening stock button handler
+        $(document).on('click', '.delete-opening-stock', function(e) {
+            e.preventDefault();
+
+            const button = $(this);
+            const productId = button.data('product-id');
+
+            if (!productId) {
+                toastr.error('Product ID not found', 'Error');
+                return;
+            }
+
+            // Show SweetAlert confirmation dialog
+            swal({
+                title: "Are you sure?",
+                text: "Do you want to remove all opening stock for this product? This will remove only the opening stock entries, not any purchase or sale transactions.",
+                type: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#DD6B55",
+                confirmButtonText: "Yes, remove it!",
+                cancelButtonText: "No, cancel",
+                closeOnConfirm: false,
+                closeOnCancel: true
+            }, function(isConfirm) {
+                if (!isConfirm) return;
+
+                // Disable button during deletion
+                button.prop('disabled', true).html(
+                    '<i class="fas fa-spinner fa-spin"></i> Removing...');
+
+                $.ajax({
+                    url: `/opening-stock/${productId}`,
+                    type: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        if (response.status === 200) {
+                            swal({
+                                title: "Removed!",
+                                text: response.message || "Opening stock removed successfully!",
+                                type: "success",
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+
+                            // Refresh the product table if it exists
+                            if ($.fn.DataTable.isDataTable('#productTable')) {
+                                $('#productTable').DataTable().ajax.reload(null, false);
+                            }
+                        } else {
+                            swal("Error!", response.message || "Failed to remove opening stock", "error");
+                        }
+                        button.prop('disabled', false).html(
+                            '<i class="fas fa-minus-circle text-danger"></i> Remove Opening Stock');
+                    },
+                    error: function(xhr) {
+                        let errorMessage = 'Failed to remove opening stock';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        }
+
+                        swal("Error!", errorMessage, "error");
+                        button.prop('disabled', false).html(
+                            '<i class="fas fa-minus-circle text-danger"></i> Remove Opening Stock');
                     }
                 });
             });
