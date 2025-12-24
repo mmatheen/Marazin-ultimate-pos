@@ -1564,6 +1564,7 @@
         $('.edit-batch-prices').off('click');
         $('.show-imei-modal').off('click');
         $('.delete-product-dropdown').off('click');
+        $('.delete-opening-stock').off('click');
         $('#selectAll').off('change');
 
         // Select all checkbox
@@ -1842,6 +1843,70 @@
                         console.error('Delete error:', error);
 
                         let errorMessage = 'Failed to delete product';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        }
+
+                        swal("Error!", errorMessage, "error");
+                    }
+                });
+            });
+        });
+
+        // Delete opening stock handler
+        $('.delete-opening-stock').on('click', function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const productId = $(this).data('product-id');
+
+            if (!productId) {
+                toastr.error('Product ID not found', 'Error');
+                return;
+            }
+
+            // Show SweetAlert confirmation dialog
+            swal({
+                title: "Are you sure?",
+                text: "Do you want to remove all opening stock for this product? This will remove only the opening stock entries, not any purchase or sale transactions.",
+                type: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#DD6B55",
+                confirmButtonText: "Yes, remove it!",
+                cancelButtonText: "No, cancel",
+                closeOnConfirm: false,
+                closeOnCancel: true
+            }, function(isConfirm) {
+                if (!isConfirm) return;
+
+                $.ajax({
+                    url: `/opening-stock/${productId}`,
+                    type: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        if (response.status === 200) {
+                            swal({
+                                title: "Removed!",
+                                text: response.message || "Opening stock removed successfully!",
+                                type: "success",
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+
+                            // Reload the DataTable
+                            if ($.fn.DataTable.isDataTable('#productTable')) {
+                                $('#productTable').DataTable().ajax.reload(null, false);
+                            }
+                        } else {
+                            swal("Error!", response.message || "Failed to remove opening stock", "error");
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Delete opening stock error:', error);
+
+                        let errorMessage = 'Failed to remove opening stock';
                         if (xhr.responseJSON && xhr.responseJSON.message) {
                             errorMessage = xhr.responseJSON.message;
                         }
@@ -2986,76 +3051,6 @@
                         swal("Error!", errorMessage, "error");
                         button.prop('disabled', false).html(
                             '<i class="fas fa-trash"></i>');
-                    }
-                });
-            });
-        });
-
-        // Delete opening stock button handler
-        $(document).on('click', '.delete-opening-stock', function(e) {
-            e.preventDefault();
-
-            const button = $(this);
-            const productId = button.data('product-id');
-
-            if (!productId) {
-                toastr.error('Product ID not found', 'Error');
-                return;
-            }
-
-            // Show SweetAlert confirmation dialog
-            swal({
-                title: "Are you sure?",
-                text: "Do you want to remove all opening stock for this product? This will remove only the opening stock entries, not any purchase or sale transactions.",
-                type: "warning",
-                showCancelButton: true,
-                confirmButtonColor: "#DD6B55",
-                confirmButtonText: "Yes, remove it!",
-                cancelButtonText: "No, cancel",
-                closeOnConfirm: false,
-                closeOnCancel: true
-            }, function(isConfirm) {
-                if (!isConfirm) return;
-
-                // Disable button during deletion
-                button.prop('disabled', true).html(
-                    '<i class="fas fa-spinner fa-spin"></i> Removing...');
-
-                $.ajax({
-                    url: `/opening-stock/${productId}`,
-                    type: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                    },
-                    success: function(response) {
-                        if (response.status === 200) {
-                            swal({
-                                title: "Removed!",
-                                text: response.message || "Opening stock removed successfully!",
-                                type: "success",
-                                timer: 2000,
-                                showConfirmButton: false
-                            });
-
-                            // Refresh the product table if it exists
-                            if ($.fn.DataTable.isDataTable('#productTable')) {
-                                $('#productTable').DataTable().ajax.reload(null, false);
-                            }
-                        } else {
-                            swal("Error!", response.message || "Failed to remove opening stock", "error");
-                        }
-                        button.prop('disabled', false).html(
-                            '<i class="fas fa-minus-circle text-danger"></i> Remove Opening Stock');
-                    },
-                    error: function(xhr) {
-                        let errorMessage = 'Failed to remove opening stock';
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMessage = xhr.responseJSON.message;
-                        }
-
-                        swal("Error!", errorMessage, "error");
-                        button.prop('disabled', false).html(
-                            '<i class="fas fa-minus-circle text-danger"></i> Remove Opening Stock');
                     }
                 });
             });

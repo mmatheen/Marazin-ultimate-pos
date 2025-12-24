@@ -656,7 +656,7 @@ class ProductController extends Controller
                     $openingStockHistory = $locationBatch->stockHistories
                         ->where('stock_type', StockHistory::STOCK_TYPE_OPENING)
                         ->first();
-                    
+
                     $openingQuantity = $openingStockHistory ? $openingStockHistory->quantity : 0;
 
                     // Format quantity based on unit's allow_decimal property
@@ -865,10 +865,10 @@ class ProductController extends Controller
                                 ->first()
                                 ->pivot
                                 ->qty ?? 0;
-                            
+
                             $newLocationQty = max(0, $currentLocationQty - $openingQuantity);
                             $product->locations()->updateExistingPivot(
-                                $locationBatch->location_id, 
+                                $locationBatch->location_id,
                                 ['qty' => $newLocationQty]
                             );
 
@@ -892,7 +892,7 @@ class ProductController extends Controller
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'status' => 500, 
+                'status' => 500,
                 'message' => 'An error occurred while deleting opening stock: ' . $e->getMessage()
             ]);
         }

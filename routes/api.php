@@ -74,26 +74,26 @@ Route::get('/get-brand', [BrandController::class, 'brandDropdown']);
 // ============================================================================
 
 Route::middleware('auth:sanctum')->group(function () {
-    
+
     // User Info Route - Returns authenticated user with roles and permissions
     Route::get('/user', function (Request $request) {
         $user = $request->user();
-        
+
         if (!$user) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Unauthenticated'
             ], 401);
         }
-        
+
         // Load relationships
         $user->load(['roles', 'locations', 'permissions']);
-        
+
         // Get role information
         $role = $user->roles->first();
         $roleName = $role?->name ?? null;
         $roleKey = $role?->key ?? null;
-        
+
         return response()->json([
             'status' => 'success',
             'user' => [
@@ -122,7 +122,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ========================================
     // MASTER DATA MANAGEMENT
     // ========================================
-    
+
     // Brand Management
     Route::get('/brand-edit/{id}', [BrandController::class, 'edit']);
     Route::get('/brand-get-all', [BrandController::class, 'index']);
@@ -183,7 +183,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ========================================
     // LOCATION MANAGEMENT
     // ========================================
-    
+
     Route::get('/location', [LocationController::class, 'location']);
     Route::get('/location-edit/{id}', [LocationController::class, 'edit']);
     Route::get('/location-get-all', [LocationController::class, 'index']);
@@ -194,7 +194,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ========================================
     // CUSTOMER MANAGEMENT
     // ========================================
-    
+
     // Customer Group Management
     Route::get('/customer-group-edit/{id}', [CustomerGroupController::class, 'edit']);
     Route::get('/customer-group-get-all', [CustomerGroupController::class, 'index']);
@@ -215,7 +215,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ========================================
     // SUPPLIER MANAGEMENT
     // ========================================
-    
+
     Route::get('/supplier-edit/{id}', [SupplierController::class, 'edit']);
     Route::get('/supplier-get-all', [SupplierController::class, 'index']);
     Route::post('/supplier-store', [SupplierController::class, 'store']);
@@ -225,7 +225,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ========================================
     // PRODUCT MANAGEMENT
     // ========================================
-    
+
     // Product Basic Operations
     Route::get('/products/stocks', [ProductController::class, 'getAllProductStocks']);
     Route::delete('/delete-product/{id}', [ProductController::class, 'destroy']); // Safe delete with validation
@@ -313,7 +313,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ========================================
     // PURCHASE MANAGEMENT
     // ========================================
-    
+
     Route::post('/purchases/store', [PurchaseController::class, 'storeOrUpdate']);
     Route::post('/purchases/update/{id}', [PurchaseController::class, 'storeOrUpdate']);
     Route::get('/purchase/edit/{id}', [PurchaseController::class, 'editPurchase']);
@@ -332,7 +332,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ========================================
     // STOCK MANAGEMENT
     // ========================================
-    
+
     // Stock Transfer Management
     Route::get('/list-stock-transfer', [StockTransferController::class, 'stockTransfer'])->name('list-stock-transfer');
     Route::get('/add-stock-transfer', [StockTransferController::class, 'addStockTransfer'])->name('add-stock-transfer');
@@ -350,7 +350,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ========================================
     // EXPENSE MANAGEMENT
     // ========================================
-    
+
     // Expense Parent Category Management
     Route::get('/expense-parent-catergory-edit/{id}', [ExpenseParentCategoryController::class, 'edit']);
     Route::get('/expense-parent-catergory-get-all', [ExpenseParentCategoryController::class, 'index']);
@@ -378,7 +378,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ========================================
     // PAYMENT MANAGEMENT
     // ========================================
-    
+
     Route::get('payments', [PaymentController::class, 'index']);
     Route::post('payments', [PaymentController::class, 'storeOrUpdate']);
     Route::get('payments/{payment}', [PaymentController::class, 'show']);
@@ -390,7 +390,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ========================================
     // USER & ROLE MANAGEMENT
     // ========================================
-    
+
     // Role Management
     Route::get('/role', [RoleController::class, 'role'])->name('role');
     Route::get('/role-edit/{id}', [RoleController::class, 'edit']);
@@ -412,7 +412,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ========================================
     // SALES REP & ROUTING MANAGEMENT
     // ========================================
-    
+
     // Sales Rep Management
     Route::apiResource('sales-reps', SalesRepController::class);
     Route::get('/sales-reps/available-users', [SalesRepController::class, 'getAvailableUsers']);
@@ -421,7 +421,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('sales-reps/available-routes', [SalesRepController::class, 'getAvailableRoutes']);
     Route::post('/sales-reps/assign-locations', [SalesRepController::class, 'assignUserToLocations']);
     Route::get('/sales-rep/my-assignments', [SalesRepController::class, 'getMyAssignments']);
-    
+
     // Status Management Routes
     Route::post('/sales-reps/update-statuses', [SalesRepController::class, 'updateAllStatusesByDate']);
     Route::get('/sales-reps/expiring-soon', [SalesRepController::class, 'getExpiringSoon']);
