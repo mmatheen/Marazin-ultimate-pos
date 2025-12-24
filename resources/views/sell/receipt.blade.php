@@ -443,6 +443,16 @@
         @endif
 
         <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
+
+        {{-- Sale Notes Section --}}
+        @if ($sale->sale_notes)
+            <div style="font-size: 11px; color: #000; text-align: center; margin-bottom: 8px; padding: 5px; background-color: #f9f9f9; border: 1px dashed #ccc;">
+                <strong>NOTES:</strong><br>
+                {{ $sale->sale_notes }}
+            </div>
+            <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
+        @endif
+
         @if ($location && $location->footer_note)
             <div style="font-size: 11px; color: #000; font-weight: bold; text-align: center; margin-bottom: 5px;">
                 {{ $location->footer_note }}
