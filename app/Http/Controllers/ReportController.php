@@ -557,6 +557,7 @@ public function fetchActivityLog(Request $request)
         $users = \App\Models\User::all();
         $customers = \App\Models\Customer::orderBy('first_name')->get();
         $suppliers = \App\Models\Supplier::orderBy('first_name')->get();
+        $cities = \App\Models\City::orderBy('name')->get();
 
         // If AJAX request for DataTables
         if ($request->ajax()) {
@@ -571,7 +572,7 @@ public function fetchActivityLog(Request $request)
             'max_single_due' => 0,
         ];
 
-        return view('reports.due_report', compact('locations', 'users', 'customers', 'suppliers', 'summaryData'));
+        return view('reports.due_report', compact('locations', 'users', 'customers', 'suppliers', 'cities', 'summaryData'));
     }
 
     /**
@@ -653,6 +654,13 @@ public function fetchActivityLog(Request $request)
             ->where('status', 'final') // Only show final sales (invoices), not drafts
             ->where('transaction_type', 'invoice'); // Only show invoices
 
+        // Apply city filter
+        if ($request->has('city_id') && $request->city_id != '' && $request->city_id != null) {
+            $query->whereHas('customer', function($q) use ($request) {
+                $q->where('city_id', $request->city_id);
+            });
+        }
+
         // Apply location filter
         if ($request->has('location_id') && $request->location_id != '' && $request->location_id != null) {
             $query->where('location_id', $request->location_id);
@@ -663,13 +671,21 @@ public function fetchActivityLog(Request $request)
             $query->where('user_id', $request->user_id);
         }
 
-        // Date range filter - only apply if no specific customer is selected
-        if ((!$request->has('customer_id') || $request->customer_id == '') && $request->has('start_date') && $request->start_date != '' && $request->start_date != null) {
-            $query->whereDate('sales_date', '>=', $request->start_date);
-        }
+        // Predefined date range filter (30, 60, 90 days)
+        if ($request->has('date_range_filter') && $request->date_range_filter != '' && $request->date_range_filter != null) {
+            $days = (int)$request->date_range_filter;
+            $startDate = Carbon::now()->subDays($days)->startOfDay();
+            $endDate = Carbon::now()->endOfDay();
+            $query->whereBetween('sales_date', [$startDate, $endDate]);
+        } else {
+            // Date range filter - only apply if no specific customer is selected
+            if ((!$request->has('customer_id') || $request->customer_id == '') && $request->has('start_date') && $request->start_date != '' && $request->start_date != null) {
+                $query->whereDate('sales_date', '>=', $request->start_date);
+            }
 
-        if ((!$request->has('customer_id') || $request->customer_id == '') && $request->has('end_date') && $request->end_date != '' && $request->end_date != null) {
-            $query->whereDate('sales_date', '<=', $request->end_date);
+            if ((!$request->has('customer_id') || $request->customer_id == '') && $request->has('end_date') && $request->end_date != '' && $request->end_date != null) {
+                $query->whereDate('sales_date', '<=', $request->end_date);
+            }
         }
 
         $sales = $query->orderBy('sales_date', 'desc')->get();
@@ -730,6 +746,13 @@ public function fetchActivityLog(Request $request)
             $query->where('supplier_id', $request->supplier_id);
         }
 
+        // Apply city filter for suppliers
+        if ($request->has('city_id') && $request->city_id != '' && $request->city_id != null) {
+            $query->whereHas('supplier', function($q) use ($request) {
+                $q->where('city_id', $request->city_id);
+            });
+        }
+
         if ($request->has('location_id') && $request->location_id != '' && $request->location_id != null) {
             $query->where('location_id', $request->location_id);
         }
@@ -738,13 +761,21 @@ public function fetchActivityLog(Request $request)
             $query->where('user_id', $request->user_id);
         }
 
-        // Date range filter
-        if ($request->has('start_date') && $request->start_date != '' && $request->start_date != null) {
-            $query->whereDate('purchase_date', '>=', $request->start_date);
-        }
+        // Predefined date range filter (30, 60, 90 days)
+        if ($request->has('date_range_filter') && $request->date_range_filter != '' && $request->date_range_filter != null) {
+            $days = (int)$request->date_range_filter;
+            $startDate = Carbon::now()->subDays($days)->startOfDay();
+            $endDate = Carbon::now()->endOfDay();
+            $query->whereBetween('purchase_date', [$startDate, $endDate]);
+        } else {
+            // Date range filter
+            if ($request->has('start_date') && $request->start_date != '' && $request->start_date != null) {
+                $query->whereDate('purchase_date', '>=', $request->start_date);
+            }
 
-        if ($request->has('end_date') && $request->end_date != '' && $request->end_date != null) {
-            $query->whereDate('purchase_date', '<=', $request->end_date);
+            if ($request->has('end_date') && $request->end_date != '' && $request->end_date != null) {
+                $query->whereDate('purchase_date', '<=', $request->end_date);
+            }
         }
 
         // Due days range filter

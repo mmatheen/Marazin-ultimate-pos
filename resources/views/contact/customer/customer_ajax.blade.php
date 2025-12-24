@@ -170,6 +170,9 @@
                     url: '/customer-get-all',
                     type: 'GET',
                     dataType: 'json',
+                    data: function(d) {
+                        d.city_id = $('#cityFilter').val();
+                    },
                     headers: {
                         'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                     },
@@ -886,15 +889,16 @@
             updateCreditLimit(creditLimit, dueAmount, isWalkIn);
         });
 
-
+        // City filter change event
+        $('#cityFilter').on('change', function() {
+            $('#customer').DataTable().ajax.reload();
+        });
 
 
         window.customerFunctions = {
             fetchCustomerData: fetchCustomerData,
             // other functions NOT exposed unless added here
         };
-
-
 
     });
 </script>

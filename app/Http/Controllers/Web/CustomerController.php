@@ -46,7 +46,7 @@ class CustomerController extends Controller
     }
 
 
-    public function index()
+    public function index(Request $request)
     {
         /** @var User $user */
         $user = auth()->user();
@@ -69,6 +69,11 @@ class CustomerController extends Controller
                 'address', 'location_id', 'opening_balance', 'credit_limit',
                 'city_id', 'customer_type'
             ]);
+
+        // Apply city filter if provided
+        if ($request->has('city_id') && $request->city_id != '' && $request->city_id != null) {
+            $query->where('city_id', $request->city_id);
+        }
 
         // Apply sales rep route filtering if user is a sales rep
         if ($salesRepAssignments->isNotEmpty()) {

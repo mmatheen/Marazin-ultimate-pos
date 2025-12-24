@@ -43,6 +43,19 @@
                             </div>
                         </div>
 
+                        <!-- City Filter Section -->
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <label for="cityFilter" class="form-label">Filter by City:</label>
+                                <select class="form-select selectBox" id="cityFilter">
+                                    <option value="">All Cities</option>
+                                    @foreach($cities as $city)
+                                        <option value="{{ $city->id }}">{{ $city->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+
                         <div class="table-responsive">
                             <table id="customer" class="datatable table table-stripped" style="width:100%">
                                 <thead>

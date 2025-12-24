@@ -257,7 +257,7 @@
             <div class="collapse" id="collapseFilters">
                 <div style="background: #f8f9fa; padding: 16px 20px; border-bottom: 1px solid #dee2e6;">
                     <form id="dueFilterForm">
-                        <div class="row g-2 align-items-center">
+                        <div class="row g-2 align-items-center mb-2">
                             {{-- Customer Filter --}}
                             <div class="col-lg-3 col-md-6" id="customerFilterDiv">
                                 <select class="form-select selectBox" id="customerFilter" name="customer_id" style="font-size: 13px; height: 38px;">
@@ -277,6 +277,18 @@
                                     @foreach($suppliers as $supplier)
                                         <option value="{{ $supplier->id }}">
                                             {{ $supplier->full_name }} - {{ $supplier->mobile_no }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- City Filter --}}
+                            <div class="col-lg-2 col-md-6">
+                                <select class="form-select selectBox" id="cityFilter" name="city_id" style="font-size: 13px; height: 38px;">
+                                    <option value="">All Cities</option>
+                                    @foreach($cities as $city)
+                                        <option value="{{ $city->id }}">
+                                            {{ $city->name }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -303,17 +315,39 @@
                                     @endforeach
                                 </select>
                             </div>
+                        </div>
 
-                            <div class="col-lg-2 col-md-6">
+                        {{-- Date Range Options --}}
+                        <div class="row g-2 align-items-center">
+                            <div class="col-lg-6 col-md-12">
+                                <label style="font-size: 12px; margin-bottom: 4px; color: #666;">Quick Date Filters:</label>
+                                <div class="btn-group w-100" role="group">
+                                    <button type="button" class="btn btn-outline-primary date-range-btn" data-days="" style="font-size: 12px; padding: 6px 12px;">
+                                        All Time
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary date-range-btn" data-days="30" style="font-size: 12px; padding: 6px 12px;">
+                                        Last 30 Days
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary date-range-btn" data-days="60" style="font-size: 12px; padding: 6px 12px;">
+                                        Last 60 Days
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary date-range-btn" data-days="90" style="font-size: 12px; padding: 6px 12px;">
+                                        Last 90 Days
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="col-lg-5 col-md-10">
+                                <label style="font-size: 12px; margin-bottom: 4px; color: #666;">Or Custom Date Range:</label>
                                 <div id="reportrange" style="background: #fff; cursor: pointer; padding: 0 12px; border: 1px solid #ced4da; border-radius: 0.375rem; font-size: 13px; height: 38px; display: flex; align-items: center;">
                                     <i class="fa fa-calendar me-2" style="font-size: 12px; color: #6c757d;"></i>
                                     <span style="font-size: 13px;"></span>
                                 </div>
                             </div>
 
-                            <div class="col-auto">
-                                <button type="button" class="btn btn-secondary" id="resetFiltersBtn" style="font-size: 13px; padding: 8px 16px; height: 38px;">
-                                    <i class="fas fa-redo me-1"></i> Reset
+                            <div class="col-lg-1 col-md-2">
+                                <button type="button" class="btn btn-secondary w-100" id="resetFiltersBtn" style="font-size: 13px; padding: 8px 12px; height: 38px; margin-top: 22px;">
+                                    <i class="fas fa-redo"></i>
                                 </button>
                             </div>
                         </div>
@@ -526,13 +560,22 @@
                 // Date filter will only apply when explicitly changed by user
                 let startDate = '';
                 let endDate = '';
+                let dateRangeFilter = '';
+
+                // Check if date range button was clicked
+                const activeDateBtn = $('.date-range-btn.active');
+                if (activeDateBtn.length > 0) {
+                    dateRangeFilter = activeDateBtn.data('days') || '';
+                }
 
                 const filters = {
                     report_type: currentReportType,
                     customer_id: $('#customerFilter').val() || '',
                     supplier_id: $('#supplierFilter').val() || '',
+                    city_id: $('#cityFilter').val() || '',
                     location_id: $('#locationFilter').val() || '',
                     user_id: $('#userFilter').val() || '',
+                    date_range_filter: dateRangeFilter,
                     start_date: startDate,
                     end_date: endDate
                 };
@@ -882,16 +925,16 @@
                             },
                             customize: function(xlsx) {
                                 var sheet = xlsx.xl.worksheets['sheet1.xml'];
-                                
+
                                 // Get actual data from DataTable
                                 var tableData = table.rows({ search: 'applied' }).data();
                                 var groupedData = {};
                                 var groupIndexMap = {};
-                                
+
                                 // Group data by customer/supplier and track order
                                 tableData.each(function(row, idx) {
                                     var groupKey = currentReportType === 'customer' ? row.customer_name : row.supplier_name;
-                                    
+
                                     if (!groupedData[groupKey]) {
                                         groupedData[groupKey] = {
                                             count: 0,
@@ -903,38 +946,38 @@
                                     groupedData[groupKey].totalDue += parseFloat(row.total_due || 0);
                                     groupIndexMap[idx] = groupKey;
                                 });
-                                
+
                                 // Simple approach: Add group info to first row of each group
                                 // and style groups differently using cell styling
                                 var $sheet = $(sheet);
                                 var $rows = $sheet.find('row');
                                 var processedGroups = {};
                                 var currentGroup = 0;
-                                
+
                                 $rows.slice(1).each(function(index) {
                                     var $row = $(this);
                                     var $cells = $row.find('c');
-                                    
+
                                     if ($cells.length > 1) {
                                         var $customerCell = $cells.eq(1);
                                         var customerName = $customerCell.find('t, is t').first().text();
-                                        
+
                                         // Check if this is the first row of a new group
                                         if (customerName && !processedGroups[customerName]) {
                                             processedGroups[customerName] = true;
                                             currentGroup++;
-                                            
+
                                             // Style first row of each group differently (bold)
                                             $cells.each(function() {
                                                 $(this).attr('s', '51');
                                             });
-                                            
+
                                             // Add group summary in the first cell
                                             var groupInfo = groupedData[customerName];
                                             if (groupInfo) {
-                                                var summaryText = customerName + ' [' + groupInfo.count + ' bills | Due: Rs. ' + 
+                                                var summaryText = customerName + ' [' + groupInfo.count + ' bills | Due: Rs. ' +
                                                     groupInfo.totalDue.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ']';
-                                                
+
                                                 // Update the customer name cell with group info
                                                 var $t = $customerCell.find('t, is t').first();
                                                 if ($t.length) {
@@ -952,7 +995,7 @@
                                         }
                                     }
                                 });
-                                
+
                                 // Style header row
                                 $rows.first().find('c').attr('s', '2');
                             }
@@ -1066,13 +1109,28 @@
             });
 
             // Auto-reload on filter change
-            $('#customerFilter, #supplierFilter, #locationFilter, #userFilter').on('change', function() {
+            $('#customerFilter, #supplierFilter, #cityFilter, #locationFilter, #userFilter').on('change', function() {
+                table.ajax.reload();
+            });
+
+            // Date range button clicks
+            $('.date-range-btn').on('click', function() {
+                $('.date-range-btn').removeClass('active btn-primary').addClass('btn-outline-primary');
+                $(this).removeClass('btn-outline-primary').addClass('active btn-primary');
+
+                // Clear custom date range when a button is clicked
+                dateFilterApplied = false;
+                $('#reportrange span').html('<i class="fa fa-calendar"></i>');
+
                 table.ajax.reload();
             });
 
             // Auto-reload on date range change
             $('#reportrange').on('apply.daterangepicker', function(ev, picker) {
                 dateFilterApplied = true; // User has explicitly selected a date range
+
+                // Clear date range button selection when custom range is used
+                $('.date-range-btn').removeClass('active btn-primary').addClass('btn-outline-primary');
 
                 // Update the getFilters function to include the selected date range
                 const originalGetFilters = getFilters;
@@ -1084,6 +1142,7 @@
                         if (dateRange.length === 2) {
                             filters.start_date = moment(dateRange[0], 'MMMM D, YYYY').format('YYYY-MM-DD');
                             filters.end_date = moment(dateRange[1], 'MMMM D, YYYY').format('YYYY-MM-DD');
+                            filters.date_range_filter = ''; // Clear predefined filter when using custom range
                         }
                     }
 
@@ -1098,8 +1157,12 @@
                 // Clear select2 selections
                 $('#customerFilter').val(null).trigger('change');
                 $('#supplierFilter').val(null).trigger('change');
+                $('#cityFilter').val(null).trigger('change');
                 $('#locationFilter').val(null).trigger('change');
                 $('#userFilter').val(null).trigger('change');
+
+                // Reset date range buttons
+                $('.date-range-btn').removeClass('active btn-primary').addClass('btn-outline-primary');
 
                 // Reset date range display
                 $('#reportrange').data('daterangepicker').setStartDate(moment());
