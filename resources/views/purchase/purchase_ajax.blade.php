@@ -2572,7 +2572,270 @@
             window.viewPurchase(purchaseId);
         }
 
+        // Print Purchase Function (80mm and A4)
+        window.printPurchase = function(purchaseId, layout = '80mm') {
+            $.ajax({
+                url: '/get-all-purchases-product/' + purchaseId,
+                method: 'GET',
+                success: function(response) {
+                    if (!response.purchase) {
+                        toastr.error('Failed to fetch purchase details for printing.');
+                        return;
+                    }
+                    const purchase = response.purchase;
+                    const products = purchase.purchase_products || [];
 
+                    // Format numbers with thousand separator
+                    function formatAmount(num) {
+                        if (isNaN(num) || num === null) return '';
+                        return Number(num).toLocaleString('en-US', {
+                            minimumFractionDigits: (Math.floor(num) !== Number(num)) ? 2 : 0,
+                            maximumFractionDigits: 2
+                        });
+                    }
+
+                    function getUserName(user) {
+                        if (!user) return '';
+                        if (user.name) return user.name;
+                        if (user.first_name || user.last_name) return (user.first_name || '') + ' ' + (user.last_name || '');
+                        return '';
+                    }
+
+                    // Calculate totals
+                    const netTotal = parseFloat(purchase.total) || 0;
+                    const discount = parseFloat(purchase.discount_amount) || 0;
+                    const shipping = parseFloat(purchase.shipping_charges) || 0;
+                    const finalTotal = parseFloat(purchase.final_total) || 0;
+                    const totalPaid = parseFloat(purchase.total_paid) || 0;
+                    const totalDue = parseFloat(purchase.total_due) || 0;
+
+                    // --- 80mm thermal layout ---
+                    let printContent80mm = `
+                    <div id="printArea" style="width:80mm; font-family: 'monospace', Arial, sans-serif; font-size:13px; color:#111;">
+                        <div style="text-align:center; margin-bottom:6px;">
+                            <strong style="font-size:18px; font-weight:900;">Purchase Invoice</strong><br>
+                            <span style="font-size:13px; font-weight:bold;">Ref: <b>${purchase.reference_no}</b></span>
+                        </div>
+                        <div style="border-top:2px dashed #222; margin:6px 0;"></div>
+                        <table style="width:100%; font-size:13px; margin-bottom:4px;">
+                            <tr>
+                                <td style="vertical-align:top; width:50%; font-weight:bold;"><b>Supplier:</b> <span style="font-size:13px; font-weight:600;">${purchase.supplier ? (purchase.supplier.first_name || '') + ' ' + (purchase.supplier.last_name || '') : 'N/A'}</span></td>
+                                <td style="vertical-align:top; width:50%; text-align:right; font-weight:bold;"><b>Location:</b> <span style="font-size:13px; font-weight:600;">${purchase.location ? purchase.location.name : 'N/A'}</span></td>
+                            </tr>
+                            <tr>
+                                <td colspan="2" style="font-size:12px; padding-top:3px; font-weight:bold;"><b>Date:</b> <span style="font-weight:600;">${new Date(purchase.purchase_date).toLocaleDateString()}</span> &nbsp; <b>Status:</b> <span style="font-weight:600;">${purchase.purchasing_status}</span></td>
+                            </tr>
+                        </table>
+                        <div style="border-top:2px dashed #222; margin:6px 0;"></div>
+                        <table style="width:100%; font-size:13px; border-collapse:collapse;">
+                            <thead>
+                                <tr>
+                                    <th style="text-align:left; width:7%; font-size:13px; font-weight:900;">#</th>
+                                    <th style="text-align:left; font-size:13px; font-weight:900;">PRODUCT</th>
+                                    <th style="text-align:right; width:17%; font-size:13px; font-weight:900;">PRICE</th>
+                                    <th style="text-align:center; width:13%; font-size:13px; font-weight:900;">QTY</th>
+                                    <th style="text-align:right; width:19%; font-size:13px; font-weight:900;">TOTAL</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${products.map((p, i) => {
+                                    let prod = p.product || {};
+                                    let prodName = prod.product_name || 'Unknown Product';
+                                    let unitCost = formatAmount(p.unit_cost);
+                                    let total = formatAmount(p.total);
+                                    let quantity = formatAmount(p.quantity);
+
+                                    return `
+                                    <tr>
+                                        <td style="vertical-align:top; font-weight:900; font-size:13px;"><b>${i + 1}</b></td>
+                                        <td style="vertical-align:top;">
+                                            <span style="font-weight:900; font-size:13px;">${prodName}</span>
+                                        </td>
+                                        <td style="text-align:right;">
+                                            <span style="font-size:12px; font-weight:900;">${unitCost}</span>
+                                        </td>
+                                        <td style="text-align:center;">
+                                            <span style="font-size:12px; font-weight:900;">${quantity}</span>
+                                        </td>
+                                        <td style="text-align:right;">
+                                            <span style="font-size:12px; font-weight:900;">${total}</span>
+                                        </td>
+                                    </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                        <div style="border-top:2px dashed #222; margin:6px 0;"></div>
+                        <table style="width:100%; font-size:13px;">
+                            <tr>
+                                <td style="text-align:left; font-weight:bold;">Net Total:</td>
+                                <td style="text-align:right; font-weight:900;"><b>Rs.${formatAmount(netTotal)}</b></td>
+                            </tr>
+                            <tr>
+                                <td style="text-align:left; font-weight:bold;">Discount:</td>
+                                <td style="text-align:right; font-weight:900;">Rs.${formatAmount(discount)}</td>
+                            </tr>
+                            <tr>
+                                <td style="text-align:left; font-weight:bold;">Shipping:</td>
+                                <td style="text-align:right; font-weight:900;">Rs.${formatAmount(shipping)}</td>
+                            </tr>
+                            <tr>
+                                <td style="text-align:left; font-weight:bold;">Final Total:</td>
+                                <td style="text-align:right; font-weight:900;"><b>Rs.${formatAmount(finalTotal)}</b></td>
+                            </tr>
+                            <tr>
+                                <td style="text-align:left; font-weight:bold;">Total Paid:</td>
+                                <td style="text-align:right; font-weight:900;">Rs.${formatAmount(totalPaid)}</td>
+                            </tr>
+                            <tr>
+                                <td style="text-align:left; font-weight:bold;">Total Due:</td>
+                                <td style="text-align:right; font-weight:900; color:red;"><b>Rs.${formatAmount(totalDue)}</b></td>
+                            </tr>
+                        </table>
+                        <div style="border-top:2px dashed #222; margin:6px 0;"></div>
+                        <div style="font-size:12px; margin-bottom:3px; font-weight:bold;"><b>Notes:</b> <span style="font-weight:normal;">${purchase.additional_notes || '--'}</span></div>
+                        <div style="border-top:2px dashed #222; margin:6px 0 0 0;"></div>
+                        <div style="text-align:center; font-size:13px; margin-top:3px; font-weight:900;"><b>Thank you!</b></div>
+                    </div>
+                    `;
+                    const style80mm = `<style>
+                        @media print {
+                            @page { size: 80mm auto; margin: 0.10in !important; }
+                            html, body {
+                                background: #fff !important;
+                                margin: 0 !important;
+                                padding: 0 !important;
+                                width: 80mm !important;
+                                max-width: 80mm !important;
+                            }
+                            #printArea { width: 80mm !important; max-width: 80mm !important; }
+                            th, td { padding: 0 2px; }
+                        }
+                        #printArea { width:80mm; max-width:80mm; margin:0 auto; padding:0; }
+                        table { border-collapse: collapse; width:100%; }
+                        th, td { border: none !important; padding: 0 2px; }
+                    </style>`;
+
+                    // --- A4 layout ---
+                    let printContentA4 = `
+                    <div id="printArea" style="width:800px; max-width:800px; margin:0 auto; font-family: Arial, sans-serif; font-size:13px; color:#111;">
+                        <div style="text-align:center; margin-bottom:10px;">
+                            <strong style="font-size:22px;">Purchase Invoice</strong><br>
+                            <span style="font-size:14px;">Reference: <b>${purchase.reference_no}</b></span>
+                        </div>
+                        <table style="width:100%; font-size:13px; margin-bottom:10px;">
+                            <tr>
+                                <td style="vertical-align:top; width:50%;"><b>Supplier:</b> ${purchase.supplier ? (purchase.supplier.first_name || '') + ' ' + (purchase.supplier.last_name || '') : 'N/A'}</td>
+                                <td style="vertical-align:top; width:50%; text-align:right;"><b>Location:</b> ${purchase.location ? purchase.location.name : 'N/A'}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="2" style="font-size:12px; padding-top:4px;"><b>Date:</b> ${new Date(purchase.purchase_date).toLocaleDateString()} &nbsp; <b>Status:</b> ${purchase.purchasing_status}</td>
+                            </tr>
+                        </table>
+                        <hr style="border:1px solid #222; margin:10px 0;">
+                        <table style="width:100%; font-size:13px; border-collapse:collapse;">
+                            <thead>
+                                <tr style="background:#f3f3f3;">
+                                    <th style="text-align:left; width:5%;">#</th>
+                                    <th style="text-align:left;">PRODUCT</th>
+                                    <th style="text-align:right; width:15%;">PRICE</th>
+                                    <th style="text-align:center; width:10%;">QTY</th>
+                                    <th style="text-align:right; width:15%;">TOTAL</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${products.map((p, i) => {
+                                    let prod = p.product || {};
+                                    let prodName = prod.product_name || 'Unknown Product';
+                                    let unitCost = formatAmount(p.unit_cost);
+                                    let total = formatAmount(p.total);
+                                    let quantity = formatAmount(p.quantity);
+
+                                    return `
+                                    <tr>
+                                        <td style="vertical-align:top;"><b>${i + 1}</b></td>
+                                        <td style="vertical-align:top;">
+                                            <span style="font-weight:bold;">${prodName}</span>
+                                        </td>
+                                        <td style="text-align:right;">
+                                            <span style="font-size:12px;">${unitCost}</span>
+                                        </td>
+                                        <td style="text-align:center;">
+                                            <span style="font-size:12px;">${quantity}</span>
+                                        </td>
+                                        <td style="text-align:right;">
+                                            <span style="font-size:12px;">${total}</span>
+                                        </td>
+                                    </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                        <hr style="border:1px solid #222; margin:10px 0;">
+                        <table style="width:100%; font-size:13px;">
+                            <tr>
+                                <td style="text-align:left;">Net Total:</td>
+                                <td style="text-align:right;"><b>Rs.${formatAmount(netTotal)}</b></td>
+                            </tr>
+                            <tr>
+                                <td style="text-align:left;">Discount:</td>
+                                <td style="text-align:right;">Rs.${formatAmount(discount)}</td>
+                            </tr>
+                            <tr>
+                                <td style="text-align:left;">Shipping:</td>
+                                <td style="text-align:right;">Rs.${formatAmount(shipping)}</td>
+                            </tr>
+                            <tr>
+                                <td style="text-align:left;">Final Total:</td>
+                                <td style="text-align:right;"><b>Rs.${formatAmount(finalTotal)}</b></td>
+                            </tr>
+                            <tr>
+                                <td style="text-align:left;">Total Paid:</td>
+                                <td style="text-align:right;">Rs.${formatAmount(totalPaid)}</td>
+                            </tr>
+                            <tr>
+                                <td style="text-align:left;">Total Due:</td>
+                                <td style="text-align:right; color:red;"><b>Rs.${formatAmount(totalDue)}</b></td>
+                            </tr>
+                        </table>
+                        <div style="font-size:12px; margin:10px 0;"><b>Notes:</b> ${purchase.additional_notes || '--'}</div>
+                        <hr style="border:1px solid #222; margin:10px 0 0 0;">
+                        <div style="text-align:center; font-size:13px; margin-top:10px;"><b>Thank you!</b></div>
+                    </div>
+                    `;
+                    const styleA4 = `<style>
+                        @media print {
+                            @page { size: 800px auto; margin: 0.5in; }
+                            html, body {
+                                background: #fff !important;
+                                margin: 0 !important;
+                                padding: 0 !important;
+                                width: 800px !important;
+                                max-width: 800px !important;
+                            }
+                            #printArea { width: 800px !important; max-width: 800px !important; }
+                        }
+                        #printArea { width:800px; max-width:800px; margin:0 auto; padding:0; }
+                        table { border-collapse: collapse; width:100%; }
+                        th, td { border: none !important; padding: 4px 6px; }
+                        hr { border: 1px solid #222; }
+                    </style>`;
+
+                    // Print logic (restore after print)
+                    const originalContent = document.body.innerHTML;
+                    if (layout.toLowerCase() === 'a4') {
+                        document.body.innerHTML = styleA4 + printContentA4;
+                    } else {
+                        document.body.innerHTML = style80mm + printContent80mm;
+                    }
+                    window.print();
+                    document.body.innerHTML = originalContent;
+                },
+                error: function() {
+                    toastr.error('An error occurred while printing. Please try again.');
+                }
+            });
+        }
 
         $(document).ready(function() {
             // Only run on purchase list page, not on add purchase page
@@ -2611,6 +2874,48 @@
                             data: response.purchases,
                         processing: false,
                         serverSide: false,
+                        dom: '<"row mb-3"<"col-sm-12"B>>' + // Buttons row
+                            '<"row mb-3"<"col-sm-6"l><"col-sm-6"f>>' + // Show entries and search row
+                            'rtip',
+                        buttons: [{
+                                extend: 'pdf',
+                                exportOptions: {
+                                    columns: ':not(:first-child)' // Exclude first column (Actions)
+                                },
+                                title: ' ', // Empty to avoid default title
+                                filename: 'purchase_list', // Set download filename
+                                customize: function(doc) {
+                                    // Centered custom title
+                                    doc.content.splice(0, 0, {
+                                        text: 'Purchase List',
+                                        alignment: 'center',
+                                        fontSize: 18,
+                                        bold: true,
+                                        margin: [0, 0, 0, 12]
+                                    });
+                                }
+                            },
+                            {
+                                extend: 'print',
+                                exportOptions: {
+                                    columns: ':not(:first-child)' // Exclude first column (Actions)
+                                },
+                                title: function() {
+                                    return '<h3 style="text-align:center;">Purchase List</h3>';
+                                },
+                                customize: function(win) {
+                                    $(win.document.body).find('h1').remove();
+                                }
+                            },
+                            {
+                                extend: 'excel',
+                                exportOptions: {
+                                    columns: ':not(:first-child)' // Exclude first column (Actions)
+                                },
+                                filename: 'purchase_list',
+                                title: 'Purchase List'
+                            }
+                        ],
                         columns: [
                             {
                                 data: null,
@@ -2622,6 +2927,8 @@
                                         '</a>' +
                                         '<div class="dropdown-menu dropdown-menu-end">' +
                                         '<a class="dropdown-item" href="#" onclick="viewPurchase(' + row.id + ')"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>' +
+                                        '<a class="dropdown-item" href="#" onclick="printPurchase(' + row.id + ', \'80mm\')"><i class="fas fa-print"></i>&nbsp;&nbsp;Print 80mm</a>' +
+                                        '<a class="dropdown-item" href="#" onclick="printPurchase(' + row.id + ', \'a4\')"><i class="fas fa-print"></i>&nbsp;&nbsp;Print A4</a>' +
                                         '<a class="dropdown-item" href="/purchase/edit/' + row.id + '"><i class="far fa-edit me-2"></i>&nbsp;&nbsp;Edit</a>' +
                                         '<a class="dropdown-item" href="#" onclick="openImeiManagementModal(' + row.id + ')"><i class="fas fa-barcode"></i>&nbsp;&nbsp;Manage IMEI</a>' +
                                         '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-trash"></i>&nbsp;&nbsp;Delete</a>' +
