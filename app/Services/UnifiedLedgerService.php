@@ -1457,41 +1457,43 @@ class UnifiedLedgerService
     /**
      * Update sale transaction - creates proper reversal entries for audit trail
      */
-    public function updateSale($sale, $oldReferenceNo = null)
+    /**
+     * Reverse old sale ledger entry (Step 1 of sale edit)
+     * This creates sale reversal entries but does NOT create the new sale entry
+     */
+    public function reverseSale($sale, $oldReferenceNo = null)
     {
         // ✅ FIX: Validate that sale has customer_id before proceeding
         if (empty($sale->customer_id)) {
-            Log::error('UpdateSale called with empty customer_id', [
+            Log::error('ReverseSale called with empty customer_id', [
                 'sale_id' => $sale->id,
                 'customer_id' => $sale->customer_id,
                 'invoice_no' => $sale->invoice_no ?? 'N/A'
             ]);
-            throw new \Exception("Cannot update sale ledger: customer_id is missing or empty. Sale ID: {$sale->id}");
+            throw new \Exception("Cannot reverse sale ledger: customer_id is missing or empty. Sale ID: {$sale->id}");
         }
 
         $referenceNo = $oldReferenceNo ?: ($sale->invoice_no ?: 'INV-' . $sale->id);
 
-        Log::info('UpdateSale: Starting sale ledger update', [
+        Log::info('ReverseSale: Starting sale reversal', [
             'sale_id' => $sale->id,
             'customer_id' => $sale->customer_id,
-            'reference_no' => $referenceNo,
-            'new_final_total' => $sale->final_total
+            'reference_no' => $referenceNo
         ]);
 
         // Find the original sale ledger entry to reverse
         $originalEntry = Ledger::where('reference_no', $referenceNo)
             ->where('transaction_type', 'sale')
             ->where('contact_id', $sale->customer_id)
-            ->where('debit', '>', 0) // Only get entries with actual amounts
-            ->where('status', 'active') // Only active entries
-            ->orderBy('created_at', 'desc') // Get the latest sale entry
+            ->where('debit', '>', 0)
+            ->where('status', 'active')
+            ->orderBy('created_at', 'desc')
             ->first();
 
-        if ($originalEntry && $originalEntry->debit != $sale->final_total) {
-            Log::info('UpdateSale: Found original entry to reverse', [
+        if ($originalEntry) {
+            Log::info('ReverseSale: Found original entry to reverse', [
                 'original_entry_id' => $originalEntry->id,
-                'original_amount' => $originalEntry->debit,
-                'new_amount' => $sale->final_total
+                'original_amount' => $originalEntry->debit
             ]);
 
             // Mark original entry as reversed
@@ -1501,62 +1503,65 @@ class UnifiedLedgerService
             ]);
 
             // Create reversal entry for audit trail
-            // ✅ CRITICAL FIX: Use unique reference_no for reversal to avoid duplicate check conflicts
             $reversalEntry = Ledger::createEntry([
                 'contact_id' => $sale->customer_id,
                 'contact_type' => 'customer',
                 'transaction_date' => now(),
                 'reference_no' => $referenceNo . '-REV-' . time(),
                 'transaction_type' => 'sale',
-                'amount' => -$originalEntry->debit, // ✅ FIX: Use negative amount to create reversal instead of direct debit/credit
-                'status' => 'reversed', // ✅ CRITICAL FIX: Reversal entries should have status 'reversed'
+                'amount' => -$originalEntry->debit,
+                'status' => 'reversed',
                 'notes' => "REVERSAL: Sale Edit - Original amount Rs{$originalEntry->debit} (ID: {$originalEntry->id})",
             ]);
 
-            Log::info('UpdateSale: Created reversal entry', [
+            Log::info('ReverseSale: Created reversal entry', [
                 'reversal_entry_id' => $reversalEntry->id,
                 'reversal_amount' => -$originalEntry->debit
             ]);
-        } else {
-            Log::info('UpdateSale: No reversal needed', [
-                'original_entry_found' => $originalEntry ? 'yes' : 'no',
-                'amounts_match' => $originalEntry ? ($originalEntry->debit == $sale->final_total) : 'N/A'
-            ]);
+
+            return $reversalEntry;
         }
 
-        // ✅ CRITICAL FIX: DO NOT clean up payment entries here!
-        // Payment ledger entries are managed by PaymentService when payments are created/deleted
-        // Cleaning them up here causes newly created payment entries to be marked as reversed
-        // SaleController handles payment cleanup before calling this method
+        Log::info('ReverseSale: No active entry found to reverse');
+        return null;
+    }
 
-        // Record the updated sale (creates new entry)
-        // ✅ FIX: Use current time for updated sales so they appear in current date range
-        Log::info('UpdateSale: About to create new sale entry', [
+    /**
+     * Record new sale ledger entry (Step 2 of sale edit - called AFTER payment reversals)
+     * This should be called after all reversals are complete
+     */
+    public function recordNewSaleEntry($sale)
+    {
+        if (empty($sale->customer_id)) {
+            throw new \Exception("Cannot record sale: customer_id is missing. Sale ID: {$sale->id}");
+        }
+
+        Log::info('RecordNewSaleEntry: Creating new sale entry', [
             'sale_id' => $sale->id,
             'customer_id' => $sale->customer_id,
-            'reference_no' => $referenceNo,
             'final_total' => $sale->final_total
         ]);
 
-        try {
-            $newSaleEntry = $this->recordSale($sale, null, Carbon::now('Asia/Colombo'));
+        $newSaleEntry = $this->recordSale($sale, null, Carbon::now('Asia/Colombo'));
 
-            Log::info('UpdateSale: Successfully created new sale entry', [
-                'new_entry_id' => $newSaleEntry->id,
-                'new_amount' => $newSaleEntry->debit,
-                'reference_no' => $newSaleEntry->reference_no
-            ]);
+        Log::info('RecordNewSaleEntry: Successfully created new sale entry', [
+            'new_entry_id' => $newSaleEntry->id,
+            'new_amount' => $newSaleEntry->debit,
+            'reference_no' => $newSaleEntry->reference_no
+        ]);
 
-            return $newSaleEntry;
-        } catch (\Exception $e) {
-            Log::error('UpdateSale: Failed to create new sale entry', [
-                'error' => $e->getMessage(),
-                'sale_id' => $sale->id,
-                'customer_id' => $sale->customer_id,
-                'final_total' => $sale->final_total
-            ]);
-            throw $e;
-        }
+        return $newSaleEntry;
+    }
+
+    /**
+     * Update sale (legacy method - now split into reverseSale + recordNewSaleEntry)
+     * Kept for backward compatibility
+     */
+    public function updateSale($sale, $oldReferenceNo = null)
+    {
+        // For backward compatibility, call both steps
+        $this->reverseSale($sale, $oldReferenceNo);
+        return $this->recordNewSaleEntry($sale);
     }
 
     /**

@@ -1300,8 +1300,8 @@ class SaleController extends Controller
                     $this->unifiedLedgerService->recordSale($sale);
                 }
 
-                // ✅ CORRECT ORDER: Handle sale ledger updates BEFORE payment updates
-                // For sale edits: 1) Reverse old sale, 2) Create new sale, 3) Then handle payments
+// ✅ CORRECT ORDER: Step 1 - Reverse old SALE entries only (not payments yet)
+                // Accounting order: Sale reversal → Payment reversal → New sale → New payment
                 if ($isUpdate && $request->customer_id != 1) {
                     // Check if customer has changed during edit (use pre-stored values)
                     if ($customerChanged) {
@@ -1322,15 +1322,15 @@ class SaleController extends Controller
                             'Customer changed during sale edit'
                         );
                     } elseif ($financialDataChanged) {
-                        // Same customer but financial data changed - use regular update
-                        // Only update ledger if amounts actually changed (skip for notes-only updates)
+                        // Same customer but financial data changed
+                        // STEP 1: Reverse old sale entries (new sale created after payment reversals)
                         Log::info('Sale edit with financial data change detected', [
                             'sale_id' => $sale->id,
                             'customer_id' => $sale->customer_id,
                             'old_final_total' => $oldFinalTotal,
                             'new_final_total' => $sale->final_total
                         ]);
-                        
+
                         // ✅ CRITICAL FIX: Validate sale object before ledger operations
                         if (empty($sale->customer_id)) {
                             Log::error('CRITICAL: Sale customer_id is empty before ledger operations', [
@@ -1346,9 +1346,9 @@ class SaleController extends Controller
                                 throw new \Exception("CRITICAL ERROR: Sale customer_id is missing after database refresh. Sale ID: {$sale->id}. This indicates a database constraint violation or data corruption.");
                             }
                         }
-                        
-                        // This creates: 1) Old sale reversal, 2) New sale entry
-                        $this->unifiedLedgerService->updateSale($sale, $referenceNo);
+
+                        // STEP 1: Only reverse old sale (don't create new one yet)
+                        $this->unifiedLedgerService->reverseSale($sale, $referenceNo);
                     }
                     // Note: If only non-financial fields changed (e.g., sale_notes), ledger is not updated
                 }
@@ -1462,12 +1462,19 @@ class SaleController extends Controller
                             }
                         }
 
+                        // ✅ STEP 3: Create new sale entry BEFORE creating new payments
+                        // This ensures correct accounting order: Sale entry BEFORE payment entries
+                        if ($isUpdate && $request->customer_id != 1 && $financialDataChanged && !$customerChanged) {
+                            Log::info('Creating new sale entry before new payments');
+                            $this->unifiedLedgerService->recordNewSaleEntry($sale);
+                        }
+
                         // ✨ PERFORMANCE FIX: Optimized payment processing
                         $paymentsToCreate = collect($request->payments)->filter(function($paymentData) {
                             return !empty($paymentData['amount']) && $paymentData['amount'] > 0;
                         });
 
-                        // Create payments individually using PaymentService (optimized)
+                        // STEP 4: Create new payment entries (after new sale entry)
                         foreach ($paymentsToCreate as $paymentData) {
                             // Ensure payment_date is in proper format
                             $paymentDate = $paymentData['payment_date'] ?? now();
@@ -1536,14 +1543,14 @@ class SaleController extends Controller
                         }
 
                         // ✨ PERFORMANCE FIX: Single update for payment status
-                        $paymentStatus = 'Due';
-                        if ($transactionType === 'invoice') {
-                            $totalDue = max(0, $sale->final_total - $totalPaid);
-                            if ($totalDue <= 0) {
-                                $paymentStatus = 'Paid';
-                            } elseif ($totalPaid > 0) {
-                                $paymentStatus = 'Partial';
-                            }
+                        // ✅ FIX: Calculate payment status for all transaction types (invoice, Normal, etc.)
+                        $totalDue = max(0, $sale->final_total - $totalPaid);
+                        if ($totalDue <= 0) {
+                            $paymentStatus = 'Paid';
+                        } elseif ($totalPaid > 0) {
+                            $paymentStatus = 'Partial';
+                        } else {
+                            $paymentStatus = 'Due';
                         }
 
                         $sale->update([
@@ -1640,7 +1647,7 @@ class SaleController extends Controller
                 // Note: Sale ledger entries are created BEFORE payment processing (lines ~1293-1346)
                 // This ensures correct accounting order: Sale reversal → Payment reversal → New sale → New payment
                 // Payment ledger entries are automatically created by PaymentService
-                
+
                 // *** CRITICAL FIX: Always recalculate customer balance after sale edits ***
                 if ($isUpdate && $request->customer_id != 1) {
                     $this->recalculateCustomerBalance($request->customer_id);
