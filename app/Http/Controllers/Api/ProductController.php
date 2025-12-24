@@ -731,7 +731,9 @@ class ProductController extends Controller
             $batchIds = [];
 
             DB::transaction(function () use ($filteredLocations, $product, &$batchIds, &$message) {
-                $isUpdate = false;
+                // Track whether we're creating new opening stock or updating existing
+                $isCreatingNew = true;
+
                 $locationIds = array_column($filteredLocations, 'id');
 
                 // Remove obsolete data
@@ -787,17 +789,30 @@ class ProductController extends Controller
                         ]
                     );
 
-                    $product->locations()->updateExistingPivot($locationData['id'], ['qty' => $locationData['qty']]);
+                    // Update product location pivot with the total quantity from all location batches for this location
+                    $totalLocationQty = LocationBatch::where('location_id', $locationData['id'])
+                        ->whereHas('batch', function ($query) use ($product) {
+                            $query->where('product_id', $product->id);
+                        })
+                        ->sum('qty');
 
-                    StockHistory::updateOrCreate(
-                        [
+                    $product->locations()->updateExistingPivot($locationData['id'], ['qty' => $totalLocationQty]);
+
+                    // Track if we're updating an existing stock history record
+                    $stockHistory = StockHistory::where('loc_batch_id', $locationBatch->id)
+                        ->where('stock_type', StockHistory::STOCK_TYPE_OPENING)
+                        ->first();
+
+                    if ($stockHistory) {
+                        $isCreatingNew = false; // At least one stock history already existed
+                        $stockHistory->update(['quantity' => $locationData['qty']]);
+                    } else {
+                        StockHistory::create([
                             'loc_batch_id' => $locationBatch->id,
                             'stock_type' => StockHistory::STOCK_TYPE_OPENING,
-                        ],
-                        [
                             'quantity' => $locationData['qty'],
-                        ]
-                    );
+                        ]);
+                    }
 
                     $batchIds[] = [
                         'batch_id' => $batch->id,
@@ -806,7 +821,8 @@ class ProductController extends Controller
                     ];
                 }
 
-                $message = count($batchIds) > 0 ? 'Opening Stock updated successfully!' : 'Opening Stock saved successfully!';
+                // Set appropriate message based on whether we created new records or updated existing ones
+                $message = $isCreatingNew ? 'Opening Stock added successfully!' : 'Opening Stock updated successfully!';
             });
 
             return response()->json([
@@ -833,16 +849,79 @@ class ProductController extends Controller
                 return response()->json(['status' => 404, 'message' => 'Product not found']);
             }
 
-            DB::transaction(function () use ($product) {
-                // Get all batches for this product that have opening stock
-                $batches = Batch::where('product_id', $product->id)
-                    ->whereHas('locationBatches.stockHistories', function ($query) {
-                        $query->where('stock_type', StockHistory::STOCK_TYPE_OPENING);
-                    })
-                    ->with(['locationBatches.stockHistories'])
-                    ->get();
+            // Check if opening stock batches have been used in any transactions
+            $batchesWithOpeningStock = Batch::where('product_id', $product->id)
+                ->whereHas('locationBatches.stockHistories', function ($query) {
+                    $query->where('stock_type', StockHistory::STOCK_TYPE_OPENING);
+                })
+                ->with(['locationBatches.stockHistories'])
+                ->get();
 
-                foreach ($batches as $batch) {
+            // Check if any of these batches have other stock histories (sales, purchases, etc.)
+            $hasTransactions = false;
+            $transactionDetails = [];
+
+            foreach ($batchesWithOpeningStock as $batch) {
+                // Check for sales
+                if ($batch->salesProducts()->count() > 0) {
+                    $hasTransactions = true;
+                    $transactionDetails[] = 'Sales';
+                }
+
+                // Check for purchases
+                if ($batch->purchaseProducts()->count() > 0) {
+                    $hasTransactions = true;
+                    $transactionDetails[] = 'Purchases';
+                }
+
+                // Check for stock adjustments
+                if ($batch->stockAdjustments()->count() > 0) {
+                    $hasTransactions = true;
+                    $transactionDetails[] = 'Stock Adjustments';
+                }
+
+                // Check for stock transfers
+                if ($batch->stockTransfers()->count() > 0) {
+                    $hasTransactions = true;
+                    $transactionDetails[] = 'Stock Transfers';
+                }
+
+                // Check for purchase returns
+                if ($batch->purchaseReturns()->count() > 0) {
+                    $hasTransactions = true;
+                    $transactionDetails[] = 'Purchase Returns';
+                }
+
+                // Check for sale returns
+                if ($batch->saleReturns()->count() > 0) {
+                    $hasTransactions = true;
+                    $transactionDetails[] = 'Sale Returns';
+                }
+
+                // Check if location batches have other stock history types
+                foreach ($batch->locationBatches as $locationBatch) {
+                    $nonOpeningStockHistories = $locationBatch->stockHistories
+                        ->where('stock_type', '!=', StockHistory::STOCK_TYPE_OPENING);
+
+                    if ($nonOpeningStockHistories->count() > 0) {
+                        $hasTransactions = true;
+                    }
+                }
+            }
+
+            // If there are transactions, prevent deletion
+            if ($hasTransactions) {
+                $uniqueTransactions = array_unique($transactionDetails);
+                $transactionList = implode(', ', $uniqueTransactions);
+                return response()->json([
+                    'status' => 403,
+                    'message' => "Cannot delete opening stock! This opening stock has been used in transactions: {$transactionList}. Please adjust stock or contact administrator."
+                ]);
+            }
+
+            DB::transaction(function () use ($product, $batchesWithOpeningStock) {
+
+                foreach ($batchesWithOpeningStock as $batch) {
                     foreach ($batch->locationBatches as $locationBatch) {
                         // Get opening stock history for this location batch
                         $openingStockHistory = $locationBatch->stockHistories
@@ -859,17 +938,16 @@ class ProductController extends Controller
                             $newQty = max(0, $locationBatch->qty - $openingQuantity);
                             $locationBatch->update(['qty' => $newQty]);
 
-                            // Update product location pivot table
-                            $currentLocationQty = $product->locations()
-                                ->where('location_id', $locationBatch->location_id)
-                                ->first()
-                                ->pivot
-                                ->qty ?? 0;
+                            // Update product location pivot table with the total from all location batches
+                            $totalLocationQty = LocationBatch::where('location_id', $locationBatch->location_id)
+                                ->whereHas('batch', function ($query) use ($product) {
+                                    $query->where('product_id', $product->id);
+                                })
+                                ->sum('qty');
 
-                            $newLocationQty = max(0, $currentLocationQty - $openingQuantity);
                             $product->locations()->updateExistingPivot(
                                 $locationBatch->location_id,
-                                ['qty' => $newLocationQty]
+                                ['qty' => $totalLocationQty]
                             );
 
                             // If location batch quantity is now 0 and no other stock histories exist, delete it
