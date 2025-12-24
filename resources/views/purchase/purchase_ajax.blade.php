@@ -2828,8 +2828,13 @@
                     } else {
                         document.body.innerHTML = style80mm + printContent80mm;
                     }
+                    
+                    // Use onafterprint to reload only after print dialog is closed
+                    window.onafterprint = function() {
+                        location.reload();
+                    };
+                    
                     window.print();
-                    document.body.innerHTML = originalContent;
                 },
                 error: function() {
                     toastr.error('An error occurred while printing. Please try again.');
