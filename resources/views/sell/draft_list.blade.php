@@ -374,10 +374,53 @@
                 ]
             });
 
-            // You can add event listeners for action buttons here, e.g.:
+            // Event listener for view details button
             $('#draftSalesTable tbody').on('click', '.view-details', function() {
                 var data = table.row($(this).parents('tr')).data();
                 // Show modal or handle view logic
+            });
+
+            // Event listener for delete button
+            $(document).on('click', '.delete_btn', function(event) {
+                event.preventDefault();
+                var id = $(this).val();
+                var row = $(this).closest('tr');
+
+                swal({
+                    title: "Are you sure?",
+                    text: "Do you really want to delete this draft sale? This action cannot be undone.",
+                    type: "warning",
+                    showCancelButton: true,
+                    confirmButtonColor: "#d33",
+                    cancelButtonColor: "#3085d6",
+                    confirmButtonText: "Yes, delete it!",
+                    cancelButtonText: "Cancel",
+                    closeOnConfirm: false
+                }, function(isConfirm) {
+                    if (isConfirm) {
+                        $.ajax({
+                            url: `/sales/delete/${id}`,
+                            method: 'DELETE',
+                            headers: {
+                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                            },
+                            success: function(response) {
+                                if (response.status === 200) {
+                                    swal("Deleted!", response.message || "Draft sale deleted successfully!", "success");
+
+                                    // Reload the DataTable
+                                    table.ajax.reload(null, false);
+                                } else {
+                                    swal("Error!", response.message || "An error occurred while deleting the draft sale.", "error");
+                                }
+                            },
+                            error: function(xhr, status, error) {
+                                swal("Error!", "Failed to delete draft sale. Please try again.", "error");
+                                console.error('Delete error:', error);
+                            }
+                        });
+                    }
+                });
             });
         });
     </script>

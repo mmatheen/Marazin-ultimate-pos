@@ -2751,9 +2751,14 @@ class SaleController extends Controller
         $sale = Sale::findOrFail($id);
 
         DB::transaction(function () use ($sale) {
-            // 1. Restore stock if it was deducted (for final/suspend sales)
+            // 1. Restore stock ONLY if it was deducted (for final/suspend sales, NOT for draft/quotation)
+            // Draft and quotation sales don't affect stock, so we shouldn't restore stock when deleting them
+            $shouldRestoreStock = !in_array($sale->status, ['draft', 'quotation']);
+
             foreach ($sale->products as $product) {
-                $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
+                if ($shouldRestoreStock) {
+                    $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
+                }
                 $product->delete();
             }
 
@@ -2775,9 +2780,13 @@ class SaleController extends Controller
             $sale->delete();
         });
 
+        $message = in_array($sale->status, ['draft', 'quotation'])
+            ? 'Sale deleted successfully.'
+            : 'Sale deleted, stock restored, and customer balance updated successfully.';
+
         return response()->json([
             'status' => 200,
-            'message' => 'Sale deleted, stock restored, and customer balance updated successfully.'
+            'message' => $message
         ], 200);
     }
 
