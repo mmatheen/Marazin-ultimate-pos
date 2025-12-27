@@ -5,7 +5,6 @@
     <title>A4 RECEIPT</title>
     <style>
         @page {
-            size: A4;
             margin: 12mm 15mm;
         }
 
@@ -31,7 +30,7 @@
 
         .company-name {
             text-align: center;
-            font-size: 22px;
+            font-size: 26px;
             font-weight: bold;
             text-transform: uppercase;
             margin-bottom: 5px;
@@ -270,6 +269,7 @@
     <div class="logo-container">
         @if ($location && $location->logo_image)
             <img src="{{ asset($location->logo_image) }}" alt="{{ $location->name }} Logo" class="logo" />
+            <div class="company-name" style="margin-top: 8px;">{{ $location->name ?? 'COMPANY NAME' }}</div>
         @else
             <div class="company-name">{{ $location->name ?? 'COMPANY NAME' }}</div>
         @endif
