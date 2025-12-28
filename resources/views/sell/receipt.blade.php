@@ -158,7 +158,7 @@
                             @if($customer->mobile_no)
                                 <div style="font-size: 11px; color: #000; margin-bottom: 2px;">{{ $customer->mobile_no }}</div>
                             @endif
-                            <div style="font-size: 10px; color: #000;">
+                            <div style="font-size: 11px; color: #000; font-weight: bold;">
                                 [{{ date('d-m-Y', strtotime($sale->sales_date)) }}] {{ \Carbon\Carbon::now('Asia/Colombo')->format('h:i A') }}
                             </div>
                         </td>
@@ -355,8 +355,8 @@
                                 </td>
                             </tr>
                              <tr>
-                                <td align="right"><strong>TOTAL OUTSTANDING DUE</strong></td>
-                                <td width="100" align="right" style="font-size: 14px; font-weight: bold; white-space: nowrap;">
+                                <td align="right"><strong style="font-size: 12px;">TOTAL OUTSTANDING DUE</strong></td>
+                                <td width="100" align="right" style="font-size: 18px; font-weight: bold; white-space: nowrap;">
                                        RS {{ number_format($customer_outstanding_balance, 0, '.', ',') }}
                                 </td>
                             </tr>
@@ -403,16 +403,18 @@
         <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
         {{-- Only show payment method for final sales, not for quotations, drafts, or sale orders --}}
         @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))
-            <div style="font-size: 12px; display: block; text-align: center; color: #000; margin-bottom: 8px;">
-                <p><strong>PAYMENT METHOD:</strong>
-                    @if ($payments->count() > 1)
-                        Multiple <br>
-                        <span style="font-size: 10px;">({{ $payments->pluck('payment_method')->join(', ') }})</span>
-                    @else
-                        {{ $payments->first()->payment_method ?? 'N/A' }}
-                    @endif
-                </p>
-            </div>
+            @if ($payments->count() > 0)
+                <div style="font-size: 12px; display: block; text-align: center; color: #000; margin-bottom: 8px;">
+                    <p><strong>PAYMENT METHOD:</strong>
+                        @if ($payments->count() > 1)
+                            Multiple <br>
+                            <span style="font-size: 10px;">({{ $payments->pluck('payment_method')->join(', ') }})</span>
+                        @else
+                            {{ $payments->first()->payment_method ?? 'N/A' }}
+                        @endif
+                    </p>
+                </div>
+            @endif
         @else
             <div style="font-size: 12px; display: block; text-align: center; color: #000; margin-bottom: 8px;">
                 @if ($sale->status === 'quotation')
