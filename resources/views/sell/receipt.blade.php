@@ -386,17 +386,17 @@
         </div>
         <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
         <div style="display: flex; text-align: center;">
-            <div style="flex: 1; border-right: 2px dashed black; padding: 4px;">
-                <strong style="font-size: 14px;">{{ count($products) }}</strong><br>
-                <span style="font-size: 10px;">TOTAL ITEMS</span>
+            <div style="flex: 1; border-right: 2px dashed black; padding: 2px;">
+            <strong style="font-size: 12px;">{{ count($products) }}</strong><br>
+            <span style="font-size: 8px;">TOTAL ITEMS</span>
             </div>
-            <div style="flex: 1; border-right: 2px dashed black; padding: 4px;">
-                <strong style="font-size: 14px;">{{ $products->sum('quantity') }}</strong><br>
-                <span style="font-size: 10px;">TOTAL QTY</span>
+            <div style="flex: 1; border-right: 2px dashed black; padding: 2px;">
+            <strong style="font-size: 12px;">{{ $products->sum('quantity') }}</strong><br>
+            <span style="font-size: 8px;">TOTAL QTY</span>
             </div>
-            <div style="flex: 1; padding: 4px;">
-                <strong style="font-size: 14px;">{{ number_format($total_all_discounts, 0, '.', ',') }}</strong><br>
-                <span style="font-size: 10px;"> TOTAL DISCOUNT</span>
+            <div style="flex: 1; padding: 2px;">
+            <strong style="font-size: 12px;">{{ number_format($total_all_discounts, 0, '.', ',') }}</strong><br>
+            <span style="font-size: 8px;">TOTAL DISCOUNT</span>
             </div>
         </div>
 
