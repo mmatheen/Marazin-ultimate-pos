@@ -133,7 +133,7 @@
             <div style="font-size: 16px; font-weight: bold;">STORES</div> --}}
         </div>
 
-        <div class="billAddress" style="font-size: 12px; color: #000; margin: 0; padding: 0;">
+        <div class="billAddress" style="font-size: 12px; color: #000; margin: 0; padding: 0; text-align: center;">
             @if ($location)
                 @if ($location->address)
                     <div>{{ $location->address }}</div>
@@ -147,22 +147,22 @@
             @else
                 <div>LOCATION DETAILS NOT AVAILABLE.</div>
             @endif
+            <div style="font-size: 12px; font-weight: bold; color: #000; margin-top: 4px;">
+                [{{ date('d-m-Y', strtotime($sale->sales_date)) }}] {{ \Carbon\Carbon::now('Asia/Colombo')->format('h:i A') }}
+            </div>
         </div>
         <div
             style="font-size: 12px; margin: 4px 0; padding: 4px 0; border-bottom: 1px dashed #000; border-top: 1px dashed #000; color: #000;">
             <table width="100%" border="0" cellpadding="0" cellspacing="0">
                 <tbody>
                     <tr>
-                        <td style="vertical-align: top; width: 55%; padding: 0;">
-                            <div style="font-size: 13px; font-weight: bold; color: #000; margin-bottom: 2px;">{{ $customer->first_name }} {{ $customer->last_name }}</div>
+                        <td style="vertical-align: top; width: 60%; padding: 0;">
+                            <div style="font-size: 13px; font-weight: bold; color: #000; margin-bottom: 2px; word-wrap: break-word; overflow-wrap: break-word;">{{ $customer->first_name }} {{ $customer->last_name }}</div>
                             @if($customer->mobile_no)
                                 <div style="font-size: 11px; color: #000; margin-bottom: 2px;">{{ $customer->mobile_no }}</div>
                             @endif
-                            <div style="font-size: 11px; color: #000; font-weight: bold;">
-                                [{{ date('d-m-Y', strtotime($sale->sales_date)) }}] {{ \Carbon\Carbon::now('Asia/Colombo')->format('h:i A') }}
-                            </div>
                         </td>
-                        <td style="vertical-align: top; width: 45%; text-align: right; padding: 0;">
+                        <td style="vertical-align: top; width: 40%; text-align: right; padding: 0;">
                             <div style="font-size: 14px; font-weight: bold; color: #000; margin-bottom: 2px;">{{ $sale->invoice_no }}</div>
                             <div style="font-size: 10px; color: #000;">({{ $user->user_name ?? 'ADMIN' }})</div>
                         </td>
