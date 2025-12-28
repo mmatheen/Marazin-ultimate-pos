@@ -24,6 +24,7 @@ use App\Exports\ExportProductTemplate;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 use App\Events\StockUpdated;
 use App\Models\Discount;
@@ -158,32 +159,63 @@ class ProductController extends Controller
     public function initialProductDetails()
     {
         try {
-            $mainCategories = MainCategory::select('id', 'name')->get();
-            $subCategories = SubCategory::select('id', 'name', 'main_category_id')
-                ->with('mainCategory:id,name')->get();
-            $brands = Brand::select('id', 'name')->get();
-            $units = Unit::select('id', 'name', 'short_name', 'allow_decimal')->get();
+            $userId = auth()->id();
 
-            // Use proper location filtering instead of Location::all()
-            $locations = $this->getUserAccessibleLocations(auth()->user());
+            // Cache for 5 minutes per user to balance freshness with performance
+            $cacheKey = "initial_product_details_api_user_{$userId}";
 
-            // Add selection flags for frontend
-            $locationsWithSelection = $locations->map(function($location) use ($locations) {
-                return [
-                    'id' => $location->id,
-                    'name' => $location->name,
-                    'selected' => $locations->count() === 1 // Auto-select if only one location
-                ];
-            });
+            return Cache::remember($cacheKey, 300, function () use ($userId) {
+                // Optimize queries - select only needed columns and avoid eager loading overhead
+                $mainCategories = MainCategory::select('id', 'mainCategoryName')
+                    ->orderBy('mainCategoryName')
+                    ->get();
 
-            Log::info('API initialProductDetails called', [
-                'user_id' => auth()->id(),
-                'locations_count' => $locations->count(),
-                'auto_select' => $locations->count() === 1
-            ]);
+                // Get subcategories with their main category data in one query (more efficient than eager loading)
+                $subCategories = DB::table('sub_categories')
+                    ->select('sub_categories.id', 'sub_categories.subCategoryname', 'sub_categories.main_category_id',
+                             'main_categories.mainCategoryName')
+                    ->leftJoin('main_categories', 'sub_categories.main_category_id', '=', 'main_categories.id')
+                    ->orderBy('sub_categories.subCategoryname')
+                    ->get()
+                    ->map(function($item) {
+                        // Format to match frontend expectations
+                        return [
+                            'id' => $item->id,
+                            'subCategoryname' => $item->subCategoryname,
+                            'main_category_id' => $item->main_category_id,
+                            'mainCategory' => [
+                                'mainCategoryName' => $item->mainCategoryName
+                            ]
+                        ];
+                    });
 
-            // Check if all collections have records
-            if ($mainCategories->count() > 0 || $subCategories->count() > 0 || $brands->count() > 0 || $units->count() > 0 || $locations->count() > 0) {
+                $brands = Brand::select('id', 'name')
+                    ->orderBy('name')
+                    ->get();
+
+                $units = Unit::select('id', 'name', 'short_name', 'allow_decimal')
+                    ->orderBy('name')
+                    ->get();
+
+                // Use proper location filtering instead of Location::all()
+                $locations = $this->getUserAccessibleLocations(auth()->user());
+
+                // Add selection flags for frontend
+                $locationsWithSelection = $locations->map(function($location) use ($locations) {
+                    return [
+                        'id' => $location->id,
+                        'name' => $location->name,
+                        'selected' => $locations->count() === 1 // Auto-select if only one location
+                    ];
+                })->values()->all(); // Ensure it's a proper array
+
+                Log::info('API initialProductDetails called', [
+                    'user_id' => auth()->id(),
+                    'locations_count' => $locations->count(),
+                    'auto_select' => $locations->count() === 1
+                ]);
+
+                // Always return a valid response structure
                 return response()->json([
                     'status' => 200,
                     'message' => [
@@ -195,22 +227,42 @@ class ProductController extends Controller
                         'auto_select_single_location' => $locations->count() === 1,
                     ]
                 ]);
-            } else {
-                return response()->json([
-                    'status' => 404,
-                    'message' => "No Records Found!"
-                ]);
-            }
+            });
+
         } catch (\Exception $e) {
             Log::error('Error in API initialProductDetails: ' . $e->getMessage(), [
                 'user_id' => auth()->id(),
                 'trace' => $e->getTraceAsString()
             ]);
 
+            // Return valid empty structure on error
             return response()->json([
                 'status' => 500,
-                'message' => 'Error loading product details'
+                'message' => [
+                    'brands' => [],
+                    'subCategories' => [],
+                    'mainCategories' => [],
+                    'units' => [],
+                    'locations' => [],
+                    'auto_select_single_location' => false,
+                ],
+                'error' => 'Error loading product details. Please refresh the page.'
             ]);
+        }
+    }
+
+    /**
+     * Clear cached product details (call this when brands, categories, units, or locations are updated)
+     */
+    public static function clearProductDetailsCache($userId = null)
+    {
+        if ($userId) {
+            // Clear cache for specific user (both web and api)
+            Cache::forget("initial_product_details_user_{$userId}");
+            Cache::forget("initial_product_details_api_user_{$userId}");
+        } else {
+            // Clear cache for all users (use when master data changes)
+            Cache::flush(); // Or use a more targeted pattern if needed
         }
     }
 

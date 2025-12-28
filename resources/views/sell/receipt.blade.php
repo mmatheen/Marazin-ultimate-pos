@@ -130,18 +130,6 @@
             <div style="font-size: 16px; font-weight: bold;">STORES</div> --}}
         </div>
 
-        {{-- Document Type Header --}}
-        <div style="text-align: center; font-size: 14px; font-weight: bold; margin: 8px 0; padding: 4px; background-color: #f0f0f0; border: 1px dashed #000;">
-            @if ($sale->status === 'quotation')
-                QUOTATION
-            @elseif ($sale->status === 'draft')
-                DRAFT
-            @elseif (isset($sale->transaction_type) && $sale->transaction_type === 'sale_order')
-                SALE ORDER
-            @else
-                INVOICE
-            @endif
-        </div>
 
         <div class="billAddress" style="font-size: 12px; color: #000; margin-bottom: 4px; margin-top: 2px;">
             @if ($location)

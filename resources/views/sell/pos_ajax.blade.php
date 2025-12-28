@@ -7250,7 +7250,11 @@
 
             // Handle discount inputs and price editability
             if (fixedDiscountInput) {
-                // Allow free typing, validate only on change/blur
+                // Handle input event for real-time toggling when clearing
+                fixedDiscountInput.addEventListener('input', () => {
+                    handleDiscountToggle(fixedDiscountInput);
+                });
+                // Validate on change/blur
                 fixedDiscountInput.addEventListener('change', () => {
                     handleDiscountToggle(fixedDiscountInput);
                     validateDiscountInput(row, fixedDiscountInput, 'fixed');
@@ -7265,7 +7269,11 @@
                 });
             }
             if (percentDiscountInput) {
-                // Allow free typing, validate only on change/blur
+                // Handle input event for real-time toggling when clearing
+                percentDiscountInput.addEventListener('input', () => {
+                    handleDiscountToggle(percentDiscountInput);
+                });
+                // Validate on change/blur
                 percentDiscountInput.addEventListener('change', () => {
                     handleDiscountToggle(percentDiscountInput);
                     validateDiscountInput(row, percentDiscountInput, 'percent');
@@ -7278,6 +7286,26 @@
                     updatePriceEditability(row);
                     updateTotals();
                 });
+            }
+
+            // Initialize discount field states on row creation
+            if (fixedDiscountInput && percentDiscountInput) {
+                const hasFixedValue = fixedDiscountInput.value.trim() !== '' && !isNaN(parseFloat(fixedDiscountInput.value)) && parseFloat(fixedDiscountInput.value) > 0;
+                const hasPercentValue = percentDiscountInput.value.trim() !== '' && !isNaN(parseFloat(percentDiscountInput.value)) && parseFloat(percentDiscountInput.value) > 0;
+
+                if (hasFixedValue) {
+                    percentDiscountInput.disabled = true;
+                    percentDiscountInput.readOnly = false;
+                } else if (hasPercentValue) {
+                    fixedDiscountInput.disabled = true;
+                    fixedDiscountInput.readOnly = false;
+                } else {
+                    // Both are empty/zero - enable both
+                    fixedDiscountInput.disabled = false;
+                    fixedDiscountInput.readOnly = false;
+                    percentDiscountInput.disabled = false;
+                    percentDiscountInput.readOnly = false;
+                }
             }
 
             // Price input change → Validate minimum price and recalculate discount
@@ -7670,30 +7698,46 @@
             const mrp = parseFloat(priceInput.getAttribute('data-max-retail-price')) || 0;
             console.log('handleDiscountToggle using MRP:', mrp);
 
-            // Disable conflicting inputs (skip in flexible mode)
-            if (priceValidationEnabled === 1) {
-                if (fixedDiscountInput === input && fixedDiscountInput.value !== '') {
+            // Helper function to check if input has a valid value
+            const hasValue = (inputElement) => {
+                const value = inputElement.value.trim();
+                return value !== '' && !isNaN(parseFloat(value)) && parseFloat(value) > 0;
+            };
+
+            // Toggle discount inputs - works in all modes
+            // If the current input (that triggered the event) is fixed discount
+            if (fixedDiscountInput === input) {
+                if (hasValue(fixedDiscountInput)) {
+                    // Fixed discount has value - disable and clear percentage
                     percentDiscountInput.disabled = true;
+                    percentDiscountInput.readOnly = false;
                     percentDiscountInput.value = '';
-                } else if (percentDiscountInput === input && percentDiscountInput.value !== '') {
+                } else {
+                    // Fixed discount is empty/cleared - enable percentage
+                    percentDiscountInput.disabled = false;
+                    percentDiscountInput.readOnly = false;
+                }
+            }
+            // If the current input is percentage discount
+            else if (percentDiscountInput === input) {
+                if (hasValue(percentDiscountInput)) {
+                    // Percentage discount has value - disable and clear fixed
                     fixedDiscountInput.disabled = true;
+                    fixedDiscountInput.readOnly = false;
                     fixedDiscountInput.value = '';
                 } else {
+                    // Percentage discount is empty/cleared - enable fixed
                     fixedDiscountInput.disabled = false;
-                    percentDiscountInput.disabled = false;
+                    fixedDiscountInput.readOnly = false;
                 }
-            } else {
-                // Flexible mode: keep both discount fields enabled
-                fixedDiscountInput.disabled = false;
-                percentDiscountInput.disabled = false;
             }
 
             // Recalculate unit price
-            if (fixedDiscountInput.value !== '') {
+            if (hasValue(fixedDiscountInput)) {
                 const discountAmount = parseFloat(fixedDiscountInput.value);
                 const calculatedPrice = mrp - discountAmount;
                 priceInput.value = calculatedPrice > 0 ? calculatedPrice.toFixed(2) : '0.00';
-            } else if (percentDiscountInput.value !== '') {
+            } else if (hasValue(percentDiscountInput)) {
                 const discountPercent = parseFloat(percentDiscountInput.value);
                 const calculatedPrice = mrp * (1 - discountPercent / 100);
                 priceInput.value = calculatedPrice > 0 ? calculatedPrice.toFixed(2) : '0.00';

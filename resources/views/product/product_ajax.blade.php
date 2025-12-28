@@ -366,7 +366,7 @@
             type: 'GET',
             dataType: 'json',
             cache: true, // Enable browser caching for better performance
-            timeout: 15000, // Increased to 15 second timeout
+            timeout: 20000, // Increased to 20 second timeout (was 15)
             success: function(response) {
                 // For /get-last-product endpoint, pass the response as-is (don't cache this)
                 if (url.includes('/get-last-product')) {
@@ -409,10 +409,25 @@
                 }
 
                 // Provide fallback empty data to prevent blocking
-                successCallback({
-                    status: 200,
-                    message: []
-                });
+                // Check if this is the initial-product-details endpoint
+                if (url.includes('initial-product-details')) {
+                    successCallback({
+                        status: 200,
+                        message: {
+                            brands: [],
+                            mainCategories: [],
+                            subCategories: [],
+                            units: [],
+                            locations: [],
+                            auto_select_single_location: false
+                        }
+                    });
+                } else {
+                    successCallback({
+                        status: 200,
+                        message: []
+                    });
+                }
             }
         });
     }
@@ -433,7 +448,12 @@
         const placeholder = placeholders[selector] || 'Select Option';
         selectElement.append(`<option value="">${placeholder}</option>`);
 
-        // Add the actual data items
+        // Add the actual data items with null/undefined check
+        if (!items || !Array.isArray(items)) {
+            console.warn('⚠️ No items provided for', selector);
+            return;
+        }
+
         items.forEach(item => {
             const option = new Option(item[displayProperty], item.id);
             if (item.selected && !selector.includes('locations[]')) {
@@ -554,15 +574,15 @@
 
         console.log('🔄 Fetching initial product details from API...');
         fetchData('/initial-product-details', function(response) {
-            if (response.status === 200) {
+            if (response.status === 200 && response.message) {
                 // Cache the data globally to prevent future API calls
                 window.initialProductData = {
-                    brands: response.message.brands,
-                    mainCategories: response.message.mainCategories,
-                    subCategories: response.message.subCategories,
-                    units: response.message.units,
-                    locations: response.message.locations,
-                    autoSelectSingle: response.message.auto_select_single_location
+                    brands: response.message.brands || [],
+                    mainCategories: response.message.mainCategories || [],
+                    subCategories: response.message.subCategories || [],
+                    units: response.message.units || [],
+                    locations: response.message.locations || [],
+                    autoSelectSingle: response.message.auto_select_single_location || false
                 };
 
                 // Store subcategories globally for compatibility
@@ -584,8 +604,9 @@
                     callback
                 );
             } else {
-                console.error('❌ Failed to load initial product details');
-                if (callback) callback();
+                console.error('❌ Failed to load initial product details - using empty defaults');
+                // Provide empty defaults to prevent errors
+                populateInitialDropdowns([], [], [], [], [], false, callback);
             }
         });
     }

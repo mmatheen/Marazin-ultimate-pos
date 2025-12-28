@@ -7,6 +7,7 @@ use App\Models\Brand;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use App\Http\Controllers\Web\ProductController;
 
 class BrandController extends Controller
 {
@@ -85,6 +86,9 @@ class BrandController extends Controller
         ]);
 
         if ($getValue) {
+            // Clear product details cache for all users
+            ProductController::clearProductDetailsCache();
+
             return response()->json([
                 'status' => 200,
                 'message' => "New Brand Details Created Successfully!",
@@ -176,6 +180,10 @@ class BrandController extends Controller
                     'description' => $request->description,
 
                 ]);
+
+                // Clear product details cache for all users
+                ProductController::clearProductDetailsCache();
+
                 return response()->json([
                     'status' => 200,
                     'message' => "Old Brand  Details Updated Successfully!"
@@ -201,6 +209,10 @@ class BrandController extends Controller
         if ($getValue) {
 
             $getValue->delete();
+
+            // Clear product details cache for all users
+            ProductController::clearProductDetailsCache();
+
             return response()->json([
                 'status' => 200,
                 'message' => "Brand Details Deleted Successfully!"

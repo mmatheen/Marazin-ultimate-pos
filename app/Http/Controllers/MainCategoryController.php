@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\MainCategory;
 use Illuminate\Support\Facades\Validator;
+use App\Http\Controllers\Web\ProductController;
 
 class MainCategoryController extends Controller
 {
@@ -78,6 +79,9 @@ class MainCategoryController extends Controller
             ]);
 
             if ($getValue) {
+                // Clear product details cache for all users
+                ProductController::clearProductDetailsCache();
+
                 return response()->json([
                     'status' => 200,
                     'message' => "New Main Category Details Created Successfully!",
@@ -167,6 +171,10 @@ class MainCategoryController extends Controller
                 'description' => $request->description,
 
                 ]);
+
+                // Clear product details cache for all users
+                ProductController::clearProductDetailsCache();
+
                 return response()->json([
                     'status' => 200,
                     'message' => "Old Main Category Details Updated Successfully!"
@@ -192,6 +200,10 @@ class MainCategoryController extends Controller
         if ($getValue) {
 
             $getValue->delete();
+
+            // Clear product details cache for all users
+            ProductController::clearProductDetailsCache();
+
             return response()->json([
                 'status' => 200,
                 'message' => "Main Category Deleted Successfully!"

@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\SubCategory;
 use App\Models\MainCategory;
 use Illuminate\Support\Facades\Validator;
+use App\Http\Controllers\Web\ProductController;
 
 class SubCategoryController extends Controller
 {
@@ -87,6 +88,9 @@ class SubCategoryController extends Controller
 
 
             if ($getValue) {
+                // Clear product details cache for all users
+                ProductController::clearProductDetailsCache();
+
                 return response()->json([
                     'status' => 200,
                     'message' => "New Sub Category Details Created Successfully!"
@@ -179,6 +183,10 @@ class SubCategoryController extends Controller
                     'description' => $request->description ?? '',
 
                 ]);
+
+                // Clear product details cache for all users
+                ProductController::clearProductDetailsCache();
+
                 return response()->json([
                     'status' => 200,
                     'message' => "Old Sub Category Details Updated Successfully!"
@@ -204,6 +212,10 @@ class SubCategoryController extends Controller
         if ($getValue) {
 
             $getValue->delete();
+
+            // Clear product details cache for all users
+            ProductController::clearProductDetailsCache();
+
             return response()->json([
                 'status' => 200,
                 'message' => "Sub Category Deleted Successfully!"

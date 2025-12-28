@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Unit;
 use Illuminate\Support\Facades\Validator;
+use App\Http\Controllers\Web\ProductController;
 
 class UnitController extends Controller
 {
@@ -88,6 +89,9 @@ class UnitController extends Controller
 
 
             if ($getValue) {
+                // Clear product details cache for all users
+                ProductController::clearProductDetailsCache();
+
                 return response()->json([
                     'status' => 200,
                     'message' => "New Unit Details Created Successfully!",
@@ -180,6 +184,10 @@ class UnitController extends Controller
                     'allow_decimal'=>$request->allow_decimal,
 
                 ]);
+
+                // Clear product details cache for all users
+                ProductController::clearProductDetailsCache();
+
                 return response()->json([
                     'status' => 200,
                     'message' => "Old Unit  Details Updated Successfully!"
@@ -205,6 +213,10 @@ class UnitController extends Controller
         if ($getValue) {
 
             $getValue->delete();
+
+            // Clear product details cache for all users
+            ProductController::clearProductDetailsCache();
+
             return response()->json([
                 'status' => 200,
                 'message' => "Unit Details Deleted Successfully!"
