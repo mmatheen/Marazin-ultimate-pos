@@ -227,6 +227,48 @@ class UnifiedLedgerService
     }
 
     /**
+     * Record cheque bounce
+     */
+    public function recordChequeBounce($payment, $bounceDate, $bounceReason, $createdBy = null)
+    {
+        $transactionDate = Carbon::parse($bounceDate)->setTimezone('Asia/Colombo');
+
+        return Ledger::createEntry([
+            'contact_id' => $payment->customer_id ?? $payment->supplier_id,
+            'contact_type' => $payment->customer_id ? 'customer' : 'supplier',
+            'transaction_date' => $transactionDate,
+            'transaction_type' => 'cheque_bounce',
+            'reference_no' => 'BOUNCE-' . $payment->cheque_number,
+            'amount' => $payment->amount,
+            'notes' => "Cheque bounce: {$payment->cheque_number} - {$bounceReason}",
+            'created_by' => $createdBy
+        ]);
+    }
+
+    /**
+     * Record advance payment (customer credit / overpayment)
+     */
+    public function recordAdvancePayment($payment, $contactType = 'customer', $createdBy = null)
+    {
+        $transactionDate = $payment->created_at ?
+            Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo') :
+            Carbon::now('Asia/Colombo');
+
+        $contactId = $contactType === 'customer' ? $payment->customer_id : $payment->supplier_id;
+
+        return Ledger::createEntry([
+            'contact_id' => $contactId,
+            'contact_type' => $contactType,
+            'transaction_date' => $transactionDate,
+            'reference_no' => $payment->reference_no ?: 'ADV-' . $payment->id,
+            'transaction_type' => 'advance_payment',
+            'amount' => $payment->amount,
+            'notes' => $payment->notes ?: "Advance payment - customer credit",
+            'created_by' => $createdBy
+        ]);
+    }
+
+    /**
      * Edit sale with proper ledger management - FIXED LOGIC
      * When editing a sale amount, we should only have the final amount count
      */
@@ -762,8 +804,16 @@ class UnifiedLedgerService
         $totalCredits = $activeTransactions->sum('credit');
 
         // Calculate specific totals from ledger entries
+        // Total Transactions: Only sale amounts (not opening balance)
         $totalInvoices = $activeTransactions->whereIn('transaction_type', ['sale'])->sum('debit');
-        $totalPayments = $activeTransactions->whereIn('transaction_type', ['payment', 'sale_payment'])->sum('credit');
+
+        // Total Paid: Only sale payments (not opening balance payments or advance payments)
+        $totalPayments = $activeTransactions->whereIn('transaction_type', [
+            'payment',                  // Generic payment for sales
+            'payments',                 // Original payment type for sales
+            'sale_payment',            // Sale-specific payment only
+        ])->sum('credit');
+
         $totalReturns = $activeTransactions->whereIn('transaction_type', ['sale_return'])->sum('credit');
 
         // Get current balance using BalanceHelper (SINGLE SOURCE OF TRUTH)
@@ -956,8 +1006,16 @@ class UnifiedLedgerService
         $totalCredits = $activeTransactions->sum('credit');
 
         // Calculate specific totals for account summary
+        // Total Transactions: Only purchase amounts (not opening balance)
         $totalPurchases = $activeTransactions->whereIn('transaction_type', ['purchase'])->sum('credit');
-        $totalPayments = $activeTransactions->whereIn('transaction_type', ['payments'])->sum('debit');
+
+        // Total Paid: Only purchase payments (not opening balance payments or advance payments)
+        $totalPayments = $activeTransactions->whereIn('transaction_type', [
+            'payment',                  // Generic payment for purchases
+            'payments',                 // Original payment type for purchases
+            'purchase_payment',        // Purchase-specific payment only
+        ])->sum('debit');
+
         $totalReturns = $activeTransactions->whereIn('transaction_type', ['purchase_return'])->sum('debit');
 
         // Get current balance using BalanceHelper (SINGLE SOURCE OF TRUTH)

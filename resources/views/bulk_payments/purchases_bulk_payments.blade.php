@@ -2030,10 +2030,13 @@ function addFlexiblePayment() {
                     </select>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label small">Total Amount</label>
+                    <label class="form-label small">Total Amount <span class="both-payment-hint" style="display:none;"><i class="fas fa-hand-holding-usd text-success"></i> Enter total paying</span></label>
                     <input type="number" class="form-control payment-total-amount"
-                           step="0.01" min="0.01" placeholder="0.00"
+                           step="0.01" min="0.01" placeholder="Enter total amount paying"
                            data-payment-id="${paymentId}">
+                    <small class="text-muted both-payment-breakdown" style="display:none;">
+                        <i class="fas fa-info-circle"></i> Allocation: OB <span class="ob-portion">0.00</span> + Bills <span class="bills-portion">0.00</span> <span class="advance-portion" style="display:none;">+ Advance <span class="advance-amount">0.00</span></span>
+                    </small>
                 </div>
             </div>
 
@@ -2180,11 +2183,86 @@ function getPaymentMethodFields(method, paymentId) {
     }
 }
 
-// REMOVED AUTO-DISTRIBUTION - User must manually select bills
-// This function is kept for compatibility but does nothing
+// Auto-distribute amount to bills (for "both" payment type)
+function autoDistributeToBills(paymentId, amountToDistribute) {
+    const $paymentContainer = $(`.payment-method-item[data-payment-id="${paymentId}"]`);
+    const $billAllocationsList = $paymentContainer.find('.bill-allocations-list');
+
+    // Clear existing allocations for this payment method
+    $billAllocationsList.find('.bill-allocation-row').each(function() {
+        const $row = $(this);
+        const billId = $row.find('.bill-select').val();
+        const amount = parseFloat($row.find('.allocation-amount').val()) || 0;
+        if (billId && amount > 0) {
+            billPaymentAllocations[billId] = Math.max(0, (billPaymentAllocations[billId] || 0) - amount);
+        }
+    });
+    $billAllocationsList.empty();
+
+    let remainingAmount = amountToDistribute;
+    let billIndex = 0;
+
+    // Sort bills by reference number (oldest first)
+    const sortedBills = [...availableSupplierPurchases].sort((a, b) => {
+        return a.reference_no.localeCompare(b.reference_no);
+    });
+
+    // Auto-select bills until amount is exhausted
+    for (const bill of sortedBills) {
+        if (remainingAmount <= 0.01) break;
+
+        const allocatedAmount = billPaymentAllocations[bill.id] || 0;
+        const billTotalDue = parseFloat(bill.total_due) || 0;
+        const remainingDue = billTotalDue - allocatedAmount;
+
+        if (remainingDue > 0.01) {
+            const amountForThisBill = Math.min(remainingAmount, remainingDue);
+
+            // Add bill allocation row
+            const allocationId = `allocation_${Date.now()}_${billIndex}`;
+            const isFullyPaid = (amountForThisBill >= remainingDue - 0.01);
+
+            const allocationHTML = `
+                <div class="bill-allocation-row border rounded p-2 mb-2 bg-white" data-allocation-id="${allocationId}">
+                    <div class="row align-items-center">
+                        <div class="col-md-5">
+                            <select class="form-select form-select-sm bill-select" data-allocation-id="${allocationId}">
+                                <option value="${bill.id}" selected>${bill.reference_no} - Rs. ${billTotalDue.toFixed(2)}</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="number" class="form-control form-control-sm allocation-amount"
+                                   value="${amountForThisBill.toFixed(2)}"
+                                   data-allocation-id="${allocationId}" data-prev-amount="${amountForThisBill}">
+                            <small class="bill-amount-hint ${isFullyPaid ? 'text-success' : 'text-muted'}">
+                                ${isFullyPaid ? '✅ Bill will be fully paid' : '💰 Remaining: Rs. ' + (remainingDue - amountForThisBill).toFixed(2)}
+                            </small>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <button type="button" class="btn btn-danger btn-xs remove-bill-allocation-btn" data-allocation-id="${allocationId}">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            $billAllocationsList.append(allocationHTML);
+
+            // Update tracking
+            billPaymentAllocations[bill.id] = (billPaymentAllocations[bill.id] || 0) + amountForThisBill;
+
+            remainingAmount -= amountForThisBill;
+            billIndex++;
+        }
+    }
+
+    populateFlexibleBillsList();
+}
+
+// Legacy compatibility wrapper
 function autoDistributeAmountToBills(paymentId, totalAmount) {
-    console.log('Auto-distribution disabled - user must manually select bills');
-    // Do nothing - let users manually select bills
+    autoDistributeToBills(paymentId, totalAmount);
 }
 
 // Legacy function compatibility - redirects to new system
@@ -2416,8 +2494,23 @@ function submitMultiMethodPayment() {
             }
         });
 
+        // For "both" payment type, include OB portion from breakdown
+        if (paymentType === 'both') {
+            const obPortionText = $payment.find('.ob-portion').text();
+            const obPortion = parseFloat(obPortionText) || 0;
+
+            if (obPortion > 0) {
+                groupData.ob_amount = obPortion;
+            }
+        }
+
         // For opening balance payments, use the total amount even if no bills
         if (paymentType === 'opening_balance' && totalAmount > 0) {
+            groupData.totalAmount = totalAmount;
+            paymentGroups.push(groupData);
+            hasValidPayments = true;
+        } else if (paymentType === 'both' && (groupData.bills.length > 0 || groupData.ob_amount > 0)) {
+            // For "both" type, valid if has bills OR OB amount
             groupData.totalAmount = totalAmount;
             paymentGroups.push(groupData);
             hasValidPayments = true;
@@ -2705,6 +2798,7 @@ $(document).ready(function() {
             const paymentId = $(this).data('payment-id');
             const totalAmount = parseFloat($(this).val()) || 0;
             const $paymentContainer = $(this).closest('.payment-method-item');
+            const paymentType = $('input[name="paymentType"]:checked').val();
 
             // Ensure allocation object exists
             if (!paymentMethodAllocations[paymentId]) {
@@ -2721,7 +2815,95 @@ $(document).ready(function() {
             if (!isSystemUpdate) {
                 paymentMethodAllocations[paymentId].totalAmount = totalAmount;
 
-                // Get existing bill allocation rows
+                // FOR "BOTH" TYPE: Auto-distribute to OB + Bills
+                if (paymentType === 'both') {
+                    if (totalAmount > 0) {
+                        const selectedOption = $('#supplierSelect').find(':selected');
+                        const supplierOpeningBalance = parseFloat(selectedOption.data('opening-balance')) || 0;
+
+                        // Calculate how much OB has ALREADY been allocated in OTHER payment methods
+                        let totalOBAllocated = 0;
+                        $('.payment-method-item').each(function() {
+                            const thisPaymentId = $(this).data('payment-id');
+                            if (thisPaymentId !== paymentId) {
+                                const obText = $(this).find('.ob-portion').text();
+                                totalOBAllocated += parseFloat(obText) || 0;
+                            }
+                        });
+
+                        // Calculate remaining OB available for THIS payment
+                        const remainingOB = Math.max(0, supplierOpeningBalance - totalOBAllocated);
+
+                        let obPortion = 0;
+                        let billsPortion = 0;
+                        let advancePortion = 0;
+                        let remainingAmount = totalAmount;
+
+                        // First allocate to opening balance (only if OB still available)
+                        if (remainingOB > 0) {
+                            obPortion = Math.min(remainingAmount, remainingOB);
+                            remainingAmount -= obPortion;
+                        }
+
+                        // Auto-select bills and allocate remaining
+                        if (remainingAmount > 0) {
+                            autoDistributeToBills(paymentId, remainingAmount);
+
+                            // Calculate bills portion
+                            $paymentContainer.find('.allocation-amount').each(function() {
+                                billsPortion += parseFloat($(this).val()) || 0;
+                            });
+
+                            remainingAmount -= billsPortion;
+                        }
+
+                        // Any remaining is advance payment
+                        if (remainingAmount > 0.01) {
+                            advancePortion = remainingAmount;
+                        }
+
+                        // Show breakdown
+                        $paymentContainer.find('.both-payment-hint').show();
+                        $paymentContainer.find('.both-payment-breakdown').show();
+                        $paymentContainer.find('.ob-portion').text(obPortion.toFixed(2));
+                        $paymentContainer.find('.bills-portion').text(billsPortion.toFixed(2));
+
+                        if (advancePortion > 0) {
+                            $paymentContainer.find('.advance-portion').show();
+                            $paymentContainer.find('.advance-amount').text(advancePortion.toFixed(2));
+                        } else {
+                            $paymentContainer.find('.advance-portion').hide();
+                        }
+                    } else {
+                        // Amount is 0 or cleared - clear all bill allocations
+                        $paymentContainer.find('.bill-allocation-row').each(function() {
+                            const $row = $(this);
+                            const billId = $row.find('.bill-select').val();
+                            const amount = parseFloat($row.find('.allocation-amount').val()) || 0;
+
+                            if (billId && amount > 0) {
+                                billPaymentAllocations[billId] = (billPaymentAllocations[billId] || 0) - amount;
+                                if (billPaymentAllocations[billId] <= 0) {
+                                    delete billPaymentAllocations[billId];
+                                }
+                            }
+                        });
+
+                        // Clear bill allocations list
+                        $paymentContainer.find('.bill-allocations-list').empty();
+
+                        // Hide breakdown
+                        $paymentContainer.find('.both-payment-breakdown').hide();
+                        $paymentContainer.find('.advance-portion').hide();
+
+                        populateFlexibleBillsList();
+                    }
+
+                    updateSummaryTotals();
+                    return;
+                }
+
+                // Get existing bill allocation rows (for other payment types)
                 const $allocationRows = $paymentContainer.find('.bill-allocation-row');
 
                 if (totalAmount > 0 && $allocationRows.length > 0) {

@@ -268,9 +268,11 @@ class Ledger extends Model
         // For payment transactions, also check amount and timestamp to allow multiple payments
         // but prevent exact duplicates within a short time window
         if (in_array($data['transaction_type'], ['payment', 'payments', 'sale_payment', 'purchase_payment'])) {
-            $duplicateQuery->where('debit', abs($data['amount']))
-                ->orWhere('credit', abs($data['amount']))
-                ->where('created_at', '>=', Carbon::now()->subMinutes(5)); // Within 5 minutes
+            $duplicateQuery->where(function($query) use ($data) {
+                $query->where('debit', abs($data['amount']))
+                      ->orWhere('credit', abs($data['amount']));
+            })
+            ->where('created_at', '>=', Carbon::now()->subMinutes(5)); // Within 5 minutes
         }
 
         $existingEntry = $duplicateQuery->first();
@@ -284,6 +286,7 @@ class Ledger extends Model
                 'transaction_type' => $data['transaction_type'],
                 'existing_amount' => $existingEntry->debit ?: $existingEntry->credit,
                 'attempted_amount' => $data['amount'],
+                'existing_id' => $existingEntry->id,
                 'time_diff' => $existingEntry->created_at->diffInMinutes(Carbon::now()) . ' minutes ago'
             ]);
 
@@ -437,6 +440,17 @@ class Ledger extends Model
                 } else {
                     // Unlikely scenario for supplier cheque bounce, but handle it
                     $credit = $data['amount'];
+                }
+                break;
+
+            case 'advance_payment':
+                // Advance payment: Customer pays more than they owe (creates credit balance)
+                // This reduces what they owe us (or creates a credit they can use later)
+                if ($data['contact_type'] === 'customer') {
+                    $credit = $data['amount']; // Credit reduces customer debt / creates advance
+                } else {
+                    // Advance to supplier (we pay them more than we owe)
+                    $debit = $data['amount']; // Debit increases what they owe us
                 }
                 break;
 
