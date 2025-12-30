@@ -11,6 +11,7 @@ use App\Http\Controllers\{
     UnitController,
     UserController,
     BrandController,
+    BarcodeController,
     ContactController,
     ProfileController,
     LocationController,
@@ -275,6 +276,12 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/brand-update/{id}', [BrandController::class, 'update']);
         Route::delete('/brand-delete/{id}', [BrandController::class, 'destroy']);
         Route::get('/get-brand', [BrandController::class, 'brandDropdown']);
+
+        // -------------------- BarcodeController Routes --------------------
+        Route::get('/barcode-generator', [BarcodeController::class, 'index'])->name('barcode.index');
+        Route::post('/barcode/search-products', [BarcodeController::class, 'searchProducts'])->name('barcode.search');
+        Route::post('/barcode/generate', [BarcodeController::class, 'generateBarcodes'])->name('barcode.generate');
+        Route::get('/barcode/image', [BarcodeController::class, 'generateBarcodeImage'])->name('barcode.image');
 
         // -------------------- MainCategoryController Routes --------------------
         Route::get('/main-category', [MainCategoryController::class, 'mainCategory'])->name('main-category');

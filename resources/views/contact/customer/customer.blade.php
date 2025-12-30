@@ -70,6 +70,7 @@
                                         <th>Customer Type</th>
                                         <th>Address</th>
                                         <th>Opening Balance</th>
+                                        <th>Current Balance</th>
                                         <th>Credit Limit</th>
                                         <th>Total Sale Due</th>
                                         <th>Total Return Due</th>

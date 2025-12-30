@@ -78,7 +78,7 @@
                 @endcanany
 
                 @canany(['create product', 'view product', 'view unit', 'view main-category', 'view sub-category', 'view brand', 'view warranty', 'import product'])
-                    <li class="submenu {{ set_active(['list-product', 'add-product', 'discounts.index', 'import-product', 'unit', 'main-category', 'sub-category', 'brand', 'warranty']) }}">
+                    <li class="submenu {{ set_active(['list-product', 'add-product', 'discounts.index', 'import-product', 'barcode-generator', 'unit', 'main-category', 'sub-category', 'brand', 'warranty']) }}">
                         <a href="#">
                             <i class="fas fa-building"></i>
                             <span class="sidebar-text">Products</span>
@@ -96,6 +96,11 @@
                             @can('view discount')
                                 <li><a href="{{ route('discounts.index') }}"
                                         class="{{ set_active(['discounts.index']) }}">Discounts</a></li>
+                            @endcan
+
+                            @can('view product')
+                                <li><a href="{{ route('barcode.index') }}" class="{{ set_active(['barcode-generator']) }}">
+                                    <i class="fas fa-barcode me-1"></i>Barcode Generator</a></li>
                             @endcan
 
                             @can('import product')

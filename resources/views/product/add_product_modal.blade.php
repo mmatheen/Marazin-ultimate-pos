@@ -196,10 +196,26 @@
 
                                                 <script>
                                                     $(document).ready(function() {
-                                                        // Since checkbox is disabled and always checked, show alert quantity container
-                                                        $('#alert_quantity_container').show();
-                                                        $('#stock_alert_label').text('Manage Stock?');
-                                                        $('#openingStockAndProduct').prop('disabled', false);
+                                                        // Set initial state when the page loads
+                                                        toggleAlertQuantity();
+
+                                                        // Event listener for the checkbox change
+                                                        $('#edit_stock_alert').change(function() {
+                                                            toggleAlertQuantity();
+                                                        });
+
+                                                        // Function to toggle the alert quantity field based on checkbox status
+                                                        function toggleAlertQuantity() {
+                                                            if ($('#edit_stock_alert').is(':checked')) {
+                                                                // Managed Stock - Show alert quantity
+                                                                $('#alert_quantity_container').show();
+                                                                $('#stock_alert_label').text('Manage Stock?');
+                                                            } else {
+                                                                // Unlimited Stock - Hide alert quantity
+                                                                $('#alert_quantity_container').hide();
+                                                                $('#stock_alert_label').text('Manage Stock?');
+                                                            }
+                                                        }
                                                     });
                                                 </script>
 
@@ -433,13 +449,13 @@
         $('#new_purchase_product').on('shown.bs.modal', function() {
             // First, clear and reset form
             $('#addForm')[0].reset();
-            
+
             // Clear any previous error messages
             $('.text-danger').text('');
-            
+
             // Remove any validation error classes
             $('.form-control').removeClass('is-invalid is-valid');
-            
+
             // Fetch fresh dropdown data and populate dropdowns
             $.ajax({
                 url: '/initial-product-details',
@@ -452,7 +468,7 @@
                         const subCategories = response.message.subCategories;
                         const units = response.message.units;
                         const locations = response.message.locations;
-                        
+
                         // Destroy any previous Select2 instance to avoid duplication
                         $('#new_purchase_product .select').each(function() {
                             if ($(this).data('select2')) {
@@ -481,7 +497,7 @@
 
                         // Sub Categories dropdown (initially empty with proper value)
                         $('#edit_sub_category_id').empty().append('<option value="">Select Sub Category</option>');
-                        
+
                         // Locations dropdown
                         $('#edit_location_id').empty();
                         locations.forEach(location => {
@@ -493,7 +509,7 @@
                             dropdownParent: $('#new_purchase_product'),
                             width: '100%'
                         });
-                        
+
                         // Initialize location select with multiple selection
                         $('.multiple-location').select2({
                             placeholder: "Select Business Locations",
@@ -532,7 +548,7 @@
                         dropdownParent: $('#new_purchase_product'),
                         width: '100%'
                     });
-                    
+
                     $('.multiple-location').select2({
                         placeholder: "Select Business Locations",
                         allowClear: true,
@@ -551,7 +567,7 @@
                     $(this).select2('destroy');
                 }
             });
-            
+
             // Reset form when modal is closed (only reset the product form, not purchase data)
             $('#addForm')[0].reset();
             // Clear validation errors and styling

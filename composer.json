@@ -15,6 +15,7 @@
         "maatwebsite/excel": "^3.1",
         "masbug/flysystem-google-drive-ext": "^2.4",
         "owen-it/laravel-auditing": "^13.7",
+        "picqer/php-barcode-generator": "*",
         "spatie/laravel-activitylog": "^4.10",
         "spatie/laravel-backup": "^9.3",
         "spatie/laravel-permission": "^6.9",

@@ -223,12 +223,16 @@
                                                     // Function to toggle the alert quantity field based on checkbox status
                                                     function toggleAlertQuantity() {
                                                         if ($('#edit_stock_alert').is(':checked')) {
+                                                            // Managed Stock - Show alert quantity and opening stock button
                                                             $('#alert_quantity_container').show();
                                                             $('#stock_alert_label').text('Manage Stock?');
+                                                            $('#openingStockAndProduct').closest('div').show();
                                                             $('#openingStockAndProduct').prop('disabled', false);
                                                         } else {
+                                                            // Unlimited Stock - Hide alert quantity and opening stock button
                                                             $('#alert_quantity_container').hide();
                                                             $('#stock_alert_label').text('Manage Stock?');
+                                                            $('#openingStockAndProduct').closest('div').hide();
                                                             $('#openingStockAndProduct').prop('disabled', true);
                                                         }
                                                     }

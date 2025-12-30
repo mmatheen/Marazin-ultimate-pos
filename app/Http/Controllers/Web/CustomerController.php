@@ -86,7 +86,22 @@ class CustomerController extends Controller
         $customerIds = $customers->pluck('id')->toArray();
         $balances = BalanceHelper::getBulkCustomerBalances($customerIds);
 
-        $customers = $customers->map(function ($customer) use ($balances) {
+        // Fetch sales dues from sales table (optimized bulk query)
+        $salesDues = DB::table('sales')
+            ->whereIn('customer_id', $customerIds)
+            ->whereIn('status', ['final', 'suspend'])
+            ->select('customer_id', DB::raw('SUM(total_due) as total_sale_due'))
+            ->groupBy('customer_id')
+            ->pluck('total_sale_due', 'customer_id');
+
+        // Fetch return dues from sales_returns table (optimized bulk query)
+        $returnDues = DB::table('sales_returns')
+            ->whereIn('customer_id', $customerIds)
+            ->select('customer_id', DB::raw('SUM(total_due) as total_return_due'))
+            ->groupBy('customer_id')
+            ->pluck('total_return_due', 'customer_id');
+
+        $customers = $customers->map(function ($customer) use ($balances, $salesDues, $returnDues) {
             // Concatenate full name in PHP instead of using accessor
             $fullName = trim(($customer->prefix ? $customer->prefix . ' ' : '') .
                             $customer->first_name . ' ' .
@@ -94,6 +109,10 @@ class CustomerController extends Controller
 
             // Get the calculated balance from BalanceHelper (single source of truth)
             $currentBalance = $balances->get($customer->id, (float)$customer->opening_balance);
+
+            // Get actual sales and return dues from respective tables
+            $totalSaleDue = (float)($salesDues->get($customer->id, 0));
+            $totalReturnDue = (float)($returnDues->get($customer->id, 0));
 
             return [
                 'id' => $customer->id,
@@ -106,10 +125,10 @@ class CustomerController extends Controller
                 'address' => $customer->address,
                 'location_id' => $customer->location_id,
                 'opening_balance' => (float)$customer->opening_balance,
-                'current_balance' => (float)$currentBalance, // Accurate balance from unified ledger
-                'total_sale_due' => 0.0, // Deprecated - balance is in current_balance
-                'total_return_due' => 0.0, // Deprecated - included in current_balance
-                'current_due' => (float)$currentBalance, // Same as current_balance
+                'current_balance' => (float)$currentBalance, // ✅ Accurate balance from unified ledger
+                'total_sale_due' => $totalSaleDue, // ✅ Actual unpaid sales from sales table
+                'total_return_due' => $totalReturnDue, // ✅ Actual returns from sales_returns table
+                'current_due' => (float)max(0, $currentBalance), // Only positive balances (customer owes)
                 'city_id' => $customer->city_id,
                 'city_name' => $customer->city?->name ?? '',
                 'credit_limit' => (float)$customer->credit_limit,

@@ -63,12 +63,16 @@
         // DOM element cache to avoid repeated getElementById calls
         let domElementCache = {};
 
+        // ⚡ Simple cache for customer previous prices
+        const customerPriceCache = new Map();
+
         // Cache invalidation function for when product data changes
         function clearAllCaches() {
             customerCache.clear();
             staticDataCache.clear();
             searchCache.clear();
             domElementCache = {};
+            customerPriceCache.clear(); // Clear customer price cache
             // Clear location cache
             cachedLocations = null;
             locationCacheExpiry = null;
@@ -367,6 +371,9 @@
 
         // Listen for customer changes to update pricing and floating balance
         $('#customer-id').on('change', function() {
+            // Clear price cache when customer changes
+            customerPriceCache.clear();
+
             // Update pricing for existing products in billing table
             const billingBody = document.getElementById('billing-body');
             const existingRows = billingBody ? billingBody.querySelectorAll('tr') : [];
@@ -3569,7 +3576,7 @@
                         fetchFilteredProducts(currentFilter.type, currentFilter.id, false);
                     } else {
                         // Load all products
-                        fetchProductStocks(false);
+                        fetchPaginatedProducts(false);
                     }
 
                     // Reset loading flag after a delay
@@ -6730,13 +6737,22 @@
             }
         }
 
-        // Function to get customer's previous purchase price for a product
+        // Simple function to get customer's previous purchase price
         async function getCustomerPreviousPrice(customerId, productId) {
             if (!customerId || customerId === '' || customerId === 'walk-in') {
                 return null;
             }
 
+            // Check cache first
+            const cacheKey = `${customerId}_${productId}`;
+            if (customerPriceCache.has(cacheKey)) {
+                console.log(`⚡ Cache hit - customer ${customerId}, product ${productId}`);
+                return customerPriceCache.get(cacheKey);
+            }
+
+            // Fetch from API
             try {
+                console.log(`🌐 Fetching price - customer ${customerId}, product ${productId}`);
                 const response = await fetch(`/customer-previous-price?customer_id=${customerId}&product_id=${productId}`, {
                     method: 'GET',
                     headers: {
@@ -6746,17 +6762,18 @@
                     }
                 });
 
-                if (!response.ok) {
-                    console.log('API response not ok:', response.status, response.statusText);
-                    return null;
-                }
+                if (!response.ok) return null;
 
                 const data = await response.json();
-                console.log('Customer price history response:', data);
+                const result = (data.status === 200) ? data.data : null;
 
-                return (data.status === 200) ? data.data : null;
+                // Save to cache
+                customerPriceCache.set(cacheKey, result);
+                console.log(`💾 Cached price - customer ${customerId}, product ${productId}`);
+
+                return result;
             } catch (error) {
-                console.log('Could not fetch customer previous price:', error);
+                console.log('Error fetching price:', error);
                 return null;
             }
         }
@@ -6779,24 +6796,12 @@
                 console.warn('This might cause "Insufficient stock" errors. Consider using "all" for FIFO method.');
             }
 
-            // Get customer previous price data
-            let customerPriceHistory = null;
+            // Get customer previous price data - DON'T WAIT, fetch in background
             const currentCustomer = getCurrentCustomer();
             console.log('Current customer for price history:', currentCustomer);
 
-            if (currentCustomer && currentCustomer.id && currentCustomer.customer_type !== 'walk-in') {
-                try {
-                    console.log(`Fetching price history for customer ${currentCustomer.id} and product ${product.id}`);
-                    customerPriceHistory = await getCustomerPreviousPrice(currentCustomer.id, product.id);
-                    console.log('Price history result:', customerPriceHistory);
-                } catch (error) {
-                    console.log('Could not fetch customer price history:', error);
-                }
-            } else {
-                console.log('Skipping price history - walk-in customer or no customer selected');
-            }
-
             const billingBody = document.getElementById('billing-body');
+            locationId = selectedLocationId || 1;
             locationId = selectedLocationId || 1;
 
             // Use selectedBatch if provided; fallback to stockEntry batch
@@ -6814,7 +6819,7 @@
                 productMRP: product.max_retail_price,
                 batchId: batchId,
                 batchData: batch,
-                batchMRP: batch ? batch.max_retail_price : 'No batch',
+                batchMRP: batch ? batch.mrp : null,
                 selectedBatch: selectedBatch,
                 availableBatches: normalizeBatches(stockEntry).length
             });
@@ -7131,18 +7136,6 @@
                 data-special-price="${batch ? batch.special_price : (stockEntry.batches?.[0]?.special_price || 0)}"
                 data-max-retail-price="${batch ? batch.max_retail_price || product.max_retail_price : product.max_retail_price}"
                 min="0" ${(priceValidationEnabled === 1 && !canEditUnitPrice && !isEditing) ? 'readonly' : ''}>
-            ${customerPriceHistory && customerPriceHistory.has_previous_purchases ?
-                `<div class="text-center mt-1">
-                    <i class="fas fa-chart-line text-info cursor-pointer price-history-icon"
-                       title="View price history for this customer"
-                       data-product-id="${product.id}"
-                       data-product-name="${product.product_name}"
-                       data-customer-name="${currentCustomer.first_name || ''} ${currentCustomer.last_name || ''}"
-                       style="font-size: 14px; cursor: pointer;">
-                    </i>
-                 </div>` :
-                ''
-            }
         </td>
         <td class="subtotal total-price text-center" data-total="${(parseFloat(initialQuantityValue) * finalPrice).toFixed(2)}">${formatAmountWithSeparators((parseFloat(initialQuantityValue) * finalPrice).toFixed(2))}</td>
         <td class="text-center"><button class="btn btn-danger btn-sm remove-btn">×</button></td>
@@ -7193,6 +7186,60 @@
             }
 
             disableConflictingDiscounts(row);
+
+            // ⚡ PERFORMANCE: Fetch price history in BACKGROUND after row added
+            if (currentCustomer && currentCustomer.id && currentCustomer.customer_type !== 'walk-in') {
+                getCustomerPreviousPrice(currentCustomer.id, product.id).then(priceHistoryData => {
+                    if (priceHistoryData && priceHistoryData.has_previous_purchases) {
+                        console.log('Price history loaded, adding icon');
+                        // Find the price input cell in this row
+                        const priceCell = row.querySelector('.price-input').parentElement;
+                        if (priceCell && !priceCell.querySelector('.price-history-icon')) {
+                            const iconHtml = `
+                                <div class="text-center mt-1">
+                                    <i class="fas fa-chart-line text-info cursor-pointer price-history-icon"
+                                       title="View price history for this customer"
+                                       data-product-id="${product.id}"
+                                       data-product-name="${product.product_name}"
+                                       data-customer-name="${currentCustomer.first_name || ''} ${currentCustomer.last_name || ''}"
+                                       style="font-size: 14px; cursor: pointer;">
+                                    </i>
+                                 </div>`;
+                            priceCell.insertAdjacentHTML('beforeend', iconHtml);
+
+                            // Attach event listener to the newly added icon
+                            const icon = priceCell.querySelector('.price-history-icon');
+                            if (icon) {
+                                icon.addEventListener('click', async () => {
+                                    const productId = icon.getAttribute('data-product-id');
+                                    const productName = icon.getAttribute('data-product-name');
+                                    const customerName = icon.getAttribute('data-customer-name');
+
+                                    const currentCustomer = getCurrentCustomer();
+                                    if (!currentCustomer || !currentCustomer.id || currentCustomer.customer_type === 'walk-in') {
+                                        toastr.warning('Price history is only available for registered customers');
+                                        return;
+                                    }
+
+                                    try {
+                                        const freshData = await getCustomerPreviousPrice(currentCustomer.id, productId);
+                                        if (freshData && freshData.has_previous_purchases) {
+                                            showPriceHistoryModal(productName, JSON.stringify(freshData), customerName);
+                                        } else {
+                                            toastr.info('No previous purchase history found');
+                                        }
+                                    } catch (error) {
+                                        console.error('Error fetching price history:', error);
+                                        toastr.error('Could not load price history');
+                                    }
+                                });
+                            }
+                        }
+                    }
+                }).catch(error => {
+                    console.log('Background price fetch failed:', error);
+                });
+            }
 
             // Debug: Log actual DOM values after disableConflictingDiscounts
             const fixedInputDebug = row.querySelector('.fixed_discount');
@@ -7488,36 +7535,8 @@
                 showProductModal(product, stockEntry, row);
             });
 
-            // Event listener for price history icon click
-            const priceHistoryIcon = row.querySelector('.price-history-icon');
-            if (priceHistoryIcon) {
-                priceHistoryIcon.addEventListener('click', async () => {
-                    const productId = priceHistoryIcon.getAttribute('data-product-id');
-                    const productName = priceHistoryIcon.getAttribute('data-product-name');
-                    const customerName = priceHistoryIcon.getAttribute('data-customer-name');
-
-                    // Get current customer
-                    const currentCustomer = getCurrentCustomer();
-                    if (!currentCustomer || !currentCustomer.id || currentCustomer.customer_type === 'walk-in') {
-                        toastr.warning('Price history is only available for registered customers');
-                        return;
-                    }
-
-                    try {
-                        // Fetch fresh price history data
-                        const priceHistoryData = await getCustomerPreviousPrice(currentCustomer.id, productId);
-
-                        if (priceHistoryData && priceHistoryData.has_previous_purchases) {
-                            showPriceHistoryModal(productName, JSON.stringify(priceHistoryData), customerName);
-                        } else {
-                            toastr.info('No previous purchase history found for this customer and product');
-                        }
-                    } catch (error) {
-                        console.error('Error fetching price history:', error);
-                        toastr.error('Could not load price history');
-                    }
-                });
-            }
+            // Event listener for price history icon click - REMOVED
+            // Icon is added dynamically with its own event listener when price data loads
 
             const showImeiBtn = row.querySelector('.show-imei-btn');
             if (showImeiBtn) {
@@ -8936,29 +8955,117 @@
                             // Store current customer before reset
                             const currentCustomerId = $('#customer-id').val();
 
-                            // IMMEDIATE stock refresh for IMEI products - before form reset
-                            refreshStockDataAfterSale(saleData);
+                            // ⚡ PRIORITY #1: OPEN PRINT WINDOW IMMEDIATELY - Don't wait for anything else
+                            if (saleData.status !== 'suspend' && saleData.transaction_type !== 'sale_order') {
+                                // Determine sale id returned from the server (fallback to local saleId)
+                                const returnedSaleId = (response.sale && response.sale.id) || response.id || saleId;
+                                console.log('⚡ IMMEDIATE Print - saleId:', saleId, 'returnedSaleId:', returnedSaleId);
 
-                            // ✅ CLEAR SEARCH CACHE - prevent showing old stock quantities
-                            searchCache.clear();
-                            console.log('🗑️ Search cache cleared after sale');
+                                // OPEN PRINT WINDOW IMMEDIATELY - Use invoice HTML from response (NO AJAX CALL!)
+                                try {
+                                    if (response.invoice_html) {
+                                        // ⚡ Use invoice HTML from response - INSTANT, no server call needed!
+                                        console.log('⚡ Opening print INSTANTLY with response invoice HTML');
 
-                            // IMMEDIATE refresh of Recent Transactions data
-                            if (!window.fetchingSalesData) {
-                                fetchSalesData();
+                                        // Check if mobile device
+                                        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+                                        if (isMobile) {
+                                            // Mobile: Open in new window
+                                            const printWindow = window.open('', '_blank');
+                                            if (printWindow) {
+                                                printWindow.document.open();
+                                                printWindow.document.write(response.invoice_html);
+                                                printWindow.document.close();
+                                                printWindow.onload = function() {
+                                                    printWindow.print();
+                                                };
+
+                                                // Monitor for edit page redirect
+                                                if (saleId && window.location.pathname.includes('/edit/')) {
+                                                    const checkClosed = setInterval(() => {
+                                                        if (printWindow.closed) {
+                                                            clearInterval(checkClosed);
+                                                            window.location.href = '/pos-create';
+                                                        }
+                                                    }, 100);
+                                                    setTimeout(() => clearInterval(checkClosed), 30000);
+                                                }
+                                            } else {
+                                                toastr.error('Print window was blocked. Please allow pop-ups.');
+                                            }
+                                        } else {
+                                            // Desktop: Use hidden iframe for instant print
+                                            const iframe = document.createElement('iframe');
+                                            iframe.style.cssText = 'position:absolute;width:0;height:0;border:none;left:-9999px;visibility:hidden;';
+                                            document.body.appendChild(iframe);
+                                            const iframeDoc = iframe.contentWindow.document;
+                                            iframeDoc.open();
+                                            iframeDoc.write(response.invoice_html);
+                                            iframeDoc.close();
+                                            iframe.onload = function() {
+                                                iframe.contentWindow.focus();
+                                                iframe.contentWindow.print();
+                                                // Clean up iframe after print
+                                                setTimeout(() => {
+                                                    if (document.body.contains(iframe)) document.body.removeChild(iframe);
+                                                    // Redirect for edit page
+                                                    if (saleId && window.location.pathname.includes('/edit/')) {
+                                                        window.location.href = '/pos-create';
+                                                    }
+                                                }, 1000);
+                                            };
+                                        }
+                                    } else {
+                                        // Fallback: If no invoice HTML in response, use AJAX (should rarely happen)
+                                        console.warn('⚠️ No invoice HTML in response, falling back to AJAX fetch');
+                                        if (typeof window.printReceipt === 'function') {
+                                            window.printReceipt(returnedSaleId);
+                                        } else {
+                                            const printWindow = window.open(`/sales/print-recent-transaction/${returnedSaleId}`, '_blank');
+                                            if (!printWindow) {
+                                                toastr.error('Print window was blocked. Please allow pop-ups.');
+                                            }
+                                        }
+                                    }
+                                } catch (err) {
+                                    console.warn('Error while initiating print:', err);
+                                }
                             }
 
-                            // IMMEDIATE form reset and UI feedback - don't wait for async operations
-                            resetForm();
+                            // ⏳ BACKGROUND OPERATIONS - Run after print window opens
+                            setTimeout(() => {
+                                // IMMEDIATE form reset and UI feedback
+                                resetForm();
 
-                            // ✅ REFRESH PRODUCT GRID ASYNC - don't block print window
+                                // ✅ CLEAR SEARCH CACHE - prevent showing old stock quantities
+                                searchCache.clear();
+                                console.log('🗑️ Search cache cleared after sale');
+
+                                // Call onComplete for button re-enabling
+                                if (onComplete) onComplete();
+                            }, 50);
+
+                            // Background: Stock refresh for IMEI products
+                            setTimeout(() => {
+                                refreshStockDataAfterSale(saleData);
+                            }, 100);
+
+                            // Background: Recent Transactions refresh
+                            setTimeout(() => {
+                                if (!window.fetchingSalesData) {
+                                    fetchSalesData();
+                                }
+                            }, 150);
+
+                            // Background: Product grid refresh
                             setTimeout(() => {
                                 allProducts = [];
                                 currentProductsPage = 1;
                                 hasMoreProducts = true;
-                                fetchProductStocks(true);
+                                fetchPaginatedProducts(true);
                                 console.log('🔄 Product grid refreshed after sale');
-                            }, 100);
+                            }, 200);
 
                             // Extra safety checks for sales rep customer reset after successful billing
                             if (isSalesRep) {
@@ -8979,82 +9086,7 @@
                                 }, 500);
                             }
 
-                            // Call onComplete immediately for button re-enabling
-                            if (onComplete) onComplete();
-
-                            // Handle printing for all sales
-                            if (saleData.status !== 'suspend' && saleData.transaction_type !== 'sale_order') {
-                                // Determine sale id returned from the server (fallback to local saleId)
-                                const returnedSaleId = (response.sale && response.sale.id) || response.id || saleId;
-                                console.log('Print attempt - saleId:', saleId, 'returnedSaleId:', returnedSaleId, 'response:', response);
-
-                                // Use centralized printReceipt which handles mobile vs desktop logic
-                                try {
-                                    if (typeof window.printReceipt === 'function') {
-                                        // Small delay to ensure UI has reset
-                                        setTimeout(() => {
-                                            console.log('Opening print for sale ID:', returnedSaleId);
-                                            window.printReceipt(returnedSaleId);
-                                        }, 150);
-                                    } else if (response.invoice_html) {
-                                        // Use invoice HTML from response
-                                        const fallbackIframe = document.createElement('iframe');
-                                        fallbackIframe.style.cssText = 'position:fixed;width:0;height:0;border:none;opacity:0;';
-                                        document.body.appendChild(fallbackIframe);
-                                        const doc = fallbackIframe.contentDocument || fallbackIframe.contentWindow.document;
-                                        doc.open();
-                                        doc.write(response.invoice_html);
-                                        doc.close();
-                                        setTimeout(() => {
-                                            try { fallbackIframe.contentWindow.print(); } catch (e) { console.warn('Fallback print error', e); }
-                                            setTimeout(() => { if (document.body.contains(fallbackIframe)) document.body.removeChild(fallbackIframe); }, 1000);
-                                        }, 200);
-                                    } else {
-                                        // Generate print URL directly with window close monitoring for updates
-                                        setTimeout(() => {
-                                            const printWindow = window.open(`/sales/print-recent-transaction/${returnedSaleId}`, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
-                                            if (!printWindow) {
-                                                toastr.error('Print window was blocked. Please allow pop-ups and try again.');
-                                                // If print blocked and this is an update, still redirect after delay
-                                                if (saleId) {
-                                                    setTimeout(() => {
-                                                        if (window.location.pathname.includes('/edit/')) {
-                                                            window.location.href = '/pos-create';
-                                                        }
-                                                    }, 1000);
-                                                }
-                                            } else if (saleId) {
-                                                // Monitor print window closure for updates only
-                                                const checkClosed = setInterval(() => {
-                                                    if (printWindow.closed) {
-                                                        clearInterval(checkClosed);
-                                                        console.log('Print window closed, redirecting to POS immediately...');
-                                                        // Only redirect if user is still on edit page
-                                                        if (window.location.pathname.includes('/edit/')) {
-                                                            window.location.href = '/pos-create';
-                                                        }
-                                                    }
-                                                }, 100); // Check every 100ms for faster detection
-
-                                                // Fallback timeout in case window detection fails (after 30 seconds)
-                                                setTimeout(() => {
-                                                    clearInterval(checkClosed);
-                                                    if (!printWindow.closed && window.location.pathname.includes('/edit/')) {
-                                                        console.log('Print window still open after 30s, redirecting anyway...');
-                                                        window.location.href = '/pos-create';
-                                                    }
-                                                }, 30000);
-                                            }
-                                        }, 150);
-                                    }
-
-                                    // No automatic redirect for edits - only after print window closes
-                                } catch (err) {
-                                    console.warn('Error while initiating print:', err);
-                                }
-                            }
-
-                            // ASYNC operations that don't block UI (moved to background)
+                            // Background: Cache clearing and product pagination refresh (after print opens)
                             setTimeout(() => {
                                 // Background refresh - don't block main flow, make it truly async
                                 Promise.all([
@@ -9111,7 +9143,7 @@
                                         console.log('Sales rep: Keeping route-filtered customers, skipping full customer refresh');
                                     }
                                 }
-                            }, 200); // Small delay to let UI update first
+                            }, 300); // Run cache operations in background after print opens
 
                         } else {
                             // Check if this is a credit limit error
@@ -10404,19 +10436,14 @@
             debouncedLoadTableData(status);
         });
 
-        // Fetch sales data on page load
-        fetchSalesData();
+        // ⚡ PERFORMANCE FIX: Don't fetch sales data on page load - only when modal is opened
+        // fetchSalesData(); // REMOVED - was causing 9 second delay on page load!
 
         // Unbind existing modal event listeners first, then setup new one
         $('#recentTransactionsModal').off('shown.bs.modal').on('shown.bs.modal', function () {
-            console.log('Recent Transactions modal opened, refreshing data...');
-            // Only fetch if we don't already have data or if data is stale
-            if (sales.length === 0 || shouldRefreshSalesData()) {
-                fetchSalesData();
-            } else {
-                console.log('Using cached sales data');
-                loadTableData('final'); // Just reload the table with existing data
-            }
+            console.log('⚡ Recent Transactions modal opened, fetching data...');
+            // Always fetch fresh data when modal is opened
+            fetchSalesData();
         });
     });
 

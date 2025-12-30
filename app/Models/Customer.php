@@ -18,11 +18,11 @@ class Customer extends Model
      * BALANCE CALCULATION ARCHITECTURE
      * ================================
      * This model uses a unified approach for all customer balance calculations:
-     * 
-     * 1. SINGLE SOURCE OF TRUTH: BalanceHelper::getCustomerBalance() 
+     *
+     * 1. SINGLE SOURCE OF TRUTH: BalanceHelper::getCustomerBalance()
      * 2. STATUS FILTERING: Only 'active' ledger entries are considered (excludes 'reversed')
      * 3. UNIFIED LEDGER: All transactions flow through UnifiedLedgerService
-     * 
+     *
      * Key Methods:
      * - getCurrentBalance(): Main balance calculation method
      * - getCurrentBalanceAttribute(): Laravel accessor for API responses
@@ -120,6 +120,15 @@ class Customer extends Model
         return trim("{$this->first_name} {$this->last_name}");
     }
 
+    /**
+     * @deprecated This method is deprecated. Use BalanceHelper::getCustomerBalance() instead.
+     * This accessor calculates balance directly from sales table, which doesn't account for:
+     * - Reversed ledger entries
+     * - Opening balance adjustments
+     * - Payment allocations through the unified ledger
+     *
+     * For accurate balances, always use: BalanceHelper::getCustomerBalance($customerId)
+     */
     public function getTotalSaleDueAttribute()
     {
         return $this->sales()
@@ -128,15 +137,23 @@ class Customer extends Model
             ->sum('total_due');
     }
 
+    /**
+     * @deprecated This method is deprecated. Use BalanceHelper::getCustomerBalance() instead.
+     * Returns are already included in the unified ledger balance calculation.
+     */
     public function getTotalReturnDueAttribute()
     {
         return $this->salesReturns()->sum('total_due');
     }
 
+    /**
+     * Get customer's current due amount (only positive balances)
+     * Uses BalanceHelper - the ONLY source for balance calculations
+     */
     public function getCurrentDueAttribute()
     {
         if ($this->id == 1) return 0;
-        
+
         // Use BalanceHelper - the ONLY place for balance calculations
         return BalanceHelper::getCustomerDue($this->id);
     }
@@ -217,7 +234,7 @@ class Customer extends Model
         // Return the current total balance using BalanceHelper (SINGLE SOURCE OF TRUTH)
         // This includes opening balance + sales - payments - returns = current due
         $currentBalance = BalanceHelper::getCustomerBalance($this->id);
-        
+
         // Return only positive balance (amount customer owes)
         return max(0, $currentBalance);
     }
@@ -324,17 +341,17 @@ class Customer extends Model
             ->count();
 
         $overdueDays = 0; // You can implement overdue calculation based on your business rules
-        
+
         $riskScore = 0;
-        
+
         if ($totalCheques > 0) {
             $bounceRate = ($bouncedCheques / $totalCheques) * 100;
             $riskScore += $bounceRate * 2; // Bounce rate contributes heavily to risk
         }
-        
+
         $riskScore += min($overdueDays * 0.5, 30); // Overdue days (max 30 points)
         $riskScore += min($this->getTotalOutstanding() / 10000, 20); // Outstanding amount factor
-        
+
         return min(round($riskScore), 100); // Cap at 100
     }
 
@@ -355,7 +372,7 @@ class Customer extends Model
             ->count();
 
         $riskScore = $this->getRiskScore();
-        
+
         // Block if more than 2 bounced cheques OR risk score > 70
         return $bouncedCount > 2 || $riskScore > 70;
     }

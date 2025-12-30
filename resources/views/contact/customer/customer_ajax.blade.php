@@ -193,6 +193,52 @@
                 columns: [
                     {
                         data: null,
+                        title: 'Action',
+                        render: function(data, type, row) {
+                            let actions = '<div class="btn-group" role="group">';
+
+                            // Main dropdown for all actions
+                            actions += `
+                                <div class="dropdown">
+                                    <button type="button" class="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="feather-settings"></i> Actions
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><h6 class="dropdown-header">Sales Reports</h6></li>
+                                        <li><a class="dropdown-item" href="{{ route('list-sale') }}?customer_id=${row.id}" target="_blank">
+                                            <i class="feather-list text-success"></i> All Sales
+                                        </a></li>
+                                        <li><a class="dropdown-item" href="{{ route('due.report') }}?report_type=customer&customer_id=${row.id}" target="_blank">
+                                            <i class="feather-alert-circle text-danger"></i> Due Sales
+                                        </a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><h6 class="dropdown-header">Customer Actions</h6></li>
+                                        @can('view customer')
+                                            <li><a class="dropdown-item ledger_btn" href="#" data-id="${row.id}">
+                                                <i class="feather-book-open text-primary"></i> Ledger
+                                            </a></li>
+                                        @endcan
+                                        @can('edit customer')
+                                            <li><a class="dropdown-item edit_btn" href="#" data-id="${row.id}">
+                                                <i class="feather-edit text-info"></i> Edit
+                                            </a></li>
+                                        @endcan
+                                        @can('delete customer')
+                                            <li><a class="dropdown-item delete_btn" href="#" data-id="${row.id}">
+                                                <i class="feather-trash-2 text-danger"></i> Delete
+                                            </a></li>
+                                        @endcan
+                                    </ul>
+                                </div>
+                            `;
+
+                            actions += '</div>';
+                            return actions;
+                        },
+                        orderable: false
+                    },
+                    {
+                        data: null,
                         render: function(data, type, row, meta) {
                             return meta.row + meta.settings._iDisplayStart + 1;
                         },
@@ -290,48 +336,222 @@
                         }
                     },
                     {
-                        data: null,
-                        title: 'Action',
+                        data: 'current_balance',
+                        title: 'Current Balance',
+                        defaultContent: '0',
                         render: function(data, type, row) {
-                            let actions = '<div class="btn-group" role="group">';
+                            // Format the balance with proper styling
+                            const balance = parseFloat(data) || 0;
+                            const formattedBalance = balance.toFixed(2);
 
-                            // Dropdown for Sales Reports
-                            actions += `
-                                <div class="btn-group me-2" role="group">
-                                    <button type="button" class="btn btn-outline-success btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                        <i class="feather-file-text"></i> Sales
-                                    </button>
-                                    <ul class="dropdown-menu">
-                                        <li><a class="dropdown-item" href="{{ route('list-sale') }}?customer_id=${row.id}" target="_blank">
-                                            <i class="feather-list text-success"></i> All Sales
-                                        </a></li>
-                                        <li><a class="dropdown-item" href="{{ route('due.report') }}?report_type=customer&customer_id=${row.id}" target="_blank">
-                                            <i class="feather-alert-circle text-danger"></i> Due Sales
-                                        </a></li>
-                                    </ul>
-                                </div>
-                            `;
-
-                            @can('view customer')
-                                actions += `<button type="button" value="${row.id}" class="ledger_btn btn btn-outline-primary btn-sm me-2"><i class="feather-book-open text-primary"></i> Ledger</button>`;
-                            @endcan
-                            @can('edit customer')
-                                actions += `<button type="button" value="${row.id}" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>`;
-                            @endcan
-                            @can('delete customer')
-                                actions += `<button type="button" value="${row.id}" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>`;
-                            @endcan
-
-                            actions += '</div>';
-                            return actions;
-                        },
-                        orderable: false
+                            // Color code: green for credit (negative), red for debit (positive)
+                            if (balance > 0) {
+                                return `<span class="text-danger fw-bold">${formattedBalance}</span>`;
+                            } else if (balance < 0) {
+                                return `<span class="text-success fw-bold">${formattedBalance}</span>`;
+                            }
+                            return formattedBalance;
+                        }
                     }
                 ],
                 pageLength: 10,
                 lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
                 responsive: true,
-                order: [[2, 'asc']], // Order by first_name
+                order: [[3, 'asc']], // Order by first_name (now at position 3)
+                buttons: [
+                    {
+                        extend: 'pdfHtml5',
+                        text: '<i class="fas fa-file-pdf"></i> PDF',
+                        className: 'btn btn-danger btn-sm',
+                        title: 'Customer List - ' + ($('#cityFilter option:selected').text() || 'All Cities'),
+                        orientation: 'landscape',
+                        pageSize: 'A4',
+                        exportOptions: {
+                            columns: [1, 3, 4, 10, 12, 13, 14] // ID, First Name, Last Name, Opening Balance, Total Sale Due, Total Return Due, Current Balance
+                        },
+                        customize: function(doc) {
+                            // Add two empty columns to the PDF table
+                            var tableBody = doc.content[doc.content.length - 1].table.body;
+
+                            // Add headers for Cheque Amount and Cash Amount
+                            tableBody[0].push({ text: 'Cheque Amount', style: 'tableHeader' });
+                            tableBody[0].push({ text: 'Cash Amount', style: 'tableHeader' });
+
+                            // Add empty cells for data rows
+                            for (var i = 1; i < tableBody.length; i++) {
+                                tableBody[i].push({ text: '' });
+                                tableBody[i].push({ text: '' });
+                            }
+
+                            // Add header
+                            doc.content[0].text = 'Customer List Report';
+                            doc.content[0].style = 'header';
+                            doc.content[0].alignment = 'center';
+                            doc.content[0].fontSize = 16;
+                            doc.content[0].bold = true;
+                            doc.content[0].margin = [0, 0, 0, 10];
+
+                            // Add filter info
+                            var cityFilter = $('#cityFilter option:selected').text();
+                            if (cityFilter && cityFilter !== 'All Cities') {
+                                doc.content.splice(1, 0, {
+                                    text: 'Filtered by City: ' + cityFilter,
+                                    alignment: 'center',
+                                    fontSize: 12,
+                                    margin: [0, 0, 0, 10]
+                                });
+                            }
+
+                            // Add date
+                            doc.content.splice(cityFilter && cityFilter !== 'All Cities' ? 2 : 1, 0, {
+                                text: 'Generated on: ' + new Date().toLocaleString(),
+                                alignment: 'center',
+                                fontSize: 10,
+                                margin: [0, 0, 0, 15]
+                            });
+
+                            // Style the table
+                            doc.styles.tableHeader = {
+                                bold: true,
+                                fontSize: 10,
+                                color: 'white',
+                                fillColor: '#2d3748',
+                                alignment: 'center'
+                            };
+
+                            // Make table more compact
+                            doc.content[doc.content.length - 1].table.widths = Array(doc.content[doc.content.length - 1].table.body[0].length).fill('auto');
+
+                            // Style data rows
+                            var objLayout = {};
+                            objLayout['hLineWidth'] = function(i) { return 0.5; };
+                            objLayout['vLineWidth'] = function(i) { return 0.5; };
+                            objLayout['hLineColor'] = function(i) { return '#aaa'; };
+                            objLayout['vLineColor'] = function(i) { return '#aaa'; };
+                            objLayout['paddingLeft'] = function(i) { return 4; };
+                            objLayout['paddingRight'] = function(i) { return 4; };
+                            doc.content[doc.content.length - 1].layout = objLayout;
+
+                            // Highlight current balance (credit balance) in red
+                            var tableBody = doc.content[doc.content.length - 1].table.body;
+                            for (var i = 1; i < tableBody.length; i++) {
+                                if (!tableBody[i]) continue; // Skip if row is undefined
+
+                                // Total Sale Due column (position 4 in exported PDF)
+                                if (tableBody[i][4] !== undefined) {
+                                    var saleDueValue = tableBody[i][4].text || tableBody[i][4];
+                                    if (parseFloat(saleDueValue) > 0) {
+                                        if (typeof tableBody[i][4] === 'object') {
+                                            tableBody[i][4].color = 'red';
+                                            tableBody[i][4].bold = true;
+                                        } else {
+                                            tableBody[i][4] = { text: tableBody[i][4], color: 'red', bold: true };
+                                        }
+                                    }
+                                }
+
+                                // Total Return Due column (position 5 in exported PDF)
+                                if (tableBody[i][5] !== undefined) {
+                                    var returnDueValue = tableBody[i][5].text || tableBody[i][5];
+                                    if (parseFloat(returnDueValue) > 0) {
+                                        if (typeof tableBody[i][5] === 'object') {
+                                            tableBody[i][5].color = 'red';
+                                            tableBody[i][5].bold = true;
+                                        } else {
+                                            tableBody[i][5] = { text: tableBody[i][5], color: 'red', bold: true };
+                                        }
+                                    }
+                                }
+
+                                // Current Balance column (position 6 in exported PDF) - customer credit balance
+                                if (tableBody[i][6] !== undefined) {
+                                    var currentBalanceValue = tableBody[i][6].text || tableBody[i][6];
+                                    if (parseFloat(currentBalanceValue) > 0) {
+                                        if (typeof tableBody[i][6] === 'object') {
+                                            tableBody[i][6].color = 'red';
+                                            tableBody[i][6].bold = true;
+                                        } else {
+                                            tableBody[i][6] = { text: tableBody[i][6], color: 'red', bold: true };
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Add footer with summary
+                            var totalCustomers = tableBody.length - 1;
+                            doc.content.push({
+                                text: 'Total Customers: ' + totalCustomers,
+                                alignment: 'right',
+                                fontSize: 10,
+                                bold: true,
+                                margin: [0, 10, 0, 0]
+                            });
+                        }
+                    },
+                    {
+                        extend: 'excelHtml5',
+                        text: '<i class="fas fa-file-excel"></i> Excel',
+                        className: 'btn btn-success btn-sm',
+                        title: 'Customer List',
+                        exportOptions: {
+                            columns: [1, 3, 4, 10, 12, 13, 14] // ID, First Name, Last Name, Opening Balance, Total Sale Due, Total Return Due, Current Balance
+                        },
+                        customize: function(xlsx) {
+                            var sheet = xlsx.xl.worksheets['sheet1.xml'];
+                            var $sheet = $(sheet);
+                            var $rows = $sheet.find('row');
+
+                            // Add two empty columns (Cheque Amount and Cash Amount) to each row
+                            $rows.each(function(index) {
+                                var $row = $(this);
+                                var cellCount = $row.find('c').length;
+
+                                // Add header or empty cells
+                                if (index === 0) {
+                                    // Add header cells
+                                    $row.append('<c t="inlineStr" r="' + String.fromCharCode(65 + cellCount) + '1"><is><t>Cheque Amount</t></is></c>');
+                                    $row.append('<c t="inlineStr" r="' + String.fromCharCode(65 + cellCount + 1) + '1"><is><t>Cash Amount</t></is></c>');
+                                } else {
+                                    // Add empty data cells
+                                    $row.append('<c t="inlineStr" r="' + String.fromCharCode(65 + cellCount) + (index + 1) + '"><is><t></t></is></c>');
+                                    $row.append('<c t="inlineStr" r="' + String.fromCharCode(65 + cellCount + 1) + (index + 1) + '"><is><t></t></is></c>');
+                                }
+                            });
+                        }
+                    },
+                    {
+                        extend: 'print',
+                        text: '<i class="fas fa-print"></i> Print',
+                        className: 'btn btn-info btn-sm',
+                        title: 'Customer List - ' + ($('#cityFilter option:selected').text() || 'All Cities'),
+                        exportOptions: {
+                            columns: [1, 3, 4, 10, 12, 13, 14] // ID, First Name, Last Name, Opening Balance, Total Sale Due, Total Return Due, Current Balance
+                        },
+                        customize: function(win) {
+                            // Add two empty columns to the printed table
+                            $(win.document.body).find('table thead tr').append('<th>Cheque Amount</th><th>Cash Amount</th>');
+                            $(win.document.body).find('table tbody tr').each(function() {
+                                $(this).append('<td></td><td></td>');
+                            });
+
+                            $(win.document.body).css('font-size', '10pt');
+                            $(win.document.body).find('table').addClass('compact').css('font-size', 'inherit');
+
+                            // Add custom header
+                            $(win.document.body).prepend(
+                                '<h2 style="text-align:center;">Customer List Report</h2>' +
+                                '<p style="text-align:center;">Generated on: ' + new Date().toLocaleString() + '</p>'
+                            );
+
+                            var cityFilter = $('#cityFilter option:selected').text();
+                            if (cityFilter && cityFilter !== 'All Cities') {
+                                $(win.document.body).find('h2').after(
+                                    '<p style="text-align:center;"><strong>Filtered by City: ' + cityFilter + '</strong></p>'
+                                );
+                            }
+                        }
+                    }
+                ],
                 language: {
                     processing: "Loading customer data...",
                     emptyTable: "No customers found",
@@ -347,7 +567,7 @@
                         previous: "Previous"
                     }
                 },
-                dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+                dom: '<"dt-top"B><"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
                      '<"row"<"col-sm-12"tr>>' +
                      '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>'
             });
@@ -510,8 +730,9 @@
 
 
         // Show Edit Modal
-        $(document).on('click', '.edit_btn', function() {
-            var id = $(this).val();
+        $(document).on('click', '.edit_btn', function(e) {
+            e.preventDefault();
+            var id = $(this).data('id') || $(this).val();
             $('#modalTitle').text('Edit Customer');
             $('#modalButton').text('Update');
             $('#addAndUpdateForm')[0].reset();
@@ -707,9 +928,10 @@
         });
 
 
-        // Delete Warranty
-        $(document).on('click', '.delete_btn', function() {
-            var id = $(this).val();
+        // Delete Customer
+        $(document).on('click', '.delete_btn', function(e) {
+            e.preventDefault();
+            var id = $(this).data('id') || $(this).val();
             $('#deleteModal').modal('show');
             $('#deleting_id').val(id);
             $('#deleteName').text('Delete customer');
@@ -746,8 +968,9 @@
         });
 
         // Navigate to Customer Ledger
-        $(document).on('click', '.ledger_btn', function() {
-            var customerId = $(this).val();
+        $(document).on('click', '.ledger_btn', function(e) {
+            e.preventDefault();
+            var customerId = $(this).data('id') || $(this).val();
             // Navigate to customer ledger page with customer ID as parameter
             window.location.href = '/account-ledger?customer_id=' + customerId;
         });
@@ -892,6 +1115,25 @@
         // City filter change event
         $('#cityFilter').on('change', function() {
             $('#customer').DataTable().ajax.reload();
+        });
+
+        // Apply filter button
+        $('#applyFilterButton').on('click', function() {
+            $('#customer').DataTable().ajax.reload();
+            toastr.success('Filter applied successfully', 'Success');
+        });
+
+        // Clear filter button
+        $('#clearFilterButton').on('click', function() {
+            $('#cityFilter').val('').trigger('change');
+            $('#customer').DataTable().ajax.reload();
+            toastr.info('Filter cleared', 'Info');
+        });
+
+        // Export PDF button
+        $('#exportPdfButton').on('click', function() {
+            var table = $('#customer').DataTable();
+            table.button('.buttons-pdf').trigger();
         });
 
 

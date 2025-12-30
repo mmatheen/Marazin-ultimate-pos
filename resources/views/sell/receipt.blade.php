@@ -269,7 +269,7 @@
                 @if (!$loop->last)
                 <tr>
                     <td colspan="5" style="padding: 0 !important;">
-                        <hr style="margin: 1px 0; border-top-style: dashed; border-width: 1px;">
+                        <hr style="margin: 1px 0; border-top-style: dashed; border-width: 1px; border-color: #ddd;">
                     </td>
                 </tr>
                 @endif

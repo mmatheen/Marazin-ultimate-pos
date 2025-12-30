@@ -54,29 +54,68 @@ class CustomerController extends Controller
     }
 
     // Start with bypassing all global scopes to ensure accurate balance calculations
-    $query = Customer::withoutGlobalScopes()->with(['sales', 'salesReturns', 'payments', 'city']);
+    $query = Customer::withoutGlobalScopes()
+        ->with('city:id,name')
+        ->select([
+            'id', 'prefix', 'first_name', 'last_name', 'mobile_no', 'email',
+            'address', 'location_id', 'opening_balance', 'credit_limit',
+            'city_id', 'customer_type'
+        ]);
 
     // Apply sales rep route filtering if user is a sales rep
     if ($user->isSalesRep()) {
         $query = $this->applySalesRepFilter($query, $user);
     }
 
-    $customers = $query->orderBy('first_name')->get()->map(function ($customer) {
+    $customers = $query->orderBy('first_name')->get();
+
+    // Fetch all customer balances in one optimized query using BalanceHelper (single source of truth)
+    $customerIds = $customers->pluck('id')->toArray();
+    $balances = BalanceHelper::getBulkCustomerBalances($customerIds);
+
+    // Fetch sales dues from sales table (optimized bulk query)
+    $salesDues = DB::table('sales')
+        ->whereIn('customer_id', $customerIds)
+        ->whereIn('status', ['final', 'suspend'])
+        ->select('customer_id', DB::raw('SUM(total_due) as total_sale_due'))
+        ->groupBy('customer_id')
+        ->pluck('total_sale_due', 'customer_id');
+
+    // Fetch return dues from sales_returns table (optimized bulk query)
+    $returnDues = DB::table('sales_returns')
+        ->whereIn('customer_id', $customerIds)
+        ->select('customer_id', DB::raw('SUM(total_due) as total_return_due'))
+        ->groupBy('customer_id')
+        ->pluck('total_return_due', 'customer_id');
+
+    $customers = $customers->map(function ($customer) use ($balances, $salesDues, $returnDues) {
+        // Concatenate full name in PHP instead of using accessor to avoid N+1
+        $fullName = trim(($customer->prefix ? $customer->prefix . ' ' : '') .
+                        $customer->first_name . ' ' .
+                        ($customer->last_name ?? ''));
+
+        // Get the calculated balance from BalanceHelper (single source of truth)
+        $currentBalance = $balances->get($customer->id, (float)$customer->opening_balance);
+
+        // Get actual sales and return dues from respective tables
+        $totalSaleDue = (float)($salesDues->get($customer->id, 0));
+        $totalReturnDue = (float)($returnDues->get($customer->id, 0));
+
         return [
             'id' => $customer->id,
             'prefix' => $customer->prefix,
             'first_name' => $customer->first_name,
             'last_name' => $customer->last_name,
-            'full_name' => $customer->full_name,
+            'full_name' => $fullName,
             'mobile_no' => $customer->mobile_no,
             'email' => $customer->email,
             'address' => $customer->address,
             'location_id' => $customer->location_id,
-            'opening_balance' => (float)$customer->opening_balance, // ✅ Show actual opening balance from table
-            'current_balance' => (float)$customer->getCurrentTotalBalance(), // Current total due amount
-            'total_sale_due' => (float)$customer->total_sale_due,
-            'total_return_due' => (float)$customer->total_return_due,
-            'current_due' => (float)$customer->current_due,
+            'opening_balance' => (float)$customer->opening_balance,
+            'current_balance' => (float)$currentBalance, // ✅ Accurate balance from unified ledger
+            'total_sale_due' => $totalSaleDue, // ✅ Actual unpaid sales from sales table
+            'total_return_due' => $totalReturnDue, // ✅ Actual returns from sales_returns table
+            'current_due' => (float)max(0, $currentBalance), // Only positive balances (customer owes)
             'city_id' => $customer->city_id,
             'city_name' => $customer->city?->name ?? '',
             'credit_limit' => (float)$customer->credit_limit,
