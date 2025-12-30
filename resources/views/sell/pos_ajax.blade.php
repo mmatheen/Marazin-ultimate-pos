@@ -56,9 +56,9 @@
         };
     }
 
-        // Search results cache to avoid repeated identical searches
+        // Search results cache DISABLED - always fetch fresh stock data to prevent stale quantities
         let searchCache = new Map();
-        let searchCacheExpiry = 2 * 60 * 1000; // 2 minutes for search results
+        let searchCacheExpiry = 0; // DISABLED - always fetch fresh data (was 2 minutes)
 
         // DOM element cache to avoid repeated getElementById calls
         let domElementCache = {};
@@ -2288,6 +2288,7 @@
         function safeFetchJson(url, options = {}) {
             // Add default headers if not provided
             const defaultOptions = {
+                cache: 'no-store', // ✅ Prevent browser caching - always fetch fresh data
                 headers: {
                     'Accept': 'application/json',
                     'Content-Type': 'application/json',
@@ -2903,11 +2904,12 @@
                 }
             }
 
-            const url = `/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=${perPage}&with_stock=1`;
+            const url = `/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=${perPage}`;
 
             // Add CSRF token and headers to prevent 419 errors
             const fetchOptions = {
                 method: 'GET',
+                cache: 'no-store', // ✅ Prevent browser caching - always fetch fresh stock data
                 headers: {
                     'Accept': 'application/json',
                     'Content-Type': 'application/json',
@@ -3263,6 +3265,38 @@
             console.log(`📦 Total cards in posProduct: ${posProduct.children.length}`);
         }
 
+        // ---- FILTER PRODUCT GRID BY SEARCH TEXT ----
+        function filterProductGrid(searchText) {
+            const posProduct = document.getElementById('posProduct');
+            if (!posProduct) return;
+
+            const searchLower = searchText.toLowerCase().trim();
+            const productCards = posProduct.querySelectorAll('.product-card');
+            let visibleCount = 0;
+
+            productCards.forEach(card => {
+                if (!searchLower) {
+                    // Show all if search is empty
+                    card.parentElement.style.display = '';
+                    visibleCount++;
+                    return;
+                }
+
+                // Get product data from card - use textContent of entire card
+                const cardText = card.textContent?.toLowerCase() || '';
+                const productId = card.getAttribute('data-id') || '';
+
+                // Check if matches search (search in full card text and ID)
+                const matches = cardText.includes(searchLower) || productId.includes(searchLower);
+
+                // Hide/show the parent div (col wrapper)
+                card.parentElement.style.display = matches ? '' : 'none';
+                if (matches) visibleCount++;
+            });
+
+            console.log(`🔍 Filtered product grid: "${searchText}" - ${visibleCount}/${productCards.length} products visible`);
+        }
+
         // ---- DISPLAY PRODUCTS IN MOBILE MODAL ----
         function displayMobileProducts(products, append = false) {
             const mobileProductGrid = document.getElementById('mobileProductGrid');
@@ -3594,6 +3628,7 @@
                     search: term,
                     per_page: 100 // Increased to 100 to show more results in autocomplete
                 },
+                cache: false, // ✅ Prevent browser caching - always fetch fresh stock data
                 timeout: 10000,
                 success: function(data) {
                     handleSearchSuccess(data, term, response, cacheKey);
@@ -3623,14 +3658,15 @@
                 results.push({ label: "No results found", value: "" });
             }
 
-            // Cache the results if cache key is provided
-            if (cacheKey && results.length > 0) {
-                searchCache.set(cacheKey, {
-                    results: results,
-                    timestamp: Date.now()
-                });
-                console.log('Cached search results for:', term);
-            }
+            // ❌ CACHING DISABLED - Always fetch fresh stock data to prevent stale quantities
+            // Cache is now disabled to ensure real-time stock display after sales
+            // if (cacheKey && results.length > 0) {
+            //     searchCache.set(cacheKey, {
+            //         results: results,
+            //         timestamp: Date.now()
+            //     });
+            //     console.log('Cached search results for:', term);
+            // }
 
             autocompleteState.lastResults = results.filter(r => r.product);
 
@@ -4485,6 +4521,7 @@
                     search: searchTerm,
                     per_page: 15
                 },
+                cache: false, // ✅ Prevent browser caching - always fetch fresh stock data
                 timeout: 5000,
                 success: function(data) {
                     hideSearchIndicator();
@@ -4604,6 +4641,9 @@
                 autocompleteState.lastProduct = null;
 
                 const inputValue = $(this).val();
+
+                // ✅ Filter product grid based on search text
+                filterProductGrid(inputValue);
 
                 // Clear previous timeout
                 if (inputTimeout) clearTimeout(inputTimeout);
@@ -4982,6 +5022,7 @@
 
             const fetchOptions = {
                 method: 'GET',
+                cache: 'no-store', // ✅ Prevent browser caching - always fetch fresh stock data
                 headers: {
                     'Accept': 'application/json',
                     'Content-Type': 'application/json',
@@ -5561,6 +5602,7 @@
             if (!isEditing) {
                 console.log('Force refreshing stock data for IMEI product...');
                 fetch(`/api/products/stocks/autocomplete?search=${encodeURIComponent(product.product_name)}&location_id=${selectedLocationId}`, {
+                        cache: 'no-store', // ✅ Prevent browser caching - always fetch fresh IMEI data
                         headers: {
                             'X-Requested-With': 'XMLHttpRequest',
                             'Content-Type': 'application/json',
@@ -8897,6 +8939,10 @@
                             // IMMEDIATE stock refresh for IMEI products - before form reset
                             refreshStockDataAfterSale(saleData);
 
+                            // ✅ CLEAR SEARCH CACHE - prevent showing old stock quantities
+                            searchCache.clear();
+                            console.log('🗑️ Search cache cleared after sale');
+
                             // IMMEDIATE refresh of Recent Transactions data
                             if (!window.fetchingSalesData) {
                                 fetchSalesData();
@@ -8904,6 +8950,15 @@
 
                             // IMMEDIATE form reset and UI feedback - don't wait for async operations
                             resetForm();
+
+                            // ✅ REFRESH PRODUCT GRID ASYNC - don't block print window
+                            setTimeout(() => {
+                                allProducts = [];
+                                currentProductsPage = 1;
+                                hasMoreProducts = true;
+                                fetchProductStocks(true);
+                                console.log('🔄 Product grid refreshed after sale');
+                            }, 100);
 
                             // Extra safety checks for sales rep customer reset after successful billing
                             if (isSalesRep) {

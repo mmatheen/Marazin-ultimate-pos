@@ -1604,6 +1604,7 @@ class SaleController extends Controller
                 }
 
                 // ✨ PERFORMANCE FIX: Batch load all products to avoid N+1 queries
+                // ✅ CRITICAL FIX: Don't use cached data for stock-critical operations
                 $productIds = collect($request->products)->pluck('product_id')->unique();
                 $products = Product::whereIn('id', $productIds)
                     ->select('id', 'product_name', 'sku', 'stock_alert', 'unit_id')
@@ -1621,9 +1622,42 @@ class SaleController extends Controller
                         $this->validateEditModePrice($productData, $sale);
                     }
 
+                    // ✅ CRITICAL DEBUG: Log product stock_alert value to verify stock management
+                    Log::info("🔍 PRODUCT STOCK CHECK", [
+                        'product_id' => $product->id,
+                        'product_name' => $product->product_name,
+                        'stock_alert' => $product->stock_alert,
+                        'stock_alert_type' => gettype($product->stock_alert),
+                        'quantity_to_sell' => $productData['quantity'],
+                        'batch_id' => $productData['batch_id'] ?? 'all',
+                        'location_id' => $request->location_id,
+                        'sale_status' => $newStatus,
+                        'will_deduct_stock' => $product->stock_alert !== 0
+                    ]);
+
+                    // ✅ CRITICAL FIX: Only allow unlimited stock sale if stock_alert is explicitly 0
+                    // Warn if product has stock_alert=0 but no batches exist (data integrity issue)
                     if ($product->stock_alert === 0) {
+                        Log::warning('⚠️ UNLIMITED STOCK PRODUCT SALE - NO BATCH DEDUCTION', [
+                            'product_id' => $product->id,
+                            'product_name' => $product->product_name,
+                            'quantity' => $productData['quantity'],
+                            'stock_alert' => $product->stock_alert
+                        ]);
                         $this->processUnlimitedStockProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
                     } else {
+                        // ✅ STOCK MANAGEMENT ENABLED - Stock will be deducted from batches
+                        Log::info("✅ STOCK MANAGED PRODUCT - WILL DEDUCT STOCK", [
+                            'product_id' => $product->id,
+                            'product_name' => $product->product_name,
+                            'stock_alert' => $product->stock_alert,
+                            'quantity' => $productData['quantity'],
+                            'batch_id' => $productData['batch_id'] ?? 'all',
+                            'location_id' => $request->location_id,
+                            'sale_status' => $newStatus,
+                            'is_update' => $isUpdate
+                        ]);
+
                         // For updates, check stock availability considering the original sale quantities
                         if ($isUpdate && in_array($newStatus, ['final', 'suspend'])) {
                             $this->validateStockForUpdate($productData, $request->location_id, $originalProducts ?? []);
@@ -1635,9 +1669,17 @@ class SaleController extends Controller
                         }
                         // Always process sale for final/suspend status
                         elseif (in_array($newStatus, ['final', 'suspend'])) {
+                            Log::info("🔥 CALLING processProductSale for FINAL/SUSPEND sale", [
+                                'product_id' => $product->id,
+                                'status' => $newStatus
+                            ]);
                             $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE, $newStatus);
                         } else {
                             // For non-final statuses, just simulate batch selection
+                            Log::info("📋 DRAFT/QUOTATION - Simulating batch selection only", [
+                                'product_id' => $product->id,
+                                'status' => $newStatus
+                            ]);
                             $this->simulateBatchSelection($productData, $sale->id, $request->location_id, $newStatus);
                         }
                     }
@@ -1651,6 +1693,13 @@ class SaleController extends Controller
                 // *** CRITICAL FIX: Always recalculate customer balance after sale edits ***
                 if ($isUpdate && $request->customer_id != 1) {
                     $this->recalculateCustomerBalance($request->customer_id);
+                }
+
+                // ✅ CRITICAL FIX: Clear product cache after stock changes to prevent stale data
+                Cache::forget('all_products');
+                foreach ($productIds as $productId) {
+                    Cache::forget("product_stock_{$productId}");
+                    Cache::forget("product_batches_{$productId}");
                 }
 
                 return $sale;
@@ -1882,6 +1931,17 @@ class SaleController extends Controller
 
     private function processProductSale($productData, $saleId, $locationId, $stockType, $newStatus)
     {
+        // ✅ CRITICAL FIX: Log product sale processing for debugging
+        Log::info("🛒 PROCESSING PRODUCT SALE", [
+            'sale_id' => $saleId,
+            'product_id' => $productData['product_id'],
+            'quantity' => $productData['quantity'],
+            'batch_id' => $productData['batch_id'] ?? 'all',
+            'location_id' => $locationId,
+            'stock_type' => $stockType,
+            'status' => $newStatus
+        ]);
+
         $totalQuantity = $productData['quantity'];
         $remainingQuantity = $totalQuantity;
 
@@ -1890,13 +1950,20 @@ class SaleController extends Controller
 
         if (!empty($productData['batch_id']) && $productData['batch_id'] != 'all') {
             // Specific batch selected
+            Log::info("📦 Processing specific batch", ['batch_id' => $productData['batch_id']]);
+
             $batch = Batch::findOrFail($productData['batch_id']);
             $locationBatch = LocationBatch::where('batch_id', $batch->id)
                 ->where('location_id', $locationId)
                 ->firstOrFail();
 
             if ($locationBatch->qty < $remainingQuantity) {
-                throw new \Exception("Batch ID {$productData['batch_id']} does not have enough stock.");
+                Log::error("❌ INSUFFICIENT STOCK in selected batch", [
+                    'batch_id' => $productData['batch_id'],
+                    'available' => $locationBatch->qty,
+                    'requested' => $remainingQuantity
+                ]);
+                throw new \Exception("Batch ID {$productData['batch_id']} does not have enough stock. Available: {$locationBatch->qty}, Requested: {$remainingQuantity}");
             }
 
             $this->deductBatchStock($productData['batch_id'], $locationId, $remainingQuantity, $stockType);
@@ -1906,6 +1973,13 @@ class SaleController extends Controller
             ];
         } else {
             // ✨ PERFORMANCE FIX: All batches selected — apply FIFO with optimized query
+            // ✅ CRITICAL FIX: Enhanced logging for FIFO batch selection
+            Log::info("📦 Processing FIFO batch selection (all batches)", [
+                'product_id' => $productData['product_id'],
+                'location_id' => $locationId,
+                'quantity_needed' => $remainingQuantity
+            ]);
+
             // Use lockForUpdate to prevent race conditions when reading batch quantities
             $batches = DB::transaction(function () use ($productData, $locationId) {
                 return DB::table('location_batches')
@@ -1919,10 +1993,23 @@ class SaleController extends Controller
                     ->get();
             });
 
+            Log::info("📦 Available batches for FIFO", [
+                'batch_count' => $batches->count(),
+                'total_available' => $batches->sum('qty'),
+                'batches' => $batches->map(fn($b) => ['batch_id' => $b->batch_id, 'qty' => $b->qty])->toArray()
+            ]);
+
             foreach ($batches as $batch) {
                 if ($remainingQuantity <= 0) break;
 
                 $deductQuantity = min($batch->qty, $remainingQuantity);
+
+                Log::info("📦 Deducting from batch via FIFO", [
+                    'batch_id' => $batch->batch_id,
+                    'available' => $batch->qty,
+                    'deducting' => $deductQuantity,
+                    'remaining_after' => $remainingQuantity - $deductQuantity
+                ]);
 
                 $this->deductBatchStock($batch->batch_id, $locationId, $deductQuantity, $stockType);
                 $batchDeductions[] = [
@@ -1936,10 +2023,25 @@ class SaleController extends Controller
             // Only validate stock if the sale status is final/suspend
             if (in_array($newStatus, ['final', 'suspend'])) {
                 if ($remainingQuantity > 0) {
-                    throw new \Exception("Not enough stock across all batches to fulfill the sale.");
+                    Log::error("❌ INSUFFICIENT TOTAL STOCK across all batches", [
+                        'product_id' => $productData['product_id'],
+                        'location_id' => $locationId,
+                        'requested' => $totalQuantity,
+                        'unfulfilled' => $remainingQuantity,
+                        'batches_checked' => $batches->count()
+                    ]);
+                    throw new \Exception("Not enough stock across all batches to fulfill the sale. Product ID: {$productData['product_id']}, Requested: {$totalQuantity}, Short: {$remainingQuantity}");
                 }
             }
         }
+
+        Log::info("✅ BATCH DEDUCTIONS COMPLETE", [
+            'sale_id' => $saleId,
+            'product_id' => $productData['product_id'],
+            'total_quantity' => $totalQuantity,
+            'batch_count' => count($batchDeductions),
+            'deductions' => $batchDeductions
+        ]);
 
         // Loop through batch deductions
         foreach ($batchDeductions as $deduction) {
@@ -1994,7 +2096,14 @@ class SaleController extends Controller
     }
     private function deductBatchStock($batchId, $locationId, $quantity, $stockType)
     {
-        Log::info("Deducting $quantity from batch ID $batchId at location $locationId");
+        // ✅ CRITICAL FIX: Enhanced logging for stock deduction tracking
+        Log::info("🔻 STOCK DEDUCTION INITIATED", [
+            'batch_id' => $batchId,
+            'location_id' => $locationId,
+            'quantity_to_deduct' => $quantity,
+            'stock_type' => $stockType,
+            'timestamp' => now()->toDateTimeString()
+        ]);
 
         // Use database transaction with proper locking to prevent race conditions
         return DB::transaction(function () use ($batchId, $locationId, $quantity, $stockType) {
@@ -2006,6 +2115,10 @@ class SaleController extends Controller
                 ->first();
 
             if (!$locationBatch) {
+                Log::error("❌ STOCK DEDUCTION FAILED: Batch not found", [
+                    'batch_id' => $batchId,
+                    'location_id' => $locationId
+                ]);
                 throw new \Exception("Batch ID $batchId not found at location $locationId");
             }
 
@@ -2013,10 +2126,22 @@ class SaleController extends Controller
             $currentStock = round((float) $locationBatch->qty, 4);
             $requestedQuantity = round((float) $quantity, 4);
 
-            Log::info("Stock check - Current: $currentStock, Requested: $requestedQuantity");
+            Log::info("📊 STOCK CHECK", [
+                'batch_id' => $batchId,
+                'current_stock' => $currentStock,
+                'requested_quantity' => $requestedQuantity,
+                'sufficient' => ($currentStock + 0.0001) >= $requestedQuantity
+            ]);
 
             // Add small tolerance for floating point comparison (0.0001)
             if (($currentStock + 0.0001) < $requestedQuantity) {
+                Log::error("❌ INSUFFICIENT STOCK", [
+                    'batch_id' => $batchId,
+                    'location_id' => $locationId,
+                    'available' => $currentStock,
+                    'requested' => $requestedQuantity,
+                    'shortfall' => $requestedQuantity - $currentStock
+                ]);
                 throw new \Exception("Insufficient stock in batch ID $batchId at location $locationId. Available: $currentStock, Requested: $requestedQuantity");
             }
 
@@ -2027,6 +2152,11 @@ class SaleController extends Controller
                 ->update(['qty' => DB::raw("qty - $quantity")]);
 
             if ($affected === 0) {
+                Log::error("❌ STOCK UPDATE FAILED", [
+                    'batch_id' => $batchId,
+                    'location_id' => $locationId,
+                    'affected_rows' => $affected
+                ]);
                 throw new \Exception("Failed to update stock for batch ID $batchId at location $locationId");
             }
 
@@ -2041,12 +2171,30 @@ class SaleController extends Controller
                 ]);
             }
 
+            Log::info("✅ STOCK DEDUCTION SUCCESSFUL", [
+                'batch_id' => $batchId,
+                'location_id' => $locationId,
+                'deducted_quantity' => $quantity,
+                'previous_stock' => $currentStock,
+                'new_stock' => $currentStock - $requestedQuantity,
+                'stock_type' => $stockType
+            ]);
+
             return $locationBatch;
         });
     }
 
     private function processUnlimitedStockProductSale($productData, $saleId, $locationId, $stockType)
     {
+        // ✅ CRITICAL FIX: Enhanced logging for unlimited stock sales to track potential issues
+        Log::warning('Processing unlimited stock product sale - stock NOT deducted from batches', [
+            'sale_id' => $saleId,
+            'product_id' => $productData['product_id'],
+            'quantity' => $productData['quantity'],
+            'location_id' => $locationId,
+            'stock_type' => $stockType,
+        ]);
+
         // Record the sales product for unlimited stock product
         SalesProduct::create([
             'sale_id' => $saleId,
@@ -2058,17 +2206,16 @@ class SaleController extends Controller
             'batch_id' => null,
             'location_id' => $locationId,
             'price_type' => $productData['price_type'],
-            'discount_amount' => $productData['discount_amount'],
-            'discount_type' => $productData['discount_type'],
-            'tax' => $productData['tax'],
+            'discount_amount' => $productData['discount_amount'] ?? 0,
+            'discount_type' => $productData['discount_type'] ?? 'fixed',
+            'tax' => $productData['tax'] ?? 0,
         ]);
 
-        // Add stock history for unlimited stock product
+        // Add stock history for unlimited stock product (for reporting purposes only)
         StockHistory::create([
             'loc_batch_id' => null,
             'quantity' => -$productData['quantity'],
             'stock_type' => $stockType,
-
         ]);
     }
 

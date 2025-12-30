@@ -155,79 +155,60 @@ class ProductController extends Controller
         }
     }
 
-
     public function initialProductDetails()
     {
         try {
             $userId = auth()->id();
 
-            // Cache for 5 minutes per user to balance freshness with performance
-            $cacheKey = "initial_product_details_api_user_{$userId}";
+            $mainCategories = MainCategory::select('id', 'mainCategoryName')
+                ->orderBy('mainCategoryName')
+                ->get();
 
-            return Cache::remember($cacheKey, 300, function () use ($userId) {
-                // Optimize queries - select only needed columns and avoid eager loading overhead
-                $mainCategories = MainCategory::select('id', 'mainCategoryName')
-                    ->orderBy('mainCategoryName')
-                    ->get();
-
-                // Get subcategories with their main category data in one query (more efficient than eager loading)
-                $subCategories = DB::table('sub_categories')
-                    ->select('sub_categories.id', 'sub_categories.subCategoryname', 'sub_categories.main_category_id',
-                             'main_categories.mainCategoryName')
-                    ->leftJoin('main_categories', 'sub_categories.main_category_id', '=', 'main_categories.id')
-                    ->orderBy('sub_categories.subCategoryname')
-                    ->get()
-                    ->map(function($item) {
-                        // Format to match frontend expectations
-                        return [
-                            'id' => $item->id,
-                            'subCategoryname' => $item->subCategoryname,
-                            'main_category_id' => $item->main_category_id,
-                            'mainCategory' => [
-                                'mainCategoryName' => $item->mainCategoryName
-                            ]
-                        ];
-                    });
-
-                $brands = Brand::select('id', 'name')
-                    ->orderBy('name')
-                    ->get();
-
-                $units = Unit::select('id', 'name', 'short_name', 'allow_decimal')
-                    ->orderBy('name')
-                    ->get();
-
-                // Use proper location filtering instead of Location::all()
-                $locations = $this->getUserAccessibleLocations(auth()->user());
-
-                // Add selection flags for frontend
-                $locationsWithSelection = $locations->map(function($location) use ($locations) {
+            $subCategories = DB::table('sub_categories')
+                ->select('sub_categories.id', 'sub_categories.subCategoryname', 'sub_categories.main_category_id',
+                         'main_categories.mainCategoryName')
+                ->leftJoin('main_categories', 'sub_categories.main_category_id', '=', 'main_categories.id')
+                ->orderBy('sub_categories.subCategoryname')
+                ->get()
+                ->map(function($item) {
                     return [
-                        'id' => $location->id,
-                        'name' => $location->name,
-                        'selected' => $locations->count() === 1 // Auto-select if only one location
+                        'id' => $item->id,
+                        'subCategoryname' => $item->subCategoryname,
+                        'main_category_id' => $item->main_category_id,
+                        'mainCategory' => [
+                            'mainCategoryName' => $item->mainCategoryName
+                        ]
                     ];
-                })->values()->all(); // Ensure it's a proper array
+                });
 
-                Log::info('API initialProductDetails called', [
-                    'user_id' => auth()->id(),
-                    'locations_count' => $locations->count(),
-                    'auto_select' => $locations->count() === 1
-                ]);
+            $brands = Brand::select('id', 'name')
+                ->orderBy('name')
+                ->get();
 
-                // Always return a valid response structure
-                return response()->json([
-                    'status' => 200,
-                    'message' => [
-                        'brands' => $brands,
-                        'subCategories' => $subCategories,
-                        'mainCategories' => $mainCategories,
-                        'units' => $units,
-                        'locations' => $locationsWithSelection,
-                        'auto_select_single_location' => $locations->count() === 1,
-                    ]
-                ]);
-            });
+            $units = Unit::select('id', 'name', 'short_name', 'allow_decimal')
+                ->orderBy('name')
+                ->get();
+
+            $locations = $this->getUserAccessibleLocations(auth()->user());
+            $locationsWithSelection = $locations->map(function($location) use ($locations) {
+                return [
+                    'id' => $location->id,
+                    'name' => $location->name,
+                    'selected' => $locations->count() === 1
+                ];
+            })->values()->all();
+
+            return response()->json([
+                'status' => 200,
+                'message' => [
+                    'brands' => $brands,
+                    'subCategories' => $subCategories,
+                    'mainCategories' => $mainCategories,
+                    'units' => $units,
+                    'locations' => $locationsWithSelection,
+                    'auto_select_single_location' => $locations->count() === 1,
+                ]
+            ]);
 
         } catch (\Exception $e) {
             Log::error('Error in API initialProductDetails: ' . $e->getMessage(), [
@@ -235,7 +216,6 @@ class ProductController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
-            // Return valid empty structure on error
             return response()->json([
                 'status' => 500,
                 'message' => [
@@ -1909,7 +1889,9 @@ class ProductController extends Controller
                     'from' => $products->firstItem(),
                     'to' => $products->lastItem(),
                 ]
-            ]);
+            ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+              ->header('Pragma', 'no-cache')
+              ->header('Expires', '0');
         } catch (\Exception $e) {
             Log::error('Error fetching product stocks:', [
                 'message' => $e->getMessage(),
@@ -2063,22 +2045,14 @@ class ProductController extends Controller
             // Determine if allow_decimal is true for this product's unit
             $allowDecimal = $product->unit && $product->unit->allow_decimal;
 
-            // Calculate total stock (for the location if provided)
-            if ($locationId) {
-                // Calculate stock only for the specified location
-                $totalStock = $filteredBatches->sum(function ($batch) use ($locationId, $allowDecimal) {
-                    return $batch->locationBatches->where('location_id', $locationId)->sum(function ($lb) use ($allowDecimal) {
-                        return $allowDecimal ? (float)$lb->qty : (int)$lb->qty;
-                    });
-                });
-            } else {
-                // Calculate total stock across all locations
-                $totalStock = $filteredBatches->sum(function ($batch) use ($allowDecimal) {
-                    return $batch->locationBatches->sum(function ($lb) use ($allowDecimal) {
-                        return $allowDecimal ? (float)$lb->qty : (int)$lb->qty;
-                    });
-                });
-            }
+            // Calculate total stock (for the location if provided) using live DB sum to avoid stale eager-loaded data
+            $totalStock = DB::table('location_batches')
+                ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                ->where('batches.product_id', $product->id)
+                ->when($locationId, function ($q) use ($locationId) {
+                    return $q->where('location_batches.location_id', $locationId);
+                })
+                ->sum('location_batches.qty');
 
             if ($allowDecimal) {
                 $totalStock = round($totalStock, 2);
@@ -2190,7 +2164,9 @@ class ProductController extends Controller
         return response()->json([
             'status' => 200,
             'data' => $limitedResults->values(),
-        ]);
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+          ->header('Pragma', 'no-cache')
+          ->header('Expires', '0');
     }
 
 

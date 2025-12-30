@@ -182,14 +182,13 @@ class ProductController extends Controller
         try {
             $userId = auth()->id();
 
-            // Cache for 5 minutes per user to balance freshness with performance
-            $cacheKey = "initial_product_details_user_{$userId}";
+            // ✅ CRITICAL FIX: NO CACHING - Always fetch fresh data for POS/Sales
+            // Caching causes stale product data after sales, preventing accurate stock display
 
-            return Cache::remember($cacheKey, 300, function () use ($userId) {
-                // Optimize queries - select only needed columns and avoid eager loading overhead
-                $mainCategories = MainCategory::select('id', 'mainCategoryName')
-                    ->orderBy('mainCategoryName')
-                    ->get();
+            // Optimize queries - select only needed columns and avoid eager loading overhead
+            $mainCategories = MainCategory::select('id', 'mainCategoryName')
+                ->orderBy('mainCategoryName')
+                ->get();
 
                 // Get subcategories with their main category data in one query (more efficient than eager loading)
                 $subCategories = DB::table('sub_categories')
@@ -230,19 +229,18 @@ class ProductController extends Controller
                     ];
                 })->values()->all(); // Ensure it's a proper array
 
-                // Always return a valid response structure
-                return response()->json([
-                    'status' => 200,
-                    'message' => [
-                        'brands' => $brands,
-                        'subCategories' => $subCategories,
-                        'mainCategories' => $mainCategories,
-                        'units' => $units,
-                        'locations' => $locationsWithSelection,
-                        'auto_select_single_location' => $locations->count() === 1,
-                    ]
-                ]);
-            });
+            // Always return a valid response structure
+            return response()->json([
+                'status' => 200,
+                'message' => [
+                    'brands' => $brands,
+                    'subCategories' => $subCategories,
+                    'mainCategories' => $mainCategories,
+                    'units' => $units,
+                    'locations' => $locationsWithSelection,
+                    'auto_select_single_location' => $locations->count() === 1,
+                ]
+            ]);
 
         } catch (\Exception $e) {
             Log::error('Error in Web initialProductDetails: ' . $e->getMessage(), [
@@ -551,13 +549,15 @@ class ProductController extends Controller
         }
 
         // Prepare product data (exclude sku when auto-generating)
+        // ✅ CRITICAL FIX: Default stock_alert to 1 (true/manage stock) when not provided
+        // This prevents products from automatically becoming unlimited stock when checkbox is unchecked
         $data = [
             'product_name' => $request->product_name,
             'unit_id' => $request->unit_id,
             'brand_id' => $request->brand_id,
             'main_category_id' => $request->main_category_id,
             'sub_category_id' => $request->sub_category_id,
-            'stock_alert' => $request->stock_alert,
+            'stock_alert' => $request->has('stock_alert') ? ($request->stock_alert ? 1 : 0) : 1,
             'alert_quantity' => $request->alert_quantity,
             'product_image' => $fileName ? $fileName : $product->product_image,
             'description' => $request->description,
@@ -625,6 +625,12 @@ class ProductController extends Controller
 
         // Sync locations
         $product->locations()->sync($request->locations);
+
+        // ✅ CRITICAL FIX: Clear product cache after save to prevent stale data in POS/Sales
+        $userId = auth()->id();
+        Cache::forget("initial_product_details_user_{$userId}");
+        Cache::forget("initial_product_details_api_user_{$userId}");
+        Cache::forget("product_dropdown_data_user_{$userId}");
 
         $message = $id ? 'Product Details Updated Successfully!' : 'New Product Details Created Successfully!';
         return response()->json(['status' => 200, 'message' => $message, 'product_id' => $product->id]);
@@ -1656,6 +1662,9 @@ class ProductController extends Controller
     public function getAllProductStocks(Request $request)
     {
         try {
+            // ✅ CRITICAL FIX: NO CACHING in this function - always fetch fresh stock data
+            // Stock changes constantly with sales/purchases, caching causes serious inventory errors
+
             // Clear any output buffer to prevent non-JSON content
             if (ob_get_level()) {
                 ob_clean();
@@ -1779,14 +1788,9 @@ class ProductController extends Controller
                 // Only filter by is_active for POS (when show_all parameter is not set)
                 ->when(!$request->has('show_all'), function ($query) {
                     return $query->where('is_active', true);
-                })
-                // Filter by location if provided (show ALL products assigned to that location, including 0 stock)
-                ->when($locationId, function ($query) use ($locationId) {
-                    return $query->whereHas('locations', function ($q) use ($locationId) {
-                        $q->where('locations.id', $locationId);
-                        // Show all products assigned to the selected location (even with 0 stock)
-                    });
                 });
+                // NOTE: Don't use whereHas('locations') here - it filters out products
+                // Instead, we filter location data in the eager load and response mapping
 
             // Apply DataTable global search
             if (!empty($search)) {
@@ -1924,37 +1928,28 @@ class ProductController extends Controller
             foreach ($products as $product) {
                 $productBatches = $product->batches;
 
-                // When location filter is applied, we still want to show the product even if no batches exist
-                // So we don't filter batches aggressively - just filter the location data within batches
-                $filteredBatches = $productBatches;
-
                 // Determine if allow_decimal is true for this product's unit
                 $allowDecimal = $product->unit && $product->unit->allow_decimal;
 
-                // Calculate total stock based on location filter
-                if ($locationId) {
-                    // Calculate stock only for the specified location
-                    $totalStock = $filteredBatches->sum(
-                        fn($batch) =>
-                        $batch->locationBatches->where('location_id', $locationId)->sum(function ($lb) use ($allowDecimal) {
-                            return $allowDecimal ? (float)$lb->qty : (int)$lb->qty;
-                        })
-                    );
-                } else {
-                    // Calculate total stock across all locations
-                    $totalStock = $filteredBatches->sum(
-                        fn($batch) =>
-                        $batch->locationBatches->sum(function ($lb) use ($allowDecimal) {
-                            return $allowDecimal ? (float)$lb->qty : (int)$lb->qty;
-                        })
-                    );
-                }
+                // Calculate total stock based on location filter using live DB sum to avoid stale eager-loaded data
+                $totalStock = DB::table('location_batches')
+                    ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                    ->where('batches.product_id', $product->id)
+                    ->when($locationId, function ($q) use ($locationId) {
+                        return $q->where('location_batches.location_id', $locationId);
+                    })
+                    ->sum('location_batches.qty');
 
                 if ($allowDecimal) {
                     $totalStock = round($totalStock, 2);
                 } else {
                     $totalStock = (int)$totalStock;
                 }
+
+                // Note: We show all products for the location to allow browsing
+                // Frontend will handle any additional filtering if needed
+
+                $filteredBatches = $productBatches;
 
                 // Map active discounts
                 $activeDiscounts = $product->discounts->map(function ($discount) use ($now) {
@@ -2040,6 +2035,12 @@ class ProductController extends Controller
                             ? $batch->locationBatches->where('location_id', $locationId)
                             : $batch->locationBatches;
 
+                        // ✅ Use live DB query for batch quantity to avoid stale data
+                        $batchQty = DB::table('location_batches')
+                            ->where('batch_id', $batch->id)
+                            ->when($locationId, fn($q) => $q->where('location_id', $locationId))
+                            ->sum('qty');
+
                         return [
                             'id' => $batch->id,
                             'batch_no' => $batch->batch_no ?? '',
@@ -2050,8 +2051,8 @@ class ProductController extends Controller
                             'max_retail_price' => $batch->max_retail_price ?? 0,
                             'expiry_date' => $batch->expiry_date,
                             'total_batch_quantity' => $allowDecimal
-                                ? round($locationBatches->sum(fn($lb) => (float)($lb->qty ?? 0)), 2)
-                                : (int)$locationBatches->sum(fn($lb) => (int)($lb->qty ?? 0)),
+                                ? round((float)$batchQty, 2)
+                                : (int)$batchQty,
                             'location_batches' => $locationBatches->map(function ($lb) use ($allowDecimal) {
                                 return [
                                     'batch_id' => $lb->batch_id,
@@ -2092,7 +2093,9 @@ class ProductController extends Controller
                     'from' => $products->firstItem(),
                     'to' => $products->lastItem(),
                 ]
-            ]);
+            ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+              ->header('Pragma', 'no-cache')
+              ->header('Expires', '0');
         } catch (\Exception $e) {
             // Clear any output buffer that might contain PHP errors
             if (ob_get_level()) {
@@ -2132,6 +2135,9 @@ class ProductController extends Controller
 
     public function autocompleteStock(Request $request)
     {
+        // ✅ CRITICAL FIX: NO CACHING - Always fetch fresh stock for POS autocomplete
+        // This prevents showing incorrect stock quantities after recent sales
+
         $locationId = $request->input('location_id');
         $search = $request->input('search');
         $perPage = $request->input('per_page', 100); // Increased to 100 for better autocomplete results
@@ -2233,22 +2239,14 @@ class ProductController extends Controller
             // Determine if allow_decimal is true for this product's unit
             $allowDecimal = $product->unit && $product->unit->allow_decimal;
 
-            // Calculate total stock (for the location if provided)
-            if ($locationId) {
-                // Calculate stock only for the specified location
-                $totalStock = $filteredBatches->sum(function ($batch) use ($locationId, $allowDecimal) {
-                    return $batch->locationBatches->where('location_id', $locationId)->sum(function ($lb) use ($allowDecimal) {
-                        return $allowDecimal ? (float)$lb->qty : (int)$lb->qty;
-                    });
-                });
-            } else {
-                // Calculate total stock across all locations
-                $totalStock = $filteredBatches->sum(function ($batch) use ($allowDecimal) {
-                    return $batch->locationBatches->sum(function ($lb) use ($allowDecimal) {
-                        return $allowDecimal ? (float)$lb->qty : (int)$lb->qty;
-                    });
-                });
-            }
+            // Calculate total stock (for the location if provided) using live DB sum to avoid stale eager-loaded data
+            $totalStock = DB::table('location_batches')
+                ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                ->where('batches.product_id', $product->id)
+                ->when($locationId, function ($q) use ($locationId) {
+                    return $q->where('location_batches.location_id', $locationId);
+                })
+                ->sum('location_batches.qty');
 
             if ($allowDecimal) {
                 $totalStock = round($totalStock, 2);
@@ -2322,6 +2320,12 @@ class ProductController extends Controller
                         ? $batch->locationBatches->where('location_id', $locationId)
                         : $batch->locationBatches;
 
+                    // ✅ Use live DB query for batch quantity to avoid stale data
+                    $batchQty = DB::table('location_batches')
+                        ->where('batch_id', $batch->id)
+                        ->when($locationId, fn($q) => $q->where('location_id', $locationId))
+                        ->sum('qty');
+
                     return [
                         'id' => $batch->id,
                         'batch_no' => $batch->batch_no,
@@ -2332,8 +2336,8 @@ class ProductController extends Controller
                         'max_retail_price' => $batch->max_retail_price,
                         'expiry_date' => $batch->expiry_date,
                         'total_batch_quantity' => $allowDecimal
-                            ? round($locationBatches->sum(fn($lb) => (float)$lb->qty), 2)
-                            : (int)$locationBatches->sum(fn($lb) => (int)$lb->qty),
+                            ? round((float)$batchQty, 2)
+                            : (int)$batchQty,
                         'location_batches' => $locationBatches->map(function ($lb) use ($allowDecimal) {
                             return [
                                 'batch_id' => $lb->batch_id,
@@ -2381,7 +2385,9 @@ class ProductController extends Controller
         return response()->json([
             'status' => 200,
             'data' => $results,
-        ]);
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+          ->header('Pragma', 'no-cache')
+          ->header('Expires', '0');
     }
 
 
@@ -2471,13 +2477,15 @@ class ProductController extends Controller
 
     public function markNotificationsAsSeen()
     {
-        $products = Product::with('batches.locationBatches.location')->get();
+        $products = Product::all();
         $seenNotifications = Session::get('seen_notifications', []);
 
         $notifications = $products->filter(function ($product) {
-            $totalStock = $product->batches->sum(function ($batch) {
-                return $batch->locationBatches->sum('qty');
-            });
+            // ✅ Use live DB query for accurate stock totals
+            $totalStock = DB::table('location_batches')
+                ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                ->where('batches.product_id', $product->id)
+                ->sum('location_batches.qty');
 
             return $totalStock <= $product->alert_quantity;
         });
@@ -2958,8 +2966,10 @@ class ProductController extends Controller
                     // Check if the product unit allows decimals
                     $allowDecimal = $product->unit && $product->unit->allow_decimal;
 
-                    // Calculate total stock from location batches for consistency
-                    $totalLocationStock = $batch->locationBatches->sum('qty');
+                    // ✅ Use live DB query for total stock to avoid stale data
+                    $totalLocationStock = DB::table('location_batches')
+                        ->where('batch_id', $batch->id)
+                        ->sum('qty');
 
                     // Use location-based stock total as the accurate stock count
                     $actualQty = $totalLocationStock > 0 ? $totalLocationStock : $batch->qty;
