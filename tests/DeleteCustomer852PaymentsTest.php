@@ -2,13 +2,13 @@
 
 /**
  * Test Script: Delete All Payments for Customer 852
- * 
+ *
  * This script will:
  * 1. Find all payments for customer_id = 852
  * 2. Properly reverse/delete ledger entries for each payment
  * 3. Mark payments as deleted (soft delete)
  * 4. Update all related sales to recalculate total_paid, total_due, and payment_status
- * 
+ *
  * Run with: php artisan tinker tests/DeleteCustomer852PaymentsTest.php
  * Or run as artisan command: php artisan customer:delete-payments 852
  */
@@ -416,11 +416,11 @@ class DeleteCustomer852PaymentsTest
 // =============================================================================
 // USAGE INSTRUCTIONS
 // =============================================================================
-// 
+//
 // Option 1: Run via Artisan Tinker
 // --------------------------------
 // php artisan tinker
-// 
+//
 // // DRY RUN (preview only, no changes):
 // require 'tests/DeleteCustomer852PaymentsTest.php';
 // $test = new \Tests\DeleteCustomer852PaymentsTest(true);
@@ -442,16 +442,16 @@ if (php_sapi_name() === 'cli' && basename(__FILE__) === basename($_SERVER['PHP_S
     require __DIR__ . '/../vendor/autoload.php';
     $app = require_once __DIR__ . '/../bootstrap/app.php';
     $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
-    
+
     // Parse command line args
     $dryRun = !in_array('--execute', $argv);
-    
+
     echo "Running with " . ($dryRun ? "DRY RUN" : "LIVE EXECUTION") . " mode\n";
     echo "Use --execute flag to actually perform deletion\n\n";
-    
+
     $test = new DeleteCustomer852PaymentsTest($dryRun);
     $test->run();
-    
+
     if (!$dryRun) {
         $test->verifyIntegrity();
     }

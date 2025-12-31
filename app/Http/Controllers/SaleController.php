@@ -526,7 +526,7 @@ class SaleController extends Controller
             $query = Sale::withoutGlobalScopes()->select([
                 'id', 'invoice_no', 'sales_date', 'customer_id', 'user_id', 'location_id',
                 'final_total', 'total_paid', 'total_due', 'payment_status', 'status',
-                'created_at', 'updated_at', 'transaction_type'
+                'created_at', 'updated_at', 'transaction_type', 'sale_notes'
             ])->where('status', 'final')
             ->where('transaction_type', '!=', 'sale_order') // Exclude sale orders from All Sales
             ->where(function($q) {
@@ -647,6 +647,7 @@ class SaleController extends Controller
                     'id' => $sale->id,
                     'invoice_no' => $sale->invoice_no,
                     'sales_date' => $sale->sales_date,
+                    'sale_notes' => $sale->sale_notes,
                     'customer' => $sale->customer ? [
                         'id' => $sale->customer->id,
                         'first_name' => $sale->customer->first_name,

@@ -18,7 +18,7 @@ class DeleteCustomerPayments extends Command
      *
      * @var string
      */
-    protected $signature = 'customer:delete-payments 
+    protected $signature = 'customer:delete-payments
                             {customer_id : The customer ID to delete payments for}
                             {--dry-run : Run without making actual changes}
                             {--force : Skip confirmation prompt}';
@@ -124,7 +124,7 @@ class DeleteCustomerPayments extends Command
         if ($activePayments->count() > 0) {
             $this->info('');
             $this->info("📝 ACTIVE PAYMENTS TO DELETE:");
-            
+
             $tableData = [];
             foreach ($activePayments as $payment) {
                 $tableData[] = [
@@ -137,7 +137,7 @@ class DeleteCustomerPayments extends Command
                     'Notes' => substr($payment->notes ?? '-', 0, 30)
                 ];
             }
-            
+
             $this->table(
                 ['ID', 'Date', 'Reference', 'Amount', 'Method', 'Sale ID', 'Notes'],
                 $tableData
@@ -168,7 +168,7 @@ class DeleteCustomerPayments extends Command
 
         $this->info('');
         $this->info("🛒 AFFECTED SALES:");
-        
+
         if ($affectedSales->count() > 0) {
             $salesTableData = [];
             foreach ($affectedSales as $sale) {
@@ -182,7 +182,7 @@ class DeleteCustomerPayments extends Command
                     'Status' => $sale->payment_status
                 ];
             }
-            
+
             $this->table(
                 ['ID', 'Invoice', 'Date', 'Final Total', 'Paid', 'Due', 'Status'],
                 $salesTableData
@@ -324,7 +324,7 @@ class DeleteCustomerPayments extends Command
         }
         $sale->save();
 
-        $this->line("   ✅ Sale {$saleId} ({$sale->invoice_no}): Paid: " . 
+        $this->line("   ✅ Sale {$saleId} ({$sale->invoice_no}): Paid: " .
             number_format($oldTotalPaid, 2) . " → " . number_format($sale->total_paid, 2) .
             ", Status: {$oldPaymentStatus} → {$sale->payment_status}");
     }
@@ -391,7 +391,7 @@ class DeleteCustomerPayments extends Command
 
         $this->info('');
         $this->info("🛒 UPDATED SALES (Last 10):");
-        
+
         if ($sales->count() > 0) {
             $salesTableData = [];
             foreach ($sales as $sale) {
@@ -404,7 +404,7 @@ class DeleteCustomerPayments extends Command
                     'Status' => $sale->payment_status
                 ];
             }
-            
+
             $this->table(
                 ['ID', 'Invoice', 'Final Total', 'Paid', 'Due', 'Status'],
                 $salesTableData

@@ -336,7 +336,7 @@
                                             <h6 class="text-primary mb-0">
                                                 <i class="fas fa-file-invoice-dollar"></i> Outstanding Bills
                                             </h6>
-                                            <input type="text" id="billSearchInput" class="form-control form-control-sm" placeholder="🔍 Search Invoice..." style="max-width: 180px;">
+                                            <input type="search" id="billSearchInput" class="form-control form-control-sm" placeholder="🔍 Invoice / Notes..." style="max-width: 180px;" title="Search by Invoice Number or Sale Notes">
                                         </div>
                                         <div id="availableBillsList" class="bill-items-container" style="height: 300px; max-height: 300px; overflow-y: scroll; overflow-x: hidden;">
                                             <!-- Bills will be populated here -->
@@ -1886,27 +1886,62 @@ function initializeFlexiblePaymentSystem() {
     console.log('Flexible payment system initialized');
 }
 
+// Helper function to escape HTML special characters
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // Populate flexible bills list (left side)
-function populateFlexibleBillsList() {
+function populateFlexibleBillsList(searchTerm = '') {
     let billsHTML = '';
 
-    if (availableCustomerSales.length === 0) {
-        billsHTML = '<div class="alert alert-warning text-center">No outstanding bills found</div>';
+    // Filter bills based on search term (invoice number or notes)
+    let filteredSales = availableCustomerSales;
+    if (searchTerm && searchTerm.trim() !== '') {
+        const searchLower = searchTerm.toLowerCase().trim();
+        filteredSales = availableCustomerSales.filter(sale => {
+            const invoiceMatch = sale.invoice_no && sale.invoice_no.toLowerCase().includes(searchLower);
+            const notesMatch = sale.sale_notes && sale.sale_notes.toLowerCase().includes(searchLower);
+            const billIdMatch = sale.id && sale.id.toString().includes(searchLower);
+            return invoiceMatch || notesMatch || billIdMatch;
+        });
+    }
+
+    if (filteredSales.length === 0) {
+        if (searchTerm && searchTerm.trim() !== '') {
+            billsHTML = '<div class="alert alert-info text-center"><i class="fas fa-search"></i> No bills found matching "' + escapeHtml(searchTerm) + '"</div>';
+        } else {
+            billsHTML = '<div class="alert alert-warning text-center">No outstanding bills found</div>';
+        }
     } else {
-        availableCustomerSales.forEach((sale) => {
+        filteredSales.forEach((sale) => {
             const allocatedAmount = billPaymentAllocations[sale.id] || 0;
             const remainingAmount = sale.total_due - allocatedAmount;
             const isFullyPaid = remainingAmount <= 0;
+            const hasNotes = sale.sale_notes && sale.sale_notes.trim() !== '';
+            const escapedNotes = escapeHtml(sale.sale_notes || '');
+            const truncatedNotes = sale.sale_notes && sale.sale_notes.length > 50
+                ? escapeHtml(sale.sale_notes.substring(0, 50)) + '...'
+                : escapedNotes;
 
             billsHTML += `
-                <div class="bill-item border rounded p-3 mb-2 ${isFullyPaid ? 'bg-light' : 'bg-white'}" data-bill-id="${sale.id}">
+                <div class="bill-item border rounded p-3 mb-2 ${isFullyPaid ? 'bg-light' : 'bg-white'}" data-bill-id="${sale.id}" data-invoice="${escapeHtml(sale.invoice_no)}" data-notes="${escapedNotes}">
                     <div class="d-flex justify-content-between align-items-start">
                         <div class="flex-grow-1">
                             <h6 class="mb-1 ${isFullyPaid ? 'text-muted' : 'text-primary'}">
-                                ${sale.invoice_no}
+                                ${escapeHtml(sale.invoice_no)}
                                 ${isFullyPaid ? '<span class="badge bg-success ms-2">PAID</span>' : ''}
                             </h6>
                             <div class="small text-muted">Bill #${sale.id}</div>
+                            ${hasNotes ? `
+                                <div class="small mt-1">
+                                    <i class="fas fa-sticky-note text-warning"></i>
+                                    <span class="text-secondary fst-italic" title="${escapedNotes}">${truncatedNotes}</span>
+                                </div>
+                            ` : ''}
                             <div class="mt-2">
                                 <div class="d-flex justify-content-between">
                                     <span class="small text-muted">Total Due:</span>
@@ -2022,7 +2057,7 @@ function addFlexiblePayment() {
     updateSummaryTotals();
 }
 
-// Add bill allocation to a payment method (ENHANCED WITH BILL STATUS TRACKING)
+// Add bill allocation to a payment method (ENHANCED WITH BILL STATUS TRACKING AND NOTES)
 function addBillAllocation(paymentId) {
     // Filter bills - exclude fully paid ones and show remaining amounts
     const availableBills = availableCustomerSales.filter(sale => {
@@ -2038,15 +2073,18 @@ function addBillAllocation(paymentId) {
 
     const allocationId = `allocation_${Date.now()}`;
 
-    // Create enhanced bill options with status indicators
+    // Create enhanced bill options with status indicators and notes
     const billOptions = availableBills.map(sale => {
         const allocatedAmount = billPaymentAllocations[sale.id] || 0;
         const remainingAmount = sale.total_due - allocatedAmount;
         const statusIcon = allocatedAmount > 0 ? '🟡' : '🔴'; // Yellow for partial, Red for unpaid
         const statusText = allocatedAmount > 0 ? 'Partially Paid' : 'Unpaid';
+        const hasNotes = sale.sale_notes && sale.sale_notes.trim() !== '';
+        const noteIndicator = hasNotes ? ' 📝' : '';
+        const notePreview = hasNotes ? ` [${sale.sale_notes.substring(0, 20)}${sale.sale_notes.length > 20 ? '...' : ''}]` : '';
 
-        return `<option value="${sale.id}" data-due="${sale.total_due}" data-invoice="${sale.invoice_no}" data-remaining="${remainingAmount}">
-            ${statusIcon} ${sale.invoice_no} - Remaining: Rs.${remainingAmount.toFixed(2)} (${statusText})
+        return `<option value="${sale.id}" data-due="${sale.total_due}" data-invoice="${escapeHtml(sale.invoice_no)}" data-remaining="${remainingAmount}" data-notes="${escapeHtml(sale.sale_notes || '')}">
+            ${statusIcon} ${escapeHtml(sale.invoice_no)}${noteIndicator} - Rs.${remainingAmount.toFixed(2)} (${statusText})${notePreview}
         </option>`;
     }).join('');
 
@@ -2541,19 +2579,23 @@ $(document).ready(function() {
     // Initialize system variables
     initializeFlexiblePaymentSystem();
 
-    // Bill Search/Filter functionality
+    // Bill Search/Filter functionality - searches invoice numbers and sale notes
+    let billSearchTimeout;
     $('#billSearchInput').on('keyup', function() {
-        const searchValue = $(this).val().toLowerCase();
-        $('.bill-item').each(function() {
-            const invoiceNo = $(this).find('h6').text().toLowerCase();
-            const billNumber = $(this).find('.text-muted').text().toLowerCase();
+        const searchValue = $(this).val();
 
-            if (invoiceNo.includes(searchValue) || billNumber.includes(searchValue)) {
-                $(this).show();
-            } else {
-                $(this).hide();
-            }
-        });
+        // Debounce the search to avoid too many updates
+        clearTimeout(billSearchTimeout);
+        billSearchTimeout = setTimeout(function() {
+            populateFlexibleBillsList(searchValue);
+        }, 300);
+    });
+
+    // Clear search when input is cleared
+    $('#billSearchInput').on('search', function() {
+        if ($(this).val() === '') {
+            populateFlexibleBillsList('');
+        }
     });
 
     // Add Payment Method button
