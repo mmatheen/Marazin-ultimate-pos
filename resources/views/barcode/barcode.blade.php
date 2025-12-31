@@ -27,7 +27,7 @@
 
                         <div class="row align-items-end">
                             {{-- Product Search --}}
-                            <div class="col-md-5">
+                            <div class="col-md-4">
                                 <label class="form-label">Search Product</label>
                                 <div class="position-relative">
                                     <input type="text" class="form-control" id="productSearch"
@@ -54,13 +54,26 @@
 
                             {{-- Quantity Input --}}
                             <div class="col-md-2">
-                                <label class="form-label">Number of Qty</label>
+                                <label class="form-label">Quantity</label>
                                 <input type="number" class="form-control" id="barcodeQuantity"
-                                       value="2" min="1" max="100" placeholder="Enter quantity">
+                                       value="6" min="1" max="500" placeholder="Qty">
+                            </div>
+
+                            {{-- Label Size Selection --}}
+                            <div class="col-md-2">
+                                <label class="form-label">Label Size</label>
+                                <select class="form-control" id="labelSize">
+                                    <option value="a4">A4 Sheet (6/row)</option>
+                                    <option value="50x30">50 x 30 mm</option>
+                                    <option value="50x25">50 x 25 mm</option>
+                                    <option value="40x30">40 x 30 mm</option>
+                                    <option value="40x25">40 x 25 mm</option>
+                                    <option value="38x25">38 x 25 mm</option>
+                                </select>
                             </div>
 
                             {{-- Generate Button --}}
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <button type="button" class="btn btn-success w-100" id="generateBtn" disabled>
                                     <i class="fas fa-barcode me-2"></i>GENERATE
                                 </button>
@@ -120,63 +133,66 @@
         </div>
     </div>
 
-    {{-- Print Styles --}}
+    {{-- Styles --}}
     <style>
-        @media print {
-            /* Hide everything except barcodes */
-            body * {
-                visibility: hidden;
-            }
-
-            #barcodesContainer, #barcodesContainer * {
-                visibility: visible;
-            }
-
-            #barcodesContainer {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-            }
-
-            .barcode-item {
-                page-break-inside: avoid;
-                break-inside: avoid;
-            }
-
-            /* Hide buttons and unnecessary elements */
-            .btn, .page-header, .breadcrumb, .card-title,
-            #barcodeDisplaySection .d-flex, #selectedProductInfo {
-                display: none !important;
-            }
-        }
-
         .barcode-item {
             border: 1px solid #ddd;
-            padding: 15px;
+            padding: 10px;
             text-align: center;
             background: white;
-            border-radius: 5px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 180px;
+        }
+
+        .barcode-item:hover {
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            transform: translateY(-1px);
         }
 
         .barcode-item h6 {
-            font-size: 14px;
-            font-weight: bold;
-            margin-bottom: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            line-height: 1.2;
+            width: 100%;
+        }
+
+        .barcode-item small {
+            font-size: 9px;
+        }
+
+        .barcode-item > div {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
         }
 
         .barcode-item .barcode-code {
             font-family: 'Courier New', monospace;
-            font-size: 13px;
+            font-size: 11px;
             font-weight: bold;
-            margin-top: 8px;
-            margin-bottom: 5px;
+            margin: 4px 0;
         }
 
         .barcode-item .barcode-price {
-            font-size: 13px;
+            font-size: 14px;
             font-weight: bold;
             color: #28a745;
+            margin: 3px 0;
+        }
+
+        /* Responsive improvements */
+        @media (max-width: 768px) {
+            .barcode-item {
+                min-height: 160px;
+                padding: 8px;
+            }
         }
 
         .search-result-item {
@@ -233,7 +249,7 @@
 
                 searchTimeout = setTimeout(function() {
                     searchProducts(searchTerm);
-                }, 300);
+                }, 150);
             });
 
             // Search Products Function
@@ -390,13 +406,18 @@
                 const container = $('#barcodesContainer');
                 container.empty();
 
+                // Store barcodes data for printing
+                window.barcodesData = barcodes;
+
                 barcodes.forEach(function(barcode, index) {
                     const barcodeHtml = $(`
-                        <div class="col-md-4 col-lg-3">
+                        <div class="col-6 col-md-4 col-lg-3 mb-2">
                             <div class="barcode-item">
-                                <h6>${barcode.product_name}</h6>
-                                <small class="text-muted">Batch: ${barcode.batch_no}</small>
-                                <div>${barcode.barcode_html}</div>
+                                <h6 class="text-truncate" title="${barcode.product_name}">${barcode.product_name}</h6>
+                                <small class="text-muted d-block">Batch: ${barcode.batch_no}</small>
+                                <div class="d-flex justify-content-center align-items-center my-2" style="min-height: 60px;">
+                                    ${barcode.barcode_html}
+                                </div>
                                 <div class="barcode-code">${barcode.sku}</div>
                                 <div class="barcode-price">${barcode.price}</div>
                                 <small class="text-muted">(${barcode.price_type})</small>
@@ -415,9 +436,92 @@
                 }, 500);
             }
 
-            // Print Barcodes
+            // Label size configurations
+            const labelSizes = {
+                'a4': { page: 'A4', margin: '2mm', width: '32mm', height: 'auto', gap: '1.5mm', svgW: '28mm', svgH: '10mm', wrap: true },
+                '50x30': { page: '50mm 30mm', margin: '1mm', width: '48mm', height: '28mm', gap: '0', svgW: '45mm', svgH: '12mm', wrap: false },
+                '50x25': { page: '50mm 25mm', margin: '1mm', width: '48mm', height: '23mm', gap: '0', svgW: '45mm', svgH: '10mm', wrap: false },
+                '40x30': { page: '40mm 30mm', margin: '1mm', width: '38mm', height: '28mm', gap: '0', svgW: '35mm', svgH: '12mm', wrap: false },
+                '40x25': { page: '40mm 25mm', margin: '1mm', width: '38mm', height: '23mm', gap: '0', svgW: '35mm', svgH: '10mm', wrap: false },
+                '38x25': { page: '38mm 25mm', margin: '1mm', width: '36mm', height: '23mm', gap: '0', svgW: '33mm', svgH: '10mm', wrap: false }
+            };
+
+            // Print Barcodes - Using hidden iframe (same page, no new window)
             $('#printBtn').on('click', function() {
-                window.print();
+                if (!window.barcodesData || window.barcodesData.length === 0) {
+                    toastr.error('No barcodes to print');
+                    return;
+                }
+
+                // Remove old iframe if exists
+                $('#printFrame').remove();
+
+                // Get selected label size
+                var labelSize = $('#labelSize').val();
+                var config = labelSizes[labelSize];
+
+                // Build print content
+                let printContent = '';
+                window.barcodesData.forEach(function(barcode) {
+                    printContent += '<div class="b">' +
+                        '<div class="n">' + barcode.product_name + '</div>' +
+                        '<div class="t">Batch: ' + barcode.batch_no + '</div>' +
+                        '<div class="c">' + barcode.barcode_html + '</div>' +
+                        '<div class="s">' + barcode.sku + '</div>' +
+                        '<div class="p">' + barcode.price + '</div>' +
+                        '<div class="y">(' + barcode.price_type + ')</div>' +
+                    '</div>';
+                });
+
+                // Create hidden iframe
+                var iframe = document.createElement('iframe');
+                iframe.id = 'printFrame';
+                iframe.style.position = 'absolute';
+                iframe.style.top = '-9999px';
+                iframe.style.left = '-9999px';
+                iframe.style.width = '210mm';
+                iframe.style.height = '297mm';
+                document.body.appendChild(iframe);
+
+                // Build CSS based on label size
+                var css = '*{margin:0;padding:0;box-sizing:border-box}';
+                css += '@page{size:' + config.page + ';margin:' + config.margin + '}';
+                css += 'body{font-family:Arial,sans-serif;padding:' + config.margin + '}';
+
+                if (config.wrap) {
+                    // A4 sheet - multiple labels per page
+                    css += '.g{display:flex;flex-wrap:wrap;gap:' + config.gap + '}';
+                    css += '.b{width:' + config.width + ';border:1px dashed #ccc;padding:1.5mm;text-align:center}';
+                } else {
+                    // Individual label printer - one label per page
+                    css += '.g{display:block}';
+                    css += '.b{width:' + config.width + ';height:' + config.height + ';border:none;padding:1mm;text-align:center;page-break-after:always}';
+                }
+
+                css += '.n{font-size:6pt;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}';
+                css += '.t{font-size:5pt;color:#666}';
+                css += '.c{margin:0.5mm 0}';
+                css += '.c svg{max-width:' + config.svgW + ';height:' + config.svgH + '}';
+                css += '.s{font-size:6pt;font-weight:bold;color:#ff8c00}';
+                css += '.p{font-size:7pt;font-weight:bold;color:#c00}';
+                css += '.y{font-size:5pt;color:#666}';
+
+                // Write content to iframe
+                var doc = iframe.contentWindow.document;
+                doc.open();
+                doc.write('<!DOCTYPE html><html><head><title>Print</title>');
+                doc.write('<style>' + css + '</style></head><body>');
+                doc.write('<div class="g">' + printContent + '</div>');
+                doc.write('</body></html>');
+                doc.close();
+
+                // Wait for iframe to load then print
+                iframe.onload = function() {
+                    setTimeout(function() {
+                        iframe.contentWindow.focus();
+                        iframe.contentWindow.print();
+                    }, 100);
+                };
             });
         });
     </script>

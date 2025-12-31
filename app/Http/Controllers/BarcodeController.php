@@ -5,17 +5,24 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Models\Batch;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Picqer\Barcode\BarcodeGeneratorHTML;
 use Picqer\Barcode\BarcodeGeneratorPNG;
 use Picqer\Barcode\BarcodeGeneratorSVG;
-use Illuminate\Support\Facades\Validator;
 
 class BarcodeController extends Controller
 {
+    private $barcodeHTML;
+    private $barcodePNG;
+
     function __construct()
     {
         $this->middleware('permission:view product', ['only' => ['index']]);
         $this->middleware('permission:print barcodes', ['only' => ['generateBarcodes']]);
+
+        // Initialize barcode generators once
+        $this->barcodeHTML = new BarcodeGeneratorHTML();
+        $this->barcodePNG = new BarcodeGeneratorPNG();
     }
 
     /**
@@ -41,14 +48,23 @@ class BarcodeController extends Controller
                 ]);
             }
 
-            // Search products with their batches
+            // Optimized search with eager loading
             $products = Product::where(function($query) use ($search) {
                     $query->where('product_name', 'LIKE', "%{$search}%")
                           ->orWhere('sku', 'LIKE', "%{$search}%");
                 })
-                ->with(['unit:id,name,short_name', 'batches.locationBatches'])
+                ->with([
+                    'unit:id,name,short_name',
+                    'batches' => function($query) {
+                        $query->select('id', 'product_id', 'batch_no', 'unit_cost', 'wholesale_price',
+                                      'special_price', 'retail_price', 'max_retail_price', 'expiry_date')
+                              ->with(['locationBatches' => function($q) {
+                                  $q->select('batch_id', 'qty');
+                              }]);
+                    }
+                ])
                 ->select('id', 'product_name', 'sku', 'unit_id')
-                ->take(10)
+                ->limit(10)
                 ->get()
                 ->map(function($product) {
                     // Get batches with stock
@@ -68,7 +84,7 @@ class BarcodeController extends Controller
                             'expiry_date' => $batch->expiry_date
                         ];
                     })->filter(function($batch) {
-                        return $batch['quantity'] > 0; // Only show batches with stock
+                        return $batch['quantity'] > 0;
                     })->values();
 
                     return [
@@ -80,8 +96,9 @@ class BarcodeController extends Controller
                     ];
                 })
                 ->filter(function($product) {
-                    return $product['batches']->count() > 0; // Only show products with stock
-                });
+                    return $product['batches']->count() > 0;
+                })
+                ->values();
 
             return response()->json([
                 'status' => 200,
@@ -131,7 +148,9 @@ class BarcodeController extends Controller
             $selectedPrice = $priceMap[$priceType];
 
             // Generate barcode using HTML format for web display
-            $generatorHTML = new BarcodeGeneratorHTML();
+            // Parameters: (code, type, widthFactor, height)
+            // widthFactor: 2 = good for printing, height: 60 = good height
+            $generatorSVG = new BarcodeGeneratorSVG();
 
             // Generate barcodes array
             $barcodes = [];
@@ -140,7 +159,7 @@ class BarcodeController extends Controller
                     'product_name' => $batch->product->product_name,
                     'batch_no' => $batch->batch_no,
                     'sku' => $batch->product->sku,
-                    'barcode_html' => $generatorHTML->getBarcode($batch->product->sku, $generatorHTML::TYPE_CODE_128, 2, 50),
+                    'barcode_html' => $generatorSVG->getBarcode($batch->product->sku, $generatorSVG::TYPE_CODE_128, 2, 50),
                     'price' => 'Rs. ' . number_format($selectedPrice, 2),
                     'price_type' => ucfirst(str_replace('_', ' ', $priceType))
                 ];
