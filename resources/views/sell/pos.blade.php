@@ -496,7 +496,7 @@
             <div class="container-fluid p-1">
                 <div class="row">
                     <div class="col-md-12" id="mainContent">
-                        <div class="card bg-white p-1"
+                        <div class="card bg-white p-2"
                             style="height: calc(100vh - 215px); overflow: hidden; display: flex; flex-direction: column;">
                             <div class="row">
                                 <div class="col-12">
@@ -575,8 +575,8 @@
 
                             <!-- Item Counter Section - Fixed at bottom of billing card -->
                             <div class="row"
-                                style="margin: 0; border-top: 1px solid #ddd; background-color: #f8f9fa;">
-                                <div class="col-md-12" style="padding: 2px 6px;">
+                                style="margin: 0; border-top: 2px solid #ddd; background-color: #f8f9fa;">
+                                <div class="col-md-12" style="padding: 4px 8px;">
                                     <div class="d-flex align-items-center justify-content-between">
                                         <div class="d-flex align-items-center">
                                             <i class="fas fa-shopping-cart me-2 text-primary"></i>
@@ -593,29 +593,29 @@
 
                             <!-- Total, Discount, Final Total Section - Fixed at bottom -->
                             <div class="row align-items-end"
-                                style="margin: 0; border-top: 1px solid #ddd; background-color: #fff; padding: 4px 6px;">
+                                style="margin: 0; border-top: 2px solid #ddd; background-color: #fff; padding: 10px;">
                                 <div class="col-md-2">
                                     <div class="form-group mb-0">
                                         <label
-                                            style="font-size: 11px; font-weight: 600; margin-bottom: 2px; display: block;">Total</label>
+                                            style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">Total</label>
                                         <p id="total-amount" class="form-control form-control-sm mb-0"
-                                            style="height: 30px; line-height: 20px; font-size: 13px; font-weight: 600; padding: 4px 6px;">
+                                            style="height: 36px; line-height: 24px; font-size: 15px; font-weight: 600;">
                                             0.00</p>
                                     </div>
                                 </div>
                                 <div class="col-md-2">
                                     <div class="form-group mb-0">
                                         <label
-                                            style="font-size: 11px; font-weight: 600; margin-bottom: 2px; display: block;">Global
+                                            style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">Global
                                             Discount Type</label>
                                         <div class="btn-group w-100" role="group" aria-label="Discount Type"
-                                            style="height: 30px; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                                            style="height: 36px; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                                             <button type="button" class="btn btn-primary active"
                                                 id="fixed-discount-btn"
-                                                style="font-size: 11px; padding: 0; font-weight: 600; height: 30px; border: none; border-radius: 0; transition: all 0.3s ease;">Fixed</button>
+                                                style="font-size: 12px; padding: 0; font-weight: 600; height: 36px; border: none; border-radius: 0; transition: all 0.3s ease;">Fixed</button>
                                             <button type="button" class="btn btn-outline-primary"
                                                 id="percentage-discount-btn"
-                                                style="font-size: 11px; padding: 0; font-weight: 600; height: 30px; border: none; border-radius: 0; background: white; transition: all 0.3s ease;">%</button>
+                                                style="font-size: 12px; padding: 0; font-weight: 600; height: 36px; border: none; border-radius: 0; background: white; transition: all 0.3s ease;">%</button>
                                         </div>
                                         <input type="hidden" id="discount-type" name="discount_type"
                                             value="fixed">
@@ -624,23 +624,23 @@
                                 <div class="col-md-2">
                                     <div class="form-group mb-0">
                                         <label
-                                            style="font-size: 11px; font-weight: 600; margin-bottom: 2px; display: block;">Discount</label>
-                                        <div class="input-group input-group-sm" style="height: 30px;">
+                                            style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">Discount</label>
+                                        <div class="input-group input-group-sm" style="height: 36px;">
                                             <input type="text" id="global-discount" name="discount"
                                                 class="form-control form-control-sm" placeholder="0.00"
-                                                style="height: 30px; font-size: 13px; font-weight: 600; padding: 4px 6px;">
+                                                style="height: 36px; font-size: 15px; font-weight: 600;">
                                             <span class="input-group-text" id="discount-icon"
-                                                style="height: 30px; font-size: 12px; font-weight: 600; padding: 4px 6px;">Rs</span>
+                                                style="height: 36px; font-size: 14px; font-weight: 600;">Rs</span>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="col-md-2">
                                     <div class="form-group mb-0">
                                         <label
-                                            style="font-size: 11px; font-weight: 600; margin-bottom: 2px; display: block;">Final
+                                            style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">Final
                                             Total</label>
                                         <p id="final-total-amount" class="form-control form-control-sm mb-0"
-                                            style="height: 30px; line-height: 20px; font-size: 13px; font-weight: 600; padding: 4px 6px;">
+                                            style="height: 36px; line-height: 24px; font-size: 15px; font-weight: 600;">
                                             0.00</p>
                                     </div>
                                 </div>
@@ -648,10 +648,10 @@
                                 <div class="col-md-2">
                                     <div class="form-group mb-0">
                                         <label
-                                            style="font-size: 11px; font-weight: 600; margin-bottom: 2px; display: block;">Shipping</label>
+                                            style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">Shipping</label>
                                         <button class="btn btn-outline-info w-100" data-bs-toggle="modal"
                                             data-bs-target="#shippingModal" id="shippingButton"
-                                            style="height: 30px; font-size: 12px; font-weight: 600; padding: 4px 8px;">
+                                            style="height: 36px; font-size: 14px; font-weight: 600;">
                                             <i class="fas fa-shipping-fast"></i> Shipping
                                         </button>
                                     </div>
@@ -659,27 +659,27 @@
                                 <div class="col-md-2">
                                     <div class="form-group mb-0">
                                         <label
-                                            style="font-size: 11px; font-weight: 600; margin-bottom: 2px; display: block;">Amount
+                                            style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">Amount
                                             Given</label>
                                         <input type="text" id="amount-given" class="form-control form-control-sm"
                                             placeholder="0.00" oninput="formatAmount(this)"
-                                            style="height: 30px; font-size: 13px; font-weight: 600; padding: 4px 6px;">
+                                            style="height: 36px; font-size: 15px; font-weight: 600;">
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Sale Notes Section -->
-                            <div class="row mt-1" style="margin: 0; background-color: #fff; padding: 4px 6px;">
+                            <div class="row mt-2" style="margin: 0; background-color: #fff; padding: 10px;">
                                 <div class="col-md-12">
                                     <div class="form-group mb-0">
                                         <label for="sale-notes-textarea"
-                                            style="font-size: 11px; font-weight: 600; margin-bottom: 2px; display: block;">
+                                            style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">
                                             <i class="fas fa-sticky-note me-1"></i>Sale Notes / Description (Optional)
                                         </label>
                                         <textarea id="sale-notes-textarea" class="form-control form-control-sm"
                                             placeholder="Add notes, reference, or description for this sale..."
                                             rows="2"
-                                            style="font-size: 12px; resize: vertical; padding: 4px 6px;"></textarea>
+                                            style="font-size: 14px; resize: vertical;"></textarea>
                                     </div>
                                 </div>
                             </div>
