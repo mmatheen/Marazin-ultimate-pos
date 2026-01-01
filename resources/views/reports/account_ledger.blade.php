@@ -64,11 +64,11 @@
                                 <div class="row mt-3">
                                     <div class="col-md-3">
                                         <label for="start_date" class="form-label"><strong>Start Date <span class="text-danger">*</span></strong></label>
-                                        <input type="date" class="form-control" id="start_date" name="start_date" value="2025-01-01" required>
+                                        <input type="date" class="form-control" id="start_date" name="start_date" value="{{ date('Y') }}-01-01" required>
                                     </div>
                                     <div class="col-md-3">
                                         <label for="end_date" class="form-label"><strong>End Date <span class="text-danger">*</span></strong></label>
-                                        <input type="date" class="form-control" id="end_date" name="end_date" value="2025-12-31" required>
+                                        <input type="date" class="form-control" id="end_date" name="end_date" value="{{ date('Y') }}-12-31" required>
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label"><strong>View Options</strong></label>
@@ -96,7 +96,7 @@
 
                     <!-- Auto-selected Contact Notification -->
                     <div id="autoSelectedNotification" class="alert alert-info d-none mb-4">
-                        <i class="fa fa-info-circle"></i> 
+                        <i class="fa fa-info-circle"></i>
                         <span id="autoSelectedMessage">Contact automatically selected from URL parameters.</span>
                     </div>
 

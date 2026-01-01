@@ -43,11 +43,21 @@ class UnifiedLedgerService
         // ✅ FIX: Validate that sale has customer_id before proceeding
         if (empty($sale->customer_id)) {
             Log::error('RecordSale called with empty customer_id', [
-                'sale_id' => $sale->id,
-                'customer_id' => $sale->customer_id,
+                'sale_id' => $sale->id ?? 'N/A',
+                'customer_id' => $sale->customer_id ?? 'NULL',
                 'invoice_no' => $sale->invoice_no ?? 'N/A'
             ]);
-            throw new \Exception("Cannot record sale in ledger: customer_id is missing or empty. Sale ID: {$sale->id}");
+            throw new \Exception("Cannot record sale in ledger: customer_id is missing or empty. Sale ID: " . ($sale->id ?? 'unknown'));
+        }
+
+        // ✅ ADDITIONAL VALIDATION: Check for required sale properties
+        if (!isset($sale->id) || !isset($sale->final_total)) {
+            Log::error('RecordSale called with incomplete sale data', [
+                'sale_id' => $sale->id ?? 'N/A',
+                'has_final_total' => isset($sale->final_total) ? 'yes' : 'no',
+                'final_total' => $sale->final_total ?? 'N/A'
+            ]);
+            throw new \Exception("Cannot record sale in ledger: Sale object is incomplete or missing required fields.");
         }
 
         // Generate a proper reference number for the sale
@@ -76,6 +86,29 @@ class UnifiedLedgerService
      */
     public function recordPurchase($purchase, $createdBy = null)
     {
+        // ✅ VALIDATION: Ensure purchase has required fields
+        if (empty($purchase->supplier_id)) {
+            Log::error('RecordPurchase called with empty supplier_id', [
+                'purchase_id' => $purchase->id ?? 'N/A',
+                'supplier_id' => $purchase->supplier_id ?? 'NULL'
+            ]);
+            throw new \Exception("Cannot record purchase in ledger: supplier_id is missing. Purchase ID: " . ($purchase->id ?? 'unknown'));
+        }
+
+        if (!isset($purchase->grand_total) && !isset($purchase->final_total)) {
+            Log::error('RecordPurchase called without total amount', [
+                'purchase_id' => $purchase->id ?? 'N/A',
+                'has_grand_total' => isset($purchase->grand_total) ? 'yes' : 'no',
+                'has_final_total' => isset($purchase->final_total) ? 'yes' : 'no'
+            ]);
+            throw new \Exception("Cannot record purchase in ledger: total amount is missing. Purchase ID: " . ($purchase->id ?? 'unknown'));
+        }
+
+        if (!isset($purchase->id)) {
+            Log::error('RecordPurchase called without purchase id');
+            throw new \Exception("Cannot record purchase in ledger: purchase id is missing.");
+        }
+
         // Generate a proper reference number for the purchase
         $referenceNo = $purchase->reference_no ?: 'PUR-' . $purchase->id;
 
@@ -136,6 +169,23 @@ class UnifiedLedgerService
      */
     public function recordPurchasePayment($payment, $purchase = null, $createdBy = null)
     {
+        // ✅ VALIDATION: Ensure payment has required fields
+        if (empty($payment->supplier_id)) {
+            Log::error('RecordPurchasePayment called with empty supplier_id', [
+                'payment_id' => $payment->id ?? 'N/A',
+                'supplier_id' => $payment->supplier_id ?? 'NULL'
+            ]);
+            throw new \Exception("Cannot record payment in ledger: supplier_id is missing. Payment ID: " . ($payment->id ?? 'unknown'));
+        }
+
+        if (!isset($payment->amount) || $payment->amount === null) {
+            Log::error('RecordPurchasePayment called with null amount', [
+                'payment_id' => $payment->id ?? 'N/A',
+                'amount' => $payment->amount ?? 'NULL'
+            ]);
+            throw new \Exception("Cannot record payment in ledger: amount is missing. Payment ID: " . ($payment->id ?? 'unknown'));
+        }
+
         $referenceNo = $payment->reference_no ?: ($purchase ? $purchase->reference_no : 'PAY-' . $payment->id);
 
         // Use the actual creation time converted to Asia/Colombo timezone
@@ -1740,9 +1790,16 @@ class UnifiedLedgerService
                 ->where('transaction_type', 'payments')
                 ->where('contact_id', $userId)
                 ->where('contact_type', $contactType)
+                ->where('status', 'active') // ✅ Only reverse ACTIVE entries
                 ->get();
 
             foreach ($oldLedgerEntries as $oldEntry) {
+                // ✅ CRITICAL FIX: Mark original entry as reversed
+                $oldEntry->update([
+                    'status' => 'reversed',
+                    'notes' => ($oldEntry->notes ?? '') . ' [REVERSED: Payment edited on ' . now()->format('Y-m-d H:i:s') . ']'
+                ]);
+
                 // Create reversal entry - swap debit and credit amounts to reverse the effect
                 $reversalEntry = new Ledger();
                 $reversalEntry->transaction_date = now();
@@ -1750,18 +1807,22 @@ class UnifiedLedgerService
                 $reversalEntry->transaction_type = 'payments';
                 $reversalEntry->debit = $oldEntry->credit;  // Swap: original credit becomes debit
                 $reversalEntry->credit = $oldEntry->debit;  // Swap: original debit becomes credit
+                $reversalEntry->status = 'reversed'; // ✅ Reversal entries should be marked as reversed
+                $reversalEntry->notes = 'REVERSAL: Payment Edit - Original amount Rs' . ($oldEntry->credit ?: $oldEntry->debit) . ' (ID: ' . $oldEntry->id . ')';
                 // Note: Balance column removed from ledgers table - calculated dynamically
                 $reversalEntry->contact_type = $contactType;
                 $reversalEntry->contact_id = $userId;
                 $reversalEntry->save();
 
                 Log::info("Ledger reversal entry created for payment edit", [
+                    'original_entry_id' => $oldEntry->id,
                     'original_reference' => $oldReferenceNo,
                     'reversal_reference' => $oldReferenceNo . '-REV',
                     'original_debit' => $oldEntry->debit,
                     'original_credit' => $oldEntry->credit,
                     'reversal_debit' => $reversalEntry->debit,
                     'reversal_credit' => $reversalEntry->credit,
+                    'original_status_updated' => 'reversed',
                     'note' => 'Balance calculated dynamically - not stored in DB',
                     'contact_type' => $contactType,
                     'contact_id' => $userId
@@ -2505,10 +2566,11 @@ class UnifiedLedgerService
             if ($originalEntry) {
                 $originalEntry->update([
                     'status' => 'reversed',
-                    'notes' => $originalEntry->notes . ' [REVERSED: Payment deleted on ' . now()->format('Y-m-d H:i:s') . ']'
+                    'notes' => ($originalEntry->notes ?? '') . ' [REVERSED: Payment deleted on ' . now()->format('Y-m-d H:i:s') . ']'
                 ]);
 
                 // Step 2: Create REVERSAL entry to cancel the deleted payment
+                // Payment ledger entries are CREDIT (reduce customer debt), so reversal should be DEBIT
                 $reversalNotes = 'REVERSAL: Payment Deleted - Cancel amount Rs.' . number_format($payment->amount, 2);
                 if ($isReturnPayment) {
                     $reversalNotes .= ' (Return payment reversal)';
@@ -2517,16 +2579,18 @@ class UnifiedLedgerService
                     $reversalNotes .= ' | Reason: ' . $deleteReason;
                 }
 
+                // ✅ CRITICAL FIX: Pass NEGATIVE amount to create DEBIT reversal entry
+                // For customer payments: positive amount = CREDIT, negative amount = DEBIT
+                // We want DEBIT to reverse the CREDIT payment
                 $reversalEntry = Ledger::createEntry([
                     'contact_id' => $contactId,
                     'contact_type' => $contactType,
                     'transaction_date' => Carbon::now('Asia/Colombo'),
                     'reference_no' => $referenceNo . '-DEL-' . time(),
-                    'transaction_type' => 'payment_adjustment',
-                    'amount' => $payment->amount,
-                    'status' => 'reversed', // ✅ FIX: Payment adjustments should be marked as 'reversed' status
-                    'notes' => $reversalNotes,
-                    'created_by' => $deletedBy
+                    'transaction_type' => 'payments',
+                    'amount' => -$payment->amount, // ✅ NEGATIVE creates DEBIT for reversal
+                    'status' => 'reversed',
+                    'notes' => $reversalNotes
                 ]);
 
                 Log::info("Perfect reversal accounting completed for payment deletion", [
@@ -2535,6 +2599,7 @@ class UnifiedLedgerService
                     'contact_type' => $contactType,
                     'reference_no' => $referenceNo,
                     'amount' => $payment->amount,
+                    'original_entry_id' => $originalEntry->id,
                     'reversal_entry_id' => $reversalEntry->id
                 ]);
 
@@ -2544,6 +2609,13 @@ class UnifiedLedgerService
                     'method' => 'perfect_reversal_accounting'
                 ];
             }
+
+            Log::warning("No active ledger entry found for payment deletion", [
+                'payment_id' => $payment->id,
+                'reference_no' => $referenceNo,
+                'contact_id' => $contactId,
+                'contact_type' => $contactType
+            ]);
 
             return null;
         });

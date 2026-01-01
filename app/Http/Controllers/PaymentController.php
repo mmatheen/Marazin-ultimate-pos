@@ -657,24 +657,70 @@ class PaymentController extends Controller
         if ($payment->payment_type === 'sale' && $payment->customer_id) {
             if (!$isUpdate) {
                 // For new payments, record normally
-                $this->unifiedLedgerService->recordSalePayment($payment);
+                try {
+                    $this->unifiedLedgerService->recordSalePayment($payment);
+                } catch (\Exception $e) {
+                    Log::error('Failed to record sale payment in ledger', [
+                        'payment_id' => $payment->id,
+                        'customer_id' => $payment->customer_id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    throw new \Exception("Failed to record payment in ledger: " . $e->getMessage());
+                }
             }
             // For updates, the ledger is already handled by the update process
             $this->updateSaleTable($payment->reference_id);
             $this->updateCustomerBalance($payment->customer_id);
         } else if ($payment->payment_type === 'purchase' && $payment->supplier_id) {
-            $this->unifiedLedgerService->recordPurchasePayment($payment);
+            try {
+                $this->unifiedLedgerService->recordPurchasePayment($payment);
+            } catch (\Exception $e) {
+                Log::error('Failed to record purchase payment in ledger', [
+                    'payment_id' => $payment->id,
+                    'supplier_id' => $payment->supplier_id,
+                    'error' => $e->getMessage()
+                ]);
+                throw new \Exception("Failed to record payment in ledger: " . $e->getMessage());
+            }
             $this->updatePurchaseTable($payment->reference_id);
         } else if ($payment->payment_type === 'purchase_return' && $payment->supplier_id) {
-            $this->unifiedLedgerService->recordReturnPayment($payment, 'supplier');
+            try {
+                $this->unifiedLedgerService->recordReturnPayment($payment, 'supplier');
+            } catch (\Exception $e) {
+                Log::error('Failed to record purchase return payment in ledger', [
+                    'payment_id' => $payment->id,
+                    'supplier_id' => $payment->supplier_id,
+                    'error' => $e->getMessage()
+                ]);
+                throw new \Exception("Failed to record return payment in ledger: " . $e->getMessage());
+            }
             $this->updatePurchaseReturnTable($payment->reference_id);
         } else if (in_array($payment->payment_type, ['sale_return_with_bill', 'sale_return_without_bill']) && $payment->customer_id) {
-            $this->unifiedLedgerService->recordReturnPayment($payment, 'customer');
+            try {
+                $this->unifiedLedgerService->recordReturnPayment($payment, 'customer');
+            } catch (\Exception $e) {
+                Log::error('Failed to record sale return payment in ledger', [
+                    'payment_id' => $payment->id,
+                    'customer_id' => $payment->customer_id,
+                    'error' => $e->getMessage()
+                ]);
+                throw new \Exception("Failed to record return payment in ledger: " . $e->getMessage());
+            }
             $this->updateSaleReturnTable($payment->reference_id);
             $this->updateCustomerBalance($payment->customer_id);
         } else if ($payment->payment_type === 'opening_balance') {
             $contactType = $payment->customer_id ? 'customer' : 'supplier';
-            $this->unifiedLedgerService->recordOpeningBalancePayment($payment, $contactType);
+            try {
+                $this->unifiedLedgerService->recordOpeningBalancePayment($payment, $contactType);
+            } catch (\Exception $e) {
+                Log::error('Failed to record opening balance payment in ledger', [
+                    'payment_id' => $payment->id,
+                    'contact_type' => $contactType,
+                    'error' => $e->getMessage()
+                ]);
+                throw new \Exception("Failed to record opening balance payment in ledger: " . $e->getMessage());
+            }
 
             if ($payment->customer_id) {
                 $this->updateCustomerBalance($payment->customer_id);
@@ -782,9 +828,8 @@ class PaymentController extends Controller
                     // ✅ CRITICAL FIX: Mark payment as deleted instead of hard delete
                     $payment->update([
                         'status' => 'deleted',
-                        'deleted_at' => now(),
-                        'deleted_by' => auth()->id(),
-                        'notes' => ($payment->notes ?? '') . ' | [DELETED: Manual deletion - ' . now()->format('Y-m-d H:i:s') . ']'
+                        'payment_status' => 'cancelled',
+                        'notes' => ($payment->notes ?? '') . ' | [DELETED: Manual deletion by user #' . auth()->id() . ' - ' . now()->format('Y-m-d H:i:s') . ']'
                     ]);
 
                     Log::info('Payment deleted successfully with proper reversal accounting', [
@@ -2547,16 +2592,17 @@ class PaymentController extends Controller
 
                 // LEDGER MANAGEMENT: Handle unified ledger cleanup - this is crucial for accurate accounting
                 try {
-                    // Delete the payment ledger entries from unified ledger
-                    // This removes the debit/credit entries for this payment
-                    $this->unifiedLedgerService->deletePaymentLedger($payment);
+                    // ✅ CRITICAL FIX: Use deletePayment instead of deletePaymentLedger
+                    // deletePayment properly marks entries as reversed and creates reversal entries
+                    $result = $this->unifiedLedgerService->deletePayment($payment, $request->reason ?? 'Payment deleted via bulk payments');
 
                     Log::info('Ledger payment entries deleted successfully', [
                         'payment_id' => $payment->id,
                         'amount' => $amount,
                         'customer_id' => $customerId,
                         'supplier_id' => $supplierId,
-                        'entity_type' => $entityType
+                        'entity_type' => $entityType,
+                        'result' => $result
                     ]);
                 } catch (\Exception $e) {
                     Log::error('CRITICAL: Failed to delete unified ledger entries for payment', [
@@ -2588,9 +2634,8 @@ class PaymentController extends Controller
                 // ✅ CRITICAL FIX: Mark payment as deleted instead of hard delete
                 $payment->update([
                     'status' => 'deleted',
-                    'deleted_at' => now(),
-                    'deleted_by' => Auth::id(),
-                    'notes' => ($payment->notes ?? '') . ' | [DELETED: ' . ($request->reason ?? 'No reason provided') . ' - ' . now()->format('Y-m-d H:i:s') . ']'
+                    'payment_status' => 'cancelled',
+                    'notes' => ($payment->notes ?? '') . ' | [DELETED by user #' . Auth::id() . ': ' . ($request->reason ?? 'No reason provided') . ' - ' . now()->format('Y-m-d H:i:s') . ']'
                 ]);
 
                 // Update related tables and balances

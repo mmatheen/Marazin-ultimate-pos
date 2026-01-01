@@ -238,7 +238,18 @@ class SaleController extends Controller
 
             // ✨ Create ledger entry for the invoice (skip for Walk-In customers)
             if ($invoice->customer_id != 1) {
+                Log::info('Creating ledger entry for converted invoice', [
+                    'invoice_id' => $invoice->id,
+                    'customer_id' => $invoice->customer_id,
+                    'invoice_no' => $invoice->invoice_no,
+                    'final_total' => $invoice->final_total
+                ]);
+
                 $this->unifiedLedgerService->recordSale($invoice);
+
+                Log::info('Ledger entry created for converted invoice', [
+                    'invoice_id' => $invoice->id
+                ]);
             }
 
             // Return success without redirecting to edit (stock already deducted)
@@ -1296,9 +1307,22 @@ class SaleController extends Controller
                 // ✨ ACCOUNTING FIX: Only create ledger entries for final sales, not drafts/quotations/sale_orders
                 // ✨ SALE ORDER FIX: Skip ledger for sale orders - ledger created only on conversion to invoice
                 if ($request->customer_id != 1 && !$isUpdate && !in_array($sale->status, ['draft', 'quotation']) && $transactionType !== 'sale_order') {
-                    // Record sale in unified ledger BEFORE processing payments
-                    // This ensures customer debt is established first
+                    // ✅ CRITICAL: Record sale in unified ledger INSIDE DB transaction
+                    // If ledger creation fails, entire transaction rolls back (sale won't be saved)
+                    // This ensures accounting integrity - no sale without ledger entry
+                    Log::info('Creating ledger entry for sale', [
+                        'sale_id' => $sale->id,
+                        'customer_id' => $sale->customer_id,
+                        'invoice_no' => $sale->invoice_no,
+                        'final_total' => $sale->final_total
+                    ]);
+
                     $this->unifiedLedgerService->recordSale($sale);
+
+                    Log::info('Ledger entry created successfully for sale', [
+                        'sale_id' => $sale->id,
+                        'customer_id' => $sale->customer_id
+                    ]);
                 }
 
 // ✅ CORRECT ORDER: Step 1 - Reverse old SALE entries only (not payments yet)
@@ -1348,8 +1372,8 @@ class SaleController extends Controller
                             }
                         }
 
-                        // STEP 1: Only reverse old sale (don't create new one yet)
-                        $this->unifiedLedgerService->reverseSale($sale, $referenceNo);
+                        // ✅ Let UnifiedLedgerService handle both reversal and new entry
+                        $this->unifiedLedgerService->updateSale($sale, $referenceNo);
                     }
                     // Note: If only non-financial fields changed (e.g., sale_notes), ledger is not updated
                 }
@@ -1461,13 +1485,6 @@ class SaleController extends Controller
                                     }
                                 }
                             }
-                        }
-
-                        // ✅ STEP 3: Create new sale entry BEFORE creating new payments
-                        // This ensures correct accounting order: Sale entry BEFORE payment entries
-                        if ($isUpdate && $request->customer_id != 1 && $financialDataChanged && !$customerChanged) {
-                            Log::info('Creating new sale entry before new payments');
-                            $this->unifiedLedgerService->recordNewSaleEntry($sale);
                         }
 
                         // ✨ PERFORMANCE FIX: Optimized payment processing

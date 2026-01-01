@@ -251,10 +251,33 @@ class Ledger extends Model
                 Log::error('Ledger createEntry validation failed', [
                     'field' => $field,
                     'provided_value' => $data[$field] ?? 'not_set',
+                    'data_keys' => array_keys($data),
                     'all_data' => $data
                 ]);
-                throw new \Exception("Required field {$field} is missing or empty. Provided value: " . ($data[$field] ?? 'null'));
+                throw new \Exception("Required field '{$field}' is missing or empty in ledger entry. Provided value: " . ($data[$field] ?? 'null') . ". Please check the calling code.");
             }
+        }
+
+        // ✅ ADDITIONAL VALIDATION: Ensure transaction_date is valid Carbon instance or parseable date
+        try {
+            if (!($data['transaction_date'] instanceof Carbon)) {
+                $data['transaction_date'] = Carbon::parse($data['transaction_date']);
+            }
+        } catch (\Exception $e) {
+            Log::error('Invalid transaction_date in ledger entry', [
+                'transaction_date' => $data['transaction_date'],
+                'error' => $e->getMessage()
+            ]);
+            throw new \Exception("Invalid transaction_date format: " . $e->getMessage());
+        }
+
+        // ✅ VALIDATION: Ensure contact_id is numeric and greater than 0
+        if (!is_numeric($data['contact_id']) || $data['contact_id'] <= 0) {
+            Log::error('Invalid contact_id in ledger entry', [
+                'contact_id' => $data['contact_id'],
+                'contact_type' => $data['contact_type']
+            ]);
+            throw new \Exception("Invalid contact_id: must be a positive number. Received: " . $data['contact_id']);
         }
 
         // ✅ CRITICAL FIX: Prevent duplicate ledger entries
@@ -266,20 +289,24 @@ class Ledger extends Model
             ->where('status', 'active');
 
         // For payment transactions, also check amount and timestamp to allow multiple payments
-        // but prevent exact duplicates within a short time window
+        // but prevent exact duplicates within a short time window (reduced to 2 minutes for better detection)
         if (in_array($data['transaction_type'], ['payment', 'payments', 'sale_payment', 'purchase_payment'])) {
             $duplicateQuery->where(function($query) use ($data) {
                 $query->where('debit', abs($data['amount']))
                       ->orWhere('credit', abs($data['amount']));
             })
-            ->where('created_at', '>=', Carbon::now()->subMinutes(5)); // Within 5 minutes
+            ->where('created_at', '>=', Carbon::now()->subMinutes(2)); // Within 2 minutes (stricter)
+        } else {
+            // For non-payment transactions (sales, purchases, etc.), check for exact duplicates
+            // within a very short window to prevent double-click submissions
+            $duplicateQuery->where('created_at', '>=', Carbon::now()->subSeconds(30)); // Within 30 seconds
         }
 
         $existingEntry = $duplicateQuery->first();
 
         if ($existingEntry) {
-            // If this is a duplicate request, log it and return the existing entry
-            Log::warning('Duplicate ledger entry attempted', [
+            // Log with more detail to help diagnose issues
+            Log::warning('Duplicate ledger entry detected and prevented', [
                 'contact_id' => $data['contact_id'],
                 'contact_type' => $data['contact_type'],
                 'reference_no' => $data['reference_no'],
@@ -287,11 +314,25 @@ class Ledger extends Model
                 'existing_amount' => $existingEntry->debit ?: $existingEntry->credit,
                 'attempted_amount' => $data['amount'],
                 'existing_id' => $existingEntry->id,
-                'time_diff' => $existingEntry->created_at->diffInMinutes(Carbon::now()) . ' minutes ago'
+                'time_diff_seconds' => $existingEntry->created_at->diffInSeconds(Carbon::now()),
+                'existing_created_at' => $existingEntry->created_at->toDateTimeString(),
+                'request_timestamp' => Carbon::now()->toDateTimeString()
             ]);
 
+            // ⚠️ IMPORTANT: Return existing entry (not throw exception)
+            // This prevents legitimate retries from failing
             return $existingEntry;
         }
+
+        // ✅ LOG SUCCESSFUL CREATION ATTEMPT for debugging
+        Log::info('Creating new ledger entry - validation passed', [
+            'contact_id' => $data['contact_id'],
+            'contact_type' => $data['contact_type'],
+            'reference_no' => $data['reference_no'],
+            'transaction_type' => $data['transaction_type'],
+            'amount' => $data['amount'],
+            'transaction_date' => $data['transaction_date']->toDateTimeString()
+        ]);
 
         $debit = 0;
         $credit = 0;
@@ -630,6 +671,18 @@ class Ledger extends Model
             'status' => $data['status'] ?? 'active',
             'notes' => $data['notes'] ?? '',
             'created_by' => $data['created_by'] ?? auth()->id() ?? 1 // Auto-set to authenticated user or default to admin
+        ]);
+
+        // ✅ LOG SUCCESSFUL LEDGER CREATION
+        Log::info('✅ Ledger entry created successfully', [
+            'ledger_id' => $ledger->id,
+            'contact_id' => $ledger->contact_id,
+            'contact_type' => $ledger->contact_type,
+            'reference_no' => $ledger->reference_no,
+            'transaction_type' => $ledger->transaction_type,
+            'debit' => $ledger->debit,
+            'credit' => $ledger->credit,
+            'status' => $ledger->status
         ]);
 
         return $ledger;

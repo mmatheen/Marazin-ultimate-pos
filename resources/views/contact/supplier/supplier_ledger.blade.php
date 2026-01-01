@@ -41,11 +41,11 @@
                                     </div>
                                     <div class="col-md-2">
                                         <label for="start_date" class="form-label"><strong>Start Date <span class="text-danger">*</span></strong></label>
-                                        <input type="date" class="form-control" id="start_date" name="start_date" value="2025-01-01" required>
+                                        <input type="date" class="form-control" id="start_date" name="start_date" value="{{ date('Y') }}-01-01" required>
                                     </div>
-                                    <div class="col-md-2">
+                                    <div class="col-md-3">
                                         <label for="end_date" class="form-label"><strong>End Date <span class="text-danger">*</span></strong></label>
-                                        <input type="date" class="form-control" id="end_date" name="end_date" value="2025-12-31" required>
+                                        <input type="date" class="form-control" id="end_date" name="end_date" value="{{ date('Y') }}-12-31" required>
                                     </div>
                                     <div class="col-md-2 d-flex align-items-end">
                                         <div class="w-100">
@@ -62,7 +62,7 @@
 
                     <!-- Auto-selected Supplier Notification -->
                     <div id="autoSelectedNotification" class="alert alert-info d-none">
-                        <i class="fa fa-info-circle"></i> 
+                        <i class="fa fa-info-circle"></i>
                         <span id="autoSelectedMessage">Supplier automatically selected from supplier list.</span>
                     </div>
 
@@ -86,7 +86,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Supplier Advance Payment Actions -->
                         <div id="advanceActionsSection" class="row mb-3" style="display: none;">
                             <div class="col-12">
@@ -228,7 +228,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="row mt-3">
                     <div class="col-12">
                         <div class="card border-info">

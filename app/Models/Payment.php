@@ -52,8 +52,6 @@ class Payment extends Model
         'original_amount',
         'edited_by',
         'edited_at',
-        'deleted_by',
-        'deleted_at',
         'edit_reason',
     ];
 
@@ -102,7 +100,6 @@ class Payment extends Model
         'cheque_clearance_date' => 'date',
         'cheque_bounce_date' => 'date',
         'edited_at' => 'datetime',
-        'deleted_at' => 'datetime',
     ];
 
     // Relationships
@@ -479,9 +476,8 @@ class Payment extends Model
     {
         $this->update([
             'status' => 'deleted',
-            'edit_reason' => $deleteReason,
-            'deleted_by' => $deletedBy,
-            'deleted_at' => now(),
+            'payment_status' => 'cancelled',
+            'notes' => ($this->notes ?? '') . ' | [DELETED by user #' . ($deletedBy ?? auth()->id()) . ': ' . ($deleteReason ?? 'No reason provided') . ' - ' . now()->format('Y-m-d H:i:s') . ']'
         ]);
 
         return $this;
