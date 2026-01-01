@@ -616,6 +616,13 @@
                     updateFooter();
                 });
 
+                // ✅ ADD: Handle MRP changes to update retail price validation
+                $newRow.find(".max-retail-price").on("input", function() {
+                    validateRetailPriceAgainstMRP($newRow);
+                    calculateProfitMargin($newRow);
+                    updateFooter();
+                });
+
                 // Handle row removal for newly added products (NOT product deletion)
                 // Uses .remove-purchase-row class to avoid conflict with product_ajax.blade.php
                 $newRow.find(".remove-purchase-row").on("click", function(e) {
@@ -689,7 +696,8 @@
         function validateRetailPriceAgainstMRP($row) {
             const retailPriceInput = $row.find(".retail-price");
             const retailPrice = parseFloat(retailPriceInput.val()) || 0;
-            const mrp = parseFloat($row.data('mrp')) || 0;
+            // ✅ FIX: Read current MRP value from input field, not cached data attribute
+            const mrp = parseFloat($row.find(".max-retail-price").val()) || 0;
 
             if (mrp > 0 && retailPrice > mrp) {
                 // Show warning and reset to MRP
@@ -703,11 +711,25 @@
                     retailPriceInput.removeClass('is-invalid');
                 }, 2000);
             }
+
+            // Update the max attribute and placeholder on retail price input
+            if (mrp > 0) {
+                retailPriceInput.attr('max', mrp);
+                retailPriceInput.attr('title', `Maximum allowed: ${mrp.toFixed(2)} (MRP)`);
+                retailPriceInput.attr('placeholder', `Max: ${mrp.toFixed(2)}`);
+            }
         }
 
         function initializeExistingRowValidation($row) {
             // Add MRP validation to existing rows
             $row.find(".retail-price").on("input", function() {
+                validateRetailPriceAgainstMRP($row);
+                calculateProfitMargin($row);
+                updateFooter();
+            });
+
+            // ✅ ADD: Handle MRP changes for existing rows
+            $row.find(".max-retail-price").on("input", function() {
                 validateRetailPriceAgainstMRP($row);
                 calculateProfitMargin($row);
                 updateFooter();
