@@ -3646,6 +3646,59 @@
             });
         }
 
+        // Check if product exists in entire database before showing quick add modal
+        function checkProductExistsBeforeQuickAdd(term, response) {
+            console.log('No results in location - checking entire database for:', term);
+            
+            $.ajax({
+                url: '/products/stocks/autocomplete',
+                data: {
+                    // Don't filter by location - check entire product database
+                    search: term,
+                    per_page: 5
+                },
+                cache: false,
+                timeout: 3000,
+                success: function(productCheckData) {
+                    if (productCheckData.status === 200 && 
+                        Array.isArray(productCheckData.data) && 
+                        productCheckData.data.length > 0) {
+                        
+                        // Check if exact match exists
+                        const productExists = productCheckData.data.some(p => 
+                            p.product && 
+                            p.product.sku && 
+                            p.product.sku.toLowerCase() === term.toLowerCase()
+                        );
+                        
+                        if (productExists) {
+                            // Product exists but not in this location
+                            toastr.warning('This product exists in the system but is not available at this location. Please add stock to this location first.', 'Product Not Available Here');
+                            response([{ 
+                                label: "⚠️ Product exists but not available at this location", 
+                                value: "",
+                                notAvailable: true 
+                            }]);
+                        } else {
+                            // Product doesn't exist - show quick add modal immediately
+                            response([]);
+                            $("#productSearchInput").autocomplete('close');
+                            showQuickAddOption(term);
+                        }
+                    } else {
+                        // Product doesn't exist anywhere - show quick add modal immediately
+                        response([]);
+                        $("#productSearchInput").autocomplete('close');
+                        showQuickAddOption(term);
+                    }
+                },
+                error: function() {
+                    // On error, just show no results
+                    response([{ label: "Error checking product database", value: "" }]);
+                }
+            });
+        }
+
         function handleSearchSuccess(data, term, response, cacheKey = null) {
             autocompleteState.isRequesting = false;
 
@@ -3662,7 +3715,9 @@
             console.log(`After filtering: ${results.length} products will be shown in autocomplete dropdown`);
 
             if (results.length === 0) {
-                results.push({ label: "No results found", value: "" });
+                // No results in location - check if product exists in database before showing quick add
+                checkProductExistsBeforeQuickAdd(term, response);
+                return;
             }
 
             // ❌ CACHING DISABLED - Always fetch fresh stock data to prevent stale quantities
@@ -3818,6 +3873,22 @@
                 },
                 select: function(event, ui) {
                     console.log('Item selected:', ui.item);
+                    
+                    // Handle quick add option click
+                    if (ui.item.showQuickAdd && ui.item.searchTerm) {
+                        event.preventDefault();
+                        $("#productSearchInput").val('');
+                        showQuickAddOption(ui.item.searchTerm);
+                        return false;
+                    }
+                    
+                    // Handle not available products
+                    if (ui.item.notAvailable) {
+                        event.preventDefault();
+                        $("#productSearchInput").val('');
+                        return false;
+                    }
+                    
                     if (!ui.item.product || autocompleteState.adding) return false;
 
                     autocompleteState.adding = true;
