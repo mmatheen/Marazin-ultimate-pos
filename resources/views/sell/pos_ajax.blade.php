@@ -4575,7 +4575,7 @@
                             } else {
                                 // No results from location stock - check if product exists in product table at all
                                 showSearchIndicator("⏳ Checking product database...", "#ffc107");
-                                
+
                                 $.ajax({
                                     url: '/products/stocks/autocomplete',
                                     data: {
@@ -4587,18 +4587,18 @@
                                     timeout: 3000,
                                     success: function(productCheckData) {
                                         hideSearchIndicator();
-                                        
-                                        if (productCheckData.status === 200 && 
-                                            Array.isArray(productCheckData.data) && 
+
+                                        if (productCheckData.status === 200 &&
+                                            Array.isArray(productCheckData.data) &&
                                             productCheckData.data.length > 0) {
-                                            
+
                                             // Product exists in system but not in this location
-                                            const productExists = productCheckData.data.some(p => 
-                                                p.product && 
-                                                p.product.sku && 
+                                            const productExists = productCheckData.data.some(p =>
+                                                p.product &&
+                                                p.product.sku &&
                                                 p.product.sku.toLowerCase() === searchTerm.toLowerCase()
                                             );
-                                            
+
                                             if (productExists) {
                                                 showSearchIndicator("⚠️ Product exists but not in this location", "#ff9800");
                                                 toastr.warning('This product exists in the system but is not available at this location. Please add stock to this location first.', 'Product Not Available Here');
