@@ -3649,7 +3649,7 @@
         // Check if product exists in entire database before showing quick add modal
         function checkProductExistsBeforeQuickAdd(term, response) {
             console.log('No results in location - checking entire database for:', term);
-            
+
             $.ajax({
                 url: '/products/stocks/autocomplete',
                 data: {
@@ -3660,24 +3660,24 @@
                 cache: false,
                 timeout: 3000,
                 success: function(productCheckData) {
-                    if (productCheckData.status === 200 && 
-                        Array.isArray(productCheckData.data) && 
+                    if (productCheckData.status === 200 &&
+                        Array.isArray(productCheckData.data) &&
                         productCheckData.data.length > 0) {
-                        
+
                         // Check if exact match exists
-                        const productExists = productCheckData.data.some(p => 
-                            p.product && 
-                            p.product.sku && 
+                        const productExists = productCheckData.data.some(p =>
+                            p.product &&
+                            p.product.sku &&
                             p.product.sku.toLowerCase() === term.toLowerCase()
                         );
-                        
+
                         if (productExists) {
                             // Product exists but not in this location
                             toastr.warning('This product exists in the system but is not available at this location. Please add stock to this location first.', 'Product Not Available Here');
-                            response([{ 
-                                label: "⚠️ Product exists but not available at this location", 
+                            response([{
+                                label: "⚠️ Product exists but not available at this location",
                                 value: "",
-                                notAvailable: true 
+                                notAvailable: true
                             }]);
                         } else {
                             // Product doesn't exist - show quick add modal immediately
@@ -3873,7 +3873,7 @@
                 },
                 select: function(event, ui) {
                     console.log('Item selected:', ui.item);
-                    
+
                     // Handle quick add option click
                     if (ui.item.showQuickAdd && ui.item.searchTerm) {
                         event.preventDefault();
@@ -3881,14 +3881,14 @@
                         showQuickAddOption(ui.item.searchTerm);
                         return false;
                     }
-                    
+
                     // Handle not available products
                     if (ui.item.notAvailable) {
                         event.preventDefault();
                         $("#productSearchInput").val('');
                         return false;
                     }
-                    
+
                     if (!ui.item.product || autocompleteState.adding) return false;
 
                     autocompleteState.adding = true;

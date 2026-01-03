@@ -541,9 +541,33 @@
                                     </div>
                                 </div>
                                 <div class="col-md-7 ps-2">
-                                    <input type="text" class="form-control" id="productSearchInput"
-                                        placeholder="Enter Product name / SKU / Scan bar code"
-                                        style="height: 38px; font-size: 14px;">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="productSearchInput"
+                                            placeholder="Enter Product name / SKU / Scan bar code"
+                                            style="height: 38px; font-size: 14px;">
+                                        <button class="btn btn-primary" type="button" id="mobileBarcodeBtn"
+                                            style="height: 38px;" title="Scan Barcode with Camera">
+                                            <i class="fas fa-camera"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Barcode Scanner Modal -->
+                            <div class="modal fade" id="barcodeScannerModal" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Scan Barcode</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div id="barcodeScannerReader" style="width: 100%;"></div>
+                                            <div class="alert alert-info mt-3" id="scannerStatus">
+                                                <i class="fas fa-info-circle"></i> Position the barcode within the camera view
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -2422,6 +2446,124 @@
         </script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.js"></script>
+
+    <!-- HTML5 QR Code Library for Barcode Scanning -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+    <!-- Barcode Scanner Script -->
+    <script>
+        let html5QrCode = null;
+
+        // Initialize barcode scanner button
+        document.addEventListener('DOMContentLoaded', function() {
+            const scanBtn = document.getElementById('mobileBarcodeBtn');
+            const scannerModal = new bootstrap.Modal(document.getElementById('barcodeScannerModal'));
+
+            if (scanBtn) {
+                scanBtn.addEventListener('click', function() {
+                    startBarcodeScanner(scannerModal);
+                });
+            }
+
+            // Clean up scanner when modal is closed
+            document.getElementById('barcodeScannerModal').addEventListener('hidden.bs.modal', function() {
+                stopBarcodeScanner();
+            });
+        });
+
+        function startBarcodeScanner(scannerModal) {
+            const readerElement = document.getElementById('barcodeScannerReader');
+            const statusElement = document.getElementById('scannerStatus');
+
+            if (!readerElement) return;
+
+            // Show modal
+            scannerModal.show();
+
+            // Initialize scanner
+            html5QrCode = new Html5Qrcode("barcodeScannerReader");
+
+            const config = {
+                fps: 10,
+                qrbox: { width: 250, height: 150 },
+                aspectRatio: 1.777778,
+                formatsToSupport: [
+                    Html5QrcodeSupportedFormats.EAN_13,
+                    Html5QrcodeSupportedFormats.EAN_8,
+                    Html5QrcodeSupportedFormats.UPC_A,
+                    Html5QrcodeSupportedFormats.UPC_E,
+                    Html5QrcodeSupportedFormats.CODE_128,
+                    Html5QrcodeSupportedFormats.CODE_39,
+                    Html5QrcodeSupportedFormats.QR_CODE
+                ]
+            };
+
+            // Start scanning
+            html5QrCode.start(
+                { facingMode: "environment" }, // Use rear camera
+                config,
+                (decodedText, decodedResult) => {
+                    // Success callback - barcode detected
+                    console.log('Barcode scanned:', decodedText);
+
+                    // Update status
+                    statusElement.className = 'alert alert-success mt-3';
+                    statusElement.innerHTML = '<i class="fas fa-check-circle"></i> Barcode detected: ' + decodedText;
+
+                    // Play success sound
+                    const successSound = document.querySelector('.successSound');
+                    if (successSound) successSound.play();
+
+                    // Stop scanner
+                    stopBarcodeScanner();
+
+                    // Close modal
+                    scannerModal.hide();
+
+                    // Set the scanned value to search input
+                    const searchInput = document.getElementById('productSearchInput');
+                    if (searchInput) {
+                        searchInput.value = decodedText;
+
+                        // Trigger the barcode scan handler if it exists
+                        if (typeof handleBarcodeScan === 'function') {
+                            handleBarcodeScan(decodedText);
+                        } else if (typeof searchForExactMatch === 'function') {
+                            searchForExactMatch(decodedText);
+                        } else {
+                            // Fallback: trigger input event to search
+                            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        }
+                    }
+                },
+                (errorMessage) => {
+                    // Error callback - scanning in progress
+                    // Don't log every frame error, just show status
+                }
+            ).catch((err) => {
+                // Failed to start scanner
+                console.error('Failed to start scanner:', err);
+                statusElement.className = 'alert alert-danger mt-3';
+                statusElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> Failed to access camera. Please allow camera permissions.';
+
+                setTimeout(() => {
+                    scannerModal.hide();
+                }, 3000);
+            });
+        }
+
+        function stopBarcodeScanner() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    html5QrCode.clear();
+                    html5QrCode = null;
+                    console.log('Scanner stopped');
+                }).catch((err) => {
+                    console.error('Error stopping scanner:', err);
+                });
+            }
+        }
+    </script>
 
     <!-- Include Bootstrap JS -->
     @include('sell.pos_ajax')
