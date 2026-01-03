@@ -2453,32 +2453,80 @@
     <!-- Barcode Scanner Script -->
     <script>
         let html5QrCode = null;
+        let scannerModal = null;
 
         // Initialize barcode scanner button
         document.addEventListener('DOMContentLoaded', function() {
-            const scanBtn = document.getElementById('mobileBarcodeBtn');
-            const scannerModal = new bootstrap.Modal(document.getElementById('barcodeScannerModal'));
+            console.log('Initializing barcode scanner...');
 
-            if (scanBtn) {
-                scanBtn.addEventListener('click', function() {
-                    startBarcodeScanner(scannerModal);
-                });
+            const scanBtn = document.getElementById('mobileBarcodeBtn');
+            const modalElement = document.getElementById('barcodeScannerModal');
+
+            if (!scanBtn) {
+                console.error('Scanner button not found!');
+                return;
             }
 
+            if (!modalElement) {
+                console.error('Scanner modal not found!');
+                return;
+            }
+
+            // Initialize Bootstrap modal
+            scannerModal = new bootstrap.Modal(modalElement, {
+                backdrop: 'static',
+                keyboard: false
+            });
+
+            console.log('Scanner button found:', scanBtn);
+            console.log('Scanner modal initialized:', scannerModal);
+
+            // Add click event listener
+            scanBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('Scanner button clicked!');
+                startBarcodeScanner();
+            });
+
             // Clean up scanner when modal is closed
-            document.getElementById('barcodeScannerModal').addEventListener('hidden.bs.modal', function() {
+            modalElement.addEventListener('hidden.bs.modal', function() {
+                console.log('Modal closing, stopping scanner...');
                 stopBarcodeScanner();
             });
+
+            console.log('Barcode scanner initialization complete!');
         });
 
-        function startBarcodeScanner(scannerModal) {
+        function startBarcodeScanner() {
+            console.log('Starting barcode scanner...');
+
             const readerElement = document.getElementById('barcodeScannerReader');
             const statusElement = document.getElementById('scannerStatus');
 
-            if (!readerElement) return;
+            if (!readerElement) {
+                console.error('Reader element not found!');
+                alert('Scanner element not found. Please refresh the page.');
+                return;
+            }
+
+            if (!scannerModal) {
+                console.error('Scanner modal not initialized!');
+                alert('Scanner not initialized. Please refresh the page.');
+                return;
+            }
 
             // Show modal
             scannerModal.show();
+            console.log('Modal shown');
+
+            // Wait for modal to be fully shown before starting camera
+            setTimeout(() => {
+                initializeCamera(readerElement, statusElement);
+            }, 500);
+        }
+
+        function initializeCamera(readerElement, statusElement) {
+            console.log('Initializing camera...');
 
             // Initialize scanner
             html5QrCode = new Html5Qrcode("barcodeScannerReader");
@@ -2494,6 +2542,7 @@
                     Html5QrcodeSupportedFormats.UPC_E,
                     Html5QrcodeSupportedFormats.CODE_128,
                     Html5QrcodeSupportedFormats.CODE_39,
+                    Html5QrcodeSupportedFormats.CODE_93,
                     Html5QrcodeSupportedFormats.QR_CODE
                 ]
             };
@@ -2504,52 +2553,86 @@
                 config,
                 (decodedText, decodedResult) => {
                     // Success callback - barcode detected
-                    console.log('Barcode scanned:', decodedText);
+                    console.log('✅ Barcode scanned successfully:', decodedText);
 
                     // Update status
                     statusElement.className = 'alert alert-success mt-3';
                     statusElement.innerHTML = '<i class="fas fa-check-circle"></i> Barcode detected: ' + decodedText;
 
                     // Play success sound
-                    const successSound = document.querySelector('.successSound');
-                    if (successSound) successSound.play();
+                    try {
+                        const successSound = document.querySelector('.successSound');
+                        if (successSound) successSound.play();
+                    } catch (e) {
+                        console.log('Sound play failed:', e);
+                    }
 
                     // Stop scanner
                     stopBarcodeScanner();
 
                     // Close modal
-                    scannerModal.hide();
-
-                    // Set the scanned value to search input
-                    const searchInput = document.getElementById('productSearchInput');
-                    if (searchInput) {
-                        searchInput.value = decodedText;
-
-                        // Trigger the barcode scan handler if it exists
-                        if (typeof handleBarcodeScan === 'function') {
-                            handleBarcodeScan(decodedText);
-                        } else if (typeof searchForExactMatch === 'function') {
-                            searchForExactMatch(decodedText);
-                        } else {
-                            // Fallback: trigger input event to search
-                            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-                        }
+                    if (scannerModal) {
+                        scannerModal.hide();
                     }
+
+                    // Process the scanned barcode
+                    processScannedBarcode(decodedText);
                 },
                 (errorMessage) => {
-                    // Error callback - scanning in progress
-                    // Don't log every frame error, just show status
+                    // Error callback - scanning in progress (this fires constantly, don't log)
                 }
             ).catch((err) => {
                 // Failed to start scanner
-                console.error('Failed to start scanner:', err);
+                console.error('❌ Failed to start scanner:', err);
                 statusElement.className = 'alert alert-danger mt-3';
-                statusElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> Failed to access camera. Please allow camera permissions.';
+
+                if (err.toString().includes('NotAllowedError')) {
+                    statusElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> Camera access denied. Please allow camera permissions in your browser settings.';
+                } else if (err.toString().includes('NotFoundError')) {
+                    statusElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> No camera found on this device.';
+                } else {
+                    statusElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> Failed to access camera: ' + err.toString();
+                }
 
                 setTimeout(() => {
-                    scannerModal.hide();
-                }, 3000);
+                    if (scannerModal) {
+                        scannerModal.hide();
+                    }
+                }, 4000);
             });
+        }
+
+        function processScannedBarcode(barcode) {
+            console.log('Processing scanned barcode:', barcode);
+
+            // Set the scanned value to search input
+            const searchInput = document.getElementById('productSearchInput');
+            if (searchInput) {
+                searchInput.value = barcode;
+                console.log('Set search input value to:', barcode);
+
+                // Wait a bit for pos_ajax.blade.php to load its functions
+                setTimeout(function() {
+                    // Try different methods to trigger search
+                    if (typeof handleBarcodeScan === 'function') {
+                        console.log('Calling handleBarcodeScan...');
+                        handleBarcodeScan(barcode);
+                    } else if (typeof searchForExactMatch === 'function') {
+                        console.log('Calling searchForExactMatch...');
+                        searchForExactMatch(barcode);
+                    } else if (typeof $ !== 'undefined' && $(searchInput).autocomplete) {
+                        // Fallback: trigger search via autocomplete if jQuery is loaded
+                        console.log('Using autocomplete fallback...');
+                        $(searchInput).autocomplete('search', barcode);
+                    } else {
+                        console.warn('No search function available yet, barcode:', barcode);
+                        alert('Scanned: ' + barcode + '\nPlease try searching manually.');
+                    }
+                }, 100);
+            } else {
+                console.error('Search input not found!');
+                alert('Product search not available. Barcode: ' + barcode);
+            }
         }
 
         function stopBarcodeScanner() {
@@ -2557,9 +2640,10 @@
                 html5QrCode.stop().then(() => {
                     html5QrCode.clear();
                     html5QrCode = null;
-                    console.log('Scanner stopped');
+                    console.log('✅ Scanner stopped successfully');
                 }).catch((err) => {
-                    console.error('Error stopping scanner:', err);
+                    console.error('❌ Error stopping scanner:', err);
+                    html5QrCode = null;
                 });
             }
         }
