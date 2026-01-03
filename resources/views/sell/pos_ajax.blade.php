@@ -4182,6 +4182,9 @@
             if (document.getElementById('quickAddModal')) {
                 $('#quickAddModal').modal('show');
                 $('#quickAddSku').val(searchTerm);
+                // Set default values
+                $('#quickAddName').val('Unnamed Product');
+                $('#quickAddCategory').val('General');
                 return;
             }
 
@@ -4210,7 +4213,7 @@
                                         </div>
                                         <div class="col-md-6">
                                             <label class="form-label">Product Name:</label>
-                                            <input type="text" class="form-control" id="quickAddName" placeholder="Enter product name" required>
+                                            <input type="text" class="form-control" id="quickAddName" placeholder="Enter product name" value="Unnamed Product" required>
                                         </div>
                                     </div>
                                     <div class="row mt-3">
@@ -4232,6 +4235,7 @@
                                             <label class="form-label">Category:</label>
                                             <input type="text" class="form-control" id="quickAddCategory"
                                                    placeholder="Type or select category"
+                                                   value="General"
                                                    list="categoryOptions">
                                             <datalist id="categoryOptions">
                                                 <option value="General">
@@ -4287,9 +4291,9 @@
             $('#quickAddModal').modal('show');
             $('#quickAddSku').val(searchTerm);
 
-            // Auto-focus product name field
+            // Auto-focus product name field and select all text for easy editing
             setTimeout(() => {
-                $('#quickAddName').focus();
+                $('#quickAddName').focus().select();
             }, 500);
         }
 
@@ -4328,15 +4332,15 @@
         }
 
         function clearQuickAddForm() {
-            // Clear all form fields
+            // Reset all form fields to default values
             $('#quickAddSku').val('');
-            $('#quickAddName').val('');
+            $('#quickAddName').val('Unnamed Product');
             $('#quickAddPrice').val('0.00');
             $('#quickAddQty').val('1');
             $('#quickAddTotal').val('0.00');
-            $('#quickAddCategory').val('').trigger('change');
+            $('#quickAddCategory').val('General');
             $('#quickAddStockType').val('unlimited');
-            $('#quickAddStockQty').val('');
+            $('#quickAddStockQty').val('100');
             $('#stockQuantityRow').hide();
         }
 
@@ -4569,17 +4573,69 @@
                                     $("#productSearchInput").autocomplete('search', searchTerm);
                                 }, 100);
                             } else {
-                                showSearchIndicator("❌ No match found", "#dc3545");
-
-                                // Show quick add option for missing products
-                                setTimeout(() => {
-                                    showQuickAddOption(searchTerm);
-                                }, 1000);
-
-                                setTimeout(() => {
-                                    hideSearchIndicator();
-                                    autoFocusSearchInput(); // Focus for next scan attempt
-                                }, 3000);
+                                // No results from location stock - check if product exists in product table at all
+                                showSearchIndicator("⏳ Checking product database...", "#ffc107");
+                                
+                                $.ajax({
+                                    url: '/products/stocks/autocomplete',
+                                    data: {
+                                        // Don't filter by location - check entire product database
+                                        search: searchTerm,
+                                        per_page: 5
+                                    },
+                                    cache: false,
+                                    timeout: 3000,
+                                    success: function(productCheckData) {
+                                        hideSearchIndicator();
+                                        
+                                        if (productCheckData.status === 200 && 
+                                            Array.isArray(productCheckData.data) && 
+                                            productCheckData.data.length > 0) {
+                                            
+                                            // Product exists in system but not in this location
+                                            const productExists = productCheckData.data.some(p => 
+                                                p.product && 
+                                                p.product.sku && 
+                                                p.product.sku.toLowerCase() === searchTerm.toLowerCase()
+                                            );
+                                            
+                                            if (productExists) {
+                                                showSearchIndicator("⚠️ Product exists but not in this location", "#ff9800");
+                                                toastr.warning('This product exists in the system but is not available at this location. Please add stock to this location first.', 'Product Not Available Here');
+                                                setTimeout(() => {
+                                                    hideSearchIndicator();
+                                                    autoFocusSearchInput();
+                                                }, 3000);
+                                            } else {
+                                                // Product not found anywhere - show quick add modal
+                                                showSearchIndicator("❌ Product not found in system", "#dc3545");
+                                                setTimeout(() => {
+                                                    showQuickAddOption(searchTerm);
+                                                }, 1000);
+                                                setTimeout(() => {
+                                                    hideSearchIndicator();
+                                                }, 3000);
+                                            }
+                                        } else {
+                                            // Product doesn't exist in system at all - show quick add modal
+                                            showSearchIndicator("❌ Product not found in system", "#dc3545");
+                                            setTimeout(() => {
+                                                showQuickAddOption(searchTerm);
+                                            }, 1000);
+                                            setTimeout(() => {
+                                                hideSearchIndicator();
+                                            }, 3000);
+                                        }
+                                    },
+                                    error: function() {
+                                        hideSearchIndicator();
+                                        showSearchIndicator("❌ Error checking product", "#dc3545");
+                                        setTimeout(() => {
+                                            hideSearchIndicator();
+                                            autoFocusSearchInput();
+                                        }, 2000);
+                                    }
+                                });
                             }
                         }
                     } else {

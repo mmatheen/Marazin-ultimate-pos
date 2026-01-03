@@ -35,7 +35,7 @@ class ProductController extends Controller
     function __construct()
     {
         $this->middleware('permission:view product', ['only' => ['product', 'index', 'getProductDetails', 'getLastProduct', 'getProductsByCategory', 'initialProductDetails', 'getStockHistory', 'getAllProductStocks', 'autocompleteStock', 'getNotifications', 'OpeningStockGetAll', 'getImeis', 'showSubCategoryDetailsUsingByMainCategoryId', 'updatePrice']]);
-        $this->middleware('permission:create product', ['only' => ['addProduct', 'storeOrUpdate']]);
+        $this->middleware('permission:create product', ['only' => ['addProduct', 'storeOrUpdate', 'quickAdd']]);
         $this->middleware('permission:edit product', ['only' => ['editProduct']]);
         $this->middleware('permission:delete product', ['only' => ['deleteImei']]);
         $this->middleware('permission:import product', ['only' => ['importProduct', 'importProductStore']]);
@@ -659,6 +659,158 @@ class ProductController extends Controller
         $exists = $query->exists();
 
         return response()->json(['exists' => $exists]);
+    }
+
+    /**
+     * Quick Add Product from POS (when product not found in system)
+     */
+    public function quickAdd(Request $request)
+    {
+        try {
+            // Validate input
+            $validator = Validator::make($request->all(), [
+                'sku' => 'required|string|unique:products,sku',
+                'name' => 'required|string|max:255',
+                'price' => 'required|numeric|min:0',
+                'category' => 'nullable|string|max:255',
+                'stock_type' => 'required|in:unlimited,limited',
+                'quantity' => 'required_if:stock_type,limited|nullable|numeric|min:0',
+                'location_id' => 'required|exists:locations,id'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            DB::beginTransaction();
+
+            // Find or create category
+            $categoryName = $request->category ?: 'General';
+            $mainCategory = MainCategory::firstOrCreate(
+                ['mainCategoryName' => $categoryName],
+                ['description' => 'Auto-created from POS Quick Add']
+            );
+
+            // Get default brand (create "General" brand if it doesn't exist)
+            $brand = Brand::firstOrCreate(
+                ['name' => 'General'],
+                ['description' => 'Auto-created brand']
+            );
+
+            // Get default unit (create "PCS" unit if it doesn't exist)
+            $unit = Unit::firstOrCreate(
+                ['name' => 'Pieces'],
+                [
+                    'short_name' => 'PCS',
+                    'allow_decimal' => 0
+                ]
+            );
+
+            // Create the product
+            $product = new Product();
+            $product->sku = $request->sku;
+            $product->product_name = $request->name;
+            $product->unit_id = $unit->id;
+            $product->brand_id = $brand->id;
+            $product->main_category_id = $mainCategory->id;
+            $product->stock_alert = $request->stock_type === 'unlimited' ? 0 : 1;
+            $product->alert_quantity = $request->stock_type === 'limited' ? max(1, $request->quantity * 0.2) : null;
+            $product->is_for_selling = 1;
+            $product->is_active = 1;
+            $product->retail_price = $request->price;
+            $product->whole_sale_price = $request->price;
+            $product->special_price = $request->price;
+            $product->original_price = $request->price;
+            $product->max_retail_price = $request->price;
+            $product->save();
+
+            // Attach to location
+            $product->locations()->attach($request->location_id);
+
+            // Create batch and location batch if limited stock
+            if ($request->stock_type === 'limited') {
+                $batch = new Batch();
+                $batch->batch_no = 'QA-' . str_pad($product->id, 6, '0', STR_PAD_LEFT);
+                $batch->product_id = $product->id;
+                $batch->qty = $request->quantity;
+                $batch->unit_cost = $request->price;
+                $batch->wholesale_price = $request->price;
+                $batch->special_price = $request->price;
+                $batch->retail_price = $request->price;
+                $batch->max_retail_price = $request->price;
+                $batch->save();
+
+                // Create location batch
+                $locationBatch = new LocationBatch();
+                $locationBatch->batch_id = $batch->id;
+                $locationBatch->location_id = $request->location_id;
+                $locationBatch->qty = $request->quantity;
+                $locationBatch->save();
+
+                // Create opening stock history
+                $stockHistory = new StockHistory();
+                $stockHistory->loc_batch_id = $locationBatch->id;
+                $stockHistory->stock_type = StockHistory::STOCK_TYPE_OPENING;
+                $stockHistory->quantity = $request->quantity;
+                $stockHistory->description = 'Quick Add from POS';
+                $stockHistory->save();
+            }
+
+            DB::commit();
+
+            // Clear cache
+            $userId = auth()->id();
+            Cache::forget("initial_product_details_user_{$userId}");
+            Cache::forget("product_dropdown_data_user_{$userId}");
+
+            // Return product data in the format expected by POS
+            return response()->json([
+                'success' => true,
+                'message' => 'Product created successfully',
+                'product' => [
+                    'id' => $product->id,
+                    'product_name' => $product->product_name,
+                    'sku' => $product->sku,
+                    'retail_price' => $product->retail_price,
+                    'whole_sale_price' => $product->whole_sale_price,
+                    'special_price' => $product->special_price,
+                    'original_price' => $request->price,
+                    'price' => $request->price,
+                    'max_retail_price' => $product->max_retail_price,
+                    'stock_alert' => $product->stock_alert,
+                    'stock_quantity' => $request->stock_type === 'limited' ? $request->quantity : 999999,
+                    'batch_no' => $request->stock_type === 'limited' ? 'QA-' . str_pad($product->id, 6, '0', STR_PAD_LEFT) : null,
+                    'unit' => [
+                        'id' => $unit->id,
+                        'name' => $unit->name,
+                        'short_name' => $unit->short_name,
+                        'allow_decimal' => (bool)$unit->allow_decimal
+                    ]
+                ]
+            ]);
+
+        } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+            DB::rollBack();
+            Log::warning('Quick add failed - SKU already exists', ['sku' => $request->sku]);
+            return response()->json([
+                'success' => false,
+                'message' => 'A product with this SKU already exists in the system.'
+            ], 409);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Quick add product failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create product: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function showOpeningStock($productId)
