@@ -1,5 +1,26 @@
 @extends('layout.layout')
 @section('content')
+
+    <!-- Pre-load product data from server FIRST to avoid any API calls -->
+    @if(isset($product))
+    <script>
+        // CRITICAL: Set this BEFORE any other scripts run to prevent API calls
+        window.initialProductData = {
+            brands: @json($brands ?? []),
+            mainCategories: @json($mainCategories ?? []),
+            subCategories: @json($subCategories ?? []),
+            units: @json($units ?? []),
+            locations: @json($locations ?? []),
+            autoSelectSingle: {{ $locations && count($locations) === 1 ? 'true' : 'false' }}
+        };
+        window.initialProductDataLoaded = true;
+        window.initialDataFetchTime = Date.now();
+        window.serverProvidedProduct = @json($product);
+        window.isEditProductPage = true; // Flag to prevent any API calls on edit page
+        console.log('✅ Edit product page - server data loaded FIRST (preventing API calls)');
+    </script>
+    @endif
+
     <div class="content container-fluid">
 
         <style>
@@ -455,8 +476,6 @@
                 </div>
             </form>
         </div>
-
-
 
         @include('product.product_ajax')
         @include('brand.brand_modal')

@@ -477,8 +477,16 @@
         }
     }
 
-    function populateInitialDropdowns(mainCategories, subCategories, brands, units, locations,
+    // Make populateInitialDropdowns globally accessible (moved outside document.ready for global access)
+    window.populateInitialDropdowns = function(mainCategories, subCategories, brands, units, locations,
         autoSelectSingle, callback) {
+        console.log('🔧 Populating dropdowns with data:', {
+            categories: mainCategories ? mainCategories.length : 0,
+            brands: brands ? brands.length : 0,
+            units: units ? units.length : 0,
+            locations: locations ? locations.length : 0
+        });
+
         // Populate dropdowns with data
         populateDropdown('#edit_main_category_id', mainCategories, 'mainCategoryName');
         populateDropdown('#edit_sub_category_id', subCategories, 'subCategoryname');
@@ -554,62 +562,9 @@
         }
     }
 
-    function fetchInitialDropdowns(callback) {
-        // Check if data is already loaded and cached
-        if (window.initialProductDataLoaded && window.initialProductData) {
-            const cacheAge = Date.now() - window.initialDataFetchTime;
-            console.log(`✅ Using cached initial product data (${cacheAge}ms old) - no API call needed`);
-            const data = window.initialProductData;
-            populateInitialDropdowns(
-                data.mainCategories,
-                data.subCategories,
-                data.brands,
-                data.units,
-                data.locations,
-                data.autoSelectSingle,
-                callback
-            );
-            return;
-        }
-
-        console.log('🔄 Fetching initial product details from API...');
-        fetchData('/initial-product-details', function(response) {
-            if (response.status === 200 && response.message) {
-                // Cache the data globally to prevent future API calls
-                window.initialProductData = {
-                    brands: response.message.brands || [],
-                    mainCategories: response.message.mainCategories || [],
-                    subCategories: response.message.subCategories || [],
-                    units: response.message.units || [],
-                    locations: response.message.locations || [],
-                    autoSelectSingle: response.message.auto_select_single_location || false
-                };
-
-                // Store subcategories globally for compatibility
-                subCategories = window.initialProductData.subCategories;
-
-                // Mark as loaded with timestamp
-                window.initialProductDataLoaded = true;
-                window.initialDataFetchTime = Date.now();
-
-                console.log('✅ Initial product data fetched and cached successfully');
-
-                populateInitialDropdowns(
-                    window.initialProductData.mainCategories,
-                    window.initialProductData.subCategories,
-                    window.initialProductData.brands,
-                    window.initialProductData.units,
-                    window.initialProductData.locations,
-                    window.initialProductData.autoSelectSingle,
-                    callback
-                );
-            } else {
-                console.error('❌ Failed to load initial product details - using empty defaults');
-                // Provide empty defaults to prevent errors
-                populateInitialDropdowns([], [], [], [], [], false, callback);
-            }
-        });
-    }
+    // NOTE: fetchInitialDropdowns is defined globally as window.fetchInitialDropdowns
+    // See the global function definition outside document.ready (around line 3643)
+    // Do not duplicate the function here to avoid double API calls
 
     function populateSubCategories(selectedMainCategoryId) {
         const subCategorySelect = $('#edit_sub_category_id').empty();
@@ -1085,7 +1040,7 @@
     // Track if categories/brands/locations have been loaded to prevent duplicate requests
     let categoriesAndBrandsLoaded = false;
 
-    // Fetch and cache category, brand, location data with timeout protection
+    // Load categories, brands, and locations - uses global window.fetchInitialDropdowns for caching
     function fetchCategoriesAndBrands(callback) {
         // Skip if already loaded
         if (categoriesAndBrandsLoaded) {
@@ -1094,72 +1049,46 @@
             return;
         }
 
-        console.log('🔄 Fetching categories, brands, and locations...');
+        console.log('🔄 Loading categories, brands, and locations...');
 
-        let loaded = 0;
-        const totalRequests = 3;
-        let hasFinished = false;
-
-        // Set a maximum timeout to prevent indefinite waiting
-        const maxTimeout = setTimeout(function() {
-            if (!hasFinished) {
-                console.warn('⚠️ fetchCategoriesAndBrands timed out, proceeding with available data');
-                hasFinished = true;
-                categoriesAndBrandsLoaded = true; // Mark as loaded even on timeout
-                callback();
-            }
-        }, 20000); // 20 seconds max wait
-
-        function checkComplete() {
-            if (++loaded === totalRequests && !hasFinished) {
-                hasFinished = true;
-                categoriesAndBrandsLoaded = true; // Mark as successfully loaded
-                clearTimeout(maxTimeout);
-                console.log('✅ All category/brand/location data loaded');
-                callback();
-            }
-        }
-
-        fetchData('/main-category-get-all', function(response) {
+        // Use the global fetchInitialDropdowns to benefit from its caching
+        window.fetchInitialDropdowns(function() {
             try {
-                if (Array.isArray(response.message)) {
-                    response.message.forEach(c => {
-                        categoryMap[c.id] = c.mainCategoryName;
-                    });
-                    console.log('✅ Loaded', response.message.length, 'main categories');
+                if (window.initialProductData) {
+                    // Populate categoryMap from cached data
+                    if (Array.isArray(window.initialProductData.mainCategories)) {
+                        window.initialProductData.mainCategories.forEach(c => {
+                            categoryMap[c.id] = c.mainCategoryName;
+                        });
+                        console.log('✅ Loaded', window.initialProductData.mainCategories.length, 'main categories');
+                    }
+
+                    // Populate brandMap from cached data
+                    if (Array.isArray(window.initialProductData.brands)) {
+                        window.initialProductData.brands.forEach(b => {
+                            brandMap[b.id] = b.name;
+                        });
+                        console.log('✅ Loaded', window.initialProductData.brands.length, 'brands');
+                    }
+
+                    // Populate locationMap from cached data
+                    if (Array.isArray(window.initialProductData.locations)) {
+                        window.initialProductData.locations.forEach(l => {
+                            locationMap[l.id] = l.name;
+                        });
+                        console.log('✅ Loaded', window.initialProductData.locations.length, 'locations');
+                    }
+
+                    categoriesAndBrandsLoaded = true;
+                    console.log('✅ All category/brand/location data loaded from cache');
+                } else {
+                    console.warn('⚠️ No cached product data available');
                 }
             } catch (e) {
-                console.error('Error processing main categories:', e);
+                console.error('Error processing data:', e);
             }
-            checkComplete();
-        });
 
-        fetchData('/brand-get-all', function(response) {
-            try {
-                if (Array.isArray(response.message)) {
-                    response.message.forEach(b => {
-                        brandMap[b.id] = b.name;
-                    });
-                    console.log('✅ Loaded', response.message.length, 'brands');
-                }
-            } catch (e) {
-                console.error('Error processing brands:', e);
-            }
-            checkComplete();
-        });
-
-        fetchData('/location-get-all', function(response) {
-            try {
-                if (Array.isArray(response.message)) {
-                    response.message.forEach(l => {
-                        locationMap[l.id] = l.name;
-                    });
-                    console.log('✅ Loaded', response.message.length, 'locations');
-                }
-            } catch (e) {
-                console.error('Error processing locations:', e);
-            }
-            checkComplete();
+            callback();
         });
     }
 
@@ -1187,10 +1116,12 @@
     function populateAllFilterOptions() {
         const categoryFilter = $('#categoryFilter');
         const brandFilter = $('#brandFilter');
+        const locationFilter = $('#locationFilter');
 
         // Clear existing options
         categoryFilter.empty().append('<option value="">Select Category</option>');
         brandFilter.empty().append('<option value="">Select Brand</option>');
+        locationFilter.empty().append('<option value="">Select Location</option>');
 
         // Populate with ALL categories from categoryMap (loaded from initialProductDetails)
         if (typeof categoryMap === 'object' && categoryMap !== null) {
@@ -1210,6 +1141,16 @@
                 }
             });
             console.log('✅ Populated', Object.keys(brandMap).length, 'brands in filter');
+        }
+
+        // Populate with ALL locations from locationMap
+        if (typeof locationMap === 'object' && locationMap !== null) {
+            Object.entries(locationMap).forEach(([locationId, locationName]) => {
+                if (locationId && locationName) {
+                    locationFilter.append(`<option value="${locationId}">${locationName}</option>`);
+                }
+            });
+            console.log('✅ Populated', Object.keys(locationMap).length, 'locations in filter');
         }
     }
 
@@ -2010,6 +1951,14 @@
 
     // On page load: fetch categories/brands/locations, then initialize DataTable
     $(document).ready(function() {
+        console.log('📋 Document ready - initializing product page...');
+        console.log('🔍 Server data check:', {
+            isEditProductPage: window.isEditProductPage,
+            initialProductDataLoaded: window.initialProductDataLoaded,
+            hasServerProduct: !!window.serverProvidedProduct,
+            dataKeys: window.initialProductData ? Object.keys(window.initialProductData) : 'none'
+        });
+
         // Detect page type to decide when to load initial product details
         const hasProductTable = $('#productTable').length > 0; // Product list page
         const hasEditProductId = $('#edit_product_id').length > 0; // Edit product page
@@ -2017,6 +1966,14 @@
 
         // Check if addForm exists but is NOT inside a modal (real add product page)
         const hasAddForm = $('#addForm').length > 0 && $('#addForm').closest('.modal').length === 0;
+
+        console.log('📊 Page detection:', {
+            hasProductTable,
+            hasAddForm,
+            hasEditProductId,
+            hasProductModal,
+            pathname: window.location.pathname
+        });
 
         // Skip initialization completely if not on any product-related page
         if (!hasProductTable && !hasAddForm && !hasEditProductId && !hasProductModal) {
@@ -2037,32 +1994,66 @@
         // For purchase/sale pages with modal, load when modal opens (see modal event handler below)
         if (hasProductTable) {
             // PRODUCT LIST PAGE - Load product table FIRST for fast display
-            console.log('📊 Product list page - loading products FIRST...');
+            console.log('📊 Product list page - loading categories and brands FIRST...');
 
-            // 1. Load product table immediately (fastest, most important)
-            if (typeof fetchProductData === 'function') {
-                fetchProductData();
-                console.log('✅ Product table loading initiated');
-            }
-
-            // 2. Load filter dropdowns in background (parallel, non-blocking)
+            // 1. Load categories and brands FIRST (required for DataTable to display properly)
             if (typeof fetchCategoriesAndBrands === 'function') {
-                setTimeout(function() {
-                    console.log('🔄 Loading filter dropdowns in background...');
-                    fetchCategoriesAndBrands(function() {
-                        populateAllFilterOptions();
-                        console.log('✅ Filter dropdowns populated');
-                    });
-                }, 100); // Small delay to let product table start first
+                fetchCategoriesAndBrands(function() {
+                    console.log('✅ Categories and brands loaded');
+                    populateAllFilterOptions();
+                    console.log('✅ Filter dropdowns populated');
+
+                    // 2. Load product table AFTER categoryMap and brandMap are populated
+                    if (typeof fetchProductData === 'function') {
+                        fetchProductData();
+                        console.log('✅ Product table loading initiated');
+                    }
+                });
+            } else {
+                // Fallback: load products immediately if fetchCategoriesAndBrands doesn't exist
+                if (typeof fetchProductData === 'function') {
+                    fetchProductData();
+                    console.log('✅ Product table loading initiated (without category/brand data)');
+                }
             }
 
         } else if (hasAddForm || hasEditProductId) {
-            // ADD/EDIT PRODUCT PAGE - Load dropdowns immediately (needed for forms)
+            // ADD/EDIT PRODUCT PAGE - Load dropdowns
             console.log('📥 Loading initial product details for add/edit form...');
-            fetchInitialDropdowns(function() {
-                validateFormAndUpdateButtons();
-                console.log('✅ Add/Edit form initialized');
-            });
+
+            // Check if server already provided the data (for edit page)
+            if (window.initialProductDataLoaded && window.initialProductData && window.serverProvidedProduct) {
+                console.log('✅ Using server-provided data for edit page (no API call)');
+
+                // Populate dropdowns with server data
+                populateInitialDropdowns(
+                    window.initialProductData.mainCategories,
+                    window.initialProductData.subCategories,
+                    window.initialProductData.brands,
+                    window.initialProductData.units,
+                    window.initialProductData.locations,
+                    window.initialProductData.autoSelectSingle,
+                    function() {
+                        // Populate product details
+                        populateProductDetails(
+                            window.serverProvidedProduct,
+                            window.initialProductData.mainCategories,
+                            window.initialProductData.subCategories,
+                            window.initialProductData.brands,
+                            window.initialProductData.units,
+                            window.initialProductData.locations
+                        );
+                        validateFormAndUpdateButtons();
+                        console.log('✅ Edit form initialized with server data');
+                    }
+                );
+            } else {
+                // For add page, make API call using global function
+                window.fetchInitialDropdowns(function() {
+                    validateFormAndUpdateButtons();
+                    console.log('✅ Add/Edit form initialized');
+                });
+            }
         } else if (hasProductModal) {
             console.log('⏸️ Purchase/Sale page detected - will load product details when modal opens');
         }
@@ -2080,7 +2071,7 @@
 
         // Load initial dropdowns only when modal opens
         console.log('📥 Loading initial product details for modal...');
-        fetchInitialDropdowns(function() {
+        window.fetchInitialDropdowns(function() {
             console.log('✅ Product details loaded successfully for modal');
             validateFormAndUpdateButtons();
         });
@@ -3432,7 +3423,7 @@
             }
 
             // Use cached initial data (no additional API call needed)
-            fetchInitialDropdowns(() => {
+            window.fetchInitialDropdowns(() => {
                 $.ajax({
                     url: `/edit-product/${productId}`,
                     type: 'GET',
@@ -3631,79 +3622,153 @@
 
     });
 
-    // Global function to fetch initial dropdowns - moved outside document.ready for global access
-    window.fetchInitialDropdowns = function(callback) {
-        // Check if data is already loaded and cached
-        if (window.initialProductDataLoaded && window.initialProductData) {
-            const cacheAge = Date.now() - window.initialDataFetchTime;
-            console.log(`✅ Using cached initial product data (${cacheAge}ms old) - no API call needed`);
-            const data = window.initialProductData;
-            if (typeof populateInitialDropdowns === 'function') {
-                populateInitialDropdowns(
-                    data.mainCategories,
-                    data.subCategories,
-                    data.brands,
-                    data.units,
-                    data.locations,
-                    data.autoSelectSingle,
-                    callback
-                );
-            } else if (callback) {
-                callback();
-            }
-            return;
-        }
+    // Global function to fetch initial dropdowns - accessible from anywhere
+    // Includes request deduplication to prevent multiple simultaneous API calls
+    window.fetchInitialDropdowns = (function() {
+        let isRequestInProgress = false;
+        let pendingCallbacks = [];
+        let callCount = 0; // Track how many times this is called
 
-        console.log('🔄 Fetching initial product details from API...');
-        $.ajax({
-            url: '/initial-product-details',
-            type: 'GET',
-            dataType: 'json',
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            success: function(response) {
-                if (response.status === 200) {
-                    // Cache the data globally to prevent future API calls
-                    window.initialProductData = {
-                        brands: response.message.brands,
-                        mainCategories: response.message.mainCategories,
-                        subCategories: response.message.subCategories,
-                        units: response.message.units,
-                        locations: response.message.locations,
-                        autoSelectSingle: response.message.auto_select_single_location
-                    };
+        return function(callback) {
+            callCount++;
+            const currentCallNumber = callCount;
+            console.log(`📞 fetchInitialDropdowns called (call #${currentCallNumber})`);
 
-                    // Mark as loaded with timestamp
-                    window.initialProductDataLoaded = true;
-                    window.initialDataFetchTime = Date.now();
-
-                    console.log('✅ Initial product data fetched and cached successfully');
-
-                    if (typeof populateInitialDropdowns === 'function') {
-                        populateInitialDropdowns(
-                            window.initialProductData.mainCategories,
-                            window.initialProductData.subCategories,
-                            window.initialProductData.brands,
-                            window.initialProductData.units,
-                            window.initialProductData.locations,
-                            window.initialProductData.autoSelectSingle,
-                            callback
-                        );
-                    } else if (callback) {
-                        callback();
-                    }
-                } else {
-                    console.error('❌ Failed to load initial product details');
-                    if (callback) callback();
+            // PRIORITY 1: Check if this is edit page with server-provided data (NO API CALL)
+            if (window.isEditProductPage && window.initialProductDataLoaded && window.initialProductData) {
+                console.log(`✅ [Call #${currentCallNumber}] Edit page - using server data (NO API CALL)`);
+                if (typeof populateInitialDropdowns === 'function') {
+                    populateInitialDropdowns(
+                        window.initialProductData.mainCategories,
+                        window.initialProductData.subCategories,
+                        window.initialProductData.brands,
+                        window.initialProductData.units,
+                        window.initialProductData.locations,
+                        window.initialProductData.autoSelectSingle,
+                        callback
+                    );
+                } else if (callback) {
+                    callback();
                 }
-            },
-            error: function(xhr, status, error) {
-                console.error('❌ Failed to load initial product details:', error);
-                if (callback) callback();
+                return;
             }
-        });
-    };
+
+            // PRIORITY 2: Check if data is already cached from previous API call
+            if (window.initialProductDataLoaded && window.initialProductData) {
+                const cacheAge = Date.now() - window.initialDataFetchTime;
+                console.log(`✅ [Call #${currentCallNumber}] Using cached data (${cacheAge}ms old) - no API call`);
+                const data = window.initialProductData;
+                if (typeof populateInitialDropdowns === 'function') {
+                    populateInitialDropdowns(
+                        data.mainCategories,
+                        data.subCategories,
+                        data.brands,
+                        data.units,
+                        data.locations,
+                        data.autoSelectSingle,
+                        callback
+                    );
+                } else if (callback) {
+                    callback();
+                }
+                return;
+            }
+
+            // PRIORITY 3: If request is already in progress, queue the callback
+            if (isRequestInProgress) {
+                console.log(`⏳ [Call #${currentCallNumber}] Request in progress - queuing callback (${pendingCallbacks.length + 1} in queue)`);
+                if (callback) {
+                    pendingCallbacks.push(callback);
+                }
+                return;
+            }
+
+            // PRIORITY 4: Make API call - SET FLAG FIRST to prevent race conditions
+            isRequestInProgress = true;
+            console.log(`🔄 [Call #${currentCallNumber}] Making API call to /initial-product-details...`);
+            console.trace('Stack trace for API call:');
+
+            $.ajax({
+                url: '/initial-product-details',
+                type: 'GET',
+                dataType: 'json',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    if (response.status === 200) {
+                        // Cache the data globally to prevent future API calls
+                        window.initialProductData = {
+                            brands: response.message.brands,
+                            mainCategories: response.message.mainCategories,
+                            subCategories: response.message.subCategories,
+                            units: response.message.units,
+                            locations: response.message.locations,
+                            autoSelectSingle: response.message.auto_select_single_location
+                        };
+
+                        // Store subcategories globally for compatibility
+                        if (typeof subCategories !== 'undefined') {
+                            subCategories = window.initialProductData.subCategories;
+                        }
+
+                        // Mark as loaded with timestamp
+                        window.initialProductDataLoaded = true;
+                        window.initialDataFetchTime = Date.now();
+
+                        console.log('✅ Initial product data fetched and cached successfully');
+
+                        // Execute the original callback
+                        if (typeof populateInitialDropdowns === 'function') {
+                            populateInitialDropdowns(
+                                window.initialProductData.mainCategories,
+                                window.initialProductData.subCategories,
+                                window.initialProductData.brands,
+                                window.initialProductData.units,
+                                window.initialProductData.locations,
+                                window.initialProductData.autoSelectSingle,
+                                callback
+                            );
+                        } else if (callback) {
+                            callback();
+                        }
+
+                        // Execute all queued callbacks
+                        while (pendingCallbacks.length > 0) {
+                            const queuedCallback = pendingCallbacks.shift();
+                            if (typeof queuedCallback === 'function') {
+                                queuedCallback();
+                            }
+                        }
+                    } else {
+                        console.error('❌ Failed to load initial product details');
+                        if (callback) callback();
+                        // Execute queued callbacks even on error
+                        while (pendingCallbacks.length > 0) {
+                            const queuedCallback = pendingCallbacks.shift();
+                            if (typeof queuedCallback === 'function') {
+                                queuedCallback();
+                            }
+                        }
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('❌ Failed to load initial product details:', error);
+                    if (callback) callback();
+                    // Execute queued callbacks even on error
+                    while (pendingCallbacks.length > 0) {
+                        const queuedCallback = pendingCallbacks.shift();
+                        if (typeof queuedCallback === 'function') {
+                            queuedCallback();
+                        }
+                    }
+                },
+                complete: function() {
+                    isRequestInProgress = false;
+                }
+            });
+        };
+    })();
 </script>
 
 <!-- Load user locations for import form -->

@@ -1,27 +1,33 @@
 @extends('layout.layout')
 
-{{-- @section('head')
+@push('styles')
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
     <style>
-        /* Fix Select2 dropdown alignment and search in modal */
-        #bulkPaymentModal .select2-container {
+        /* Fix Select2 alignment and sizing */
+        .select2-container {
             width: 100% !important;
+            display: block;
         }
 
-        #bulkPaymentModal .select2-container--default .select2-selection--single {
-            height: 38px;
+        .select2-selection--single {
+            height: 40px !important;
             padding: 6px 12px;
-            border: 1px solid #ced4da;
-            border-radius: 4px;
+            border: 1px solid #e3e3e3 !important;
+            border-radius: 5px !important;
+            display: flex;
+            align-items: center;
         }
 
-        #bulkPaymentModal .select2-container--default .select2-selection--single .select2-selection__rendered {
-            line-height: 24px;
-            padding-left: 0;
+        .select2-selection__rendered {
+            line-height: 28px !important;
+            padding-left: 0 !important;
+            color: #1b2850;
         }
 
-        #bulkPaymentModal .select2-container--default .select2-selection--single .select2-selection__arrow {
-            height: 36px;
+        .select2-selection__arrow {
+            height: 38px !important;
+            top: 1px !important;
+            right: 1px !important;
         }
 
         /* Ensure dropdown appears above modal backdrop */
@@ -31,6 +37,8 @@
 
         .select2-dropdown {
             z-index: 9999 !important;
+            border: 1px solid #e3e3e3 !important;
+            border-radius: 5px !important;
         }
 
         /* Fix search input focus */
@@ -44,8 +52,25 @@
             border-color: #80bdff !important;
             box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
         }
+
+        /* Fix form group alignment in filter section */
+        .form-group.local-forms {
+            margin-bottom: 1rem;
+        }
+
+        .form-group.local-forms label {
+            margin-bottom: 0.5rem;
+            display: block;
+            font-weight: 500;
+            color: #1b2850;
+        }
+
+        /* Ensure consistent height for all form controls */
+        .form-control {
+            height: 40px;
+        }
     </style>
-@endsection --}}
+@endpush
 
 @section('content')
     <div class="content container-fluid">
@@ -81,7 +106,7 @@
                                 <div class="col-lg-3 col-md-6">
                                     <div class="form-group local-forms">
                                         <label>Business Location</label>
-                                        <select class="form-control select" id="locationFilter" name="location">
+                                        <select class="form-control select selectBox" id="locationFilter" name="location">
                                             <option value="">All</option>
                                             @foreach($locations as $location)
                                                 <option value="{{ $location->id }}">{{ $location->name }}</option>
@@ -92,7 +117,7 @@
                                 <div class="col-lg-3 col-md-6">
                                     <div class="form-group local-forms">
                                         <label>Customer</label>
-                                        <select class="form-control select" id="customerFilter" name="customer">
+                                        <select class="form-control select selectBox" id="customerFilter" name="customer">
                                             <option value="">All</option>
                                             @foreach($customers as $customer)
                                                 <option value="{{ $customer->id }}">{{ trim($customer->first_name . ' ' . $customer->last_name) }}</option>
@@ -103,7 +128,7 @@
                                 <div class="col-lg-3 col-md-6">
                                     <div class="form-group local-forms">
                                         <label>Payment Status</label>
-                                        <select class="form-control select" id="paymentStatusFilter" name="payment_status">
+                                        <select class="form-control select selectBox" id="paymentStatusFilter" name="payment_status">
                                             <option value="">All</option>
                                             <option value="paid">Paid</option>
                                             <option value="due">Due</option>
@@ -123,7 +148,7 @@
                                 <div class="col-lg-3 col-md-4">
                                     <div class="form-group local-forms">
                                         <label>User</label>
-                                        <select class="form-control select" id="userFilter" name="user">
+                                        <select class="form-control select selectBox" id="userFilter" name="user">
                                             <option value="">All</option>
                                             @foreach($users as $user)
                                                 <option value="{{ $user->id }}">{{ $user->full_name }}</option>
@@ -134,7 +159,7 @@
                                 <div class="col-lg-3 col-md-4">
                                     <div class="form-group local-forms">
                                         <label>Shipping Status</label>
-                                        <select class="form-control select" id="shippingStatusFilter" name="shipping_status">
+                                        <select class="form-control select selectBox" id="shippingStatusFilter" name="shipping_status">
                                             <option value="">All</option>
                                             <option value="order">Order</option>
                                             <option value="packed">Packed</option>
@@ -147,7 +172,7 @@
                                 <div class="col-lg-3 col-md-4">
                                     <div class="form-group local-forms">
                                         <label>Payment Method</label>
-                                        <select class="form-control select" id="paymentMethodFilter" name="payment_method">
+                                        <select class="form-control select selectBox" id="paymentMethodFilter" name="payment_method">
                                             <option value="">All</option>
                                             <option value="cash">Cash</option>
                                             <option value="card">Card</option>

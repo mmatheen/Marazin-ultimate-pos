@@ -177,68 +177,79 @@ class ProductController extends Controller
         }
     }
 
+    /**
+     * Get common product form data (brands, categories, units, locations)
+     * Reusable method to avoid code duplication
+     */
+    private function getProductFormData()
+    {
+        // Optimize queries - select only needed columns
+        $mainCategories = MainCategory::select('id', 'mainCategoryName')
+            ->orderBy('mainCategoryName')
+            ->get();
+
+        // Get subcategories with their main category data in one query
+        $subCategories = DB::table('sub_categories')
+            ->select('sub_categories.id', 'sub_categories.subCategoryname', 'sub_categories.main_category_id',
+                     'main_categories.mainCategoryName')
+            ->leftJoin('main_categories', 'sub_categories.main_category_id', '=', 'main_categories.id')
+            ->orderBy('sub_categories.subCategoryname')
+            ->get()
+            ->map(function($item) {
+                return [
+                    'id' => $item->id,
+                    'subCategoryname' => $item->subCategoryname,
+                    'main_category_id' => $item->main_category_id,
+                    'mainCategory' => [
+                        'mainCategoryName' => $item->mainCategoryName
+                    ]
+                ];
+            });
+
+        $brands = Brand::select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        $units = Unit::select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        // Use proper location filtering
+        $locations = $this->getUserAccessibleLocations(auth()->user());
+
+        return [
+            'mainCategories' => $mainCategories,
+            'subCategories' => $subCategories,
+            'brands' => $brands,
+            'units' => $units,
+            'locations' => $locations,
+        ];
+    }
+
     public function initialProductDetails()
     {
         try {
-            $userId = auth()->id();
+            // Use reusable method to get all form data
+            $formData = $this->getProductFormData();
 
-            // ✅ CRITICAL FIX: NO CACHING - Always fetch fresh data for POS/Sales
-            // Caching causes stale product data after sales, preventing accurate stock display
+            // Add selection flags for frontend
+            $locationsWithSelection = $formData['locations']->map(function($location) use ($formData) {
+                return [
+                    'id' => $location->id,
+                    'name' => $location->name,
+                    'selected' => $formData['locations']->count() === 1
+                ];
+            })->values()->all();
 
-            // Optimize queries - select only needed columns and avoid eager loading overhead
-            $mainCategories = MainCategory::select('id', 'mainCategoryName')
-                ->orderBy('mainCategoryName')
-                ->get();
-
-                // Get subcategories with their main category data in one query (more efficient than eager loading)
-                $subCategories = DB::table('sub_categories')
-                    ->select('sub_categories.id', 'sub_categories.subCategoryname', 'sub_categories.main_category_id',
-                             'main_categories.mainCategoryName')
-                    ->leftJoin('main_categories', 'sub_categories.main_category_id', '=', 'main_categories.id')
-                    ->orderBy('sub_categories.subCategoryname')
-                    ->get()
-                    ->map(function($item) {
-                        // Format to match frontend expectations
-                        return [
-                            'id' => $item->id,
-                            'subCategoryname' => $item->subCategoryname,
-                            'main_category_id' => $item->main_category_id,
-                            'mainCategory' => [
-                                'mainCategoryName' => $item->mainCategoryName
-                            ]
-                        ];
-                    });
-
-                $brands = Brand::select('id', 'name')
-                    ->orderBy('name')
-                    ->get();
-
-                $units = Unit::select('id', 'name')
-                    ->orderBy('name')
-                    ->get();
-
-                // Use proper location filtering instead of Location::all()
-                $locations = $this->getUserAccessibleLocations(auth()->user());
-
-                // Add selection flags for frontend
-                $locationsWithSelection = $locations->map(function($location) use ($locations) {
-                    return [
-                        'id' => $location->id,
-                        'name' => $location->name,
-                        'selected' => $locations->count() === 1 // Auto-select if only one location
-                    ];
-                })->values()->all(); // Ensure it's a proper array
-
-            // Always return a valid response structure
             return response()->json([
                 'status' => 200,
                 'message' => [
-                    'brands' => $brands,
-                    'subCategories' => $subCategories,
-                    'mainCategories' => $mainCategories,
-                    'units' => $units,
+                    'brands' => $formData['brands'],
+                    'subCategories' => $formData['subCategories'],
+                    'mainCategories' => $formData['mainCategories'],
+                    'units' => $formData['units'],
                     'locations' => $locationsWithSelection,
-                    'auto_select_single_location' => $locations->count() === 1,
+                    'auto_select_single_location' => $formData['locations']->count() === 1,
                 ]
             ]);
 
@@ -437,8 +448,13 @@ class ProductController extends Controller
 
     public function editProduct($id)
     {
-        // Fetch the product and related data
-        $product = Product::with(['locations', 'mainCategory', 'brand', 'unit'])->find($id);
+        // Fetch the product with only necessary relations
+        $product = Product::with([
+            'locations:id,name',
+            'mainCategory:id,mainCategoryName',
+            'brand:id,name',
+            'unit:id,name'
+        ])->find($id);
 
         // Check if the product exists
         if (!$product) {
@@ -448,11 +464,8 @@ class ProductController extends Controller
             ], 404);
         }
 
-        $mainCategories = MainCategory::all();
-        $subCategories = SubCategory::all();
-        $brands = Brand::all();
-        $units = Unit::all();
-        $locations = Location::all();
+        // Use reusable method to get form data
+        $formData = $this->getProductFormData();
 
         // Check if the request is AJAX
         if (request()->ajax() || request()->is('api/*')) {
@@ -460,17 +473,17 @@ class ProductController extends Controller
                 'status' => 200,
                 'message' => [
                     'product' => $product,
-                    'mainCategories' => $mainCategories,
-                    'subCategories' => $subCategories,
-                    'brands' => $brands,
-                    'units' => $units,
-                    'locations' => $locations,
+                    'mainCategories' => $formData['mainCategories'],
+                    'subCategories' => $formData['subCategories'],
+                    'brands' => $formData['brands'],
+                    'units' => $formData['units'],
+                    'locations' => $formData['locations'],
                 ]
             ]);
         }
 
         // Render the edit product view for non-AJAX requests
-        return view('product.add_product', compact('product', 'mainCategories', 'subCategories', 'brands', 'units', 'locations'));
+        return view('product.add_product', compact('product') + $formData);
     }
 
 
