@@ -3093,7 +3093,7 @@ class ProductController extends Controller
                     'id',
                     'batch_no',
                     'product_id',
-                    'unit_cost as original_price',
+                    'unit_cost',
                     'wholesale_price',
                     'special_price',
                     'retail_price',
@@ -3128,7 +3128,7 @@ class ProductController extends Controller
                     return [
                         'id' => $batch->id,
                         'batch_no' => $batch->batch_no,
-                        'original_price' => $batch->original_price,
+                        'unit_cost' => $batch->unit_cost,
                         'wholesale_price' => $batch->wholesale_price,
                         'special_price' => $batch->special_price,
                         'retail_price' => $batch->retail_price,
@@ -3162,6 +3162,7 @@ class ProductController extends Controller
         $validator = Validator::make($request->all(), [
             'batches' => 'required|array|min:1',
             'batches.*.id' => 'required|exists:batches,id',
+            'batches.*.unit_cost' => 'required|numeric|min:0',
             'batches.*.wholesale_price' => 'required|numeric|min:0',
             'batches.*.special_price' => 'required|numeric|min:0',
             'batches.*.retail_price' => 'required|numeric|min:0',
@@ -3180,8 +3181,9 @@ class ProductController extends Controller
                 foreach ($request->batches as $batchData) {
                     $batch = Batch::findOrFail($batchData['id']);
 
-                    // Update only the editable prices (not original_price/unit_cost)
+                    // Update all editable prices including unit_cost
                     $batch->update([
+                        'unit_cost' => $batchData['unit_cost'],
                         'wholesale_price' => $batchData['wholesale_price'],
                         'special_price' => $batchData['special_price'],
                         'retail_price' => $batchData['retail_price'],

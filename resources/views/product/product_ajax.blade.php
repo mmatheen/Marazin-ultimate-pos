@@ -4019,6 +4019,13 @@
         $('#productName').text(product.product_name);
         $('#productSku').text(product.sku);
 
+        // Debug: Log batch data to check if unit_cost is present
+        console.log('Batch data received:', batches);
+        if (batches.length > 0) {
+            console.log('First batch sample:', batches[0]);
+            console.log('Unit cost field:', batches[0].unit_cost);
+        }
+
         // Clear both table and mobile containers
         $('#batchPricesTableBody').empty();
         $('#batchPricesMobile').empty();
