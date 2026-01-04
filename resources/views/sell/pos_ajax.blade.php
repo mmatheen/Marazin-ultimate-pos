@@ -56,9 +56,9 @@
         };
     }
 
-        // Search results cache DISABLED - always fetch fresh stock data to prevent stale quantities
+        // Search results cache - 30 seconds for fast autocomplete while keeping data relatively fresh
         let searchCache = new Map();
-        let searchCacheExpiry = 0; // DISABLED - always fetch fresh data (was 2 minutes)
+        let searchCacheExpiry = 30 * 1000; // 30 seconds cache for performance
 
         // DOM element cache to avoid repeated getElementById calls
         let domElementCache = {};
@@ -3633,7 +3633,7 @@
                 data: {
                     location_id: selectedLocationId,
                     search: term,
-                    per_page: 100 // Increased to 100 to show more results in autocomplete
+                    per_page: 50 // Optimized for speed - 50 results is sufficient for autocomplete
                 },
                 cache: false, // ✅ Prevent browser caching - always fetch fresh stock data
                 timeout: 10000,
@@ -3647,54 +3647,72 @@
         }
 
         // Check if product exists in entire database before showing quick add modal
-        function checkProductExistsBeforeQuickAdd(term, response) {
+        // Used by both manual search (isScanner=false) and barcode scanning (isScanner=true)
+        function checkProductExistsBeforeQuickAdd(term, response, isScanner = false) {
             console.log('No results in location - checking entire database for:', term);
 
+            // Use the SKU uniqueness check endpoint (more reliable than stock autocomplete)
             $.ajax({
-                url: '/products/stocks/autocomplete',
+                url: '/product/check-sku',
+                method: 'POST',
                 data: {
-                    // Don't filter by location - check entire product database
-                    search: term,
-                    per_page: 5
+                    sku: term,
+                    _token: $('meta[name="csrf-token"]').attr('content')
                 },
                 cache: false,
                 timeout: 3000,
-                success: function(productCheckData) {
-                    if (productCheckData.status === 200 &&
-                        Array.isArray(productCheckData.data) &&
-                        productCheckData.data.length > 0) {
-
-                        // Check if exact match exists
-                        const productExists = productCheckData.data.some(p =>
-                            p.product &&
-                            p.product.sku &&
-                            p.product.sku.toLowerCase() === term.toLowerCase()
-                        );
-
-                        if (productExists) {
-                            // Product exists but not in this location
-                            toastr.warning('This product exists in the system but is not available at this location. Please add stock to this location first.', 'Product Not Available Here');
-                            response([{
-                                label: "⚠️ Product exists but not available at this location",
-                                value: "",
-                                notAvailable: true
-                            }]);
+                success: function(skuCheckData) {
+                    // If SKU exists in database
+                    if (skuCheckData.exists === true) {
+                        // Product exists in product table but not in this location's stock
+                        if (isScanner) {
+                            // For scanner: show warning message
+                            showSearchIndicator("⚠️ Product exists but not in this location", "#ff9800");
+                            toastr.warning('Product with SKU "' + term + '" exists but has no stock at this location. Please add stock first.', 'Product Not Available Here');
+                            setTimeout(() => {
+                                hideSearchIndicator();
+                                autoFocusSearchInput();
+                            }, 3000);
                         } else {
-                            // Product doesn't exist - show quick add modal immediately
+                            // For manual search: just close dropdown (no annoying messages)
                             response([]);
                             $("#productSearchInput").autocomplete('close');
-                            showQuickAddOption(term);
                         }
                     } else {
-                        // Product doesn't exist anywhere - show quick add modal immediately
-                        response([]);
-                        $("#productSearchInput").autocomplete('close');
-                        showQuickAddOption(term);
+                        // SKU doesn't exist in product table - safe to add new product
+                        if (isScanner) {
+                            // For scanner: auto-open modal after 1 second
+                            showSearchIndicator("❌ Product not found in system", "#dc3545");
+                            setTimeout(() => {
+                                showQuickAddOption(term);
+                            }, 1000);
+                            setTimeout(() => {
+                                hideSearchIndicator();
+                            }, 3000);
+                        } else {
+                            // For manual search: show clickable option in dropdown
+                            response([{
+                                label: "➕ Add New Product: " + term,
+                                value: "",
+                                showQuickAdd: true,
+                                searchTerm: term
+                            }]);
+                        }
                     }
                 },
                 error: function() {
-                    // On error, just show no results
-                    response([{ label: "Error checking product database", value: "" }]);
+                    if (isScanner) {
+                        hideSearchIndicator();
+                        showSearchIndicator("❌ Error checking product", "#dc3545");
+                        setTimeout(() => {
+                            hideSearchIndicator();
+                            autoFocusSearchInput();
+                        }, 2000);
+                    } else {
+                        // On error, just close dropdown
+                        response([]);
+                        $("#productSearchInput").autocomplete('close');
+                    }
                 }
             });
         }
@@ -3716,19 +3734,18 @@
 
             if (results.length === 0) {
                 // No results in location - check if product exists in database before showing quick add
-                checkProductExistsBeforeQuickAdd(term, response);
+                checkProductExistsBeforeQuickAdd(term, response, false);
                 return;
             }
 
-            // ❌ CACHING DISABLED - Always fetch fresh stock data to prevent stale quantities
-            // Cache is now disabled to ensure real-time stock display after sales
-            // if (cacheKey && results.length > 0) {
-            //     searchCache.set(cacheKey, {
-            //         results: results,
-            //         timestamp: Date.now()
-            //     });
-            //     console.log('Cached search results for:', term);
-            // }
+            // ✅ CACHING ENABLED - 30 second cache for speed, fresh enough for accurate stock
+            if (cacheKey && results.length > 0) {
+                searchCache.set(cacheKey, {
+                    results: results,
+                    timestamp: Date.now()
+                });
+                console.log('Cached search results for:', term);
+            }
 
             autocompleteState.lastResults = results.filter(r => r.product);
 
@@ -3767,31 +3784,37 @@
         }
 
         function filterStockData(stockArray) {
+            // Optimized filtering with early returns
             return stockArray.filter(stock => {
                 if (!stock.product) return false;
 
-                const product = stock.product;
-                if (product.stock_alert == 0) return true; // Unlimited stock
+                // Fast path for unlimited stock
+                if (stock.product.stock_alert == 0) return true;
 
-                const hasDecimal = product.unit && (product.unit.allow_decimal === true || product.unit.allow_decimal === 1);
-                const stockLevel = hasDecimal ? parseFloat(stock.total_stock) : parseInt(stock.total_stock);
+                // Check stock level
+                const stockLevel = stock.product.unit?.allow_decimal ?
+                    parseFloat(stock.total_stock) : parseInt(stock.total_stock);
                 return stockLevel > 0;
             });
         }
 
         function mapSearchResults(filteredStocks, term) {
-            return filteredStocks.map(stock => {
+            // Optimized mapping with minimal object creation
+            const results = [];
+            for (let i = 0; i < filteredStocks.length; i++) {
+                const stock = filteredStocks[i];
                 const { imeiMatch, exactImeiMatch, imeiNumber } = findImeiMatch(stock, term);
 
-                return {
+                results.push({
                     label: createProductLabel(stock, imeiMatch, imeiNumber),
                     value: stock.product.product_name,
                     product: stock.product,
                     stockData: stock,
                     imeiMatch: !!imeiMatch,
                     exactImeiMatch: exactImeiMatch
-                };
-            });
+                });
+            }
+            return results;
         }
 
         function findImeiMatch(stock, term) {
@@ -3863,13 +3886,13 @@
                     autocompleteState.currentTerm = request.term;
                     resetAutocompleteState();
 
-                    // Debounce requests
+                    // Debounce requests - reduced to 100ms for faster response
                     autocompleteState.debounceTimer = setTimeout(() => {
                         if (!autocompleteState.isRequesting) {
                             autocompleteState.isRequesting = true;
                             createProductSearchRequest(request.term, response);
                         }
-                    }, 300);
+                    }, 100);
                 },
                 select: function(event, ui) {
                     console.log('Item selected:', ui.item);
@@ -4280,7 +4303,7 @@
                                     <div class="row">
                                         <div class="col-md-6">
                                             <label class="form-label">SKU/Barcode:</label>
-                                            <input type="text" class="form-control" id="quickAddSku" readonly>
+                                            <input type="text" class="form-control" id="quickAddSku" placeholder="Enter SKU/Barcode">
                                         </div>
                                         <div class="col-md-6">
                                             <label class="form-label">Product Name:</label>
@@ -4644,69 +4667,9 @@
                                     $("#productSearchInput").autocomplete('search', searchTerm);
                                 }, 100);
                             } else {
-                                // No results from location stock - check if product exists in product table at all
+                                // No results from location stock - use consolidated check function
                                 showSearchIndicator("⏳ Checking product database...", "#ffc107");
-
-                                $.ajax({
-                                    url: '/products/stocks/autocomplete',
-                                    data: {
-                                        // Don't filter by location - check entire product database
-                                        search: searchTerm,
-                                        per_page: 5
-                                    },
-                                    cache: false,
-                                    timeout: 3000,
-                                    success: function(productCheckData) {
-                                        hideSearchIndicator();
-
-                                        if (productCheckData.status === 200 &&
-                                            Array.isArray(productCheckData.data) &&
-                                            productCheckData.data.length > 0) {
-
-                                            // Product exists in system but not in this location
-                                            const productExists = productCheckData.data.some(p =>
-                                                p.product &&
-                                                p.product.sku &&
-                                                p.product.sku.toLowerCase() === searchTerm.toLowerCase()
-                                            );
-
-                                            if (productExists) {
-                                                showSearchIndicator("⚠️ Product exists but not in this location", "#ff9800");
-                                                toastr.warning('This product exists in the system but is not available at this location. Please add stock to this location first.', 'Product Not Available Here');
-                                                setTimeout(() => {
-                                                    hideSearchIndicator();
-                                                    autoFocusSearchInput();
-                                                }, 3000);
-                                            } else {
-                                                // Product not found anywhere - show quick add modal
-                                                showSearchIndicator("❌ Product not found in system", "#dc3545");
-                                                setTimeout(() => {
-                                                    showQuickAddOption(searchTerm);
-                                                }, 1000);
-                                                setTimeout(() => {
-                                                    hideSearchIndicator();
-                                                }, 3000);
-                                            }
-                                        } else {
-                                            // Product doesn't exist in system at all - show quick add modal
-                                            showSearchIndicator("❌ Product not found in system", "#dc3545");
-                                            setTimeout(() => {
-                                                showQuickAddOption(searchTerm);
-                                            }, 1000);
-                                            setTimeout(() => {
-                                                hideSearchIndicator();
-                                            }, 3000);
-                                        }
-                                    },
-                                    error: function() {
-                                        hideSearchIndicator();
-                                        showSearchIndicator("❌ Error checking product", "#dc3545");
-                                        setTimeout(() => {
-                                            hideSearchIndicator();
-                                            autoFocusSearchInput();
-                                        }, 2000);
-                                    }
-                                });
+                                checkProductExistsBeforeQuickAdd(searchTerm, () => {}, true);
                             }
                         }
                     } else {
