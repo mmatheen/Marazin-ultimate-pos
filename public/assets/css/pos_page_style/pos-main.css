@@ -80,7 +80,22 @@
 
         textarea.form-control {
             height: auto !important;
-            min-height: 60px !important;
+            min-height: 40px !important;
+            max-height: 60px !important;
+            padding: 0.35rem 0.5rem !important;
+        }
+
+        /* Reduce label spacing */
+        .bottom-fixed label,
+        .bottom-fixed .form-label {
+            margin-bottom: 0.15rem !important;
+            font-size: 0.85rem !important;
+        }
+
+        /* Reduce space between form groups */
+        .bottom-fixed .mb-3,
+        .bottom-fixed .mb-2 {
+            margin-bottom: 0.35rem !important;
         }
 
         /* Compact card body padding */
@@ -144,6 +159,45 @@
             padding: 8px 12px !important;
             font-size: 14px !important;
             border-radius: 5px !important;
+        }
+
+        /* Sale Notes Specific Overrides */
+        #sale-notes-textarea {
+            min-height: 32px !important;
+            max-height: 50px !important;
+            padding: 4px 6px !important;
+            font-size: 12px !important;
+            margin-bottom: 0 !important;
+        }
+
+        .bottom-fixed .row[style*="padding"] {
+            padding: 4px 8px !important;
+            margin-top: 2px !important;
+        }
+
+        .bottom-fixed .row {
+            margin-bottom: 4px !important;
+        }
+
+        .bottom-fixed label[for="sale-notes-textarea"] {
+            font-size: 12px !important;
+            margin-bottom: 2px !important;
+        }
+
+        /* Override all bottom section inputs to be more compact */
+        .bottom-fixed .form-control,
+        .bottom-fixed .input-group,
+        .bottom-fixed .btn-group {
+            height: 30px !important;
+        }
+
+        .bottom-fixed label {
+            font-size: 11px !important;
+            margin-bottom: 2px !important;
+        }
+
+        .bottom-fixed .form-group {
+            margin-bottom: 4px !important;
         }
 
         /* Bottom Fixed Section */
@@ -1239,8 +1293,71 @@
             }
         }
 
-        /* Small tablet specific adjustments (768px-991px) */
+        /* Reduce bottom section spacing for tablets */
         @media (max-width: 991px) and (min-width: 768px) {
+            .bottom-fixed {
+                padding: 0.4rem 0.75rem !important;
+            }
+
+            .bottom-fixed .row {
+                gap: 0.2rem !important;
+            }
+
+            .bottom-fixed h4 {
+                margin-bottom: 0.2rem !important;
+                font-size: 0.9rem !important;
+            }
+
+            textarea.form-control {
+                min-height: 35px !important;
+                max-height: 50px !important;
+            }
+
+            .bottom-fixed label,
+            .bottom-fixed .form-label {
+                margin-bottom: 0.1rem !important;
+                font-size: 0.8rem !important;
+            }
+
+            .bottom-fixed .mb-3,
+            .bottom-fixed .mb-2 {
+                margin-bottom: 0.3rem !important;
+            }
+
+            /* Mobile specific - reduce all inputs and labels */
+            .bottom-fixed .form-control,
+            .bottom-fixed .input-group,
+            .bottom-fixed .btn-group,
+            .bottom-fixed button:not(.mobile-action-btn) {
+                height: 28px !important;
+                font-size: 11px !important;
+            }
+
+            .bottom-fixed label {
+                font-size: 10px !important;
+                margin-bottom: 1px !important;
+            }
+
+            .bottom-fixed .row {
+                margin-bottom: 3px !important;
+            }
+
+            .bottom-fixed .row[style*="padding"] {
+                padding: 3px 6px !important;
+                margin-top: 1px !important;
+            }
+
+            #sale-notes-textarea {
+                min-height: 28px !important;
+                max-height: 42px !important;
+                font-size: 10px !important;
+                padding: 3px 5px !important;
+            }
+
+            .bottom-fixed .form-group {
+                margin-bottom: 3px !important;
+            }
+
             .bottom-fixed .col-md-7 .d-flex {
                 display: grid !important;
                 grid-template-columns: repeat(4, 1fr) !important;
@@ -1299,8 +1416,76 @@
         }
 
         /* 600px–767px: Small tablet, landscape mobile */
-        /* Medium Mobile/Small Tablet */
+        /* Reduce spacing for mobile/small tablets */
         @media (max-width: 767px) and (min-width: 600px) {
+            .bottom-fixed {
+                padding: 0.35rem 0.5rem !important;
+            }
+
+            .bottom-fixed .row {
+                gap: 0.15rem !important;
+            }
+
+            .bottom-fixed h4 {
+                margin-bottom: 0.15rem !important;
+                font-size: 0.85rem !important;
+            }
+
+            textarea.form-control {
+                min-height: 30px !important;
+                max-height: 45px !important;
+                padding: 0.25rem 0.4rem !important;
+            }
+
+            .form-control, .form-select {
+                padding: 0.25rem 0.4rem !important;
+                margin-bottom: 0.2rem !important;
+            }
+
+            .bottom-fixed label,
+            .bottom-fixed .form-label {
+                margin-bottom: 0.08rem !important;
+                font-size: 0.75rem !important;
+            }
+
+            .bottom-fixed .mb-3,
+            .bottom-fixed .mb-2 {
+                margin-bottom: 0.25rem !important;
+            }
+
+            /* Mobile specific - ultra compact */
+            .bottom-fixed .form-control,
+            .bottom-fixed .input-group,
+            .bottom-fixed .btn-group,
+            .bottom-fixed button:not(.mobile-action-btn) {
+                height: 26px !important;
+                font-size: 10px !important;
+            }
+
+            .bottom-fixed label {
+                font-size: 9px !important;
+                margin-bottom: 1px !important;
+            }
+
+            .bottom-fixed .row {
+                margin-bottom: 2px !important;
+            }
+
+            .bottom-fixed .row[style*="padding"] {
+                padding: 2px 5px !important;
+                margin-top: 0 !important;
+            }
+
+            #sale-notes-textarea {
+                min-height: 26px !important;
+                max-height: 38px !important;
+                font-size: 9px !important;
+                padding: 2px 4px !important;
+            }
+
+            .bottom-fixed .form-group {
+                margin-bottom: 2px !important;
+            }
 
             .category-card,
             .brand-card {
@@ -1337,8 +1522,91 @@
             }
         }
 
-        /* Small Mobile Screens */
+        /* Reduce spacing for small mobile screens */
         @media (max-width: 599px) {
+            .bottom-fixed {
+                padding: 0.3rem 0.4rem !important;
+            }
+
+            .bottom-fixed .row {
+                gap: 0.1rem !important;
+            }
+
+            .bottom-fixed h4 {
+                margin-bottom: 0.1rem !important;
+                font-size: 0.8rem !important;
+            }
+
+            textarea.form-control {
+                min-height: 28px !important;
+                max-height: 40px !important;
+                padding: 0.2rem 0.35rem !important;
+                font-size: 0.8rem !important;
+            }
+
+            .form-control, .form-select {
+                padding: 0.2rem 0.35rem !important;
+                margin-bottom: 0.15rem !important;
+                font-size: 0.8rem !important;
+            }
+
+            .bottom-fixed label,
+            .bottom-fixed .form-label {
+                margin-bottom: 0.05rem !important;
+                font-size: 0.7rem !important;
+            }
+
+            .bottom-fixed .mb-3,
+            .bottom-fixed .mb-2 {
+                margin-bottom: 0.2rem !important;
+            }
+
+            /* Small mobile - maximum compactness */
+            .bottom-fixed .form-control,
+            .bottom-fixed .input-group,
+            .bottom-fixed .btn-group,
+            .bottom-fixed button:not(.mobile-action-btn) {
+                height: 24px !important;
+                font-size: 9px !important;
+            }
+
+            .bottom-fixed label {
+                font-size: 8px !important;
+                margin-bottom: 0 !important;
+            }
+
+            .bottom-fixed .row {
+                margin-bottom: 1px !important;
+            }
+
+            .bottom-fixed .row[style*="padding"] {
+                padding: 2px 4px !important;
+                margin-top: 0 !important;
+            }
+
+            #sale-notes-textarea {
+                min-height: 24px !important;
+                max-height: 36px !important;
+                font-size: 8px !important;
+                padding: 2px 3px !important;
+            }
+
+            .bottom-fixed .form-group {
+                margin-bottom: 1px !important;
+            }
+
+            .bottom-fixed .input-group-text {
+                font-size: 8px !important;
+                padding: 2px 4px !important;
+                height: 24px !important;
+            }
+
+            .bottom-fixed p#total-amount,
+            .bottom-fixed p#final-total-amount {
+                font-size: 11px !important;
+                line-height: 16px !important;
+                padding: 3px 4px !important;
+            }
 
             .category-card,
             .brand-card {
