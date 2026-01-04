@@ -1563,8 +1563,8 @@
                 }
             ],
             lengthMenu: [
-                [10, 25, 50, 100, -1],
-                [10, 25, 50, 100, "All"]
+                [10, 25, 50, 100, 500],
+                [10, 25, 50, 100, 500]
             ],
             pageLength: 10,
             ordering: false,
@@ -2035,26 +2035,33 @@
 
         // Load initial dropdowns ONLY for pages that need it immediately
         // For purchase/sale pages with modal, load when modal opens (see modal event handler below)
-        if (hasProductTable || hasAddForm || hasEditProductId) {
-            console.log('📥 Loading initial product details for immediate use...');
-            fetchInitialDropdowns(function() {
-                // First validate form and update buttons
-                validateFormAndUpdateButtons();
+        if (hasProductTable) {
+            // PRODUCT LIST PAGE - Load product table FIRST for fast display
+            console.log('📊 Product list page - loading products FIRST...');
 
-                // ONLY load categories/brands for filter dropdowns if on product list page
-                if (hasProductTable && typeof fetchCategoriesAndBrands === 'function' && typeof fetchProductData === 'function') {
-                    console.log('📊 Product list page detected - loading filter data...');
+            // 1. Load product table immediately (fastest, most important)
+            if (typeof fetchProductData === 'function') {
+                fetchProductData();
+                console.log('✅ Product table loading initiated');
+            }
+
+            // 2. Load filter dropdowns in background (parallel, non-blocking)
+            if (typeof fetchCategoriesAndBrands === 'function') {
+                setTimeout(function() {
+                    console.log('🔄 Loading filter dropdowns in background...');
                     fetchCategoriesAndBrands(function() {
-                        // First initialize the DataTable
-                        fetchProductData();
-                        // Then populate the filter options with ALL available categories and brands
-                        setTimeout(function() {
-                            populateAllFilterOptions();
-                        }, 100); // Small delay to ensure DataTable is fully initialized
+                        populateAllFilterOptions();
+                        console.log('✅ Filter dropdowns populated');
                     });
-                } else {
-                    console.log('✅ Add/Edit product page - filter data not needed');
-                }
+                }, 100); // Small delay to let product table start first
+            }
+
+        } else if (hasAddForm || hasEditProductId) {
+            // ADD/EDIT PRODUCT PAGE - Load dropdowns immediately (needed for forms)
+            console.log('📥 Loading initial product details for add/edit form...');
+            fetchInitialDropdowns(function() {
+                validateFormAndUpdateButtons();
+                console.log('✅ Add/Edit form initialized');
             });
         } else if (hasProductModal) {
             console.log('⏸️ Purchase/Sale page detected - will load product details when modal opens');
@@ -4058,7 +4065,7 @@
                 <tr data-batch-id="${batch.id}" class="d-none d-md-table-row">
                     <td>${batch.batch_no || 'N/A'}</td>
                     <td>${formattedQty}</td>
-                    <td class="text-muted d-none d-md-table-cell">${parseFloat(batch.original_price || 0).toFixed(2)}</td>
+                    <td class="d-none d-md-table-cell"><input type="number" class="form-control form-control-sm price-input" name="unit_cost" value="${parseFloat(batch.unit_cost || 0).toFixed(2)}" min="0" step="0.01" placeholder="0.00"></td>
                     <td><input type="number" class="form-control form-control-sm price-input" name="wholesale_price" value="${parseFloat(batch.wholesale_price || 0).toFixed(2)}" min="0" step="0.01" placeholder="0.00"></td>
                     <td><input type="number" class="form-control form-control-sm price-input" name="special_price" value="${parseFloat(batch.special_price || 0).toFixed(2)}" min="0" step="0.01" placeholder="0.00"></td>
                     <td><input type="number" class="form-control form-control-sm price-input" name="retail_price" value="${parseFloat(batch.retail_price || 0).toFixed(2)}" min="0" step="0.01" placeholder="0.00"></td>
@@ -4085,6 +4092,10 @@
                     <div class="card-body">
                         <div class="row g-2">
                             <div class="col-6">
+                                <label class="form-label small fw-bold">Unit Cost</label>
+                                <input type="number" class="form-control form-control-sm price-input" name="unit_cost" value="${parseFloat(batch.unit_cost || 0).toFixed(2)}" min="0" step="0.01" placeholder="0.00">
+                            </div>
+                            <div class="col-6">
                                 <label class="form-label small fw-bold">Wholesale Price</label>
                                 <input type="number" class="form-control form-control-sm price-input" name="wholesale_price" value="${parseFloat(batch.wholesale_price || 0).toFixed(2)}" min="0" step="0.01" placeholder="0.00">
                             </div>
@@ -4104,7 +4115,6 @@
                         <div class="row mt-2">
                             <div class="col-12">
                                 <small class="text-muted">
-                                    <strong>Cost Price:</strong> ${parseFloat(batch.original_price || 0).toFixed(2)} |
                                     <strong>Expiry:</strong> ${expiryDate} |
                                     <strong>Locations:</strong> ${locationsText}
                                 </small>
@@ -4125,6 +4135,7 @@
         $('#batchPricesTableBody tr[data-batch-id]').each(function() {
             if ($(this).is(':visible')) {
                 const batchId = $(this).data('batch-id');
+                const unitCost = $(this).find('input[name="unit_cost"]').val();
                 const wholesalePrice = $(this).find('input[name="wholesale_price"]').val();
                 const specialPrice = $(this).find('input[name="special_price"]').val();
                 const retailPrice = $(this).find('input[name="retail_price"]').val();
@@ -4132,6 +4143,7 @@
 
                 batches.push({
                     id: batchId,
+                    unit_cost: parseFloat(unitCost),
                     wholesale_price: parseFloat(wholesalePrice),
                     special_price: parseFloat(specialPrice),
                     retail_price: parseFloat(retailPrice),
@@ -4144,6 +4156,7 @@
         $('#batchPricesMobile .card[data-batch-id]').each(function() {
             if ($(this).is(':visible')) {
                 const batchId = $(this).data('batch-id');
+                const unitCost = $(this).find('input[name="unit_cost"]').val();
                 const wholesalePrice = $(this).find('input[name="wholesale_price"]').val();
                 const specialPrice = $(this).find('input[name="special_price"]').val();
                 const retailPrice = $(this).find('input[name="retail_price"]').val();
@@ -4151,6 +4164,7 @@
 
                 batches.push({
                     id: batchId,
+                    unit_cost: parseFloat(unitCost),
                     wholesale_price: parseFloat(wholesalePrice),
                     special_price: parseFloat(specialPrice),
                     retail_price: parseFloat(retailPrice),
