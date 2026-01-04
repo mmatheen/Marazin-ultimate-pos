@@ -756,7 +756,6 @@ class ProductController extends Controller
                 $stockHistory->loc_batch_id = $locationBatch->id;
                 $stockHistory->stock_type = StockHistory::STOCK_TYPE_OPENING;
                 $stockHistory->quantity = $request->quantity;
-                $stockHistory->description = 'Quick Add from POS';
                 $stockHistory->save();
             }
 

@@ -4465,9 +4465,83 @@
                 },
                 success: function(response) {
                     if (response.success) {
-                        // Add the newly created product
                         const newProduct = response.product;
-                        addSavedProductToBilling(newProduct, formData.qty);
+
+                        console.log('Quick Add SUCCESS - New Product:', newProduct);
+                        console.log('Quick Add SUCCESS - New Product ID:', newProduct.id);
+                        console.log('Quick Add SUCCESS - New Product Name:', newProduct.product_name);
+                        console.log('Quick Add SUCCESS - Stock Type:', formData.stock_type);
+
+                        // For both limited and unlimited stock, construct the stock entry manually
+                        // This is more reliable than fetching from API
+                        const enteredPrice = parseFloat(newProduct.original_price || newProduct.retail_price || newProduct.price || 0);
+
+                        // Ensure product has all required price fields
+                        if (!newProduct.retail_price || parseFloat(newProduct.retail_price) <= 0) {
+                            newProduct.retail_price = enteredPrice;
+                        }
+                        if (!newProduct.whole_sale_price || parseFloat(newProduct.whole_sale_price) <= 0) {
+                            newProduct.whole_sale_price = enteredPrice;
+                        }
+                        if (!newProduct.special_price) {
+                            newProduct.special_price = enteredPrice;
+                        }
+                        if (!newProduct.max_retail_price) {
+                            newProduct.max_retail_price = enteredPrice;
+                        }
+
+                        // Create properly structured stock entry
+                        const stockEntry = {
+                            product: newProduct,
+                            total_stock: formData.stock_type === 'limited' ? (formData.stock_quantity || 100) : 999999,
+                            batches: formData.stock_type === 'limited' ? [{
+                                id: newProduct.batch_no ? newProduct.batch_no.split('-')[1] : 1,
+                                batch_no: newProduct.batch_no || 'QA-' + Date.now(),
+                                unit_cost: enteredPrice,
+                                wholesale_price: enteredPrice,
+                                special_price: enteredPrice,
+                                retail_price: enteredPrice,
+                                max_retail_price: enteredPrice,
+                                expiry_date: null,
+                                location_batches: [{
+                                    location_id: selectedLocationId,
+                                    quantity: formData.stock_quantity || 100,
+                                    batch_id: newProduct.batch_no ? newProduct.batch_no.split('-')[1] : 1
+                                }]
+                            }] : [],
+                            location_batches: formData.stock_type === 'limited' ? [{
+                                batch_id: newProduct.batch_no ? newProduct.batch_no.split('-')[1] : 1,
+                                batch_quantity: formData.stock_quantity || 100,
+                                unit_price: enteredPrice,
+                                batch: {
+                                    id: newProduct.batch_no ? newProduct.batch_no.split('-')[1] : 1,
+                                    batch_no: newProduct.batch_no || 'QA-' + Date.now(),
+                                    expiry_date: null,
+                                    unit_cost: enteredPrice,
+                                    wholesale_price: enteredPrice,
+                                    special_price: enteredPrice,
+                                    retail_price: enteredPrice,
+                                    max_retail_price: enteredPrice
+                                }
+                            }] : [],
+                            imei_numbers: []
+                        };
+
+                        console.log('Quick Add - Constructed stock entry:', stockEntry);
+
+                        // Add to stockData and allProducts
+                        if (!stockData.find(s => s.product && s.product.id == newProduct.id)) {
+                            stockData.push(stockEntry);
+                            console.log('Quick Add - Added to stockData');
+                        }
+                        if (typeof allProducts !== 'undefined' && !allProducts.find(s => s.product && s.product.id == newProduct.id)) {
+                            allProducts.push(stockEntry);
+                            console.log('Quick Add - Added to allProducts');
+                        }
+
+                        // Add to billing table
+                        console.log('Quick Add - Calling addProductToTable with product:', newProduct.product_name, 'qty:', formData.qty);
+                        addProductToTable(newProduct, formData.qty, 'quick-add');
 
                         // Close modal and clear search input
                         $('#quickAddModal').modal('hide');
@@ -4477,7 +4551,7 @@
                         setTimeout(() => {
                             $("#productSearchInput").val('').focus();
                             console.log('Search cleared after successful product addition');
-                        }, 300); // Small delay to ensure modal is fully closed
+                        }, 300);
                     } else {
                         toastr.error('Error saving product: ' + response.message, 'Error');
                     }
@@ -4647,6 +4721,9 @@
                                 exactMatch.product.sku.toLowerCase() === searchTerm.toLowerCase() ? 'SCANNER_SKU' : 'SCANNER_IMEI';
 
                             showSearchIndicator("⚡ Adding scanned item...", "#28a745");
+
+                            // Ensure autocomplete is closed and won't open
+                            $("#productSearchInput").autocomplete('close');
 
                             setTimeout(() => {
                                 addProductFromAutocomplete(exactMatch, searchTerm, matchType);
@@ -5239,11 +5316,13 @@
 
             console.log("===== addProductToTable DEBUG =====");
             console.log("Product:", product);
+            console.log("Product ID:", product.id, "Type:", typeof product.id);
             console.log("searchTermOrQty:", searchTermOrQty, "Type:", typeof searchTermOrQty);
             console.log("isMobileQuantity:", isMobileQuantity);
             console.log("mobileQty:", mobileQty);
             console.log("searchTerm:", searchTerm);
             console.log("matchType:", matchType);
+            console.log("stockData length:", stockData.length);
             console.log("===================================");
 
             if (!stockData || stockData.length === 0) {
@@ -5252,8 +5331,10 @@
                 return;
             }
 
-            const stockEntry = stockData.find(stock => stock.product.id === product.id);
-            console.log("stockEntry", stockEntry);
+            const stockEntry = stockData.find(stock => stock.product.id == product.id); // Use == for type coercion
+            console.log("stockEntry found:", stockEntry);
+            console.log("Looking for product ID:", product.id);
+            console.log("Available product IDs in stockData:", stockData.map(s => s.product.id));
 
             if (!stockEntry) {
                 toastr.error('Stock entry not found for the product', 'Error');
