@@ -81,15 +81,15 @@ class SaleController extends Controller
 
         if (!empty($payments)) {
             $actualPaymentAmount = array_sum(array_column($payments, 'amount'));
-            
+
             // Check payment methods
             foreach ($payments as $payment) {
                 $paymentMethod = $payment['payment_method'] ?? '';
-                
+
                 if ($paymentMethod === 'credit') {
                     $hasCreditPayment = true;
                 }
-                
+
                 // Skip credit limit validation for cheque payments
                 if ($paymentMethod === 'cheque') {
                     $hasChequePayment = true;
@@ -112,10 +112,10 @@ class SaleController extends Controller
 
         // Get customer's current outstanding balance (calculate fresh from ledger)
         $currentBalance = $customer->calculateBalanceFromLedger();
-        
+
         // Calculate available credit remaining
         $availableCredit = max(0, $customer->credit_limit - $currentBalance);
-        
+
         // Check if the credit amount exceeds available credit
         if ($remainingBalance > $availableCredit) {
             // Format error message with clear breakdown
@@ -128,14 +128,14 @@ class SaleController extends Controller
             $errorMessage .= "• Total Sale Amount: Rs. " . number_format($finalTotal, 2) . "\n";
             $errorMessage .= "• Payment Received: Rs. " . number_format($actualPaymentAmount, 2) . "\n";
             $errorMessage .= "• Credit Amount Required: Rs. " . number_format($remainingBalance, 2) . "\n\n";
-            
+
             if ($availableCredit > 0) {
                 $errorMessage .= "Maximum credit sale allowed: Rs. " . number_format($availableCredit, 2) . "\n";
                 $errorMessage .= "Exceeds limit by: Rs. " . number_format($remainingBalance - $availableCredit, 2);
             } else {
                 $errorMessage .= "No credit available. Please settle previous outstanding amount or pay full amount.";
             }
-            
+
             throw new \Exception($errorMessage);
         }
 
@@ -177,7 +177,7 @@ class SaleController extends Controller
         return response()->json(['sales' => $sales], 200);
     }
 
-    
+
     public function salesDetails($id)
     {
         try {
@@ -435,7 +435,7 @@ class SaleController extends Controller
             foreach ($request->payments as $payment) {
                 if (isset($payment['payment_method']) && $payment['payment_method'] === 'cheque') {
                     return response()->json([
-                        'status' => 400, 
+                        'status' => 400,
                         'message' => 'Cheque payment is not allowed for Walk-In Customer. Please choose another payment method or select a different customer.',
                         'errors' => ['payment_method' => ['Cheque payment is not allowed for Walk-In Customer.']]
                     ]);
@@ -544,7 +544,8 @@ class SaleController extends Controller
                     'final_total' => $finalTotal,
                     'discount_type' => $request->discount_type,
                     'discount_amount' => $discount,
-                    'user_id' => auth()->id(),
+                    'user_id' => $isUpdate ? $sale->user_id : auth()->id(), // Keep original creator
+                    'updated_by' => $isUpdate ? auth()->id() : null, // Track who edited
                     'total_paid' => $totalPaid,
                     'total_due' => $totalDue,
                     'amount_given' => $amountGiven,
@@ -582,7 +583,7 @@ class SaleController extends Controller
                             'reference_id' => $sale->id,
                             'customer_id' => $sale->customer_id,
                         ]);
-                        
+
                         // Record payment in unified ledger
                         $this->unifiedLedgerService->recordSalePayment($payment);
                     }
@@ -664,7 +665,7 @@ class SaleController extends Controller
                     $originalProducts = [];
                     foreach ($sale->products as $product) {
                         $originalProducts[$product->product_id][$product->batch_id] = ($originalProducts[$product->product_id][$product->batch_id] ?? 0) + $product->quantity;
-                        
+
                         if (in_array($oldStatus, ['final', 'suspend'])) {
                             $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
                         } else {
@@ -684,7 +685,7 @@ class SaleController extends Controller
                         if ($isUpdate && in_array($newStatus, ['final', 'suspend'])) {
                             $this->validateStockForUpdate($productData, $request->location_id, $originalProducts ?? []);
                         }
-                        
+
                         // Always process sale for final/suspend status
                         if (in_array($newStatus, ['final', 'suspend'])) {
                             $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE, $newStatus);
@@ -727,7 +728,7 @@ class SaleController extends Controller
             $html = view('sell.receipt', $viewData)->render();
         }
 
-          
+
 
 
             try {
@@ -797,7 +798,7 @@ class SaleController extends Controller
                     'error' => $e->getMessage(),
                     'location_id' => $request->location_id ?? null,
                 ]);
-                
+
                 // Retry the operation once with a new invoice number
                 try {
                     return $this->store($request, $id);
@@ -808,7 +809,7 @@ class SaleController extends Controller
                     ], 400);
                 }
             }
-            
+
             return response()->json([
                 'message' => 'Database error: ' . $e->getMessage()
             ], 400);
@@ -818,7 +819,7 @@ class SaleController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
             return response()->json(['message' => $e->getMessage()], 400);
-            
+
         }
     }
 
@@ -1130,7 +1131,7 @@ class SaleController extends Controller
         $totalQuantity = $productData['quantity'];
         $productId = $productData['product_id'];
         $batchId = $productData['batch_id'];
-        
+
         // Get original quantity sold for this product/batch combination
         $originalQuantity = 0;
         if (isset($originalProducts[$productId])) {
@@ -1147,7 +1148,7 @@ class SaleController extends Controller
             // Specific batch selected
             $currentStock = Sale::getAvailableStock($batchId, $locationId);
             $availableStock = $currentStock + $originalQuantity;
-            
+
             if ($totalQuantity > $availableStock) {
                 throw new \Exception("Batch ID {$batchId} does not have enough stock. Available: {$availableStock}, Requested: {$totalQuantity}");
             }
@@ -1158,9 +1159,9 @@ class SaleController extends Controller
                 ->where('batches.product_id', $productId)
                 ->where('location_batches.location_id', $locationId)
                 ->sum('location_batches.qty');
-                
+
             $availableStock = $currentTotalStock + $originalQuantity;
-            
+
             if ($totalQuantity > $availableStock) {
                 throw new \Exception("Not enough stock available. Available: {$availableStock}, Requested: {$totalQuantity}");
             }
@@ -1200,10 +1201,10 @@ class SaleController extends Controller
     private function restoreImeiNumbers($salesProduct)
     {
         Log::info("Restoring IMEI numbers for sale product ID {$salesProduct->id}");
-        
+
         // Get all IMEI numbers associated with this sale product
         $saleImeis = SaleImei::where('sale_product_id', $salesProduct->id)->get();
-        
+
         foreach ($saleImeis as $saleImei) {
             // Update IMEI status back to 'available'
             $updated = ImeiNumber::where('imei_number', $saleImei->imei_number)
@@ -1211,17 +1212,17 @@ class SaleController extends Controller
                 ->where('batch_id', $saleImei->batch_id)
                 ->where('location_id', $saleImei->location_id)
                 ->update(['status' => 'available']);
-                
+
             if ($updated) {
                 Log::info("IMEI {$saleImei->imei_number} restored to available status");
             } else {
                 Log::warning("Failed to restore IMEI {$saleImei->imei_number} to available status");
             }
-            
+
             // Delete the sale IMEI record
             $saleImei->delete();
         }
-        
+
         Log::info("Completed IMEI restoration for sale product ID {$salesProduct->id}");
     }
 
@@ -1395,7 +1396,7 @@ class SaleController extends Controller
                     }
 
                     $batchId = $product->batch_id ?? 'all';
-                    
+
                     // Get current available stock
                     $currentStock = $batchId === 'all'
                         ? DB::table('location_batches')
@@ -1404,7 +1405,7 @@ class SaleController extends Controller
                         ->where('location_batches.location_id', $product->location_id)
                         ->sum('location_batches.qty')
                         : Sale::getAvailableStock($batchId, $product->location_id);
-                    
+
                     // For editing: max allowed = current stock + quantity from this sale
                     // This represents what would be available if we "undo" this sale
                     $totalAllowedQuantity = $currentStock + $product->quantity;

@@ -21,6 +21,7 @@ class Sale extends Model
         'sales_date',
         'location_id',
         'user_id',
+        'updated_by',
         'status',
         'sale_type',
         'invoice_no',
@@ -69,6 +70,12 @@ class Sale extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    // Relationship: User who last updated this sale
+    public function updatedBy()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 
     public function products()

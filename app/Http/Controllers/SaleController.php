@@ -1219,7 +1219,8 @@ class SaleController extends Controller
                     'final_total' => $finalTotal,
                     'discount_type' => $request->discount_type,
                     'discount_amount' => $discount,
-                    'user_id' => auth()->id(),
+                    'user_id' => $isUpdate ? $sale->user_id : auth()->id(), // Keep original creator
+                    'updated_by' => $isUpdate ? auth()->id() : null, // Track who edited
                     'total_paid' => $totalPaid,
                     'total_due' => $totalDue,
                     'amount_given' => $amountGiven,
