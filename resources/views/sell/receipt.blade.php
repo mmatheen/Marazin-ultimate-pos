@@ -15,9 +15,10 @@
                 left: 0 !important;
                 top: 0 !important;
                 width: 100% !important;
-                height: 100% !important;
+                height: auto !important;
                 font-size: 12px !important;
                 font-family: Arial, sans-serif !important;
+                page-break-inside: avoid !important;
             }
 
             .receipt-title,
@@ -36,6 +37,7 @@
             .table {
                 width: 100% !important;
                 border-collapse: collapse !important;
+                page-break-inside: auto !important;
             }
 
             .table th,
@@ -43,6 +45,15 @@
                 padding: 2px 4px !important;
                 font-size: 10px !important;
                 vertical-align: top;
+            }
+            
+            .table tr {
+                page-break-inside: avoid !important;
+                page-break-after: auto !important;
+            }
+            
+            .table tbody {
+                page-break-inside: auto !important;
             }
 
             .text-end {
