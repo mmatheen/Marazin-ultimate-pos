@@ -6,19 +6,28 @@
     <title>RECEIPT</title>
     <style>
         @page {
+            size: 80mm auto;
             margin: 5px;
         }
 
         @media print {
+            html, body {
+                width: 80mm;
+                height: auto;
+                margin: 0;
+                padding: 0;
+            }
+
             #printArea {
-                position: absolute !important;
+                position: relative !important;
                 left: 0 !important;
                 top: 0 !important;
-                width: 100% !important;
+                width: 80mm !important;
                 height: auto !important;
                 font-size: 12px !important;
                 font-family: Arial, sans-serif !important;
-                page-break-inside: avoid !important;
+                page-break-inside: auto !important;
+                page-break-after: auto !important;
             }
 
             .receipt-title,
@@ -38,6 +47,7 @@
                 width: 100% !important;
                 border-collapse: collapse !important;
                 page-break-inside: auto !important;
+                page-break-after: auto !important;
             }
 
             .table th,
@@ -46,14 +56,19 @@
                 font-size: 10px !important;
                 vertical-align: top;
             }
-            
+
             .table tr {
                 page-break-inside: avoid !important;
                 page-break-after: auto !important;
             }
-            
+
             .table tbody {
                 page-break-inside: auto !important;
+                page-break-after: auto !important;
+            }
+
+            .table thead {
+                display: table-header-group !important;
             }
 
             .text-end {

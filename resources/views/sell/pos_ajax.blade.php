@@ -11095,10 +11095,10 @@
 
                 case 'F8':
                     event.preventDefault();
-                    const discountInput = document.querySelector('#global-discount');
-                    if (discountInput) {
-                        discountInput.focus();
-                        discountInput.select();
+                    // Trigger cancel/reset form
+                    const cancelButton = document.getElementById('cancelButton');
+                    if (cancelButton) {
+                        cancelButton.click();
                     }
                     break;
 
