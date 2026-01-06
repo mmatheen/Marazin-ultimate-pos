@@ -1,7 +1,7 @@
 @extends('layout.layout')
 
 @push('styles')
-    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+    <link rel="stylesheet" type="text/css" href="{{ asset('vendor/daterangepicker/daterangepicker.css') }}" />
     <style>
         /* Fix Select2 alignment and sizing */
         .select2-container {

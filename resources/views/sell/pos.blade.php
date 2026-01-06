@@ -11,7 +11,7 @@
     <link rel="icon" href="{{ $activeSetting?->favicon_url }}" type="image/x-icon">
     <link rel="shortcut icon" href="{{ $activeSetting?->favicon_url }}" type="image/x-icon">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="{{ asset('vendor/font-awesome/css/all.min.css') }}">
     <link
         href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;0,900;1,400;1,500;1,700&display=swap"
         rel="stylesheet">
@@ -26,9 +26,9 @@
     <link rel="stylesheet" href="{{ asset('assets/plugins/toastr/toatr.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/summernote/summernote-bs4.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.css">
+    <link rel="stylesheet" href="{{ asset('vendor/sweetalert/css/sweetalert.min.css') }}">
     <link rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.6/jquery.inputmask.min.css">
+        href="{{ asset('vendor/inputmask/jquery.inputmask.min.css') }}">
 
     <link rel="stylesheet" href="{{ asset('assets/css/pos_page_style/pos-main.css') }}">
 
@@ -2421,7 +2421,7 @@
             });
         </script>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.js"></script>
+    <script src="{{ asset('vendor/sweetalert/js/sweetalert.min.js') }}"></script>
 
     <!-- Include Bootstrap JS -->
     @include('sell.pos_ajax')

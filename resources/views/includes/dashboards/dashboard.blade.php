@@ -472,9 +472,9 @@
             margin-bottom: 15px;
         }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.6.0/chart.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/date-fns/2.21.3/date-fns.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@1.0.0/dist/chartjs-adapter-date-fns.bundle.min.js">
+    <script src="{{ asset('vendor/chartjs/chart.min.js') }}"></script>
+    <script src="{{ asset('vendor/date-fns/date-fns.min.js') }}"></script>
+    <script src="{{ asset('vendor/chartjs-adapter-date-fns/chartjs-adapter-date-fns.bundle.min.js') }}">
     </script>
 
     <script>
