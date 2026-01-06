@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Artisan;
 use Carbon\Carbon;
 use App\Events\StockUpdated;
 use App\Models\Discount;
@@ -1907,6 +1908,8 @@ class ProductController extends Controller
                 'max_retail_price',
                 'is_active'
             ])
+                // Force fresh query - no caching
+                ->from(DB::raw('products FORCE INDEX FOR JOIN (PRIMARY)'))
                 ->with([
                     'locations' => function ($query) use ($userLocationIds) {
                         $query->select('locations.id', 'locations.name');
@@ -2161,6 +2164,23 @@ class ProductController extends Controller
                     $locationData = collect([]);
                 }
 
+                // ✅ CRITICAL: Get latest batch with stock to determine current selling prices
+                $latestBatch = $filteredBatches
+                    ->filter(function($batch) use ($locationId) {
+                        $locationBatches = $locationId
+                            ? $batch->locationBatches->where('location_id', $locationId)
+                            : $batch->locationBatches;
+                        return $locationBatches->sum('qty') > 0;
+                    })
+                    ->sortByDesc('created_at')
+                    ->first();
+
+                // Use batch prices if available, otherwise use product table prices
+                $currentRetailPrice = $latestBatch ? (float)$latestBatch->retail_price : (float)$product->retail_price;
+                $currentWholesalePrice = $latestBatch ? (float)$latestBatch->wholesale_price : (float)$product->whole_sale_price;
+                $currentSpecialPrice = $latestBatch ? (float)$latestBatch->special_price : (float)$product->special_price;
+                $currentMaxRetailPrice = $latestBatch ? (float)$latestBatch->max_retail_price : (float)$product->max_retail_price;
+
                 // Build final product stock array
                 $productStocks[] = [
                     'product' => [
@@ -2186,11 +2206,13 @@ class ProductController extends Controller
                         'product_type' => $product->product_type ?? '',
                         'pax' => $product->pax ?? 0,
                         'original_price' => $product->original_price ?? 0,
-                        'retail_price' => $product->retail_price ?? 0,
-                        'whole_sale_price' => $product->whole_sale_price ?? 0,
-                        'special_price' => $product->special_price ?? 0,
-                        'max_retail_price' => $product->max_retail_price ?? 0,
+                        // ✅ Use current prices from latest batch if available
+                        'retail_price' => $currentRetailPrice,
+                        'whole_sale_price' => $currentWholesalePrice,
+                        'special_price' => $currentSpecialPrice,
+                        'max_retail_price' => $currentMaxRetailPrice,
                         'is_active' => $product->is_active ?? 0,
+                        'latest_batch_id' => $latestBatch ? $latestBatch->id : null, // Track which batch is being used
                     ],
                     'total_stock' => $totalStock,
                     'batches' => $filteredBatches->map(function ($batch) use ($allowDecimal, $locationId) {
@@ -3191,10 +3213,12 @@ class ProductController extends Controller
 
         try {
             DB::transaction(function () use ($request) {
+                $productIds = []; // Track which products need price updates
+
                 foreach ($request->batches as $batchData) {
                     $batch = Batch::findOrFail($batchData['id']);
 
-                    // Update all editable prices including unit_cost
+                    // Update all batch prices including unit_cost
                     $batch->update([
                         'unit_cost' => $batchData['unit_cost'],
                         'wholesale_price' => $batchData['wholesale_price'],
@@ -3202,16 +3226,27 @@ class ProductController extends Controller
                         'retail_price' => $batchData['retail_price'],
                         'max_retail_price' => $batchData['max_retail_price'],
                     ]);
+
+                    // Track product for price update
+                    if (!in_array($batch->product_id, $productIds)) {
+                        $productIds[] = $batch->product_id;
+                    }
+                }
+
+                // Update product selling prices from latest batch prices
+                foreach ($productIds as $productId) {
+                    $this->updateProductPricesFromLatestBatch($productId);
                 }
             });
 
-            // Clear product-related caches after batch prices update
-            $this->clearProductCaches();
+            // Comprehensive cache clearing to ensure fresh data everywhere
+            $this->clearAllProductRelatedCaches();
 
             return response()->json([
                 'status' => 200,
                 'message' => 'Batch prices updated successfully!',
-                'cache_cleared' => true
+                'cache_cleared' => true,
+                'timestamp' => time() // Send timestamp for cache busting
             ]);
         } catch (\Exception $e) {
             Log::error('Error updating batch prices: ' . $e->getMessage());
@@ -3223,42 +3258,89 @@ class ProductController extends Controller
     }
 
     /**
-     * Clear all product-related caches
+     * Clear ALL product-related caches aggressively
      */
-    private function clearProductCaches()
+    private function clearAllProductRelatedCaches()
     {
         try {
-            // Clear specific cache patterns
-            $patterns = [
-                'product_dropdown_data_user_*',
-                'product_stocks_*',
-                'autocomplete_stock_*'
-            ];
+            // 1. Clear user-specific product caches for ALL users
+            self::clearProductDetailsCache(); // Clears all users
 
-            // Get all current users to clear their specific caches
+            // 2. Clear specific cache keys
             $userIds = DB::table('users')->pluck('id');
-
             foreach ($userIds as $userId) {
                 Cache::forget("product_dropdown_data_user_{$userId}");
+                Cache::forget("initial_product_details_user_{$userId}");
+                Cache::forget("initial_product_details_api_user_{$userId}");
+                Cache::forget("product_stocks_{$userId}");
+                Cache::forget("autocomplete_stock_{$userId}");
             }
 
-            // Clear other product-related caches
+            // 3. Clear general product caches
             Cache::forget('all_products');
             Cache::forget('all_categories');
             Cache::forget('all_brands');
+            Cache::forget('locations_list');
+            Cache::forget('cities_list');
+            Cache::forget('customer_groups_list');
+            Cache::forget('main_categories_list');
+            Cache::forget('sub_categories_list');
+            Cache::forget('brands_list');
 
-            // If using cache tags (Redis, Memcached)
+            // 4. Clear cache tags if supported (Redis, Memcached)
             try {
                 if (method_exists(Cache::getStore(), 'tags')) {
-                    Cache::tags(['products', 'batches', 'stocks'])->flush();
+                    Cache::tags(['products', 'batches', 'stocks', 'prices'])->flush();
                 }
             } catch (\Exception $e) {
-                // Ignore if tags are not supported
+                Log::debug('Cache tags not supported: ' . $e->getMessage());
             }
 
-            Log::info('Product caches cleared after batch price update');
+            // 5. Clear Laravel's application cache
+            Artisan::call('cache:clear');
+            Artisan::call('config:clear');
+            Artisan::call('route:clear');
+            Artisan::call('view:clear');
+
+            Log::info('✅ All product caches cleared successfully after batch price update');
+
+            return true;
         } catch (\Exception $e) {
-            Log::warning('Could not clear product caches: ' . $e->getMessage());
+            Log::error('❌ Error clearing product caches: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Update product selling prices from the latest batch
+     * This ensures the product table displays current batch prices
+     */
+    private function updateProductPricesFromLatestBatch($productId)
+    {
+        try {
+            // Get the latest batch with stock
+            $latestBatch = Batch::where('product_id', $productId)
+                ->whereHas('locationBatches', function($q) {
+                    $q->where('qty', '>', 0);
+                })
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if ($latestBatch) {
+                // Update product prices from latest batch
+                Product::where('id', $productId)->update([
+                    'retail_price' => $latestBatch->retail_price,
+                    'whole_sale_price' => $latestBatch->wholesale_price,
+                    'special_price' => $latestBatch->special_price,
+                    'max_retail_price' => $latestBatch->max_retail_price,
+                ]);
+
+                Log::info("✅ Updated product #{$productId} prices from latest batch #{$latestBatch->id}");
+            } else {
+                Log::warning("⚠️ No batch with stock found for product #{$productId}");
+            }
+        } catch (\Exception $e) {
+            Log::error("❌ Error updating product prices from batch: " . $e->getMessage());
         }
     }
 }

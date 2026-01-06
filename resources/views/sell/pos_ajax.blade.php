@@ -56,9 +56,9 @@
         };
     }
 
-        // Search results cache - 30 seconds for fast autocomplete while keeping data relatively fresh
+        // Search results cache - DISABLED for real-time data
         let searchCache = new Map();
-        let searchCacheExpiry = 30 * 1000; // 30 seconds cache for performance
+        let searchCacheExpiry = 0; // Set to 0 to disable caching
 
         // DOM element cache to avoid repeated getElementById calls
         let domElementCache = {};
@@ -70,7 +70,7 @@
         function clearAllCaches() {
             customerCache.clear();
             staticDataCache.clear();
-            searchCache.clear();
+            searchCache.clear(); // Clear autocomplete search cache
             domElementCache = {};
             customerPriceCache.clear(); // Clear customer price cache
             // Clear location cache
@@ -79,12 +79,16 @@
             // Clear image failure cache
             failedImages.clear();
             imageAttempts.clear();
-            console.log('🗑️ All caches cleared due to data update');
+            console.log('🗑️ All caches cleared including autocomplete search cache');
         }
 
         // Listen for storage events from other tabs/windows
         window.addEventListener('storage', function(e) {
-            if (e.key === 'product_cache_invalidate') {
+            // Listen for multiple cache invalidation keys
+            if (e.key === 'product_cache_invalidate' ||
+                e.key === 'force_product_refresh' ||
+                e.key === 'batch_prices_updated') {
+                console.log('🔔 Cache invalidation detected:', e.key);
                 clearAllCaches();
                 // Refresh current product display
                 if (selectedLocationId) {
@@ -3633,7 +3637,8 @@
                 data: {
                     location_id: selectedLocationId,
                     search: term,
-                    per_page: 50 // Optimized for speed - 50 results is sufficient for autocomplete
+                    per_page: 50, // Optimized for speed - 50 results is sufficient for autocomplete
+                    _: new Date().getTime() // Cache busting - force fresh data on every request
                 },
                 cache: false, // ✅ Prevent browser caching - always fetch fresh stock data
                 timeout: 10000,

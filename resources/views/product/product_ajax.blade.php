@@ -1194,6 +1194,11 @@
             `;
     }
 
+    // Make fetchProductData globally accessible for cache invalidation
+    window.initializeProductTable = function() {
+        fetchProductData();
+    };
+
     function fetchProductData() {
         if ($.fn.DataTable.isDataTable('#productTable')) {
             $('#productTable').DataTable().destroy();
@@ -1204,12 +1209,12 @@
             processing: true,
             serverSide: true,
             deferRender: true, // Improve performance for large datasets
-            stateSave: true, // Save table state (pagination, search, etc.)
+            stateSave: false, // DISABLE state saving to prevent cached data
             ajax: {
                 url: '/products/stocks',
                 type: 'GET',
-                dataType: 'json', // Ensure jQuery expects JSON
-                cache: true, // Enable caching
+                dataType: 'json',
+                cache: false, // DISABLE caching - always fetch fresh data
                 timeout: 60000, // 60 second timeout for large datasets
                 data: function(d) {
                     // DataTables sends search and paging params in 'd'
@@ -1242,7 +1247,9 @@
                         location_id: locationId,
                         stock_status: $('#stockStatusFilter').val(),
                         // Show all products (active and inactive) in product list
-                        show_all: true
+                        show_all: true,
+                        // Cache busting - force fresh data on every request
+                        _: new Date().getTime()
                     };
                     // Debug: Log the location filter value being sent
                     if (locationId) {
@@ -4202,48 +4209,69 @@
     // Save batch prices
     $('#saveBatchPrices').on('click', function() {
         const batches = [];
+        const batchIds = new Set(); // Track processed batch IDs to avoid duplicates
 
-        // Collect data from desktop table (visible on md+ screens)
-        $('#batchPricesTableBody tr[data-batch-id]').each(function() {
-            if ($(this).is(':visible')) {
+        // Determine which view is currently visible based on screen size
+        const isDesktopView = window.innerWidth >= 768; // Bootstrap md breakpoint
+
+        if (isDesktopView) {
+            // Collect data from desktop table (visible on md+ screens)
+            console.log('Collecting batch data from desktop view');
+            $('#batchPricesTableBody tr[data-batch-id]').each(function() {
                 const batchId = $(this).data('batch-id');
-                const unitCost = $(this).find('input[name="unit_cost"]').val();
-                const wholesalePrice = $(this).find('input[name="wholesale_price"]').val();
-                const specialPrice = $(this).find('input[name="special_price"]').val();
-                const retailPrice = $(this).find('input[name="retail_price"]').val();
-                const maxRetailPrice = $(this).find('input[name="max_retail_price"]').val();
 
-                batches.push({
-                    id: batchId,
-                    unit_cost: parseFloat(unitCost),
-                    wholesale_price: parseFloat(wholesalePrice),
-                    special_price: parseFloat(specialPrice),
-                    retail_price: parseFloat(retailPrice),
-                    max_retail_price: parseFloat(maxRetailPrice)
-                });
-            }
-        });
+                if (!batchIds.has(batchId)) {
+                    const unitCost = $(this).find('input[name="unit_cost"]').val();
+                    const wholesalePrice = $(this).find('input[name="wholesale_price"]').val();
+                    const specialPrice = $(this).find('input[name="special_price"]').val();
+                    const retailPrice = $(this).find('input[name="retail_price"]').val();
+                    const maxRetailPrice = $(this).find('input[name="max_retail_price"]').val();
 
-        // Collect data from mobile cards (visible on sm screens)
-        $('#batchPricesMobile .card[data-batch-id]').each(function() {
-            if ($(this).is(':visible')) {
+                    const batchData = {
+                        id: batchId,
+                        unit_cost: parseFloat(unitCost) || 0,
+                        wholesale_price: parseFloat(wholesalePrice) || 0,
+                        special_price: parseFloat(specialPrice) || 0,
+                        retail_price: parseFloat(retailPrice) || 0,
+                        max_retail_price: parseFloat(maxRetailPrice) || 0
+                    };
+
+                    batches.push(batchData);
+                    batchIds.add(batchId);
+                    console.log('Added batch from desktop:', batchData);
+                }
+            });
+        } else {
+            // Collect data from mobile cards (visible on sm screens)
+            console.log('Collecting batch data from mobile view');
+            $('#batchPricesMobile .card[data-batch-id]').each(function() {
                 const batchId = $(this).data('batch-id');
-                const unitCost = $(this).find('input[name="unit_cost"]').val();
-                const wholesalePrice = $(this).find('input[name="wholesale_price"]').val();
-                const specialPrice = $(this).find('input[name="special_price"]').val();
-                const retailPrice = $(this).find('input[name="retail_price"]').val();
-                const maxRetailPrice = $(this).find('input[name="max_retail_price"]').val();
 
-                batches.push({
-                    id: batchId,
-                    unit_cost: parseFloat(unitCost),
-                    wholesale_price: parseFloat(wholesalePrice),
-                    special_price: parseFloat(specialPrice),
-                    retail_price: parseFloat(retailPrice),
-                    max_retail_price: parseFloat(maxRetailPrice)
-                });
-            }
-        });
+                if (!batchIds.has(batchId)) {
+                    const unitCost = $(this).find('input[name="unit_cost"]').val();
+                    const wholesalePrice = $(this).find('input[name="wholesale_price"]').val();
+                    const specialPrice = $(this).find('input[name="special_price"]').val();
+                    const retailPrice = $(this).find('input[name="retail_price"]').val();
+                    const maxRetailPrice = $(this).find('input[name="max_retail_price"]').val();
+
+                    const batchData = {
+                        id: batchId,
+                        unit_cost: parseFloat(unitCost) || 0,
+                        wholesale_price: parseFloat(wholesalePrice) || 0,
+                        special_price: parseFloat(specialPrice) || 0,
+                        retail_price: parseFloat(retailPrice) || 0,
+                        max_retail_price: parseFloat(maxRetailPrice) || 0
+                    };
+
+                    batches.push(batchData);
+                    batchIds.add(batchId);
+                    console.log('Added batch from mobile:', batchData);
+                }
+            });
+        }
+
+        console.log('Total batches to save:', batches.length);
+        console.log('Batch data:', batches);
 
         if (batches.length === 0) {
             toastr.warning('No batch data to save', 'Warning');
@@ -4261,27 +4289,64 @@
                 _token: $('meta[name="csrf-token"]').attr('content')
             },
             success: function(response) {
-                if (response.status === 200) {
-                    toastr.success(response.message, 'Success');
-                    $('#batchPricesModal').modal('hide');
+                console.log('✅ Server response:', response);
 
-                    // Notify all browser tabs that product data has been updated
-                    // This will clear caches in POS and other product-related pages
-                    localStorage.setItem('product_cache_invalidate', Date.now());
+                if (response.status === 200) {
+                    console.log('✅ Batch prices updated successfully!');
+                    toastr.success(response.message, 'Success');
+
+                    // AGGRESSIVE CACHE CLEARING - Notify all browser tabs
+                    const cacheInvalidateKey = 'product_cache_invalidate_' + (response.timestamp || Date.now());
+                    localStorage.setItem('product_cache_invalidate', cacheInvalidateKey);
+                    localStorage.setItem('force_product_refresh', Date.now());
+                    localStorage.setItem('batch_prices_updated', Date.now());
+
+                    // Broadcast to all tabs
                     setTimeout(() => {
                         localStorage.removeItem('product_cache_invalidate');
-                    }, 1000);
+                        localStorage.removeItem('force_product_refresh');
+                        localStorage.removeItem('batch_prices_updated');
+                    }, 2000);
 
-                    // Reload DataTable if it exists
+                    // Close modal
+                    $('#batchPricesModal').modal('hide');
+
+                    // FORCE DataTable reload with cache busting
                     if ($.fn.DataTable.isDataTable('#productTable')) {
-                        $('#productTable').DataTable().ajax.reload(null, false);
+                        console.log('🔄 Force reloading product table with cache busting...');
+
+                        const table = $('#productTable').DataTable();
+
+                        // Method 1: Destroy and reinitialize (most aggressive)
+                        table.destroy();
+
+                        // Wait a moment then reinitialize
+                        setTimeout(function() {
+                            // Re-trigger the initialization (the page should have a function for this)
+                            if (typeof window.initializeProductTable === 'function') {
+                                window.initializeProductTable();
+                            } else {
+                                // Fallback: reload page if necessary
+                                location.reload();
+                            }
+                        }, 300);
+                    } else {
+                        // If DataTable doesn't exist, just reload the page
+                        console.log('🔄 DataTable not found, reloading page...');
+                        setTimeout(() => location.reload(), 500);
                     }
                 } else {
+                    console.error('❌ Server returned non-200 status:', response);
                     toastr.error(response.message || 'Failed to update batch prices', 'Error');
                 }
             },
             error: function(xhr, status, error) {
-                console.error('Error saving batch prices:', error);
+                console.error('AJAX Error:', {
+                    status: status,
+                    error: error,
+                    response: xhr.responseJSON,
+                    responseText: xhr.responseText
+                });
 
                 let errorMessage = 'Failed to save batch prices';
                 if (xhr.responseJSON && xhr.responseJSON.message) {

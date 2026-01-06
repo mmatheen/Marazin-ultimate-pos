@@ -561,8 +561,7 @@
                                 <tr>
                                     <th class="text-nowrap">Batch No</th>
                                     <th class="text-nowrap">Stock</th>
-                                    <th class="text-nowrap d-none d-md-table-cell">Cost Price <small
-                                            class="text-muted d-block">(Not Editable)</small></th>
+                                    <th class="text-nowrap d-none d-md-table-cell">Cost Price</th>
                                     <th class="text-nowrap">Wholesale</th>
                                     <th class="text-nowrap">Special</th>
                                     <th class="text-nowrap">Retail</th>
