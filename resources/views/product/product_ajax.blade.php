@@ -4129,9 +4129,12 @@
             }
         });
     });
+</script>
 
-    // Batch Prices Modal Functions
-    function loadBatchPricesModal(productId) {
+<!-- Batch Prices Modal Functions -->
+<script>
+    // Make loadBatchPricesModal globally accessible
+    window.loadBatchPricesModal = function(productId) {
         $.ajax({
             url: `/product/${productId}/batches`,
             method: 'GET',
@@ -4148,9 +4151,9 @@
                 toastr.error('Failed to load batch data', 'Error');
             }
         });
-    }
+    };
 
-    function populateBatchPricesModal(product, batches) {
+    window.populateBatchPricesModal = function(product, batches) {
         // Set product info
         $('#productName').text(product.product_name);
         $('#productSku').text(product.sku);
@@ -4188,13 +4191,29 @@
                 0);
 
             // Format locations with proper quantity formatting
-            let locationsText = 'No locations';
+            let locationsDisplay = 'No locations';
+            let locationsFullText = '';
+            
             if (batch.locations && batch.locations.length > 0) {
-                locationsText = batch.locations.map(loc => {
-                    const locQty = allowDecimal ? parseFloat(loc.qty || 0).toFixed(2) : parseInt(loc
-                        .qty || 0);
+                // Create full locations text
+                locationsFullText = batch.locations.map(loc => {
+                    const locQty = allowDecimal ? parseFloat(loc.qty || 0).toFixed(2) : parseInt(loc.qty || 0);
                     return `${loc.name} (${locQty})`;
                 }).join(', ');
+                
+                // For display: show first 2 locations, then "View More" button if there are more
+                if (batch.locations.length <= 2) {
+                    locationsDisplay = locationsFullText;
+                } else {
+                    const firstTwo = batch.locations.slice(0, 2).map(loc => {
+                        const locQty = allowDecimal ? parseFloat(loc.qty || 0).toFixed(2) : parseInt(loc.qty || 0);
+                        return `${loc.name} (${locQty})`;
+                    }).join(', ');
+                    const remaining = batch.locations.length - 2;
+                    const escapedLocations = locationsFullText.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                    const escapedBatch = (batch.batch_no || 'N/A').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                    locationsDisplay = firstTwo + ' <button type="button" class="btn btn-sm btn-link p-0 view-batch-locations" data-locations="' + escapedLocations + '" data-batch="' + escapedBatch + '" style="font-size: 0.75rem;">+' + remaining + ' more</button>';
+                }
             }
 
             // Format expiry date
@@ -4214,7 +4233,7 @@
                     <td><input type="number" class="form-control form-control-sm price-input" name="retail_price" value="${parseFloat(batch.retail_price || 0).toFixed(2)}" min="0" step="0.01" placeholder="0.00"></td>
                     <td><input type="number" class="form-control form-control-sm price-input" name="max_retail_price" value="${parseFloat(batch.max_retail_price || 0).toFixed(2)}" min="0" step="0.01" placeholder="0.00"></td>
                     <td class="d-none d-lg-table-cell">${expiryDate}</td>
-                    <td class="d-none d-lg-table-cell"><small class="text-muted">${locationsText}</small></td>
+                    <td class="d-none d-lg-table-cell"><small class="text-muted">${locationsDisplay}</small></td>
                 </tr>
             `;
             $('#batchPricesTableBody').append(row);
@@ -4258,8 +4277,12 @@
                         <div class="row mt-2">
                             <div class="col-12">
                                 <small class="text-muted">
-                                    <strong>Expiry:</strong> ${expiryDate} |
-                                    <strong>Locations:</strong> ${locationsText}
+                                    <strong>Expiry:</strong> ${expiryDate}
+                                </small>
+                            </div>
+                            <div class="col-12 mt-1">
+                                <small class="text-muted">
+                                    <strong>Locations:</strong> ${locationsDisplay}
                                 </small>
                             </div>
                         </div>
@@ -4454,10 +4477,41 @@
                 $('#locationsTableBody').append(row);
             });
         } else {
-            $('#locationsTableBody').append('<tr><td colspan="3" class="text-center text-muted">No locations found</td></tr>');
+            $('#locationsTableBody').append(
+                '<tr><td colspan="3" class="text-center text-muted">No location data</td></tr>'
+            );
         }
 
-        // Show modal
+        $('#locationsModal').modal('show');
+    });
+
+    // Handle batch locations view button click
+    $(document).on('click', '.view-batch-locations', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const locations = $(this).data('locations');
+        const batchNo = $(this).data('batch');
+
+        // Set modal title
+        $('#locationsModalTitle').text('Batch ' + batchNo + ' - Locations');
+
+        // Split locations and create grid layout
+        const locationArray = locations.split(', ');
+        
+        let locationsList = '<div class="container-fluid"><div class="row g-2">';
+        locationArray.forEach(function(loc) {
+            locationsList += '<div class="col-md-4 col-sm-6 col-12">' +
+                '<div class="p-2 bg-light rounded text-center" style="font-size: 0.875rem; min-height: 45px; display: flex; align-items: center; justify-content: center; word-wrap: break-word; overflow-wrap: break-word;">' +
+                loc +
+                '</div></div>';
+        });
+        locationsList += '</div></div>';
+
+        // Populate modal content
+        $('#locationsModalContent').html(locationsList);
+
+        // Show the modal
         $('#locationsModal').modal('show');
     });
 
