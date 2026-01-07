@@ -492,7 +492,13 @@
 
     @php
         $total_discount = $products->sum(function ($product) {
-            return ($product->product->max_retail_price - $product->price) * $product->quantity;
+            $mrp = $product->product->max_retail_price ?? 0;
+            $price = $product->price;
+            // Only count as discount if MRP exists and is greater than selling price
+            if ($mrp > 0 && $mrp > $price) {
+                return ($mrp - $price) * $product->quantity;
+            }
+            return 0;
         });
 
         // Calculate bill discount if exists
