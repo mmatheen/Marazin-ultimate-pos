@@ -203,6 +203,13 @@
         let salesRepCustomersLoaded = false; // Track if customers have been loaded for this session
         const perPage = 24;
 
+        // Expose key variables to window for debugging
+        window.selectedLocationId = selectedLocationId;
+        window.allProducts = allProducts;
+        window.isLoadingProducts = isLoadingProducts;
+        window.hasMoreProducts = hasMoreProducts;
+        window.currentProductsPage = currentProductsPage;
+
         // Location cache to prevent redundant API calls
         let cachedLocations = null;
         let locationCacheExpiry = null;
@@ -2679,9 +2686,13 @@
         // ---- PAGINATED PRODUCT FETCH ----
         function handleLocationChange(event) {
             selectedLocationId = $(event.target).val();
+            window.selectedLocationId = selectedLocationId; // Update window variable for debugging
             currentProductsPage = 1;
+            window.currentProductsPage = currentProductsPage;
             hasMoreProducts = true;
+            window.hasMoreProducts = hasMoreProducts;
             allProducts = [];
+            window.allProducts = allProducts;
 
             // Ensure posProduct is initialized
             if (!posProduct) {
@@ -2698,9 +2709,24 @@
 
             if (selectedLocationId) {
                 console.log(`🔄 Fetching products for location: ${selectedLocationId}`);
+
+                // Show the product list area when location is selected
+                const productListArea = document.getElementById('productListArea');
+                if (productListArea) {
+                    productListArea.classList.remove('d-none');
+                    console.log('✅ Product list area displayed');
+                }
+
                 fetchPaginatedProducts(true);
             } else {
                 console.log('⚠️ No location selected');
+
+                // Hide the product list area when no location is selected
+                const productListArea = document.getElementById('productListArea');
+                if (productListArea) {
+                    productListArea.classList.add('d-none');
+                    console.log('ℹ️ Product list area hidden');
+                }
             }
 
             // Always clear billing body when user manually changes location
@@ -2894,7 +2920,14 @@
 
         function fetchPaginatedProducts(reset = false, attemptNumber = 0) {
             // Basic guards
-            if (isLoadingProducts || !selectedLocationId || !hasMoreProducts) return;
+            if (isLoadingProducts || !selectedLocationId || !hasMoreProducts) {
+                console.log('⚠️ fetchPaginatedProducts blocked:', {
+                    isLoadingProducts,
+                    selectedLocationId,
+                    hasMoreProducts
+                });
+                return;
+            }
 
             isLoadingProducts = true;
             const perPage = 50; // Increased from 24 to 50 to show more products per page
@@ -2912,7 +2945,8 @@
                 }
             }
 
-            const url = `/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=${perPage}`;
+            // Add with_stock=1 to fetch only products with stock > 0 (backend filtering)
+            const url = `/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=${perPage}&with_stock=1`;
 
             // Add CSRF token and headers to prevent 419 errors
             const fetchOptions = {
@@ -2926,7 +2960,7 @@
                 }
             };
 
-            console.log(`Fetching products: ${url} (attempt ${attemptNumber + 1})`);
+            console.log(`Fetching products with stock: ${url} (attempt ${attemptNumber + 1})`);
 
             fetch(url, fetchOptions)
                 .then(res => {
@@ -3003,6 +3037,13 @@
                     console.log('✅ Products fetched successfully:', data);
                     console.log(`📊 Pagination: page=${currentProductsPage}, reset=${reset}, received=${data.data ? data.data.length : 0} products`);
 
+                    // Show product list area when products are fetched
+                    const productListArea = document.getElementById('productListArea');
+                    if (productListArea && selectedLocationId) {
+                        productListArea.classList.remove('d-none');
+                        console.log('✅ Product list area displayed after fetch');
+                    }
+
                     if (!data || data.status !== 200 || !Array.isArray(data.data)) {
                         console.warn('⚠️ Invalid data structure received:', data);
                         if (reset) {
@@ -3039,6 +3080,8 @@
                     // Always keep stockData in sync with allProducts
                     stockData = [...allProducts];
 
+                    console.log(`📊 Page ${currentProductsPage}: Received ${data.data.length} products (backend filtered with stock > 0)`);
+
                     // Display products with proper append logic
                     if (reset) {
                         console.log('Displaying all products (reset mode)');
@@ -3065,6 +3108,7 @@
                     } else {
                         hasMoreProducts = true;
                         currentProductsPage++;
+                        window.currentProductsPage = currentProductsPage;
                     }
                 })
                 .catch(err => {

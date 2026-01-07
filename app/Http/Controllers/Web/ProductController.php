@@ -1985,18 +1985,22 @@ class ProductController extends Controller
             }
 
             // Apply with_stock filter (for POS - only show products with stock > 0)
-            if ($withStock == '1' || $withStock === true) {
+            if ($withStock == '1' || $withStock === true || $withStock === 1) {
                 $query->where(function ($q) use ($locationId, $userLocationIds) {
                     // Include products with unlimited stock (stock_alert = 0)
                     $q->where('stock_alert', 0)
                       // OR products with actual stock > 0 in selected location
-                      ->orWhereHas('batches.locationBatches', function ($bq) use ($locationId, $userLocationIds) {
-                          $bq->where('qty', '>', 0);
-                          if ($locationId) {
-                              $bq->where('location_id', $locationId);
-                          } elseif (!empty($userLocationIds)) {
-                              $bq->whereIn('location_id', $userLocationIds);
-                          }
+                      ->orWhere(function ($subQ) use ($locationId, $userLocationIds) {
+                          $subQ->whereHas('batches', function ($batchQ) use ($locationId, $userLocationIds) {
+                              $batchQ->whereHas('locationBatches', function ($locBatchQ) use ($locationId, $userLocationIds) {
+                                  $locBatchQ->where('qty', '>', 0);
+                                  if ($locationId) {
+                                      $locBatchQ->where('location_id', $locationId);
+                                  } elseif (!empty($userLocationIds)) {
+                                      $locBatchQ->whereIn('location_id', $userLocationIds);
+                                  }
+                              });
+                          });
                       });
                 });
             }
@@ -2153,7 +2157,7 @@ class ProductController extends Controller
                 // Build locations array based on filter
                 // Include locations from both product->locations and from location_batches with stock
                 $productLocations = collect();
-                
+
                 if ($locationId) {
                     // When filtering by location, check if this product has stock in that location
                     $hasStockInLocation = DB::table('location_batches')
@@ -2162,10 +2166,10 @@ class ProductController extends Controller
                         ->where('location_batches.location_id', $locationId)
                         ->where('location_batches.qty', '>', 0)
                         ->exists();
-                    
+
                     // Also check if product is assigned to this location
                     $isAssignedToLocation = $product->locations->contains('id', $locationId);
-                    
+
                     // If product has stock OR is assigned to this location, include the location
                     if ($hasStockInLocation || $isAssignedToLocation) {
                         $location = Location::find($locationId);
@@ -2186,12 +2190,12 @@ class ProductController extends Controller
                         ->select('locations.id', 'locations.name')
                         ->distinct()
                         ->get();
-                    
+
                     // Merge assigned locations and locations with stock
                     $allLocationIds = $assignedLocations->pluck('id')
                         ->merge($locationsWithStock->pluck('id'))
                         ->unique();
-                    
+
                     $productLocations = Location::whereIn('id', $allLocationIds)->get();
                 }
 
