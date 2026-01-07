@@ -459,13 +459,13 @@
             // Set modal title
             $('#locationsModalTitle').text(userName + ' - Locations');
 
-            // Create clean location list with badges
+            // Create clean location list
             const locationsList = locations.split(', ').map(function(loc) {
-                return '<div class="mb-2"><span class="badge bg-primary">' + loc + '</span></div>';
+                return '<span class="badge rounded-pill bg-dark me-1 mb-1" style="font-size: 0.85rem;">' + loc + '</span>';
             }).join('');
 
             // Populate modal content
-            $('#locationsModalContent').html(locationsList);
+            $('#locationsModalContent').html('<div class="text-start">' + locationsList + '</div>');
 
             // Show the modal
             $('#locationsModal').modal('show');
