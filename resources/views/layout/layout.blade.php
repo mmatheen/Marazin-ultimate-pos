@@ -17,10 +17,12 @@
 
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="autocomplete" content="off">
-    {{-- Google Fonts - Keep CDN or download font files separately --}}
-    <link
-        href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;0,900;1,400;1,500;1,700&display=swap"
-        rel="stylesheet">
+    {{-- Using system fonts for offline performance - no external CDN required --}}
+    <style>
+        body, html {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+    </style>
     <link rel="stylesheet" href="{{ asset('assets/plugins/bootstrap/css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/feather/feather.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/icons/flags/flags.css') }}">
