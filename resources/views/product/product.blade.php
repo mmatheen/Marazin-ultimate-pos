@@ -598,18 +598,25 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <table class="table table-sm table-bordered">
-                        <thead class="table-light">
-                            <tr>
-                                <th style="width: 50px;">#</th>
-                                <th>Location Name</th>
-                                <th class="text-end" style="width: 100px;">Stock Qty</th>
-                            </tr>
-                        </thead>
-                        <tbody id="locationsTableBody">
-                            <!-- Location rows will be populated here -->
-                        </tbody>
-                    </table>
+                    <!-- Table view for product locations with stock quantities -->
+                    <div id="locationsTableContainer" style="display:none;">
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 50px;">#</th>
+                                    <th>Location Name</th>
+                                    <th class="text-end" style="width: 100px;">Stock Qty</th>
+                                </tr>
+                            </thead>
+                            <tbody id="locationsTableBody">
+                                <!-- Location rows will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Grid view for batch locations -->
+                    <div id="locationsModalContent" style="max-height: 400px; overflow-y: auto;">
+                        <!-- Grid layout will be populated here -->
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>

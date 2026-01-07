@@ -4193,14 +4193,14 @@
             // Format locations with proper quantity formatting
             let locationsDisplay = 'No locations';
             let locationsFullText = '';
-            
+
             if (batch.locations && batch.locations.length > 0) {
                 // Create full locations text
                 locationsFullText = batch.locations.map(loc => {
                     const locQty = allowDecimal ? parseFloat(loc.qty || 0).toFixed(2) : parseInt(loc.qty || 0);
                     return `${loc.name} (${locQty})`;
                 }).join(', ');
-                
+
                 // For display: show first 2 locations, then "View More" button if there are more
                 if (batch.locations.length <= 2) {
                     locationsDisplay = locationsFullText;
@@ -4453,13 +4453,17 @@
         });
     });
 
-    // View Locations Modal Handler
+// View Locations Modal Handler (for product locations with stock quantities)
     $(document).on('click', '.view-locations-btn', function(e) {
         e.preventDefault();
         e.stopPropagation();
 
         const locations = $(this).data('locations');
         const productName = $(this).data('product-name');
+
+        // Show table view, hide grid view
+        $('#locationsTableContainer').show();
+        $('#locationsModalContent').hide().empty();
 
         // Populate modal
         $('#locationsModalTitle').text(productName + ' - Locations');
@@ -4485,13 +4489,17 @@
         $('#locationsModal').modal('show');
     });
 
-    // Handle batch locations view button click
+    // Handle batch locations view button click (for batch locations - grid view)
     $(document).on('click', '.view-batch-locations', function(e) {
         e.preventDefault();
         e.stopPropagation();
 
         const locations = $(this).data('locations');
         const batchNo = $(this).data('batch');
+
+        // Hide table view, show grid view
+        $('#locationsTableContainer').hide();
+        $('#locationsTableBody').empty();
 
         // Set modal title
         $('#locationsModalTitle').text('Batch ' + batchNo + ' - Locations');
@@ -4508,8 +4516,8 @@
         });
         locationsList += '</div></div>';
 
-        // Populate modal content
-        $('#locationsModalContent').html(locationsList);
+        // Populate modal content and show it
+        $('#locationsModalContent').html(locationsList).show();
 
         // Show the modal
         $('#locationsModal').modal('show');
