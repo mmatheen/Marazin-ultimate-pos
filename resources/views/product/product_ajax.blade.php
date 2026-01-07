@@ -4506,7 +4506,7 @@
 
         // Split locations and create grid layout
         const locationArray = locations.split(', ');
-        
+
         let locationsList = '<div class="container-fluid"><div class="row g-2">';
         locationArray.forEach(function(loc) {
             locationsList += '<div class="col-md-4 col-sm-6 col-12">' +
