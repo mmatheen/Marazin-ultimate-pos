@@ -456,10 +456,15 @@
             const locations = $(this).data('locations');
             const userName = $(this).data('user');
 
-            // Display locations as simple text
+            // Format locations with line breaks for better readability
+            const formattedLocations = locations.split(', ').map(function(loc, index) {
+                return (index + 1) + '. ' + loc;
+            }).join('\n');
+
+            // Display locations in a nice format
             swal({
                 title: userName + ' - Locations',
-                text: locations,
+                text: formattedLocations,
                 icon: 'info',
                 button: 'Close'
             });
