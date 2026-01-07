@@ -459,13 +459,21 @@
             // Set modal title
             $('#locationsModalTitle').text(userName + ' - Locations');
 
-            // Create clean location list
-            const locationsList = locations.split(', ').map(function(loc) {
-                return '<span class="badge rounded-pill bg-dark me-1 mb-1" style="font-size: 0.85rem;">' + loc + '</span>';
-            }).join('');
+            // Split locations into array
+            const locationArray = locations.split(', ');
+            
+            // Create grid layout (3 per row)
+            let locationsList = '<div class="container-fluid"><div class="row g-2">';
+            locationArray.forEach(function(loc) {
+                locationsList += '<div class="col-md-4 col-sm-6 col-12">' +
+                    '<div class="p-2 bg-light rounded text-center" style="font-size: 0.875rem;">' + 
+                    loc + 
+                    '</div></div>';
+            });
+            locationsList += '</div></div>';
 
             // Populate modal content
-            $('#locationsModalContent').html('<div class="text-start">' + locationsList + '</div>');
+            $('#locationsModalContent').html(locationsList);
 
             // Show the modal
             $('#locationsModal').modal('show');
