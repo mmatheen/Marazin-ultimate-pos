@@ -3535,8 +3535,13 @@
                                 if (batch.location_batches) {
                                     batch.location_batches.forEach(lb => {
                                         if (!locationStocks[lb.location_id]) {
+                                            // Get location name from the loaded location relationship
+                                            const locName = lb.location && lb.location.name 
+                                                ? lb.location.name 
+                                                : (locationMap[lb.location_id] || 'Unknown');
+                                            
                                             locationStocks[lb.location_id] = {
-                                                name: lb.location_name || locationMap[lb.location_id] || 'Unknown',
+                                                name: locName,
                                                 qty: 0
                                             };
                                         }

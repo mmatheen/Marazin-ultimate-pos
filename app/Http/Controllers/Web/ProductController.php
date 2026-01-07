@@ -391,8 +391,9 @@ class ProductController extends Controller
                     'max_retail_price',
                     'expiry_date',
                     'created_at'
-                ])->with('locationBatches') // Include locationBatches relationship (camelCase)
-                ->orderBy('created_at', 'desc'); // Order batches by creation date (newest first)
+                ])->with(['locationBatches' => function($q) {
+                    $q->with('location:id,name'); // Load location with id and name (not location_name)
+                }])->orderBy('created_at', 'desc'); // Order batches by creation date (newest first)
             }
         ]) // Using the correct relationship names
             ->find($id);
