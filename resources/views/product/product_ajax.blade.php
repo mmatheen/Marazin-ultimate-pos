@@ -3546,19 +3546,7 @@
                             });
                         }
 
-                        // Add locations without stock
-                        if (product.locations && product.locations.length > 0) {
-                            product.locations.forEach(loc => {
-                                if (!locationStocks[loc.id]) {
-                                    locationStocks[loc.id] = {
-                                        name: locationMap[loc.id] || loc.name || 'Unknown',
-                                        qty: 0
-                                    };
-                                }
-                            });
-                        }
-
-                        // Build HTML for locations
+                        // Build HTML for locations (only show locations with stock)
                         if (Object.keys(locationStocks).length > 0) {
                             locationHtml = '<div class="d-flex flex-wrap gap-2">';
                             Object.values(locationStocks).forEach(loc => {
@@ -3571,7 +3559,7 @@
                             });
                             locationHtml += '</div>';
                         } else {
-                            locationHtml = '<span class="text-muted">No locations assigned</span>';
+                            locationHtml = '<span class="text-muted">No stock in any location</span>';
                         }
 
                         var details = `
@@ -3612,99 +3600,71 @@
                                     </div>
 
                                     <div class="bg-light p-3 rounded">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <small class="text-muted d-block">Selling Price</small>
-                                                <h4 class="mb-0 text-success">${(() => {
-                                                    let displayPrice = product.retail_price || 0;
-                                                    const selectedLocationId = $('#locationFilter').val();
+                                        ${(() => {
+                                            let displayPrice = product.retail_price || 0;
+                                            let priceSource = 'Default Product Price';
+                                            let batchNo = '';
+                                            const selectedLocationId = $('#locationFilter').val();
 
-                                                    if (product.batches && product.batches.length > 0) {
-                                                        let batchWithPrice = null;
+                                            if (product.batches && product.batches.length > 0) {
+                                                let batchWithPrice = null;
 
-                                                        if (selectedLocationId) {
-                                                            const locationSpecificBatches = product.batches.filter(batch => {
-                                                                return batch.location_batches && batch.location_batches.some(locBatch =>
-                                                                    locBatch.location_id == selectedLocationId &&
-                                                                    parseFloat(locBatch.qty || 0) > 0
-                                                                );
-                                                            });
+                                                if (selectedLocationId) {
+                                                    const locationSpecificBatches = product.batches.filter(batch => {
+                                                        return batch.location_batches && batch.location_batches.some(locBatch =>
+                                                            locBatch.location_id == selectedLocationId &&
+                                                            parseFloat(locBatch.qty || 0) > 0
+                                                        );
+                                                    });
 
-                                                            batchWithPrice = locationSpecificBatches.find(batch =>
-                                                                batch.retail_price !== null &&
-                                                                batch.retail_price !== undefined &&
-                                                                batch.retail_price !== '' &&
-                                                                parseFloat(batch.retail_price) > 0
-                                                            );
-                                                        }
+                                                    batchWithPrice = locationSpecificBatches.find(batch =>
+                                                        batch.retail_price !== null &&
+                                                        batch.retail_price !== undefined &&
+                                                        batch.retail_price !== '' &&
+                                                        parseFloat(batch.retail_price) > 0
+                                                    );
 
-                                                        if (!batchWithPrice) {
-                                                            batchWithPrice = product.batches.find(batch =>
-                                                                batch.retail_price !== null &&
-                                                                batch.retail_price !== undefined &&
-                                                                batch.retail_price !== '' &&
-                                                                parseFloat(batch.retail_price) > 0
-                                                            );
-                                                        }
-
-                                                        if (batchWithPrice) {
-                                                            displayPrice = batchWithPrice.retail_price;
-                                                        }
+                                                    if (batchWithPrice) {
+                                                        const locationName = locationMap[selectedLocationId] || 'Selected Location';
+                                                        priceSource = 'Latest Batch for ' + locationName;
+                                                        batchNo = batchWithPrice.batch_no || 'N/A';
                                                     }
+                                                }
 
-                                                    return 'Rs. ' + parseFloat(displayPrice).toFixed(2);
-                                                })()}</h4>
-                                            </div>
-                                            <div class="text-end">
-                                                <small class="text-muted">${(() => {
-                                                    let priceSource = 'Default Product Price';
-                                                    let batchNo = '';
-                                                    const selectedLocationId = $('#locationFilter').val();
+                                                if (!batchWithPrice) {
+                                                    batchWithPrice = product.batches.find(batch =>
+                                                        batch.retail_price !== null &&
+                                                        batch.retail_price !== undefined &&
+                                                        batch.retail_price !== '' &&
+                                                        parseFloat(batch.retail_price) > 0
+                                                    );
 
-                                                    if (product.batches && product.batches.length > 0) {
-                                                        let batchWithPrice = null;
-
-                                                        if (selectedLocationId) {
-                                                            const locationSpecificBatches = product.batches.filter(batch => {
-                                                                return batch.location_batches && batch.location_batches.some(locBatch =>
-                                                                    locBatch.location_id == selectedLocationId &&
-                                                                    parseFloat(locBatch.qty || 0) > 0
-                                                                );
-                                                            });
-
-                                                            batchWithPrice = locationSpecificBatches.find(batch =>
-                                                                batch.retail_price !== null &&
-                                                                batch.retail_price !== undefined &&
-                                                                batch.retail_price !== '' &&
-                                                                parseFloat(batch.retail_price) > 0
-                                                            );
-
-                                                            if (batchWithPrice) {
-                                                                const locationName = locationMap[selectedLocationId] || 'Selected Location';
-                                                                priceSource = 'Latest Batch for ' + locationName;
-                                                                batchNo = batchWithPrice.batch_no || 'N/A';
-                                                            }
-                                                        }
-
-                                                        if (!batchWithPrice) {
-                                                            batchWithPrice = product.batches.find(batch =>
-                                                                batch.retail_price !== null &&
-                                                                batch.retail_price !== undefined &&
-                                                                batch.retail_price !== '' &&
-                                                                parseFloat(batch.retail_price) > 0
-                                                            );
-
-                                                            if (batchWithPrice) {
-                                                                priceSource = 'Latest Batch';
-                                                                batchNo = batchWithPrice.batch_no || 'N/A';
-                                                            }
-                                                        }
+                                                    if (batchWithPrice) {
+                                                        priceSource = 'Latest Batch';
+                                                        batchNo = batchWithPrice.batch_no || 'N/A';
                                                     }
+                                                }
 
-                                                    return batchNo ? priceSource + ' (' + batchNo + ')' : priceSource;
-                                                })()}</small>
-                                            </div>
-                                        </div>
+                                                if (batchWithPrice) {
+                                                    displayPrice = batchWithPrice.retail_price;
+                                                }
+                                            }
+
+                                            const formattedPrice = 'Rs. ' + parseFloat(displayPrice).toFixed(2);
+                                            const sourceText = batchNo ? priceSource + ' (' + batchNo + ')' : priceSource;
+
+                                            return `
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <small class="text-muted d-block">Selling Price</small>
+                                                        <h4 class="mb-0 text-success">${formattedPrice}</h4>
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <small class="text-muted">${sourceText}</small>
+                                                    </div>
+                                                </div>
+                                            `;
+                                        })()}
                                     </div>
                                 </div>
                             </div>

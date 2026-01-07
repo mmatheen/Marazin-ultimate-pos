@@ -391,7 +391,8 @@ class ProductController extends Controller
                     'max_retail_price',
                     'expiry_date',
                     'created_at'
-                ])->orderBy('created_at', 'desc'); // Order batches by creation date (newest first)
+                ])->with('locationBatches') // Include locationBatches relationship (camelCase)
+                ->orderBy('created_at', 'desc'); // Order batches by creation date (newest first)
             }
         ]) // Using the correct relationship names
             ->find($id);
