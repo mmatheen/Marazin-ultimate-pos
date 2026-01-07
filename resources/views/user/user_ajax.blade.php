@@ -456,16 +456,19 @@
             const locations = $(this).data('locations');
             const userName = $(this).data('user');
 
-            // Format locations with line breaks for better readability
-            const formattedLocations = locations.split(', ').map(function(loc, index) {
-                return (index + 1) + '. ' + loc;
-            }).join('\n');
+            // Create a clean HTML list
+            const locationsList = locations.split(', ').map(function(loc) {
+                return '<div style="padding: 4px 0; text-align: left; font-size: 14px;">• ' + loc + '</div>';
+            }).join('');
 
-            // Display locations in a nice format
+            const contentDiv = document.createElement('div');
+            contentDiv.style.cssText = 'max-height: 400px; overflow-y: auto; text-align: left; padding: 10px;';
+            contentDiv.innerHTML = locationsList;
+
+            // Display locations in a clean format
             swal({
                 title: userName + ' - Locations',
-                text: formattedLocations,
-                icon: 'info',
+                content: contentDiv,
                 button: 'Close'
             });
         });
