@@ -1366,27 +1366,21 @@
                     data: null,
                     render: function(data, type, row) {
                         let locationDisplay = [];
+                        const locationStocks = {};
 
                         if (row.batches && row.batches.length > 0) {
-                            // Collect locations with stock from batches (already filtered by backend location scope)
-                            const locationStocks = {};
-
+                            // Collect locations with stock from batches
                             row.batches.forEach(batch => {
                                 if (batch.location_batches) {
                                     batch.location_batches.forEach(lb => {
                                         if (lb.quantity > 0) {
-                                            if (!locationStocks[lb
-                                                    .location_id]) {
-                                                locationStocks[lb
-                                                    .location_id] = {
-                                                    name: lb
-                                                        .location_name,
+                                            if (!locationStocks[lb.location_id]) {
+                                                locationStocks[lb.location_id] = {
+                                                    name: lb.location_name,
                                                     qty: 0
                                                 };
                                             }
-                                            locationStocks[lb.location_id]
-                                                .qty += parseFloat(lb
-                                                    .quantity);
+                                            locationStocks[lb.location_id].qty += parseFloat(lb.quantity);
                                         }
                                     });
                                 }
@@ -1395,32 +1389,45 @@
                             // Build display array with quantities
                             Object.values(locationStocks).forEach(location => {
                                 if (location.qty > 0) {
-                                    locationDisplay.push(
-                                        `${location.name} (${location.qty})`);
+                                    locationDisplay.push({
+                                        name: location.name,
+                                        qty: location.qty
+                                    });
                                 }
                             });
                         }
 
-                        // Always show all assigned locations, regardless of stock
+                        // Add locations without stock
                         if (row.locations && row.locations.length > 0) {
-                            // Get location names that are not already in locationDisplay
-                            const existingLocationNames = locationDisplay.map(display => {
-                                const match = display.match(/^(.+?)\s*\(/);
-                                return match ? match[1] : display;
-                            });
-
+                            const existingLocationNames = locationDisplay.map(l => l.name);
                             row.locations.forEach(location => {
-                                const locationName = location.location_name ||
-                                    location.name;
-                                if (locationName && !existingLocationNames.includes(
-                                        locationName)) {
-                                    locationDisplay.push(locationName);
+                                const locationName = location.location_name || location.name;
+                                if (locationName && !existingLocationNames.includes(locationName)) {
+                                    locationDisplay.push({
+                                        name: locationName,
+                                        qty: 0
+                                    });
                                 }
                             });
                         }
 
-                        return locationDisplay.length > 0 ? locationDisplay.join(', ') :
-                            'No locations';
+                        if (locationDisplay.length === 0) {
+                            return '<span class="text-muted">No locations</span>';
+                        } else if (locationDisplay.length === 1) {
+                            // Show single location inline
+                            const loc = locationDisplay[0];
+                            return loc.qty > 0 ? `${loc.name} (${loc.qty})` : loc.name;
+                        } else {
+                            // Show button for multiple locations
+                            const locationsJson = JSON.stringify(locationDisplay).replace(/"/g, '&quot;');
+                            const productName = row.product.product_name.replace(/'/g, '\\&#39;');
+                            return `<button class="btn btn-sm btn-info view-locations-btn" 
+                                        data-locations='${locationsJson}' 
+                                        data-product-name="${productName}"
+                                        title="View all locations">
+                                    <i class="fas fa-map-marker-alt"></i> ${locationDisplay.length} Locations
+                                </button>`;
+                        }
                     }
                 },
                 {
@@ -4364,6 +4371,37 @@
                 $('#saveBatchPrices').prop('disabled', false).text('Save Changes');
             }
         });
+    });
+
+    // View Locations Modal Handler
+    $(document).on('click', '.view-locations-btn', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const locations = $(this).data('locations');
+        const productName = $(this).data('product-name');
+        
+        // Populate modal
+        $('#locationsModalTitle').text(productName + ' - Locations');
+        $('#locationsTableBody').empty();
+        
+        if (locations && locations.length > 0) {
+            locations.forEach((location, index) => {
+                const row = `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${location.name}</td>
+                        <td class="text-end">${location.qty > 0 ? '<span class="badge bg-success">' + location.qty + '</span>' : '<span class="badge bg-secondary">0</span>'}</td>
+                    </tr>
+                `;
+                $('#locationsTableBody').append(row);
+            });
+        } else {
+            $('#locationsTableBody').append('<tr><td colspan="3" class="text-center text-muted">No locations found</td></tr>');
+        }
+        
+        // Show modal
+        $('#locationsModal').modal('show');
     });
 
     // Safety net - prevent buttons from being permanently disabled
