@@ -456,19 +456,13 @@
             const locations = $(this).data('locations');
             const userName = $(this).data('user');
 
-            // Create a clean HTML list
-            const locationsList = locations.split(', ').map(function(loc) {
-                return '<div style="padding: 4px 0; text-align: left; font-size: 14px;">• ' + loc + '</div>';
-            }).join('');
-
-            const contentDiv = document.createElement('div');
-            contentDiv.style.cssText = 'max-height: 400px; overflow-y: auto; text-align: left; padding: 10px;';
-            contentDiv.innerHTML = locationsList;
+            // Create a simple bulleted list
+            const locationsList = '• ' + locations.split(', ').join('\n• ');
 
             // Display locations in a clean format
             swal({
                 title: userName + ' - Locations',
-                content: contentDiv,
+                text: locationsList,
                 button: 'Close'
             });
         });
