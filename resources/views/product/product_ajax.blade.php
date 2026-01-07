@@ -3524,98 +3524,190 @@
                         var imagePath = product.product_image ?
                             `/assets/images/${product.product_image}` :
                             '/assets/images/No Product Image Available.png';
+
+                        // Build location display with stock quantities
+                        let locationHtml = '';
+                        const locationStocks = {};
+
+                        // Collect stock by location from batches
+                        if (product.batches && product.batches.length > 0) {
+                            product.batches.forEach(batch => {
+                                if (batch.location_batches) {
+                                    batch.location_batches.forEach(lb => {
+                                        if (!locationStocks[lb.location_id]) {
+                                            locationStocks[lb.location_id] = {
+                                                name: lb.location_name || locationMap[lb.location_id] || 'Unknown',
+                                                qty: 0
+                                            };
+                                        }
+                                        locationStocks[lb.location_id].qty += parseFloat(lb.quantity || lb.qty || 0);
+                                    });
+                                }
+                            });
+                        }
+
+                        // Add locations without stock
+                        if (product.locations && product.locations.length > 0) {
+                            product.locations.forEach(loc => {
+                                if (!locationStocks[loc.id]) {
+                                    locationStocks[loc.id] = {
+                                        name: locationMap[loc.id] || loc.name || 'Unknown',
+                                        qty: 0
+                                    };
+                                }
+                            });
+                        }
+
+                        // Build HTML for locations
+                        if (Object.keys(locationStocks).length > 0) {
+                            locationHtml = '<div class="d-flex flex-wrap gap-2">';
+                            Object.values(locationStocks).forEach(loc => {
+                                const badgeClass = loc.qty > 0 ? 'success' : 'secondary';
+                                locationHtml += `
+                                    <span class="badge bg-${badgeClass} px-3 py-2">
+                                        <i class="fas fa-map-marker-alt me-1"></i>${loc.name} <strong>(${loc.qty})</strong>
+                                    </span>
+                                `;
+                            });
+                            locationHtml += '</div>';
+                        } else {
+                            locationHtml = '<span class="text-muted">No locations assigned</span>';
+                        }
+
                         var details = `
-                        <div class="table-responsive">
-                            <table class="table table-bordered table-striped">
-                                <tbody>
-                                    <tr>
-                                        <td rowspan="8" class="text-center align-middle">
-                                            <img src='${imagePath}' width='150' height='200' class="rounded img-fluid" />
-                                        </td>
-                                        <th scope="row">Product Name</th>
-                                        <td>${product.product_name}</td>
-                                    </tr>
-                                    <tr>
-                                        <th scope="row">SKU</th>
-                                        <td>${product.sku}</td>
-                                    </tr>
-                                    <tr>
-                                        <th scope="row">Category</th>
-                                        <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
-                                    </tr>
-                                    <tr>
-                                        <th scope="row">Brand</th>
-                                        <td>${brandMap[product.brand_id] || 'N/A'}</td>
-                                    </tr>
-                                    <tr>
-                                        <th scope="row">Locations</th>
-                                        <td>${product.locations.map(loc => locationMap[loc.id] || 'N/A').join(', ')}</td>
-                                    </tr>
-                                    <tr>
-                                        <th scope="row">Selling Price</th>
-                                        <td>${(() => {
-                                            let displayPrice = product.retail_price || 0;
-                                            let priceSource = 'Default Product Price';
+                        <div class="row g-0">
+                            <div class="col-md-5">
+                                <div class="h-100 d-flex align-items-center justify-content-center p-4 bg-light">
+                                    <img src='${imagePath}' class="img-fluid rounded shadow" style="max-width: 100%; max-height: 450px; object-fit: cover;" />
+                                </div>
+                            </div>
+                            <div class="col-md-7">
+                                <div class="p-4">
+                                    <h3 class="mb-4 pb-3 border-bottom">${product.product_name}</h3>
 
-                                            // Get current location filter from the main page
-                                            const selectedLocationId = $('#locationFilter').val();
+                                    <div class="row g-3 mb-4">
+                                        <div class="col-6">
+                                            <small class="text-muted d-block mb-1">SKU</small>
+                                            <strong>${product.sku || 'N/A'}</strong>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted d-block mb-1">Category</small>
+                                            <strong>${categoryMap[product.main_category_id] || 'N/A'}</strong>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted d-block mb-1">Brand</small>
+                                            <strong>${brandMap[product.brand_id] || 'N/A'}</strong>
+                                        </div>
+                                        ${product.is_imei_or_serial_no === 1 ? `
+                                        <div class="col-6">
+                                            <small class="text-muted d-block mb-1">IMEI Tracking</small>
+                                            <span class="badge bg-success">Enabled</span>
+                                        </div>
+                                        ` : ''}
+                                    </div>
 
-                                            // Check if product has batches (ordered by newest first)
-                                            if (product.batches && product.batches.length > 0) {
-                                                let batchWithPrice = null;
+                                    <div class="mb-4">
+                                        <small class="text-muted d-block mb-2">Business Locations</small>
+                                        ${locationHtml}
+                                    </div>
 
-                                                if (selectedLocationId) {
-                                                    // Find batches that exist in the selected location
-                                                    const locationSpecificBatches = product.batches.filter(batch => {
-                                                        return batch.location_batches && batch.location_batches.some(locBatch =>
-                                                            locBatch.location_id == selectedLocationId &&
-                                                            parseFloat(locBatch.qty || 0) > 0 // Has stock in this location
-                                                        );
-                                                    });
+                                    <div class="bg-light p-3 rounded">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <small class="text-muted d-block">Selling Price</small>
+                                                <h4 class="mb-0 text-success">${(() => {
+                                                    let displayPrice = product.retail_price || 0;
+                                                    const selectedLocationId = $('#locationFilter').val();
 
-                                                    // Find the most recent batch with valid price for this location
-                                                    batchWithPrice = locationSpecificBatches.find(batch =>
-                                                        batch.retail_price !== null &&
-                                                        batch.retail_price !== undefined &&
-                                                        batch.retail_price !== '' &&
-                                                        parseFloat(batch.retail_price) > 0
-                                                    );
+                                                    if (product.batches && product.batches.length > 0) {
+                                                        let batchWithPrice = null;
 
-                                                    if (batchWithPrice) {
-                                                        const locationName = locationMap[selectedLocationId] || 'Selected Location';
-                                                        priceSource = `Latest Batch Price for ${locationName} (${batchWithPrice.batch_no || 'N/A'})`;
+                                                        if (selectedLocationId) {
+                                                            const locationSpecificBatches = product.batches.filter(batch => {
+                                                                return batch.location_batches && batch.location_batches.some(locBatch =>
+                                                                    locBatch.location_id == selectedLocationId &&
+                                                                    parseFloat(locBatch.qty || 0) > 0
+                                                                );
+                                                            });
+
+                                                            batchWithPrice = locationSpecificBatches.find(batch =>
+                                                                batch.retail_price !== null &&
+                                                                batch.retail_price !== undefined &&
+                                                                batch.retail_price !== '' &&
+                                                                parseFloat(batch.retail_price) > 0
+                                                            );
+                                                        }
+
+                                                        if (!batchWithPrice) {
+                                                            batchWithPrice = product.batches.find(batch =>
+                                                                batch.retail_price !== null &&
+                                                                batch.retail_price !== undefined &&
+                                                                batch.retail_price !== '' &&
+                                                                parseFloat(batch.retail_price) > 0
+                                                            );
+                                                        }
+
+                                                        if (batchWithPrice) {
+                                                            displayPrice = batchWithPrice.retail_price;
+                                                        }
                                                     }
-                                                }
 
-                                                // If no location-specific batch found or no location selected, use any batch
-                                                if (!batchWithPrice) {
-                                                    batchWithPrice = product.batches.find(batch =>
-                                                        batch.retail_price !== null &&
-                                                        batch.retail_price !== undefined &&
-                                                        batch.retail_price !== '' &&
-                                                        parseFloat(batch.retail_price) > 0
-                                                    );
+                                                    return 'Rs. ' + parseFloat(displayPrice).toFixed(2);
+                                                })()}</h4>
+                                            </div>
+                                            <div class="text-end">
+                                                <small class="text-muted">${(() => {
+                                                    let priceSource = 'Default Product Price';
+                                                    let batchNo = '';
+                                                    const selectedLocationId = $('#locationFilter').val();
 
-                                                    if (batchWithPrice) {
-                                                        priceSource = `Latest Batch Price (${batchWithPrice.batch_no || 'N/A'})`;
+                                                    if (product.batches && product.batches.length > 0) {
+                                                        let batchWithPrice = null;
+
+                                                        if (selectedLocationId) {
+                                                            const locationSpecificBatches = product.batches.filter(batch => {
+                                                                return batch.location_batches && batch.location_batches.some(locBatch =>
+                                                                    locBatch.location_id == selectedLocationId &&
+                                                                    parseFloat(locBatch.qty || 0) > 0
+                                                                );
+                                                            });
+
+                                                            batchWithPrice = locationSpecificBatches.find(batch =>
+                                                                batch.retail_price !== null &&
+                                                                batch.retail_price !== undefined &&
+                                                                batch.retail_price !== '' &&
+                                                                parseFloat(batch.retail_price) > 0
+                                                            );
+
+                                                            if (batchWithPrice) {
+                                                                const locationName = locationMap[selectedLocationId] || 'Selected Location';
+                                                                priceSource = 'Latest Batch for ' + locationName;
+                                                                batchNo = batchWithPrice.batch_no || 'N/A';
+                                                            }
+                                                        }
+
+                                                        if (!batchWithPrice) {
+                                                            batchWithPrice = product.batches.find(batch =>
+                                                                batch.retail_price !== null &&
+                                                                batch.retail_price !== undefined &&
+                                                                batch.retail_price !== '' &&
+                                                                parseFloat(batch.retail_price) > 0
+                                                            );
+
+                                                            if (batchWithPrice) {
+                                                                priceSource = 'Latest Batch';
+                                                                batchNo = batchWithPrice.batch_no || 'N/A';
+                                                            }
+                                                        }
                                                     }
-                                                }
 
-                                                if (batchWithPrice) {
-                                                    displayPrice = batchWithPrice.retail_price;
-                                                }
-                                            }
-
-                                            return `Rs.${parseFloat(displayPrice).toFixed(2)}<br><small class="text-muted">${priceSource}</small>`;
-                                        })()}
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th scope="row">IMEI is Checked</th>
-                                        <td>${product.is_imei_or_serial_no === 1 ? "True" : "False"}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                                                    return batchNo ? priceSource + ' (' + batchNo + ')' : priceSource;
+                                                })()}</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>`;
             $('#productDetails').html(details);
         }
