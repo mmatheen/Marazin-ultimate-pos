@@ -3536,10 +3536,10 @@
                                     batch.location_batches.forEach(lb => {
                                         if (!locationStocks[lb.location_id]) {
                                             // Get location name from the loaded location relationship
-                                            const locName = lb.location && lb.location.name 
-                                                ? lb.location.name 
+                                            const locName = lb.location && lb.location.name
+                                                ? lb.location.name
                                                 : (locationMap[lb.location_id] || 'Unknown');
-                                            
+
                                             locationStocks[lb.location_id] = {
                                                 name: locName,
                                                 qty: 0
