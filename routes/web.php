@@ -94,7 +94,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/dashboard-data', [DashboardController::class, 'getDashboardData']);
 
         // -------------------- Get User Details for Header --------------------
-        Route::get('/get-all-details-using-guard', [UserController::class, 'getAllDetailsUsingGuard']);
+
 
         // -------------------- UserController Routes --------------------
         // User Management

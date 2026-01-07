@@ -160,8 +160,32 @@
                         row.append('<td>' + item.user_name + '</td>');
                         row.append('<td><span class="badge rounded-pill bg-dark me-1">' +
                             item.role + '</span></td>');
-                        row.append('<td><span class="badge rounded-pill bg-dark me-1">' +
-                            item.locations.join(', ') + '</span></td>');
+                        
+                        // Build location display with better formatting
+                        let locationHtml = '';
+                        if (item.locations && item.locations.length > 0) {
+                            const maxVisible = 2; // Show only first 2 locations
+                            const visibleLocations = item.locations.slice(0, maxVisible);
+                            const hiddenLocations = item.locations.slice(maxVisible);
+                            
+                            // Show visible locations as badges
+                            visibleLocations.forEach(function(location) {
+                                locationHtml += '<span class="badge rounded-pill bg-dark me-1 mb-1">' + location + '</span>';
+                            });
+                            
+                            // If there are more locations, add a "View More" button
+                            if (hiddenLocations.length > 0) {
+                                const allLocations = item.locations.join(', ');
+                                locationHtml += '<button type="button" class="badge rounded-pill bg-info border-0 view-locations-btn" ' +
+                                    'data-locations="' + allLocations.replace(/"/g, '&quot;') + '" ' +
+                                    'data-user="' + item.full_name + '" ' +
+                                    'style="cursor:pointer;">+' + hiddenLocations.length + ' more</button>';
+                            }
+                        } else {
+                            locationHtml = '<span class="badge rounded-pill bg-secondary">No Location</span>';
+                        }
+                        
+                        row.append('<td>' + locationHtml + '</td>');
                         row.append('<td>' + item.email + '</td>');
                         row.append('<td>' +
                             '@can('edit user')<button type="button" value="' +
@@ -424,5 +448,26 @@
             if (!$('#edit_id').val()) {
                 populateLocationDropdown();
             }
-        });    });
+        });
+
+        // Handle "View More" locations button click
+        $(document).on('click', '.view-locations-btn', function(e) {
+            e.preventDefault();
+            const locations = $(this).data('locations');
+            const userName = $(this).data('user');
+            
+            // Show locations in a nice alert/modal
+            Swal.fire({
+                title: userName + ' - Locations',
+                html: '<div class="text-start">' + 
+                    locations.split(', ').map(loc => 
+                        '<span class="badge bg-dark me-1 mb-2" style="font-size: 0.9em;">' + loc + '</span>'
+                    ).join('') + 
+                    '</div>',
+                icon: 'info',
+                confirmButtonText: 'Close',
+                width: '600px'
+            });
+        });
+    });
 </script>

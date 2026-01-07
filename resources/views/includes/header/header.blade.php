@@ -120,35 +120,8 @@
 </div>
 
 
-{{-- it will get the location details code start --}}
+{{-- Notifications code start --}}
 <script>
-    $(document).ready(function() {
-        // Initialize elements
-        const locationNameDisplay = $('#location_name');
-
-        // Function to update location display
-        function updateLocationDisplay(locationId, locationName) {
-            locationNameDisplay.text(locationName);
-            localStorage.setItem('selectedLocationId', locationId);
-            localStorage.setItem('selectedLocationName', locationName);
-        }
-
-        // Get initial location details
-        $.ajax({
-            url: '/get-all-details-using-guard',
-            type: 'GET',
-            success: function(response) {
-                if (response.status === 200) {
-                    $('#location_name').text(response.message.location.name);
-                } else {
-                    $('#location_name').text('No Location Found');
-                }
-            },
-            error: function() {
-                $('#location_name').text('Error retrieving details');
-            }
-        });
-    });
     document.addEventListener('DOMContentLoaded', function() {
         fetchNotifications();
 
@@ -252,4 +225,4 @@
 
     });
 </script>
-{{-- it will get the location details code end --}}
+{{-- Notifications code end --}}
