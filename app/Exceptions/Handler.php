@@ -55,7 +55,7 @@ class Handler extends ExceptionHandler
                     'redirect' => route('login')
                 ], 419);
             }
-            
+
             return redirect()->route('login')
                 ->with('error', 'Your session has expired. Please log in again.');
         }

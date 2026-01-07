@@ -19,7 +19,7 @@ window.axios.interceptors.response.use(
         if (error.response && (error.response.status === 401 || error.response.status === 419)) {
             // Show a message if available
             const message = error.response.data?.message || 'Your session has expired. Please log in again.';
-            
+
             // Use toastr if available, otherwise alert
             if (typeof toastr !== 'undefined') {
                 toastr.warning(message);
@@ -36,13 +36,13 @@ window.axios.interceptors.response.use(
             } else {
                 alert(message);
             }
-            
+
             // Redirect to login page after a short delay
             setTimeout(() => {
                 window.location.href = error.response.data?.redirect || '/login';
             }, 1500);
         }
-        
+
         return Promise.reject(error);
     }
 );

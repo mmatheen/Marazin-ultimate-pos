@@ -2151,9 +2151,48 @@ class ProductController extends Controller
                 });
 
                 // Build locations array based on filter
-                $productLocations = $product->locations;
+                // Include locations from both product->locations and from location_batches with stock
+                $productLocations = collect();
+                
                 if ($locationId) {
-                    $productLocations = $productLocations->where('id', $locationId);
+                    // When filtering by location, check if this product has stock in that location
+                    $hasStockInLocation = DB::table('location_batches')
+                        ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                        ->where('batches.product_id', $product->id)
+                        ->where('location_batches.location_id', $locationId)
+                        ->where('location_batches.qty', '>', 0)
+                        ->exists();
+                    
+                    // Also check if product is assigned to this location
+                    $isAssignedToLocation = $product->locations->contains('id', $locationId);
+                    
+                    // If product has stock OR is assigned to this location, include the location
+                    if ($hasStockInLocation || $isAssignedToLocation) {
+                        $location = Location::find($locationId);
+                        if ($location) {
+                            $productLocations->push($location);
+                        }
+                    }
+                } else {
+                    // No filter - show all locations that either:
+                    // 1. Are assigned to the product, OR
+                    // 2. Have stock for this product
+                    $assignedLocations = $product->locations;
+                    $locationsWithStock = DB::table('location_batches')
+                        ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                        ->join('locations', 'location_batches.location_id', '=', 'locations.id')
+                        ->where('batches.product_id', $product->id)
+                        ->where('location_batches.qty', '>', 0)
+                        ->select('locations.id', 'locations.name')
+                        ->distinct()
+                        ->get();
+                    
+                    // Merge assigned locations and locations with stock
+                    $allLocationIds = $assignedLocations->pluck('id')
+                        ->merge($locationsWithStock->pluck('id'))
+                        ->unique();
+                    
+                    $productLocations = Location::whereIn('id', $allLocationIds)->get();
                 }
 
                 $locationData = $productLocations->map(fn($loc) => [

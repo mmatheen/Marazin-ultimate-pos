@@ -2167,7 +2167,8 @@
             // Check if selected location matches the assigned vehicle OR its parent location
             const selectedLocationId = document.getElementById('locationSelect')?.value;
             const assignedVehicleId = selection.vehicle.id;
-            const parentLocationId = selection.vehicle.parent_id;
+            // Get parent_id from either direct property or nested parent object
+            const parentLocationId = selection.vehicle.parent_id || selection.vehicle.parent?.id;
 
             // Allow if selected location is either the assigned vehicle OR the parent location
             if (selectedLocationId != assignedVehicleId && selectedLocationId != parentLocationId) {
@@ -11095,10 +11096,10 @@
 
                 case 'F8':
                     event.preventDefault();
-                    const discountInput = document.querySelector('#global-discount');
-                    if (discountInput) {
-                        discountInput.focus();
-                        discountInput.select();
+                    //cancel button
+                    const cancelBtn = document.querySelector('#cancelButton');
+                    if (cancelBtn) {
+                        cancelBtn.click();
                     }
                     break;
 

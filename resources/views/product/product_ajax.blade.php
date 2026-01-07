@@ -1367,6 +1367,7 @@
                     render: function(data, type, row) {
                         let locationDisplay = [];
                         const locationStocks = {};
+                        const locationFilter = $('#locationFilter').val();
 
                         if (row.batches && row.batches.length > 0) {
                             // Collect locations with stock from batches
@@ -1397,22 +1398,33 @@
                             });
                         }
 
-                        // Add locations without stock
+                        // Add locations from row.locations (product assigned locations)
                         if (row.locations && row.locations.length > 0) {
                             const existingLocationNames = locationDisplay.map(l => l.name);
                             row.locations.forEach(location => {
                                 const locationName = location.location_name || location.name;
+                                const locationId = location.location_id || location.id;
                                 if (locationName && !existingLocationNames.includes(locationName)) {
+                                    // Check if this location has stock
+                                    const stockQty = locationStocks[locationId] ? locationStocks[locationId].qty : 0;
                                     locationDisplay.push({
                                         name: locationName,
-                                        qty: 0
+                                        qty: stockQty
                                     });
                                 }
                             });
                         }
 
+                        // Handle display based on whether location filter is applied
                         if (locationDisplay.length === 0) {
-                            return '<span class="text-muted">No locations</span>';
+                            // No locations found
+                            if (locationFilter) {
+                                // Location filter is applied but product has no stock/assignment in that location
+                                return '<span class="text-muted">No stock in filtered location</span>';
+                            } else {
+                                // No location filter, but product has no locations
+                                return '<span class="text-muted">No locations</span>';
+                            }
                         } else if (locationDisplay.length === 1) {
                             // Show single location inline
                             const loc = locationDisplay[0];
