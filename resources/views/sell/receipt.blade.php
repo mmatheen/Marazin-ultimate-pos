@@ -275,10 +275,17 @@
                 <tr>
                     <td valign="top" style="padding: 1px 2px !important;">&nbsp;</td>
                     <td valign="top" style="padding: 1px 2px !important;">
-                        <span style="text-decoration: line-through; font-size: 11px;">
-                            {{ number_format($item['product']->product->max_retail_price, 0, '.', ',') }}
-                        </span>
-                        <span style="font-size: 11px;">({{ number_format($item['product']->product->max_retail_price - $item['product']->price, 0, '.', ',') }})</span>
+                        @php
+                            $mrp = $item['product']->product->max_retail_price ?? 0;
+                            $selling_price = $item['product']->price;
+                            $line_discount = ($mrp - $selling_price) * $item['quantity'];
+                        @endphp
+                        @if($mrp > 0 && $mrp > $selling_price)
+                            <span style="text-decoration: line-through; font-size: 11px; color: #999;">
+                                {{ number_format($mrp, 0, '.', ',') }}
+                            </span>
+                            <span style="font-size: 11px; color: #666;">({{ number_format($line_discount, 0, '.', ',') }})</span>
+                        @endif
                     </td>
                     <td align="left" valign="top" style="padding: 1px 2px !important;">
                         <span style="font-size: 12px; font-weight: 500;">{{ number_format($item['product']->price, 0, '.', ',') }}</span>
