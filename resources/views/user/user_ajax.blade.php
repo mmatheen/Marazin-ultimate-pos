@@ -461,13 +461,13 @@
 
             // Split locations into array
             const locationArray = locations.split(', ');
-            
+
             // Create grid layout (3 per row)
             let locationsList = '<div class="container-fluid"><div class="row g-2">';
             locationArray.forEach(function(loc) {
                 locationsList += '<div class="col-md-4 col-sm-6 col-12">' +
-                    '<div class="p-2 bg-light rounded text-center" style="font-size: 0.875rem;">' + 
-                    loc + 
+                    '<div class="p-2 bg-light rounded text-center" style="font-size: 0.875rem; min-height: 45px; display: flex; align-items: center; justify-content: center; word-wrap: break-word; overflow-wrap: break-word;">' +
+                    loc +
                     '</div></div>';
             });
             locationsList += '</div></div>';
