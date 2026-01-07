@@ -3,31 +3,21 @@
 
 <head>
     <meta charset="utf-8">
-    <title>RECEIPT</title>
+    <title> POS RECEIPT</title>
     <style>
         @page {
-            size: 80mm auto;
             margin: 5px;
         }
 
         @media print {
-            html, body {
-                width: 80mm;
-                height: auto;
-                margin: 0;
-                padding: 0;
-            }
-
             #printArea {
-                position: relative !important;
+                position: absolute !important;
                 left: 0 !important;
                 top: 0 !important;
-                width: 80mm !important;
-                height: auto !important;
+                width: 100% !important;
+                height: 100% !important;
                 font-size: 12px !important;
                 font-family: Arial, sans-serif !important;
-                page-break-inside: auto !important;
-                page-break-after: auto !important;
             }
 
             .receipt-title,
@@ -46,8 +36,6 @@
             .table {
                 width: 100% !important;
                 border-collapse: collapse !important;
-                page-break-inside: auto !important;
-                page-break-after: auto !important;
             }
 
             .table th,
@@ -55,20 +43,6 @@
                 padding: 2px 4px !important;
                 font-size: 10px !important;
                 vertical-align: top;
-            }
-
-            .table tr {
-                page-break-inside: avoid !important;
-                page-break-after: auto !important;
-            }
-
-            .table tbody {
-                page-break-inside: auto !important;
-                page-break-after: auto !important;
-            }
-
-            .table thead {
-                display: table-header-group !important;
             }
 
             .text-end {
@@ -281,7 +255,7 @@
                             $line_discount = ($mrp - $selling_price) * $item['quantity'];
                         @endphp
                         @if($mrp > 0 && $mrp > $selling_price)
-                            <span style="text-decoration: line-through; font-size: 11px; color: #999;">
+                            <span style="text-decoration: line-through; font-size: 11px; color: #333;">
                                 {{ number_format($mrp, 0, '.', ',') }}
                             </span>
                             <span style="font-size: 11px; color: #666;">({{ number_format($line_discount, 0, '.', ',') }})</span>

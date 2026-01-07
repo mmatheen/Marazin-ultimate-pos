@@ -56,9 +56,9 @@
         };
     }
 
-        // Search results cache - DISABLED for real-time data
+        // Search results cache - 30 seconds for fast autocomplete while keeping data relatively fresh
         let searchCache = new Map();
-        let searchCacheExpiry = 0; // Set to 0 to disable caching
+        let searchCacheExpiry = 30 * 1000; // 30 seconds cache for performance
 
         // DOM element cache to avoid repeated getElementById calls
         let domElementCache = {};
@@ -70,7 +70,7 @@
         function clearAllCaches() {
             customerCache.clear();
             staticDataCache.clear();
-            searchCache.clear(); // Clear autocomplete search cache
+            searchCache.clear();
             domElementCache = {};
             customerPriceCache.clear(); // Clear customer price cache
             // Clear location cache
@@ -79,16 +79,12 @@
             // Clear image failure cache
             failedImages.clear();
             imageAttempts.clear();
-            console.log('🗑️ All caches cleared including autocomplete search cache');
+            console.log('🗑️ All caches cleared due to data update');
         }
 
         // Listen for storage events from other tabs/windows
         window.addEventListener('storage', function(e) {
-            // Listen for multiple cache invalidation keys
-            if (e.key === 'product_cache_invalidate' ||
-                e.key === 'force_product_refresh' ||
-                e.key === 'batch_prices_updated') {
-                console.log('🔔 Cache invalidation detected:', e.key);
+            if (e.key === 'product_cache_invalidate') {
                 clearAllCaches();
                 // Refresh current product display
                 if (selectedLocationId) {
@@ -3637,8 +3633,7 @@
                 data: {
                     location_id: selectedLocationId,
                     search: term,
-                    per_page: 50, // Optimized for speed - 50 results is sufficient for autocomplete
-                    _: new Date().getTime() // Cache busting - force fresh data on every request
+                    per_page: 50 // Optimized for speed - 50 results is sufficient for autocomplete
                 },
                 cache: false, // ✅ Prevent browser caching - always fetch fresh stock data
                 timeout: 10000,
@@ -11100,10 +11095,10 @@
 
                 case 'F8':
                     event.preventDefault();
-                    // Trigger cancel/reset form
-                    const cancelButton = document.getElementById('cancelButton');
-                    if (cancelButton) {
-                        cancelButton.click();
+                    const discountInput = document.querySelector('#global-discount');
+                    if (discountInput) {
+                        discountInput.focus();
+                        discountInput.select();
                     }
                     break;
 

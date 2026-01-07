@@ -397,7 +397,7 @@
                             $line_discount = ($mrp - $selling_price) * $item['quantity'];
                         @endphp
                         @if($mrp > 0 && $mrp > $selling_price)
-                            <span class="strikethrough" style="white-space: nowrap; color: #999;">
+                            <span class="strikethrough" style="white-space: nowrap; color: #333;">
                                 Rs. {{ number_format($mrp, 2) }}
                             </span>
                             <span class="discount-amount" style="white-space: nowrap; color: #666;">
@@ -558,6 +558,13 @@
         </div>
     @endif
 
+    {{-- Sale Notes Section --}}
+    @if ($sale->sale_notes)
+        <div style="font-size: 12px; color: #000; text-align: center; margin: 15px 0; padding: 10px; background-color: #f9f9f9; border: 1px dashed #ccc; border-radius: 4px;">
+            <strong>NOTES:</strong><br>
+            {{ $sale->sale_notes }}
+        </div>
+    @endif
 
     {{-- Footer --}}
     <div class="footer">
