@@ -1421,8 +1421,8 @@
                             // Show button for multiple locations
                             const locationsJson = JSON.stringify(locationDisplay).replace(/"/g, '&quot;');
                             const productName = row.product.product_name.replace(/'/g, '\\&#39;');
-                            return `<button class="btn btn-sm btn-info view-locations-btn" 
-                                        data-locations='${locationsJson}' 
+                            return `<button class="btn btn-sm btn-outline-primary view-locations-btn"
+                                        data-locations='${locationsJson}'
                                         data-product-name="${productName}"
                                         title="View all locations">
                                     <i class="fas fa-map-marker-alt"></i> ${locationDisplay.length} Locations
@@ -4377,14 +4377,14 @@
     $(document).on('click', '.view-locations-btn', function(e) {
         e.preventDefault();
         e.stopPropagation();
-        
+
         const locations = $(this).data('locations');
         const productName = $(this).data('product-name');
-        
+
         // Populate modal
         $('#locationsModalTitle').text(productName + ' - Locations');
         $('#locationsTableBody').empty();
-        
+
         if (locations && locations.length > 0) {
             locations.forEach((location, index) => {
                 const row = `
@@ -4399,7 +4399,7 @@
         } else {
             $('#locationsTableBody').append('<tr><td colspan="3" class="text-center text-muted">No locations found</td></tr>');
         }
-        
+
         // Show modal
         $('#locationsModal').modal('show');
     });
