@@ -118,18 +118,18 @@ class UserController extends Controller
                 'status' => 200,
                 'message' => $users->map(function ($user) {
                     $role = $user->roles->first();
-                    
+
                     // Check if user has bypass location scope (Master Super Admin or similar)
                     $isMasterSuperAdmin = $user->roles->where('name', 'Master Super Admin')->count() > 0;
                     $hasBypassRole = $user->roles->where('bypass_location_scope', true)->count() > 0;
-                    
+
                     // If user can bypass location scope and has no locations assigned, show "All Locations"
                     if (($isMasterSuperAdmin || $hasBypassRole) && $user->locations->isEmpty()) {
                         $locations = ['All Locations'];
                     } else {
                         $locations = $user->locations->pluck('name')->toArray();
                     }
-                    
+
                     return [
                         'id' => $user->id,
                         'name_title' => $user->name_title,

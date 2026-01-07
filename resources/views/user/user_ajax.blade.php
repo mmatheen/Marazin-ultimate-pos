@@ -160,19 +160,19 @@
                         row.append('<td>' + item.user_name + '</td>');
                         row.append('<td><span class="badge rounded-pill bg-dark me-1">' +
                             item.role + '</span></td>');
-                        
+
                         // Build location display with better formatting
                         let locationHtml = '';
                         if (item.locations && item.locations.length > 0) {
                             const maxVisible = 2; // Show only first 2 locations
                             const visibleLocations = item.locations.slice(0, maxVisible);
                             const hiddenLocations = item.locations.slice(maxVisible);
-                            
+
                             // Show visible locations as badges
                             visibleLocations.forEach(function(location) {
                                 locationHtml += '<span class="badge rounded-pill bg-dark me-1 mb-1">' + location + '</span>';
                             });
-                            
+
                             // If there are more locations, add a "View More" button
                             if (hiddenLocations.length > 0) {
                                 const allLocations = item.locations.join(', ');
@@ -184,7 +184,7 @@
                         } else {
                             locationHtml = '<span class="badge rounded-pill bg-secondary">No Location</span>';
                         }
-                        
+
                         row.append('<td>' + locationHtml + '</td>');
                         row.append('<td>' + item.email + '</td>');
                         row.append('<td>' +
@@ -455,19 +455,23 @@
             e.preventDefault();
             const locations = $(this).data('locations');
             const userName = $(this).data('user');
-            
+
+            // Create HTML for displaying locations
+            const locationsHtml = locations.split(', ').map(function(loc) {
+                return '<span class="badge bg-dark me-1 mb-2" style="font-size: 0.9em;">' + loc + '</span>';
+            }).join('');
+
+            // Create a div element to hold the content
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'text-start';
+            contentDiv.innerHTML = locationsHtml;
+
             // Show locations in a nice alert/modal
-            Swal.fire({
+            swal({
                 title: userName + ' - Locations',
-                html: '<div class="text-start">' + 
-                    locations.split(', ').map(loc => 
-                        '<span class="badge bg-dark me-1 mb-2" style="font-size: 0.9em;">' + loc + '</span>'
-                    ).join('') + 
-                    '</div>',
+                content: contentDiv,
                 icon: 'info',
-                confirmButtonText: 'Close',
-                width: '600px'
+                button: 'Close'
             });
-        });
-    });
+        });    });
 </script>
