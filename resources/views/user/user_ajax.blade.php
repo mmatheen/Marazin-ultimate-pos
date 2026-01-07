@@ -456,22 +456,13 @@
             const locations = $(this).data('locations');
             const userName = $(this).data('user');
 
-            // Create HTML for displaying locations
-            const locationsHtml = locations.split(', ').map(function(loc) {
-                return '<span class="badge bg-dark me-1 mb-2" style="font-size: 0.9em;">' + loc + '</span>';
-            }).join('');
-
-            // Create a div element to hold the content
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'text-start';
-            contentDiv.innerHTML = locationsHtml;
-
-            // Show locations in a nice alert/modal
+            // Display locations as simple text
             swal({
                 title: userName + ' - Locations',
-                content: contentDiv,
+                text: locations,
                 icon: 'info',
                 button: 'Close'
             });
-        });    });
+        });
+    });
 </script>
