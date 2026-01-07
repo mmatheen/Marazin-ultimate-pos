@@ -391,12 +391,19 @@
                 <tr class="product-details-row">
                     <td></td>
                     <td style="padding-right: 5px;">
-                        <span class="strikethrough" style="white-space: nowrap;">
-                            Rs. {{ number_format($item['product']->product->max_retail_price, 2) }}
-                        </span>
-                        <span class="discount-amount" style="white-space: nowrap;">
-                            (Disc: Rs. {{ number_format($item['product']->product->max_retail_price - $item['product']->price, 2) }})
-                        </span>
+                        @php
+                            $mrp = $item['product']->product->max_retail_price ?? 0;
+                            $selling_price = $item['product']->price;
+                            $line_discount = ($mrp - $selling_price) * $item['quantity'];
+                        @endphp
+                        @if($mrp > 0 && $mrp > $selling_price)
+                            <span class="strikethrough" style="white-space: nowrap; color: #999;">
+                                Rs. {{ number_format($mrp, 2) }}
+                            </span>
+                            <span class="discount-amount" style="white-space: nowrap; color: #666;">
+                                (Disc: Rs. {{ number_format($line_discount, 2) }})
+                            </span>
+                        @endif
                     </td>
                     <td class="text-right" style="white-space: nowrap;">
                         <strong>Rs. {{ number_format($item['product']->price, 2) }}</strong>
