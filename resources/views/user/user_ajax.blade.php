@@ -456,15 +456,19 @@
             const locations = $(this).data('locations');
             const userName = $(this).data('user');
 
-            // Create a simple bulleted list
-            const locationsList = '• ' + locations.split(', ').join('\n• ');
+            // Set modal title
+            $('#locationsModalTitle').text(userName + ' - Locations');
 
-            // Display locations in a clean format
-            swal({
-                title: userName + ' - Locations',
-                text: locationsList,
-                button: 'Close'
-            });
+            // Create clean location list with badges
+            const locationsList = locations.split(', ').map(function(loc) {
+                return '<div class="mb-2"><span class="badge bg-primary">' + loc + '</span></div>';
+            }).join('');
+
+            // Populate modal content
+            $('#locationsModalContent').html(locationsList);
+
+            // Show the modal
+            $('#locationsModal').modal('show');
         });
     });
 </script>

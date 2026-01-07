@@ -211,6 +211,26 @@
             </form>
         </div>
 
+        {{-- Locations View Modal --}}
+        <div id="locationsModal" class="modal custom-modal fade" role="dialog">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="locationsModalTitle">User Locations</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="locationsModalContent" style="max-height: 400px; overflow-y: auto;">
+                            <!-- Locations will be populated here -->
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         {{-- Delete modal --}}
         <div id="deleteModal" class="modal custom-modal fade" role="dialog">
             <div class="modal-dialog modal-dialog-centered">
