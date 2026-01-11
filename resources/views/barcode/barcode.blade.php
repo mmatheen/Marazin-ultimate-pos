@@ -66,7 +66,7 @@
                                     <option value="40x30">40 x 30 mm</option>
                                     <option value="40x25">40 x 25 mm</option>
                                     <option value="38x25">38 x 25 mm</option>
-                                    <option value="34x25x3">34 x 25 mm x 3</option>
+                                    <option value="34x25x3" selected>34 x 25 mm x 3</option>
                                 </select>
                             </div>
 
@@ -109,9 +109,6 @@
                                         <span class="ms-3"><strong>SKU:</strong> <span id="selectedProductSku"></span></span>
                                         <div class="mt-1">
                                             <small>
-                                                <strong>CP:</strong> <span id="selectedCP"></span> |
-                                                <strong>WP:</strong> <span id="selectedWP"></span> |
-                                                <strong>SP:</strong> <span id="selectedSP"></span> |
                                                 <strong>RP:</strong> <span id="selectedRP"></span> |
                                                 <strong>MRP:</strong> <span id="selectedMRP"></span>
                                             </small>
