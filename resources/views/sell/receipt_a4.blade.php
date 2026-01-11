@@ -526,8 +526,13 @@
             <div class="stat-label">Total Qty</div>
         </div>
         <div class="stat-item">
-            <div class="stat-number">Rs. {{ number_format($total_all_discounts, 2) }}</div>
-            <div class="stat-label">Total Discount</div>
+            @php
+                // Calculate previous balance (excluding current bill's due)
+                $previous_balance = ($customer_outstanding_balance ?? 0) - ($sale->total_due ?? 0);
+                $previous_balance = max(0, $previous_balance); // Don't show negative
+            @endphp
+            <div class="stat-number">Rs. {{ number_format($previous_balance, 2) }}</div>
+            <div class="stat-label">Previous Balance</div>
         </div>
     </div>
 

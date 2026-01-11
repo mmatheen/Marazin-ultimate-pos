@@ -392,6 +392,7 @@ Route::middleware(['auth'])->group(function () {
          // -------------------- SaleReturnController Routes --------------------
         Route::get('/sale-returns', [SaleReturnController::class, 'getAllSaleReturns']);
         Route::get('/sale-return-get/{id}', [SaleReturnController::class, 'getSaleReturnById']);
+        Route::get('/customer-returns/{customerId}', [SaleReturnController::class, 'getCustomerReturns']);
         Route::get('/sale-return/add', [SaleReturnController::class, 'addSaleReturn'])->name('sale-return/add');
         Route::get('/sale-return/list', [SaleReturnController::class, 'listSaleReturn'])->name('sale-return/list');
         Route::post('/sale-return/store', [SaleReturnController::class, 'storeOrUpdate']);

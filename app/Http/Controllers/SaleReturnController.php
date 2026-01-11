@@ -218,9 +218,9 @@ class SaleReturnController extends Controller
                         $paymentCreateData = array_merge($paymentCreateData, [
                             'cheque_number' => $paymentData['cheque_number'] ?? null,
                             'cheque_bank_branch' => $paymentData['cheque_bank_branch'] ?? null,
-                            'cheque_received_date' => isset($paymentData['cheque_received_date']) ? 
+                            'cheque_received_date' => isset($paymentData['cheque_received_date']) ?
                                 Carbon::parse($paymentData['cheque_received_date'])->format('Y-m-d') : null,
-                            'cheque_valid_date' => isset($paymentData['cheque_valid_date']) ? 
+                            'cheque_valid_date' => isset($paymentData['cheque_valid_date']) ?
                                 Carbon::parse($paymentData['cheque_valid_date'])->format('Y-m-d') : null,
                             'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
                             // Enhanced cheque fields
@@ -280,6 +280,40 @@ class SaleReturnController extends Controller
             return response()->json(['status' => 404, 'message' => 'Sale return not found']);
         }
         return response()->json(['status' => 200, 'data' => $salesReturn]);
+    }
+
+    /**
+     * Get customer returns with pending refunds (for bulk payment integration)
+     */
+    public function getCustomerReturns($customerId)
+    {
+        try {
+            $returns = SalesReturn::where('customer_id', $customerId)
+                ->where(function($query) {
+                    $query->where('payment_status', '!=', 'Paid')
+                          ->orWhere('total_due', '>', 0);
+                })
+                ->with(['sale', 'payments'])
+                ->orderBy('return_date', 'desc')
+                ->get();
+
+            return response()->json([
+                'status' => 200,
+                'returns' => $returns,
+                'count' => $returns->count()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching customer returns', [
+                'customer_id' => $customerId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'status' => 500,
+                'error' => 'Failed to fetch customer returns',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
 
@@ -443,7 +477,7 @@ class SaleReturnController extends Controller
                 'sale_return_id' => $id,
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'error' => 'Unable to generate receipt. Please try again later.'

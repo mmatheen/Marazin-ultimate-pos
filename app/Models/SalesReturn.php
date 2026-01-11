@@ -86,10 +86,23 @@ class SalesReturn extends Model
             $model->invoice_number = self::generateInvoiceNumber();
         });
 
-        // Calculate total_due manually since it's not a generated column
+        // Calculate total_due and payment_status
         static::saving(function ($model) {
-            $model->total_paid = $model->payments()->sum('amount');
+            // Only auto-calculate if not manually set
+            if (!$model->isDirty('total_paid')) {
+                $model->total_paid = $model->payments()->sum('amount');
+            }
+
             $model->total_due = $model->return_total - $model->total_paid;
+
+            // Update payment status based on amounts
+            if ($model->total_paid <= 0) {
+                $model->payment_status = 'Due';
+            } elseif ($model->total_paid >= $model->return_total) {
+                $model->payment_status = 'Paid';
+            } else {
+                $model->payment_status = 'Partial';
+            }
         });
     }
 

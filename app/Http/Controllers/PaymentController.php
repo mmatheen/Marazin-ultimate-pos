@@ -903,6 +903,12 @@ class PaymentController extends Controller
                 // Only pay against sales/purchases
                 $this->applyGlobalAmountToReferences($entity, $remainingAmount, $data, $request);
                 $this->handleIndividualPayments($entity, $data, $request);
+            } elseif ($paymentType === 'all') {
+                // All - process returns first, then opening balance, then sales
+                $this->processReturnRefunds($entity, $request);
+                $this->reduceEntityOpeningBalance($entity, $remainingAmount, $paymentMethod, $request);
+                $this->applyGlobalAmountToReferences($entity, $remainingAmount, $data, $request);
+                $this->handleIndividualPayments($entity, $data, $request);
             } else {
                 // Both - opening balance first, then sales
                 $this->reduceEntityOpeningBalance($entity, $remainingAmount, $paymentMethod, $request);
@@ -912,6 +918,117 @@ class PaymentController extends Controller
         });
 
         return response()->json(['message' => 'Payments submitted successfully.']);
+    }
+
+    /**
+     * Process return refunds and apply credits to sales
+     */
+    private function processReturnRefunds($entity, $request)
+    {
+        $returns = $request->input('selected_returns', []);
+        if (empty($returns)) {
+            return;
+        }
+
+        foreach ($returns as $returnData) {
+            $returnId = $returnData['return_id'];
+            $returnAmount = $returnData['amount'];
+            $action = $returnData['action'] ?? 'apply_to_sales';
+
+            $salesReturn = SalesReturn::findOrFail($returnId);
+
+            if ($action === 'apply_to_sales') {
+                // Apply return credit to sales - record as payment on return
+                $payment = new Payment();
+                $payment->payment_date = $request->input('paid_on', now());
+                $payment->amount = $returnAmount;
+                $payment->payment_method = 'credit_note';
+                $payment->payment_type = $salesReturn->stock_type === 'with_bill'
+                    ? 'sale_return_with_bill'
+                    : 'sale_return_without_bill';
+                $payment->reference_id = $salesReturn->id;
+                $payment->reference_no = $salesReturn->invoice_number;
+                $payment->customer_id = $entity->id;
+                $payment->notes = 'Return credit applied to customer sales (Bulk Payment)';
+                $payment->created_by = Auth::id();
+                $payment->save();
+
+                // Update return payment status
+                $salesReturn->total_paid = ($salesReturn->total_paid ?? 0) + $returnAmount;
+                $salesReturn->payment_status = $salesReturn->total_due <= 0 ? 'Paid' : 'Partial';
+                $salesReturn->save();
+
+                // Record in ledger as credit application
+                $this->unifiedLedgerService->recordReturnCreditApplication(
+                    $payment,
+                    'customer',
+                    $entity->id
+                );
+
+                Log::info('Return credit applied to sales', [
+                    'return_id' => $returnId,
+                    'customer_id' => $entity->id,
+                    'amount' => $returnAmount
+                ]);
+
+            } elseif ($action === 'cash_refund') {
+                // Issue cash refund
+                $payment = new Payment();
+                $payment->payment_date = $request->input('paid_on', now());
+                $payment->amount = $returnAmount;
+                $payment->payment_method = $request->input('payment_method', 'cash');
+                $payment->payment_type = $salesReturn->stock_type === 'with_bill'
+                    ? 'sale_return_with_bill'
+                    : 'sale_return_without_bill';
+                $payment->reference_id = $salesReturn->id;
+                $payment->reference_no = $salesReturn->invoice_number;
+                $payment->customer_id = $entity->id;
+                $payment->notes = 'Cash refund for return (Bulk Payment)';
+                $payment->created_by = Auth::id();
+
+                // Copy payment method specific fields if provided
+                $this->copyPaymentMethodFields($payment, $request);
+
+                $payment->save();
+
+                // Update return payment status
+                $salesReturn->total_paid = ($salesReturn->total_paid ?? 0) + $returnAmount;
+                $salesReturn->payment_status = $salesReturn->total_due <= 0 ? 'Paid' : 'Partial';
+                $salesReturn->save();
+
+                // Record in ledger
+                $this->unifiedLedgerService->recordReturnPayment(
+                    $payment,
+                    'customer',
+                    $entity->id
+                );
+
+                Log::info('Cash refund issued for return', [
+                    'return_id' => $returnId,
+                    'customer_id' => $entity->id,
+                    'amount' => $returnAmount,
+                    'payment_method' => $payment->payment_method
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Copy payment method specific fields from request to payment
+     */
+    private function copyPaymentMethodFields($payment, $request)
+    {
+        if ($payment->payment_method === 'cheque') {
+            $payment->cheque_number = $request->input('cheque_number');
+            $payment->cheque_bank_branch = $request->input('cheque_bank_branch');
+            $payment->cheque_valid_date = $request->input('cheque_valid_date');
+            $payment->cheque_given_by = $request->input('cheque_given_by');
+        } elseif ($payment->payment_method === 'card') {
+            $payment->card_number = $request->input('card_number');
+            $payment->card_holder = $request->input('card_holder');
+        } elseif ($payment->payment_method === 'bank_transfer') {
+            $payment->bank_account_number = $request->input('bank_account_number');
+        }
     }
 
     /**
@@ -973,13 +1090,18 @@ class PaymentController extends Controller
         $validator = Validator::make($request->all(), [
             'customer_id' => 'required|exists:customers,id',
             'payment_date' => 'required|date',
-            'payment_type' => 'required|in:opening_balance,sale_dues,both',
+            'payment_type' => 'required|in:opening_balance,sale_dues,both,all',
             'payment_groups' => 'required|array|min:1',
             'payment_groups.*.method' => 'required|in:cash,cheque,card,bank_transfer,discount',
             'payment_groups.*.bills' => 'required_unless:payment_type,opening_balance|array|min:1',
             'payment_groups.*.bills.*.sale_id' => 'required_unless:payment_type,opening_balance|exists:sales,id',
             'payment_groups.*.bills.*.amount' => 'required_unless:payment_type,opening_balance|numeric|min:0.01',
             'payment_groups.*.totalAmount' => 'required_if:payment_type,opening_balance|numeric|min:0.01',
+            // Return bills validation
+            'selected_returns' => 'nullable|array',
+            'selected_returns.*.return_id' => 'required|exists:sales_returns,id',
+            'selected_returns.*.amount' => 'required|numeric|min:0.01',
+            'selected_returns.*.action' => 'required|in:apply_to_sales,cash_refund',
             // Cheque specific validation
             'payment_groups.*.cheque_number' => 'required_if:payment_groups.*.method,cheque',
             'payment_groups.*.cheque_bank_branch' => 'required_if:payment_groups.*.method,cheque',
@@ -1059,6 +1181,127 @@ class PaymentController extends Controller
                     }
                 }
 
+                // Track sales affected by return credits or direct payments
+                $affectedSaleIds = [];
+                $returnCreditPaymentsForSales = []; // Track return credit payments to create for sales
+
+                // Process return credits (for payment_type 'all' or if returns are selected)
+                if ($request->has('selected_returns') && is_array($request->selected_returns)) {
+                    foreach ($request->selected_returns as $returnData) {
+                        $salesReturn = SalesReturn::findOrFail($returnData['return_id']);
+
+                        // Validate return belongs to customer
+                        if ($salesReturn->customer_id != $request->customer_id) {
+                            throw new \Exception("Return {$salesReturn->invoice_number} does not belong to this customer");
+                        }
+
+                        // Validate amount doesn't exceed pending refund
+                        if ($returnData['amount'] > $salesReturn->total_due) {
+                            throw new \Exception("Return {$salesReturn->invoice_number} refund amount exceeds pending refund");
+                        }
+
+                        if ($returnData['action'] === 'apply_to_sales') {
+                            // Create payment record for return credit applied to sales
+                            $returnPayment = Payment::create([
+                                'payment_date' => $request->payment_date,
+                                'amount' => $returnData['amount'],
+                                'payment_method' => 'advance_adjustment', // Using advance adjustment as it's credit application
+                                'payment_type' => $salesReturn->sale_id ? 'sale_return_with_bill' : 'sale_return_without_bill',
+                                'reference_id' => $salesReturn->id,
+                                'reference_no' => $bulkReference,
+                                'customer_id' => $request->customer_id,
+                                'notes' => 'Credit adjustment from sales invoice: ' . $salesReturn->invoice_number,
+                            ]);
+
+                            // Update sales return total_paid
+                            $salesReturn->increment('total_paid', $returnData['amount']);
+                            $salesReturn->refresh(); // Reload the model
+                            $salesReturn->save(); // Trigger boot() saving event to recalculate total_due and payment_status
+
+                            // Record in ledger as sale payment (CREDIT - customer is "paying" with return credit)
+                            $this->unifiedLedgerService->recordSalePayment($returnPayment);
+
+                            // Track return credit for creating sale payments
+                            $returnCreditPaymentsForSales[] = [
+                                'return_id' => $salesReturn->id,
+                                'invoice_number' => $salesReturn->invoice_number,
+                                'total_amount' => $returnData['amount']
+                            ];
+
+                            // Track the original sale if this return is linked to one
+                            if ($salesReturn->sale_id) {
+                                $affectedSaleIds[$salesReturn->sale_id] = true;
+                            }
+
+                        } elseif ($returnData['action'] === 'cash_refund') {
+                            // Cash refund - money going out
+                            $returnPayment = Payment::create([
+                                'payment_date' => $request->payment_date,
+                                'amount' => $returnData['amount'],
+                                'payment_method' => 'cash', // Default to cash for refunds
+                                'payment_type' => $salesReturn->sale_id ? 'sale_return_with_bill' : 'sale_return_without_bill',
+                                'reference_id' => $salesReturn->id,
+                                'reference_no' => $bulkReference,
+                                'customer_id' => $request->customer_id,
+                                'notes' => 'Cash refund for return: ' . $salesReturn->invoice_number,
+                            ]);
+
+                            // Update sales return total_paid
+                            $salesReturn->increment('total_paid', $returnData['amount']);
+                            $salesReturn->refresh(); // Reload the model
+                            $salesReturn->save(); // Trigger boot() saving event to recalculate total_due and payment_status
+
+                            // Record in ledger
+                            $this->unifiedLedgerService->recordReturnRefund($returnPayment, 'customer');
+                        }
+                    }
+                }
+
+                // Process bill return allocations - create sale payments for return credits applied
+                // ONLY process if there are returns with 'apply_to_sales' action
+                $hasApplyToSalesReturns = false;
+                if ($request->has('selected_returns') && is_array($request->selected_returns)) {
+                    foreach ($request->selected_returns as $returnData) {
+                        if ($returnData['action'] === 'apply_to_sales') {
+                            $hasApplyToSalesReturns = true;
+                            break;
+                        }
+                    }
+                }
+
+                if ($hasApplyToSalesReturns && $request->has('bill_return_allocations') && !empty($request->bill_return_allocations)) {
+                    foreach ($request->bill_return_allocations as $saleId => $creditAmount) {
+                        if ($creditAmount > 0) {
+                            // Validate sale belongs to customer
+                            $sale = Sale::where('id', $saleId)
+                                      ->where('customer_id', $request->customer_id)
+                                      ->first();
+
+                            if (!$sale) {
+                                throw new \Exception("Sale {$saleId} not found for customer");
+                            }
+
+                            // Create payment record for this sale using return credit
+                            $salePaymentFromReturn = Payment::create([
+                                'payment_date' => $request->payment_date,
+                                'amount' => $creditAmount,
+                                'payment_method' => 'advance_adjustment',
+                                'payment_type' => 'sale',
+                                'reference_id' => $saleId,
+                                'reference_no' => $bulkReference,
+                                'customer_id' => $request->customer_id,
+                                'notes' => 'Advance adjustment applied to sale: ' . $sale->invoice_no,
+                            ]);
+
+                            // Record in ledger as sale payment
+                            $this->unifiedLedgerService->recordSalePayment($salePaymentFromReturn);
+
+                            // Track affected sale
+                            $affectedSaleIds[$saleId] = true;
+                        }
+                    }
+                }
+
                 foreach ($request->payment_groups as $groupIndex => $paymentGroup) {
                     $groupTotal = 0;
                     $groupPayments = [];
@@ -1103,8 +1346,18 @@ class PaymentController extends Controller
                                 throw new \Exception("Sale {$bill['sale_id']} not found for customer");
                             }
 
-                            if ($bill['amount'] > $sale->total_due) {
-                                throw new \Exception("Payment amount Rs.{$bill['amount']} exceeds due Rs.{$sale->total_due} for invoice {$sale->invoice_no}");
+                            // Get return credit already applied to this sale (if any)
+                            $returnCreditApplied = 0;
+                            if (isset($request->bill_return_allocations[$bill['sale_id']])) {
+                                $returnCreditApplied = $request->bill_return_allocations[$bill['sale_id']];
+                            }
+
+                            // Calculate actual total due for this sale (after return credits)
+                            $actualDue = $sale->total_due - $returnCreditApplied;
+
+                            // Validate the payment amount doesn't exceed remaining due
+                            if ($bill['amount'] > $actualDue) {
+                                throw new \Exception("Payment amount Rs.{$bill['amount']} exceeds remaining due Rs.{$actualDue} for invoice {$sale->invoice_no} (after return credits)");
                             }
 
                             // Create individual payment record
@@ -1129,6 +1382,9 @@ class PaymentController extends Controller
 
                             // Update sale table
                             $this->updateSaleTable($bill['sale_id']);
+
+                            // Track affected sale
+                            $affectedSaleIds[$bill['sale_id']] = true;
 
                             $groupTotal += $bill['amount'];
                             $groupPayments[] = [
@@ -1202,6 +1458,15 @@ class PaymentController extends Controller
 
                 // Update customer balance
                 $this->updateCustomerBalance($request->customer_id);
+
+                // Recalculate all affected sales to ensure proper payment_status and total_paid
+                foreach (array_keys($affectedSaleIds) as $saleId) {
+                    $sale = Sale::find($saleId);
+                    if ($sale) {
+                        // Update sale table with recalculated totals
+                        $this->updateSaleTable($saleId);
+                    }
+                }
 
                 // Note: Individual payments are already logged in the payments table
                 // Bulk reference is stored in each payment's reference_no field

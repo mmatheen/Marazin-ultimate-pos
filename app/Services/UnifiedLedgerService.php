@@ -277,6 +277,46 @@ class UnifiedLedgerService
     }
 
     /**
+     * Record return credit application (return credit applied to reduce customer's sales due)
+     */
+    public function recordReturnCreditApplication($payment, $contactType)
+    {
+        $transactionDate = $payment->created_at ?
+            Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo') :
+            Carbon::now('Asia/Colombo');
+
+        return Ledger::createEntry([
+            'contact_id' => $contactType === 'customer' ? $payment->customer_id : $payment->supplier_id,
+            'contact_type' => $contactType,
+            'transaction_date' => $transactionDate,
+            'reference_no' => $payment->reference_no,
+            'transaction_type' => 'payments',
+            'amount' => $payment->amount,
+            'notes' => $payment->notes ?: 'Credit adjustment applied to outstanding sales'
+        ]);
+    }
+
+    /**
+     * Record cash refund for return (money paid back to customer)
+     */
+    public function recordReturnRefund($payment, $contactType)
+    {
+        $transactionDate = $payment->created_at ?
+            Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo') :
+            Carbon::now('Asia/Colombo');
+
+        return Ledger::createEntry([
+            'contact_id' => $contactType === 'customer' ? $payment->customer_id : $payment->supplier_id,
+            'contact_type' => $contactType,
+            'transaction_date' => $transactionDate,
+            'reference_no' => $payment->reference_no,
+            'transaction_type' => 'return_payment',
+            'amount' => $payment->amount,
+            'notes' => $payment->notes ?: 'Cash refund processed'
+        ]);
+    }
+
+    /**
      * Record cheque bounce
      */
     public function recordChequeBounce($payment, $bounceDate, $bounceReason, $createdBy = null)

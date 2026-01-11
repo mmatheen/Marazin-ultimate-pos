@@ -435,12 +435,12 @@ class Ledger extends Model
 
             case 'return_payment':
                 // Return payment logic:
-                // - Customer return payment: We pay customer for their return (credit - reduces their debt)
-                // - Supplier return payment: Supplier pays us back for returned goods (credit - money coming in)
+                // - Customer cash refund: We pay cash to customer (DEBIT - money going out, creates advance)
+                // - Supplier return payment: Supplier pays us back for returned goods (CREDIT - money coming in)
                 if ($data['contact_type'] === 'customer') {
-                    $credit = $data['amount']; // We reduce customer's debt
+                    $debit = $data['amount']; // Cash refund creates advance/credit in customer's favor
                 } else {
-                    // Supplier return payment: Supplier pays us back (credit - money flowing in from supplier)
+                    // Supplier return payment: Supplier pays us back (CREDIT - money flowing in from supplier)
                     $credit = $data['amount'];
                 }
                 break;
