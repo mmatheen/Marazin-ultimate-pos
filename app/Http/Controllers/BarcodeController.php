@@ -35,11 +35,12 @@ class BarcodeController extends Controller
 
     /**
      * Search products by name or SKU for barcode generation
+     * Optimized for high performance with caching and minimal database queries
      */
     public function searchProducts(Request $request)
     {
         try {
-            $search = $request->input('search', '');
+            $search = trim($request->input('search', ''));
 
             if (empty($search)) {
                 return response()->json([
@@ -48,57 +49,73 @@ class BarcodeController extends Controller
                 ]);
             }
 
-            // Optimized search with eager loading
-            $products = Product::where(function($query) use ($search) {
-                    $query->where('product_name', 'LIKE', "%{$search}%")
-                          ->orWhere('sku', 'LIKE', "%{$search}%");
-                })
-                ->with([
-                    'unit:id,name,short_name',
-                    'batches' => function($query) {
-                        $query->select('id', 'product_id', 'batch_no', 'unit_cost', 'wholesale_price',
-                                      'special_price', 'retail_price', 'max_retail_price', 'expiry_date')
-                              ->with(['locationBatches' => function($q) {
-                                  $q->select('batch_id', 'qty');
-                              }]);
-                    }
-                ])
-                ->select('id', 'product_name', 'sku', 'unit_id')
-                ->limit(10)
-                ->get()
-                ->map(function($product) {
-                    // Get batches with stock
-                    $batches = $product->batches->map(function($batch) use ($product) {
-                        $totalStock = $batch->locationBatches->sum('qty');
+            // Cache search results for 5 minutes to reduce database load
+            $cacheKey = 'barcode_search_' . md5(strtolower($search));
 
-                        return [
-                            'id' => $batch->id,
-                            'batch_no' => $batch->batch_no,
-                            'sku' => $product->sku,
-                            'cost_price' => number_format($batch->unit_cost, 2),
-                            'wholesale_price' => number_format($batch->wholesale_price, 2),
-                            'special_price' => number_format($batch->special_price, 2),
-                            'retail_price' => number_format($batch->retail_price, 2),
-                            'max_retail_price' => number_format($batch->max_retail_price, 2),
-                            'quantity' => $totalStock,
-                            'expiry_date' => $batch->expiry_date
+            $products = \Cache::remember($cacheKey, 300, function() use ($search) {
+                // Use raw query for maximum performance - single optimized query
+                $results = \DB::select("
+                    SELECT
+                        p.id,
+                        p.product_name,
+                        p.sku,
+                        u.short_name as unit,
+                        b.id as batch_id,
+                        b.batch_no,
+                        b.unit_cost,
+                        b.wholesale_price,
+                        b.special_price,
+                        b.retail_price,
+                        b.max_retail_price,
+                        b.expiry_date,
+                        COALESCE(SUM(lb.qty), 0) as total_qty
+                    FROM products p
+                    LEFT JOIN units u ON p.unit_id = u.id
+                    LEFT JOIN batches b ON p.id = b.product_id
+                    LEFT JOIN location_batches lb ON b.id = lb.batch_id
+                    WHERE (p.product_name LIKE ? OR p.sku LIKE ?)
+                    GROUP BY p.id, p.product_name, p.sku, u.short_name, b.id, b.batch_no,
+                             b.unit_cost, b.wholesale_price, b.special_price, b.retail_price,
+                             b.max_retail_price, b.expiry_date
+                    HAVING total_qty > 0
+                    ORDER BY p.product_name ASC
+                    LIMIT 50
+                ", ["%{$search}%", "%{$search}%"]);
+
+                // Group results by product efficiently
+                $groupedProducts = [];
+                foreach ($results as $row) {
+                    $productId = $row->id;
+
+                    if (!isset($groupedProducts[$productId])) {
+                        $groupedProducts[$productId] = [
+                            'id' => $row->id,
+                            'product_name' => $row->product_name,
+                            'sku' => $row->sku,
+                            'unit' => $row->unit ?? 'Unit',
+                            'batches' => []
                         ];
-                    })->filter(function($batch) {
-                        return $batch['quantity'] > 0;
-                    })->values();
+                    }
 
-                    return [
-                        'id' => $product->id,
-                        'product_name' => $product->product_name,
-                        'sku' => $product->sku,
-                        'unit' => $product->unit?->short_name ?? 'Unit',
-                        'batches' => $batches
-                    ];
-                })
-                ->filter(function($product) {
-                    return $product['batches']->count() > 0;
-                })
-                ->values();
+                    if ($row->batch_id) {
+                        $groupedProducts[$productId]['batches'][] = [
+                            'id' => $row->batch_id,
+                            'batch_no' => $row->batch_no,
+                            'sku' => $row->sku,
+                            'cost_price' => number_format((float)$row->unit_cost, 2),
+                            'wholesale_price' => number_format((float)$row->wholesale_price, 2),
+                            'special_price' => number_format((float)$row->special_price, 2),
+                            'retail_price' => number_format((float)$row->retail_price, 2),
+                            'max_retail_price' => number_format((float)$row->max_retail_price, 2),
+                            'quantity' => (int)$row->total_qty,
+                            'expiry_date' => $row->expiry_date
+                        ];
+                    }
+                }
+
+                // Convert to indexed array and limit to 10 products
+                return array_slice(array_values($groupedProducts), 0, 10);
+            });
 
             return response()->json([
                 'status' => 200,
@@ -149,8 +166,20 @@ class BarcodeController extends Controller
 
             // Generate barcode using HTML format for web display
             // Parameters: (code, type, widthFactor, height)
-            // widthFactor: 2 = good for printing, height: 60 = good height
+            // widthFactor: 2 = good for printing, height: 25 = compact barcode height
             $generatorSVG = new BarcodeGeneratorSVG();
+
+            // Fetch location name for the product
+            $locationName = null;
+            $productLocation = \DB::table('location_product')
+                ->join('locations', 'location_product.location_id', '=', 'locations.id')
+                ->where('location_product.product_id', $batch->product_id)
+                ->select('locations.name')
+                ->first();
+
+            if ($productLocation) {
+                $locationName = $productLocation->name;
+            }
 
             // Generate barcodes array
             $barcodes = [];
@@ -159,9 +188,10 @@ class BarcodeController extends Controller
                     'product_name' => $batch->product->product_name,
                     'batch_no' => $batch->batch_no,
                     'sku' => $batch->product->sku,
-                    'barcode_html' => $generatorSVG->getBarcode($batch->product->sku, $generatorSVG::TYPE_CODE_128, 2, 50),
-                    'price' => 'Rs. ' . number_format($selectedPrice, 2),
-                    'price_type' => ucfirst(str_replace('_', ' ', $priceType))
+                    'barcode_html' => $generatorSVG->getBarcode($batch->product->sku, $generatorSVG::TYPE_CODE_128, 2, 25),
+                    'price' => 'Rs. ' . number_format($selectedPrice, 0),
+                    'price_type' => ucfirst(str_replace('_', ' ', $priceType)),
+                    'location_name' => $locationName
                 ];
             }
 
@@ -172,7 +202,7 @@ class BarcodeController extends Controller
                     'product_name' => $batch->product->product_name,
                     'batch_no' => $batch->batch_no,
                     'sku' => $batch->product->sku,
-                    'price' => number_format($selectedPrice, 2)
+                    'price' => number_format($selectedPrice, 0)
                 ]
             ]);
 

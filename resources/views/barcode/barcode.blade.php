@@ -95,6 +95,10 @@
                                         <input class="form-check-input" type="checkbox" id="showSKU" checked>
                                         <label class="form-check-label" for="showSKU">Show SKU</label>
                                     </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="showLocation" checked>
+                                        <label class="form-check-label" for="showLocation">Show Location</label>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -212,36 +216,28 @@
         }
 
         .search-result-item {
-            padding: 10px 15px;
+            padding: 12px 15px;
             cursor: pointer;
-            border-bottom: 1px solid #f0f0f0;
+            border-bottom: 1px solid #e9ecef;
+            transition: all 0.2s ease;
         }
 
         .search-result-item:hover {
-            background-color: #f8f9fa;
+            background-color: #e7f3ff;
+            border-left: 3px solid #0d6efd;
+            padding-left: 12px;
         }
 
         .search-result-item:last-child {
             border-bottom: none;
         }
 
-        .product-name {
-            font-weight: 600;
-            color: #333;
+        #searchDropdown {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
 
-        .product-sku {
-            color: #666;
-            font-size: 0.9em;
-        }
-
-        .product-price {
-            color: #28a745;
+        .badge {
             font-weight: 500;
-        }
-
-        .product-stock {
-            color: #17a2b8;
             font-size: 0.85em;
         }
     </style>
@@ -251,26 +247,42 @@
         $(document).ready(function() {
             let selectedBatch = null;
             let searchTimeout = null;
+            let currentRequest = null; // Track current AJAX request
 
-            // Product Search
+            // Product Search with optimized debouncing
             $('#productSearch').on('input', function() {
                 const searchTerm = $(this).val().trim();
 
                 clearTimeout(searchTimeout);
 
-                if (searchTerm.length < 1) {
+                // Cancel previous request if still pending
+                if (currentRequest) {
+                    currentRequest.abort();
+                }
+
+                if (searchTerm.length < 2) { // Require at least 2 characters
                     $('#searchDropdown').hide();
                     return;
                 }
 
+                // Show loading indicator
+                $('#searchDropdown').html('<div class="p-3 text-center"><i class="fas fa-spinner fa-spin"></i> Searching...</div>').show();
+
                 searchTimeout = setTimeout(function() {
                     searchProducts(searchTerm);
-                }, 150);
+                }, 250); // Increased to 250ms for better performance
             });
 
-            // Search Products Function
+            // Search Products Function with caching
+            const searchCache = {};
             function searchProducts(term) {
-                $.ajax({
+                // Check cache first
+                if (searchCache[term]) {
+                    displaySearchResults(searchCache[term]);
+                    return;
+                }
+
+                currentRequest = $.ajax({
                     url: '{{ route('barcode.search') }}',
                     method: 'POST',
                     headers: {
@@ -278,13 +290,18 @@
                     },
                     data: { search: term },
                     success: function(response) {
+                        currentRequest = null;
                         if (response.status === 200) {
+                            searchCache[term] = response.products; // Cache results
                             displaySearchResults(response.products);
                         }
                     },
                     error: function(xhr) {
-                        console.error('Search error:', xhr);
-                        toastr.error('Error searching products');
+                        currentRequest = null;
+                        if (xhr.statusText !== 'abort') { // Don't show error for aborted requests
+                            console.error('Search error:', xhr);
+                            toastr.error('Error searching products');
+                        }
                     }
                 });
             }
@@ -303,8 +320,9 @@
                 products.forEach(function(product) {
                     // Product Header
                     const productHeader = $(`
-                        <div class="p-2 bg-light border-bottom">
-                            <strong>${product.product_name}</strong> <small class="text-muted">(SKU: ${product.sku})</small>
+                        <div class="p-2 bg-primary bg-opacity-10 border-bottom">
+                            <strong class="text-dark">${product.product_name}</strong>
+                            <span class="badge bg-secondary ms-2">${product.sku}</span>
                         </div>
                     `);
                     dropdown.append(productHeader);
@@ -314,17 +332,19 @@
                         product.batches.forEach(function(batch) {
                             const expiryText = batch.expiry_date ? new Date(batch.expiry_date).toLocaleDateString() : 'N/A';
                             const item = $(`
-                                <div class="search-result-item ps-4" data-batch='${JSON.stringify(batch)}' data-product='${JSON.stringify(product)}'>
+                                <div class="search-result-item" data-batch='${JSON.stringify(batch)}' data-product='${JSON.stringify(product)}'>
                                     <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <div class="product-name">Batch: ${batch.batch_no || 'N/A'}</div>
-                                            <div class="product-sku">Stock: ${batch.quantity} ${product.unit}</div>
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="badge bg-info text-dark">${batch.batch_no || 'N/A'}</span>
+                                                <span class="text-muted small">Stock: <strong class="text-success">${batch.quantity}</strong> ${product.unit}</span>
+                                            </div>
                                         </div>
                                         <div class="text-end">
-                                            <div class="product-price" style="font-size: 0.8em;">
-                                                CP: ${batch.cost_price} | WP: ${batch.wholesale_price} | SP: ${batch.special_price} | RP: ${batch.retail_price}
+                                            <div class="text-success fw-bold" style="font-size: 0.95em;">
+                                                MRP: Rs. ${batch.max_retail_price}
                                             </div>
-                                            <div class="product-stock">Expiry: ${expiryText}</div>
+                                            <small class="text-muted">Exp: ${expiryText}</small>
                                         </div>
                                     </div>
                                 </div>
@@ -333,7 +353,7 @@
                             dropdown.append(item);
                         });
                     } else {
-                        dropdown.append('<div class="p-2 ps-4 text-muted">No batches with stock</div>');
+                        dropdown.append('<div class="p-3 ps-4 text-muted small">No batches with stock</div>');
                     }
                 });
 
@@ -436,7 +456,7 @@
                                 </div>
                                 <div class="barcode-code">${barcode.sku}</div>
                                 <div class="barcode-price">${barcode.price}</div>
-
+                                ${barcode.location_name ? '<small class="text-info d-block">Location: ' + barcode.location_name + '</small>' : ''}
                             </div>
                         </div>
                     `);
@@ -452,15 +472,15 @@
                 }, 500);
             }
 
-            // Label size configurations
+            // Label size configurations - Compact barcode heights
             const labelSizes = {
-                'a4': { page: 'A4', margin: '2mm', width: '32mm', height: 'auto', gap: '1.5mm', svgW: '28mm', svgH: '8mm', wrap: true, perRow: false },
-                '50x30': { page: '50mm 30mm', margin: '1mm', width: '48mm', height: '28mm', gap: '0', svgW: '45mm', svgH: '10mm', wrap: false, perRow: false },
-                '50x25': { page: '50mm 25mm', margin: '1mm', width: '48mm', height: '23mm', gap: '0', svgW: '45mm', svgH: '8mm', wrap: false, perRow: false },
-                '40x30': { page: '40mm 30mm', margin: '1mm', width: '38mm', height: '28mm', gap: '0', svgW: '35mm', svgH: '10mm', wrap: false, perRow: false },
-                '40x25': { page: '40mm 25mm', margin: '1mm', width: '38mm', height: '23mm', gap: '0', svgW: '35mm', svgH: '8mm', wrap: false, perRow: false },
-                '38x25': { page: '38mm 25mm', margin: '1mm', width: '36mm', height: '23mm', gap: '0', svgW: '33mm', svgH: '8mm', wrap: false, perRow: false },
-                '34x25x3': { page: '4.634in auto', margin: '0', width: '1.378in', height: '0.984in', gap: '0.1in', svgW: '1.2in', svgH: '0.3in', wrap: false, perRow: 3 }
+                'a4': { page: 'A4', margin: '2mm', width: '32mm', height: 'auto', gap: '1.5mm', svgW: '28mm', svgH: '4.5mm', wrap: true, perRow: false },
+                '50x30': { page: '50mm 30mm', margin: '1mm', width: '48mm', height: '28mm', gap: '0', svgW: '45mm', svgH: '4.5mm', wrap: false, perRow: false },
+                '50x25': { page: '50mm 25mm', margin: '1mm', width: '48mm', height: '23mm', gap: '0', svgW: '45mm', svgH: '4.5mm', wrap: false, perRow: false },
+                '40x30': { page: '40mm 30mm', margin: '1mm', width: '38mm', height: '28mm', gap: '0', svgW: '35mm', svgH: '4.5mm', wrap: false, perRow: false },
+                '40x25': { page: '40mm 25mm', margin: '1mm', width: '38mm', height: '23mm', gap: '0', svgW: '35mm', svgH: '4.5mm', wrap: false, perRow: false },
+                '38x25': { page: '38mm 25mm', margin: '1mm', width: '36mm', height: '23mm', gap: '0', svgW: '33mm', svgH: '4.5mm', wrap: false, perRow: false },
+                '34x25x3': { page: '4.634in auto', margin: '0', width: '1.378in', height: '0.984in', gap: '0.1in', svgW: '1.2in', svgH: '0.2in', wrap: false, perRow: 3 }
             };
 
             // Print Barcodes - Using hidden iframe (same page, no new window)
@@ -481,6 +501,7 @@
                 var showBatch = $('#showBatch').is(':checked');
                 var showPrice = $('#showPrice').is(':checked');
                 var showSKU = $('#showSKU').is(':checked');
+                var showLocation = $('#showLocation').is(':checked');
 
                 // Build print content
                 let printContent = '';
@@ -495,7 +516,7 @@
                             '<div class="c">' + barcode.barcode_html + '</div>' +
                             (showSKU ? '<div class="s">' + barcode.sku + '</div>' : '') +
                             (showPrice ? '<div class="p">' + barcode.price + '</div>' : '') +
-
+                            (showLocation && barcode.location_name ? '<div class="y">' + barcode.location_name + '</div>' : '') +
                         '</div>';
 
                         // After every 3 labels or at the end, wrap in a row
@@ -513,7 +534,7 @@
                             '<div class="c">' + barcode.barcode_html + '</div>' +
                             (showSKU ? '<div class="s">' + barcode.sku + '</div>' : '') +
                             (showPrice ? '<div class="p">' + barcode.price + '</div>' : '') +
-
+                            (showLocation && barcode.location_name ? '<div class="y">' + barcode.location_name + '</div>' : '') +
                         '</div>';
                     });
                 }
@@ -554,7 +575,7 @@
                 css += '.c svg{max-width:' + config.svgW + ';height:' + config.svgH + ';display:block}';
                 css += '.s{font-size:7pt;font-weight:bold;font-family:monospace;text-align:center;margin-top:0.3mm}';
                 css += '.p{font-size:9pt;font-weight:bold;color:#000;text-align:center;margin-top:0.5mm}';
-                css += '.y{font-size:5pt;color:#666;text-align:center;margin-top:0.2mm}';
+                css += '.y{font-size:7pt;font-weight:900;color:#000;text-align:center;margin-top:0.4mm;letter-spacing:0.2px;width:100%;line-height:1.1;word-wrap:break-word;overflow-wrap:break-word;white-space:normal}';
                 css += '@media print{.b{border:none}}'; // Hide borders in final print
 
                 // Write content to iframe
