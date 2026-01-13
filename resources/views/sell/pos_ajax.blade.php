@@ -198,6 +198,7 @@
         let stockData = []; // not used for cards/autocomplete in new version
         let isEditing = false;
         let currentEditingSaleId = null; // Track the sale ID being edited
+        let isEditingFinalizedSale = false; // Track if editing a finalized sale with invoice
         let isSalesRep = false; // Track if current user is a sales rep
         let salesRepCustomersFiltered = false; // Track if sales rep customer filtering has been applied
         let salesRepCustomersLoaded = false; // Track if customers have been loaded for this session
@@ -8255,9 +8256,53 @@
                 }
             });
 
-            // Draft button is always enabled
-            $('#draftButton').prop('disabled', false);
-            $('#quotationButton').prop('disabled', false);
+            // 🔒 CRITICAL: Disable Draft, Quotation, and Sale Order buttons ONLY when editing FINALIZED sales to prevent ledger issues
+            // Allow these buttons when editing drafts, quotations, or sale orders (not yet finalized)
+            if (isEditing && isEditingFinalizedSale) {
+                // Keep original colors but add visual disabled state with opacity and cursor
+                $('#draftButton').prop('disabled', true)
+                    .css({'opacity': '0.5', 'cursor': 'not-allowed', 'pointer-events': 'none'})
+                    .attr('title', 'Cannot create Draft while editing a finalized sale');
+
+                $('#quotationButton').prop('disabled', true)
+                    .css({'opacity': '0.5', 'cursor': 'not-allowed', 'pointer-events': 'none'})
+                    .attr('title', 'Cannot create Quotation while editing a finalized sale');
+
+                $('#saleOrderButton').prop('disabled', true)
+                    .css({'opacity': '0.5', 'cursor': 'not-allowed', 'pointer-events': 'none'})
+                    .attr('title', 'Cannot create Sale Order while editing a finalized sale');
+
+                // Also disable mobile versions
+                $('.mobile-action-btn[data-action="draft"]').prop('disabled', true)
+                    .css({'opacity': '0.5', 'cursor': 'not-allowed', 'pointer-events': 'none'});
+                $('.mobile-action-btn[data-action="quotation"]').prop('disabled', true)
+                    .css({'opacity': '0.5', 'cursor': 'not-allowed', 'pointer-events': 'none'});
+                $('.mobile-action-btn[data-action="sale-order"]').prop('disabled', true)
+                    .css({'opacity': '0.5', 'cursor': 'not-allowed', 'pointer-events': 'none'});
+
+                console.log('🔒 Draft, Quotation, and Sale Order buttons disabled - editing finalized sale with invoice');
+            } else {
+                // Enable these buttons when not in edit mode - restore original styling
+                $('#draftButton').prop('disabled', false)
+                    .css({'opacity': '1', 'cursor': 'pointer', 'pointer-events': 'auto'})
+                    .removeAttr('title');
+
+                $('#quotationButton').prop('disabled', false)
+                    .css({'opacity': '1', 'cursor': 'pointer', 'pointer-events': 'auto'})
+                    .removeAttr('title');
+
+                $('#saleOrderButton').prop('disabled', false)
+                    .css({'opacity': '1', 'cursor': 'pointer', 'pointer-events': 'auto'})
+                    .removeAttr('title');
+
+                // Enable mobile versions
+                $('.mobile-action-btn[data-action="draft"]').prop('disabled', false)
+                    .css({'opacity': '1', 'cursor': 'pointer', 'pointer-events': 'auto'});
+                $('.mobile-action-btn[data-action="quotation"]').prop('disabled', false)
+                    .css({'opacity': '1', 'cursor': 'pointer', 'pointer-events': 'auto'});
+                $('.mobile-action-btn[data-action="sale-order"]').prop('disabled', false)
+                    .css({'opacity': '1', 'cursor': 'pointer', 'pointer-events': 'auto'});
+            }
         }
 
         // Price validation and editability management
@@ -8603,6 +8648,7 @@
             // Set editing mode to true
             isEditing = true;
             currentEditingSaleId = saleId; // Store the sale ID being edited
+            isEditingFinalizedSale = false; // Will be set to true if sale has invoice
 
             fetch(`/sales/edit/${saleId}`, {
                     headers: {
@@ -8630,7 +8676,11 @@
                             customer_id: saleDetails.sale.customer_id,
                             invoice_no: saleDetails.sale.invoice_no
                         };
+
+                        // 🔒 Check if this is a finalized sale (has invoice number)
+                        isEditingFinalizedSale = !!(saleDetails.sale.invoice_no && saleDetails.sale.invoice_no !== 'null' && saleDetails.sale.invoice_no.trim() !== '');
                         console.log('🔒 Original sale data stored for edit validation:', window.originalSaleData);
+                        console.log('📋 Is editing finalized sale:', isEditingFinalizedSale, '| Invoice:', saleDetails.sale.invoice_no);
 
                         // Update invoice number
                         const saleInvoiceElement = document.getElementById('sale-invoice-no');
@@ -8863,6 +8913,10 @@
 
                         // Update totals
                         updateTotals();
+
+                        // 🔒 Disable restricted buttons in edit mode
+                        updatePaymentButtonsState();
+                        console.log('✅ Edit mode loaded - restricted buttons disabled');
                     } else {
                         console.error('Invalid sale data:', data);
                         toastr.error('Failed to fetch sale data.', 'Error');
@@ -9164,8 +9218,36 @@
                                     timeOut: 5000,
                                     progressBar: true
                                 });
+
+                                // 🔄 Redirect to POS page after Sale Order update (edit mode)
+                                if (saleId && window.location.pathname.includes('/edit/')) {
+                                    // Don't reset form for sale orders in edit mode - just redirect
+                                    setTimeout(() => {
+                                        window.location.href = '/pos-create';
+                                    }, 1500); // Small delay to show success message
+                                    if (onComplete) onComplete();
+                                    return; // Exit early to prevent form reset
+                                }
+
+                                // For new sale orders (not editing), reset the form normally
+                                setTimeout(() => {
+                                    resetForm();
+                                    if (onComplete) onComplete();
+                                }, 50);
+                                return; // Exit to prevent duplicate processing
                             } else {
                                 toastr.success(response.message);
+
+                                // 🔄 Redirect to POS page after Draft/Quotation update (edit mode)
+                                // Check if editing draft or quotation
+                                if (saleId && window.location.pathname.includes('/edit/') &&
+                                    (saleData.status === 'draft' || saleData.status === 'quotation')) {
+                                    setTimeout(() => {
+                                        window.location.href = '/pos-create';
+                                    }, 1500); // Small delay to show success message
+                                    if (onComplete) onComplete();
+                                    return; // Exit early to prevent form reset
+                                }
                             }
 
                             // Store current customer before reset
@@ -10415,18 +10497,34 @@
             const quotationButton = document.getElementById('quotationButton');
             if (quotationButton) {
                 quotationButton.addEventListener('click', function() {
+                    // 🔒 Prevent Quotation only when editing finalized sales to avoid ledger issues
+                    if (isEditing && isEditingFinalizedSale) {
+                        toastr.error('Cannot create Quotation while editing a finalized sale with invoice. Please save or cancel the edit first.', 'Finalized Sale');
+                        console.log('🔒 Quotation button blocked - Editing finalized sale');
+                        return;
+                    }
+
                     const saleData = gatherSaleData('quotation');
                     if (!saleData) return;
-                    sendSaleData(saleData);
+                    // Pass currentEditingSaleId if editing to preserve quotation number
+                    sendSaleData(saleData, currentEditingSaleId);
                 });
             }
 
             const draftButton = document.getElementById('draftButton');
             if (draftButton) {
                 draftButton.addEventListener('click', function() {
+                    // 🔒 Prevent Draft only when editing finalized sales to avoid ledger issues
+                    if (isEditing && isEditingFinalizedSale) {
+                        toastr.error('Cannot create Draft while editing a finalized sale with invoice. Please save or cancel the edit first.', 'Finalized Sale');
+                        console.log('🔒 Draft button blocked - Editing finalized sale');
+                        return;
+                    }
+
                     const saleData = gatherSaleData('draft');
                     if (!saleData) return;
-                    sendSaleData(saleData);
+                    // Pass currentEditingSaleId if editing to preserve draft number
+                    sendSaleData(saleData, currentEditingSaleId);
                 });
             }
 
@@ -10434,6 +10532,13 @@
             const saleOrderButton = document.getElementById('saleOrderButton');
             if (saleOrderButton) {
                 saleOrderButton.addEventListener('click', function() {
+                // 🔒 Prevent Sale Order only when editing finalized sales to avoid ledger issues
+                if (isEditing && isEditingFinalizedSale) {
+                    toastr.error('Cannot create Sale Order while editing a finalized sale with invoice. Please save or cancel the edit first.', 'Finalized Sale');
+                    console.log('🔒 Sale Order button blocked - Editing finalized sale');
+                    return;
+                }
+
                 // Validate that there are products in the cart
                 const productRows = $('#billing-body tr');
                 if (productRows.length === 0) {
@@ -10493,8 +10598,8 @@
                 // Remove payments array if it exists (Sale Orders don't have payments)
                 delete saleData.payments;
 
-                // Send the sale order data
-                sendSaleData(saleData);
+                // 🔄 Send the sale order data - Pass currentEditingSaleId if editing to preserve order number
+                sendSaleData(saleData, currentEditingSaleId);
 
                 // Close the modal
                 const saleOrderModal = bootstrap.Modal.getInstance(document.getElementById('saleOrderModal'));

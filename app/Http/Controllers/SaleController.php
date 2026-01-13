@@ -1071,8 +1071,14 @@ class SaleController extends Controller
 
                 // ----- Invoice/Order No Generation -----
                 if ($transactionType === 'sale_order') {
-                    // Sale Order: Generate order number, no invoice yet
-                    $orderNumber = Sale::generateOrderNumber($request->location_id);
+                    // 🔄 Sale Order: Preserve existing order number during update, generate new for create
+                    if ($isUpdate && $sale->order_number) {
+                        // Keep existing order number during update
+                        $orderNumber = $sale->order_number;
+                    } else {
+                        // Generate new order number for new sale order
+                        $orderNumber = Sale::generateOrderNumber($request->location_id);
+                    }
                     $orderStatus = $request->order_status ?? 'pending';
                     $invoiceNo = null; // No invoice for sale order
                 } elseif (
@@ -1328,7 +1334,8 @@ class SaleController extends Controller
 
 // ✅ CORRECT ORDER: Step 1 - Reverse old SALE entries only (not payments yet)
                 // Accounting order: Sale reversal → Payment reversal → New sale → New payment
-                if ($isUpdate && $request->customer_id != 1) {
+                // ✨ CRITICAL FIX: Skip ledger updates for Sale Orders - they don't create ledger entries
+                if ($isUpdate && $request->customer_id != 1 && $transactionType !== 'sale_order' && !in_array($sale->status, ['draft', 'quotation'])) {
                     // Check if customer has changed during edit (use pre-stored values)
                     if ($customerChanged) {
                         // Customer changed - use special method to handle ledger transfer

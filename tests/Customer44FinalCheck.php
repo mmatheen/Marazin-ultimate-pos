@@ -4,14 +4,14 @@
  * ===================================================================
  * ✅ CUSTOMER 44 FINAL VERIFICATION & FIX SCRIPT
  * ===================================================================
- * 
+ *
  * This script performs comprehensive balance verification and fixes
  * any issues automatically.
- * 
+ *
  * Expected Balance: 372,785.00
- * 
+ *
  * Run: php tests/Customer44FinalCheck.php
- * 
+ *
  * Issues it checks and fixes:
  * - Duplicate opening_balance_payment entries
  * - Incorrect opening_balance in ledger vs customers table
@@ -75,22 +75,22 @@ if (abs($difference) < 0.01) {
     echo "No issues found. Customer 44 balance is accurate.\n";
     echo "═══════════════════════════════════════════════════════════════════\n";
     echo "\n";
-    
+
     // Show quick summary
     $entries = DB::table('ledgers')
         ->where('contact_id', $customerId)
         ->where('status', 'active')
         ->get();
-    
+
     $totalDebits = $entries->sum('debit');
     $totalCredits = $entries->sum('credit');
-    
+
     echo "📊 Quick Summary:\n";
     echo "   Total Debits (Owed):  " . number_format($totalDebits, 2) . "\n";
     echo "   Total Credits (Paid): " . number_format($totalCredits, 2) . "\n";
     echo "   Active Entries:       " . $entries->count() . "\n";
     echo "\n";
-    
+
     exit(0);
 }
 
@@ -148,7 +148,7 @@ if ($ledgerOpeningBalance && abs($ledgerOpeningBalance->debit - $customerOpening
     echo "   Ledgers Table:   " . number_format($ledgerOpeningBalance->debit, 2) . "\n";
     echo "   Difference:      " . number_format($ledgerOpeningBalance->debit - $customerOpeningBalance, 2) . "\n";
     echo "\n";
-    
+
     $issues[] = [
         'type' => 'opening_balance_mismatch',
         'entry_id' => $ledgerOpeningBalance->id,
@@ -178,7 +178,7 @@ foreach ($obPayments as $obp) {
         echo "   Amount:       " . number_format($obp->credit, 2) . "\n";
         echo "   Original ID:  {$seenReferences[$obp->reference_no]}\n";
         echo "\n";
-        
+
         $issues[] = [
             'type' => 'duplicate_payment',
             'entry_id' => $obp->id,
@@ -209,7 +209,7 @@ if (abs($remainingDiff) > 0.01) {
                 break;
             }
         }
-        
+
         if (!$isDuplicate) {
             // Check if removing this payment would fix the balance
             $balanceWithoutThis = $projectedBalance + $obp->credit;
@@ -220,14 +220,14 @@ if (abs($remainingDiff) > 0.01) {
                 echo "   Reference: {$obp->reference_no}\n";
                 echo "   Reason:    Already included in opening balance\n";
                 echo "\n";
-                
+
                 $issues[] = [
                     'type' => 'incorrect_payment',
                     'entry_id' => $obp->id,
                     'amount' => $obp->credit,
                     'impact' => $obp->credit
                 ];
-                
+
                 $projectedBalance = $balanceWithoutThis;
                 break;
             }
@@ -257,7 +257,7 @@ echo "\n";
 foreach ($issues as $i => $issue) {
     $num = $i + 1;
     echo "Fix #{$num}:\n";
-    
+
     switch ($issue['type']) {
         case 'opening_balance_mismatch':
             echo "  Action: Update opening_balance ledger entry\n";
@@ -265,14 +265,14 @@ foreach ($issues as $i => $issue) {
             echo "  Change: " . number_format($issue['current_value'], 2) . " → " . number_format($issue['correct_value'], 2) . "\n";
             echo "  Impact: " . ($issue['impact'] >= 0 ? '+' : '') . number_format($issue['impact'], 2) . "\n";
             break;
-            
+
         case 'duplicate_payment':
             echo "  Action: Delete duplicate payment entry\n";
             echo "  Entry ID: {$issue['entry_id']}\n";
             echo "  Amount: " . number_format($issue['amount'], 2) . "\n";
             echo "  Impact: +" . number_format($issue['impact'], 2) . "\n";
             break;
-            
+
         case 'incorrect_payment':
             echo "  Action: Delete incorrect payment entry\n";
             echo "  Entry ID: {$issue['entry_id']}\n";
@@ -323,14 +323,14 @@ DB::beginTransaction();
 
 try {
     $fixedCount = 0;
-    
+
     foreach ($issues as $issue) {
         switch ($issue['type']) {
             case 'opening_balance_mismatch':
                 $updated = DB::table('ledgers')
                     ->where('id', $issue['entry_id'])
                     ->update(['debit' => $issue['correct_value']]);
-                
+
                 if ($updated) {
                     echo "✅ Updated opening_balance entry #{$issue['entry_id']}\n";
                     echo "   " . number_format($issue['current_value'], 2) . " → " . number_format($issue['correct_value'], 2) . "\n";
@@ -339,13 +339,13 @@ try {
                     echo "❌ Failed to update entry #{$issue['entry_id']}\n";
                 }
                 break;
-                
+
             case 'duplicate_payment':
             case 'incorrect_payment':
                 $deleted = DB::table('ledgers')
                     ->where('id', $issue['entry_id'])
                     ->delete();
-                
+
                 if ($deleted) {
                     echo "✅ Deleted " . ($issue['type'] === 'duplicate_payment' ? 'duplicate' : 'incorrect') . " payment entry #{$issue['entry_id']}\n";
                     echo "   Amount: " . number_format($issue['amount'], 2) . "\n";
@@ -356,28 +356,28 @@ try {
                 break;
         }
     }
-    
+
     DB::commit();
-    
+
     echo "\n";
     echo "───────────────────────────────────────────────────────────────────\n";
     echo "✅ {$fixedCount} fixes applied successfully!\n";
     echo "───────────────────────────────────────────────────────────────────\n";
     echo "\n";
-    
+
     // Final verification
     echo "┌───────────────────────────────────────────────────────────────────┐\n";
     echo "│ FINAL VERIFICATION                                                │\n";
     echo "└───────────────────────────────────────────────────────────────────┘\n";
-    
+
     $finalBalance = BalanceHelper::getCustomerBalance($customerId);
     $finalDiff = abs($finalBalance - $expectedBalance);
-    
+
     echo "Final Balance:     " . number_format($finalBalance, 2) . "\n";
     echo "Expected Balance:  " . number_format($expectedBalance, 2) . "\n";
     echo "Difference:        " . number_format($finalDiff, 2) . "\n";
     echo "\n";
-    
+
     if ($finalDiff < 0.01) {
         echo "╔═══════════════════════════════════════════════════════════════════╗\n";
         echo "║                                                                   ║\n";
@@ -392,7 +392,7 @@ try {
         echo "\n";
         exit(1);
     }
-    
+
 } catch (\Exception $e) {
     DB::rollBack();
     echo "\n";

@@ -40,6 +40,25 @@ class UnifiedLedgerService
      */
     public function recordSale($sale, $createdBy = null, $customTransactionDate = null)
     {
+        // 🔒 CRITICAL: Prevent ledger creation for Sale Orders, Drafts, and Quotations
+        if (isset($sale->transaction_type) && $sale->transaction_type === 'sale_order') {
+            Log::warning('Attempted to create ledger entry for Sale Order - skipping', [
+                'sale_id' => $sale->id ?? 'N/A',
+                'order_number' => $sale->order_number ?? 'N/A',
+                'transaction_type' => $sale->transaction_type
+            ]);
+            return null; // Don't create ledger entry
+        }
+
+        if (isset($sale->status) && in_array($sale->status, ['draft', 'quotation'])) {
+            Log::warning('Attempted to create ledger entry for Draft/Quotation - skipping', [
+                'sale_id' => $sale->id ?? 'N/A',
+                'invoice_no' => $sale->invoice_no ?? 'N/A',
+                'status' => $sale->status
+            ]);
+            return null; // Don't create ledger entry
+        }
+
         // ✅ FIX: Validate that sale has customer_id before proceeding
         if (empty($sale->customer_id)) {
             Log::error('RecordSale called with empty customer_id', [

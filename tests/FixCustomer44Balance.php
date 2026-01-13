@@ -4,14 +4,14 @@
  * ===================================================================
  * 🔍 CUSTOMER 44 LEDGER BALANCE DIAGNOSTIC AND FIX SCRIPT
  * ===================================================================
- * 
+ *
  * ISSUES IDENTIFIED:
  * 1. Duplicate opening_balance_payment entries (8800 x 2)
  * 2. Possible incorrect opening_balance_payment (15000)
- * 
+ *
  * TARGET BALANCE: 372,785.00
  * CURRENT BALANCE: 348,985.00
- * 
+ *
  * Run: php tests/FixCustomer44Balance.php
  */
 
@@ -100,7 +100,7 @@ foreach ($openingBalancePayments as $entry) {
         number_format($entry->credit, 2),
         $entry->reference_no
     );
-    
+
     // Check for duplicates by reference number
     if (isset($seenReferences[$entry->reference_no])) {
         $duplicates[] = [
@@ -111,7 +111,7 @@ foreach ($openingBalancePayments as $entry) {
         ];
         echo "   ⚠️  DUPLICATE FOUND! (First entry ID: {$seenReferences[$entry->reference_no]})\n";
     }
-    
+
     $seenReferences[$entry->reference_no] = $entry->id;
 }
 
@@ -192,7 +192,7 @@ if ($totalDuplicateAmount > 0) {
     $remainingDifference = $targetBalance - $adjustedBalance;
     echo "Remaining difference to target: " . number_format($remainingDifference, 2) . "\n";
     echo "\n";
-    
+
     // Check if the 15000 opening_balance_payment is the issue
     $obPayment15000 = $openingBalancePayments->where('credit', 15000)->first();
     if ($obPayment15000 && abs($remainingDifference - 15000) < 0.01) {
@@ -219,7 +219,7 @@ if (count($issues) === 0) {
     echo "✅ No issues detected!\n";
 } else {
     echo "The following fixes will be applied:\n\n";
-    
+
     $fixNumber = 1;
     foreach ($issues as $issue) {
         echo "Fix #{$fixNumber}:\n";
@@ -232,20 +232,20 @@ if (count($issues) === 0) {
         }
         $fixNumber++;
     }
-    
+
     echo "\n";
-    
+
     // Calculate final balance after all fixes
     $finalBalance = $calculatedBalance;
     foreach ($issues as $issue) {
         $finalBalance += $issue['amount'];
     }
-    
+
     echo "Expected Balance After Fixes: " . number_format($finalBalance, 2) . "\n";
     echo "Target Balance: " . number_format($targetBalance, 2) . "\n";
     echo "Match: " . (abs($finalBalance - $targetBalance) < 0.01 ? "✅ YES" : "❌ NO") . "\n";
     echo "\n";
-    
+
     // Ask for confirmation
     echo "═══════════════════════════════════════════════════════════════\n";
     echo "⚠️  Do you want to apply these fixes? (yes/no): ";
@@ -253,45 +253,45 @@ if (count($issues) === 0) {
     $line = fgets($handle);
     $answer = trim(strtolower($line));
     fclose($handle);
-    
+
     if ($answer === 'yes' || $answer === 'y') {
         echo "\n";
         echo "🔧 APPLYING FIXES...\n";
         echo "═══════════════════════════════════════════════════════════════\n";
-        
+
         DB::beginTransaction();
-        
+
         try {
             foreach ($issues as $issue) {
                 $entryId = $issue['entry_id'];
-                
+
                 // Delete the ledger entry
                 $deleted = DB::table('ledgers')->where('id', $entryId)->delete();
-                
+
                 if ($deleted) {
                     echo "✅ Deleted ledger entry ID: {$entryId} (Amount: " . number_format($issue['amount'], 2) . ")\n";
                 } else {
                     echo "❌ Failed to delete ledger entry ID: {$entryId}\n";
                 }
             }
-            
+
             DB::commit();
-            
+
             echo "\n";
             echo "═══════════════════════════════════════════════════════════════\n";
             echo "✅ FIXES APPLIED SUCCESSFULLY!\n";
             echo "═══════════════════════════════════════════════════════════════\n";
             echo "\n";
-            
+
             // Verify final balance
             echo "📊 FINAL VERIFICATION\n";
             echo "═══════════════════════════════════════════════════════════════\n";
-            
+
             $newBalance = BalanceHelper::getCustomerBalance($customerId);
             echo "New Balance: " . number_format($newBalance, 2) . "\n";
             echo "Target Balance: " . number_format($targetBalance, 2) . "\n";
             echo "Difference: " . number_format(abs($newBalance - $targetBalance), 2) . "\n";
-            
+
             if (abs($newBalance - $targetBalance) < 0.01) {
                 echo "\n";
                 echo "🎉 SUCCESS! Balance matches target!\n";
@@ -299,14 +299,14 @@ if (count($issues) === 0) {
                 echo "\n";
                 echo "⚠️  Warning: Balance does not match target exactly\n";
             }
-            
+
         } catch (\Exception $e) {
             DB::rollBack();
             echo "\n";
             echo "❌ ERROR: " . $e->getMessage() . "\n";
             echo "Transaction rolled back. No changes were made.\n";
         }
-        
+
     } else {
         echo "\n❌ Fix cancelled. No changes were made.\n";
     }
