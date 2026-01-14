@@ -2713,9 +2713,14 @@
 
                 // Show the product list area when location is selected
                 const productListArea = document.getElementById('productListArea');
-                if (productListArea) {
+                const mainContent = document.getElementById('mainContent');
+                
+                if (productListArea && mainContent) {
                     productListArea.classList.remove('d-none');
-                    console.log('✅ Product list area displayed');
+                    productListArea.classList.add('show');
+                    mainContent.classList.remove('col-md-12');
+                    mainContent.classList.add('col-md-7');
+                    console.log('✅ Product list area displayed with proper layout');
                 }
 
                 fetchPaginatedProducts(true);
@@ -2724,9 +2729,14 @@
 
                 // Hide the product list area when no location is selected
                 const productListArea = document.getElementById('productListArea');
-                if (productListArea) {
+                const mainContent = document.getElementById('mainContent');
+                
+                if (productListArea && mainContent) {
                     productListArea.classList.add('d-none');
-                    console.log('ℹ️ Product list area hidden');
+                    productListArea.classList.remove('show');
+                    mainContent.classList.remove('col-md-7');
+                    mainContent.classList.add('col-md-12');
+                    console.log('ℹ️ Product list area hidden with full width layout');
                 }
             }
 
@@ -3040,9 +3050,14 @@
 
                     // Show product list area when products are fetched
                     const productListArea = document.getElementById('productListArea');
-                    if (productListArea && selectedLocationId) {
+                    const mainContent = document.getElementById('mainContent');
+                    
+                    if (productListArea && mainContent && selectedLocationId) {
                         productListArea.classList.remove('d-none');
-                        console.log('✅ Product list area displayed after fetch');
+                        productListArea.classList.add('show');
+                        mainContent.classList.remove('col-md-12');
+                        mainContent.classList.add('col-md-7');
+                        console.log('✅ Product list area displayed with proper layout after fetch');
                     }
 
                     if (!data || data.status !== 200 || !Array.isArray(data.data)) {
