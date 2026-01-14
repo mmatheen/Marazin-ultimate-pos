@@ -16,11 +16,13 @@
         }
 
         body {
-            font-family: 'Arial', sans-serif;
-            font-size: 12px;
+            font-family: 'Courier New Bold', 'Courier New', Courier, monospace;
+            font-size: 13px;
             color: #000;
             text-transform: uppercase;
-            line-height: 1.4;
+            line-height: 1.2;
+            font-weight: 700;
+            letter-spacing: 0.3px;
         }
 
         .receipt-container {
@@ -32,7 +34,7 @@
         /* Logo Section */
         .logo-section {
             text-align: center;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
         }
 
         .logo-section img {
@@ -52,18 +54,21 @@
         /* Business Info Section */
         .business-info {
             text-align: center;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
+            line-height: 1.1;
         }
 
         .business-info .business-name {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: bold;
-            margin-bottom: 2px;
+            margin-bottom: 1px;
+            letter-spacing: 0.5px;
         }
 
         .business-info .contact-line {
             font-size: 12px;
-            margin-bottom: 1px;
+            margin-bottom: 0;
+            letter-spacing: 0.2px;
         }
 
         .business-info .email {
@@ -80,10 +85,10 @@
         .receipt-header {
             display: flex;
             justify-content: space-between;
-            padding: 4px 0;
+            padding: 3px 0;
             border-top: 1px dashed #000;
             border-bottom: 1px dashed #000;
-            margin: 4px 0;
+            margin: 3px 0;
         }
 
         .customer-info {
@@ -92,13 +97,15 @@
         }
 
         .customer-info .customer-name {
-            font-size: 13px;
+            font-size: 14px;
             font-weight: bold;
             margin-bottom: 2px;
+            letter-spacing: 0.3px;
         }
 
         .customer-info .customer-phone {
-            font-size: 11px;
+            font-size: 12px;
+            letter-spacing: 0.2px;
         }
 
         .invoice-info {
@@ -106,44 +113,47 @@
         }
 
         .invoice-info .invoice-number {
-            font-size: 14px;
+            font-size: 15px;
             font-weight: bold;
             margin-bottom: 2px;
+            letter-spacing: 0.3px;
         }
 
         .invoice-info .cashier {
-            font-size: 10px;
+            font-size: 11px;
+            letter-spacing: 0.2px;
         }
 
         /* Products Table */
         .products-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
 
         .products-table th {
-            font-size: 12px;
-            font-weight: bold;
-            padding: 4px 2px;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 3px 2px;
             text-align: left;
+            letter-spacing: 0.3px;
         }
 
         .products-table th:first-child {
-            width: 8%;
+            width: 7%;
         }
 
         .products-table th:nth-child(2) {
-            width: 40%;
+            width: 43%;
         }
 
         .products-table th:nth-child(3) {
-            width: 17%;
+            width: 16%;
             text-align: center;
         }
 
         .products-table th:nth-child(4) {
-            width: 17%;
+            width: 16%;
             text-align: left;
         }
 
@@ -158,15 +168,19 @@
         }
 
         .product-name-row td {
-            padding-top: 4px;
+            padding-top: 2px;
         }
 
         .product-details-row td {
-            padding-bottom: 4px;
+            padding-bottom: 2px;
         }
 
         .product-name {
             font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            word-wrap: break-word;
+            line-height: 1.3;
         }
 
         .price-badge {
@@ -179,13 +193,15 @@
             color: #000;
             letter-spacing: 0.3px;
             position: relative;
+            display: inline-block;
+            white-space: nowrap;
         }
 
         .mrp-price::after {
             content: '';
             position: absolute;
-            left: 10%;
-            right: 10%;
+            left: 8%;
+            right: 8%;
             top: 40%;
             border-top: 1.5px solid #4e4d4d;
         }
@@ -194,32 +210,42 @@
             font-size: 10px;
             color: #000;
             font-weight: 600;
+            letter-spacing: 0.2px;
+            display: inline-block;
+            white-space: nowrap;
+            margin-left: 2px;
         }
 
         .quantity {
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 500;
             white-space: nowrap;
             text-align: center;
+            letter-spacing: 0.2px;
         }
 
         .rate {
-            font-size: 12px;
-            font-weight: 500;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.2px;
         }
 
         .amount {
-            font-size: 13px;
-            font-weight: bold;
+            font-size: 14px;
+            font-weight: 700;
             text-align: right;
+            letter-spacing: 0.3px;
         }
 
         .multiply-symbol {
-            font-size: 9px;
+            font-size: 12px;
+            font-weight: 700;
         }
 
         .pcs-text {
-            font-size: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.2px;
         }
 
         /* Dividers */
@@ -235,12 +261,12 @@
 
         .divider-section {
             border-top: 1px dashed #000;
-            margin: 8px 0;
+            margin: 5px 0;
         }
 
         /* Totals Section */
         .totals-section {
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
 
         .totals-table {
@@ -249,36 +275,40 @@
         }
 
         .totals-table td {
-            padding: 2px 0;
+            padding: 1px 0;
         }
 
         .totals-table .label {
             text-align: right;
-            font-weight: bold;
-            font-size: 12px;
+            font-weight: 700;
+            font-size: 13px;
+            letter-spacing: 0.3px;
         }
 
         .totals-table .value {
             text-align: right;
-            font-size: 15px;
-            font-weight: bold;
+            font-size: 16px;
+            font-weight: 700;
             width: 100px;
             white-space: nowrap;
+            letter-spacing: 0.4px;
         }
 
         .totals-table .discount-value {
-            font-size: 14px;
+            font-size: 15px;
+            letter-spacing: 0.3px;
         }
 
         .outstanding-due {
-            font-size: 18px !important;
+            font-size: 19px !important;
+            letter-spacing: 0.5px;
         }
 
         /* Stats Section */
         .stats-section {
             display: flex;
             text-align: center;
-            margin: 8px 0;
+            margin: 5px 0;
         }
 
         .stat-box {
@@ -292,21 +322,24 @@
         }
 
         .stat-number {
-            font-size: 12px;
-            font-weight: bold;
+            font-size: 13px;
+            font-weight: 700;
             display: block;
+            letter-spacing: 0.3px;
         }
 
         .stat-label {
-            font-size: 8px;
+            font-size: 9px;
             display: block;
+            letter-spacing: 0.2px;
         }
 
         /* Payment & Notes */
         .payment-method {
-            font-size: 12px;
+            font-size: 13px;
             text-align: center;
             margin-bottom: 8px;
+            letter-spacing: 0.3px;
         }
 
         .payment-method strong {
@@ -314,23 +347,26 @@
         }
 
         .payment-method .multiple-payments {
-            font-size: 10px;
+            font-size: 11px;
+            letter-spacing: 0.2px;
         }
 
         .status-message {
-            font-size: 12px;
+            font-size: 13px;
             text-align: center;
             font-weight: bold;
             margin-bottom: 8px;
+            letter-spacing: 0.3px;
         }
 
         .sale-notes {
-            font-size: 11px;
+            font-size: 12px;
             text-align: center;
             margin-bottom: 8px;
             padding: 5px;
             background-color: #f9f9f9;
             border: 1px dashed #ccc;
+            letter-spacing: 0.2px;
         }
 
         .sale-notes strong {
@@ -340,16 +376,20 @@
 
         /* Footer */
         .footer-note {
-            font-size: 11px;
+            font-size: 12px;
             font-weight: bold;
             text-align: center;
             margin-bottom: 5px;
+            letter-spacing: 0.3px;
         }
 
         .software-info {
-            font-size: 8px;
+            font-size: 10px;
             text-align: center;
             color: #000;
+            line-height: 1.3;
+            margin-top: 5px;
+            letter-spacing: 0.2px;
         }
 
         /* Print Styles */
@@ -514,9 +554,8 @@
                             @endif
                         </td>
                         <td class="quantity">
+                            <span>{{ $item['quantity'] }}</span><small class="pcs-text">PCS</small>
                             <span class="multiply-symbol">&times;</span>
-                            <span>{{ $item['quantity'] }}</span>
-                            <small class="pcs-text">PCS</small>
                         </td>
                         <td class="rate">{{ number_format($item['product']->price, 0, '.', ',') }}</td>
                         <td class="amount">{{ number_format($item['amount'], 0, '.', ',') }}</td>
@@ -536,7 +575,7 @@
         {{-- Totals Section --}}
         <section class="totals-section">
             <table class="totals-table">
-                 @if ($sale->discount_amount > 0)
+                @if ($sale->discount_amount > 0)
                     <tr>
                         <td class="label">SUBTOTAL</td>
                         <td class="value">{{ number_format($sale->subtotal, 0, '.', ',') }}</td>
@@ -658,7 +697,7 @@
             </div>
         </section>
 
-    {{-- Payment Method / Status --}}
+        {{-- Payment Method / Status --}}
         @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))
             @if ($payments->count() > 0)
                 <hr class="divider-section">

@@ -48,17 +48,11 @@
             margin-bottom: 1px;
         }
 
-        hr.dashed {
-            border: 0;
-            border-top: 2px dashed #000;
-            margin: 10px 0;
-        }
-
         .invoice-header-section {
-            border-top: 2px dashed #000;
-            border-bottom: 2px dashed #000;
             padding: 8px 0;
+            padding-bottom: 12px;
             margin-bottom: 12px;
+            border-bottom: 1px solid #ddd;
         }
 
         .invoice-header-table {
@@ -156,7 +150,7 @@
         .totals-table {
             width: 100%;
             margin-top: 15px;
-            border-top: 2px dashed #000;
+            border-top: 2px solid #000;
             padding-top: 10px;
             table-layout: fixed;
         }
@@ -193,13 +187,13 @@
             text-align: center;
             margin: 15px 0;
             padding: 12px 0;
-            border-top: 2px dashed #000;
-            border-bottom: 2px dashed #000;
+            border-top: 2px solid #000;
+            background-color: #f9f9f9;
         }
 
         .stat-item {
             flex: 1;
-            border-right: 2px dashed #000;
+            border-right: 1px solid #ddd;
             padding: 0 8px;
         }
 
@@ -233,7 +227,7 @@
         .footer {
             margin-top: 15px;
             padding-top: 12px;
-            border-top: 2px dashed #000;
+            border-top: 2px solid #000;
             text-align: center;
             font-size: 10px;
             color: #666;
@@ -526,13 +520,8 @@
             <div class="stat-label">Total Qty</div>
         </div>
         <div class="stat-item">
-            @php
-                // Calculate previous balance (excluding current bill's due)
-                $previous_balance = ($customer_outstanding_balance ?? 0) - ($sale->total_due ?? 0);
-                $previous_balance = max(0, $previous_balance); // Don't show negative
-            @endphp
-            <div class="stat-number">Rs. {{ number_format($previous_balance, 2) }}</div>
-            <div class="stat-label">Previous Balance</div>
+            <div class="stat-number">Rs. {{ number_format(\App\Helpers\BalanceHelper::getCustomerBalance($customer->id), 2) }}</div>
+            <div class="stat-label">Outstanding Balance</div>
         </div>
     </div>
 
@@ -565,11 +554,34 @@
 
     {{-- Sale Notes Section --}}
     @if ($sale->sale_notes)
-        <div style="font-size: 12px; color: #000; text-align: center; margin: 15px 0; padding: 10px; background-color: #f9f9f9; border: 1px dashed #ccc; border-radius: 4px;">
+        <div style="font-size: 12px; color: #000; text-align: center; margin: 15px 0; padding: 10px; background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;">
             <strong>NOTES:</strong><br>
             {{ $sale->sale_notes }}
         </div>
     @endif
+
+    {{-- Signature Section --}}
+    <div style="margin-top: 30px; margin-bottom: 20px;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="width: 33.33%; text-align: center; padding: 0 10px;">
+                    <div style="border-top: 1px solid #000; margin-top: 40px; padding-top: 5px; font-size: 11px; font-weight: bold;">
+                        Checked By
+                    </div>
+                </td>
+                <td style="width: 33.33%; text-align: center; padding: 0 10px;">
+                    <div style="border-top: 1px solid #000; margin-top: 40px; padding-top: 5px; font-size: 11px; font-weight: bold;">
+                        Received By
+                    </div>
+                </td>
+                <td style="width: 33.33%; text-align: center; padding: 0 10px;">
+                    <div style="border-top: 1px solid #000; margin-top: 40px; padding-top: 5px; font-size: 11px; font-weight: bold;">
+                        Approved By
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
 
     {{-- Footer --}}
     <div class="footer">

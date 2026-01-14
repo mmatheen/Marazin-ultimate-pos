@@ -14,23 +14,7 @@ class Customer extends Model
 {
     use HasFactory,LocationTrait;
 
-    /*
-     * BALANCE CALCULATION ARCHITECTURE
-     * ================================
-     * This model uses a unified approach for all customer balance calculations:
-     *
-     * 1. SINGLE SOURCE OF TRUTH: BalanceHelper::getCustomerBalance()
-     * 2. STATUS FILTERING: Only 'active' ledger entries are considered (excludes 'reversed')
-     * 3. UNIFIED LEDGER: All transactions flow through UnifiedLedgerService
-     *
-     * Key Methods:
-     * - getCurrentBalance(): Main balance calculation method
-     * - getCurrentBalanceAttribute(): Laravel accessor for API responses
-     * - getCurrentDueAttribute(): Positive balance only (customer owes money)
-     * - getTotalOutstanding(): Same as getCurrentBalance but with max(0, balance)
-     * - getFloatingBalance(): Specific floating transactions (bounced cheques, etc.)
-     * - getBillWiseOutstanding(): Sale-related balance from ledger
-     */
+    
 
     protected $table = 'customers';
 

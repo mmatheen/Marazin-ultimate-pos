@@ -2714,7 +2714,7 @@
                 // Show the product list area when location is selected
                 const productListArea = document.getElementById('productListArea');
                 const mainContent = document.getElementById('mainContent');
-                
+
                 if (productListArea && mainContent) {
                     productListArea.classList.remove('d-none');
                     productListArea.classList.add('show');
@@ -2730,7 +2730,7 @@
                 // Hide the product list area when no location is selected
                 const productListArea = document.getElementById('productListArea');
                 const mainContent = document.getElementById('mainContent');
-                
+
                 if (productListArea && mainContent) {
                     productListArea.classList.add('d-none');
                     productListArea.classList.remove('show');
@@ -3051,7 +3051,7 @@
                     // Show product list area when products are fetched
                     const productListArea = document.getElementById('productListArea');
                     const mainContent = document.getElementById('mainContent');
-                    
+
                     if (productListArea && mainContent && selectedLocationId) {
                         productListArea.classList.remove('d-none');
                         productListArea.classList.add('show');
