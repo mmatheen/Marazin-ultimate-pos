@@ -135,6 +135,9 @@
 
         <div class="billAddress" style="font-size: 12px; color: #000; margin: 0; padding: 0; text-align: center;">
             @if ($location)
+                @if ($location->name)
+                    <div style="font-size: 18px ; font-weight: bold;">{{ $location->name ?? 'LOCATION NAME' }}</div>
+                @endif
                 @if ($location->address)
                     <div>{{ $location->address }}</div>
                 @endif
