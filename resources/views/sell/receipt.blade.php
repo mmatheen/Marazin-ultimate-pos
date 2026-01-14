@@ -619,7 +619,15 @@
 
             @php
                 $total_discount = $products->sum(function ($product) {
-                    $mrp = $product->product->max_retail_price ?? 0;
+                    // Check if product has batch_id and batch data
+                    $mrp = 0;
+                    if (!empty($product->batch_id) && isset($product->batch)) {
+                        // Get MRP from batch table for batch-managed products
+                        $mrp = $product->batch->max_retail_price ?? 0;
+                    } else {
+                        // Get MRP from product table for non-batch products
+                        $mrp = $product->product->max_retail_price ?? 0;
+                    }
                     $price = $product->price;
                     if ($mrp > 0 && $mrp > $price) {
                         return ($mrp - $price) * $product->quantity;
