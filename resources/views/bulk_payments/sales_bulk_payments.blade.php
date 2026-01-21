@@ -216,38 +216,35 @@
 
 
         <!-- Step 1: Customer Selection - Clean & Simple -->
-        <div class="mb-4">
+        <div class="mb-3">
             <!-- Customer Selection -->
             <div class="mb-3">
-                <label for="customerSelect" class="form-label fw-semibold">Customer</label>
+                <label for="customerSelect" class="form-label">Customer</label>
                 <select id="customerSelect" class="form-control selectBox">
                     <option value="">🔄 Loading customers...</option>
                 </select>
             </div>
 
             <!-- Customer Summary - Clean Text (Hidden by default) -->
-            <div id="customerSummarySection" class="border-bottom pb-3 mb-3" style="display: none;">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                    <div class="flex-grow-1">
-                        <div class="text-muted small mb-1">Opening Balance: Rs. <span id="openingBalance">0.00</span></div>
-                        <div class="text-muted small mb-1">
-                            Sale Due: Rs. <span id="totalDueAmount">0.00</span>
-                            <span id="returnCount" class="text-info ms-2" style="display: none;">(Has <span id="returnCountNumber">0</span> returns available)</span>
-                        </div>
+            <div id="customerSummarySection" class="border rounded p-2 mb-3 bg-light" style="display: none;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex gap-3">
+                        <span class="text-muted small">Opening Balance: <strong class="text-dark">Rs. <span id="openingBalance">0.00</span></strong></span>
+                        <span class="text-muted small">Sale Due: <strong class="text-dark">Rs. <span id="totalDueAmount">0.00</span></strong></span>
+                        <span id="returnCount" class="text-info small" style="display: none;">(Has <span id="returnCountNumber">0</span> returns available)</span>
                     </div>
-
-                    <!-- Dominant Final Amount -->
+                    
                     <div class="text-end">
                         <div class="text-muted small">Amount to Pay</div>
-                        <div class="display-6 fw-bold text-danger" id="netCustomerDue">Rs. 0.00</div>
+                        <div class="h3 fw-bold text-danger mb-0" id="netCustomerDue">Rs. 48750.00</div>
                         <div class="text-muted small" id="netCalculation">Sale Due - Returns</div>
                     </div>
                 </div>
 
                 <!-- Smart Default Behavior Text -->
-                <div class="alert alert-light border mb-0 py-2 px-3">
-                    <small class="text-muted">
-                        <i class="fas fa-info-circle text-primary"></i>
+                <div class="alert alert-info border-0 mb-0 mt-2 py-1 px-2">
+                    <small>
+                        <i class="fas fa-info-circle"></i>
                         <strong>Auto Mode:</strong> System will intelligently allocate payment to bills.
                         <a href="#" id="customizePaymentLink" class="text-decoration-none">Customize</a>
                     </small>
@@ -275,16 +272,16 @@
 
         <!-- Step 2: Payment Section - Clean & Fast -->
         <div id="paymentMethodSection" style="display: none;">
-            <div class="mb-4">
+            <div class="mb-3">
                 <!-- Quick Payment Input -->
                 <div class="row g-3 mb-3">
                     <div class="col-md-4">
-                        <label for="globalPaymentAmount" class="form-label fw-semibold">Amount Received</label>
-                        <input type="text" class="form-control form-control-lg" id="globalPaymentAmount" name="amount" placeholder="Enter amount">
+                        <label for="globalPaymentAmount" class="form-label">Amount Received</label>
+                        <input type="text" class="form-control" id="globalPaymentAmount" name="amount" placeholder="Max: Rs. 0.00">
                         <div id="amountError" class="text-danger small mt-1" style="display:none;"></div>
                     </div>
                     <div class="col-md-4">
-                        <label for="paymentMethod" class="form-label fw-semibold">Payment Method</label>
+                        <label for="paymentMethod" class="form-label">Payment Method</label>
                         <select class="form-select" id="paymentMethod" name="payment_method" onchange="togglePaymentFields()">
                             <option value="cash">Cash</option>
                             <option value="card">Credit Card</option>
@@ -294,7 +291,7 @@
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <label for="paidOn" class="form-label fw-semibold">Date</label>
+                        <label for="paidOn" class="form-label">Date</label>
                         <input class="form-control" type="date" name="payment_date" id="paidOn" value="<?php echo date('Y-m-d'); ?>">
                     </div>
                 </div>
