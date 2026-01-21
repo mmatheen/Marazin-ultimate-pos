@@ -1706,6 +1706,43 @@
                 }
             });
 
+            // Fix Select2 initialization for filter dropdowns in collapsed section
+            // Re-initialize Select2 when the filter collapse is shown
+            $('#collapseExample').on('shown.bs.collapse', function() {
+                console.log('Filter collapse shown - reinitializing Select2...');
+                
+                // Destroy existing Select2 instances on filter dropdowns
+                $('.selectBox').each(function() {
+                    if ($(this).hasClass('select2-hidden-accessible')) {
+                        $(this).select2('destroy');
+                    }
+                });
+                
+                // Re-initialize Select2 with proper settings
+                $('.selectBox').select2({
+                    width: '100%',
+                    placeholder: function() {
+                        return $(this).data('placeholder') || 'Select an option';
+                    },
+                    allowClear: true,
+                    dropdownAutoWidth: true
+                });
+                
+                console.log('Select2 reinitialized for filter dropdowns');
+            });
+
+            // Also initialize on page load if collapse is already shown
+            if ($('#collapseExample').hasClass('show')) {
+                $('.selectBox').select2({
+                    width: '100%',
+                    placeholder: function() {
+                        return $(this).data('placeholder') || 'Select an option';
+                    },
+                    allowClear: true,
+                    dropdownAutoWidth: true
+                });
+            }
+
             console.log('✅ Sale return page initialization complete');
         });
     </script>
