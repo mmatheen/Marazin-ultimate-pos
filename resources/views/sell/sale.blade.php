@@ -121,53 +121,54 @@
         </div>
 
           {{-- table row --}}
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card card-table">
-                <div class="row">
-                    <div class="col-md-12">
-                        <div class="tab-content">
-                            <div class="tab-pane show active" id="solid-justified-tab1">
-                                <div class="card-body">
-                                    <div class="page-header">
-                                        <div class="row align-items-center">
-                                            <div class="col-auto text-end float-end ms-auto download-grp">
-                                                <!-- Button trigger modal -->
-                                                <a href="/pos-create"><button type="button"
-                                                        class="btn btn-outline-info">
-                                                        <i class="fas fa-plus px-2"> </i>Add
-                                                    </button></a>
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card card-table">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="tab-content">
+                                <div class="tab-pane show active" id="solid-justified-tab1">
+                                    <div class="card-body">
+                                        <div class="page-header">
+                                            <div class="row align-items-center">
+                                                <div class="col-auto text-end float-end ms-auto download-grp">
+                                                    <!-- Button trigger modal -->
+                                                    <a href="/pos-create"><button type="button"
+                                                            class="btn btn-outline-info">
+                                                            <i class="fas fa-plus px-2"> </i>Add
+                                                        </button></a>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
 
 
 
-                                    <div class="table-responsive">
+                                        <div class="table-responsive">
 
-                                        <table id="salesTable" class="table table-bordered">
-                                            <thead>
-                                                <tr>
-                                                    <th>Action</th>
-                                                    <th>Date</th>
-                                                    <th>Invoice No.</th>
-                                                    <th>Customer Name</th>
-                                                    <th>Contact Number</th>
-                                                    <th>Location</th>
-                                                    <th>Payment Status</th>
-                                                    <th>Payment Method</th>
-                                                    <th>Total Amount</th>
-                                                    <th>Total Paid</th>
-                                                    <th>Sell Due</th>
-                                                    <th>Shipping Status</th>
-                                                    <th>Total Items</th>
-                                                    <th>Added By</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <!-- Rows will be dynamically added here -->
-                                            </tbody>
-                                        </table>
+                                            <table id="salesTable" class="table table-bordered">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Action</th>
+                                                        <th>Date</th>
+                                                        <th>Invoice No.</th>
+                                                        <th>Customer Name</th>
+                                                        <th>Contact Number</th>
+                                                        <th>Location</th>
+                                                        <th>Payment Status</th>
+                                                        <th>Payment Method</th>
+                                                        <th>Total Amount</th>
+                                                        <th>Total Paid</th>
+                                                        <th>Sell Due</th>
+                                                        <th>Shipping Status</th>
+                                                        <th>Total Items</th>
+                                                        <th>Added By</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <!-- Rows will be dynamically added here -->
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -176,7 +177,6 @@
                 </div>
             </div>
         </div>
-    </div>
     </div>
 
 

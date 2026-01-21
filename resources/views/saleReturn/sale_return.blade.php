@@ -142,8 +142,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-
         {{-- table row --}}
         <div class="row">
             <div class="col-md-12">
