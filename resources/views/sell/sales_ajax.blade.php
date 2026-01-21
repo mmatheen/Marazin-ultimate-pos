@@ -6,7 +6,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const urlCustomerId = urlParams.get('customer_id');
         const urlLocationId = urlParams.get('location_id');
-        
+
         console.log('=== Sales Page URL Parameters ===');
         console.log('customer_id from URL:', urlCustomerId);
         console.log('location_id from URL:', urlLocationId);
@@ -70,7 +70,7 @@
                     console.log('customerFilter element:', $('#customerFilter').length > 0);
                     console.log('customerFilter value:', $('#customerFilter').val());
                     console.log('locationFilter value:', $('#locationFilter').val());
-                    
+
                     if ($('#customerFilter').val()) requestData.customer_id = $('#customerFilter')
                         .val();
                     if ($('#locationFilter').val()) requestData.location_id = $('#locationFilter')
@@ -493,10 +493,10 @@
         // Auto-select filters from URL parameters after Select2 initialization
         function applyURLFilters() {
             console.log('=== Applying URL Filters ===');
-            
+
             if (urlCustomerId) {
                 console.log('Setting customer filter to:', urlCustomerId);
-                
+
                 // Check if Select2 is initialized
                 if ($('#customerFilter').hasClass('select2-hidden-accessible')) {
                     // Select2 is initialized, use Select2 API
@@ -508,10 +508,10 @@
                     console.log('Customer filter set via regular select');
                 }
             }
-            
+
             if (urlLocationId) {
                 console.log('Setting location filter to:', urlLocationId);
-                
+
                 if ($('#locationFilter').hasClass('select2-hidden-accessible')) {
                     $('#locationFilter').val(urlLocationId).trigger('change.select2');
                     console.log('Location filter set via Select2');
@@ -520,10 +520,10 @@
                     console.log('Location filter set via regular select');
                 }
             }
-            
+
             console.log('=== URL Filters Applied ===');
         }
-        
+
         // Wait for Select2 to initialize, then apply filters
         // Try multiple times with increasing delays to ensure Select2 is ready
         setTimeout(applyURLFilters, 800);
@@ -985,12 +985,12 @@
             // Initialize Select2 when bulk payment modal is shown
             $('#bulkPaymentModal').on('shown.bs.modal', function() {
                 console.log('Bulk payment modal shown - initializing Select2...');
-                
+
                 // Destroy existing Select2 instance if exists
                 if ($('#customerSelect').hasClass('select2-hidden-accessible')) {
                     $('#customerSelect').select2('destroy');
                 }
-                
+
                 // Initialize select2 for customer dropdown with proper settings
                 $('#customerSelect').select2({
                     placeholder: "Select Customer",
@@ -998,24 +998,24 @@
                     dropdownParent: $('#bulkPaymentModal'), // Ensure dropdown renders inside modal
                     width: '100%' // Proper width alignment
                 });
-                
+
                 console.log('Select2 initialized for customerSelect in modal');
-                
+
                 // Add event listener to ensure search input gets focus when dropdown opens
                 $('#customerSelect').on('select2:open', function() {
                     setTimeout(function() {
                         document.querySelector('.select2-search__field').focus();
                     }, 100);
                 });
-                
+
                 // Set today's date as default for "Paid On" field
                 var today = new Date();
-                var todayFormatted = today.getFullYear() + '-' + 
-                    String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                var todayFormatted = today.getFullYear() + '-' +
+                    String(today.getMonth() + 1).padStart(2, '0') + '-' +
                     String(today.getDate()).padStart(2, '0');
                 $('#paidOn').val(todayFormatted);
                 console.log('Set default date to today:', todayFormatted);
-                
+
                 // Load customers after Select2 is initialized
                 loadCustomersForBulkPayment();
             });
@@ -1055,7 +1055,7 @@
                 if ($('#customerSelect').hasClass('select2-hidden-accessible')) {
                     $('#customerSelect').select2('destroy');
                 }
-                
+
                 $('#bulkPaymentForm')[0].reset(); // Reset the form
                 $('#customerSelect').val('').trigger('change'); // Clear customer selection
                 $('#salesList').DataTable().clear().draw(); // Clear the sales list
@@ -1587,14 +1587,14 @@
                         const customer = payment.customer || {};
                         const sale = payment.sale || {};
                         const location = sale.location || {};
-                        
+
                         console.log('Payment:', payment);
                         console.log('Sale:', sale);
                         console.log('Location:', location);
 
                         // If sale data is not loaded via relationship, we'll show what we can and handle gracefully
                         const referenceNo = payment.reference_no || 'N/A';
-                        const customerName = customer.first_name ? 
+                        const customerName = customer.first_name ?
                             `${customer.first_name} ${customer.last_name || ''}`.trim() : 'N/A';
                         const locationName = location.name || 'N/A';
                         const finalTotal = sale.final_total || 'Loading...';
@@ -1616,11 +1616,11 @@
                                     if (saleResponse.salesDetails) {
                                         const saleData = saleResponse.salesDetails;
                                         const saleLocation = saleData.location || {};
-                                        
+
                                         $('#totalAmount').text(saleData.final_total || 'N/A');
                                         $('#totalPaidAmount').text(saleData.total_paid || 'N/A');
                                         $('#paymentLocationDetails').text(saleLocation.name || 'N/A');
-                                        
+
                                         console.log('Sale data loaded separately:', saleData);
                                     }
                                 },
@@ -1639,7 +1639,7 @@
                         $('#paidOn').val(payment.payment_date);
                         $('#payAmount').val(payment.amount);
                         $('#paymentNotes').val(payment.notes);
-                        
+
                         // Populate payment method specific fields
                         $('#paymentMethod').val(payment.payment_method || 'cash').trigger('change');
                         $('#cardNumber').val(payment.card_number || '');
@@ -1738,14 +1738,14 @@
         $('#savePayment').click(function() {
             var formData = new FormData($('#paymentForm')[0]);
             var paymentId = $('#paymentId').val();
-            
+
             // Determine if this is an edit or create operation
             var isEdit = paymentId && paymentId !== '';
             var url = isEdit ? '/api/payments/' + paymentId : '/api/payments';
             var method = isEdit ? 'PUT' : 'POST';
-            
+
             console.log('Payment Save - IsEdit:', isEdit, 'PaymentID:', paymentId, 'URL:', url);
-            
+
             // For PUT requests, we need to add the _method field
             if (isEdit) {
                 formData.append('_method', 'PUT');
@@ -1760,19 +1760,19 @@
                 success: function(response) {
                     $('#paymentModal').modal('hide');
                     document.getElementsByClassName('successSound')[0].play();
-                    
+
                     var message = isEdit ? 'Payment Updated Successfully' : 'Payment Added Successfully';
                     toastr.success(response.message || message, isEdit ? 'Payment Updated' : 'Payment Added');
 
                     // Clear payment ID for next use (important!)
                     $('#paymentId').val('');
-                    
+
                     // Refresh the DataTable to show updated payment information
                     refreshSalesTable();
                 },
                 error: function(xhr, status, error) {
                     console.error('Error saving payment:', error);
-                    var errorMessage = xhr.responseJSON && xhr.responseJSON.message ? 
+                    var errorMessage = xhr.responseJSON && xhr.responseJSON.message ?
                         xhr.responseJSON.message : 'Error saving payment. Please try again.';
                     toastr.error(errorMessage, 'Error');
                 }
@@ -2513,13 +2513,13 @@
         $(document).on('click', '.sell-return', function(event) {
             event.preventDefault();
             var saleId = $(this).val();
-            
+
             // Get the sale details to find the invoice number
             var row = $('#salesTable').DataTable().row($(this).closest('tr')).data();
             var invoiceNo = row ? (row.invoice_no || row.id) : saleId;
-            
+
             console.log('Navigating to sale return with invoice:', invoiceNo);
-            
+
             // Navigate to sale return page with invoice number as parameter (use 'invoiceNo' not 'invoice_no')
             window.location.href = `{{ route('sale-return/add') }}?invoiceNo=${invoiceNo}`;
         });
@@ -2684,6 +2684,43 @@
             $(this).val('');
             // Trigger change event to reload table
             $(this).trigger('change');
+        });
+    }
+
+    // Fix Select2 initialization for filter dropdowns in collapsed section
+    // Re-initialize Select2 when the filter collapse is shown
+    $('#collapseExample').on('shown.bs.collapse', function() {
+        console.log('Filter collapse shown - reinitializing Select2...');
+
+        // Destroy existing Select2 instances on filter dropdowns
+        $('.selectBox').each(function() {
+            if ($(this).hasClass('select2-hidden-accessible')) {
+                $(this).select2('destroy');
+            }
+        });
+
+        // Re-initialize Select2 with proper settings
+        $('.selectBox').select2({
+            width: '100%',
+            placeholder: function() {
+                return $(this).data('placeholder') || 'Select an option';
+            },
+            allowClear: true,
+            dropdownAutoWidth: true
+        });
+
+        console.log('Select2 reinitialized for filter dropdowns');
+    });
+
+    // Also initialize on page load if collapse is already shown
+    if ($('#collapseExample').hasClass('show')) {
+        $('.selectBox').select2({
+            width: '100%',
+            placeholder: function() {
+                return $(this).data('placeholder') || 'Select an option';
+            },
+            allowClear: true,
+            dropdownAutoWidth: true
         });
     }
 </script>

@@ -39,6 +39,19 @@
             z-index: 9999 !important;
             border: 1px solid #e3e3e3 !important;
             border-radius: 5px !important;
+            margin-top: 2px;
+        }
+
+        /* Fix dropdown options styling */
+        .select2-results__option {
+            padding: 8px 12px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .select2-results__option--highlighted {
+            background-color: #5897fb !important;
+            color: white !important;
         }
 
         /* Fix search input focus */
@@ -68,6 +81,15 @@
         /* Ensure consistent height for all form controls */
         .form-control {
             height: 40px;
+        }
+
+        /* Prevent Select2 width issues on hidden elements */
+        .collapse:not(.show) .select2-container {
+            width: 0 !important;
+        }
+
+        .collapse.show .select2-container {
+            width: 100% !important;
         }
     </style>
 @endpush
