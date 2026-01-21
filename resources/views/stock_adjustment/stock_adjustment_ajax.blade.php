@@ -332,8 +332,16 @@
             // Determine if decimals are allowed for this product's unit
             const allowDecimal = product.unit && product.unit.allow_decimal;
 
+            // Support batches as object or array
+            let batchesArr = [];
+            if (Array.isArray(productData.batches)) {
+                batchesArr = productData.batches;
+            } else if (productData.batches && typeof productData.batches === 'object') {
+                batchesArr = Object.values(productData.batches);
+            }
+
             // Filter batches by selected location and ensure batch_quantity > 0
-            const batches = [].concat.apply([], (productData.batches || []).map(batch =>
+            const batches = [].concat.apply([], batchesArr.map(batch =>
                 (batch.location_batches || batch.locationBatches || [])
                 .filter(locationBatch => String(locationBatch.location_id) == String(
                     selectedLocationId))

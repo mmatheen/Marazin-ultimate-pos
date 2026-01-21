@@ -233,7 +233,7 @@
                         <span class="text-muted small">Sale Due: <strong class="text-dark">Rs. <span id="totalDueAmount">0.00</span></strong></span>
                         <span id="returnCount" class="text-info small" style="display: none;">(Has <span id="returnCountNumber">0</span> returns available)</span>
                     </div>
-                    
+
                     <div class="text-end">
                         <div class="text-muted small">Amount to Pay</div>
                         <div class="h3 fw-bold text-danger mb-0" id="netCustomerDue">Rs. 48750.00</div>
