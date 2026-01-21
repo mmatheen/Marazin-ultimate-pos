@@ -80,8 +80,8 @@ class PaymentController extends Controller
         $validator = Validator::make($request->all(), [
             'customer_id' => 'required|exists:customers,id',
             'location_id' => 'nullable|exists:locations,id',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
+            'start_date' => 'nullable|date',
+            'end_date' => 'required|date',
         ]);
 
         if ($validator->fails()) {
@@ -94,9 +94,12 @@ class PaymentController extends Controller
             $showFullHistory = $request->boolean('show_full_history', false)
                 || $request->boolean('show_full_audit_trail', false);
 
+            // Convert empty string to null for start_date
+            $startDate = $request->start_date ?: null;
+
             $ledgerData = $this->unifiedLedgerService->getCustomerLedger(
                 $request->customer_id,
-                $request->start_date,
+                $startDate,
                 $request->end_date,
                 $request->location_id,
                 $showFullHistory
@@ -346,8 +349,8 @@ class PaymentController extends Controller
         $validator = Validator::make($request->all(), [
             'supplier_id' => 'required|exists:suppliers,id',
             'location_id' => 'nullable|exists:locations,id',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
+            'start_date' => 'nullable|date',
+            'end_date' => 'required|date',
         ]);
 
         if ($validator->fails()) {
@@ -360,9 +363,12 @@ class PaymentController extends Controller
             $showFullHistory = $request->boolean('show_full_history', false)
                 || $request->boolean('show_full_audit_trail', false);
 
+            // Convert empty string to null for start_date
+            $startDate = $request->start_date ?: null;
+
             $ledgerData = $this->unifiedLedgerService->getSupplierLedger(
                 $request->supplier_id,
-                $request->start_date,
+                $startDate,
                 $request->end_date,
                 $request->location_id,
                 $showFullHistory

@@ -63,12 +63,12 @@
                                 </div>
                                 <div class="row mt-3">
                                     <div class="col-md-3">
-                                        <label for="start_date" class="form-label"><strong>Start Date <span class="text-danger">*</span></strong></label>
-                                        <input type="date" class="form-control" id="start_date" name="start_date" value="{{ date('Y') }}-01-01" required>
+                                        <label for="start_date" class="form-label"><strong>Start Date</strong></label>
+                                        <input type="date" class="form-control" id="start_date" name="start_date" value="" placeholder="From beginning">
                                     </div>
                                     <div class="col-md-3">
                                         <label for="end_date" class="form-label"><strong>End Date <span class="text-danger">*</span></strong></label>
-                                        <input type="date" class="form-control" id="end_date" name="end_date" value="{{ date('Y') }}-12-31" required>
+                                        <input type="date" class="form-control" id="end_date" name="end_date" value="{{ date('Y-m-d') }}" required>
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label"><strong>View Options</strong></label>

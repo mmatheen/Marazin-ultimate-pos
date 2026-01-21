@@ -66,7 +66,7 @@
             if ($input.data('ui-autocomplete')) {
             $input.autocomplete("destroy");
             }
-            
+
             // Add Enter key support for quick selection - Updated with working POS AJAX solution
             $input.off('keydown.autocomplete').on('keydown.autocomplete', function(event) {
                 if (event.key === 'Enter') {
@@ -166,13 +166,13 @@
                 'overflow-x': 'hidden',
                 'z-index': 1050
                 });
-                
+
                 // Auto-focus first item for Enter key selection - Updated with working POS AJAX solution
                 setTimeout(() => {
                     const autocompleteInstance = $input.autocomplete("instance");
                     const menu = autocompleteInstance.menu;
                     const firstItem = menu.element.find("li:first-child");
-                    
+
                     if (firstItem.length > 0) {
                         // Properly set the active item using jQuery UI's method
                         menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
@@ -411,15 +411,15 @@
             <div class="error-message batch-error"></div>
             </td>
             <td>
-            <input 
-                type="${inputType}" 
-                class="form-control quantity-input" 
-                name="products[${productIndex}][quantity]" 
-                min="${min}" 
-                step="${step}" 
+            <input
+                type="${inputType}"
+                class="form-control quantity-input"
+                name="products[${productIndex}][quantity]"
+                min="${min}"
+                step="${step}"
                 pattern="${pattern}"
                 value="1"
-                max="${batches[0].batch_quantity}" 
+                max="${batches[0].batch_quantity}"
                 required
             >
             <div class="error-message quantity-error text-danger"></div>

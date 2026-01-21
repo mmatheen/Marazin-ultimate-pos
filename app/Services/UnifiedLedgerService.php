@@ -818,9 +818,13 @@ class UnifiedLedgerService
         // Get all ledger transactions and calculate running balance properly based on view mode
         $ledgerQuery = DB::table('ledgers')
             ->where('contact_id', $customerId)
-            ->where('contact_type', 'customer')
-            ->where('transaction_date', '>=', Carbon::parse($startDate)->startOfDay())
-            ->where('transaction_date', '<=', Carbon::parse($endDate)->endOfDay())
+            ->where('contact_type', 'customer');
+
+        // Apply date filtering - start date is optional
+        if ($startDate) {
+            $ledgerQuery->where('transaction_date', '>=', Carbon::parse($startDate)->startOfDay());
+        }
+        $ledgerQuery->where('transaction_date', '<=', Carbon::parse($endDate)->endOfDay())
             ->select('*')
             ->orderBy('created_at', 'asc')
             ->orderBy('id', 'asc');
@@ -929,14 +933,19 @@ class UnifiedLedgerService
         $currentBalance = BalanceHelper::getCustomerBalance($customerId);
 
         // Get opening balance (balance before start date)
-        $openingBalanceLedger = Ledger::where('contact_id', $customerId)
-            ->where('contact_type', 'customer')
-            ->where('transaction_date', '<', $startDate)
-            ->orderBy('transaction_date', 'desc')
-            ->orderBy('id', 'desc')
-            ->first();
+        if ($startDate) {
+            $openingBalanceLedger = Ledger::where('contact_id', $customerId)
+                ->where('contact_type', 'customer')
+                ->where('transaction_date', '<', $startDate)
+                ->orderBy('transaction_date', 'desc')
+                ->orderBy('id', 'desc')
+                ->first();
 
-        $openingBalance = $openingBalanceLedger ? $openingBalanceLedger->balance : $customer->opening_balance;
+            $openingBalance = $openingBalanceLedger ? $openingBalanceLedger->balance : $customer->opening_balance;
+        } else {
+            // If no start date, use customer's original opening balance
+            $openingBalance = $customer->opening_balance;
+        }
 
         // CRITICAL FIX: When showing full audit trail, the effective due should match the final running balance
         // This ensures consistency between what's displayed and the effective due amount
