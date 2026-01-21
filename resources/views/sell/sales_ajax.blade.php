@@ -2692,21 +2692,21 @@
     $('#collapseExample').on('shown.bs.collapse', function() {
         console.log('Filter collapse shown - reinitializing Select2...');
 
-        // Destroy existing Select2 instances on filter dropdowns
-        $('.selectBox').each(function() {
+        // Destroy existing Select2 instances on filter dropdowns ONLY in collapse
+        $('#collapseExample .selectBox').each(function() {
             if ($(this).hasClass('select2-hidden-accessible')) {
                 $(this).select2('destroy');
             }
         });
 
-        // Re-initialize Select2 with proper settings
-        $('.selectBox').select2({
+        // Re-initialize Select2 with proper settings for filter dropdowns only
+        $('#collapseExample .selectBox').select2({
             width: '100%',
             placeholder: function() {
                 return $(this).data('placeholder') || 'Select an option';
             },
             allowClear: true,
-            dropdownAutoWidth: true
+            dropdownAutoWidth: false
         });
 
         console.log('Select2 reinitialized for filter dropdowns');
@@ -2714,13 +2714,13 @@
 
     // Also initialize on page load if collapse is already shown
     if ($('#collapseExample').hasClass('show')) {
-        $('.selectBox').select2({
+        $('#collapseExample .selectBox').select2({
             width: '100%',
             placeholder: function() {
                 return $(this).data('placeholder') || 'Select an option';
             },
             allowClear: true,
-            dropdownAutoWidth: true
+            dropdownAutoWidth: false
         });
     }
 </script>

@@ -101,6 +101,7 @@
             border: 1px solid #e3e3e3 !important;
             border-radius: 5px !important;
             margin-top: 2px;
+            position: absolute !important;
         }
 
         .select2-results__option {
@@ -132,6 +133,12 @@
 
         .collapse.show .select2-container {
             width: 100% !important;
+        }
+
+        /* Ensure dropdown appears near the select element in collapse */
+        .collapse .select2-container .select2-dropdown {
+            position: absolute !important;
+            top: 100% !important;
         }
     </style>
 
