@@ -215,240 +215,190 @@
         </div>
 
 
-        <!-- Step 1: Customer Selection -->
-        <div class="card mb-4 shadow-sm rounded border-primary">
-            <div class="card-header bg-primary text-white">
-                <h6 class="mb-0"><i class="fas fa-user"></i> Step 1: Select Customer</h6>
+        <!-- Step 1: Customer Selection - Clean & Simple -->
+        <div class="mb-4">
+            <!-- Customer Selection -->
+            <div class="mb-3">
+                <label for="customerSelect" class="form-label fw-semibold">Customer</label>
+                <select id="customerSelect" class="form-control selectBox">
+                    <option value="">🔄 Loading customers...</option>
+                </select>
             </div>
-            <div class="card-body">
-                <div class="form-group">
-                    <label for="customerSelect">Choose Customer with Due Bills</label>
-                    <select id="customerSelect" class="form-control selectBox">
-                        <option value="">🔄 Loading customers...</option>
-                    </select>
-                    <small class="form-text text-muted">Select a customer to see their due bills and payment options</small>
-                </div>
 
-                <!-- Customer Summary (Hidden by default) -->
-                <div id="customerSummarySection" class="row mt-2 g-2" style="display: none;">
-                    <div class="col-lg-2 col-md-3 col-sm-6">
-                        <div class="card bg-warning p-2 text-center shadow-sm h-100">
-                            <small class="fw-bold">Opening Balance</small>
-                            <div id="openingBalance" class="fs-6 fw-bold">Rs. 0.00</div>
+            <!-- Customer Summary - Clean Text (Hidden by default) -->
+            <div id="customerSummarySection" class="border-bottom pb-3 mb-3" style="display: none;">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="flex-grow-1">
+                        <div class="text-muted small mb-1">Opening Balance: Rs. <span id="openingBalance">0.00</span></div>
+                        <div class="text-muted small mb-1">
+                            Sale Due: Rs. <span id="totalDueAmount">0.00</span>
+                            <span id="returnCount" class="text-info ms-2" style="display: none;">(Has <span id="returnCountNumber">0</span> returns available)</span>
                         </div>
                     </div>
-                    <div class="col-lg-2 col-md-3 col-sm-6">
-                        <div class="card bg-primary text-white p-2 text-center shadow-sm h-100">
-                            <small class="fw-bold">Sale Due</small>
-                            <div id="totalDueAmount" class="fs-6 fw-bold">Rs. 0.00</div>
-                        </div>
-                    </div>
-                    <div class="col-lg-2 col-md-3 col-sm-6">
-                        <div class="card bg-info text-white p-2 text-center shadow-sm h-100">
-                            <small class="fw-bold">Return Credits</small>
-                            <div id="totalReturnCredits" class="fs-6 fw-bold">Rs. 0.00</div>
-                            <small style="font-size: 0.65rem;" id="returnCount">(0)</small>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 col-md-3 col-sm-6">
-                        <div class="card bg-danger text-white p-2 text-center shadow-sm h-100">
-                            <small class="fw-bold">Net Amount Due</small>
-                            <div id="netCustomerDue" class="fs-5 fw-bold">Rs. 0.00</div>
-                            <small style="font-size: 0.65rem;">(After Returns)</small>
-                        </div>
+
+                    <!-- Dominant Final Amount -->
+                    <div class="text-end">
+                        <div class="text-muted small">Amount to Pay</div>
+                        <div class="display-6 fw-bold text-danger" id="netCustomerDue">Rs. 0.00</div>
+                        <div class="text-muted small" id="netCalculation">Sale Due - Returns</div>
                     </div>
                 </div>
 
-                <!-- Payment Type Selection - Simple & Clear -->
-                <div class="mt-2">
-                    <div class="border border-primary rounded p-2 bg-light">
-                        <div class="row align-items-center">
-                            <div class="col-auto">
-                                <small class="text-primary fw-bold mb-0"><i class="fas fa-hand-holding-usd"></i> What to Pay:</small>
-                            </div>
-                            <div class="col">
-                                <div class="d-flex flex-wrap gap-3">
-                                    <div class="form-check mb-0">
-                                        <input class="form-check-input" type="radio" name="paymentType" id="paySaleDues" value="sale_dues" checked>
-                                        <label class="form-check-label small" for="paySaleDues">
-                                            <i class="fas fa-file-invoice"></i> <strong>Sale Bills Only</strong>
-                                        </label>
-                                    </div>
-                                    <div class="form-check mb-0">
-                                        <input class="form-check-input" type="radio" name="paymentType" id="payOpeningBalance" value="opening_balance">
-                                        <label class="form-check-label small" for="payOpeningBalance">
-                                            <i class="fas fa-coins"></i> <strong>Opening Balance Only</strong>
-                                        </label>
-                                    </div>
-                                    <div class="form-check mb-0">
-                                        <input class="form-check-input" type="radio" name="paymentType" id="payBoth" value="both">
-                                        <label class="form-check-label small" for="payBoth">
-                                            <i class="fas fa-layer-group"></i> <strong>Opening + Sales Together</strong>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Helper text -->
-                        <div class="mt-1 px-2">
-                            <small class="text-muted" id="paymentTypeHelp">
-                                <i class="fas fa-info-circle"></i> Pay sale bills (invoices) for this customer
-                            </small>
-                        </div>
+                <!-- Smart Default Behavior Text -->
+                <div class="alert alert-light border mb-0 py-2 px-3">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle text-primary"></i>
+                        <strong>Auto Mode:</strong> System will intelligently allocate payment to bills.
+                        <a href="#" id="customizePaymentLink" class="text-decoration-none">Customize</a>
+                    </small>
+                </div>
+            </div>
+
+            <!-- Payment Type Selection - Hidden by default, shown only when needed -->
+            <div id="paymentTypeSection" class="mb-3" style="display: none;">
+                <div class="d-flex gap-3 flex-wrap">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="paymentType" id="paySaleDues" value="sale_dues" checked>
+                        <label class="form-check-label" for="paySaleDues">Sale Bills</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="paymentType" id="payOpeningBalance" value="opening_balance">
+                        <label class="form-check-label" for="payOpeningBalance">Opening Balance</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="paymentType" id="payBoth" value="both">
+                        <label class="form-check-label" for="payBoth">Both</label>
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <!-- Customer Return Bills Section (Hidden by default) -->
-                <div id="customerReturnsSection" class="mt-2" style="display: none;">
-                    <div class="card border-info">
-                        <div class="card-header bg-info text-white py-1 px-2">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <small class="mb-0 fw-bold">
-                                    <i class="fas fa-undo"></i> Return Bills
-                                    <span class="badge bg-white text-info" id="selectedReturnsCount">0</span>
-                                </small>
-                                <small class="mb-0">
-                                    <span class="me-2">To Apply: <strong id="returnsToApplyToSales">Rs. 0.00</strong></span>
-                                </small>
-                            </div>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive" style="max-height: 150px; overflow-y: auto;">
-                                <table class="table table-sm table-hover mb-0">
-                                    <thead class="table-light sticky-top">
-                                        <tr style="font-size: 0.85rem;">
-                                            <th width="40"><input type="checkbox" id="selectAllReturns"></th>
-                                            <th>Return #</th>
-                                            <th>Date</th>
-                                            <th>Pending Refund</th>
-                                            <th>Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="customerReturnsTableBody" style="font-size: 0.85rem;">
-                                        <tr>
-                                            <td colspan="5" class="text-center text-muted py-2">
-                                                <i class="fas fa-info-circle"></i> No pending returns
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Step 2: Payment Method Selection (Hidden by default) -->
-                <div id="paymentMethodSection" style="display: none;">
-                    <div class="card mb-3 border-success">
-                        <div class="card-header bg-success text-white p-2">
-                            <small class="mb-0"><i class="fas fa-credit-card"></i> Step 2: Choose Payment Method</small>
-                        </div>
-                        <div class="card-body p-2">
-                <div class="row mb-2">
+        <!-- Step 2: Payment Section - Clean & Fast -->
+        <div id="paymentMethodSection" style="display: none;">
+            <div class="mb-4">
+                <!-- Quick Payment Input -->
+                <div class="row g-3 mb-3">
                     <div class="col-md-4">
-                        <div class="mb-2">
-                            <label for="paymentMethod" class="form-label">
-                                <i class="fas fa-credit-card"></i> Payment Method
-                                <span class="badge bg-success ms-2" id="methodModeIndicator">Multi Mode</span>
-                            </label>
-                            <div class="input-group">
-                                <select class="form-select" id="paymentMethod" name="payment_method" onchange="togglePaymentFields()">
-                                    <option value="cash">💵 Cash</option>
-                                    <option value="card">💳 Credit Card</option>
-                                    <option value="cheque">📄 Cheque</option>
-                                    <option value="bank_transfer">🏦 Bank Transfer</option>
-                                    <option value="multiple" selected>🔄 Multiple Methods</option>
-                                </select>
-                            </div>
-                        </div>
+                        <label for="globalPaymentAmount" class="form-label fw-semibold">Amount Received</label>
+                        <input type="text" class="form-control form-control-lg" id="globalPaymentAmount" name="amount" placeholder="Enter amount">
+                        <div id="amountError" class="text-danger small mt-1" style="display:none;"></div>
                     </div>
                     <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="paidOn" class="form-label">Paid On</label>
-                            <input class="form-control" type="date" name="payment_date" id="paidOn" value="<?php echo date('Y-m-d'); ?>">
-                        </div>
+                        <label for="paymentMethod" class="form-label fw-semibold">Payment Method</label>
+                        <select class="form-select" id="paymentMethod" name="payment_method" onchange="togglePaymentFields()">
+                            <option value="cash">Cash</option>
+                            <option value="card">Credit Card</option>
+                            <option value="cheque">Cheque</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                            <option value="multiple">Multiple Methods</option>
+                        </select>
                     </div>
                     <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="payAmount" class="form-label">Amount</label>
-                            <input type="text" class="form-control" id="globalPaymentAmount" name="amount">
-                            <div id="amountError" class="text-danger" style="display:none;"></div>
-                        </div>
+                        <label for="paidOn" class="form-label fw-semibold">Date</label>
+                        <input class="form-control" type="date" name="payment_date" id="paidOn" value="<?php echo date('Y-m-d'); ?>">
                     </div>
                 </div>
 
-                <!-- FLEXIBLE Many-to-Many Payment UI -->
-                <div id="multiMethodContainer" class="mb-3">
-                    <div class="card border-primary">
-                        <div class="card-body p-0">
+                <!-- Returns Section - Visible in Main Flow -->
+                <div id="customerReturnsSection" class="mb-3" style="display: none;">
+                    <div class="border rounded p-3 bg-light">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0">
+                                Returns (Rs. <span id="returnsToApplyToSales">0.00</span> available)
+                            </h6>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="hideReturnsBtn">
+                                <i class="fas fa-times"></i> Hide
+                            </button>
+                        </div>
+                        <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th width="40"><input type="checkbox" id="selectAllReturns"></th>
+                                        <th>Return #</th>
+                                        <th>Date</th>
+                                        <th>Amount</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="customerReturnsTableBody">
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-2">No pending returns</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-primary mt-2" id="reallocateAllCreditsBtn">
+                            <i class="fas fa-exchange-alt"></i> Change Allocation
+                        </button>
+                    </div>
+                </div>
 
-                            <!-- Info banner for "Both" payment type -->
-                            <div id="bothPaymentTypeInfo" class="border-bottom bg-light" style="display: none;">
-                                <div class="p-2">
-                                    <small class="text-info">
-                                        <i class="fas fa-info-circle"></i>
-                                        <strong>Auto Allocation:</strong> Enter total amount received → System allocates automatically:
-                                        <strong class="text-warning">1st to Opening Balance (Rs. <span id="obInfoAmount">0.00</span>)</strong>,
-                                        <strong class="text-primary">2nd to Bills (auto-selected)</strong>,
-                                        <strong class="text-success">Excess = Customer Credit (Advance)</strong>
-                                    </small>
-                                </div>
-                            </div>
+                <!-- Advanced Options - Progressive Disclosure -->
+                <div class="mb-3">
+                    <a href="#" id="showAdvancedOptions" class="text-decoration-none small">
+                        <i class="fas fa-chevron-down"></i> Show advanced options
+                    </a>
+                </div>
 
+                <!-- Advanced Options Container (Hidden by default) -->
+                <div id="advancedOptionsContainer" class="collapse" style="display: none;">
+                    <!-- Auto Allocation Info -->
+                    <div id="bothPaymentTypeInfo" class="alert alert-light border py-2 px-3 mb-3" style="display: none;">
+                        <small class="text-muted">
+                            <i class="fas fa-magic"></i>
+                            <strong>Smart Allocation:</strong> Opening Balance first (Rs. <span id="obInfoAmount">0.00</span>), then bills automatically
+                        </small>
+                    </div>
+
+                    <!-- Bill Selection Details -->
+                    <div id="multiMethodContainer" class="mb-3">
+                        <div class="border rounded">
                             <!-- Two Column Layout -->
                             <div class="row g-0">
-                                <!-- Left Column: Available Bills -->
-                                <div class="col-md-6 border-end">
-                                    <div class="p-2">
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <h6 class="text-primary mb-0 small fw-bold">
-                                                <i class="fas fa-file-invoice-dollar"></i> Outstanding Bills
-                                            </h6>
-                                            <input type="search" id="billSearchInput" class="form-control form-control-sm" placeholder="🔍 Search..." style="max-width: 150px; font-size: 0.8rem;" title="Search by Invoice Number">
-                                        </div>
-                                        <div id="availableBillsList" class="bill-items-container" style="height: 250px; max-height: 250px; overflow-y: scroll; overflow-x: hidden;">
-                                            <!-- Bills will be populated here -->
-                                        </div>
+                                <!-- Left: Bills & Returns -->
+                                <div class="col-md-6 border-end p-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="mb-0 small">Outstanding Bills</h6>
+                                        <input type="search" id="billSearchInput" class="form-control form-control-sm" placeholder="Search..." style="max-width: 120px;">
+                                    </div>
+                                    <div id="availableBillsList" class="bill-items-container" style="height: 250px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px;">
+                                        <!-- Bills populated here -->
                                     </div>
                                 </div>
 
-                                <!-- Right Column: Payment Methods -->
-                                <div class="col-md-6">
-                                    <div class="p-2">
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <h6 class="text-success mb-0 small fw-bold">
-                                                <i class="fas fa-credit-card"></i> Payment Methods
-                                            </h6>
-                                            <button type="button" class="btn btn-success btn-sm" id="addFlexiblePayment" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">
-                                                <i class="fas fa-plus"></i> Add
-                                            </button>
-
-                                        </div>
-                                        <div id="flexiblePaymentsList" class="payment-methods-container" style="height: 300px; max-height: 300px; overflow-y: scroll; overflow-x: hidden;">
-                                            <!-- Payment methods will be added here -->
-                                        </div>
+                                <!-- Right: Payment Methods -->
+                                <div class="col-md-6 p-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="mb-0 small">Payment Methods</h6>
+                                        <button type="button" class="btn btn-sm btn-primary" id="addFlexiblePayment">
+                                            <i class="fas fa-plus"></i> Add
+                                        </button>
+                                    </div>
+                                    <div id="flexiblePaymentsList" class="payment-methods-container" style="height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px;">
+                                        <!-- Payment methods added here -->
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Bottom Summary -->
                             <div class="border-top p-2 bg-light">
-                                <div class="row text-center">
+                                <div class="row text-center small">
                                     <div class="col-3">
-                                        <small class="text-muted" style="font-size: 0.7rem;">Bills</small>
-                                        <div class="fw-bold small" id="totalBillsCount">0</div>
+                                        <div class="text-muted">Bills</div>
+                                        <div class="fw-bold" id="totalBillsCount">0</div>
                                     </div>
                                     <div class="col-3">
-                                        <small class="text-muted" style="font-size: 0.7rem;">Due</small>
-                                        <div class="fw-bold text-danger small" id="totalDueAmount">Rs. 0.00</div>
+                                        <div class="text-muted">Due</div>
+                                        <div class="fw-bold text-danger" id="totalDueAmount">Rs. 0.00</div>
                                     </div>
                                     <div class="col-3">
-                                        <small class="text-muted" style="font-size: 0.7rem;">Payments</small>
-                                        <div class="fw-bold text-success small" id="totalPaymentAmount">Rs. 0.00</div>
+                                        <div class="text-muted">Payment</div>
+                                        <div class="fw-bold text-success" id="totalPaymentAmount">Rs. 0.00</div>
                                     </div>
                                     <div class="col-3">
-                                        <small class="text-muted" style="font-size: 0.7rem;">Balance</small>
-                                        <div class="fw-bold small" id="balanceAmount">Rs. 0.00</div>
+                                        <div class="text-muted">Balance</div>
+                                        <div class="fw-bold" id="balanceAmount">Rs. 0.00</div>
                                     </div>
                                 </div>
                             </div>
@@ -456,116 +406,60 @@
                     </div>
                 </div>
 
-                <!-- Conditional Payment Fields -->
-                <div id="cardFields" class="row mb-3 d-none">
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="cardNumber" class="form-label">Card Number</label>
-                            <input type="text" class="form-control" id="cardNumber" name="card_number">
+                <!-- Conditional Payment Fields (Card, Cheque, Bank) -->
+                <div id="cardFields" class="border rounded p-3 mb-3 d-none">
+                    <h6 class="mb-3 small">Card Details</h6>
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <label for="cardNumber" class="form-label small">Card Number</label>
+                            <input type="text" class="form-control form-control-sm" id="cardNumber" name="card_number">
                         </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="cardHolderName" class="form-label">Card Holder Name</label>
-                            <input type="text" class="form-control" id="cardHolderName" name="card_holder_name">
+                        <div class="col-md-4">
+                            <label for="cardHolderName" class="form-label small">Card Holder</label>
+                            <input type="text" class="form-control form-control-sm" id="cardHolderName" name="card_holder_name">
                         </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="cardType" class="form-label">Card Type</label>
-                            <select class="form-select" id="cardType" name="card_type">
+                        <div class="col-md-4">
+                            <label for="cardType" class="form-label small">Card Type</label>
+                            <select class="form-select form-select-sm" id="cardType" name="card_type">
                                 <option value="visa">Visa</option>
-
                             </select>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="expiryMonth" class="form-label">Expiry Month</label>
-                            <input type="text" class="form-control" id="expiryMonth" name="card_expiry_month">
+                </div>
+
+                <div id="chequeFields" class="border rounded p-3 mb-3 d-none">
+                    <h6 class="mb-3 small">Cheque Details</h6>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label for="chequeNumber" class="form-label small">Cheque Number</label>
+                            <input type="text" class="form-control form-control-sm" id="chequeNumber" name="cheque_number">
                         </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="expiryYear" class="form-label">Expiry Year</label>
-                            <input type="text" class="form-control" id="expiryYear" name="card_expiry_year">
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="securityCode" class="form-label">Security Code</label>
-                            <input type="text" class="form-control" id="securityCode" name="card_security_code">
+                        <div class="col-md-6">
+                            <label for="bankBranch" class="form-label small">Bank Branch</label>
+                            <input type="text" class="form-control form-control-sm" id="bankBranch" name="cheque_bank_branch">
                         </div>
                     </div>
                 </div>
 
-                <div id="chequeFields" class="row mb-3 d-none">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="chequeNumber" class="form-label">Cheque Number</label>
-                            <input type="text" class="form-control" id="chequeNumber" name="cheque_number">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="bankBranch" class="form-label">Bank Branch</label>
-                            <input type="text" class="form-control" id="bankBranch" name="cheque_bank_branch">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="cheque_received_date" class="form-label">Check Received Date</label>
-                            <input type="date" class="form-control" id="cheque_received_date" name="cheque_received_date">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="cheque_valid_date" class="form-label">Cheque Valid Date</label>
-                            <input type="date" class="form-control" id="cheque_valid_date" name="cheque_valid_date">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="cheque_given_by" class="form-label">Check Given by</label>
-                            <input type="text" class="form-control" id="cheque_given_by" name="cheque_given_by">
-                        </div>
-                    </div>
+                <div id="bankTransferFields" class="border rounded p-3 mb-3 d-none">
+                    <h6 class="mb-3 small">Bank Transfer Details</h6>
+                    <label for="bankAccountNumber" class="form-label small">Bank Account Number</label>
+                    <input type="text" class="form-control form-control-sm" id="bankAccountNumber" name="bank_account_number">
                 </div>
 
-                <div id="bankTransferFields" class="row mb-3 d-none">
-                    <div class="col-md-12">
-                        <div class="mb-3">
-                            <label for="bankAccountNumber" class="form-label">Bank Account Number</label>
-                            <input type="text" class="form-control" id="bankAccountNumber" name="bank_account_number">
-                        </div>
-                    </div>
+                <!-- Notes -->
+                <div id="notesSection" class="mb-3" style="display: none;">
+                    <label for="notes" class="form-label small">Payment Notes (optional)</label>
+                    <textarea id="notes" name="notes" class="form-control" rows="2" placeholder="Add any notes..."></textarea>
                 </div>
-                        </div>
-                    </div>
+
+                <!-- Submit Button -->
+                <div id="submitButtonSection" class="text-center" style="display: none;">
+                    <button type="button" id="submitBulkPayment" class="btn btn-primary btn-lg px-5">
+                        <i class="fas fa-check"></i> Submit Payment
+                    </button>
                 </div>
             </div>
-        </div>
-
-        <!-- Payment Notes Section -->
-        <div id="notesSection" class="row mb-3" style="display: none;">
-            <div class="col-md-12">
-                <div class="card">
-                    <div class="card-body">
-                        <label for="notes" class="form-label">
-                            <i class="fas fa-sticky-note"></i> Payment Notes / Description
-                        </label>
-                        <textarea id="notes" name="notes" class="form-control" rows="3" placeholder="Enter any additional notes or description for this payment (optional)..."></textarea>
-                        <small class="text-muted">This note will be saved with the payment record for future reference.</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Submit Button (Hidden by default) -->
-        <div id="submitButtonSection" class="text-center" style="display: none;">
-            <button type="button" id="submitBulkPayment" class="btn btn-primary btn-lg" style="min-width: 250px; max-width: 400px;">
-                <i class="fas fa-credit-card"></i> Submit Payment
-            </button>
         </div>
     </form>
 </diV>
@@ -852,6 +746,33 @@ $(document).ready(function() {
         $('#submitButtonSection').show();
     }, 1500);
 
+    // Progressive Disclosure: Hide Returns Button
+    $(document).on('click', '#hideReturnsBtn', function() {
+        $('#customerReturnsSection').slideUp();
+    });
+
+    // Progressive Disclosure: Customize Payment Link
+    $(document).on('click', '#customizePaymentLink', function(e) {
+        e.preventDefault();
+        $('#paymentTypeSection').slideDown();
+    });
+
+    // Progressive Disclosure: Show Advanced Options
+    $(document).on('click', '#showAdvancedOptions', function(e) {
+        e.preventDefault();
+        $('#advancedOptionsContainer').slideDown();
+        $(this).html('<i class="fas fa-chevron-up"></i> Hide advanced options');
+        $(this).attr('id', 'hideAdvancedOptions');
+    });
+
+    // Progressive Disclosure: Hide Advanced Options
+    $(document).on('click', '#hideAdvancedOptions', function(e) {
+        e.preventDefault();
+        $('#advancedOptionsContainer').slideUp();
+        $(this).html('<i class="fas fa-chevron-down"></i> Show advanced options');
+        $(this).attr('id', 'showAdvancedOptions');
+    });
+
     // Handle Payment Type changes to update payment method dropdown and helper text
     $('input[name="paymentType"]').on('change', function() {
         const selectedType = $(this).val();
@@ -937,9 +858,9 @@ $(document).on('change', '#customerSelect', function() {
         totalDue: totalDue
     });
 
-    // Update balance cards
-    $('#openingBalance').text('Rs. ' + customerOpeningBalance.toFixed(2));
-    $('#totalCustomerDue').text('Rs. ' + totalDue.toFixed(2));
+    // Update balance displays (text-based, no cards)
+    $('#openingBalance').text(customerOpeningBalance.toFixed(2));
+    $('#totalDueAmount').text(saleDue.toFixed(2));
 
     // Store original opening balance globally
     window.originalOpeningBalance = customerOpeningBalance;
@@ -983,37 +904,43 @@ function loadCustomerReturns(customerId) {
 
                 if (availableCustomerReturns.length > 0) {
                     populateReturnsTable();
-                    $('#customerReturnsSection').show();
 
-                    // Update return credits in summary
+                    // Update return credits in summary (text-based, no cards)
                     var totalReturnCredits = availableCustomerReturns.reduce((sum, ret) => sum + parseFloat(ret.total_due), 0);
-                    $('#totalReturnCredits').text('Rs. ' + totalReturnCredits.toFixed(2));
-                    $('#returnCount').text('(' + availableCustomerReturns.length + ' returns)');
+                    $('#totalReturnCredits').text(totalReturnCredits.toFixed(2));
+                    $('#returnsToApplyToSales').text(totalReturnCredits.toFixed(2));
+                    $('#returnCountNumber').text(availableCustomerReturns.length);
+                    $('#returnCount').show();
+
+                    // Always show returns section when returns are available
+                    $('#customerReturnsSection').show();
 
                     // Update Net Customer Due
                     updateNetCustomerDue();
                 } else {
-                    $('#customerReturnsSection').hide();
-                    $('#totalReturnCredits').text('Rs. 0.00');
-                    $('#returnCount').text('(0 returns)');
-                    updateNetCustomerDue();
+                    hideReturnsUI();
                 }
             } else {
                 console.log('No returns found for customer');
-                $('#customerReturnsSection').hide();
-                $('#totalReturnCredits').text('Rs. 0.00');
-                $('#returnCount').text('(0 returns)');
-                updateNetCustomerDue();
+                hideReturnsUI();
             }
         },
         error: function(xhr, status, error) {
             console.error('Error loading customer returns:', error);
-            $('#customerReturnsSection').hide();
+            hideReturnsUI();
             if (xhr.status === 404) {
                 console.log('Returns endpoint not found - feature may not be implemented yet');
             }
         }
     });
+}
+
+// Helper function to hide returns UI
+function hideReturnsUI() {
+    $('#customerReturnsSection').hide();
+    $('#totalReturnCredits').text('0.00');
+    $('#returnCount').hide();
+    updateNetCustomerDue();
 }
 
 // Populate returns table
@@ -1083,6 +1010,83 @@ $(document).on('change', '.return-checkbox', function() {
     updateSelectedReturns();
 });
 
+// Common function to show adjust credit dialog (eliminates duplication)
+function showAdjustCreditDialog(saleId) {
+    const sale = availableCustomerSales.find(s => s.id == saleId);
+    if (!sale) return;
+
+    const currentCredit = window.billReturnCreditAllocations[saleId] || 0;
+
+    // Get total return credit available
+    let totalReturnCredit = 0;
+    $('.return-checkbox:checked').each(function() {
+        const action = $('.return-action[data-return-id="' + $(this).data('return-id') + '"]').val();
+        if (action === 'apply_to_sales') {
+            totalReturnCredit += parseFloat($(this).data('amount'));
+        }
+    });
+
+    // Calculate already allocated to other bills
+    let otherAllocations = 0;
+    Object.keys(window.billReturnCreditAllocations).forEach(key => {
+        if (key != saleId) {
+            otherAllocations += window.billReturnCreditAllocations[key];
+        }
+    });
+
+    // Available credit = total return credit - what's allocated to other bills
+    const availableCredit = totalReturnCredit - otherAllocations;
+    // Max allowable = minimum of available credit OR bill due (can't pay more than bill due)
+    const maxAllowable = Math.min(availableCredit, sale.total_due);
+
+    Swal.fire({
+        title: `Adjust Return Credit`,
+        html: `
+            <div class="text-start">
+                <p><strong>Bill:</strong> ${sale.invoice_no}</p>
+                <p><strong>Bill Due:</strong> Rs.${sale.total_due.toFixed(2)}</p>
+                <p><strong>Current Allocated:</strong> Rs.${currentCredit.toFixed(2)}</p>
+                <p><strong>Total Return Credit:</strong> Rs.${totalReturnCredit.toFixed(2)}</p>
+                <p><strong>Available to Allocate:</strong> Rs.${availableCredit.toFixed(2)}</p>
+                <hr>
+                <label class="form-label">Enter amount (0 to remove):</label>
+                <input type="number" id="creditAmount" class="form-control"
+                       value="${currentCredit}" min="0" max="${maxAllowable}" step="0.01">
+                <small class="text-muted">Max: Rs.${maxAllowable.toFixed(2)}</small>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Apply',
+        cancelButtonText: 'Cancel',
+        preConfirm: () => {
+            const amount = parseFloat(document.getElementById('creditAmount').value) || 0;
+            if (amount < 0 || amount > maxAllowable) {
+                Swal.showValidationMessage(`Amount must be between 0 and ${maxAllowable.toFixed(2)}`);
+                return false;
+            }
+            return amount;
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const newAmount = result.value;
+            if (newAmount > 0) {
+                window.billReturnCreditAllocations[saleId] = newAmount;
+            } else {
+                delete window.billReturnCreditAllocations[saleId];
+            }
+            populateFlexibleBillsList();
+            updateExistingBillAllocationsForReturnCredits();
+            toastr.success(`Return credit updated to Rs.${newAmount.toFixed(2)}`, 'Updated');
+        }
+    });
+}
+
+// Handle click on return credit badge to manually adjust allocation
+$(document).on('click', '.return-credit-badge', function(e) {
+    e.stopPropagation();
+    showAdjustCreditDialog($(this).data('sale-id'));
+});
+
 // Handle return action change
 $(document).on('change', '.return-action', function() {
     const returnId = $(this).data('return-id');
@@ -1100,6 +1104,158 @@ $(document).on('change', '.return-action', function() {
     }
 
     updateSelectedReturns();
+});
+
+// Quick remove return credit from a bill
+$(document).on('click', '.quick-remove-credit', function(e) {
+    e.stopPropagation();
+    const saleId = $(this).data('sale-id');
+    const currentCredit = window.billReturnCreditAllocations[saleId] || 0;
+
+    if (currentCredit > 0) {
+        delete window.billReturnCreditAllocations[saleId];
+        populateFlexibleBillsList();
+        updateExistingBillAllocationsForReturnCredits();
+        toastr.success(`Return credit Rs.${currentCredit.toFixed(2)} removed from bill`, 'Credit Removed');
+    }
+});
+
+// Quick adjust return credit for a bill (reuses common function)
+$(document).on('click', '.quick-adjust-credit', function(e) {
+    e.stopPropagation();
+    showAdjustCreditDialog($(this).data('sale-id'));
+});
+
+// Reallocate All Credits button - shows modal with all bills
+$(document).on('click', '#reallocateAllCreditsBtn', function() {
+    // Get total return credit available
+    let totalReturnCredit = 0;
+    $('.return-checkbox:checked').each(function() {
+        const action = $('.return-action[data-return-id="' + $(this).data('return-id') + '"]').val();
+        if (action === 'apply_to_sales') {
+            totalReturnCredit += parseFloat($(this).data('amount'));
+        }
+    });
+
+    if (totalReturnCredit === 0) {
+        toastr.warning('No return credits selected for "Apply to Sales"', 'No Credits');
+        return;
+    }
+
+    // Build bills table
+    let billsHTML = '<div style="max-height: 400px; overflow-y: auto;"><table class="table table-sm table-hover"><thead class="sticky-top bg-light"><tr><th>Bill #</th><th>Due</th><th>Credit</th><th>Action</th></tr></thead><tbody>';
+
+    availableCustomerSales.forEach(sale => {
+        const currentCredit = window.billReturnCreditAllocations[sale.id] || 0;
+        billsHTML += `
+            <tr>
+                <td><small>${sale.invoice_no}</small></td>
+                <td><small>Rs.${sale.total_due.toFixed(2)}</small></td>
+                <td><small class="${currentCredit > 0 ? 'text-info fw-bold' : 'text-muted'}">Rs.${currentCredit.toFixed(2)}</small></td>
+                <td>
+                    <button class="btn btn-xs btn-primary realloc-set-credit" data-sale-id="${sale.id}" data-invoice="${sale.invoice_no}" data-due="${sale.total_due}">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    billsHTML += '</tbody></table></div>';
+
+    Swal.fire({
+        title: 'Reallocate Return Credits',
+        html: `
+            <div class="text-start">
+                <div class="alert alert-info p-2 mb-2">
+                    <small><strong>Total Available:</strong> Rs.${totalReturnCredit.toFixed(2)}</small>
+                </div>
+                ${billsHTML}
+                <div class="mt-2 text-center">
+                    <button class="btn btn-sm btn-warning" id="clearAllAllocations">
+                        <i class="fas fa-eraser"></i> Clear All
+                    </button>
+                    <button class="btn btn-sm btn-success" id="autoFifoAllocate">
+                        <i class="fas fa-magic"></i> Auto FIFO
+                    </button>
+                </div>
+            </div>
+        `,
+        width: '600px',
+        showCancelButton: true,
+        showConfirmButton: false,
+        cancelButtonText: 'Close',
+        didOpen: () => {
+            // Bind events only once when modal opens
+            $('#clearAllAllocations').off('click').on('click', function() {
+                window.billReturnCreditAllocations = {};
+                populateFlexibleBillsList();
+                updateExistingBillAllocationsForReturnCredits();
+                toastr.success('All credits cleared!', 'Success');
+                Swal.close();
+                setTimeout(() => $('#reallocateAllCreditsBtn').click(), 100);
+            });
+
+            $('#autoFifoAllocate').off('click').on('click', function() {
+                autoAllocateReturnCreditsToSales(totalReturnCredit);
+                toastr.success('FIFO allocation applied!', 'Success');
+                Swal.close();
+            });
+        }
+    });
+
+    // Handle individual set credit button (bind once per modal open)
+    $(document).off('click', '.realloc-set-credit').on('click', '.realloc-set-credit', function() {
+        const saleId = $(this).data('sale-id');
+        const invoice = $(this).data('invoice');
+        const due = parseFloat($(this).data('due'));
+        const currentCredit = window.billReturnCreditAllocations[saleId] || 0;
+
+        // Calculate available
+        let allocated = 0;
+        Object.keys(window.billReturnCreditAllocations).forEach(key => {
+            if (key != saleId) {
+                allocated += window.billReturnCreditAllocations[key];
+            }
+        });
+        const available = totalReturnCredit - allocated;
+        const maxAllowable = Math.min(available, due);
+
+        Swal.fire({
+            title: `Set Credit for ${invoice}`,
+            html: `
+                <div class="text-start">
+                    <p><small><strong>Current:</strong> Rs.${currentCredit.toFixed(2)}</small></p>
+                    <p><small><strong>Total Return Credit:</strong> Rs.${totalReturnCredit.toFixed(2)}</small></p>
+                    <p><small><strong>Available:</strong> Rs.${available.toFixed(2)}</small></p>
+                    <p><small><strong>Max Allowable:</strong> Rs.${maxAllowable.toFixed(2)}</small></p>
+                    <input type="number" id="setCreditAmount" class="form-control" value="${currentCredit}" min="0" max="${maxAllowable}" step="0.01">
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Set',
+            preConfirm: () => {
+                const amount = parseFloat($('#setCreditAmount').val()) || 0;
+                if (amount < 0 || amount > maxAllowable) {
+                    Swal.showValidationMessage(`Between 0 and ${maxAllowable.toFixed(2)}`);
+                    return false;
+                }
+                return amount;
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                if (result.value > 0) {
+                    window.billReturnCreditAllocations[saleId] = result.value;
+                } else {
+                    delete window.billReturnCreditAllocations[saleId];
+                }
+                populateFlexibleBillsList();
+                updateExistingBillAllocationsForReturnCredits();
+                toastr.success('Credit updated!', 'Success');
+                // Reopen main modal
+                $('#reallocateAllCreditsBtn').click();
+            }
+        });
+    });
 });
 
 // Update selected returns and totals
@@ -1193,14 +1349,15 @@ function autoAllocateReturnCreditsToSales(returnCreditAmount) {
     // Update existing bill allocations in payment methods
     updateExistingBillAllocationsForReturnCredits();
 
-    // Show info message
+    // Show info message (single notification only)
     if (returnCreditAmount > 0) {
         const allocated = returnCreditAmount - remainingCredit;
         toastr.info(
-            `Return credit Rs.${allocated.toFixed(2)} automatically allocated to oldest bills. ` +
-            (remainingCredit > 0 ? `Remaining credit: Rs.${remainingCredit.toFixed(2)}` : ''),
-            'Return Credits Applied',
-            { timeOut: 5000 }
+            `Rs.${allocated.toFixed(2)} return credit auto-allocated (FIFO). ` +
+            (remainingCredit > 0 ? `Remaining: Rs.${remainingCredit.toFixed(2)}. ` : '') +
+            `<br><strong>💡 To change:</strong> Click <strong>"Reallocate"</strong> button or edit/remove buttons on bills.`,
+            'Return Credit Applied',
+            {timeOut: 6000, progressBar: true, closeButton: true, escapeHtml: false}
         );
     }
 }
@@ -1262,7 +1419,7 @@ function updateExistingBillAllocationsForReturnCredits() {
             const remainingAfterPayment = billRemainingDue - newAmount;
 
             if (returnCreditApplied > 0) {
-                $hint.html(`Available: Rs. ${billRemainingDue.toFixed(2)} <span class="badge bg-info"><i class="fas fa-undo"></i> Rs.${returnCreditApplied.toFixed(2)} credit</span>`);
+                $hint.html(`Available: Rs. ${billRemainingDue.toFixed(2)} <span class="badge bg-info return-credit-badge" data-sale-id="${billId}" style="cursor: pointer;" title="Click to adjust return credit allocation"><i class="fas fa-undo"></i> Rs.${returnCreditApplied.toFixed(2)} credit <i class="fas fa-edit" style="font-size: 0.7em;"></i></span>`);
             } else if (remainingAfterPayment <= 0.01) {
                 $hint.text('✅ Bill will be fully paid').removeClass('text-muted').addClass('text-success');
             } else {
@@ -1299,7 +1456,7 @@ function updateNetCustomerDue() {
     var returnsToApply = 0;
     $('.return-checkbox:checked').each(function() {
         var returnId = $(this).data('return-id');
-        var action = $('.return-action[data-return-id=\"' + returnId + '\"]').val();
+        var action = $('.return-action[data-return-id="' + returnId + '"]').val();
         if (action === 'apply_to_sales') {
             returnsToApply += parseFloat($(this).data('amount')) || 0;
         }
@@ -1309,6 +1466,13 @@ function updateNetCustomerDue() {
     if (netDue < 0) netDue = 0; // Can't be negative
 
     $('#netCustomerDue').text('Rs. ' + netDue.toFixed(2));
+
+    // Update calculation display
+    if (returnsToApply > 0) {
+        $('#netCalculation').html(`<i class="fas fa-calculator"></i> Rs.${totalDue.toFixed(2)} - Rs.${returnsToApply.toFixed(2)}`);
+    } else {
+        $('#netCalculation').text('Sale Due - Returns');
+    }
 
     // Store for later use
     window.netCustomerDue = netDue;
@@ -2247,11 +2411,11 @@ $(document).ready(function() {
     // Bill selection change
     $(document).on('change', '.bill-select', function() {
         const selectedOption = $(this).find('option:selected');
-        const dueAmount = selectedOption.data('due') || 0;
+        const remainingAmount = selectedOption.data('remaining') || 0; // FIX: Use remaining amount after return credits
         const $row = $(this).closest('.bill-row');
 
-        $row.find('.due-display').text(parseFloat(dueAmount).toFixed(2));
-        $row.find('.bill-amount').attr('max', dueAmount).val('');
+        $row.find('.due-display').text(parseFloat(remainingAmount).toFixed(2));
+        $row.find('.bill-amount').attr('max', remainingAmount).val('');
         updateSummaryTotals();
     });
 
@@ -2385,13 +2549,21 @@ function populateFlexibleBillsList(searchTerm = '') {
                             </h6>
                             <div class="small" style="font-size: 0.75rem;">
                                 <div class="d-flex justify-content-between">
-                                    <span class="text-muted">Original:</span>
+                                    <span class="text-muted">Current Due:</span>
                                     <span class="fw-bold">Rs. ${parseFloat(sale.total_due).toFixed(2)}</span>
                                 </div>
                                 ${returnCreditApplied > 0 ? `
-                                    <div class="d-flex justify-content-between text-info">
-                                        <span><i class="fas fa-undo"></i> Return:</span>
-                                        <span>- Rs. ${returnCreditApplied.toFixed(2)}</span>
+                                    <div class="d-flex justify-content-between align-items-center text-info">
+                                        <span><i class="fas fa-undo"></i> Return Credit:</span>
+                                        <div>
+                                            <span class="me-2">Rs. ${returnCreditApplied.toFixed(2)}</span>
+                                            <button class="btn btn-xs btn-outline-warning quick-adjust-credit" data-sale-id="${sale.id}" title="Adjust amount" style="padding: 0.1rem 0.3rem; font-size: 0.65rem;">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-xs btn-outline-danger quick-remove-credit" data-sale-id="${sale.id}" title="Remove credit" style="padding: 0.1rem 0.3rem; font-size: 0.65rem;">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                 ` : ''}
                                 ${allocatedAmount > 0 ? `
@@ -2849,6 +3021,14 @@ function submitMultiMethodPayment() {
     let hasValidPayments = false;
     let groupIndex = 0;
 
+    // Initialize bill return allocations BEFORE collecting payment groups
+    let billReturnAllocations = {};
+    const hasApplyToSalesReturns = selectedReturns.some(r => r.action === 'apply_to_sales');
+    if (hasApplyToSalesReturns && window.billReturnCreditAllocations) {
+        billReturnAllocations = window.billReturnCreditAllocations;
+        console.log('Bill return allocations available:', billReturnAllocations);
+    }
+
     $('.payment-method-item').each(function() {
         const $payment = $(this);
         const paymentId = $payment.data('payment-id');
@@ -2931,6 +3111,8 @@ function submitMultiMethodPayment() {
             const amount = parseFloat($allocation.find('.allocation-amount').val()) || 0;
 
             if (billId && amount > 0) {
+                // UI already shows the correct payment amount (after return credit deduction)
+                // Just send it as-is
                 groupData.bills.push({
                     sale_id: parseInt(billId),
                     amount: amount
@@ -2988,13 +3170,6 @@ function submitMultiMethodPayment() {
 
     // Show loading
     $('#submitBulkPayment').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Processing...');
-
-    // Prepare bill_return_allocations - only include if returns are being applied to sales
-    let billReturnAllocations = {};
-    const hasApplyToSalesReturns = selectedReturns.some(r => r.action === 'apply_to_sales');
-    if (hasApplyToSalesReturns && window.billReturnCreditAllocations) {
-        billReturnAllocations = window.billReturnCreditAllocations;
-    }
 
     console.log('Submitting payment with:', {
         selected_returns: selectedReturns,
@@ -3240,7 +3415,7 @@ $(document).ready(function() {
 
             // Show available amount info
             if (returnCreditApplied > 0) {
-                $hint.html(`Available: Rs. ${remainingAmount.toFixed(2)} <span class="badge bg-info"><i class="fas fa-undo"></i> Rs.${returnCreditApplied.toFixed(2)} credit applied</span>`).show();
+                $hint.html(`Available: Rs. ${remainingAmount.toFixed(2)} <span class="badge bg-info return-credit-badge" data-sale-id="${billId}" style="cursor: pointer;" title="Click to adjust return credit allocation"><i class="fas fa-undo"></i> Rs.${returnCreditApplied.toFixed(2)} credit <i class="fas fa-edit" style="font-size: 0.7em;"></i></span>`).show();
             } else {
                 $hint.text(`Available: Rs. ${remainingAmount.toFixed(2)} (${allocatedAmount > 0 ? 'Partially Paid' : 'Unpaid'})`).show();
             }
@@ -3694,4 +3869,105 @@ function closeReceiptAndReload() {
 }
 
 </script>
+
+<!-- Clean UI Styling -->
+<style>
+/* Clean, minimal styling for the new bulk payments UI */
+.display-6 {
+    font-size: 2.5rem;
+    font-weight: 300;
+    line-height: 1.2;
+}
+
+#customerSummarySection {
+    transition: all 0.3s ease;
+}
+
+.border-bottom {
+    border-bottom: 1px solid #dee2e6 !important;
+}
+
+/* Progressive disclosure transitions */
+#customerReturnsSection,
+#paymentTypeSection,
+#advancedOptionsContainer {
+    transition: all 0.3s ease;
+}
+
+.collapse {
+    display: none;
+}
+
+.collapse.show {
+    display: block;
+}
+
+/* Bill items container scrollbar styling */
+.bill-items-container::-webkit-scrollbar,
+.payment-methods-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.bill-items-container::-webkit-scrollbar-track,
+.payment-methods-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.bill-items-container::-webkit-scrollbar-thumb,
+.payment-methods-container::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.bill-items-container::-webkit-scrollbar-thumb:hover,
+.payment-methods-container::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Clean hover effects */
+a:hover {
+    opacity: 0.8;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Smooth animations */
+.fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Return row hover */
+.return-row {
+    transition: background-color 0.2s ease;
+}
+
+.return-row:hover {
+    background-color: #f8f9fa !important;
+}
+
+.return-row.table-active {
+    background-color: #e7f3ff !important;
+    border-left: 3px solid #0dcaf0;
+}
+</style>
+
+<!-- SweetAlert2 for beautiful alerts/dialogs -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 @endsection

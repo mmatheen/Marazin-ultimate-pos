@@ -69,24 +69,24 @@
                                 <div class="col-lg-3 col-md-6">
                                     <div class="form-group local-forms">
                                         <label>Business Location <span class="login-danger">*</span></label>
-                                        <select class="form-control select" name="location">
-                                            <option value="" disabled selected>All</option>
+                                        <select class="form-control select selectBox" name="location">
+                                            <option value="">All</option>
                                         </select>
                                     </div>
                                 </div>
                                 <div class="col-lg-3 col-md-6">
                                     <div class="form-group local-forms">
                                         <label>Customer <span class="login-danger">*</span></label>
-                                        <select class="form-control select" name="customer">
-                                            <option value="" disabled selected>All</option>
+                                        <select class="form-control select selectBox" name="customer">
+                                            <option value="">All</option>
                                         </select>
                                     </div>
                                 </div>
                                 <div class="col-lg-3 col-md-6">
                                     <div class="form-group local-forms">
                                         <label>Payment Status<span class="login-danger">*</span></label>
-                                        <select class="form-control select" name="payment_status">
-                                            <option value="" disabled selected>All</option>
+                                        <select class="form-control select selectBox" name="payment_status">
+                                            <option value="">All</option>
                                             <option value="Paid">Paid</option>
                                             <option value="Due">Due</option>
                                             <option value="Partial">Partial</option>
@@ -106,16 +106,16 @@
                                 <div class="col-lg-3 col-md-4">
                                     <div class="form-group local-forms">
                                         <label>User<span class="login-danger">*</span></label>
-                                        <select class="form-control select" name="user">
-                                            <option value="" disabled selected>All</option>
+                                        <select class="form-control select selectBox" name="user">
+                                            <option value="">All</option>
                                         </select>
                                     </div>
                                 </div>
                                 <div class="col-lg-3 col-md-4">
                                     <div class="form-group local-forms">
                                         <label>Shipping Status <span class="login-danger">*</span></label>
-                                        <select class="form-control select" name="shipping_status">
-                                            <option value="" disabled selected>All</option>
+                                        <select class="form-control select selectBox" name="shipping_status">
+                                            <option value="">All</option>
                                             <option value="Order">Order</option>
                                             <option value="Packed">Packed</option>
                                             <option value="Shipped">Shipped</option>
@@ -127,7 +127,7 @@
                                 <div class="col-lg-3 col-md-4">
                                     <div class="form-group local-forms">
                                         <label>Payment Method <span class="login-danger">*</span></label>
-                                        <select class="form-control select" name="payment_method">
+                                        <select class="form-control select selectBox" name="payment_method">
                                             <option value="" disabled selected>All</option>
                                             <option value="Advance">Advance</option>
                                             <option value="Cash">Cash</option>
@@ -136,14 +136,6 @@
                                         </select>
                                     </div>
                                 </div>
-                                <div class="col-lg-3 col-md-4">
-                                    <div class="form-group local-forms">
-                                        <label>Sources <span class="login-danger">*</span></label>
-                                        <select class="form-control select" name="sources">
-                                            <option value="" disabled selected>All</option>
-                                            <option value="Woocommerce">Woocommerce</option>
-                                        </select>
-                                    </div>
                                 </div>
                             </div>
                         </div>

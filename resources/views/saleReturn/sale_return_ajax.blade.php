@@ -1,11 +1,53 @@
     <script>
+        // CRITICAL: Prevent any duplicate execution
+        if (window.saleReturnScriptLoaded) {
+            console.warn('🛑 BLOCKED: Sale return script already loaded, script tag duplicated');
+            throw new Error('Script already loaded'); // Hard stop
+        }
+        window.saleReturnScriptLoaded = true;
+
+        // CRITICAL: Global flag to prevent duplicate initialization
+        window.saleReturnPageInitialized = window.saleReturnPageInitialized || false;
+
+        // CRITICAL: Initialize resource loading flags BEFORE document.ready
+        window.saleReturnLocationsLoaded = window.saleReturnLocationsLoaded || false;
+        window.saleReturnCustomersLoaded = window.saleReturnCustomersLoaded || false;
+        window.saleReturnUsersLoaded = window.saleReturnUsersLoaded || false;
+
+        // Cache for customer and location data
+        window.customerCache = window.customerCache || null;
+        window.locationCache = window.locationCache || null;
+        window.invoiceSearchInProgress = false;
+        window.productSearchInProgress = false;
+
+        // Debounce utility function
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
         $(document).ready(function() {
+            // Exit immediately if already initialized
+            if (window.saleReturnPageInitialized) {
+                console.log('⚠️ Sale return page already initialized, preventing duplicate load');
+                return;
+            }
+            window.saleReturnPageInitialized = true;
+            console.log('✅ Initializing sale return page...');
+
             // Remove unused productToRemove variable since we removed confirmation dialog
 
             // Use backend autocomplete for product search (supports large datasets)
             function initProductAutocomplete() {
                 const $input = $("#productSearch");
-                
+
                 // Add Enter key support for quick selection - Updated with working POS AJAX solution
                 $input.off('keydown.autocomplete').on('keydown.autocomplete', function(event) {
                     if (event.key === 'Enter') {
@@ -36,6 +78,14 @@
 
                 $input.autocomplete({
                     source: function(request, response) {
+                        // Prevent duplicate API calls
+                        if (window.productSearchInProgress) {
+                            response([]);
+                            return;
+                        }
+
+                        window.productSearchInProgress = true;
+
                         // Optionally, you can get locationId if you want to filter by location
                         let locationId = $("#locationId").val();
                         $.ajax({
@@ -63,10 +113,14 @@
                             },
                             error: function() {
                                 response([]);
+                            },
+                            complete: function() {
+                                window.productSearchInProgress = false;
                             }
                         });
                     },
-                    minLength: 1,
+                    minLength: 2,
+                    delay: 300,
                     select: function(event, ui) {
                         disableInvoiceSearch();
                         addProductToTable(ui.item);
@@ -78,7 +132,7 @@
                             const autocompleteInstance = $input.autocomplete("instance");
                             const menu = autocompleteInstance.menu;
                             const firstItem = menu.element.find("li:first-child");
-                            
+
                             if (firstItem.length > 0) {
                                 // Properly set the active item using jQuery UI's method
                                 menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
@@ -106,58 +160,90 @@
 
 
 
-            // Fetch and populate locations
-            fetchLocations();
+            // ONLY load form data if we're on the add/edit page (not the list page)
+            if ($('#locationId').length && $('#customerId').length) {
+                console.log('📝 Form detected: Loading locations and customers for form...');
 
-            function fetchLocations() {
-                $.ajax({
-                    url: '/location-get-all',
-                    method: 'GET',
-                    success: function(response) {
-                        if (response.status && response.data) {
-                            const locationSelect = $("#locationId");
-                            response.data.forEach(location => {
-                                locationSelect.append(new Option(location.name, location.id));
-                            });
-                        }
-                    },
-                    error: function(error) {
-                        console.error('Error fetching locations:', error);
-                    }
-                });
-            }
+                // Fetch and populate locations
+                fetchLocations();
 
-
-            $("#locationId").on('change', function() {
-                $("#productsTableBody").empty();
-                // Optionally, reset invoice/product search fields if needed
-                $("#invoiceNo").val('');
-                $("#productSearch").val('');
-                enableProductSearch();
-                enableInvoiceSearch();
-                calculateReturnTotal(); // Recalculate totals if needed
-            });
-
-
-            // Fetch and populate customers
-            fetchCustomers();
-
-            function fetchCustomers() {
-                $.ajax({
-                    url: '/customer-get-all',
-                    method: 'GET',
-                    success: function(data) {
-                        const customerSelect = $("#customerId");
-                        data.message.forEach(customer => {
-                            customerSelect.append(new Option(
-                                `${customer.first_name} ${customer.last_name}`, customer
-                                .id));
+                function fetchLocations() {
+                    // Use cached data if available
+                    if (window.locationCache) {
+                        const locationSelect = $("#locationId");
+                        window.locationCache.forEach(location => {
+                            locationSelect.append(new Option(location.name, location.id));
                         });
-                    },
-                    error: function(error) {
-                        console.error('Error fetching customers:', error);
+                        return;
                     }
+
+                    $.ajax({
+                        url: '/location-get-all',
+                        method: 'GET',
+                        success: function(response) {
+                            if (response.status && response.data) {
+                                // Cache the data
+                                window.locationCache = response.data;
+
+                                const locationSelect = $("#locationId");
+                                response.data.forEach(location => {
+                                    locationSelect.append(new Option(location.name, location.id));
+                                });
+                            }
+                        },
+                        error: function(error) {
+                            console.error('Error fetching locations:', error);
+                        }
+                    });
+                }
+
+
+                $("#locationId").on('change', function() {
+                    $("#productsTableBody").empty();
+                    // Optionally, reset invoice/product search fields if needed
+                    $("#invoiceNo").val('');
+                    $("#productSearch").val('');
+                    enableProductSearch();
+                    enableInvoiceSearch();
+                    calculateReturnTotal(); // Recalculate totals if needed
                 });
+
+
+                // Fetch and populate customers
+                fetchCustomers();
+
+                function fetchCustomers() {
+                    // Use cached data if available
+                    if (window.customerCache) {
+                        const customerSelect = $("#customerId");
+                        window.customerCache.forEach(customer => {
+                            customerSelect.append(new Option(
+                                `${customer.first_name} ${customer.last_name}`, customer.id));
+                        });
+                        return;
+                    }
+
+                    $.ajax({
+                        url: '/customer-get-all',
+                        method: 'GET',
+                        success: function(data) {
+                            // Cache the data
+                            window.customerCache = data.message;
+
+                            const customerSelect = $("#customerId");
+                            data.message.forEach(customer => {
+                                customerSelect.append(new Option(
+                                    `${customer.first_name} ${customer.last_name}`, customer
+                                    .id));
+                            });
+                        },
+                        error: function(error) {
+                            console.error('Error fetching customers:', error);
+                        }
+                    });
+                }
+            } else {
+                console.log('📋 List page detected: Skipping form location/customer loading');
             }
 
             // Function to get query parameters
@@ -168,22 +254,22 @@
 
             // Check for invoice number in URL and auto-load
             const invoiceNo = getQueryParam('invoiceNo');
-            
+
             console.log('=== Sale Return Page Loaded ===');
             console.log('URL invoice parameter:', invoiceNo);
-            
+
             if (invoiceNo) {
                 console.log('Setting invoice number to:', invoiceNo);
-                
+
                 // Wait a bit for all elements to be ready
                 setTimeout(function() {
                     const invoiceField = document.getElementById('invoiceNo');
                     console.log('Invoice field found:', invoiceField !== null);
-                    
+
                     if (invoiceField) {
                         invoiceField.value = invoiceNo;
                         console.log('Invoice field value set to:', invoiceField.value);
-                        
+
                         // Trigger the fetch
                         console.log('Fetching sale products for invoice:', invoiceNo);
                         fetchSaleProducts(invoiceNo);
@@ -197,6 +283,14 @@
 
             $("#invoiceNo").autocomplete({
                 source: function(request, response) {
+                    // Prevent duplicate API calls
+                    if (window.invoiceSearchInProgress) {
+                        response([]);
+                        return;
+                    }
+
+                    window.invoiceSearchInProgress = true;
+
                     $.ajax({
                         url: "/api/search/sales",
                         data: {
@@ -204,10 +298,17 @@
                         },
                         success: function(data) {
                             response(data);
+                        },
+                        error: function() {
+                            response([]);
+                        },
+                        complete: function() {
+                            window.invoiceSearchInProgress = false;
                         }
                     });
                 },
                 minLength: 2,
+                delay: 400,
                 select: function(event, ui) {
                     disableProductSearch();
                     fetchSaleProducts(ui.item.value);
@@ -216,13 +317,13 @@
 
             function fetchSaleProducts(invoiceNo) {
                 console.log('fetchSaleProducts called with:', invoiceNo);
-                
+
                 $.ajax({
                     url: `/sales/${invoiceNo}`,
                     method: 'GET',
                     success: function(data) {
                         console.log('Sale data received:', data);
-                        
+
                         const productsTableBody = $("#productsTableBody");
                         productsTableBody.empty();
 
@@ -246,11 +347,11 @@
                                 type: "info",
                                 confirmButtonText: "OK"
                             });
-                            
+
                             // Clear the invoice field
                             $("#invoiceNo").val('');
                             $("#sale-id").val('');
-                            
+
                             // Reset display
                             $("#displayInvoiceNo").html('<strong>Invoice No.:</strong>');
                             $("#displayDate").html('<strong>Date:</strong>');
@@ -267,7 +368,7 @@
 
                             // Unit should always be available now
                             const unitDisplay = product.unit.short_name || 'Pc(s)';
-                            
+
                             // Use the actual stored price from sales_products table
                             const returnPrice = parseFloat(product.return_price || product.price || 0);
                             const discountInfo = `<small class="text-info">Return: Rs. ${returnPrice.toFixed(2)}/unit</small>`;
@@ -285,13 +386,13 @@
                                                 </td>
                                                 <td><del>${product.quantity}</del>  ${product.current_quantity} ${unitDisplay}</td>
                                                 <td>
-                                                    <input ${inputAttrs} class="form-control return-quantity" 
-                                                           name="products[${index}][quantity]" 
-                                                           placeholder="Enter qty (optional)" 
-                                                           max="${product.current_quantity}" 
-                                                           data-unit-price="${returnPrice}" 
+                                                    <input ${inputAttrs} class="form-control return-quantity"
+                                                           name="products[${index}][quantity]"
+                                                           placeholder="Enter qty (optional)"
+                                                           max="${product.current_quantity}"
+                                                           data-unit-price="${returnPrice}"
                                                            data-original-price="${returnPrice}"
-                                                           data-product-id="${product.product.id}" 
+                                                           data-product-id="${product.product.id}"
                                                            data-batch-id="${product.batch_id}">
                                                     <div class="quantity-error">Quantity cannot exceed<br>the available amount.</div>
                                                 </td>
@@ -370,7 +471,7 @@
                             $(this).closest('tr').remove();
                             toastr.success('Product removed successfully.');
                             calculateReturnTotal();
-                            
+
                             // If no products left, reset the invoice
                             if ($("#productsTableBody tr").length === 0) {
                                 resetInvoice();
@@ -379,7 +480,7 @@
                     },
                     error: function(xhr, status, error) {
                         console.error('Error fetching sales data:', error);
-                        
+
                         if (xhr.status === 404) {
                             swal({
                                 title: "Sale Not Found",
@@ -392,10 +493,10 @@
                             const response = xhr.responseJSON;
                             let title = 'Multiple Returns Not Allowed';
                             let baseMessage = 'This sale has already been returned. Multiple returns for the same invoice are not allowed.';
-                            
+
                             let htmlContent = `<div style="text-align: left;">
                                 <p style="margin-bottom: 15px; font-size: 14px; color: #666;">${baseMessage}</p>`;
-                            
+
                             if (response && response.return_details && response.return_details.length > 0) {
                                 htmlContent += `
                                     <div style="margin-top: 20px;">
@@ -410,11 +511,11 @@
                                                 </tr>
                                             </thead>
                                             <tbody>`;
-                                
+
                                 response.return_details.forEach((returnDetail, index) => {
                                     const returnDate = new Date(returnDetail.return_date).toLocaleDateString();
                                     const notes = returnDetail.notes || 'No notes';
-                                    
+
                                     htmlContent += `
                                         <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8f9fa'};">
                                             <td style="border: 1px solid #dee2e6; padding: 8px; text-align: center;">${index + 1}</td>
@@ -423,15 +524,15 @@
                                             <td style="border: 1px solid #dee2e6; padding: 8px;">${notes}</td>
                                         </tr>`;
                                 });
-                                
+
                                 htmlContent += `
                                             </tbody>
                                         </table>
                                     </div>`;
                             }
-                            
+
                             htmlContent += `</div>`;
-                            
+
                             swal({
                                 title: title,
                                 text: htmlContent,
@@ -440,14 +541,14 @@
                                 confirmButtonText: "OK",
                                 confirmButtonColor: "#dd6b55"
                             });
-                            
+
                             // Clear the invoice field
                             $("#invoiceNo").val('');
                             $("#sale-id").val('');
-                            
+
                             // Clear any existing products
                             $("#productsTableBody").empty();
-                            
+
                             // Reset display
                             $("#displayInvoiceNo").html('<strong>Invoice No.:</strong>');
                             $("#displayDate").html('<strong>Date:</strong>');
@@ -464,11 +565,27 @@
             }
 
             function fetchCustomerDetails(customerId) {
+                // Use cached data if available
+                if (window.customerCache) {
+                    const customer = window.customerCache.find(c => c.id == customerId);
+                    if (customer) {
+                        $("#displayCustomer").html(
+                            `<strong>Customer:</strong> ${customer.first_name} ${customer.last_name}`
+                        );
+                        $("#customer-id").val(customer.id); // Set the customer ID
+                    } else {
+                        $("#displayCustomer").html('<strong>Customer:</strong> N/A');
+                    }
+                    return;
+                }
 
                 $.ajax({
                     url: `/customer-get-all`,
                     method: 'GET',
                     success: function(data) {
+                        // Cache the data for future use
+                        window.customerCache = data.message;
+
                         const customer = data.message.find(c => c.id == customerId);
                         if (customer) {
                             $("#displayCustomer").html(
@@ -499,12 +616,12 @@
             function calculateReturnTotal() {
                 let totalSubtotal = 0;
                 let totalReturnQuantity = 0;
-                
+
                 // Calculate total subtotal and return quantity
                 $('.return-subtotal').each(function() {
                     totalSubtotal += parseFloat($(this).text().replace('Rs. ', ''));
                 });
-                
+
                 $('.return-quantity').each(function() {
                     const qty = parseFloat($(this).val()) || 0;
                     totalReturnQuantity += qty;
@@ -514,16 +631,16 @@
                 let totalDiscount = 0;
                 let discountType = "";
                 let discountAmount = 0;
-                
+
                 if (window.originalDiscountData && window.originalDiscountData.discount_amount > 0 && totalReturnQuantity > 0) {
                     const originalDiscount = window.originalDiscountData;
                     const originalQuantity = originalDiscount.total_original_quantity || 1;
-                    
+
                     // Calculate proportion of return vs original sale
                     const returnProportion = totalReturnQuantity / originalQuantity;
-                    
+
                     discountType = originalDiscount.discount_type;
-                    
+
                     if (discountType === "percentage") {
                         // For percentage discount, use the same percentage
                         discountAmount = originalDiscount.discount_amount;
@@ -533,12 +650,12 @@
                         discountAmount = originalDiscount.discount_amount * returnProportion;
                         totalDiscount = discountAmount;
                     }
-                    
+
                     // Update UI to show the calculated discount
                     const frontendDiscountType = discountType === "fixed" ? "flat" : discountType;
                     $("#discountType").val(frontendDiscountType);
                     $("#discountAmount").val(discountAmount.toFixed(2));
-                    
+
                     console.log('Proportional discount calculated:', {
                         originalQuantity: originalQuantity,
                         returnQuantity: totalReturnQuantity,
@@ -551,7 +668,7 @@
                     // Manual discount override
                     discountType = $('#discountType').val();
                     discountAmount = parseFloat($('#discountAmount').val()) || 0;
-                    
+
                     if (discountType === 'percentage') {
                         totalDiscount = (totalSubtotal * discountAmount) / 100;
                     } else {
@@ -702,10 +819,10 @@
                     console.log('Form submit handler called');
                     const withBill = $('#withBill').is(':checked');
                     console.log('Billing mode:', withBill ? 'With Bill' : 'Without Bill');
-                    
+
                     const isValid = validateForm();
                     console.log('Form validation result:', isValid);
-                    
+
                     const $submitButton = $('.btn[type="submit"]');
                     $submitButton.prop('disabled', true).html('Processing...');
 
@@ -719,7 +836,7 @@
                         jsonData.products = [];
                         $("#productsTableBody tr").each(function(index, row) {
                             const quantity = parseFloat($(row).find('.return-quantity').val()) || 0;
-                            
+
                             // Only include products with return quantity > 0
                             if (quantity > 0) {
                                 const $input = $(row).find('.return-quantity');
@@ -779,7 +896,7 @@
                             error: function(xhr, status, error) {
                                 console.error('Error storing sales return:', xhr.responseText);
                                 let errorMessage = "An error occurred while processing the request.";
-                                
+
                                 if (xhr.status === 422) {
                                     try {
                                         const response = JSON.parse(xhr.responseText);
@@ -794,7 +911,7 @@
                                 } else if (xhr.status === 403) {
                                     errorMessage = "You don't have permission to perform this action.";
                                 }
-                                
+
                                 toastr.error(errorMessage);
                                 $submitButton.prop('disabled', false).html('Save');
                             }
@@ -810,7 +927,7 @@
 
             function validateForm() {
                 let isValid = true;
-                
+
                 // Clear previous validation errors
                 $('.is-invalid').removeClass('is-invalid');
                 $('.invalid-feedback').remove();
@@ -818,7 +935,7 @@
                 // Check billing option specific validation
                 const withBill = $('#withBill').is(':checked');
                 console.log('Billing mode:', withBill ? 'With Bill' : 'Without Bill');
-                
+
                 // Validate required fields based on billing option
                 const fieldsToValidate = [
                     { field: '#date', message: 'Please select a return date' },
@@ -844,7 +961,7 @@
                     const $field = $(validation.field);
                     const fieldValue = $field.val();
                     console.log(`Validating ${validation.field}:`, fieldValue);
-                    
+
                     if (!fieldValue || fieldValue.trim() === '') {
                         console.log(`Field ${validation.field} is invalid`);
                         $field.addClass('is-invalid');
@@ -885,24 +1002,193 @@
                 return isValid;
             }
 
+            // Filter state management
+            let isLoadingData = false;
+            let filterTimeout = null;
+            let dataTable = null; // Store DataTable instance to avoid repeated destroy/init
+
+            // Load filter dropdowns on page load (only if not already loaded)
+            if (!window.saleReturnLocationsLoaded) loadLocations();
+            if (!window.saleReturnCustomersLoaded) loadCustomers();
+            if (!window.saleReturnUsersLoaded) loadUsers();
+
+            // Load locations for filter (with duplicate prevention)
+            function loadLocations() {
+                if (window.saleReturnLocationsLoaded) {
+                    console.log('⏭️ Locations already loaded, skipping');
+                    return;
+                }
+                window.saleReturnLocationsLoaded = true;
+                console.log('📍 Loading locations...');
+
+                $.ajax({
+                    url: '/location-get-all',
+                    method: 'GET',
+                    cache: true,
+                    success: function(response) {
+                        if (response.status === 200 && response.data) {
+                            const $select = $('select[name="location"]');
+                            $select.empty().append('<option value="">All</option>');
+                            response.data.forEach(function(location) {
+                                $select.append(`<option value="${location.id}">${location.name}</option>`);
+                            });
+                            console.log(`✅ Loaded ${response.data.length} locations`);
+                        }
+                    },
+                    error: function() {
+                        window.saleReturnLocationsLoaded = false; // Allow retry on error
+                        console.error('❌ Failed to load locations');
+                    }
+                });
+            }
+
+            // Load customers for filter (with duplicate prevention)
+            function loadCustomers() {
+                if (window.saleReturnCustomersLoaded) {
+                    console.log('⏭️ Customers already loaded, skipping');
+                    return;
+                }
+                window.saleReturnCustomersLoaded = true;
+                console.log('👥 Loading customers...');
+
+                $.ajax({
+                    url: '/customer-get-all?simple=true', // OPTIMIZED: Only load id, first_name, last_name
+                    method: 'GET',
+                    cache: true,
+                    success: function(response) {
+                        if ((response.status === 200 || response.status === true) && (response.data || response.message)) {
+                            const customers = response.data || response.message;
+                            const $select = $('select[name="customer"]');
+                            $select.empty().append('<option value="">All</option>');
+                            customers.forEach(function(customer) {
+                                const name = `${customer.first_name} ${customer.last_name}`.trim();
+                                $select.append(`<option value="${customer.id}">${name}</option>`);
+                            });
+                            console.log(`✅ Loaded ${customers.length} customers (fast mode)`);
+                        }
+                    },
+                    error: function() {
+                        window.saleReturnCustomersLoaded = false; // Allow retry on error
+                        console.error('❌ Failed to load customers');
+                    }
+                });
+            }
+
+            // Load users for filter (with duplicate prevention)
+            function loadUsers() {
+                if (window.saleReturnUsersLoaded) {
+                    console.log('⏭️ Users already loaded, skipping');
+                    return;
+                }
+                window.saleReturnUsersLoaded = true;
+                console.log('👤 Loading users...');
+
+                $.ajax({
+                    url: '/user-get-all',
+                    method: 'GET',
+                    cache: true,
+                    success: function(response) {
+                        if (response.status === 200 && response.data) {
+                            const $select = $('select[name="user"]');
+                            $select.empty().append('<option value="">All</option>');
+                            response.data.forEach(function(user) {
+                                const name = user.user_name || user.full_name || 'Unknown';
+                                $select.append(`<option value="${user.id}">${name}</option>`);
+                            });
+                            console.log(`✅ Loaded ${response.data.length} users`);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        window.saleReturnUsersLoaded = false; // Allow retry on error
+                        console.error('❌ Failed to load users:', error, 'Status:', xhr.status);
+                    }
+                });
+            }
+
             fetchData();
 
+            // Connect filter changes with DEBOUNCING (wait 500ms after last change)
+            $('select[name="location"], select[name="customer"], select[name="payment_status"], select[name="user"], select[name="shipping_status"], select[name="payment_method"], select[name="sources"]').on('change', function() {
+                clearTimeout(filterTimeout);
+                filterTimeout = setTimeout(function() {
+                    fetchData();
+                }, 500);
+            });
+
+            // Date range filter with debouncing
+            $('input[name="date_range"]').on('change', function() {
+                clearTimeout(filterTimeout);
+                filterTimeout = setTimeout(function() {
+                    fetchData();
+                }, 500);
+            });
+
             function fetchData() {
-                $('#salesReturnTable').DataTable().destroy(); // Destroy previous instance if exists
+                // Prevent duplicate simultaneous calls
+                if (isLoadingData) {
+                    console.log('⏸️ Already loading data, skipping duplicate call');
+                    return;
+                }
+                isLoadingData = true;
+                console.log('🔄 Fetching sale returns data...');
+
+                // Destroy previous DataTable instance if exists
+                if (dataTable) {
+                    dataTable.destroy();
+                    dataTable = null;
+                }
+
+                // Build filter parameters
+                var params = {};
+
+                var location = $('select[name="location"]').val();
+                if (location && location !== 'All') {
+                    params.location_id = location;
+                }
+
+                var customer = $('select[name="customer"]').val();
+                if (customer && customer !== 'All') {
+                    params.customer_id = customer;
+                }
+
+                var paymentStatus = $('select[name="payment_status"]').val();
+                if (paymentStatus && paymentStatus !== 'All') {
+                    params.payment_status = paymentStatus;
+                }
+
+                var user = $('select[name="user"]').val();
+                if (user && user !== 'All') {
+                    params.user_id = user;
+                }
+
+                var shippingStatus = $('select[name="shipping_status"]').val();
+                if (shippingStatus && shippingStatus !== 'All') {
+                    params.shipping_status = shippingStatus;
+                }
+
+                // Date range parsing (if using daterangepicker)
+                var dateRange = $('input[name="date_range"]').val();
+                if (dateRange) {
+                    var dates = dateRange.split(' - ');
+                    if (dates.length === 2) {
+                        params.start_date = moment(dates[0], 'DD-MM-YYYY').format('YYYY-MM-DD');
+                        params.end_date = moment(dates[1], 'DD-MM-YYYY').format('YYYY-MM-DD');
+                    }
+                }
 
                 $.ajax({
                     url: '/sale-returns',
                     method: 'GET',
+                    data: params,
+                    cache: false,
                     success: function(response) {
+                        isLoadingData = false;
                         if (response.status === 200) {
                             var salesReturns = response.data;
                             var totalAmount = response.totalAmount;
                             var totalDue = response.totalDue;
 
-                            // Sort salesReturns by return_date descending (latest first)
-                            salesReturns.sort(function(a, b) {
-                                return new Date(b.return_date) - new Date(a.return_date);
-                            });
+                            // NO CLIENT-SIDE SORTING - Backend already sorts by latest first
 
                             // Prepare table rows
                             var rows = salesReturns.map(function(salesReturn, index) {
@@ -949,10 +1235,14 @@
                                 ];
                             });
 
-                            // Initialize DataTable
-                            $('#salesReturnTable').DataTable({
+                            // Initialize DataTable with optimized settings for better search performance
+                            dataTable = $('#salesReturnTable').DataTable({
                                 data: rows,
                                 destroy: true,
+                                deferRender: true, // Only render visible rows for better performance
+                                processing: false, // Disable processing indicator since data is already loaded
+                                pageLength: 25, // Show 25 rows per page
+                                lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
                                 columns: [{
                                         title: "#"
                                     },
@@ -989,7 +1279,7 @@
                                         searchable: false
                                     }
                                 ],
-                                // Optionally, you can set default order by Return Date descending
+                                // Default order already applied by backend (latest first)
                                 order: [
                                     [1, 'desc']
                                 ],
@@ -1012,7 +1302,9 @@
                         }
                     },
                     error: function(error) {
-                        console.log('Error fetching sales returns:', error);
+                        isLoadingData = false;
+                        console.error('Error fetching sales returns:', error);
+                        toastr.error('Failed to load returns. Please try again.');
                     }
                 });
             }
@@ -1414,5 +1706,6 @@
                 }
             });
 
+            console.log('✅ Sale return page initialization complete');
         });
     </script>

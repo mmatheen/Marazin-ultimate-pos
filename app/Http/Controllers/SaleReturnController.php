@@ -256,9 +256,58 @@ class SaleReturnController extends Controller
      * Get all sale returns.
      */
     // Controller method
-    public function getAllSaleReturns()
+    public function getAllSaleReturns(Request $request)
     {
-        $salesReturns = SalesReturn::with(['sale.customer', 'sale.location', 'customer', 'payments','user'])->get();
+        // Start with base query - order by latest first for better UX
+        // Use select() to only fetch needed columns for better performance
+        $query = SalesReturn::select([
+                'sales_returns.*'
+            ])
+            ->with([
+                'sale:id,invoice_no,location_id,customer_id',
+                'sale.customer:id,first_name,last_name',
+                'sale.location:id,name',
+                'customer:id,first_name,last_name',
+                'location:id,name',
+                'user:id,user_name,full_name'
+            ])
+            ->orderBy('sales_returns.return_date', 'desc')
+            ->orderBy('sales_returns.id', 'desc'); // Secondary sort by ID for same-date returns
+
+        // Apply filters if provided - use indexed columns
+        if ($request->filled('location_id')) {
+            $query->where('sales_returns.location_id', $request->location_id);
+        }
+
+        if ($request->filled('customer_id')) {
+            $query->where('sales_returns.customer_id', $request->customer_id);
+        }
+
+        if ($request->filled('payment_status')) {
+            $query->where('sales_returns.payment_status', $request->payment_status);
+        }
+
+        if ($request->filled('user_id')) {
+            $query->where('sales_returns.user_id', $request->user_id);
+        }
+
+        if ($request->filled('shipping_status')) {
+            $query->where('sales_returns.shipping_status', $request->shipping_status);
+        }
+
+        // Date range filter - use indexed column
+        if ($request->filled('start_date')) {
+            $query->whereDate('sales_returns.return_date', '>=', $request->start_date);
+        }
+
+        if ($request->filled('end_date')) {
+            $query->whereDate('sales_returns.return_date', '<=', $request->end_date);
+        }
+
+        // Execute query
+        $salesReturns = $query->get();
+        
+        // Calculate totals
         $totalAmount = $salesReturns->sum('return_total');
         $totalDue = $salesReturns->sum('total_due');
 

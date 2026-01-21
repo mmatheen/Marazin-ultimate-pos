@@ -44,13 +44,31 @@ class CustomerController extends Controller
     }
 
 
-    public function index()
+    public function index(Request $request)
 {
     /** @var User $user */
     $user = auth()->user();
 
     if (!$user) {
         return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
+    }
+
+    // OPTIMIZATION: If simple=true, return only id, first_name, last_name for dropdowns (fast!)
+    if ($request->query('simple') === 'true' || $request->query('simple') === '1') {
+        $query = Customer::withoutGlobalScopes()
+            ->select(['id', 'first_name', 'last_name']);
+
+        // Apply sales rep route filtering if user is a sales rep
+        if ($user->isSalesRep()) {
+            $query = $this->applySalesRepFilter($query, $user);
+        }
+
+        $customers = $query->orderBy('first_name')->get();
+
+        return response()->json([
+            'status' => true,
+            'message' => $customers
+        ]);
     }
 
     // Start with bypassing all global scopes to ensure accurate balance calculations
