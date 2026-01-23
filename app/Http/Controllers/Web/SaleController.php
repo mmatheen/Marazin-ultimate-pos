@@ -494,7 +494,34 @@ class SaleController extends Controller
                 }
 
                 // ----- Amount Calculation -----
-                $subtotal = array_reduce($request->products, fn($carry, $p) => $carry + $p['subtotal'], 0);
+                // 🔧 FIX: Recalculate subtotal from unit_price × quantity instead of trusting frontend
+                $subtotal = 0;
+                foreach ($request->products as $product) {
+                    $productSubtotal = $product['quantity'] * $product['unit_price'];
+                    $subtotal += $productSubtotal;
+                }
+
+                // 🔍 DEBUG: Log subtotal calculation details
+                Log::info('📊 Sale Subtotal Calculation Debug:', [
+                    'user_id' => auth()->id(),
+                    'user_name' => auth()->user()->name ?? auth()->user()->user_name ?? 'Unknown',
+                    'customer_id' => $request->customer_id,
+                    'location_id' => $request->location_id,
+                    'sale_status' => $newStatus,
+                    'products_count' => count($request->products),
+                    'products_data' => array_map(fn($p) => [
+                        'product_id' => $p['product_id'],
+                        'quantity' => $p['quantity'],
+                        'unit_price' => $p['unit_price'],
+                        'subtotal_from_frontend' => $p['subtotal'],
+                        'subtotal_recalculated' => $p['quantity'] * $p['unit_price'],
+                        'difference' => $p['subtotal'] - ($p['quantity'] * $p['unit_price']),
+                        'matches' => abs($p['subtotal'] - ($p['quantity'] * $p['unit_price'])) < 0.01
+                    ], $request->products),
+                    'subtotal_recalculated_backend' => $subtotal,
+                    'discount_amount' => $request->discount_amount ?? 0,
+                ]);
+
                 $discount = $request->discount_amount ?? 0;
                 $finalTotal = $request->discount_type === 'percentage'
                     ? $subtotal - ($subtotal * $discount / 100)

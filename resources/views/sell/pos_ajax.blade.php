@@ -9077,13 +9077,29 @@
                         console.trace('Stack trace for specific batch_id');
                     }
 
+                    const rawSubtotalText = productRow.find('.subtotal').text().trim();
+                    const parsedSubtotal = parseFormattedAmount(rawSubtotalText);
+                    const unitPrice = parseFormattedAmount(productRow.find('.price-input').val().trim());
+                    const expectedSubtotal = quantity * unitPrice;
+
+                    // 🔍 DEBUG: Log subtotal calculation
+                    console.log('📊 Product Subtotal Debug:', {
+                        product_id: productId,
+                        quantity: quantity,
+                        unit_price: unitPrice,
+                        raw_subtotal_text: rawSubtotalText,
+                        parsed_subtotal: parsedSubtotal,
+                        expected_subtotal: expectedSubtotal,
+                        matches: Math.abs(parsedSubtotal - expectedSubtotal) < 0.01
+                    });
+
                     const productData = {
                         product_id: productId,
                         location_id: parseInt(locationId, 10),
                         quantity: quantity,
                         price_type: priceType,
-                        unit_price: parseFormattedAmount(productRow.find('.price-input').val().trim()),
-                        subtotal: parseFormattedAmount(productRow.find('.subtotal').text().trim()),
+                        unit_price: unitPrice,
+                        subtotal: parsedSubtotal,
                         discount_amount: discountAmount,
                         discount_type: discountType,
                         tax: 0,

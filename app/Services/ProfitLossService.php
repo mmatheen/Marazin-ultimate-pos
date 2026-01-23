@@ -37,30 +37,31 @@ class ProfitLossService
     public function getOverallSummary(array $filters)
     {
         $salesQuery = $this->buildSalesQuery($filters);
-        
-        // Basic sales metrics
+
+        // Use sales.final_total as single source of truth (backend now ensures this is correct)
         $totalSales = $salesQuery->sum('final_total');
+
         $totalQuantity = $salesQuery->sum(DB::raw('(SELECT SUM(quantity) FROM sales_products WHERE sale_id = sales.id)'));
         $totalTransactions = $salesQuery->count();
-        
+
         // Calculate total cost using FIFO method
         $totalCost = $this->calculateTotalCost($filters);
-        
+
         // Calculate returns and adjust metrics
         $returnData = $this->calculateReturns($filters);
         $netSales = $totalSales - $returnData['total_return_amount'];
         $netCost = $totalCost - $returnData['total_return_cost'];
         $netQuantity = $totalQuantity - $returnData['total_return_quantity'];
-        
+
         // Calculate profit metrics (after returns)
         $grossProfit = $netSales - $netCost;
         $grossProfitMargin = $netSales > 0 ? ($grossProfit / $netSales) * 100 : 0;
-        
+
         // Additional expenses (can be extended to include other expenses)
         $totalExpenses = 0; // This can be extended to include operational expenses
         $netProfit = $grossProfit - $totalExpenses;
         $netProfitMargin = $netSales > 0 ? ($netProfit / $netSales) * 100 : 0;
-        
+
         // Average metrics (based on net values)
         $averageOrderValue = $totalTransactions > 0 ? $netSales / $totalTransactions : 0;
         $averageQuantityPerOrder = $totalTransactions > 0 ? $netQuantity / $totalTransactions : 0;
@@ -95,9 +96,9 @@ class ProfitLossService
         // Don't pass product_ids or brand_ids to avoid duplicate joins
         $baseFilters = $filters;
         unset($baseFilters['product_ids'], $baseFilters['brand_ids']);
-        
+
         $salesProductsQuery = $this->buildSalesProductsQuery($baseFilters);
-        
+
         $productsQuery = $salesProductsQuery
             ->select([
                 'products.id',
@@ -114,30 +115,30 @@ class ProfitLossService
             ->leftJoin('brands', 'products.brand_id', '=', 'brands.id')
             ->leftJoin('units', 'products.unit_id', '=', 'units.id')
             ->groupBy('products.id', 'products.product_name', 'products.sku', 'products.unit_id', 'brands.name', 'units.allow_decimal');
-            
+
         // Apply filters if specified
         if (!empty($filters['product_ids'])) {
             $productsQuery->whereIn('products.id', $filters['product_ids']);
         }
-        
+
         if (!empty($filters['brand_ids'])) {
             $productsQuery->whereIn('products.brand_id', $filters['brand_ids']);
         }
-        
+
         $products = $productsQuery->get();
 
         $productReport = [];
         foreach ($products as $product) {
             $totalCost = $this->calculateProductCost($product->id, $filters);
-            
+
             // Calculate returns for this product
             $productReturns = $this->calculateProductReturns($product->id, $filters);
-            
+
             // Net values after returns
             $netSales = $product->total_sales - $productReturns['return_amount'];
             $netCost = $totalCost - $productReturns['return_cost'];
             $netQuantity = $product->total_quantity - $productReturns['return_quantity'];
-            
+
             $profit = $netSales - $netCost;
             $profitMargin = $netSales > 0 ? ($profit / $netSales) * 100 : 0;
 
@@ -146,8 +147,8 @@ class ProfitLossService
                 'product_name' => $product->product_name,
                 'sku' => $product->sku,
                 'brand_name' => $product->brand_name ?? 'No Brand',
-                'quantity_sold' => $product->allow_decimal ? 
-                    round($netQuantity, 2) : 
+                'quantity_sold' => $product->allow_decimal ?
+                    round($netQuantity, 2) :
                     intval($netQuantity),
                 'total_sales' => round($netSales, 2),
                 'total_cost' => round($netCost, 2),
@@ -159,8 +160,8 @@ class ProfitLossService
                 // Return details
                 'returns_count' => $productReturns['return_count'],
                 'return_amount' => round($productReturns['return_amount'], 2),
-                'return_quantity' => $product->allow_decimal ? 
-                    round($productReturns['return_quantity'], 2) : 
+                'return_quantity' => $product->allow_decimal ?
+                    round($productReturns['return_quantity'], 2) :
                     intval($productReturns['return_quantity']),
             ];
         }
@@ -181,9 +182,9 @@ class ProfitLossService
         // Don't pass product_ids or brand_ids to avoid duplicate joins
         $baseFilters = $filters;
         unset($baseFilters['product_ids'], $baseFilters['brand_ids']);
-        
+
         $salesProductsQuery = $this->buildSalesProductsQuery($baseFilters);
-        
+
         $batchesQuery = $salesProductsQuery
             ->select([
                 'batches.id as batch_id',
@@ -204,30 +205,30 @@ class ProfitLossService
             ->leftJoin('brands', 'products.brand_id', '=', 'brands.id')
             ->leftJoin('units', 'products.unit_id', '=', 'units.id')
             ->groupBy('batches.id', 'batches.batch_no', 'batches.unit_cost', 'batches.expiry_date', 'products.product_name', 'products.sku', 'products.unit_id', 'brands.name', 'units.allow_decimal');
-            
+
         // Apply filters if specified
         if (!empty($filters['product_ids'])) {
             $batchesQuery->whereIn('products.id', $filters['product_ids']);
         }
-        
+
         if (!empty($filters['brand_ids'])) {
             $batchesQuery->whereIn('products.brand_id', $filters['brand_ids']);
         }
-        
+
         $batches = $batchesQuery->get();
 
         $batchReport = [];
         foreach ($batches as $batch) {
             $totalCost = $batch->total_quantity * $batch->unit_cost;
-            
+
             // Calculate returns for this batch
             $batchReturns = $this->calculateBatchReturns($batch->batch_id, $filters);
-            
+
             // Net values after returns
             $netSales = $batch->total_sales - $batchReturns['return_amount'];
             $netCost = $totalCost - $batchReturns['return_cost'];
             $netQuantity = $batch->total_quantity - $batchReturns['return_quantity'];
-            
+
             $profit = $netSales - $netCost;
             $profitMargin = $netSales > 0 ? ($profit / $netSales) * 100 : 0;
 
@@ -239,8 +240,8 @@ class ProfitLossService
                 'brand_name' => $batch->brand_name ?? 'No Brand',
                 'expiry_date' => $batch->expiry_date ? date('Y-m-d', strtotime($batch->expiry_date)) : 'N/A',
                 'purchase_price' => round($batch->unit_cost, 2),
-                'quantity_sold' => $batch->allow_decimal ? 
-                    round($netQuantity, 2) : 
+                'quantity_sold' => $batch->allow_decimal ?
+                    round($netQuantity, 2) :
                     intval($netQuantity),
                 'total_sales' => round($netSales, 2),
                 'total_cost' => round($netCost, 2),
@@ -251,8 +252,8 @@ class ProfitLossService
                 'allow_decimal' => $batch->allow_decimal,
                 // Return details
                 'return_amount' => round($batchReturns['return_amount'], 2),
-                'return_quantity' => $batch->allow_decimal ? 
-                    round($batchReturns['return_quantity'], 2) : 
+                'return_quantity' => $batch->allow_decimal ?
+                    round($batchReturns['return_quantity'], 2) :
                     intval($batchReturns['return_quantity']),
             ];
         }
@@ -273,9 +274,9 @@ class ProfitLossService
         // Don't pass brand_ids to avoid duplicate joins
         $baseFilters = $filters;
         unset($baseFilters['brand_ids']);
-        
+
         $salesProductsQuery = $this->buildSalesProductsQuery($baseFilters);
-        
+
         $brandsQuery = $salesProductsQuery
             ->select([
                 'brands.id as brand_id',
@@ -289,26 +290,26 @@ class ProfitLossService
             ->join('products', 'batches.product_id', '=', 'products.id')
             ->leftJoin('brands', 'products.brand_id', '=', 'brands.id')
             ->groupBy('brands.id', 'brands.name');
-            
+
         // Apply brand filter if specified
         if (!empty($filters['brand_ids'])) {
             $brandsQuery->whereIn('products.brand_id', $filters['brand_ids']);
         }
-        
+
         $brands = $brandsQuery->get();
 
         $brandReport = [];
         foreach ($brands as $brand) {
             $totalCost = $this->calculateBrandCost($brand->brand_id, $filters);
-            
+
             // Calculate returns for this brand
             $brandReturns = $this->calculateBrandReturns($brand->brand_id, $filters);
-            
+
             // Net values after returns
             $netSales = $brand->total_sales - $brandReturns['return_amount'];
             $netCost = $totalCost - $brandReturns['return_cost'];
             $netQuantity = $brand->total_quantity - $brandReturns['return_quantity'];
-            
+
             $profit = $netSales - $netCost;
             $profitMargin = $netSales > 0 ? ($profit / $netSales) * 100 : 0;
 
@@ -343,17 +344,17 @@ class ProfitLossService
         // Convert date strings to proper date range for datetime columns
         $startDateTime = $filters['start_date'] . ' 00:00:00';
         $endDateTime = $filters['end_date'] . ' 23:59:59';
-        
+
         // Build a completely isolated query to avoid any ambiguity
         $locationsQuery = DB::table('sales')
             ->join('locations', 'sales.location_id', '=', 'locations.id')
             ->whereBetween('sales.sales_date', [$startDateTime, $endDateTime]);
-            
+
         // Apply location filter explicitly on sales table only
         if (!empty($filters['location_ids'])) {
             $locationsQuery->whereIn('sales.location_id', $filters['location_ids']);
         }
-        
+
         $locations = $locationsQuery
             ->select([
                 'locations.id as location_id',
@@ -374,25 +375,25 @@ class ProfitLossService
                 'end_date' => $filters['end_date'],
                 'location_ids' => [$location->location_id]
             ];
-            
+
             // Calculate total cost for this location using isolated query
             $totalCost = $this->calculateLocationSpecificCost($location->location_id, $filters);
-            
+
             // Calculate returns for this location
             $locationReturns = $this->calculateLocationReturns($location->location_id, $filters);
-            
+
             // Net values after returns
             $netSales = $location->total_sales - $locationReturns['return_amount'];
             $netCost = $totalCost - $locationReturns['return_cost'];
             $netQuantity = $location->total_quantity - $locationReturns['return_quantity'];
-            
+
             $profit = $netSales - $netCost;
             $profitMargin = $netSales > 0 ? ($profit / $netSales) * 100 : 0;
 
             // Get product count for this location using explicit query
             $startDateTime = $filters['start_date'] . ' 00:00:00';
             $endDateTime = $filters['end_date'] . ' 23:59:59';
-            
+
             $productCount = DB::table('sales_products')
                 ->join('sales', 'sales_products.sale_id', '=', 'sales.id')
                 ->where('sales.location_id', $location->location_id)
@@ -431,7 +432,7 @@ class ProfitLossService
         // Convert date strings to proper date range for datetime columns
         $startDateTime = $filters['start_date'] . ' 00:00:00';
         $endDateTime = $filters['end_date'] . ' 23:59:59';
-        
+
         $returnData = DB::table('sales_return_products')
             ->join('sales_returns', 'sales_return_products.sales_return_id', '=', 'sales_returns.id')
             ->join('products', 'sales_return_products.product_id', '=', 'products.id')
@@ -447,7 +448,7 @@ class ProfitLossService
                 SUM(sales_return_products.quantity * batches.unit_cost) as return_cost
             ')
             ->first();
-        
+
         return [
             'return_amount' => $returnData->return_amount ?? 0,
             'return_quantity' => $returnData->return_quantity ?? 0,
@@ -463,7 +464,7 @@ class ProfitLossService
         // Convert date strings to proper date range for datetime columns
         $startDateTime = $filters['start_date'] . ' 00:00:00';
         $endDateTime = $filters['end_date'] . ' 23:59:59';
-        
+
         $returnData = DB::table('sales_return_products')
             ->join('sales_returns', 'sales_return_products.sales_return_id', '=', 'sales_returns.id')
             ->join('batches', 'sales_return_products.batch_id', '=', 'batches.id')
@@ -475,7 +476,7 @@ class ProfitLossService
                 SUM(sales_return_products.quantity * batches.unit_cost) as return_cost
             ')
             ->first();
-        
+
         return [
             'return_amount' => $returnData->return_amount ?? 0,
             'return_quantity' => $returnData->return_quantity ?? 0,
@@ -491,14 +492,14 @@ class ProfitLossService
         // Convert date strings to proper date range for datetime columns
         $startDateTime = $filters['start_date'] . ' 00:00:00';
         $endDateTime = $filters['end_date'] . ' 23:59:59';
-        
+
         $totalCost = DB::table('sales_products')
             ->join('sales', 'sales_products.sale_id', '=', 'sales.id')
             ->join('batches', 'sales_products.batch_id', '=', 'batches.id')
             ->where('sales.location_id', $locationId)
             ->whereBetween('sales.sales_date', [$startDateTime, $endDateTime])
             ->sum(DB::raw('sales_products.quantity * batches.unit_cost'));
-            
+
         return $totalCost;
     }
 
@@ -508,17 +509,17 @@ class ProfitLossService
     private function calculateReturns(array $filters)
     {
         $returnsQuery = $this->buildReturnsQuery($filters);
-        
+
         $totalReturns = $returnsQuery->count();
         $totalReturnAmount = $returnsQuery->sum('return_total');
-        
+
         // Calculate total return cost using the same FIFO method
         $totalReturnCost = $this->calculateReturnCost($filters);
-        
+
         // Calculate total return quantity
         $startDateTime = $filters['start_date'] . ' 00:00:00';
         $endDateTime = $filters['end_date'] . ' 23:59:59';
-        
+
         $totalReturnQuantity = DB::table('sales_return_products')
             ->join('sales_returns', 'sales_return_products.sales_return_id', '=', 'sales_returns.id')
             ->whereBetween('sales_returns.return_date', [$startDateTime, $endDateTime])
@@ -526,7 +527,7 @@ class ProfitLossService
                 return $query->whereIn('sales_returns.location_id', $filters['location_ids']);
             })
             ->sum('sales_return_products.quantity');
-        
+
         return [
             'total_returns' => $totalReturns,
             'total_return_amount' => $totalReturnAmount,
@@ -543,7 +544,7 @@ class ProfitLossService
         // Convert date strings to proper date range for datetime columns
         $startDateTime = $filters['start_date'] . ' 00:00:00';
         $endDateTime = $filters['end_date'] . ' 23:59:59';
-        
+
         $totalReturnCost = DB::table('sales_return_products')
             ->join('sales_returns', 'sales_return_products.sales_return_id', '=', 'sales_returns.id')
             ->join('batches', 'sales_return_products.batch_id', '=', 'batches.id')
@@ -565,14 +566,14 @@ class ProfitLossService
     private function buildReturnsQuery(array $filters)
     {
         $user = auth()->user();
-        
+
         // Convert date strings to proper date range for datetime columns
         $startDateTime = $filters['start_date'] . ' 00:00:00';
         $endDateTime = $filters['end_date'] . ' 23:59:59';
-        
+
         // Use the SalesReturn model with proper scoping
         $query = \App\Models\SalesReturn::whereBetween('return_date', [$startDateTime, $endDateTime]);
-        
+
         // Only Master Super Admin or users with bypass permission can override location scope
         if ($user && ($this->isMasterSuperAdmin($user) || $this->hasLocationBypassPermission($user))) {
             // Apply requested location filter if provided
@@ -584,13 +585,13 @@ class ProfitLossService
             if (!empty($filters['location_ids'])) {
                 $userLocationIds = $user ? $user->locations->pluck('id')->toArray() : [];
                 $validLocationIds = array_intersect($filters['location_ids'], $userLocationIds);
-                
+
                 if (!empty($validLocationIds)) {
                     $query->whereIn('location_id', $validLocationIds);
                 }
             }
         }
-        
+
         return $query;
     }
 
@@ -602,7 +603,7 @@ class ProfitLossService
         // Convert date strings to proper date range for datetime columns
         $startDateTime = $filters['start_date'] . ' 00:00:00';
         $endDateTime = $filters['end_date'] . ' 23:59:59';
-        
+
         // Use direct DB query to avoid any potential join conflicts
         $totalCost = DB::table('sales_products')
             ->join('sales', 'sales_products.sale_id', '=', 'sales.id')
@@ -620,6 +621,30 @@ class ProfitLossService
     }
 
     /**
+     * 🔧 NEW: Calculate total sales amount from sales_products (quantity × price)
+     * This is more accurate than using sales.final_total which may be corrupted
+     */
+    public function calculateTotalSalesFromProducts(array $filters)
+    {
+        // Convert date strings to proper date range for datetime columns
+        $startDateTime = $filters['start_date'] . ' 00:00:00';
+        $endDateTime = $filters['end_date'] . ' 23:59:59';
+
+        $totalSales = DB::table('sales_products')
+            ->join('sales', 'sales_products.sale_id', '=', 'sales.id')
+            ->whereBetween('sales.sales_date', [$startDateTime, $endDateTime])
+            ->when(!empty($filters['location_ids']), function ($query) use ($filters) {
+                return $query->whereIn('sales.location_id', $filters['location_ids']);
+            })
+            ->when(!empty($filters['product_ids']), function ($query) use ($filters) {
+                return $query->whereIn('sales_products.product_id', $filters['product_ids']);
+            })
+            ->sum(DB::raw('sales_products.quantity * sales_products.price'));
+
+        return $totalSales;
+    }
+
+    /**
      * Calculate returns for a specific batch
      */
     private function calculateBatchReturns($batchId, array $filters)
@@ -627,7 +652,7 @@ class ProfitLossService
         // Convert date strings to proper date range for datetime columns
         $startDateTime = $filters['start_date'] . ' 00:00:00';
         $endDateTime = $filters['end_date'] . ' 23:59:59';
-        
+
         $returnData = DB::table('sales_return_products')
             ->join('sales_returns', 'sales_return_products.sales_return_id', '=', 'sales_returns.id')
             ->join('batches', 'sales_return_products.batch_id', '=', 'batches.id')
@@ -642,7 +667,7 @@ class ProfitLossService
                 SUM(sales_return_products.quantity * batches.unit_cost) as return_cost
             ')
             ->first();
-        
+
         return [
             'return_amount' => $returnData->return_amount ?? 0,
             'return_quantity' => $returnData->return_quantity ?? 0,
@@ -658,7 +683,7 @@ class ProfitLossService
         // Convert date strings to proper date range for datetime columns
         $startDateTime = $filters['start_date'] . ' 00:00:00';
         $endDateTime = $filters['end_date'] . ' 23:59:59';
-        
+
         // Get return amount and quantity
         $returnData = DB::table('sales_return_products')
             ->join('sales_returns', 'sales_return_products.sales_return_id', '=', 'sales_returns.id')
@@ -673,7 +698,7 @@ class ProfitLossService
                 SUM(sales_return_products.quantity) as return_quantity
             ')
             ->first();
-        
+
         // Get return cost using batch unit costs
         $returnCost = DB::table('sales_return_products')
             ->join('sales_returns', 'sales_return_products.sales_return_id', '=', 'sales_returns.id')
@@ -684,7 +709,7 @@ class ProfitLossService
                 return $query->whereIn('sales_returns.location_id', $filters['location_ids']);
             })
             ->sum(DB::raw('sales_return_products.quantity * batches.unit_cost'));
-        
+
         return [
             'return_count' => $returnData->return_count ?? 0,
             'return_amount' => $returnData->return_amount ?? 0,
@@ -701,7 +726,7 @@ class ProfitLossService
         // Convert date strings to proper date range for datetime columns
         $startDateTime = $filters['start_date'] . ' 00:00:00';
         $endDateTime = $filters['end_date'] . ' 23:59:59';
-        
+
         // Use direct DB query to avoid any potential join conflicts
         $totalCost = DB::table('sales_products')
             ->join('sales', 'sales_products.sale_id', '=', 'sales.id')
@@ -725,7 +750,7 @@ class ProfitLossService
         // Convert date strings to proper date range for datetime columns
         $startDateTime = $filters['start_date'] . ' 00:00:00';
         $endDateTime = $filters['end_date'] . ' 23:59:59';
-        
+
         // Use direct DB query to avoid any potential join conflicts
         $totalCost = DB::table('sales_products')
             ->join('sales', 'sales_products.sale_id', '=', 'sales.id')
@@ -770,13 +795,13 @@ class ProfitLossService
         $cumulativeQuantity = 0;
         $cumulativeCost = 0;
         $cumulativeSales = 0;
-        
+
         foreach ($salesProducts as $salesProduct) {
             $totalCost = $salesProduct->quantity * $salesProduct->cost_price;
             $totalSales = $salesProduct->quantity * $salesProduct->selling_price;
             $profit = $totalSales - $totalCost;
             $profitMargin = $totalSales > 0 ? ($profit / $totalSales) * 100 : 0;
-            
+
             $cumulativeQuantity += $salesProduct->quantity;
             $cumulativeCost += $totalCost;
             $cumulativeSales += $totalSales;
@@ -809,7 +834,7 @@ class ProfitLossService
     public function getProductDetailedReport(array $filters)
     {
         $productId = $filters['product_id'];
-        
+
         $product = Product::with('brand')->find($productId);
         if (!$product) {
             return null;
@@ -817,9 +842,9 @@ class ProfitLossService
 
         $productSummary = $this->getProductWiseReport($filters);
         $productData = collect($productSummary)->firstWhere('product_id', $productId);
-        
+
         $batchBreakdown = $this->getFifoCostBreakdown($productId, $filters);
-        
+
         return [
             'product' => $product,
             'summary' => $productData,
@@ -833,19 +858,19 @@ class ProfitLossService
     public function getMonthlyComparison($year, array $locationIds = [])
     {
         $monthlyData = [];
-        
+
         for ($month = 1; $month <= 12; $month++) {
             $startDate = Carbon::createFromDate($year, $month, 1)->startOfMonth();
             $endDate = Carbon::createFromDate($year, $month, 1)->endOfMonth();
-            
+
             $filters = [
                 'start_date' => $startDate->format('Y-m-d'),
                 'end_date' => $endDate->format('Y-m-d'),
                 'location_ids' => $locationIds
             ];
-            
+
             $summary = $this->getOverallSummary($filters);
-            
+
             $monthlyData[] = [
                 'month' => $month,
                 'month_name' => $startDate->format('F'),
@@ -853,7 +878,7 @@ class ProfitLossService
                 'summary' => $summary
             ];
         }
-        
+
         return $monthlyData;
     }
 
@@ -863,7 +888,7 @@ class ProfitLossService
     public function getTopPerformingProducts(array $filters, $limit = 10, $sortBy = 'profit')
     {
         $productReport = $this->getProductWiseReport($filters);
-        
+
         // Sort based on the specified criteria
         switch ($sortBy) {
             case 'quantity':
@@ -886,7 +911,7 @@ class ProfitLossService
                     return $b['profit_loss'] <=> $a['profit_loss'];
                 });
         }
-        
+
         return array_slice($productReport, 0, $limit);
     }
 
@@ -896,9 +921,9 @@ class ProfitLossService
     public function getProfitMarginAnalysis(array $filters)
     {
         $productReport = $this->getProductWiseReport($filters);
-        
+
         $margins = array_column($productReport, 'profit_margin');
-        
+
         return [
             'highest_margin' => !empty($margins) ? max($margins) : 0,
             'lowest_margin' => !empty($margins) ? min($margins) : 0,
@@ -919,19 +944,19 @@ class ProfitLossService
     private function buildSalesQuery(array $filters)
     {
         $user = auth()->user();
-        
+
         // Convert date strings to proper date range for datetime columns
         $startDateTime = $filters['start_date'] . ' 00:00:00';
         $endDateTime = $filters['end_date'] . ' 23:59:59';
-        
+
         // Start with location-scoped query
         $query = Sale::whereBetween('sales_date', [$startDateTime, $endDateTime]);
-        
+
         // Only Master Super Admin or users with bypass permission can override location scope
         if ($user && ($this->isMasterSuperAdmin($user) || $this->hasLocationBypassPermission($user))) {
             $query = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
                 ->whereBetween('sales_date', [$startDateTime, $endDateTime]);
-                
+
             // Apply requested location filter if provided
             if (!empty($filters['location_ids'])) {
                 $query->whereIn('location_id', $filters['location_ids']);
@@ -941,13 +966,13 @@ class ProfitLossService
             if (!empty($filters['location_ids'])) {
                 $userLocationIds = $user ? $user->locations->pluck('id')->toArray() : [];
                 $validLocationIds = array_intersect($filters['location_ids'], $userLocationIds);
-                
+
                 if (!empty($validLocationIds)) {
                     $query->whereIn('location_id', $validLocationIds);
                 }
             }
         }
-        
+
         return $query;
     }
 
@@ -960,7 +985,7 @@ class ProfitLossService
             $user?->load('roles');
         }
 
-        return $user && ($user->roles->pluck('name')->contains('Master Super Admin') || 
+        return $user && ($user->roles->pluck('name')->contains('Master Super Admin') ||
                $user->roles->pluck('key')->contains('master_super_admin'));
     }
 
@@ -994,7 +1019,7 @@ class ProfitLossService
         // Convert date strings to proper date range for datetime columns
         $startDateTime = $filters['start_date'] . ' 00:00:00';
         $endDateTime = $filters['end_date'] . ' 23:59:59';
-        
+
         $query = SalesProduct::join('sales', 'sales_products.sale_id', '=', 'sales.id')
             ->whereExists(function($query) use ($startDateTime, $endDateTime) {
                 $query->select(DB::raw(1))
@@ -1002,20 +1027,20 @@ class ProfitLossService
                       ->whereRaw('s2.id = sales.id')
                       ->whereBetween('s2.sales_date', [$startDateTime, $endDateTime]);
             });
-        
+
         if (!empty($filters['location_ids'])) {
             $query->whereIn('sales.location_id', $filters['location_ids']);
         }
-        
+
         if (!empty($filters['product_ids'])) {
             $query->whereIn('sales_products.product_id', $filters['product_ids']);
         }
-        
+
         if (!empty($filters['brand_ids'])) {
             $query->join('products', 'sales_products.product_id', '=', 'products.id')
                   ->whereIn('products.brand_id', $filters['brand_ids']);
         }
-        
+
         return $query;
     }
 }

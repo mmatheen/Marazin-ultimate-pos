@@ -319,9 +319,9 @@
             </tr>
         </thead>
         <tbody>
-            {{-- Load IMEI data for all products --}}
+            {{-- Load IMEI data and batch data for all products --}}
             @php
-                $products->load('imeis');
+                $products->load(['imeis', 'batch', 'product']);
             @endphp
 
             {{-- Process products: separate IMEI products, group non-IMEI products --}}
@@ -386,7 +386,14 @@
                     <td></td>
                     <td style="padding-right: 5px;">
                         @php
-                            $mrp = $item['product']->product->max_retail_price ?? 0;
+                            // Get MRP from batch first, then fallback to product
+                            $mrp = 0;
+                            if ($item['product']->batch && $item['product']->batch->max_retail_price) {
+                                $mrp = $item['product']->batch->max_retail_price;
+                            } elseif ($item['product']->product && $item['product']->product->max_retail_price) {
+                                $mrp = $item['product']->product->max_retail_price;
+                            }
+
                             $selling_price = $item['product']->price;
                             $line_discount = ($mrp - $selling_price) * $item['quantity'];
                         @endphp
@@ -486,7 +493,14 @@
 
     @php
         $total_discount = $products->sum(function ($product) {
-            $mrp = $product->product->max_retail_price ?? 0;
+            // Get MRP from batch first, then fallback to product
+            $mrp = 0;
+            if ($product->batch && $product->batch->max_retail_price) {
+                $mrp = $product->batch->max_retail_price;
+            } elseif ($product->product && $product->product->max_retail_price) {
+                $mrp = $product->product->max_retail_price;
+            }
+
             $price = $product->price;
             // Only count as discount if MRP exists and is greater than selling price
             if ($mrp > 0 && $mrp > $price) {

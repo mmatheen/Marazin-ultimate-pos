@@ -363,9 +363,9 @@
                 </tr>
             </thead>
             <tbody>
-                {{-- Load IMEI data for all products --}}
+                {{-- Load IMEI data and batch data for all products --}}
                 @php
-                    $products->load('imeis');
+                    $products->load(['imeis', 'batch', 'product']);
                 @endphp
 
                 {{-- Process products: separate IMEI products, group non-IMEI products --}}
@@ -374,6 +374,14 @@
                     $nonImeiGroups = [];
 
                     foreach ($products as $product) {
+                        // Get MRP from batch first, then fallback to product
+                        $mrp = 0;
+                        if ($product->batch && $product->batch->max_retail_price) {
+                            $mrp = $product->batch->max_retail_price;
+                        } elseif ($product->product && $product->product->max_retail_price) {
+                            $mrp = $product->product->max_retail_price;
+                        }
+
                         // Check if product has IMEIs
                         if ($product->imeis && $product->imeis->count() > 0) {
                             // For IMEI products, create separate rows for each IMEI
@@ -384,8 +392,8 @@
                                     'imei' => $imei->imei_number,
                                     'quantity' => 1,
                                     'amount' => $product->price * 1,
-                                    'discount' => ($product->product->max_retail_price - $product->price) * 1,
-                                    'unitPrice' => $product->product->max_retail_price,
+                                    'discount' => ($mrp - $product->price) * 1,
+                                    'unitPrice' => $mrp,
                                     'rate' => $product->price,
                                 ];
                             }
@@ -399,13 +407,13 @@
                                     'quantity' => 0,
                                     'amount' => 0,
                                     'discount' => 0,
-                                    'unitPrice' => $product->product->max_retail_price,
+                                    'unitPrice' => $mrp,
                                     'rate' => $product->price,
                                 ];
                             }
                             $nonImeiGroups[$groupKey]['quantity'] += $product->quantity;
                             $nonImeiGroups[$groupKey]['amount'] += $product->price * $product->quantity;
-                            $nonImeiGroups[$groupKey]['discount'] += ($product->product->max_retail_price - $product->price) * $product->quantity;
+                            $nonImeiGroups[$groupKey]['discount'] += ($mrp - $product->price) * $product->quantity;
                         }
                     }
 
@@ -441,7 +449,14 @@
 
             @php
                 $total_discount = $products->sum(function ($product) {
-                    return ($product->product->max_retail_price - $product->price) * $product->quantity;
+                    // Get MRP from batch first, then fallback to product
+                    $mrp = 0;
+                    if ($product->batch && $product->batch->max_retail_price) {
+                        $mrp = $product->batch->max_retail_price;
+                    } elseif ($product->product && $product->product->max_retail_price) {
+                        $mrp = $product->product->max_retail_price;
+                    }
+                    return ($mrp - $product->price) * $product->quantity;
                 });
 
                 $bill_discount = 0;
