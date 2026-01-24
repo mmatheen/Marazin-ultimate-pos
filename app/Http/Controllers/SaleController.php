@@ -148,10 +148,25 @@ class SaleController extends Controller
 
     public function listSale()
     {
+        $currentUser = auth()->user();
+
         // Get filter data for dropdowns
         $locations = \App\Models\Location::select('id', 'name')->get();
         $customers = \App\Models\Customer::select('id', 'first_name', 'last_name')->get();
-        $users = \App\Models\User::select('id', 'full_name')->get();
+
+        // Apply same user filtering logic as UserController
+        $isMasterSuperAdmin = $currentUser->roles->where('name', 'Master Super Admin')->count() > 0;
+
+        $usersQuery = \App\Models\User::select('id', 'full_name');
+
+        if (!$isMasterSuperAdmin) {
+            // Non-Master Super Admin users cannot see Master Super Admin users
+            $usersQuery->whereDoesntHave('roles', function($roleQuery) {
+                $roleQuery->where('name', 'Master Super Admin');
+            });
+        }
+
+        $users = $usersQuery->get();
 
         return view('sell.sale', compact('locations', 'customers', 'users'));
     }
