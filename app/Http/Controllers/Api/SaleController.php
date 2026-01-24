@@ -569,6 +569,12 @@ class SaleController extends Controller
                 $customer = Customer::withoutGlobalScopes()->findOrFail($request->customer_id);
                 $this->validateCreditLimit($customer, $finalTotal, $request->payments ?? [], $newStatus);
 
+                // ✅ FIX: Store customer change information BEFORE updating sale
+                // Must capture original values before save() is called
+                $oldCustomerId = $isUpdate ? $sale->getOriginal('customer_id') : null;
+                $oldFinalTotal = $isUpdate ? $sale->getOriginal('final_total') : null;
+                $oldStatus = $isUpdate ? $sale->getOriginal('status') : null;
+                $customerChanged = $isUpdate && ($oldCustomerId != $request->customer_id);
 
                 // ----- Save Sale -----
                 $sale->fill([
@@ -629,16 +635,23 @@ class SaleController extends Controller
                     }
                 }
 
-                // ----- Store customer change information before updating sale -----
-                $oldCustomerId = $isUpdate ? $sale->getOriginal('customer_id') : null;
-                $oldFinalTotal = $isUpdate ? $sale->getOriginal('final_total') : null;
-                $customerChanged = $isUpdate && ($oldCustomerId != $request->customer_id);
-
                 // ----- Ledger - Handle Sale Recording -----
+                Log::info('📝 API: About to record sale ledger', [
+                    'isUpdate' => $isUpdate ? 'YES' : 'NO',
+                    'sale_id' => $sale->id,
+                    'invoice_no' => $sale->invoice_no,
+                    'status' => $sale->status,
+                    'oldStatus' => $oldStatus ?? 'N/A',
+                    'oldFinalTotal' => $oldFinalTotal ?? 'N/A',
+                    'newFinalTotal' => $sale->final_total,
+                    'customerChanged' => $customerChanged ? 'YES' : 'NO'
+                ]);
+
                 if (!$isUpdate) {
                     // Record sale in unified ledger BEFORE processing payments
                     // This ensures customer debt is established first
                     $this->unifiedLedgerService->recordSale($sale);
+                    Log::info('✅ API: recordSale() completed for new sale #' . $sale->id);
                 } else {
                     // Handle sale updates with potential customer changes
                     if ($customerChanged) {
@@ -650,9 +663,11 @@ class SaleController extends Controller
                             $oldFinalTotal,
                             'Customer changed during sale edit'
                         );
+                        Log::info('✅ API: editSaleWithCustomerChange() completed for sale #' . $sale->id);
                     } else {
                         // Same customer - use existing editSale method
                         $this->unifiedLedgerService->editSale($sale, $oldFinalTotal, 'Sale amount updated');
+                        Log::info('✅ API: editSale() completed for sale #' . $sale->id);
                     }
                 }
 

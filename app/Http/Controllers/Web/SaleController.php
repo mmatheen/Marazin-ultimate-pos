@@ -617,12 +617,25 @@ class SaleController extends Controller
                 }
 
                 // ----- Ledger - Record sale first -----
+                Log::info('📝 About to record sale ledger', [
+                    'isUpdate' => $isUpdate ? 'YES' : 'NO',
+                    'sale_id' => $sale->id,
+                    'invoice_no' => $sale->invoice_no,
+                    'status' => $sale->status,
+                    'oldStatus' => $oldStatus ?? 'N/A',
+                    'newStatus' => $newStatus,
+                    'customer_id' => $sale->customer_id,
+                    'final_total' => $sale->final_total
+                ]);
+
                 if ($isUpdate) {
                     // For updates, use updateSale method to handle proper cleanup and recreation
                     $this->unifiedLedgerService->updateSale($sale);
+                    Log::info('✅ updateSale() completed for sale #' . $sale->id);
                 } else {
                     // Record sale in unified ledger for new sales
                     $this->unifiedLedgerService->recordSale($sale);
+                    Log::info('✅ recordSale() completed for sale #' . $sale->id);
                 }
 
                 // ----- Handle Payments (if not jobticket) -----

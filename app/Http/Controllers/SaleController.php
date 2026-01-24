@@ -1332,27 +1332,34 @@ class SaleController extends Controller
                     // ✅ CRITICAL: Record sale in unified ledger INSIDE DB transaction
                     // If ledger creation fails, entire transaction rolls back (sale won't be saved)
                     // This ensures accounting integrity - no sale without ledger entry
-                    Log::info('Creating ledger entry for sale', [
-                        'sale_id' => $sale->id,
-                        'customer_id' => $sale->customer_id,
-                        'invoice_no' => $sale->invoice_no,
-                        'final_total' => $sale->final_total
-                    ]);
-
                     $this->unifiedLedgerService->recordSale($sale);
-
-                    Log::info('Ledger entry created successfully for sale', [
-                        'sale_id' => $sale->id,
-                        'customer_id' => $sale->customer_id
-                    ]);
                 }
 
 // ✅ CORRECT ORDER: Step 1 - Reverse old SALE entries only (not payments yet)
                 // Accounting order: Sale reversal → Payment reversal → New sale → New payment
                 // ✨ CRITICAL FIX: Skip ledger updates for Sale Orders - they don't create ledger entries
-                if ($isUpdate && $request->customer_id != 1 && $transactionType !== 'sale_order' && !in_array($sale->status, ['draft', 'quotation'])) {
+                // 🔧 DRAFT TO FINAL FIX: Check OLD status to detect draft/quotation conversions
+                $isDraftToFinalConversion = $isUpdate &&
+                    in_array($oldStatus, ['draft', 'quotation']) &&
+                    in_array($newStatus, ['final', 'suspend']);
+
+                if ($isUpdate && $request->customer_id != 1 && $transactionType !== 'sale_order' && !in_array($newStatus, ['draft', 'quotation'])) {
+                    // 🆕 DRAFT CONVERSION: If converting from draft/quotation to final, force create ledger entry
+                    if ($isDraftToFinalConversion) {
+                        Log::info('🔄 Draft/Quotation to Final conversion detected', [
+                            'sale_id' => $sale->id,
+                            'invoice_no' => $sale->invoice_no,
+                            'old_status' => $oldStatus,
+                            'new_status' => $newStatus,
+                            'customer_id' => $sale->customer_id,
+                            'final_total' => $sale->final_total
+                        ]);
+
+                        // Force create new ledger entry (no old entry to reverse)
+                        $this->unifiedLedgerService->recordNewSaleEntry($sale);
+                    }
                     // Check if customer has changed during edit (use pre-stored values)
-                    if ($customerChanged) {
+                    elseif ($customerChanged) {
                         // Customer changed - use special method to handle ledger transfer
                         Log::info('Sale edit with customer change detected', [
                             'sale_id' => $sale->id,

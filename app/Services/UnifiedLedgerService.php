@@ -38,8 +38,19 @@ class UnifiedLedgerService
     /**
      * Record sale transaction
      */
-    public function recordSale($sale, $createdBy = null, $customTransactionDate = null)
+    public function recordSale($sale, $createdBy = null, $customTransactionDate = null, $forceCreate = false)
     {
+        // � DEBUG: Log all recordSale calls
+        Log::info('🔍 RecordSale called', [
+            'sale_id' => $sale->id ?? 'N/A',
+            'invoice_no' => $sale->invoice_no ?? 'N/A',
+            'status' => $sale->status ?? 'N/A',
+            'customer_id' => $sale->customer_id ?? 'N/A',
+            'final_total' => $sale->final_total ?? 'N/A',
+            'forceCreate' => $forceCreate ? 'YES' : 'NO',
+            'transaction_type' => $sale->transaction_type ?? 'N/A'
+        ]);
+
         // 🔒 CRITICAL: Prevent ledger creation for Sale Orders, Drafts, and Quotations
         if (isset($sale->transaction_type) && $sale->transaction_type === 'sale_order') {
             Log::warning('Attempted to create ledger entry for Sale Order - skipping', [
@@ -50,14 +61,22 @@ class UnifiedLedgerService
             return null; // Don't create ledger entry
         }
 
-        if (isset($sale->status) && in_array($sale->status, ['draft', 'quotation'])) {
-            Log::warning('Attempted to create ledger entry for Draft/Quotation - skipping', [
+        // ✅ FIX: Skip draft/quotation check if forceCreate is true (for updates from draft to final)
+        if (!$forceCreate && isset($sale->status) && in_array($sale->status, ['draft', 'quotation'])) {
+            Log::warning('⚠️ Attempted to create ledger entry for Draft/Quotation - skipping', [
                 'sale_id' => $sale->id ?? 'N/A',
                 'invoice_no' => $sale->invoice_no ?? 'N/A',
-                'status' => $sale->status
+                'status' => $sale->status,
+                'forceCreate' => 'NO'
             ]);
             return null; // Don't create ledger entry
         }
+
+        Log::info('✅ RecordSale proceeding - checks passed', [
+            'sale_id' => $sale->id ?? 'N/A',
+            'invoice_no' => $sale->invoice_no ?? 'N/A',
+            'status' => $sale->status ?? 'N/A'
+        ]);
 
         // ✅ FIX: Validate that sale has customer_id before proceeding
         if (empty($sale->customer_id)) {
@@ -383,12 +402,74 @@ class UnifiedLedgerService
      */
     public function editSale($sale, $oldFinalTotal, $editReason = null)
     {
+        Log::info('🔧 EditSale called', [
+            'sale_id' => $sale->id ?? 'N/A',
+            'invoice_no' => $sale->invoice_no ?? 'N/A',
+            'customer_id' => $sale->customer_id ?? 'N/A',
+            'status' => $sale->status ?? 'N/A',
+            'oldFinalTotal' => $oldFinalTotal,
+            'newFinalTotal' => $sale->final_total ?? 'N/A',
+            'editReason' => $editReason ?? 'N/A'
+        ]);
+
         return DB::transaction(function () use ($sale, $oldFinalTotal, $editReason) {
             $newFinalTotal = $sale->final_total;
             $difference = $newFinalTotal - $oldFinalTotal;
 
-            // Skip ledger entries for Walk-In customers or if amounts are identical
-            if ($sale->customer_id == 1 || $difference == 0) {
+            // Skip ledger entries for Walk-In customers
+            if ($sale->customer_id == 1) {
+                Log::info('⏭️ EditSale skipped - Walk-In customer', ['sale_id' => $sale->id]);
+                return null;
+            }
+
+            // ✅ FIX: Check if original sale had a ledger entry (may not exist if it was a draft)
+            $originalSaleEntry = Ledger::where('reference_no', $sale->invoice_no)
+                ->where('contact_id', $sale->customer_id)
+                ->where('contact_type', 'customer')
+                ->where('transaction_type', 'sale')
+                ->where('status', 'active')
+                ->first();
+
+            Log::info('🔍 Checking for original sale ledger entry', [
+                'sale_id' => $sale->id,
+                'invoice_no' => $sale->invoice_no,
+                'original_entry_found' => $originalSaleEntry ? 'YES (ID: ' . $originalSaleEntry->id . ')' : 'NO',
+                'oldFinalTotal' => $oldFinalTotal,
+                'newFinalTotal' => $newFinalTotal,
+                'difference' => $difference
+            ]);
+
+            // ✅ FIX: If no original entry exists (draft conversion), just create new entry
+            if (!$originalSaleEntry) {
+                Log::info('🆕 No original sale ledger entry found - creating new entry (likely draft conversion)', [
+                    'sale_id' => $sale->id,
+                    'invoice_no' => $sale->invoice_no,
+                    'customer_id' => $sale->customer_id,
+                    'final_total' => $newFinalTotal
+                ]);
+
+                $newSaleEntry = Ledger::createEntry([
+                    'contact_id' => $sale->customer_id,
+                    'contact_type' => 'customer',
+                    'transaction_date' => $sale->created_at ? Carbon::parse($sale->created_at) : Carbon::now('Asia/Colombo'),
+                    'reference_no' => $sale->invoice_no,
+                    'transaction_type' => 'sale',
+                    'amount' => $newFinalTotal,
+                    'status' => 'active',
+                    'notes' => 'Sale invoice #' . $sale->invoice_no . ($editReason ? ' | ' . $editReason : '')
+                ]);
+
+                Log::info('✅ Created sale ledger entry for draft conversion', [
+                    'ledger_id' => $newSaleEntry->id,
+                    'sale_id' => $sale->id,
+                    'amount' => $newFinalTotal
+                ]);
+
+                return ['new_sale_entry' => $newSaleEntry];
+            }
+
+            // Skip if amounts are identical
+            if ($difference == 0) {
                 return null;
             }
 
@@ -1712,21 +1793,8 @@ class UnifiedLedgerService
             throw new \Exception("Cannot record sale: customer_id is missing. Sale ID: {$sale->id}");
         }
 
-        Log::info('RecordNewSaleEntry: Creating new sale entry', [
-            'sale_id' => $sale->id,
-            'customer_id' => $sale->customer_id,
-            'final_total' => $sale->final_total
-        ]);
-
-        $newSaleEntry = $this->recordSale($sale, null, Carbon::now('Asia/Colombo'));
-
-        Log::info('RecordNewSaleEntry: Successfully created new sale entry', [
-            'new_entry_id' => $newSaleEntry->id,
-            'new_amount' => $newSaleEntry->debit,
-            'reference_no' => $newSaleEntry->reference_no
-        ]);
-
-        return $newSaleEntry;
+        // ✅ FIX: Force creation even if converting from draft/quotation to final
+        return $this->recordSale($sale, null, Carbon::now('Asia/Colombo'), true);
     }
 
     /**

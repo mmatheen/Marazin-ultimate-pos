@@ -283,7 +283,7 @@
                         if (data.adjustment_products && data.adjustment_products.length > 0) {
                             data.adjustment_products.forEach((adjustmentProduct) => {
                                 const product = adjustmentProduct.product;
-                                
+
                                 // Build the row with proper input names
                                 const row = `
                                 <tr class="add-row" data-product-id="${product.id}">
@@ -299,20 +299,20 @@
                                         <div class="error-message batch-error"></div>
                                     </td>
                                     <td>
-                                        <input type="number" class="form-control quantity-input" 
-                                            name="products[${productIndex}][quantity]" 
-                                            value="${adjustmentProduct.quantity}" 
+                                        <input type="number" class="form-control quantity-input"
+                                            name="products[${productIndex}][quantity]"
+                                            value="${adjustmentProduct.quantity}"
                                             min="0.01" step="0.01" required>
                                         <div class="error-message quantity-error text-danger"></div>
                                     </td>
                                     <td>
-                                        <input type="text" class="form-control unit-price" 
-                                            name="products[${productIndex}][unit_price]" 
+                                        <input type="text" class="form-control unit-price"
+                                            name="products[${productIndex}][unit_price]"
                                             value="${parseFloat(adjustmentProduct.unit_price).toFixed(2)}" readonly>
                                     </td>
                                     <td>
-                                        <input type="text" class="form-control sub_total" 
-                                            name="products[${productIndex}][sub_total]" 
+                                        <input type="text" class="form-control sub_total"
+                                            name="products[${productIndex}][sub_total]"
                                             value="${parseFloat(adjustmentProduct.subtotal).toFixed(2)}" readonly>
                                     </td>
                                     <td class="add-remove text-end">
@@ -322,7 +322,7 @@
                                     </td>
                                 </tr>
                                 `;
-                                
+
                                 if ($productTableBody.length) {
                                     $productTableBody.append(row);
                                     productIndex++;
@@ -408,7 +408,7 @@
                 }
             });
         }
-        
+
         // Fetch and populate dropdown data
         function fetchDropdownData(url, targetSelect, placeholder, selectedId = null) {
             $.ajax({
@@ -598,7 +598,7 @@
                     const selectedBatch = row.find('.batch-select option:selected');
                     const unitPrice = parseFloat(selectedBatch.data('price')) || parseFloat(row.find('.unit-price').val());
                     let quantity = parseFloat(row.find('.quantity-input').val());
-                    
+
                     // Get max quantity from batch data or allow any value if not available
                     const maxQty = parseFloat(selectedBatch.data('quantity'));
 
@@ -622,7 +622,7 @@
                     updateTotalAmount();
                 });
         }
-        
+
         // Form submission handler
         $('#stockAdjustmentForm').validate({
             rules: {
