@@ -241,6 +241,84 @@
             });
         }
 
+        // Populate form with stock adjustment data (for editing)
+        function populateForm(data) {
+            console.log('Populating form with data:', data);
+
+            // Populate basic fields
+            $('#location_id').val(data.location_id).trigger('change');
+            $('#referenceNo').val(data.reference_no);
+            $('#adjustment_date').val(data.date.split(' ')[0]); // Format date to YYYY-MM-DD
+            $('#adjustmentType').val(data.adjustment_type);
+            $('#totalAmountRecovered').val(data.total_amount_recovered);
+            $('#reason').val(data.reason);
+
+            // Clear existing products
+            $('#productTableBody').empty();
+            productIndex = 0;
+
+            // Wait for location change to complete and products to load
+            setTimeout(() => {
+                // Populate products table
+                if (data.adjustment_products && data.adjustment_products.length > 0) {
+                    data.adjustment_products.forEach((adjustmentProduct) => {
+                        const product = adjustmentProduct.product;
+
+                        // Build the row with proper input names
+                        const row = `
+                        <tr class="add-row" data-product-id="${product.id}">
+                            <td>${product.product_name}
+                                <input type="hidden" name="products[${productIndex}][product_id]" value="${product.id}">
+                            </td>
+                            <td>
+                                <select class="form-control batch-select" name="products[${productIndex}][batch_id]" required>
+                                    <option value="${adjustmentProduct.batch_id}" selected>
+                                        Batch ${adjustmentProduct.batch_id}
+                                    </option>
+                                </select>
+                                <div class="error-message batch-error"></div>
+                            </td>
+                            <td>
+                                <input type="number" class="form-control quantity-input"
+                                    name="products[${productIndex}][quantity]"
+                                    value="${adjustmentProduct.quantity}"
+                                    min="0.01" step="0.01" required>
+                                <div class="error-message quantity-error text-danger"></div>
+                            </td>
+                            <td>
+                                <input type="text" class="form-control unit-price"
+                                    name="products[${productIndex}][unit_price]"
+                                    value="${parseFloat(adjustmentProduct.unit_price).toFixed(2)}" readonly>
+                            </td>
+                            <td>
+                                <input type="text" class="form-control sub_total"
+                                    name="products[${productIndex}][sub_total]"
+                                    value="${parseFloat(adjustmentProduct.subtotal).toFixed(2)}" readonly>
+                            </td>
+                            <td class="add-remove text-end">
+                                <a href="javascript:void(0);" class="remove-btn text-danger">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        `;
+
+                        $('#productTableBody').append(row);
+                        productIndex++;
+                    });
+
+                    // Update total amount
+                    updateTotalAmount();
+
+                    // Re-attach event listeners
+                    $('.remove-btn').off('click').on('click', function() {
+                        $(this).closest('tr').remove();
+                        updateTotalAmount();
+                    });
+                }
+            }, 500); // Give location change time to complete
+        }
+
         // Submit form data via AJAX
         function submitForm(form) {
             const submitButton = $(form).find('button[type="submit"]');
