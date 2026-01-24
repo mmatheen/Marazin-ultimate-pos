@@ -2,6 +2,25 @@
 
 @push('styles')
     <link rel="stylesheet" type="text/css" href="{{ asset('vendor/daterangepicker/daterangepicker.css') }}" />
+    <style>
+        /* Force Select2 dropdowns to full width */
+        .select2-container {
+            width: 100% !important;
+        }
+
+        .select2-container .select2-selection--single {
+            height: 44px !important;
+            padding: 8px 12px !important;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            line-height: 26px !important;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 42px !important;
+        }
+    </style>
 @endpush
 
 @section('content')
@@ -21,11 +40,11 @@
                 </div>
             </div>
             <div>
-                <div class="card card-body mb-4">
-                    <div class="student-group-form">
-                        <button class="btn btn-primary" type="button" data-bs-toggle="collapse"
+                <div class="card mb-3">
+                    <div class="card-body py-3">
+                        <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse"
                             data-bs-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample">
-                            <i class="fas fa-filter"></i> &nbsp; Filters
+                            <i class="fas fa-filter"></i> Filters
                         </button>
                     </div>
                 </div>
@@ -38,7 +57,7 @@
                                 <div class="col-lg-3 col-md-6">
                                     <div class="form-group local-forms">
                                         <label>Business Location</label>
-                                        <select class="form-control select selectBox" id="locationFilter" name="location">
+                                        <select class="form-control selectBox" id="locationFilter" name="location">
                                             <option value="">All</option>
                                             @foreach($locations as $location)
                                                 <option value="{{ $location->id }}">{{ $location->name }}</option>
@@ -49,7 +68,7 @@
                                 <div class="col-lg-3 col-md-6">
                                     <div class="form-group local-forms">
                                         <label>Customer</label>
-                                        <select class="form-control select selectBox" id="customerFilter" name="customer">
+                                        <select class="form-control selectBox" id="customerFilter" name="customer">
                                             <option value="">All</option>
                                             @foreach($customers as $customer)
                                                 <option value="{{ $customer->id }}">{{ trim($customer->first_name . ' ' . $customer->last_name) }}</option>
@@ -60,7 +79,7 @@
                                 <div class="col-lg-3 col-md-6">
                                     <div class="form-group local-forms">
                                         <label>Payment Status</label>
-                                        <select class="form-control select selectBox" id="paymentStatusFilter" name="payment_status">
+                                        <select class="form-control selectBox" id="paymentStatusFilter" name="payment_status">
                                             <option value="">All</option>
                                             <option value="paid">Paid</option>
                                             <option value="due">Due</option>
@@ -80,7 +99,7 @@
                                 <div class="col-lg-3 col-md-4">
                                     <div class="form-group local-forms">
                                         <label>User</label>
-                                        <select class="form-control select selectBox" id="userFilter" name="user">
+                                        <select class="form-control selectBox" id="userFilter" name="user">
                                             <option value="">All</option>
                                             @foreach($users as $user)
                                                 <option value="{{ $user->id }}">{{ $user->full_name }}</option>
@@ -91,7 +110,7 @@
                                 <div class="col-lg-3 col-md-4">
                                     <div class="form-group local-forms">
                                         <label>Shipping Status</label>
-                                        <select class="form-control select selectBox" id="shippingStatusFilter" name="shipping_status">
+                                        <select class="form-control selectBox" id="shippingStatusFilter" name="shipping_status">
                                             <option value="">All</option>
                                             <option value="order">Order</option>
                                             <option value="packed">Packed</option>
@@ -104,7 +123,7 @@
                                 <div class="col-lg-3 col-md-4">
                                     <div class="form-group local-forms">
                                         <label>Payment Method</label>
-                                        <select class="form-control select selectBox" id="paymentMethodFilter" name="payment_method">
+                                        <select class="form-control selectBox" id="paymentMethodFilter" name="payment_method">
                                             <option value="">All</option>
                                             <option value="cash">Cash</option>
                                             <option value="card">Card</option>
@@ -661,6 +680,23 @@
                     $(`#${modalId} #bankTransferFields`).show();
                 }
             }
+
+            // Initialize Select2 for filter dropdowns with proper width
+            $(document).ready(function() {
+                // Destroy any existing Select2 instances first
+                $('#locationFilter, #customerFilter, #paymentStatusFilter, #userFilter, #shippingStatusFilter, #paymentMethodFilter').each(function() {
+                    if ($(this).hasClass('select2-hidden-accessible')) {
+                        $(this).select2('destroy');
+                    }
+                });
+
+                // Initialize Select2 with full width
+                $('#locationFilter, #customerFilter, #paymentStatusFilter, #userFilter, #shippingStatusFilter, #paymentMethodFilter').select2({
+                    width: '100%',
+                    placeholder: 'All',
+                    allowClear: true
+                });
+            });
         </script>
 
         @include('sell.sales_ajax')

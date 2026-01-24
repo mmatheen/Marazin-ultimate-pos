@@ -83,6 +83,10 @@
             $('#addAndUpdateForm')[0].reset();
             $('.text-danger').text(''); // Clear all error messages
             $('#edit_id').val(''); // Clear the edit_id to ensure it's not considered an update
+
+            // Fetch and populate main categories before showing the modal
+            fetchMainCategoryDropdown();
+
             $('#addAndEditSubCategoryModal').modal('show');
         });
 
@@ -136,6 +140,9 @@
             $('.text-danger').text('');
             $('#edit_id').val(id);
 
+            // Fetch main categories first
+            fetchMainCategoryDropdown();
+
             $.ajax({
                 url: '/sub-category-edit/' + id,
                 type: 'get',
@@ -148,7 +155,12 @@
                         toastr.error(response.message, 'Error');
                     } else if (response.status == 200) {
                         $('#edit_subCategoryname').val(response.message.subCategoryname);
-                        $('#edit_main_category_id').val(response.message.main_category_id);
+
+                        // Set main category value after a short delay to ensure dropdown is populated
+                        setTimeout(function() {
+                            $('#edit_main_category_id_sub').val(response.message.main_category_id);
+                        }, 100);
+
                         $('#edit_subCategoryCode').val(response.message.subCategoryCode);
                         $('#edit_description').val(response.message.description);
                         $('#addAndEditSubCategoryModal').modal('show');
@@ -295,6 +307,35 @@
                 },
                 error: function(xhr, status, error) {
                     console.error("Error fetching dropdown data:", error);
+                }
+            });
+        }
+
+        // Function to fetch main categories for subcategory modal
+        function fetchMainCategoryDropdown() {
+            $.ajax({
+                url: '/main-category-get-all',
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    let dropdown = $('#edit_main_category_id_sub');
+                    dropdown.empty().append('<option value="" selected disabled>Please Select</option>');
+
+                    // Check if response.message is an array before using $.each
+                    if (Array.isArray(response.message)) {
+                        $.each(response.message, function(index, item) {
+                            dropdown.append(
+                                `<option value="${item.id}">${item.mainCategoryName}</option>`
+                            );
+                        });
+                        console.log('✅ Main categories loaded successfully for subcategory modal');
+                    } else if (typeof response.message === 'string') {
+                        console.log('No main categories found: ', response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error("Error fetching main categories:", error);
+                    toastr.error('Failed to load main categories', 'Error');
                 }
             });
         }
