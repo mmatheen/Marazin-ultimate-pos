@@ -245,78 +245,123 @@
         function populateForm(data) {
             console.log('Populating form with data:', data);
 
-            // Populate basic fields
-            $('#location_id').val(data.location_id).trigger('change');
-            $('#referenceNo').val(data.reference_no);
-            $('#adjustment_date').val(data.date.split(' ')[0]); // Format date to YYYY-MM-DD
-            $('#adjustmentType').val(data.adjustment_type);
-            $('#totalAmountRecovered').val(data.total_amount_recovered);
-            $('#reason').val(data.reason);
-
-            // Clear existing products
-            $('#productTableBody').empty();
-            productIndex = 0;
-
-            // Wait for location change to complete and products to load
-            setTimeout(() => {
-                // Populate products table
-                if (data.adjustment_products && data.adjustment_products.length > 0) {
-                    data.adjustment_products.forEach((adjustmentProduct) => {
-                        const product = adjustmentProduct.product;
-
-                        // Build the row with proper input names
-                        const row = `
-                        <tr class="add-row" data-product-id="${product.id}">
-                            <td>${product.product_name}
-                                <input type="hidden" name="products[${productIndex}][product_id]" value="${product.id}">
-                            </td>
-                            <td>
-                                <select class="form-control batch-select" name="products[${productIndex}][batch_id]" required>
-                                    <option value="${adjustmentProduct.batch_id}" selected>
-                                        Batch ${adjustmentProduct.batch_id}
-                                    </option>
-                                </select>
-                                <div class="error-message batch-error"></div>
-                            </td>
-                            <td>
-                                <input type="number" class="form-control quantity-input"
-                                    name="products[${productIndex}][quantity]"
-                                    value="${adjustmentProduct.quantity}"
-                                    min="0.01" step="0.01" required>
-                                <div class="error-message quantity-error text-danger"></div>
-                            </td>
-                            <td>
-                                <input type="text" class="form-control unit-price"
-                                    name="products[${productIndex}][unit_price]"
-                                    value="${parseFloat(adjustmentProduct.unit_price).toFixed(2)}" readonly>
-                            </td>
-                            <td>
-                                <input type="text" class="form-control sub_total"
-                                    name="products[${productIndex}][sub_total]"
-                                    value="${parseFloat(adjustmentProduct.subtotal).toFixed(2)}" readonly>
-                            </td>
-                            <td class="add-remove text-end">
-                                <a href="javascript:void(0);" class="remove-btn text-danger">
-                                    <i class="fas fa-trash"></i>
-                                </a>
-                            </td>
-                        </tr>
-                        `;
-
-                        $('#productTableBody').append(row);
-                        productIndex++;
-                    });
-
-                    // Update total amount
-                    updateTotalAmount();
-
-                    // Re-attach event listeners
-                    $('.remove-btn').off('click').on('click', function() {
-                        $(this).closest('tr').remove();
-                        updateTotalAmount();
-                    });
+            try {
+                // Populate basic fields with safety checks
+                if ($('#location_id').length) {
+                    $('#location_id').val(data.location_id).trigger('change');
                 }
-            }, 500); // Give location change time to complete
+                if ($('#referenceNo').length) {
+                    $('#referenceNo').val(data.reference_no);
+                }
+                if ($('#adjustment_date').length) {
+                    $('#adjustment_date').val(data.date.split(' ')[0]); // Format date to YYYY-MM-DD
+                }
+                if ($('#adjustmentType').length) {
+                    $('#adjustmentType').val(data.adjustment_type);
+                }
+                if ($('#totalAmountRecovered').length) {
+                    $('#totalAmountRecovered').val(data.total_amount_recovered);
+                }
+                if ($('#reason').length) {
+                    $('#reason').val(data.reason);
+                }
+
+                // Clear existing products safely
+                const $productTableBody = $('#productTableBody');
+                if ($productTableBody.length) {
+                    // Remove rows one by one to avoid removeChild errors
+                    $productTableBody.find('tr').each(function() {
+                        $(this).remove();
+                    });
+                    productIndex = 0;
+                }
+
+                // Wait for location change to complete and products to load
+                setTimeout(() => {
+                    try {
+                        // Populate products table
+                        if (data.adjustment_products && data.adjustment_products.length > 0) {
+                            data.adjustment_products.forEach((adjustmentProduct) => {
+                                const product = adjustmentProduct.product;
+                                
+                                // Build the row with proper input names
+                                const row = `
+                                <tr class="add-row" data-product-id="${product.id}">
+                                    <td>${product.product_name}
+                                        <input type="hidden" name="products[${productIndex}][product_id]" value="${product.id}">
+                                    </td>
+                                    <td>
+                                        <select class="form-control batch-select" name="products[${productIndex}][batch_id]" required>
+                                            <option value="${adjustmentProduct.batch_id}" selected>
+                                                Batch ${adjustmentProduct.batch_id}
+                                            </option>
+                                        </select>
+                                        <div class="error-message batch-error"></div>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control quantity-input" 
+                                            name="products[${productIndex}][quantity]" 
+                                            value="${adjustmentProduct.quantity}" 
+                                            min="0.01" step="0.01" required>
+                                        <div class="error-message quantity-error text-danger"></div>
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control unit-price" 
+                                            name="products[${productIndex}][unit_price]" 
+                                            value="${parseFloat(adjustmentProduct.unit_price).toFixed(2)}" readonly>
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control sub_total" 
+                                            name="products[${productIndex}][sub_total]" 
+                                            value="${parseFloat(adjustmentProduct.subtotal).toFixed(2)}" readonly>
+                                    </td>
+                                    <td class="add-remove text-end">
+                                        <a href="javascript:void(0);" class="remove-btn text-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                `;
+                                
+                                if ($productTableBody.length) {
+                                    $productTableBody.append(row);
+                                    productIndex++;
+                                }
+                            });
+
+                            // Update total amount
+                            if (typeof updateTotalAmount === 'function') {
+                                updateTotalAmount();
+                            }
+
+                            // Re-attach event listeners for remove buttons
+                            $('.remove-btn').off('click').on('click', function(e) {
+                                e.preventDefault();
+                                try {
+                                    const $row = $(this).closest('tr');
+                                    if ($row.length) {
+                                        $row.remove();
+                                        if (typeof updateTotalAmount === 'function') {
+                                            updateTotalAmount();
+                                        }
+                                    }
+                                } catch (error) {
+                                    console.error('Error removing row:', error);
+                                }
+                            });
+
+                            // Re-attach event listeners for quantity/batch changes
+                            attachQuantityChangeHandlers();
+                        }
+                    } catch (innerError) {
+                        console.error('Error populating products:', innerError);
+                        toastr.error('Error loading product details. Please refresh and try again.');
+                    }
+                }, 500); // Give location change time to complete
+            } catch (error) {
+                console.error('Error in populateForm:', error);
+                toastr.error('Error loading adjustment details. Please refresh and try again.');
+            }
         }
 
         // Submit form data via AJAX
@@ -363,6 +408,7 @@
                 }
             });
         }
+        
         // Fetch and populate dropdown data
         function fetchDropdownData(url, targetSelect, placeholder, selectedId = null) {
             $.ajax({
@@ -512,45 +558,22 @@
             $('#productTableBody').append(newRow);
             updateTotalAmount();
 
-            // Event listeners for remove and change
-            $('.remove-btn').off('click').on('click', function() {
-                $(this).closest('tr').remove();
-                updateTotalAmount();
+            // Event listeners for remove and change with safety checks
+            $('.remove-btn').off('click').on('click', function(e) {
+                e.preventDefault();
+                try {
+                    const $row = $(this).closest('tr');
+                    if ($row.length) {
+                        $row.remove();
+                        updateTotalAmount();
+                    }
+                } catch (error) {
+                    console.error('Error removing row:', error);
+                }
             });
 
-            $(document).off('change', '.batch-select, .quantity-input').on('change',
-                '.batch-select, .quantity-input',
-                function() {
-                    const row = $(this).closest('tr');
-                    const selectedBatch = row.find('.batch-select option:selected');
-                    const unitPrice = parseFloat(selectedBatch.data('price'));
-                    let quantity = parseFloat(row.find('.quantity-input').val());
-                    const maxQty = parseFloat(selectedBatch.data('quantity'));
-
-                    // Ensure quantity does not exceed max available
-                    if (quantity > maxQty) {
-                        quantity = maxQty;
-                        row.find('.quantity-input').val(quantity);
-                        toastr.info('Maximum available quantity reached for this batch.');
-                    }
-
-                    // If not allowDecimal, force integer
-                    if (!allowDecimal) {
-                        quantity = Math.floor(quantity);
-                        row.find('.quantity-input').val(quantity);
-                    }
-
-                    // Prevent less than min
-                    if (quantity < parseFloat(min)) {
-                        quantity = parseFloat(min);
-                        row.find('.quantity-input').val(quantity);
-                    }
-
-                    const subtotal = parseFloat(unitPrice * quantity).toFixed(2);
-                    row.find('.unit-price').val(unitPrice.toFixed(2));
-                    row.find('.sub_total').val(subtotal);
-                    updateTotalAmount();
-                });
+            // Attach change handlers using the reusable function
+            attachQuantityChangeHandlers();
 
             productIndex++;
         }
@@ -565,6 +588,41 @@
             });
             $('#totalAmount').text(totalAmount.toFixed(2));
         }
+
+        // Attach quantity and batch change handlers (reusable for both new and loaded rows)
+        function attachQuantityChangeHandlers() {
+            $(document).off('change input', '.batch-select, .quantity-input').on('change input',
+                '.batch-select, .quantity-input',
+                function() {
+                    const row = $(this).closest('tr');
+                    const selectedBatch = row.find('.batch-select option:selected');
+                    const unitPrice = parseFloat(selectedBatch.data('price')) || parseFloat(row.find('.unit-price').val());
+                    let quantity = parseFloat(row.find('.quantity-input').val());
+                    
+                    // Get max quantity from batch data or allow any value if not available
+                    const maxQty = parseFloat(selectedBatch.data('quantity'));
+
+                    // Validate quantity
+                    if (isNaN(quantity) || quantity < 0) {
+                        quantity = 0;
+                        row.find('.quantity-input').val(quantity);
+                    }
+
+                    // Ensure quantity does not exceed max available (if maxQty exists)
+                    if (maxQty && quantity > maxQty) {
+                        quantity = maxQty;
+                        row.find('.quantity-input').val(quantity);
+                        toastr.info('Maximum available quantity reached for this batch.');
+                    }
+
+                    // Calculate and update subtotal
+                    const subtotal = parseFloat(unitPrice * quantity).toFixed(2);
+                    row.find('.unit-price').val(unitPrice.toFixed(2));
+                    row.find('.sub_total').val(subtotal);
+                    updateTotalAmount();
+                });
+        }
+        
         // Form submission handler
         $('#stockAdjustmentForm').validate({
             rules: {
@@ -743,5 +801,8 @@
                 });
             }
         }
+
+        // Initialize quantity change handlers on page load
+        attachQuantityChangeHandlers();
     });
 </script>
