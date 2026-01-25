@@ -73,14 +73,17 @@ class DashboardController extends Controller
             }
         }
 
-        // Sales filter condition - simplified for better performance
+        // Sales filter condition - only include finalized invoices, exclude draft/quotation/sale_order
         $salesFilter = function($query) {
             $query->where(function($q) {
                 $q->where('transaction_type', 'invoice')
                   ->orWhere(function($subQuery) {
                       $subQuery->whereNull('transaction_type')->where('status', 'final');
                   });
-            });
+            })
+            // Explicitly exclude draft, quotation, and sale_order transactions
+            ->where('status', 'final')
+            ->whereNotIn('status', ['draft', 'quotation', 'suspend', 'jobticket']);
         };
 
         // Optimized: Get sales metrics with proper filtering and indexes

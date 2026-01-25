@@ -345,10 +345,16 @@ class ProfitLossService
         $startDateTime = $filters['start_date'] . ' 00:00:00';
         $endDateTime = $filters['end_date'] . ' 23:59:59';
 
-        // Build a completely isolated query to avoid any ambiguity
+        // Build a completely isolated query to avoid any ambiguity - only include finalized sales
         $locationsQuery = DB::table('sales')
             ->join('locations', 'sales.location_id', '=', 'locations.id')
-            ->whereBetween('sales.sales_date', [$startDateTime, $endDateTime]);
+            ->whereBetween('sales.sales_date', [$startDateTime, $endDateTime])
+            ->where('sales.status', 'final')
+            ->where(function($q) {
+                // Include either invoice transactions or legacy sales without transaction_type
+                $q->where('sales.transaction_type', 'invoice')
+                  ->orWhereNull('sales.transaction_type');
+            });
 
         // Apply location filter explicitly on sales table only
         if (!empty($filters['location_ids'])) {
@@ -361,7 +367,7 @@ class ProfitLossService
                 'locations.name as location_name',
                 DB::raw('COUNT(DISTINCT sales.id) as total_transactions'),
                 DB::raw('SUM(sales.final_total) as total_sales'),
-                DB::raw('(SELECT SUM(sp.quantity) FROM sales_products sp JOIN sales s2 ON sp.sale_id = s2.id WHERE s2.location_id = locations.id AND s2.sales_date BETWEEN ? AND ?) as total_quantity')
+                DB::raw('(SELECT SUM(sp.quantity) FROM sales_products sp JOIN sales s2 ON sp.sale_id = s2.id WHERE s2.location_id = locations.id AND s2.sales_date BETWEEN ? AND ? AND s2.status = \'final\' AND (s2.transaction_type = \'invoice\' OR s2.transaction_type IS NULL)) as total_quantity')
             ])
             ->addBinding([$startDateTime, $endDateTime], 'select')
             ->groupBy('locations.id', 'locations.name')
@@ -398,6 +404,11 @@ class ProfitLossService
                 ->join('sales', 'sales_products.sale_id', '=', 'sales.id')
                 ->where('sales.location_id', $location->location_id)
                 ->whereBetween('sales.sales_date', [$startDateTime, $endDateTime])
+                ->where('sales.status', 'final')
+                ->where(function($q) {
+                    $q->where('sales.transaction_type', 'invoice')
+                      ->orWhereNull('sales.transaction_type');
+                })
                 ->distinct('sales_products.product_id')
                 ->count('sales_products.product_id');
 
@@ -498,6 +509,11 @@ class ProfitLossService
             ->join('batches', 'sales_products.batch_id', '=', 'batches.id')
             ->where('sales.location_id', $locationId)
             ->whereBetween('sales.sales_date', [$startDateTime, $endDateTime])
+            ->where('sales.status', 'final')
+            ->where(function($q) {
+                $q->where('sales.transaction_type', 'invoice')
+                  ->orWhereNull('sales.transaction_type');
+            })
             ->sum(DB::raw('sales_products.quantity * batches.unit_cost'));
 
         return $totalCost;
@@ -604,11 +620,16 @@ class ProfitLossService
         $startDateTime = $filters['start_date'] . ' 00:00:00';
         $endDateTime = $filters['end_date'] . ' 23:59:59';
 
-        // Use direct DB query to avoid any potential join conflicts
+        // Use direct DB query to avoid any potential join conflicts - only include finalized sales
         $totalCost = DB::table('sales_products')
             ->join('sales', 'sales_products.sale_id', '=', 'sales.id')
             ->join('batches', 'sales_products.batch_id', '=', 'batches.id')
             ->whereBetween('sales.sales_date', [$startDateTime, $endDateTime])
+            ->where('sales.status', 'final')
+            ->where(function($q) {
+                $q->where('sales.transaction_type', 'invoice')
+                  ->orWhereNull('sales.transaction_type');
+            })
             ->when(!empty($filters['location_ids']), function ($query) use ($filters) {
                 return $query->whereIn('sales.location_id', $filters['location_ids']);
             })
@@ -633,6 +654,11 @@ class ProfitLossService
         $totalSales = DB::table('sales_products')
             ->join('sales', 'sales_products.sale_id', '=', 'sales.id')
             ->whereBetween('sales.sales_date', [$startDateTime, $endDateTime])
+            ->where('sales.status', 'final')
+            ->where(function($q) {
+                $q->where('sales.transaction_type', 'invoice')
+                  ->orWhereNull('sales.transaction_type');
+            })
             ->when(!empty($filters['location_ids']), function ($query) use ($filters) {
                 return $query->whereIn('sales.location_id', $filters['location_ids']);
             })
@@ -727,13 +753,18 @@ class ProfitLossService
         $startDateTime = $filters['start_date'] . ' 00:00:00';
         $endDateTime = $filters['end_date'] . ' 23:59:59';
 
-        // Use direct DB query to avoid any potential join conflicts
+        // Use direct DB query to avoid any potential join conflicts - only include finalized sales
         $totalCost = DB::table('sales_products')
             ->join('sales', 'sales_products.sale_id', '=', 'sales.id')
             ->join('batches', 'sales_products.batch_id', '=', 'batches.id')
             ->join('products', 'batches.product_id', '=', 'products.id')
             ->where('products.id', $productId)
             ->whereBetween('sales.sales_date', [$startDateTime, $endDateTime])
+            ->where('sales.status', 'final')
+            ->where(function($q) {
+                $q->where('sales.transaction_type', 'invoice')
+                  ->orWhereNull('sales.transaction_type');
+            })
             ->when(!empty($filters['location_ids']), function ($query) use ($filters) {
                 return $query->whereIn('sales.location_id', $filters['location_ids']);
             })
@@ -751,13 +782,18 @@ class ProfitLossService
         $startDateTime = $filters['start_date'] . ' 00:00:00';
         $endDateTime = $filters['end_date'] . ' 23:59:59';
 
-        // Use direct DB query to avoid any potential join conflicts
+        // Use direct DB query to avoid any potential join conflicts - only include finalized sales
         $totalCost = DB::table('sales_products')
             ->join('sales', 'sales_products.sale_id', '=', 'sales.id')
             ->join('batches', 'sales_products.batch_id', '=', 'batches.id')
             ->join('products', 'batches.product_id', '=', 'products.id')
             ->where('products.brand_id', $brandId)
             ->whereBetween('sales.sales_date', [$startDateTime, $endDateTime])
+            ->where('sales.status', 'final')
+            ->where(function($q) {
+                $q->where('sales.transaction_type', 'invoice')
+                  ->orWhereNull('sales.transaction_type');
+            })
             ->when(!empty($filters['location_ids']), function ($query) use ($filters) {
                 return $query->whereIn('sales.location_id', $filters['location_ids']);
             })
@@ -949,13 +985,25 @@ class ProfitLossService
         $startDateTime = $filters['start_date'] . ' 00:00:00';
         $endDateTime = $filters['end_date'] . ' 23:59:59';
 
-        // Start with location-scoped query
-        $query = Sale::whereBetween('sales_date', [$startDateTime, $endDateTime]);
+        // Start with location-scoped query - only include finalized sales
+        $query = Sale::whereBetween('sales_date', [$startDateTime, $endDateTime])
+            ->where('status', 'final')
+            ->where(function($q) {
+                // Include either invoice transactions or legacy sales without transaction_type
+                $q->where('transaction_type', 'invoice')
+                  ->orWhereNull('transaction_type');
+            });
 
         // Only Master Super Admin or users with bypass permission can override location scope
         if ($user && ($this->isMasterSuperAdmin($user) || $this->hasLocationBypassPermission($user))) {
             $query = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
-                ->whereBetween('sales_date', [$startDateTime, $endDateTime]);
+                ->whereBetween('sales_date', [$startDateTime, $endDateTime])
+                ->where('status', 'final')
+                ->where(function($q) {
+                    // Include either invoice transactions or legacy sales without transaction_type
+                    $q->where('transaction_type', 'invoice')
+                      ->orWhereNull('transaction_type');
+                });
 
             // Apply requested location filter if provided
             if (!empty($filters['location_ids'])) {
@@ -1025,7 +1073,13 @@ class ProfitLossService
                 $query->select(DB::raw(1))
                       ->from('sales as s2')
                       ->whereRaw('s2.id = sales.id')
-                      ->whereBetween('s2.sales_date', [$startDateTime, $endDateTime]);
+                      ->whereBetween('s2.sales_date', [$startDateTime, $endDateTime])
+                      ->where('s2.status', 'final')
+                      ->where(function($q) {
+                          // Include either invoice transactions or legacy sales without transaction_type
+                          $q->where('s2.transaction_type', 'invoice')
+                            ->orWhereNull('s2.transaction_type');
+                      });
             });
 
         if (!empty($filters['location_ids'])) {
