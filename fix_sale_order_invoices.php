@@ -84,7 +84,7 @@ try {
         if ($specificSaleId) {
             echo "❌ Sale ID {$specificSaleId} not found or doesn't need fixing.\n";
             echo "Checking if record exists...\n\n";
-            
+
             // Also use withoutGlobalScopes for diagnostic check
             $sale = Sale::withoutGlobalScopes()->find($specificSaleId);
             if ($sale) {
@@ -97,7 +97,7 @@ try {
                 echo "  - Customer ID: {$sale->customer_id}\n";
                 echo "  - Location ID: {$sale->location_id}\n";
                 echo "\n";
-                
+
                 if ($sale->invoice_no && $sale->invoice_no !== '' && $sale->invoice_no !== 'NULL') {
                     echo "✅ This sale already has an invoice number: {$sale->invoice_no}\n";
                 } elseif ($sale->status !== 'final') {
@@ -127,7 +127,7 @@ try {
     foreach ($problematicSales as $sale) {
         echo "Processing Sale ID: {$sale->id}\n";
         echo "  - Order Number: " . ($sale->order_number ?: 'N/A') . "\n";
-        
+
         // Load customer without global scopes
         $customer = \App\Models\Customer::withoutGlobalScopes()->find($sale->customer_id);
         if ($customer) {
@@ -135,7 +135,7 @@ try {
         } else {
             echo "  - Customer: ID {$sale->customer_id} (not found)\n";
         }
-        
+
         echo "  - Transaction Type: {$sale->transaction_type}\n";
         echo "  - Final Total: Rs {$sale->final_total}\n";
         echo "  - Payments: {$sale->payments->count()} payment(s)\n";
@@ -145,7 +145,7 @@ try {
             // Dry run - just show what would be done
             $proposedInvoiceNo = "INV-PREVIEW-" . $sale->id;
             echo "  [DRY RUN] Would generate invoice number\n";
-            
+
             // Only update transaction_type if it's still sale_order
             if ($sale->transaction_type === 'sale_order') {
                 echo "  [DRY RUN] Would update: transaction_type => 'invoice', order_status => 'completed'\n";
@@ -189,11 +189,11 @@ try {
                     ->where('invoice_no', 'NOT LIKE', 'J/%')
                     ->orderBy('id', 'DESC')
                     ->first();
-                
+
                 if ($latestInvoice) {
                     echo "  ℹ️  Latest invoice for this location: {$latestInvoice->invoice_no} (Sale ID: {$latestInvoice->id})\n";
                 }
-                
+
                 // Generate invoice number
                 $invoiceNo = Sale::generateInvoiceNo($sale->location_id);
 
