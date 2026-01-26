@@ -60,7 +60,9 @@ try {
     // Find problematic records - records that need invoice numbers
     // Case 1: transaction_type = 'sale_order' AND status = 'final' AND invoice_no is NULL
     // Case 2: transaction_type = 'invoice' AND invoice_no is NULL (already converted but invoice number missing)
-    $query = Sale::where('status', 'final')
+    // ⚠️ CRITICAL: Use withoutGlobalScopes() to bypass location/route filters
+    $query = Sale::withoutGlobalScopes()
+        ->where('status', 'final')
         ->where(function($q) {
             $q->whereNull('invoice_no')
               ->orWhere('invoice_no', '')
@@ -83,7 +85,8 @@ try {
             echo "❌ Sale ID {$specificSaleId} not found or doesn't need fixing.\n";
             echo "Checking if record exists...\n\n";
             
-            $sale = Sale::find($specificSaleId);
+            // Also use withoutGlobalScopes for diagnostic check
+            $sale = Sale::withoutGlobalScopes()->find($specificSaleId);
             if ($sale) {
                 echo "Record found:\n";
                 echo "  - ID: {$sale->id}\n";
