@@ -177,6 +177,7 @@ try {
         }
 
         try {
+            // Generate and save invoice number ONLY (no ledger operations)
             DB::transaction(function () use ($sale) {
                 // Generate invoice number
                 $invoiceNo = Sale::generateInvoiceNo($sale->location_id);
@@ -198,37 +199,20 @@ try {
                 // Update the sale record
                 $sale->update($updateData);
 
-                echo "  ✅ Updated sale record\n";
-
-                // Create ledger entry if customer is not Walk-In (ID != 1)
-                if ($sale->customer_id != 1) {
-                    $unifiedLedgerService = app(UnifiedLedgerService::class);
-
-                    // Check if ledger entry already exists
-                    $existingLedger = DB::table('ledgers')
-                        ->where('customer_id', $sale->customer_id)
-                        ->where('reference_id', $sale->id)
-                        ->where('type', 'sale')
-                        ->exists();
-
-                    if (!$existingLedger) {
-                        $unifiedLedgerService->recordNewSaleEntry($sale);
-                        echo "  ✅ Created ledger entry\n";
-                    } else {
-                        echo "  ℹ️  Ledger entry already exists\n";
-                    }
-                } else {
-                    echo "  ℹ️  Walk-In Customer - skipped ledger entry\n";
-                }
-
-                // Update payment reference_no to use invoice number
-                if ($sale->payments->isNotEmpty()) {
-                    foreach ($sale->payments as $payment) {
-                        $payment->update(['reference_no' => $invoiceNo]);
-                    }
-                    echo "  ✅ Updated {$sale->payments->count()} payment reference(s)\n";
-                }
+                echo "  ✅ Updated sale record with invoice number\n";
             });
+
+            // SKIP ledger creation - ledger already exists
+            echo "  ℹ️  Skipped ledger creation (ledger already exists in database)\n";
+
+            // Update payment references if any
+            if ($sale->payments->isNotEmpty()) {
+                $sale->refresh(); // Get latest invoice_no
+                foreach ($sale->payments as $payment) {
+                    $payment->update(['reference_no' => $sale->invoice_no]);
+                }
+                echo "  ✅ Updated {$sale->payments->count()} payment reference(s)\n";
+            }
 
             echo "  ✅ Successfully fixed Sale ID: {$sale->id}\n\n";
             $fixed++;
