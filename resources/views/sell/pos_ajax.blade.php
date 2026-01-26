@@ -9007,14 +9007,14 @@
                     shipping_charges: shippingCharges,
                     // 🔧 FIX: When editing a sale_order and creating a final sale (credit/cash/etc),
                     // convert transaction_type to 'invoice' to ensure invoice is created
-                    transaction_type: (isEditing && window.originalSaleData?.transaction_type === 'sale_order' && status === 'final') 
-                        ? 'invoice' 
+                    transaction_type: (isEditing && window.originalSaleData?.transaction_type === 'sale_order' && status === 'final')
+                        ? 'invoice'
                         : (window.originalSaleData?.transaction_type || undefined),
                 };
 
                 // Debug: Log sale notes value
                 console.log('Sale Notes captured:', saleData.sale_notes);
-                
+
                 // 🔧 Debug: Log transaction type conversion for sale orders
                 if (isEditing && window.originalSaleData?.transaction_type === 'sale_order') {
                     console.log('🔄 Sale Order Edit Detected:', {
