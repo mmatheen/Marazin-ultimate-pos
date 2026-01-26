@@ -179,6 +179,21 @@ try {
         try {
             // Generate and save invoice number ONLY (no ledger operations)
             DB::transaction(function () use ($sale) {
+                // Check latest invoice number for this location
+                $latestInvoice = Sale::withoutGlobalScopes()
+                    ->where('location_id', $sale->location_id)
+                    ->whereNotNull('invoice_no')
+                    ->where('invoice_no', '!=', '')
+                    ->where('invoice_no', 'NOT LIKE', 'D/%')
+                    ->where('invoice_no', 'NOT LIKE', 'Q/%')
+                    ->where('invoice_no', 'NOT LIKE', 'J/%')
+                    ->orderBy('id', 'DESC')
+                    ->first();
+                
+                if ($latestInvoice) {
+                    echo "  ℹ️  Latest invoice for this location: {$latestInvoice->invoice_no} (Sale ID: {$latestInvoice->id})\n";
+                }
+                
                 // Generate invoice number
                 $invoiceNo = Sale::generateInvoiceNo($sale->location_id);
 
