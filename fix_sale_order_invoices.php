@@ -57,10 +57,12 @@ if (!$dryRun && !$force) {
 }
 
 try {
-    // Find problematic records
-    $query = Sale::where('transaction_type', 'sale_order')
-        ->where('status', 'final')
+    // Find problematic records - records that need invoice numbers
+    // Case 1: transaction_type = 'sale_order' AND status = 'final' AND invoice_no is NULL
+    // Case 2: transaction_type = 'invoice' AND invoice_no is NULL (already converted but invoice number missing)
+    $query = Sale::where('status', 'final')
         ->whereNull('invoice_no')
+        ->whereIn('transaction_type', ['sale_order', 'invoice'])
         ->with(['customer', 'location', 'payments']);
 
     // Filter by specific sale ID if provided
@@ -71,11 +73,37 @@ try {
     $problematicSales = $query->get();
 
     if ($problematicSales->isEmpty()) {
-        echo "✅ No problematic records found. All sale orders are properly configured.\n";
+        if ($specificSaleId) {
+            echo "❌ Sale ID {$specificSaleId} not found or doesn't need fixing.\n";
+            echo "Checking if record exists...\n\n";
+            
+            $sale = Sale::find($specificSaleId);
+            if ($sale) {
+                echo "Record found:\n";
+                echo "  - ID: {$sale->id}\n";
+                echo "  - Transaction Type: {$sale->transaction_type}\n";
+                echo "  - Status: {$sale->status}\n";
+                echo "  - Invoice No: " . ($sale->invoice_no ?: 'NULL') . "\n";
+                echo "  - Customer ID: {$sale->customer_id}\n";
+                echo "\n";
+                
+                if ($sale->invoice_no) {
+                    echo "✅ This sale already has an invoice number: {$sale->invoice_no}\n";
+                } elseif ($sale->status !== 'final') {
+                    echo "⚠️  This sale status is '{$sale->status}' (not 'final'). Only final sales need invoices.\n";
+                } else {
+                    echo "⚠️  This record matches criteria but query didn't find it. Check transaction_type.\n";
+                }
+            } else {
+                echo "❌ Sale ID {$specificSaleId} does not exist in database.\n";
+            }
+        } else {
+            echo "✅ No problematic records found. All sales are properly configured.\n";
+        }
         exit(0);
     }
 
-    echo "Found {$problematicSales->count()} sale orders that need correction:\n\n";
+    echo "Found {$problematicSales->count()} sale(s) that need correction:\n\n";
 
     $fixed = 0;
     $failed = 0;
@@ -85,6 +113,7 @@ try {
         echo "Processing Sale ID: {$sale->id}\n";
         echo "  - Order Number: {$sale->order_number}\n";
         echo "  - Customer: {$sale->customer->first_name} {$sale->customer->last_name} (ID: {$sale->customer_id})\n";
+        echo "  - Transaction Type: {$sale->transaction_type}\n";
         echo "  - Final Total: Rs {$sale->final_total}\n";
         echo "  - Payments: {$sale->payments->count()} payment(s)\n";
         echo "  - Created: {$sale->created_at->format('Y-m-d H:i:s')}\n";
@@ -93,7 +122,13 @@ try {
             // Dry run - just show what would be done
             $proposedInvoiceNo = "INV-PREVIEW-" . $sale->id;
             echo "  [DRY RUN] Would generate invoice number\n";
-            echo "  [DRY RUN] Would update: transaction_type => 'invoice', order_status => 'completed'\n";
+            
+            // Only update transaction_type if it's still sale_order
+            if ($sale->transaction_type === 'sale_order') {
+                echo "  [DRY RUN] Would update: transaction_type => 'invoice', order_status => 'completed'\n";
+            } else {
+                echo "  [DRY RUN] Would update: invoice_no (transaction_type already 'invoice')\n";
+            }
 
             if ($sale->customer_id != 1) {
                 $existingLedger = DB::table('ledgers')
@@ -123,14 +158,22 @@ try {
                 // Generate invoice number
                 $invoiceNo = Sale::generateInvoiceNo($sale->location_id);
 
-                echo "  - Generated Invoice No: {$invoiceNo}\n";
+                echo "  ✅ Generated Invoice No: {$invoiceNo}\n";
+
+                // Prepare update data
+                $updateData = [
+                    'invoice_no' => $invoiceNo,
+                ];
+
+                // Only update transaction_type if it's still sale_order
+                if ($sale->transaction_type === 'sale_order') {
+                    $updateData['transaction_type'] = 'invoice';
+                    $updateData['order_status'] = 'completed';
+                    echo "  ✅ Converting sale_order to invoice\n";
+                }
 
                 // Update the sale record
-                $sale->update([
-                    'transaction_type' => 'invoice',
-                    'invoice_no' => $invoiceNo,
-                    'order_status' => 'completed',
-                ]);
+                $sale->update($updateData);
 
                 echo "  ✅ Updated sale record\n";
 
