@@ -8689,7 +8689,9 @@
                             final_total: saleDetails.sale.final_total,
                             total_due: saleDetails.sale.total_due,
                             customer_id: saleDetails.sale.customer_id,
-                            invoice_no: saleDetails.sale.invoice_no
+                            invoice_no: saleDetails.sale.invoice_no,
+                            transaction_type: saleDetails.sale.transaction_type, // 🔧 Store transaction_type for sale order conversion
+                            order_number: saleDetails.sale.order_number // 🔧 Store order_number to preserve it
                         };
 
                         // 🔒 Check if this is a finalized sale (has invoice number)
@@ -9003,10 +9005,25 @@
                     final_total: finalAmount,
                     // Include shipping information in saleData
                     shipping_charges: shippingCharges,
+                    // 🔧 FIX: When editing a sale_order and creating a final sale (credit/cash/etc),
+                    // convert transaction_type to 'invoice' to ensure invoice is created
+                    transaction_type: (isEditing && window.originalSaleData?.transaction_type === 'sale_order' && status === 'final') 
+                        ? 'invoice' 
+                        : (window.originalSaleData?.transaction_type || undefined),
                 };
 
                 // Debug: Log sale notes value
                 console.log('Sale Notes captured:', saleData.sale_notes);
+                
+                // 🔧 Debug: Log transaction type conversion for sale orders
+                if (isEditing && window.originalSaleData?.transaction_type === 'sale_order') {
+                    console.log('🔄 Sale Order Edit Detected:', {
+                        original_transaction_type: window.originalSaleData.transaction_type,
+                        new_status: status,
+                        converted_transaction_type: saleData.transaction_type,
+                        conversion_applied: status === 'final'
+                    });
+                }
 
                 const productRows = $('#billing-body tr');
                 if (productRows.length === 0) {

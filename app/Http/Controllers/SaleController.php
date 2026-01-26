@@ -1098,6 +1098,23 @@ class SaleController extends Controller
                     $invoiceNo = null; // No invoice for sale order
                 } elseif (
                     $isUpdate &&
+                    $sale->transaction_type === 'sale_order' &&
+                    $transactionType === 'invoice' &&
+                    $newStatus === 'final'
+                ) {
+                    // 🔧 FIX: Converting sale_order to invoice (credit sale after editing sale order)
+                    // Keep the order number, but generate new invoice number
+                    $orderNumber = $sale->order_number;
+                    $orderStatus = 'completed'; // Mark order as completed when converted to invoice
+                    $invoiceNo = Sale::generateInvoiceNo($request->location_id);
+                    Log::info('🔄 Converting Sale Order to Invoice', [
+                        'sale_id' => $sale->id,
+                        'order_number' => $orderNumber,
+                        'new_invoice_no' => $invoiceNo,
+                        'status' => $newStatus
+                    ]);
+                } elseif (
+                    $isUpdate &&
                     $oldStatus === 'jobticket' &&
                     in_array($newStatus, ['final', 'suspend'])
                 ) {
@@ -1343,9 +1360,30 @@ class SaleController extends Controller
                     in_array($oldStatus, ['draft', 'quotation']) &&
                     in_array($newStatus, ['final', 'suspend']);
 
+                // 🔧 FIX: Check for sale_order to invoice conversion
+                $isSaleOrderToInvoiceConversion = $isUpdate &&
+                    $sale->getOriginal('transaction_type') === 'sale_order' &&
+                    $transactionType === 'invoice' &&
+                    $newStatus === 'final';
+
                 if ($isUpdate && $request->customer_id != 1 && $transactionType !== 'sale_order' && !in_array($newStatus, ['draft', 'quotation'])) {
+                    // 🆕 SALE ORDER CONVERSION: If converting from sale_order to invoice, create ledger entry
+                    if ($isSaleOrderToInvoiceConversion) {
+                        Log::info('🔄 Sale Order to Invoice conversion detected', [
+                            'sale_id' => $sale->id,
+                            'order_number' => $sale->order_number,
+                            'invoice_no' => $sale->invoice_no,
+                            'old_transaction_type' => 'sale_order',
+                            'new_transaction_type' => $transactionType,
+                            'customer_id' => $sale->customer_id,
+                            'final_total' => $sale->final_total
+                        ]);
+
+                        // Create new ledger entry (sale orders don't have ledger entries)
+                        $this->unifiedLedgerService->recordNewSaleEntry($sale);
+                    }
                     // 🆕 DRAFT CONVERSION: If converting from draft/quotation to final, force create ledger entry
-                    if ($isDraftToFinalConversion) {
+                    elseif ($isDraftToFinalConversion) {
                         Log::info('🔄 Draft/Quotation to Final conversion detected', [
                             'sale_id' => $sale->id,
                             'invoice_no' => $sale->invoice_no,
