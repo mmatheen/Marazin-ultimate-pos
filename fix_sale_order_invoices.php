@@ -61,7 +61,11 @@ try {
     // Case 1: transaction_type = 'sale_order' AND status = 'final' AND invoice_no is NULL
     // Case 2: transaction_type = 'invoice' AND invoice_no is NULL (already converted but invoice number missing)
     $query = Sale::where('status', 'final')
-        ->whereNull('invoice_no')
+        ->where(function($q) {
+            $q->whereNull('invoice_no')
+              ->orWhere('invoice_no', '')
+              ->orWhere('invoice_no', 'NULL');
+        })
         ->whereIn('transaction_type', ['sale_order', 'invoice'])
         ->with(['customer', 'location', 'payments']);
 
@@ -71,6 +75,8 @@ try {
     }
 
     $problematicSales = $query->get();
+
+    echo "DEBUG: Query executed. Found {$problematicSales->count()} records.\n";
 
     if ($problematicSales->isEmpty()) {
         if ($specificSaleId) {
@@ -83,16 +89,22 @@ try {
                 echo "  - ID: {$sale->id}\n";
                 echo "  - Transaction Type: {$sale->transaction_type}\n";
                 echo "  - Status: {$sale->status}\n";
-                echo "  - Invoice No: " . ($sale->invoice_no ?: 'NULL') . "\n";
+                echo "  - Invoice No: '" . ($sale->invoice_no ?: '') . "' (is null: " . (is_null($sale->invoice_no) ? 'YES' : 'NO') . ")\n";
+                echo "  - Invoice No (raw): " . var_export($sale->invoice_no, true) . "\n";
                 echo "  - Customer ID: {$sale->customer_id}\n";
+                echo "  - Location ID: {$sale->location_id}\n";
                 echo "\n";
                 
-                if ($sale->invoice_no) {
+                if ($sale->invoice_no && $sale->invoice_no !== '' && $sale->invoice_no !== 'NULL') {
                     echo "✅ This sale already has an invoice number: {$sale->invoice_no}\n";
                 } elseif ($sale->status !== 'final') {
                     echo "⚠️  This sale status is '{$sale->status}' (not 'final'). Only final sales need invoices.\n";
                 } else {
-                    echo "⚠️  This record matches criteria but query didn't find it. Check transaction_type.\n";
+                    echo "⚠️  Record matches criteria but query didn't find it.\n";
+                    echo "     Transaction type: {$sale->transaction_type}\n";
+                    echo "     Status: {$sale->status}\n";
+                    echo "     Invoice null check: " . (is_null($sale->invoice_no) ? 'NULL' : 'NOT NULL') . "\n";
+                    echo "     Invoice empty check: " . (empty($sale->invoice_no) ? 'EMPTY' : 'NOT EMPTY') . "\n";
                 }
             } else {
                 echo "❌ Sale ID {$specificSaleId} does not exist in database.\n";
