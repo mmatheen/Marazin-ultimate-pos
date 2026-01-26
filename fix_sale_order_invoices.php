@@ -126,8 +126,16 @@ try {
 
     foreach ($problematicSales as $sale) {
         echo "Processing Sale ID: {$sale->id}\n";
-        echo "  - Order Number: {$sale->order_number}\n";
-        echo "  - Customer: {$sale->customer->first_name} {$sale->customer->last_name} (ID: {$sale->customer_id})\n";
+        echo "  - Order Number: " . ($sale->order_number ?: 'N/A') . "\n";
+        
+        // Load customer without global scopes
+        $customer = \App\Models\Customer::withoutGlobalScopes()->find($sale->customer_id);
+        if ($customer) {
+            echo "  - Customer: {$customer->first_name} {$customer->last_name} (ID: {$sale->customer_id})\n";
+        } else {
+            echo "  - Customer: ID {$sale->customer_id} (not found)\n";
+        }
+        
         echo "  - Transaction Type: {$sale->transaction_type}\n";
         echo "  - Final Total: Rs {$sale->final_total}\n";
         echo "  - Payments: {$sale->payments->count()} payment(s)\n";
