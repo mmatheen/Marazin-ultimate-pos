@@ -67,18 +67,18 @@ class ReportController extends Controller
     private function getStockDataForDataTables($request)
     {
         // Build query for products with all necessary relationships
-        $query = Product::select('products.*') // Explicitly select all product columns
+        $query = Product::select('products.*')
             ->with([
-            'mainCategory',
-            'subCategory',
-            'brand',
-            'unit',
-            'batches' => function($q) {
-                $q->with(['locationBatches' => function($lb) {
-                    $lb->with('location')->where('qty', '>', 0);
-                }]);
-            }
-        ]);
+                'mainCategory',
+                'subCategory',
+                'brand',
+                'unit',
+                'batches' => function($q) {
+                    $q->with(['locationBatches' => function($lb) {
+                        $lb->with('location'); // Remove qty filter to include zero stock
+                    }]);
+                }
+            ]);
 
         // Apply filters
         if ($request->has('location_id') && $request->location_id != '' && $request->location_id != null) {
@@ -120,32 +120,30 @@ class ReportController extends Controller
                 foreach ($locationBatches as $locationBatch) {
                     $currentStock = floatval($locationBatch->qty ?? 0);
 
-                    if ($currentStock > 0) {
-                        $locationName = $locationBatch->location->name ?? 'Unknown Location';
-                        // Use ONLY batch prices, not product table prices
-                        $unitCost = floatval($batch->unit_cost ?? 0);
-                        $retailPrice = floatval($batch->retail_price ?? 0);
+                    // Show all stocks including zero
+                    $locationName = $locationBatch->location->name ?? 'Unknown Location';
+                    $unitCost = floatval($batch->unit_cost ?? 0);
+                    $retailPrice = floatval($batch->retail_price ?? 0);
 
-                        $stockByPurchasePrice = $currentStock * $unitCost;
-                        $stockBySalePrice = $currentStock * $retailPrice;
-                        $potentialProfit = $stockBySalePrice - $stockByPurchasePrice;
+                    $stockByPurchasePrice = $currentStock * $unitCost;
+                    $stockBySalePrice = $currentStock * $retailPrice;
+                    $potentialProfit = $stockBySalePrice - $stockByPurchasePrice;
 
-                        $stockData[] = [
-                            'sku' => $product->sku ?? 'N/A',
-                            'product_name' => $product->product_name ?? 'Unknown Product',
-                            'batch_no' => $batch->batch_no ?? 'N/A',
-                            'category' => optional($product->mainCategory)->mainCategoryName ?? 'N/A',
-                            'location' => $locationName,
-                            'unit_selling_price' => $retailPrice,
-                            'unit_cost' => $unitCost,
-                            'current_stock' => $currentStock,
-                            'stock_value_purchase' => $stockByPurchasePrice,
-                            'stock_value_sale' => $stockBySalePrice,
-                            'potential_profit' => $potentialProfit,
-                            'expiry_date' => $batch->expiry_date ? \Carbon\Carbon::parse($batch->expiry_date)->format('Y-m-d') : null,
-                            'product_id' => $product->id, // Add for debugging
-                        ];
-                    }
+                    $stockData[] = [
+                        'sku' => $product->sku ?? 'N/A',
+                        'product_name' => $product->product_name ?? 'Unknown Product',
+                        'batch_no' => $batch->batch_no ?? 'N/A',
+                        'category' => optional($product->mainCategory)->mainCategoryName ?? 'N/A',
+                        'location' => $locationName,
+                        'unit_selling_price' => $retailPrice,
+                        'unit_cost' => $unitCost,
+                        'current_stock' => $currentStock,
+                        'stock_value_purchase' => $stockByPurchasePrice,
+                        'stock_value_sale' => $stockBySalePrice,
+                        'potential_profit' => $potentialProfit,
+                        'expiry_date' => $batch->expiry_date ? \Carbon\Carbon::parse($batch->expiry_date)->format('Y-m-d') : null,
+                        'product_id' => $product->id,
+                    ];
                 }
             }
         }
@@ -158,7 +156,7 @@ class ReportController extends Controller
         $query = Product::with([
             'batches' => function($q) {
                 $q->with(['locationBatches' => function($lb) {
-                    $lb->where('qty', '>', 0);
+                    // Remove qty filter to include zero stock
                 }]);
             }
         ]);
@@ -202,15 +200,13 @@ class ReportController extends Controller
 
                 foreach ($locationBatches as $locationBatch) {
                     $currentStock = floatval($locationBatch->qty ?? 0);
-                    if ($currentStock > 0) {
-                        // Use ONLY batch prices, not product table prices
-                        $unitCost = floatval($batch->unit_cost ?? 0);
-                        $retailPrice = floatval($batch->retail_price ?? 0);
+                    // Include zero stock
+                    $unitCost = floatval($batch->unit_cost ?? 0);
+                    $retailPrice = floatval($batch->retail_price ?? 0);
 
-                        $totalStockByPurchasePrice += ($currentStock * $unitCost);
-                        $totalStockBySalePrice += ($currentStock * $retailPrice);
-                        $totalPotentialProfit += (($currentStock * $retailPrice) - ($currentStock * $unitCost));
-                    }
+                    $totalStockByPurchasePrice += ($currentStock * $unitCost);
+                    $totalStockBySalePrice += ($currentStock * $retailPrice);
+                    $totalPotentialProfit += (($currentStock * $retailPrice) - ($currentStock * $unitCost));
                 }
             }
         }
@@ -219,7 +215,6 @@ class ReportController extends Controller
             'total_stock_by_purchase_price' => $totalStockByPurchasePrice,
             'total_stock_by_sale_price' => $totalStockBySalePrice,
             'total_potential_profit' => $totalPotentialProfit,
-            // Profit Margin = (Profit / Sale Price) × 100 - Maximum 100%
             'profit_margin' => $totalStockBySalePrice > 0 ? (($totalPotentialProfit / $totalStockBySalePrice) * 100) : 0,
         ];
     }

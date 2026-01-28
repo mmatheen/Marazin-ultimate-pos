@@ -172,6 +172,7 @@ class Location extends Model
     const LAYOUT_80MM = '80mm';
     const LAYOUT_A4 = 'a4';
     const LAYOUT_DOT_MATRIX = 'dot_matrix';
+    const LAYOUT_DOT_MATRIX_FULL = 'dot_matrix_full';
 
     /**
      * Get the receipt view name based on layout
@@ -183,6 +184,8 @@ class Location extends Model
                 return 'sell.receipt_a4';
             case self::LAYOUT_DOT_MATRIX:
                 return 'sell.receipt_dot_matrix';
+            case self::LAYOUT_DOT_MATRIX_FULL:
+                return 'sell.receipt_dot_matrix_full';
             case self::LAYOUT_80MM:
             default:
                 return 'sell.receipt'; // Default 80mm thermal
@@ -197,7 +200,8 @@ class Location extends Model
         return [
             self::LAYOUT_80MM => '80mm Thermal Printer',
             self::LAYOUT_A4 => 'A4 Size Printer',
-            self::LAYOUT_DOT_MATRIX => 'Dot Matrix Printer'
+            self::LAYOUT_DOT_MATRIX => 'Dot Matrix Printer (Half - 5.5in)',
+            self::LAYOUT_DOT_MATRIX_FULL => 'Dot Matrix Printer (Full - 11in)'
         ];
     }
 

@@ -6,7 +6,7 @@
     <select class="form-control" id="invoice_layout_pos" name="invoice_layout_pos" required>
         <option value="">Select Receipt Layout</option>
         @foreach(\App\Models\Location::getLayoutOptions() as $key => $label)
-            <option value="{{ $key }}" 
+            <option value="{{ $key }}"
                 {{ (old('invoice_layout_pos') ?? (isset($location) ? $location->invoice_layout_pos : '')) == $key ? 'selected' : '' }}>
                 {{ $label }}
             </option>
@@ -15,7 +15,8 @@
     <small class="form-text text-muted">
         <strong>80mm Thermal:</strong> Standard thermal receipt printer (small format)<br>
         <strong>A4 Size:</strong> Standard A4 printer (detailed invoice)<br>
-        <strong>Dot Matrix:</strong> Old-style dot matrix printer (carbon copy compatible)
+        <strong>Dot Matrix Half:</strong> 8.0in x 5.5in paper (carbon copy compatible)<br>
+        <strong>Dot Matrix Full:</strong> 8.0in x 11in paper (carbon copy compatible)
     </small>
 </div>
 
@@ -61,12 +62,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const layoutSelect = document.getElementById('invoice_layout_pos');
     const previewItems = document.querySelectorAll('.preview-item');
     const previewDefault = document.getElementById('previewDefault');
-    
+
     layoutSelect.addEventListener('change', function() {
         // Hide all previews
         previewItems.forEach(item => item.style.display = 'none');
         previewDefault.style.display = 'block';
-        
+
         // Show selected preview
         const selectedLayout = this.value;
         if (selectedLayout) {
@@ -77,7 +78,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
-    
+
     // Trigger change event on page load to show current selection
     layoutSelect.dispatchEvent(new Event('change'));
 });

@@ -13,20 +13,19 @@
         }
 
         /* =========================
-       PRINT SETTINGS
+       PRINT SETTINGS - FULL SIZE
        ========================= */
         @media print {
             @page {
-                size: 8.0in 5.5in;
-                /* Actual printable width of dot matrix paper */
+                size: 8.0in 11.0in;
+                /* Full paper size for dot matrix */
                 margin: 0in;
-                /* Remove extra white borders */
             }
 
             html,
             body {
                 width: 8.0in;
-                height: 5.5in;
+                height: 11.0in;
                 background: white !important;
                 -webkit-print-color-adjust: exact;
                 color-adjust: exact;
@@ -39,8 +38,8 @@
 
             .invoice-page {
                 width: 8.0in;
-                margin: 0.2 auto;
-                padding: 0.5in 0.5in 0.05in 0.5in;
+                margin: 0.2in auto;
+                padding: 0.3in 0.2in 0.3in 0.2in;
                 background: white !important;
                 box-shadow: none;
                 page-break-inside: avoid;
@@ -67,11 +66,11 @@
 
         .invoice-page {
             max-width: 8.0in;
-            min-height: 5.5in;
+            min-height: 11.0in;
             margin: 0 auto;
             background-color: white;
             position: relative;
-            padding: 0.15in 0.15in 0.05in 0.15in;
+            padding: 0.3in 0.2in 0.3in 0.2in;
             display: flex;
             flex-direction: column;
         }
@@ -83,53 +82,53 @@
 
         .reg-no {
             position: absolute;
-            right: 0.05in;
-            top: 0.25in;
-            font-size: 10px;
+            right: 0.1in;
+            top: 0.3in;
+            font-size: 11px;
         }
 
         .header-section {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 0.12in;
-            margin-top: 0.06in;
+            margin-bottom: 0.15in;
+            margin-top: 0.08in;
             padding: 0;
         }
 
         .company-info {
             flex: 1;
-            padding-right: 0.12in;
+            padding-right: 0.15in;
         }
 
         .company-email {
-            font-size: 10px;
-            margin-bottom: 3px;
+            font-size: 11px;
+            margin-bottom: 4px;
             font-weight: normal;
         }
 
         .company-logo {
             font-family: Arial, 'Courier New', monospace;
-            font-size: 26px;
+            font-size: 30px;
             font-weight: bold;
-            letter-spacing: 1.5px;
-            margin-bottom: 4px;
-            text-transform: uppercase;            text-align: center;        }
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            text-align: center;
+        }
 
         .company-address {
-            font-size: 11px;
-            line-height: 1.35;
+            font-size: 12px;
+            line-height: 1.5;
         }
 
         .customer-box {
-            margin: 0.1in 0 0 0;
+            margin: 0;
             border: 2px dashed #333;
-            padding: 4px 8px;
-            width: 3.8in;
-            /* Reduced width */
+            padding: 6px 10px;
+            width: 4.3in;
             background-color: white;
-            border-radius: 10px;
-
+            border-radius: 8px;
         }
 
         .customer-name-bold {
@@ -141,22 +140,21 @@
         }
 
         .outstanding-highlight {
-            font-size: 12px;
+            font-size: 14px;
             font-weight: bold;
-            border-top: 1.5px solid #333;
-            padding-top: 6px;
-            margin-top: 6px;
+            border-top: 2px solid #333;
+            padding-top: 8px;
+            margin-top: 8px;
         }
 
         .customer-line {
             display: flex;
-            font-size: 11px;
-            margin: 2.5px 0;
+            font-size: 12px;
+            margin: 4px 0;
         }
 
         .customer-line label {
-            width: 0.8in;
-            /* Reduced width */
+            width: 1.0in;
         }
 
         .customer-line span {
@@ -171,26 +169,26 @@
 
         .delivered-badge {
             position: absolute;
-            right: 0.1in;
-            top: 1.45in;
+            right: 0.2in;
+            top: 1.6in;
             border: 2px solid #333;
-            padding: 3px 14px;
-            font-size: 10px;
+            padding: 5px 16px;
+            font-size: 11px;
             font-weight: bold;
             background-color: white;
         }
 
         .invoice-title {
             text-align: center;
-            font-size: 20px;
+            font-size: 24px;
             font-weight: bold;
-            margin: 0;
+            margin: 0.1in 0;
         }
 
         .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin: 0 0 0.2in 0;
+            margin: 0 0 0.3in 0;
         }
 
         .items-table thead {
@@ -198,18 +196,15 @@
         }
 
         .items-table th {
-            padding: 6px 4px;
-            /* Reduced padding */
+            padding: 8px 6px;
             font-size: 14px;
-            /* Increased font size by 2px */
             font-weight: bold;
-            border-bottom: 1px solid #666;
+            border-bottom: 2px solid #666;
         }
 
         .items-table th:first-child {
             text-align: center;
-            width: 0.3in;
-            /* Reduced width */
+            width: 0.4in;
         }
 
         .items-table th:nth-child(2) {
@@ -222,15 +217,12 @@
         .items-table th:nth-child(6),
         .items-table th:nth-child(7) {
             text-align: right;
-            width: 0.8in;
-            /* Reduced width */
+            width: 0.9in;
         }
 
         .items-table td {
-            padding: 4px;
-            /* Reduced padding */
+            padding: 6px;
             font-size: 12px;
-            /* Increased font size by 2px */
         }
 
         .items-table tbody tr {
@@ -239,7 +231,7 @@
 
         .items-table td:first-child {
             text-align: center;
-            width: 0.3in;
+            width: 0.4in;
         }
 
         .items-table td:nth-child(2) {
@@ -252,17 +244,14 @@
         .items-table td:nth-child(6),
         .items-table td:nth-child(7) {
             text-align: right;
-            width: 0.8in;
+            width: 0.9in;
         }
 
         .summary-section {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 0.1in;
-            /* Reduced gap */
-            margin-top: 0.22in;
-            font-size: 11px;
-            /* Reduced font size */
+            gap: 0.2in;
+            font-size: 12px;
             padding: 0;
             flex-grow: 1;
         }
@@ -275,52 +264,67 @@
         .summary-row {
             display: flex;
             justify-content: space-between;
-            padding: 2px 0;
-            /* Reduced padding */
-            line-height: 1.3;
+            padding: 3px 0;
+            line-height: 1.4;
         }
 
         .summary-row.bold {
             font-weight: bold;
-            font-size: 10px;
-            margin-top: 3px;
+            font-size: 11px;
+            margin-top: 4px;
         }
 
         .summary-row.total {
             font-weight: bold;
-            font-size: 11px;
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1.5px solid #666;
+            font-size: 12px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 2px solid #666;
         }
 
         .credit-box {
             border: 2px solid #333;
-            padding: 6px 4px;
-            margin: 8px 0 4px 0;
+            padding: 8px 6px;
+            margin: 10px 0 6px 0;
             background-color: white;
         }
 
         .outstanding-box {
             border: 1px dashed #000;
-            padding: 5px 6px;
-            margin-top: 6px;
+            padding: 6px 8px;
+            margin-top: 8px;
             background-color: white;
+        }
+
+        .sale-notes {
+            margin-top: 0.2in;
+            padding: 8px 10px;
+            border: 2px solid #333;
+            background-color: white;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .sale-notes-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 12px;
+            text-decoration: underline;
         }
 
         .footer-line {
             border-top: 1px solid #666;
             margin-top: auto;
-            padding: 0.12in 0 0 0;
+            padding: 0.5in 0 0 0;
             display: flex;
             justify-content: space-between;
-            font-size: 9px;
+            font-size: 10px;
         }
 
         .software-info {
             text-align: center;
-            font-size: 8.5px;
-            margin-top: 0.1in;
+            font-size: 9px;
+            margin-top: 0.15in;
         }
     </style>
 </head>
@@ -355,6 +359,10 @@
                     <span>: <strong class="customer-name-bold">{{ strtoupper($customer->first_name . ' ' . $customer->last_name) }}</strong></span>
                 </div>
                 <div class="customer-line">
+                    <label>Address</label>
+                    <span>: <strong class="customer-name-bold">{{ strtoupper($customer->address ?? 'N/A') }}</strong></span>
+                </div>
+                <div class="customer-line">
                     <label>Phone</label>
                     <span>: {{ $customer->mobile_no ?? 'N/A' }}</span>
                 </div>
@@ -364,25 +372,12 @@
                 </div>
                 <div class="customer-line">
                     <label>Invoice No</label>
-                    <span>: <strong class="invoice-no-bold">{{ $sale->invoice_no }}</strong>@if ($sale->total_due > 0)
-                            <span class="type-credit">Type: Credit</span>
-                        @endif
+                    <span>: <strong class="invoice-no-bold">{{ $sale->invoice_no }}</strong>
+
                     </span>
                 </div>
-                @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))
-                    @if (isset($customer_outstanding_balance) && $customer_outstanding_balance != 0)
-                        <div class="customer-line outstanding-highlight">
-                            <label>Prev. Outstanding</label>
-                            <span>: {{ number_format($customer_outstanding_balance - $sale->total_due, 2) }}</span>
-                        </div>
-                    @endif
-                @endif
             </div>
         </div>
-
-        @if ($sale->total_due <= 0)
-            {{-- <div class="delivered-badge">Delivered</div> --}}
-        @endif
 
         <div class="invoice-title">
             @if ($sale->status === 'quotation')
@@ -392,7 +387,7 @@
             @elseif (isset($sale->transaction_type) && $sale->transaction_type === 'sale_order')
                 SALE ORDER
             @else
-                INVOICE
+                INVOICE  - {{$sale->invoice_no}}
             @endif
         </div>
 
@@ -537,32 +532,26 @@
                     </div>
                     @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))
                         @if (isset($customer_outstanding_balance) && $customer_outstanding_balance > 0)
-                            @php
+                            {{-- @php
                                 // Calculate total unpaid return amount for this customer
                                 $unpaidReturnAmount = $sale->customer_id && $sale->customer_id != 1
                                     ? \App\Models\SalesReturn::where('customer_id', $sale->customer_id)
                                         ->where('total_due', '>', 0)
                                         ->sum('total_due')
                                     : 0;
-                            @endphp
+                            @endphp --}}
                             <div class="outstanding-box">
-                                <div class="summary-row" style="font-size: 10px; margin: 0 0 3px 0;">
+                                <div class="summary-row" style="font-size: 12px; margin: 0 0 3px 0;">
                                     <span>Previous Balance:</span>
                                     <span>{{ number_format($previous_outstanding, 2) }}</span>
                                 </div>
-                                @if ($unpaidReturnAmount > 0)
-                                    <div class="summary-row" style="font-size: 10px; margin: 0 0 3px 0;">
-                                        <span>Return:</span>
-                                        <span>{{ number_format($unpaidReturnAmount, 2) }}</span>
-                                    </div>
-                                @endif
                                 @if ($sale->total_due > 0)
-                                    <div class="summary-row" style="font-size: 10px; margin: 0 0 5px 0; padding-bottom: 4px; border-bottom: 1px solid #999;">
+                                    <div class="summary-row" style="font-size: 12px; margin: 0 0 6px 0; padding-bottom: 5px; border-bottom: 1px solid #999;">
                                         <span>*Current Credit:</span>
                                         <span>{{ number_format($sale->total_due, 2) }}</span>
                                     </div>
                                 @endif
-                                <div class="summary-row" style="font-size: 13px; font-weight: bold; letter-spacing: 0.3px; margin: 0;">
+                                <div class="summary-row" style="font-size: 15px; font-weight: bold; letter-spacing: 0.5px; margin: 0;">
                                     <span>TOTAL DUE:</span>
                                     <span>{{ number_format($customer_outstanding_balance, 2) }}</span>
                                 </div>
@@ -614,7 +603,7 @@
 
             {{-- Only show payment method for final sales, not for quotations, drafts, or sale orders --}}
             @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))
-                <div style="text-align: center; font-size: 11px; font-weight: bold;">
+                <div style="text-align: center; font-size: 12px; font-weight: bold; margin-top: 0.15in;">
                     Payment: @if ($sale->total_due > 0)
                         CREDIT
                     @elseif ($payments && $payments->count() > 0)
@@ -625,6 +614,13 @@
                 </div>
             @endif
 
+            {{-- Sale Notes Section --}}
+            @if (isset($sale->sale_notes) && $sale->sale_notes)
+                <div class="sale-notes">
+                    <div class="sale-notes-title">Notes:</div>
+                    <div>{{ $sale->sale_notes }}</div>
+                </div>
+            @endif
 
             <div class="footer-line">
                 <div>Prepared By: {{ strtoupper($user->user_name ?? ($user->name ?? 'CASHIER')) }}</div>

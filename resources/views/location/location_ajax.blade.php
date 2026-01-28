@@ -373,7 +373,8 @@
                             const layouts = {
                                 '80mm': '<span class="badge bg-warning text-dark border border-warning">80mm Thermal</span>',
                                 'a4': '<span class="badge bg-success">A4 Size</span>',
-                                'dot_matrix': '<span class="badge bg-secondary">Dot Matrix</span>'
+                                'dot_matrix': '<span class="badge bg-secondary">Dot Matrix (5.5in)</span>',
+                                'dot_matrix_full': '<span class="badge bg-info text-dark">Dot Matrix (11in)</span>'
                             };
                             return layouts[data] ||
                                 '<span class="badge bg-warning">Unknown</span>';

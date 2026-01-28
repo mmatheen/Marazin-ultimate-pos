@@ -157,7 +157,7 @@
 
                             </table>
 
-                            
+
                         </div>
                     </div>
                 </div>
@@ -447,13 +447,15 @@
                                                             <option value="">Select Receipt Layout</option>
                                                             <option value="80mm">80mm Thermal Printer</option>
                                                             <option value="a4">A4 Size Printer</option>
-                                                            <option value="dot_matrix">Dot Matrix Printer</option>
+                                                            <option value="dot_matrix">Dot Matrix Printer (Half - 5.5in)</option>
+                                                            <option value="dot_matrix_full">Dot Matrix Printer (Full - 11in)</option>
                                                         </select>
                                                         <span class="text-danger" id="invoice_layout_pos_error"></span>
                                                         <small class="text-muted mt-1">
                                                             <strong>80mm:</strong> Standard thermal receipt |
                                                             <strong>A4:</strong> Detailed invoice |
-                                                            <strong>Dot Matrix:</strong> Traditional format
+                                                            <strong>Dot Matrix Half:</strong> 8.0in x 5.5in |
+                                                            <strong>Dot Matrix Full:</strong> 8.0in x 11in
                                                         </small>
                                                     </div>
                                                 </div>

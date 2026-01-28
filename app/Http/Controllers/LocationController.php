@@ -186,7 +186,7 @@ class LocationController extends Controller
                     'in:Van,Truck,Bike,Car,Three Wheeler,Lorry,Other'
                 ],
                 'logo_image' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:2048',
-                'invoice_layout_pos' => 'required|string|in:80mm,a4,dot_matrix',
+                'invoice_layout_pos' => 'required|string|in:80mm,a4,dot_matrix,dot_matrix_full',
             ];
         } else {
             // For main locations - all contact and address details are required
@@ -198,7 +198,7 @@ class LocationController extends Controller
                 'email' => 'nullable|email|max:255|unique:locations,email',
                 'mobile' => ['nullable', 'regex:/^(0?\d{9,10})$/'],
                 'logo_image' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:2048',
-                'invoice_layout_pos' => 'required|string|in:80mm,a4,dot_matrix',
+                'invoice_layout_pos' => 'required|string|in:80mm,a4,dot_matrix,dot_matrix_full',
                 // Ensure no vehicle details for main locations
                 'vehicle_number' => [
                     'nullable',
@@ -446,7 +446,7 @@ class LocationController extends Controller
                         'in:Van,Truck,Bike,Car,Three Wheeler,Lorry,Other'
                     ],
                     'logo_image' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:2048',
-                    'invoice_layout_pos' => 'required|string|in:80mm,a4,dot_matrix',
+                    'invoice_layout_pos' => 'required|string|in:80mm,a4,dot_matrix,dot_matrix_full',
                 ];
             } else {
                 // For main locations - all contact and address details are required
@@ -482,7 +482,7 @@ class LocationController extends Controller
                     ],
                     'mobile' => ['nullable', 'regex:/^(0?\d{9,10})$/'],
                     'logo_image' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:2048',
-                    'invoice_layout_pos' => 'required|string|in:80mm,a4,dot_matrix',
+                    'invoice_layout_pos' => 'required|string|in:80mm,a4,dot_matrix,dot_matrix_full',
                     // Ensure no vehicle details for main locations
                     'vehicle_number' => [
                         'nullable',
