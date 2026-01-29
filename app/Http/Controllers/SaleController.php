@@ -206,7 +206,10 @@ class SaleController extends Controller
         // 0 = FLEXIBLE mode (free editing - all users can edit regardless of permissions)
         $priceValidationEnabled = (int)(\App\Models\Setting::value('enable_price_validation') ?? 1);
 
-        return view('sell.pos', compact('allowedPriceTypes', 'canEditUnitPrice', 'canEditDiscount', 'priceValidationEnabled'));
+        // Pass feature flag to view
+        $useModularPOS = env('USE_MODULAR_POS', false); // Default to false (old system) for safety
+
+        return view('sell.pos', compact('allowedPriceTypes', 'canEditUnitPrice', 'canEditDiscount', 'priceValidationEnabled', 'useModularPOS'));
     }
 
     public function draft()

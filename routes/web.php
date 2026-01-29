@@ -343,6 +343,7 @@ Route::middleware(['auth'])->group(function () {
         // -------------------- SaleController Routes --------------------
         Route::get('/list-sale', [SaleController::class, 'listSale'])->name('list-sale');
         Route::get('/pos-create', [SaleController::class, 'pos'])->name('pos-create');
+        Route::get('/pos-check', function() { return view('pos-check'); })->name('pos-check'); // System check page
         Route::get('/pos-list', [SaleController::class, 'posList'])->name('pos-list');
         Route::get('/draft-list', [SaleController::class, 'draft'])->name('draft-list');
         Route::get('/quotation-list', [SaleController::class, 'quotation'])->name('quotation-list');
