@@ -7302,6 +7302,16 @@
                     const updatedSubtotal = newQuantity * finalPrice;
                     subtotalElement.textContent = formatAmountWithSeparators(updatedSubtotal.toFixed(2));
 
+                    // Move the updated row to the top of the billing body for better visibility
+                    billingBody.insertBefore(existingRow, billingBody.firstChild);
+
+                    // Add a subtle highlight effect to show the row was updated
+                    existingRow.style.transition = 'background-color 0.3s ease';
+                    existingRow.style.backgroundColor = '#fff3cd'; // Light yellow highlight
+                    setTimeout(() => {
+                        existingRow.style.backgroundColor = '';
+                    }, 800);
+
                     updateTotals();
                     return;
                 }
