@@ -489,7 +489,8 @@
 
         // Populate dropdowns with data
         populateDropdown('#edit_main_category_id', mainCategories, 'mainCategoryName');
-        populateDropdown('#edit_sub_category_id', subCategories, 'subCategoryname');
+        // Don't populate all subcategories - let them be populated based on main category selection
+        $('#edit_sub_category_id').empty().append('<option value="">Select Sub Category</option>');
         populateDropdown('#edit_brand_id', brands, 'name');
         populateDropdown('#edit_unit_id', units, 'name');
 
@@ -539,7 +540,7 @@
         setTimeout(function() {
             validateFormAndUpdateButtons();
             if (callback) callback();
-        }, 300);
+        }, 350);
     }
 
     // New function to handle location filter dropdown with "All Location" option
@@ -568,9 +569,12 @@
 
     function populateSubCategories(selectedMainCategoryId) {
         const subCategorySelect = $('#edit_sub_category_id').empty();
-        subCategorySelect.append('<option selected disabled>Sub Category</option>');
+        subCategorySelect.append('<option value="">Select Sub Category</option>');
 
-        subCategories
+        // Use window.subCategories or fallback to local variable
+        const subCategoriesData = window.subCategories || subCategories || [];
+        
+        subCategoriesData
             .filter(subCategory => subCategory.main_category_id == selectedMainCategoryId)
             .forEach(subCategory => {
                 subCategorySelect.append(new Option(subCategory.subCategoryname, subCategory.id));
@@ -611,17 +615,29 @@
         // Populate initial dropdowns with callback to set selected values
         populateInitialDropdowns(mainCategories, subCategories, brands, units, locations, false,
             function() {
-                $('#edit_main_category_id').val(product.main_category_id).trigger('change');
-
+                // Wait for Select2 to be fully initialized before setting values
                 setTimeout(() => {
+                    // Set main category value
+                    $('#edit_main_category_id').val(product.main_category_id);
+                    
+                    // Trigger Select2 to update display
+                    $('#edit_main_category_id').trigger('change');
+                    
+                    // Manually populate subcategories for the selected main category
                     populateSubCategories(product.main_category_id);
-                    $('#edit_sub_category_id').val(product.sub_category_id).trigger('change');
-                }, 300);
+                    
+                    // Wait for subcategories to populate, then set the correct subcategory
+                    setTimeout(() => {
+                        $('#edit_sub_category_id').val(product.sub_category_id);
+                        $('#edit_sub_category_id').trigger('change');
+                    }, 200);
 
-                $('#edit_brand_id').val(product.brand_id).trigger('change');
-                $('#edit_unit_id').val(product.unit_id).trigger('change');
-                const locationIds = product.locations.map(location => location.id);
-                $('#edit_location_id').val(locationIds).trigger('change');
+                    // Set other fields
+                    $('#edit_brand_id').val(product.brand_id).trigger('change');
+                    $('#edit_unit_id').val(product.unit_id).trigger('change');
+                    const locationIds = product.locations.map(location => location.id);
+                    $('#edit_location_id').val(locationIds).trigger('change');
+                }, 400);
             });
     }
 
@@ -3790,10 +3806,8 @@
                             autoSelectSingle: response.message.auto_select_single_location
                         };
 
-                        // Store subcategories globally for compatibility
-                        if (typeof subCategories !== 'undefined') {
-                            subCategories = window.initialProductData.subCategories;
-                        }
+                        // Store subcategories in window object for global access
+                        window.subCategories = window.initialProductData.subCategories;
 
                         // Mark as loaded with timestamp
                         window.initialProductDataLoaded = true;
