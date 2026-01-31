@@ -573,7 +573,7 @@
 
         // Use window.subCategories or fallback to local variable
         const subCategoriesData = window.subCategories || subCategories || [];
-        
+
         subCategoriesData
             .filter(subCategory => subCategory.main_category_id == selectedMainCategoryId)
             .forEach(subCategory => {
@@ -619,13 +619,13 @@
                 setTimeout(() => {
                     // Set main category value
                     $('#edit_main_category_id').val(product.main_category_id);
-                    
+
                     // Trigger Select2 to update display
                     $('#edit_main_category_id').trigger('change');
-                    
+
                     // Manually populate subcategories for the selected main category
                     populateSubCategories(product.main_category_id);
-                    
+
                     // Wait for subcategories to populate, then set the correct subcategory
                     setTimeout(() => {
                         $('#edit_sub_category_id').val(product.sub_category_id);
