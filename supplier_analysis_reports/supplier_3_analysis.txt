@@ -1,0 +1,161 @@
+================================================================================
+DETAILED ANALYSIS - SUPPLIER ID 3
+================================================================================
+
+Supplier Name: GASCO GAS IMARN BOSS
+Mobile: 0714871809
+Analysis Date: 2026-01-31 06:19:02
+
+CURRENT STATUS:
+  Ledger Balance: 340,740.00
+  Expected Due:   388,020.00
+  Difference:     47,280.00 ✗
+
+--------------------------------------------------------------------------------
+SECTION 1: ALL PURCHASES
+--------------------------------------------------------------------------------
+
+Total Purchases: 17
+
+ID     Ref No       Date                Total         Paid          Due Status    
+--------------------------------------------------------------------------------
+10     PUR010       2025-11-12      11,700.00    11,700.00         0.00 Paid      
+11     PUR011       2025-11-12       6,600.00     6,600.00         0.00 Paid      
+12     PUR012       2025-11-12       7,500.00     7,500.00         0.00 Paid      
+13     PUR013       2025-11-12       8,100.00     8,100.00         0.00 Paid      
+16     PUR016       2025-11-15      38,500.00    38,500.00         0.00 Paid      
+42     PUR018       2025-11-22     213,300.00   213,300.00         0.00 Paid      
+44     PUR020       2025-11-25       5,500.00     5,500.00         0.00 Paid      
+46     PUR022       2025-12-11      73,000.00    73,000.00         0.00 Paid      
+80     PUR056       2026-01-06      48,500.00         0.00    48,500.00 Due       
+81     PUR057       2026-01-07      82,500.00         0.00    82,500.00 Due       
+82     PUR058       2026-01-10     147,000.00         0.00   147,000.00 Due       
+83     PUR059       2026-01-10       5,520.00         0.00     5,520.00 Due       
+84     PUR060       2026-01-10      18,000.00         0.00    18,000.00 Due       
+85     PUR061       2026-01-10      13,500.00         0.00    13,500.00 Due       
+86     PUR062       2026-01-10       8,100.00     8,100.00         0.00 Paid      
+87     PUR063       2026-01-10      61,000.00         0.00    61,000.00 Due       
+94     PUR070       2026-01-18      12,000.00         0.00    12,000.00 Due       
+--------------------------------------------------------------------------------
+TOTALS:                          760,320.00   372,300.00   388,020.00
+
+
+SECTION 2: ALL LEDGER ENTRIES
+--------------------------------------------------------------------------------
+
+Total Ledger Entries: 62
+
+ID     Ref No       Date         Type                     Credit        Debit Status    
+--------------------------------------------------------------------------------
+26     OB-SUPPLIER-3 2025-11-09   opening_balance      236,420.00         0.00 active    
+35     OB-ADJ-SUPPLIER-3-1762698519 2025-11-09   opening_balance            0.00   472,840.00 active    
+36     OB-ADJ-SUPPLIER-3-1762698833 2025-11-09   opening_balance      155,240.00         0.00 active    
+199    OPENING-3    2025-11-11   opening_balance            0.00     9,500.00 active    
+201    OB-PAYMENT-3-1762864676 2025-11-11   payment                9,500.00         0.00 active    
+82     PUR010       2025-11-12   purchase              11,700.00         0.00 active    
+83     PUR010       2025-11-12   payments                   0.00    11,700.00 active    
+84     PUR011       2025-11-12   purchase               6,600.00         0.00 active    
+85     PUR011       2025-11-12   payments                   0.00     6,600.00 active    
+86     PUR012       2025-11-12   purchase               7,500.00         0.00 active    
+87     PUR012       2025-11-12   payments                   0.00     7,500.00 active    
+88     PUR013       2025-11-12   purchase               8,100.00         0.00 active    
+89     PUR013       2025-11-12   payments                   0.00     8,100.00 active    
+90     OB-ADJ-SUPPLIER-3-1762945475 2025-11-12   opening_balance      128,460.00         0.00 active    
+111    OB-ADJ-SUPPLIER-3-1763036033 2025-11-13   opening_balance            0.00    94,560.00 active    
+200    CSX-154      2025-11-13   sale                       0.00    74,375.00 active    
+202    SALE-20251113 2025-11-13   payment               15,200.00         0.00 active    
+132    PUR016       2025-11-15   purchase              42,000.00         0.00 reversed  
+133    PUR016       2025-11-15   purchase              38,500.00         0.00 active    
+246    OB-PAYMENT-3-1763526324 2025-11-19   payments               9,500.00         0.00 active    
+247    CSX-154      2025-11-19   payments              40,500.00         0.00 active    
+309    PUR018       2025-11-22   purchase             213,300.00         0.00 active    
+320    PUR020       2025-11-25   purchase               5,500.00         0.00 active    
+358    PUR016       2025-11-27   payments                   0.00    38,500.00 active    
+359    PUR018       2025-11-27   payments                   0.00    11,000.00 active    
+360    PUR018       2025-11-27   payments                   0.00    93,180.00 active    
+381    CSX-482      2025-12-08   sale                       0.00    62,825.00 active    
+1688   PUR022       2025-12-11   payments                   0.00    73,000.00 active    
+912    PUR022       2025-12-11   purchase              73,000.00         0.00 active    
+942    CSX-624      2025-12-13   sale                       0.00    50,600.00 active    
+955    CSX-482      2025-12-14   payments              62,825.00         0.00 active    
+956    CSX-624      2025-12-14   payments              37,175.00         0.00 active    
+1151   CSX-966      2025-12-23   sale                       0.00    49,450.00 active    
+1152   CSX-967      2025-12-23   sale                       0.00       900.00 active    
+1223   OB-PAYMENT-3-1767093673 2025-12-30   opening_balance_payment     9,500.00         0.00 active    
+1224   CSX-624      2025-12-30   payments              13,425.00         0.00 active    
+1225   CSX-966      2025-12-30   payments              49,450.00         0.00 active    
+1226   CSX-967      2025-12-30   payments                 575.00         0.00 active    
+1285   CSX-1289     2026-01-05   sale                       0.00     2,100.00 active    
+1286   CSX-1289     2026-01-05   payments               2,100.00         0.00 active    
+1302   PUR056       2026-01-06   purchase              48,500.00         0.00 active    
+1325   PUR020       2026-01-07   payments                   0.00     5,500.00 active    
+1326   BLK-P0005    2026-01-07   payments                   0.00   109,120.00 active    
+1333   PUR057       2026-01-07   purchase              82,500.00         0.00 active    
+1369   PUR058       2026-01-10   purchase             147,000.00         0.00 active    
+1374   CSX-1412     2026-01-10   sale                       0.00    46,780.00 active    
+1375   PUR059       2026-01-10   purchase               5,520.00         0.00 active    
+1380   PUR060       2026-01-10   purchase              18,000.00         0.00 active    
+1382   PUR061       2026-01-10   purchase              13,500.00         0.00 active    
+1384   PUR062       2026-01-10   purchase               8,100.00         0.00 active    
+1385   PUR062       2026-01-10   payments                   0.00     8,100.00 active    
+1386   PUR063       2026-01-10   purchase              61,000.00         0.00 active    
+1447   CSX-1512     2026-01-13   sale                       0.00    82,550.00 active    
+1508   CSX-1580     2026-01-17   sale                       0.00    39,000.00 active    
+1518   PUR070       2026-01-18   purchase              12,000.00         0.00 active    
+1589   BLK-S0002    2026-01-21   payments              46,780.00         0.00 active    
+1590   BLK-S0002    2026-01-21   payments              82,550.00         0.00 active    
+1591   BLK-S0002    2026-01-21   payments              39,000.00         0.00 active    
+1593   CSX-1732     2026-01-21   sale                       0.00    22,000.00 active    
+1594   CSX-1732     2026-01-21   payments              22,000.00         0.00 active    
+1606   CSX-1764     2026-01-24   sale                       0.00     7,500.00 active    
+1607   CSX-1764     2026-01-24   payments               7,500.00         0.00 active    
+--------------------------------------------------------------------------------
+ACTIVE TOTALS:                                   1,728,020.00 1,387,280.00
+BALANCE (Credit - Debit):                          340,740.00
+
+
+SECTION 3: ALL PAYMENTS
+--------------------------------------------------------------------------------
+
+Total Payments: 11
+
+ID     Ref No       Date               Amount Method          Status    
+--------------------------------------------------------------------------------
+129    PUR010       2025-11-12      11,700.00 cash            active    
+130    PUR011       2025-11-12       6,600.00 cash            active    
+131    PUR012       2025-11-12       7,500.00 cash            active    
+132    PUR013       2025-11-12       8,100.00 cash            active    
+464    PUR016       2025-11-27      38,500.00 cash            active    
+465    PUR018       2025-11-27      11,000.00 cash            active    
+466    PUR018       2025-11-27      93,180.00 cash            active    
+674    PUR022       2025-12-11      73,000.00 cash            active    
+1473   PUR020       2026-01-07       5,500.00 cash            active    
+1474   BLK-P0005    2026-01-07     109,120.00 cash            active    
+1573   PUR062       2026-01-10       8,100.00 cash            active    
+--------------------------------------------------------------------------------
+ACTIVE TOTAL:                    372,300.00
+
+
+SECTION 4: IDENTIFIED ISSUES
+--------------------------------------------------------------------------------
+
+ISSUE #1: DUPLICATE PAYMENT LEDGERS
+
+  BLK-S0002: 3 entries (IDs: 1589,1590,1591)
+    Amount: 0.00
+  CSX-624: 2 entries (IDs: 956,1224)
+    Amount: 0.00
+
+ISSUE #2: OPENING BALANCE ENTRIES
+
+  ID 26: Credit=236,420.00, Debit=0.00, Status=active
+  ID 35: Credit=0.00, Debit=472,840.00, Status=active
+  ID 36: Credit=155,240.00, Debit=0.00, Status=active
+  ID 90: Credit=128,460.00, Debit=0.00, Status=active
+  ID 111: Credit=0.00, Debit=94,560.00, Status=active
+  ID 199: Credit=0.00, Debit=9,500.00, Status=active
+
+
+================================================================================
+END OF REPORT
+================================================================================
