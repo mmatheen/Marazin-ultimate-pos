@@ -56,9 +56,10 @@
         };
     }
 
-        // Search results cache - 30 seconds for fast autocomplete while keeping data relatively fresh
+        // Search results cache - DISABLED for POS to ensure real-time pricing
         let searchCache = new Map();
-        let searchCacheExpiry = 30 * 1000; // 30 seconds cache for performance
+        let searchCacheExpiry = 0; // 0 = No caching, always fetch fresh data for accurate pricing
+        let cacheVersion = Date.now(); // Version tracking to invalidate stale caches
 
         // DOM element cache to avoid repeated getElementById calls
         let domElementCache = {};
@@ -79,18 +80,47 @@
             // Clear image failure cache
             failedImages.clear();
             imageAttempts.clear();
-            console.log('🗑️ All caches cleared due to data update');
+            // Clear product/stock data arrays to force fresh fetch
+            if (typeof stockData !== 'undefined') {
+                stockData = [];
+                console.log('🗑️ Cleared stockData array');
+            }
+            if (typeof allProducts !== 'undefined') {
+                allProducts = [];
+                console.log('🗑️ Cleared allProducts array');
+            }
+            // Bump cache version to invalidate all cached data
+            cacheVersion = Date.now();
+            console.log('🗑️ All caches cleared due to data update. New cache version:', cacheVersion);
         }
 
         // Listen for storage events from other tabs/windows
         window.addEventListener('storage', function(e) {
-            if (e.key === 'product_cache_invalidate') {
+            // Handle all product/batch update events
+            if (e.key === 'product_cache_invalidate' ||
+                e.key === 'force_product_refresh' ||
+                e.key === 'batch_prices_updated') {
+                console.log('📢 Cache invalidation detected from another tab:', e.key);
                 clearAllCaches();
+
+                // Reinitialize autocomplete to fetch fresh data
+                if (typeof initAutocomplete === 'function') {
+                    try {
+                        $("#productSearchInput").autocomplete('destroy');
+                        initAutocomplete();
+                        console.log('🔄 Autocomplete reinitialized with fresh cache');
+                    } catch (err) {
+                        console.warn('Could not reinitialize autocomplete:', err.message);
+                    }
+                }
+
                 // Refresh current product display
                 if (selectedLocationId) {
                     console.log('🔄 Refreshing products due to cache invalidation');
                     fetchPaginatedProducts(true);
                 }
+
+                toastr.info('Product data refreshed from another tab', 'Cache Updated');
             }
         });
 
@@ -2957,7 +2987,8 @@
             }
 
             // Add with_stock=1 to fetch only products with stock > 0 (backend filtering)
-            const url = `/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=${perPage}&with_stock=1`;
+            // Add timestamp for cache busting
+            const url = `/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=${perPage}&with_stock=1&_t=${Date.now()}`;
 
             // Add CSRF token and headers to prevent 419 errors
             const fetchOptions = {
@@ -3678,15 +3709,23 @@
         }
 
         function createProductSearchRequest(term, response) {
-            // Create cache key based on search term and location
-            const cacheKey = `search_${selectedLocationId}_${term.toLowerCase()}`;
+            // Create cache key based on search term, location, and cache version
+            const cacheKey = `search_${selectedLocationId}_${term.toLowerCase()}_v${cacheVersion}`;
 
-            // Check cache first
-            const cached = searchCache.get(cacheKey);
-            if (cached && (Date.now() - cached.timestamp < searchCacheExpiry)) {
-                console.log('Using cached search results for:', term);
-                autocompleteState.isRequesting = false;
-                return response(cached.results);
+            // CACHING DISABLED FOR POS - Always fetch fresh data for accurate pricing
+            // This ensures batch price updates are immediately reflected
+            if (searchCacheExpiry > 0) {
+                // Check cache only if caching is enabled
+                const cached = searchCache.get(cacheKey);
+                if (cached && (Date.now() - cached.timestamp < searchCacheExpiry) && cached.version === cacheVersion) {
+                    console.log('✅ Using cached search results for:', term, '(version:', cacheVersion, ')');
+                    autocompleteState.isRequesting = false;
+                    return response(cached.results);
+                } else if (cached) {
+                    console.log('🔄 Cache miss - version mismatch or expired. Fetching fresh data for:', term);
+                }
+            } else {
+                console.log('🔄 Cache disabled - Fetching fresh data for:', term);
             }
 
             return $.ajax({
@@ -3694,7 +3733,8 @@
                 data: {
                     location_id: selectedLocationId,
                     search: term,
-                    per_page: 50 // Optimized for speed - 50 results is sufficient for autocomplete
+                    per_page: 50, // Optimized for speed - 50 results is sufficient for autocomplete
+                    _t: Date.now() // Cache-busting timestamp
                 },
                 cache: false, // ✅ Prevent browser caching - always fetch fresh stock data
                 timeout: 10000,
@@ -3799,13 +3839,16 @@
                 return;
             }
 
-            // ✅ CACHING ENABLED - 30 second cache for speed, fresh enough for accurate stock
-            if (cacheKey && results.length > 0) {
+            // ✅ CACHING DISABLED - Always fetch fresh for real-time pricing accuracy
+            if (searchCacheExpiry > 0 && cacheKey && results.length > 0) {
                 searchCache.set(cacheKey, {
                     results: results,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    version: cacheVersion
                 });
-                console.log('Cached search results for:', term);
+                console.log('💾 Cached search results for:', term, '(version:', cacheVersion, ')');
+            } else if (searchCacheExpiry === 0) {
+                console.log('💾 Cache disabled - Not storing results (always fresh)');
             }
 
             autocompleteState.lastResults = results.filter(r => r.product);
@@ -5067,36 +5110,43 @@
             autocompleteState.lastProduct = item.product;
             console.log('Adding product:', item.product.product_name, 'Term:', searchTerm, 'Type:', matchType);
 
-            let stockEntry = stockData.find(stock => stock.product.id === item.product.id);
-
-            if (!stockEntry && item.stockData) {
-                stockData.push(item.stockData);
-                allProducts.push(item.stockData);
-                stockEntry = item.stockData;
-            }
-
-            if (!stockEntry) {
-                fetchProductStock(item.product.id, searchTerm, matchType);
-                return;
-            }
-
-            addProductToTable(item.product, searchTerm, matchType);
-
-            // Auto-focus search input for next product after small delay
-            setTimeout(() => {
-                autoFocusSearchInput();
-            }, 200);
+            // 🔥 ALWAYS fetch fresh data from server to ensure latest batch prices
+            // Don't rely on stockData which might have stale prices
+            console.log('🔄 Fetching fresh product data with latest batch prices...');
+            fetchProductStockFresh(item.product.id, searchTerm, matchType);
         }
 
-        function fetchProductStock(productId, searchTerm, matchType) {
-            const url = `/api/products/stocks?location_id=${selectedLocationId}&product_id=${productId}`;
+        function fetchProductStockFresh(productId, searchTerm, matchType) {
+            const url = `/products/stocks?location_id=${selectedLocationId}&product_id=${productId}&_t=${Date.now()}`;
+
+            console.log('🔄 Fetching FRESH product stock data from server:', url);
 
             safeFetchJson(url)
                 .then(data => {
                     if (data.status === 200 && Array.isArray(data.data) && data.data.length > 0) {
-                        stockData.push(data.data[0]);
-                        allProducts.push(data.data[0]);
-                        addProductToTable(data.data[0].product, searchTerm, matchType);
+                        const freshStockData = data.data[0];
+
+                        // Update or add to stockData with fresh data
+                        const existingIndex = stockData.findIndex(stock => stock.product.id === productId);
+                        if (existingIndex !== -1) {
+                            // Replace old data with fresh data
+                            stockData[existingIndex] = freshStockData;
+                            console.log('✅ Updated existing stockData with fresh batch prices');
+                        } else {
+                            // Add new entry
+                            stockData.push(freshStockData);
+                            console.log('✅ Added fresh product to stockData');
+                        }
+
+                        // Also update allProducts
+                        const allProductsIndex = allProducts.findIndex(stock => stock.product.id === productId);
+                        if (allProductsIndex !== -1) {
+                            allProducts[allProductsIndex] = freshStockData;
+                        } else {
+                            allProducts.push(freshStockData);
+                        }
+
+                        addProductToTable(freshStockData.product, searchTerm, matchType);
 
                         // Auto-focus for next scan after successful add
                         setTimeout(() => {
@@ -5239,7 +5289,7 @@
             }
 
             // Build filter URL based on filter type
-            let url = `/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=${perPage}`;
+            let url = `/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=${perPage}&_t=${Date.now()}`;
 
             switch(filterType) {
                 case 'category':
@@ -5840,7 +5890,7 @@
             // Force refresh stock data for IMEI products to get latest status
             if (!isEditing) {
                 console.log('Force refreshing stock data for IMEI product...');
-                fetch(`/api/products/stocks/autocomplete?search=${encodeURIComponent(product.product_name)}&location_id=${selectedLocationId}`, {
+                fetch(`/products/stocks/autocomplete?search=${encodeURIComponent(product.product_name)}&location_id=${selectedLocationId}`, {
                         cache: 'no-store', // ✅ Prevent browser caching - always fetch fresh IMEI data
                         headers: {
                             'X-Requested-With': 'XMLHttpRequest',
@@ -9068,6 +9118,7 @@
                     const isImeiProduct = productRow.find('.imei-data').text().trim() !== '';
 
                     // Determine which discount is active
+                    // ✅ CORRECT: Send per-unit discount (receipt will multiply by quantity)
                     const discountType = discountFixed > 0 ? 'fixed' : 'percentage';
                     const discountAmount = discountFixed > 0 ? discountFixed : discountPercent;
 
