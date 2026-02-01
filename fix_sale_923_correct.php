@@ -35,13 +35,13 @@ $correctSubtotal = 0;
 foreach ($salesProducts as $sp) {
     $product = \App\Models\Product::find($sp->product_id);
     $batch = \App\Models\Batch::find($sp->batch_id);
-    
+
     $subtotalForProduct = $sp->price * $sp->quantity;
     $correctSubtotal += $subtotalForProduct;
-    
+
     $mrpPerUnit = $batch ? $batch->max_retail_price : 0;
     $discountPerUnit = $mrpPerUnit - $sp->price;
-    
+
     echo "Product: " . ($product ? $product->product_name : "ID {$sp->product_id}") . "\n";
     echo "  Qty: {$sp->quantity} × Price: Rs {$sp->price} = Rs " . number_format($subtotalForProduct, 2) . "\n";
     echo "  Current discount_amount: Rs {$sp->discount_amount}\n";
@@ -89,47 +89,47 @@ DB::beginTransaction();
 try {
     // Step 1: Revert discount_amount to per-unit values
     echo "Step 1: Reverting discount_amount to PER-UNIT values...\n";
-    
+
     foreach ($salesProducts as $sp) {
         $batch = \App\Models\Batch::find($sp->batch_id);
         if ($batch) {
             $discountPerUnit = $batch->max_retail_price - $sp->price;
-            
+
             SalesProduct::where('id', $sp->id)->update([
                 'discount_amount' => $discountPerUnit
             ]);
-            
+
             echo "  ✅ Product ID {$sp->id}: discount_amount set to Rs " . number_format($discountPerUnit, 2) . " (per unit)\n";
         }
     }
-    
+
     // Step 2: Fix sale totals (only subtotal and final_total)
     echo "\nStep 2: Fixing sale totals...\n";
     echo "  Old Final Total: Rs " . number_format($sale->final_total, 2) . "\n";
     echo "  New Final Total: Rs " . number_format($correctSubtotal, 2) . "\n";
-    
+
     $newTotalDue = max(0, $correctSubtotal - $sale->total_paid);
-    
+
     $sale->update([
         'subtotal' => $correctSubtotal,
         'final_total' => $correctSubtotal,
         'total_due' => $newTotalDue,
         'payment_status' => $newTotalDue > 0 ? ($sale->total_paid > 0 ? 'Partial' : 'Due') : 'Paid'
     ]);
-    
+
     echo "  ✅ Sale totals updated\n";
-    
+
     // Step 3: Fix ledger
     if ($sale->customer_id != 1) {
         echo "\nStep 3: Fixing ledger entry...\n";
-        
+
         $ledgerEntry = Ledger::where('transaction_type', 'sale')
             ->where('contact_id', $sale->customer_id)
             ->where('contact_type', 'customer')
             ->where('reference_no', $sale->invoice_no)
             ->where('status', 'active')
             ->first();
-        
+
         if ($ledgerEntry) {
             $ledgerEntry->update([
                 'debit' => $correctSubtotal,
@@ -139,11 +139,11 @@ try {
         } else {
             echo "  ⚠️ No ledger entry found\n";
         }
-        
+
         // Step 4: Recalculate customer balance
         echo "\nStep 4: Recalculating customer balance...\n";
         $customer = Customer::withoutGlobalScopes()->find($sale->customer_id);
-        
+
         if ($customer && method_exists($customer, 'calculateBalanceFromLedger')) {
             $newBalance = $customer->calculateBalanceFromLedger();
             $customer->update(['opening_balance' => $newBalance]);
@@ -152,19 +152,19 @@ try {
     } else {
         echo "\nStep 3-4: Skipped (Walk-In customer)\n";
     }
-    
+
     DB::commit();
-    
+
     echo "\n═══════════════════════════════════════════════════════════\n";
     echo "✅ CORRECT FIX APPLIED SUCCESSFULLY!\n";
     echo "═══════════════════════════════════════════════════════════\n\n";
-    
+
     echo "FINAL CORRECTED VALUES:\n";
     echo "  Sale ID: 923\n";
     echo "  Subtotal: Rs " . number_format($correctSubtotal, 2) . "\n";
     echo "  Final Total: Rs " . number_format($correctSubtotal, 2) . "\n";
     echo "  Discount amounts: Stored as PER-UNIT values (for receipt)\n";
-    
+
 } catch (\Exception $e) {
     DB::rollBack();
     echo "\n❌ ERROR: " . $e->getMessage() . "\n";

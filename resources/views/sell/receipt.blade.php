@@ -17,10 +17,10 @@
 
         body {
             font-family: 'Arial', sans-serif;
-            font-size: 12px;
+            font-size: 11px;
             color: #000;
             text-transform: uppercase;
-            line-height: 1.4;
+            line-height: 1.2;
         }
 
         .receipt-container {
@@ -32,12 +32,12 @@
         /* Logo Section */
         .logo-section {
             text-align: center;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
         }
 
         .logo-section img {
-            width: 180px;
-            max-height: 90px;
+            width: 160px;
+            max-height: 80px;
             display: block;
             margin: 0 auto;
             -webkit-print-color-adjust: exact;
@@ -52,18 +52,18 @@
         /* Business Info Section */
         .business-info {
             text-align: center;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
         }
 
         .business-info .business-name {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
-            margin-bottom: 2px;
+            margin-bottom: 1px;
         }
 
         .business-info .contact-line {
-            font-size: 12px;
-            margin-bottom: 1px;
+            font-size: 10px;
+            margin-bottom: 0px;
         }
 
         .business-info .email {
@@ -71,19 +71,19 @@
         }
 
         .business-info .date-time {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: bold;
-            margin-top: 4px;
+            margin-top: 2px;
         }
 
         /* Header Section */
         .receipt-header {
             display: flex;
             justify-content: space-between;
-            padding: 4px 0;
+            padding: 2px 0;
             border-top: 1px dashed #000;
             border-bottom: 1px dashed #000;
-            margin: 4px 0;
+            margin: 2px 0;
         }
 
         .customer-info {
@@ -92,13 +92,13 @@
         }
 
         .customer-info .customer-name {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: bold;
-            margin-bottom: 2px;
+            margin-bottom: 1px;
         }
 
         .customer-info .customer-phone {
-            font-size: 11px;
+            font-size: 10px;
         }
 
         .invoice-info {
@@ -106,26 +106,26 @@
         }
 
         .invoice-info .invoice-number {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: bold;
-            margin-bottom: 2px;
+            margin-bottom: 1px;
         }
 
         .invoice-info .cashier {
-            font-size: 10px;
+            font-size: 9px;
         }
 
         /* Products Table */
         .products-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 12px;
+            margin-bottom: 4px;
         }
 
         .products-table th {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: bold;
-            padding: 4px 2px;
+            padding: 2px 1px;
             text-align: left;
         }
 
@@ -153,20 +153,20 @@
         }
 
         .products-table td {
-            padding: 1px 2px;
+            padding: 0px 1px;
             vertical-align: top;
         }
 
         .product-name-row td {
-            padding-top: 4px;
+            padding-top: 2px;
         }
 
         .product-details-row td {
-            padding-bottom: 4px;
+            padding-bottom: 2px;
         }
 
         .product-name {
-            font-size: 12px;
+            font-size: 11px;
         }
 
         .price-badge {
@@ -174,7 +174,7 @@
         }
 
         .mrp-price {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 700;
             color: #000;
             letter-spacing: 0.3px;
@@ -191,25 +191,25 @@
         }
 
         .discount-amount {
-            font-size: 10px;
+            font-size: 9px;
             color: #000;
             font-weight: 600;
         }
 
         .quantity {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 500;
             white-space: nowrap;
             text-align: center;
         }
 
         .rate {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 500;
         }
 
         .amount {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: bold;
             text-align: right;
         }
@@ -235,12 +235,12 @@
 
         .divider-section {
             border-top: 1px dashed #000;
-            margin: 8px 0;
+            margin: 3px 0;
         }
 
         /* Totals Section */
         .totals-section {
-            margin-bottom: 12px;
+            margin-bottom: 4px;
         }
 
         .totals-table {
@@ -249,41 +249,41 @@
         }
 
         .totals-table td {
-            padding: 2px 0;
+            padding: 1px 0;
         }
 
         .totals-table .label {
             text-align: right;
             font-weight: bold;
-            font-size: 12px;
+            font-size: 11px;
         }
 
         .totals-table .value {
             text-align: right;
-            font-size: 15px;
+            font-size: 13px;
             font-weight: bold;
             width: 100px;
             white-space: nowrap;
         }
 
         .totals-table .discount-value {
-            font-size: 14px;
+            font-size: 12px;
         }
 
         .outstanding-due {
-            font-size: 18px !important;
+            font-size: 15px !important;
         }
 
         /* Stats Section */
         .stats-section {
             display: flex;
             text-align: center;
-            margin: 8px 0;
+            margin: 3px 0;
         }
 
         .stat-box {
             flex: 1;
-            padding: 2px;
+            padding: 1px;
             border-right: 2px dashed #000;
         }
 
@@ -292,21 +292,21 @@
         }
 
         .stat-number {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: bold;
             display: block;
         }
 
         .stat-label {
-            font-size: 8px;
+            font-size: 7px;
             display: block;
         }
 
         /* Payment & Notes */
         .payment-method {
-            font-size: 12px;
+            font-size: 11px;
             text-align: center;
-            margin-bottom: 8px;
+            margin-bottom: 3px;
         }
 
         .payment-method strong {
@@ -314,40 +314,40 @@
         }
 
         .payment-method .multiple-payments {
-            font-size: 10px;
+            font-size: 9px;
         }
 
         .status-message {
-            font-size: 12px;
+            font-size: 11px;
             text-align: center;
             font-weight: bold;
-            margin-bottom: 8px;
+            margin-bottom: 3px;
         }
 
         .sale-notes {
-            font-size: 11px;
+            font-size: 10px;
             text-align: center;
-            margin-bottom: 8px;
-            padding: 5px;
+            margin-bottom: 3px;
+            padding: 3px;
             background-color: #f9f9f9;
             border: 1px dashed #ccc;
         }
 
         .sale-notes strong {
             display: block;
-            margin-bottom: 2px;
+            margin-bottom: 1px;
         }
 
         /* Footer */
         .footer-note {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: bold;
             text-align: center;
-            margin-bottom: 5px;
+            margin-bottom: 2px;
         }
 
         .software-info {
-            font-size: 8px;
+            font-size: 7px;
             text-align: center;
             color: #000;
         }
