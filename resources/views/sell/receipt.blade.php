@@ -506,11 +506,11 @@
                                     $mrp = $item['product']->product->max_retail_price ?? 0;
                                 }
                                 $selling_price = $item['product']->price;
-                                $line_discount = ($mrp - $selling_price) * $item['quantity'];
+                                $per_unit_discount = $mrp - $selling_price;
                             @endphp
-                            @if($mrp > 0 && $line_discount > 0)
-                                <span class="mrp-price">{{ number_format($mrp, 0, '.', ',') }}</span>
-                                <span class="discount-amount">({{ number_format($line_discount, 0, '.', ',') }})</span>
+                            @if($mrp > 0 && $per_unit_discount > 0)
+                                <span class="mrp-price">{{ number_format($mrp, 2, '.', ',') }}</span>
+                                <span class="discount-amount">({{ number_format($per_unit_discount, 2, '.', ',') }})</span>
                             @endif
                         </td>
                         <td class="quantity">
@@ -518,8 +518,8 @@
                             <span>{{ $item['quantity'] }}</span>
                             <small class="pcs-text">PCS</small>
                         </td>
-                        <td class="rate">{{ number_format($item['product']->price, 0, '.', ',') }}</td>
-                        <td class="amount">{{ number_format($item['amount'], 0, '.', ',') }}</td>
+                        <td class="rate">{{ number_format($item['product']->price, 2, '.', ',') }}</td>
+                        <td class="amount">{{ number_format($item['amount'], 2, '.', ',') }}</td>
                     </tr>
 
                     @if (!$loop->last)
@@ -539,7 +539,7 @@
                  @if ($sale->discount_amount > 0)
                     <tr>
                         <td class="label">SUBTOTAL</td>
-                        <td class="value">{{ number_format($sale->subtotal, 0, '.', ',') }}</td>
+                        <td class="value">{{ number_format($sale->subtotal, 2, '.', ',') }}</td>
                     </tr>
 
                     <tr>
@@ -553,9 +553,9 @@
                         </td>
                         <td class="value discount-value">
                             @if ($sale->discount_type == 'percentage')
-                                -{{ number_format(($sale->subtotal * $sale->discount_amount) / 100, 0, '.', ',') }}
+                                -{{ number_format(($sale->subtotal * $sale->discount_amount) / 100, 2, '.', ',') }}
                             @else
-                                -{{ number_format($sale->discount_amount, 0, '.', ',') }}
+                                -{{ number_format($sale->discount_amount, 2, '.', ',') }}
                             @endif
                         </td>
                     </tr>
@@ -564,13 +564,13 @@
                 @if ($sale->shipping_charges > 0)
                     <tr>
                         <td class="label">SHIPPING</td>
-                        <td class="value">{{ number_format($sale->shipping_charges, 0, '.', ',') }}</td>
+                        <td class="value">{{ number_format($sale->shipping_charges, 2, '.', ',') }}</td>
                     </tr>
                 @endif
 
                 <tr>
                     <td class="label">TOTAL</td>
-                    <td class="value">{{ number_format($sale->final_total, 0, '.', ',') }}</td>
+                    <td class="value">{{ number_format($sale->final_total, 2, '.', ',') }}</td>
                 </tr>
 
                 {{-- Only show payment details for final sales --}}
@@ -578,26 +578,26 @@
                     @if (!is_null($amount_given) && $amount_given > 0)
                         <tr>
                             <td class="label">AMOUNT GIVEN</td>
-                            <td class="value">{{ number_format($amount_given, 0, '.', ',') }}</td>
+                            <td class="value">{{ number_format($amount_given, 2, '.', ',') }}</td>
                         </tr>
                     @endif
 
                     <tr>
                         <td class="label">PAID</td>
-                        <td class="value">{{ number_format($sale->total_paid, 0, '.', ',') }}</td>
+                        <td class="value">{{ number_format($sale->total_paid, 2, '.', ',') }}</td>
                     </tr>
 
                     @if (!is_null($balance_amount) && $balance_amount > 0)
                         <tr>
                             <td class="label">BALANCE GIVEN</td>
-                            <td class="value">{{ number_format($balance_amount, 0, '.', ',') }}</td>
+                            <td class="value">{{ number_format($balance_amount, 2, '.', ',') }}</td>
                         </tr>
                     @endif
 
                     @if (!is_null($sale->total_due) && $sale->total_due > 0)
                         <tr>
                             <td class="label">BALANCE DUE</td>
-                            <td class="value">({{ number_format($sale->total_due, 0, '.', ',') }})</td>
+                            <td class="value">({{ number_format($sale->total_due, 2, '.', ',') }})</td>
                         </tr>
                     @endif
 
@@ -611,7 +611,7 @@
                         </tr>
                         <tr>
                             <td class="label">TOTAL OUTSTANDING DUE</td>
-                            <td class="value outstanding-due">RS {{ number_format($customer_outstanding, 0, '.', ',') }}</td>
+                            <td class="value outstanding-due">RS {{ number_format($customer_outstanding, 2, '.', ',') }}</td>
                         </tr>
                     @endif
                 @endif
@@ -661,7 +661,7 @@
                 <span class="stat-label">TOTAL QTY</span>
             </div>
             <div class="stat-box">
-                <span class="stat-number">{{ number_format($total_all_discounts, 0, '.', ',') }}</span>
+                <span class="stat-number">{{ number_format($total_all_discounts, 2, '.', ',') }}</span>
                 <span class="stat-label">TOTAL DISCOUNT</span>
             </div>
         </section>

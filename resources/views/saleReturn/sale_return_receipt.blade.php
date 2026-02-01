@@ -214,9 +214,9 @@
                     <tr>
                         <td>{{ $loop->iteration }}</td>
                         <td>{{ $item->product->product_name }}</td>
-                        <td>{{ number_format($item->return_price, 0, '.', ',') }}</td>
+                        <td>{{ number_format($item->return_price, 2, '.', ',') }}</td>
                         <td>{{ $item->quantity }}</td>
-                        <td align="right">{{ number_format($item->subtotal, 0, '.', ',') }}</td>
+                        <td align="right">{{ number_format($item->subtotal, 2, '.', ',') }}</td>
                     </tr>
                 @empty
                     <tr>
@@ -233,13 +233,13 @@
                     <tr>
                         <td align="right"><strong>TOTAL RETURN AMOUNT</strong></td>
                         <td width="80" align="right" style="font-weight: bold;">
-                            {{ number_format($saleReturn->return_total, 0, '.', ',') }}
+                            {{ number_format($saleReturn->return_total, 2, '.', ',') }}
                         </td>
                     </tr>
                     @if ($saleReturn->total_paid > 0)
                         <tr>
                             <td align="right"><strong>Paid</strong></td>
-                            <td width="80" align="right">{{ number_format($saleReturn->total_paid, 0, '.', ',') }}
+                            <td width="80" align="right">{{ number_format($saleReturn->total_paid, 2, '.', ',') }}
                             </td>
                         </tr>
                     @endif
@@ -247,7 +247,7 @@
                         <tr>
                             <td align="right"><strong>Balance Due</strong></td>
                             <td width="80" align="right">
-                                ({{ number_format($saleReturn->total_due, 0, '.', ',') }})</td>
+                                ({{ number_format($saleReturn->total_due, 2, '.', ',') }})</td>
                         </tr>
                     @endif
                 </tbody>

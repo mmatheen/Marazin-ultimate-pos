@@ -395,14 +395,14 @@
                             }
 
                             $selling_price = $item['product']->price;
-                            $line_discount = ($mrp - $selling_price) * $item['quantity'];
+                            $per_unit_discount = $mrp - $selling_price;
                         @endphp
                         @if($mrp > 0 && $mrp > $selling_price)
                             <span class="strikethrough" style="white-space: nowrap; color: #333;">
                                 Rs. {{ number_format($mrp, 2) }}
                             </span>
                             <span class="discount-amount" style="white-space: nowrap; color: #666;">
-                                (Disc: Rs. {{ number_format($line_discount, 2) }})
+                                (Disc: Rs. {{ number_format($per_unit_discount, 2) }})
                             </span>
                         @endif
                     </td>

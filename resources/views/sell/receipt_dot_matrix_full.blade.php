@@ -447,14 +447,13 @@
                                     'product' => $product,
                                     'quantity' => 0,
                                     'amount' => 0,
-                                    'discount' => 0,
+                                    'discount' => ($mrp - $product->price),
                                     'unitPrice' => $mrp,
                                     'rate' => $product->price,
                                 ];
                             }
                             $nonImeiGroups[$groupKey]['quantity'] += $product->quantity;
                             $nonImeiGroups[$groupKey]['amount'] += $product->price * $product->quantity;
-                            $nonImeiGroups[$groupKey]['discount'] += ($mrp - $product->price) * $product->quantity;
                         }
                     }
 
