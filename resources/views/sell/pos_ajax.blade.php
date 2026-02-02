@@ -8081,7 +8081,9 @@
                     counterCell.textContent = index + 1;
                 }
 
-                // Recalculate subtotal based on unit price
+                // 🐛 FIX: Recalculate subtotal with proper per-item discount handling
+                // The price input already has discounts applied through handleDiscountToggle()
+                // So we can safely use basePrice which already includes per-item discounts
                 const subtotal = quantity * basePrice;
 
                 // Update UI - check if subtotal element exists
@@ -8120,8 +8122,8 @@
             // Prevent negative totals
             totalAmountWithDiscount = Math.max(0, totalAmountWithDiscount);
 
-            // Add shipping charges to final total - SIMPLIFIED
-            const shippingCharges = (shippingData && shippingData.shipping_charges) ? shippingData.shipping_charges : 0;
+            // 🐛 FIX: Add shipping charges to final total - ensure parseFloat to avoid string concatenation
+            const shippingCharges = (shippingData && shippingData.shipping_charges) ? parseFloat(shippingData.shipping_charges) || 0 : 0;
             const finalTotalWithShipping = totalAmountWithDiscount + shippingCharges;
 
             console.log('� CALCULATION BREAKDOWN:', {
@@ -8999,8 +9001,8 @@
                 // Ensure final amount doesn't go negative
                 finalAmount = Math.max(0, finalAmount);
 
-                // Add shipping charges to final amount
-                const shippingCharges = shippingData.shipping_charges || 0;
+                // 🐛 FIX: Add shipping charges to final amount - ensure parseFloat to avoid string concatenation
+                const shippingCharges = parseFloat(shippingData.shipping_charges) || 0;
                 finalAmount += shippingCharges;
 
                 console.log('� CRITICAL FINAL TOTAL CHECK:', {
@@ -9788,15 +9790,17 @@
 
             // Function to open shipping modal and populate current values
             function openShippingModal() {
+                // 🐛 FIX: Ensure shipping charges are parsed as float for calculations
                 // Get current total (includes shipping) and calculate subtotal
                 const totalWithCurrentShipping = parseFormattedAmount($('#final-total-amount').text());
-                const subtotalWithoutShipping = totalWithCurrentShipping - shippingData.shipping_charges;
+                const currentShippingCharges = parseFloat(shippingData.shipping_charges) || 0;
+                const subtotalWithoutShipping = totalWithCurrentShipping - currentShippingCharges;
 
                 // Update subtotal in modal (without shipping)
                 $('#modalSubtotal').text(formatCurrency(subtotalWithoutShipping));
 
                 // Update shipping charges in modal
-                $('#modalShippingCharges').text(formatCurrency(shippingData.shipping_charges));
+                $('#modalShippingCharges').text(formatCurrency(currentShippingCharges));
 
                 // Calculate and display total with shipping
                 $('#modalTotalWithShipping').text(formatCurrency(totalWithCurrentShipping));
@@ -9816,9 +9820,11 @@
             // Handle shipping charges input change in modal
             $('#shippingCharges').on('input', function() {
                 const shippingCharges = parseFloat($(this).val()) || 0;
+                // 🐛 FIX: Ensure shipping charges are parsed as float for calculations
                 // Get current total and subtract current shipping to get subtotal
                 const totalWithCurrentShipping = parseFormattedAmount($('#final-total-amount').text());
-                const subtotalWithoutShipping = totalWithCurrentShipping - shippingData.shipping_charges;
+                const currentShippingCharges = parseFloat(shippingData.shipping_charges) || 0;
+                const subtotalWithoutShipping = totalWithCurrentShipping - currentShippingCharges;
 
                 $('#modalShippingCharges').text(formatCurrency(shippingCharges));
                 $('#modalTotalWithShipping').text(formatCurrency(subtotalWithoutShipping + shippingCharges));
