@@ -3681,13 +3681,15 @@
             // Create cache key based on search term and location
             const cacheKey = `search_${selectedLocationId}_${term.toLowerCase()}`;
 
-            // Check cache first
-            const cached = searchCache.get(cacheKey);
-            if (cached && (Date.now() - cached.timestamp < searchCacheExpiry)) {
-                console.log('Using cached search results for:', term);
-                autocompleteState.isRequesting = false;
-                return response(cached.results);
-            }
+            // ⚠️ CACHING DISABLED: Search cache was causing wrong products to be added
+            // The cached item.stockData contained old product information
+            // Always fetch fresh results to ensure correct product data
+            // const cached = searchCache.get(cacheKey);
+            // if (cached && (Date.now() - cached.timestamp < searchCacheExpiry)) {
+            //     console.log('Using cached search results for:', term);
+            //     autocompleteState.isRequesting = false;
+            //     return response(cached.results);
+            // }
 
             return $.ajax({
                 url: '/products/stocks/autocomplete',
@@ -3799,14 +3801,16 @@
                 return;
             }
 
-            // ✅ CACHING ENABLED - 30 second cache for speed, fresh enough for accurate stock
-            if (cacheKey && results.length > 0) {
-                searchCache.set(cacheKey, {
-                    results: results,
-                    timestamp: Date.now()
-                });
-                console.log('Cached search results for:', term);
-            }
+            // ⚠️ CACHING DISABLED - Cache was causing wrong products to be added
+            // The cached results contained stale stockData with old product information
+            // Always use fresh results to ensure correct product selection
+            // if (cacheKey && results.length > 0) {
+            //     searchCache.set(cacheKey, {
+            //         results: results,
+            //         timestamp: Date.now()
+            //     });
+            //     console.log('Cached search results for:', term);
+            // }
 
             autocompleteState.lastResults = results.filter(r => r.product);
 

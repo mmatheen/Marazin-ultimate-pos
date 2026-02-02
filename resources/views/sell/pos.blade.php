@@ -12,8 +12,9 @@
     <link rel="shortcut icon" href="{{ $activeSetting?->favicon_url }}" type="image/x-icon">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="stylesheet" href="{{ asset('vendor/font-awesome/css/all.min.css') }}">
-    {{-- Google Fonts: Using system fonts for offline functionality --}}
-    {{-- <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;0,900;1,400;1,500;1,700&display=swap" rel="stylesheet"> --}}
+    <link
+        href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;0,900;1,400;1,500;1,700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('assets/plugins/bootstrap/css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/feather/feather.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/icons/flags/flags.css') }}">
@@ -26,16 +27,10 @@
     <link rel="stylesheet" href="{{ asset('assets/plugins/summernote/summernote-bs4.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
     <link rel="stylesheet" href="{{ asset('vendor/sweetalert/css/sweetalert.min.css') }}">
-    {{-- Inputmask CSS not needed, library works without it --}}
+    <link rel="stylesheet"
+        href="{{ asset('vendor/inputmask/jquery.inputmask.min.css') }}">
 
     <link rel="stylesheet" href="{{ asset('assets/css/pos_page_style/pos-main.css') }}">
-
-    <!-- Fallback font-family for offline functionality -->
-    <style>
-        body, * {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
-        }
-    </style>
 
     <!-- Sales Rep Payment Button Control CSS -->
     <style>
@@ -80,24 +75,6 @@
 
         #mobileQuantityModal .modal-dialog {
             z-index: 10601 !important;
-        }
-
-        /* Elegant layout scaling for large screens */
-        @media (min-width: 1920px) {
-            .container-fluid {
-                padding-left: 2rem !important;
-                padding-right: 2rem !important;
-            }
-        }
-
-        /* Improve badge visibility */
-        .badge {
-            letter-spacing: 0.3px;
-        }
-
-        /* Better table cell spacing */
-        .table-sm td {
-            vertical-align: middle;
         }
     </style>
 </head>
@@ -516,11 +493,11 @@
 
         <div class="row mt-1">
 
-            <div class="container-fluid p-1" style="max-width: 1920px; margin: 0 auto;">
+            <div class="container-fluid p-1">
                 <div class="row">
                     <div class="col-md-12" id="mainContent">
                         <div class="card bg-white p-2"
-                            style="height: calc(100vh - 180px); overflow: hidden; display: flex; flex-direction: column;">
+                            style="height: calc(100vh - 215px); overflow: hidden; display: flex; flex-direction: column;">
                             <div class="row">
                                 <div class="col-12">
                                     <p id="sale-invoice-no" class="text-info fw-bold mb-1"></p>
@@ -571,21 +548,21 @@
                             </div>
 
                             <!-- Spacer for better separation -->
-                            <div class="row mt-1" style="flex: 1; overflow: hidden; max-height: 500px;">
+                            <div class="row mt-1" style="flex: 1; overflow: hidden;">
                                 <div class="col-md-12 mt-1"
                                     style="height: 100%; display: flex; flex-direction: column;">
                                     <div class="table-responsive" style="flex: 1; overflow-y: auto;">
-                                        <table class="table table-bordered table-sm">
+                                        <table class="table table-bordered">
                                             <thead class="thead-light">
                                                 <tr>
-                                                    <th class="text-center" style="width: 50px; padding: 6px;">#</th>
-                                                    <th style="padding: 6px; min-width: 200px;">Product</th>
-                                                    <th class="text-center" style="padding: 6px; width: 120px;">Quantity</th>
-                                                    <th class="text-center" style="padding: 6px; width: 100px;">Discount (Rs)</th>
-                                                    <th class="text-center" style="padding: 6px; width: 100px;">Discount (%)</th>
-                                                    <th class="text-center" style="padding: 6px; width: 110px; min-width: 110px;">Unit Price</th>
-                                                    <th class="text-center" style="padding: 6px; width: 110px; min-width: 110px;">Subtotal</th>
-                                                    <th class="text-center" style="color: red; padding: 6px; width: 50px;">X</th>
+                                                    <th class="text-center" style="width: 50px;">#</th>
+                                                    <th>Product</th>
+                                                    <th class="text-center">Quantity</th>
+                                                    <th class="text-center">Discount (Rs)</th>
+                                                    <th class="text-center">Discount (%)</th>
+                                                    <th class="text-center">Unit Price</th>
+                                                    <th class="text-center">Subtotal</th>
+                                                    <th class="text-center" style="color: red;">X</th>
                                                 </tr>
                                             </thead>
                                             <tbody id="billing-body" class="bg-white">
@@ -710,7 +687,7 @@
                     </div>
 
                     <div class="col-md-5 d-none" id="productListArea">
-                        <div class="card bg-white p-2" style="height: calc(100vh - 180px); overflow: hidden;">
+                        <div class="card bg-white p-2" style="height: calc(100vh - 215px); overflow: hidden;">
                             <!-- Buttons for Category and Brand -->
                             <div class="row mb-2">
                                 <div class="d-flex justify-content-between w-100 mb-2">
@@ -731,7 +708,7 @@
                             </div>
 
                             <div class="row g-1 overflow-auto" id="posProduct"
-                                style="height: calc(100vh - 240px); overflow-y: auto;">
+                                style="height: calc(100vh - 315px); overflow-y: auto;">
 
                             </div>
                         </div>
@@ -1044,84 +1021,82 @@
 
         <!-- Bottom Fixed Section (Hidden on Mobile/Tablet) -->
         <div class="bottom-fixed d-none d-lg-block">
-            <div class="row align-items-center">
+            <div class="row">
                 <!-- Left Side: Total Payable and Cancel -->
-                <div class="col-md-4 col-lg-3 d-flex align-items-center justify-content-start gap-3" style="min-width: 0;">
-                    <h4 class="mb-0" style="font-size: 1.15rem; white-space: nowrap; font-weight: 600;">Total Payable:</h4>
-                    <div class="d-flex flex-column" style="line-height: 1;">
-                        <span id="total" class="text-success fw-bold" style="font-size: 1.3rem; white-space: nowrap;">Rs 0.00</span>
-                        <span id="items-count" class="text-secondary" style="font-size: 0.8rem;">(0)</span>
-                    </div>
-                    <button class="btn btn-danger ms-2" id="cancelButton" style="padding: 5px 10px; font-size: 0.8rem; height: 32px; line-height: 1.2;"><i class="fas fa-times"></i>
+                <div class="col-md-5 d-flex align-items-center justify-content-start gap-3">
+                    <h4 class="mb-0">Total Payable:</h4>
+                    <span id="total" class="text-success fw-bold ms-2" style="font-size: 24px;">Rs 0.00</span>
+                    <span id="items-count" class="text-secondary ms-2" style="font-size: 16px;">(0)</span>
+                    <button class="btn btn-danger ms-3 btn-sm" id="cancelButton"><i class="fas fa-times"></i>
                         Cancel</button>
                 </div>
 
                 <!-- Right Side: Actions (Aligned to Right) -->
-                <div class="col-md-8 col-lg-9 text-end">
-                    <div class="d-flex justify-content-end gap-1 flex-nowrap align-items-center" style="overflow-x: auto; scrollbar-width: thin;">
+                <div class="col-md-7 text-end">
+                    <div class="d-flex justify-content-end gap-1 flex-wrap">
 
                         @can('create job-ticket')
                             {{-- job ticket --}}
-                            <button type="button" class="btn btn-outline-secondary" id="jobTicketButton" style="padding: 5px 10px; font-size: 0.8rem; white-space: nowrap; height: 32px; line-height: 1.2;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="jobTicketButton">
                                 <i class="fas fa-ticket-alt"></i> Job Ticket
                             </button>
                         @endcan
 
                         @can('create quotation')
                             {{-- <!-- Quotation Button --> --}}
-                            <button type="button" class="btn btn-outline-warning" id="quotationButton" style="padding: 5px 10px; font-size: 0.8rem; white-space: nowrap; height: 32px; line-height: 1.2;">
+                            <button type="button" class="btn btn-outline-warning btn-sm" id="quotationButton">
                                 <i class="fas fa-file-alt"></i> Quotation
                             </button>
                         @endcan
 
                         @can('save draft')
                             <!-- Draft Button -->
-                            <button type="button" class="btn btn-outline-info" id="draftButton" style="padding: 5px 10px; font-size: 0.8rem; white-space: nowrap; height: 32px; line-height: 1.2;">
+                            <button type="button" class="btn btn-outline-info btn-sm" id="draftButton">
                                 <i class="fas fa-edit"></i> Draft
                             </button>
                         @endcan
 
                         @can('create sale-order')
                             <!-- Sale Order Button -->
-                            <button type="button" class="btn btn-outline-success" id="saleOrderButton" style="padding: 5px 10px; font-size: 0.8rem; white-space: nowrap; height: 32px; line-height: 1.2;">
+                            <button type="button" class="btn btn-outline-success btn-sm" id="saleOrderButton">
                                 <i class="fas fa-shopping-cart"></i> Sale Order
                             </button>
                         @endcan
 
                         @can('suspend sale')
                             <!-- Existing Buttons -->
-                            <button class="btn btn-outline-danger" data-bs-toggle="modal"
-                                data-bs-target="#suspendModal" style="padding: 5px 10px; font-size: 0.8rem; white-space: nowrap; height: 32px; line-height: 1.2;">
+                            <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal"
+                                data-bs-target="#suspendModal">
                                 <i class="fas fa-pause"></i> Suspend
                             </button>
                         @endcan
 
                         @can('credit sale')
-                            <button class="btn btn-outline-success" id="creditSaleButton" style="padding: 5px 10px; font-size: 0.8rem; white-space: nowrap; height: 32px; line-height: 1.2;">
+                            <button class="btn btn-outline-success btn-sm" id="creditSaleButton">
                                 <i class="fas fa-check"></i> Credit Sale
                             </button>
                         @endcan
 
                         @can('card payment')
-                            <button class="btn btn-outline-primary" id="cardButton" style="padding: 5px 10px; font-size: 0.8rem; white-space: nowrap; height: 32px; line-height: 1.2;">
+                            <button class="btn btn-outline-primary btn-sm" id="cardButton">
                                 <i class="fas fa-credit-card"></i> Card
                             </button>
                         @endcan
 
                         @can('cheque payment')
-                            <button class="btn btn-outline-warning" id="chequeButton" style="padding: 5px 10px; font-size: 0.8rem; white-space: nowrap; height: 32px; line-height: 1.2;">
+                            <button class="btn btn-outline-warning btn-sm" id="chequeButton">
                                 <i class="fas fa-money-check"></i> Cheque
                             </button>
                         @endcan
 
                         @can('multiple payment methods')
-                            <button class="btn btn-outline-dark" data-bs-toggle="modal"
-                                data-bs-target="#paymentModal" style="padding: 5px 10px; font-size: 0.8rem; white-space: nowrap; height: 32px; line-height: 1.2;">
+                            <button class="btn btn-outline-dark btn-sm" data-bs-toggle="modal"
+                                data-bs-target="#paymentModal">
                                 <i class="fas fa-list"></i> Multiple Pay
                             </button>
                         @endcan
                         @can('cash payment')
-                            <button class="btn btn-outline-secondary" id="cashButton" style="padding: 5px 10px; font-size: 0.8rem; white-space: nowrap; height: 32px; line-height: 1.2;">
+                            <button class="btn btn-outline-secondary btn-sm" id="cashButton">
                                 <i class="fas fa-cash-register"></i> Cash
                             </button>
                         @endcan
