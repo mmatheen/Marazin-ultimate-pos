@@ -377,6 +377,18 @@
             }
         });
 
+        // 🎯 Global listener: Focus search input after print dialog closes (any print operation)
+        window.addEventListener('afterprint', function() {
+            setTimeout(() => {
+                const productSearchInput = document.getElementById('productSearchInput');
+                if (productSearchInput) {
+                    productSearchInput.focus();
+                    productSearchInput.select();
+                    console.log('✅ Product search input focused after print dialog closed (global listener)');
+                }
+            }, 300);
+        });
+
         // Listen for customer changes to update pricing and floating balance
         $('#customer-id').on('change', function() {
             // Clear price cache when customer changes
@@ -9349,9 +9361,21 @@
                                                 printWindow.document.close();
                                                 printWindow.onload = function() {
                                                     printWindow.print();
+                                                    
+                                                    // 🎯 Focus search input after print dialog closes
+                                                    printWindow.onafterprint = function() {
+                                                        setTimeout(() => {
+                                                            const searchInput = document.getElementById('productSearchInput');
+                                                            if (searchInput) {
+                                                                searchInput.focus();
+                                                                searchInput.select();
+                                                                console.log('✅ Product search input focused after mobile print');
+                                                            }
+                                                        }, 300);
+                                                    };
                                                 };
 
-                                                // Monitor for edit page redirect
+                                                // Monitor for edit page redirect and focus search input when closed
                                                 if (saleId && window.location.pathname.includes('/edit/')) {
                                                     const checkClosed = setInterval(() => {
                                                         if (printWindow.closed) {
@@ -9360,6 +9384,21 @@
                                                         }
                                                     }, 100);
                                                     setTimeout(() => clearInterval(checkClosed), 30000);
+                                                } else {
+                                                    // 🎯 Focus search input when print window closes (non-edit mode)
+                                                    const checkClosed = setInterval(() => {
+                                                        if (printWindow.closed) {
+                                                            clearInterval(checkClosed);
+                                                            setTimeout(() => {
+                                                                const searchInput = document.getElementById('productSearchInput');
+                                                                if (searchInput) {
+                                                                    searchInput.focus();
+                                                                    searchInput.select();
+                                                                    console.log('✅ Product search input focused after mobile print window closed');
+                                                                }
+                                                            }, 100);
+                                                        }
+                                                    }, 500);
                                                 }
                                             } else {
                                                 toastr.error('Print window was blocked. Please allow pop-ups.');
@@ -9376,12 +9415,35 @@
                                             iframe.onload = function() {
                                                 iframe.contentWindow.focus();
                                                 iframe.contentWindow.print();
+                                                
+                                                // 🎯 Listen for afterprint event to focus search input
+                                                iframe.contentWindow.onafterprint = function() {
+                                                    setTimeout(() => {
+                                                        const searchInput = document.getElementById('productSearchInput');
+                                                        if (searchInput) {
+                                                            searchInput.focus();
+                                                            searchInput.select();
+                                                            console.log('✅ Product search input focused after desktop print');
+                                                        }
+                                                    }, 200);
+                                                };
+                                                
                                                 // Clean up iframe after print
                                                 setTimeout(() => {
                                                     if (document.body.contains(iframe)) document.body.removeChild(iframe);
                                                     // Redirect for edit page
                                                     if (saleId && window.location.pathname.includes('/edit/')) {
                                                         window.location.href = '/pos-create';
+                                                    } else {
+                                                        // 🎯 Fallback: Focus search input after cleanup
+                                                        setTimeout(() => {
+                                                            const searchInput = document.getElementById('productSearchInput');
+                                                            if (searchInput) {
+                                                                searchInput.focus();
+                                                                searchInput.select();
+                                                                console.log('✅ Product search input focused after desktop print cleanup');
+                                                            }
+                                                        }, 100);
                                                     }
                                                 }, 1000);
                                             };
@@ -11100,6 +11162,18 @@
                                     setTimeout(() => {
                                         printWindow.print();
                                         // Don't auto-close on mobile - let user close manually
+                                        
+                                        // 🎯 Focus search input after print dialog closes
+                                        printWindow.onafterprint = function() {
+                                            setTimeout(() => {
+                                                const searchInput = document.getElementById('productSearchInput');
+                                                if (searchInput) {
+                                                    searchInput.focus();
+                                                    searchInput.select();
+                                                    console.log('✅ Product search input focused after printReceipt mobile print');
+                                                }
+                                            }, 300);
+                                        };
                                     }, 500);
                                 };
 
@@ -11121,6 +11195,21 @@
                                             window.location.href = '/pos-create';
                                         }
                                     }, 30000);
+                                } else {
+                                    // 🎯 Non-edit mode: Focus search input when print window closes
+                                    const checkClosed = setInterval(() => {
+                                        if (printWindow.closed) {
+                                            clearInterval(checkClosed);
+                                            setTimeout(() => {
+                                                const searchInput = document.getElementById('productSearchInput');
+                                                if (searchInput) {
+                                                    searchInput.focus();
+                                                    searchInput.select();
+                                                    console.log('✅ Product search input focused after printReceipt mobile window closed');
+                                                }
+                                            }, 100);
+                                        }
+                                    }, 500);
                                 }
                             } else {
                                 toastr.error('Please allow pop-ups to print the receipt.');
@@ -11148,6 +11237,18 @@
                                     try {
                                         iframe.contentWindow.focus();
                                         iframe.contentWindow.print();
+                                        
+                                        // 🎯 Listen for afterprint event to focus search input
+                                        iframe.contentWindow.onafterprint = function() {
+                                            setTimeout(() => {
+                                                const searchInput = document.getElementById('productSearchInput');
+                                                if (searchInput) {
+                                                    searchInput.focus();
+                                                    searchInput.select();
+                                                    console.log('✅ Product search input focused after printReceipt desktop print');
+                                                }
+                                            }, 200);
+                                        };
                                     } catch (e) {
                                         console.error('Print error:', e);
                                         toastr.error('Unable to print. Please try again.');
@@ -11164,6 +11265,16 @@
                                             console.log('Desktop print completed, redirecting to POS immediately...');
                                             // Immediate redirect - no delay
                                             window.location.href = '/pos-create';
+                                        } else {
+                                            // 🎯 Non-edit mode: Focus search input after cleanup
+                                            setTimeout(() => {
+                                                const searchInput = document.getElementById('productSearchInput');
+                                                if (searchInput) {
+                                                    searchInput.focus();
+                                                    searchInput.select();
+                                                    console.log('✅ Product search input focused after printReceipt desktop cleanup');
+                                                }
+                                            }, 100);
                                         }
                                     };
 
