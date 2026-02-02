@@ -5295,11 +5295,22 @@
                     if (data.status === 200 && Array.isArray(data.data)) {
                         if (reset) {
                             allProducts = [];
+                            stockData = []; // Reset stockData when resetting filter
                             posProduct.innerHTML = '';
                         }
 
-                        // Add new products to allProducts array
-                        data.data.forEach(stock => allProducts.push(stock));
+                        // Add new products to both allProducts and stockData arrays
+                        data.data.forEach(stock => {
+                            allProducts.push(stock);
+                            // Also add to stockData to prevent "Stock entry not found" error when clicking products
+                            const existingIndex = stockData.findIndex(s => s.product.id === stock.product.id);
+                            if (existingIndex === -1) {
+                                stockData.push(stock);
+                            } else {
+                                // Update existing stock data with fresh data
+                                stockData[existingIndex] = stock;
+                            }
+                        });
 
                         // Update pagination flags
                         hasMoreProducts = data.data.length === perPage;
@@ -9361,7 +9372,7 @@
                                                 printWindow.document.close();
                                                 printWindow.onload = function() {
                                                     printWindow.print();
-                                                    
+
                                                     // 🎯 Focus search input after print dialog closes
                                                     printWindow.onafterprint = function() {
                                                         setTimeout(() => {
@@ -9415,7 +9426,7 @@
                                             iframe.onload = function() {
                                                 iframe.contentWindow.focus();
                                                 iframe.contentWindow.print();
-                                                
+
                                                 // 🎯 Listen for afterprint event to focus search input
                                                 iframe.contentWindow.onafterprint = function() {
                                                     setTimeout(() => {
@@ -9427,7 +9438,7 @@
                                                         }
                                                     }, 200);
                                                 };
-                                                
+
                                                 // Clean up iframe after print
                                                 setTimeout(() => {
                                                     if (document.body.contains(iframe)) document.body.removeChild(iframe);
@@ -11162,7 +11173,7 @@
                                     setTimeout(() => {
                                         printWindow.print();
                                         // Don't auto-close on mobile - let user close manually
-                                        
+
                                         // 🎯 Focus search input after print dialog closes
                                         printWindow.onafterprint = function() {
                                             setTimeout(() => {
@@ -11237,7 +11248,7 @@
                                     try {
                                         iframe.contentWindow.focus();
                                         iframe.contentWindow.print();
-                                        
+
                                         // 🎯 Listen for afterprint event to focus search input
                                         iframe.contentWindow.onafterprint = function() {
                                             setTimeout(() => {
