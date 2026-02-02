@@ -56,9 +56,10 @@
         };
     }
 
-        // Search results cache - 30 seconds for fast autocomplete while keeping data relatively fresh
+        // Search results cache - DISABLED for POS to ensure real-time pricing
         let searchCache = new Map();
-        let searchCacheExpiry = 30 * 1000; // 30 seconds cache for performance
+        let searchCacheExpiry = 0; // 0 = No caching, always fetch fresh data for accurate pricing
+        let cacheVersion = Date.now(); // Version tracking to invalidate stale caches
 
         // DOM element cache to avoid repeated getElementById calls
         let domElementCache = {};
@@ -79,18 +80,47 @@
             // Clear image failure cache
             failedImages.clear();
             imageAttempts.clear();
-            console.log('🗑️ All caches cleared due to data update');
+            // Clear product/stock data arrays to force fresh fetch
+            if (typeof stockData !== 'undefined') {
+                stockData = [];
+                console.log('🗑️ Cleared stockData array');
+            }
+            if (typeof allProducts !== 'undefined') {
+                allProducts = [];
+                console.log('🗑️ Cleared allProducts array');
+            }
+            // Bump cache version to invalidate all cached data
+            cacheVersion = Date.now();
+            console.log('🗑️ All caches cleared due to data update. New cache version:', cacheVersion);
         }
 
         // Listen for storage events from other tabs/windows
         window.addEventListener('storage', function(e) {
-            if (e.key === 'product_cache_invalidate') {
+            // Handle all product/batch update events
+            if (e.key === 'product_cache_invalidate' ||
+                e.key === 'force_product_refresh' ||
+                e.key === 'batch_prices_updated') {
+                console.log('📢 Cache invalidation detected from another tab:', e.key);
                 clearAllCaches();
+
+                // Reinitialize autocomplete to fetch fresh data
+                if (typeof initAutocomplete === 'function') {
+                    try {
+                        $("#productSearchInput").autocomplete('destroy');
+                        initAutocomplete();
+                        console.log('🔄 Autocomplete reinitialized with fresh cache');
+                    } catch (err) {
+                        console.warn('Could not reinitialize autocomplete:', err.message);
+                    }
+                }
+
                 // Refresh current product display
                 if (selectedLocationId) {
                     console.log('🔄 Refreshing products due to cache invalidation');
                     fetchPaginatedProducts(true);
                 }
+
+                toastr.info('Product data refreshed from another tab', 'Cache Updated');
             }
         });
 
@@ -2957,7 +2987,8 @@
             }
 
             // Add with_stock=1 to fetch only products with stock > 0 (backend filtering)
-            const url = `/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=${perPage}&with_stock=1`;
+            // Add timestamp for cache busting
+            const url = `/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=${perPage}&with_stock=1&_t=${Date.now()}`;
 
             // Add CSRF token and headers to prevent 419 errors
             const fetchOptions = {
@@ -3678,15 +3709,23 @@
         }
 
         function createProductSearchRequest(term, response) {
-            // Create cache key based on search term and location
-            const cacheKey = `search_${selectedLocationId}_${term.toLowerCase()}`;
+            // Create cache key based on search term, location, and cache version
+            const cacheKey = `search_${selectedLocationId}_${term.toLowerCase()}_v${cacheVersion}`;
 
-            // Check cache first
-            const cached = searchCache.get(cacheKey);
-            if (cached && (Date.now() - cached.timestamp < searchCacheExpiry)) {
-                console.log('Using cached search results for:', term);
-                autocompleteState.isRequesting = false;
-                return response(cached.results);
+            // CACHING DISABLED FOR POS - Always fetch fresh data for accurate pricing
+            // This ensures batch price updates are immediately reflected
+            if (searchCacheExpiry > 0) {
+                // Check cache only if caching is enabled
+                const cached = searchCache.get(cacheKey);
+                if (cached && (Date.now() - cached.timestamp < searchCacheExpiry) && cached.version === cacheVersion) {
+                    console.log('✅ Using cached search results for:', term, '(version:', cacheVersion, ')');
+                    autocompleteState.isRequesting = false;
+                    return response(cached.results);
+                } else if (cached) {
+                    console.log('🔄 Cache miss - version mismatch or expired. Fetching fresh data for:', term);
+                }
+            } else {
+                console.log('🔄 Cache disabled - Fetching fresh data for:', term);
             }
 
             return $.ajax({
@@ -3694,7 +3733,8 @@
                 data: {
                     location_id: selectedLocationId,
                     search: term,
-                    per_page: 50 // Optimized for speed - 50 results is sufficient for autocomplete
+                    per_page: 50, // Optimized for speed - 50 results is sufficient for autocomplete
+                    _t: Date.now() // Cache-busting timestamp
                 },
                 cache: false, // ✅ Prevent browser caching - always fetch fresh stock data
                 timeout: 10000,
@@ -3799,13 +3839,16 @@
                 return;
             }
 
-            // ✅ CACHING ENABLED - 30 second cache for speed, fresh enough for accurate stock
-            if (cacheKey && results.length > 0) {
+            // ✅ CACHING DISABLED - Always fetch fresh for real-time pricing accuracy
+            if (searchCacheExpiry > 0 && cacheKey && results.length > 0) {
                 searchCache.set(cacheKey, {
                     results: results,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    version: cacheVersion
                 });
-                console.log('Cached search results for:', term);
+                console.log('💾 Cached search results for:', term, '(version:', cacheVersion, ')');
+            } else if (searchCacheExpiry === 0) {
+                console.log('💾 Cache disabled - Not storing results (always fresh)');
             }
 
             autocompleteState.lastResults = results.filter(r => r.product);
@@ -5067,36 +5110,50 @@
             autocompleteState.lastProduct = item.product;
             console.log('Adding product:', item.product.product_name, 'Term:', searchTerm, 'Type:', matchType);
 
-            let stockEntry = stockData.find(stock => stock.product.id === item.product.id);
-
-            if (!stockEntry && item.stockData) {
-                stockData.push(item.stockData);
-                allProducts.push(item.stockData);
-                stockEntry = item.stockData;
-            }
-
-            if (!stockEntry) {
-                fetchProductStock(item.product.id, searchTerm, matchType);
-                return;
-            }
-
-            addProductToTable(item.product, searchTerm, matchType);
-
-            // Auto-focus search input for next product after small delay
-            setTimeout(() => {
-                autoFocusSearchInput();
-            }, 200);
+            // 🔥 ALWAYS fetch fresh data from server to ensure latest batch prices
+            // Don't rely on stockData which might have stale prices
+            console.log('🔄 Fetching fresh product data with latest batch prices...');
+            fetchProductStockFresh(item.product.id, searchTerm, matchType);
         }
 
-        function fetchProductStock(productId, searchTerm, matchType) {
-            const url = `/api/products/stocks?location_id=${selectedLocationId}&product_id=${productId}`;
+        function fetchProductStockFresh(productId, searchTerm, matchType) {
+            const url = `/products/stocks?location_id=${selectedLocationId}&product_id=${productId}&_t=${Date.now()}`;
+
+            console.log('🔄 Fetching FRESH product stock data from server:', url);
 
             safeFetchJson(url)
                 .then(data => {
                     if (data.status === 200 && Array.isArray(data.data) && data.data.length > 0) {
-                        stockData.push(data.data[0]);
-                        allProducts.push(data.data[0]);
-                        addProductToTable(data.data[0].product, searchTerm, matchType);
+                        const freshStockData = data.data[0];
+
+                        // 🔥 CRITICAL DEBUG: Check what product we received from API
+                        console.log('🆔 REQUESTED Product ID:', productId);
+                        console.log('📦 RECEIVED Product from API:', freshStockData.product.id, freshStockData.product.product_name);
+                        
+                        // 🔥 CRITICAL FIX: Validate that we received the correct product
+                        if (freshStockData.product.id != productId) {
+                            console.error('❌ API returned WRONG product!', {
+                                requested: productId,
+                                received: freshStockData.product.id,
+                                receivedName: freshStockData.product.product_name
+                            });
+                            toastr.error('Server returned incorrect product data. Please try again.', 'Error');
+                            autoFocusSearchInput();
+                            return;
+                        }
+
+                        // 🔥 FIX: Remove ALL existing entries for this product ID to prevent duplicates
+                        stockData = stockData.filter(stock => stock.product.id != productId);
+                        
+                        // Add fresh data (always at end, so it's found first by findLast)
+                        stockData.push(freshStockData);
+                        console.log('✅ Added product', freshStockData.product.id, freshStockData.product.product_name, 'to stockData');
+
+                        // Also update allProducts
+                        allProducts = allProducts.filter(stock => stock.product.id != productId);
+                        allProducts.push(freshStockData);
+
+                        addProductToTable(freshStockData.product, searchTerm, matchType);
 
                         // Auto-focus for next scan after successful add
                         setTimeout(() => {
@@ -5239,7 +5296,7 @@
             }
 
             // Build filter URL based on filter type
-            let url = `/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=${perPage}`;
+            let url = `/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=${perPage}&_t=${Date.now()}`;
 
             switch(filterType) {
                 case 'category':
@@ -5392,7 +5449,9 @@
                 return;
             }
 
-            const stockEntry = stockData.find(stock => stock.product.id == product.id); // Use == for type coercion
+            // 🔥 FIX: Search in REVERSE to get the most recently added/updated product
+            // This ensures we get fresh data instead of stale cached data
+            const stockEntry = [...stockData].reverse().find(stock => stock.product.id == product.id);
             console.log("stockEntry found:", stockEntry);
             console.log("Looking for product ID:", product.id);
             console.log("Available product IDs in stockData:", stockData.map(s => s.product.id));
@@ -5840,7 +5899,7 @@
             // Force refresh stock data for IMEI products to get latest status
             if (!isEditing) {
                 console.log('Force refreshing stock data for IMEI product...');
-                fetch(`/api/products/stocks/autocomplete?search=${encodeURIComponent(product.product_name)}&location_id=${selectedLocationId}`, {
+                fetch(`/products/stocks/autocomplete?search=${encodeURIComponent(product.product_name)}&location_id=${selectedLocationId}`, {
                         cache: 'no-store', // ✅ Prevent browser caching - always fetch fresh IMEI data
                         headers: {
                             'X-Requested-With': 'XMLHttpRequest',
@@ -7265,18 +7324,16 @@
                     let currentQty = allowDecimal ? parseFloat(quantityInput.value) : parseInt(quantityInput
                         .value, 10);
 
-                    // Check if this is from mobile modal (mobileQty passed means we want to SET the quantity, not ADD)
-                    // When saleQuantity > 1 and we have an existing row, check if it matches the mobile use case
-                    let newQuantity;
-                    const isMobileUpdate = saleQuantity > 1 && currentQty > 0;
-
-                    if (isMobileUpdate) {
-                        // Mobile modal: Replace quantity (don't add)
-                        newQuantity = saleQuantity;
-                    } else {
-                        // Normal: Add to existing quantity
-                        newQuantity = currentQty + saleQuantity;
-                    }
+                    // 🔥 FIX: Always ADD to existing quantity instead of replacing
+                    // When a product already exists in cart, increment its quantity
+                    let newQuantity = currentQty + saleQuantity;
+                    
+                    console.log('📦 Product already in cart - incrementing quantity:', {
+                        productName: product.product_name,
+                        currentQty: currentQty,
+                        addingQty: saleQuantity,
+                        newQty: newQuantity
+                    });
 
                     // In edit mode, get the max quantity from the row's data attribute (set during initial load)
                     // This represents the true available stock (current stock + quantity in original sale)
@@ -7328,11 +7385,11 @@
             row.setAttribute('data-max-quantity', adjustedBatchQuantity);
 
             row.innerHTML = `
-        <td class="text-center counter-cell" style="vertical-align: middle; font-weight: bold; color: #000;"></td>
-        <td>
+        <td class="text-center counter-cell" style="vertical-align: middle; font-weight: bold; color: #000; padding: 6px;"></td>
+        <td style="padding: 6px;">
             <div class="d-flex align-items-start">
             <img src="${getSafeImageUrl(product)}"
-                 style="width:50px; height:50px; margin-right:10px; border-radius:50%;"
+                 style="width:45px; height:45px; margin-right:8px; border-radius:50%;"
                  class="product-image"
                  title="Unit Cost: ${batch ? (batch.unit_cost || batch.purchase_price || 'N/A') : (product.unit_cost || product.purchase_price || 'N/A')} | Original Price: ${product.original_price || product.purchase_price || 'N/A'}"
                  alt="${product.product_name}"
@@ -7340,37 +7397,36 @@
                  data-bs-placement="top"
                  onerror="this.onerror=null; this.src='/assets/images/No Product Image Available.png'; console.log('Image fallback applied for billing row: ${product.product_name}');"/>
             <div class="product-info" style="min-width: 0; flex: 1;">
-            <div class="font-weight-bold product-name" style="word-break: break-word; max-width: 260px; line-height: 1.2;" title="Unit Cost: ${batch ? (batch.unit_cost || batch.purchase_price || 'N/A') : (product.unit_cost || product.purchase_price || 'N/A')} | Original Price: ${product.original_price || product.purchase_price || 'N/A'}">
+            <div class="font-weight-bold product-name" style="word-break: break-word; max-width: 260px; line-height: 1.1; font-size: 0.95em;" title="Unit Cost: ${batch ? (batch.unit_cost || batch.purchase_price || 'N/A') : (product.unit_cost || product.purchase_price || 'N/A')} | Original Price: ${product.original_price || product.purchase_price || 'N/A'}">
             ${product.product_name}
-            <span class="badge bg-info ms-1">MRP: ${batch && batch.max_retail_price ? batch.max_retail_price : product.max_retail_price}</span>
-
             </div>
-            <div class="d-flex flex-wrap align-items-center mt-1" style="gap: 10px;">
-            <span class="text-muted product-sku" style="font-size: 0.95em; word-break: break-all;">
+            <div class="d-flex flex-wrap align-items-center mt-1" style="gap: 8px; line-height: 1;">
+            <span class="badge" style="background-color: #0d6efd; color: white; font-size: 0.85em; font-weight: 600; padding: 3px 8px;">MRP: ${batch && batch.max_retail_price ? batch.max_retail_price : product.max_retail_price}</span>
+            <span class="text-muted product-sku" style="font-size: 0.85em; word-break: break-all; font-weight: 500;">
             SKU: ${product.sku}
             </span>
-            <span class="quantity-display ms-2" style="font-size: 0.95em;">
+            <span class="badge bg-success" style="font-size: 0.85em; font-weight: 600; padding: 3px 8px;">
              ${adjustedBatchQuantity} ${unitName}
             </span>
-            ${product.is_imei_or_serial_no === 1 ? `<span class="badge bg-info ms-2">IMEI</span>
+            ${product.is_imei_or_serial_no === 1 ? `<span class="badge bg-info">IMEI</span>
               <i class="fas fa-info-circle show-imei-btn ms-1" style="cursor: pointer;" title="View/Edit IMEI"></i>` : ''}
             </div>
 
             </div>
             </div>
         </td>
-        <td>
+        <td style="padding: 6px;">
             <div class="d-flex justify-content-center">
-            <button class="btn btn-danger quantity-minus btn">-</button>
-            <input type="number" value="${initialQuantityValue}" max="${adjustedBatchQuantity}" class="form-control quantity-input text-center" title="Available: ${adjustedBatchQuantity}" ${imeis.length > 0 ? 'readonly' : ''} step="${qtyInputStep}" pattern="${qtyInputPattern}" data-quantity="${initialQuantityValue}">
-            <button class="btn btn-success quantity-plus btn">+</button>
+            <button class="btn btn-danger quantity-minus btn-sm">-</button>
+            <input type="number" value="${initialQuantityValue}" max="${adjustedBatchQuantity}" class="form-control form-control-sm quantity-input text-center" title="Available: ${adjustedBatchQuantity}" ${imeis.length > 0 ? 'readonly' : ''} step="${qtyInputStep}" pattern="${qtyInputPattern}" data-quantity="${initialQuantityValue}">
+            <button class="btn btn-success quantity-plus btn-sm">+</button>
             </div>
-            <div style="font-size: 0.85em; color: #888; text-align:center;">${unitName}</div>
+            <div style="font-size: 0.8em; color: #888; text-align:center;">${unitName}</div>
         </td>
-        <td class="text-center"><input type="number" name="discount_fixed[]" class="form-control fixed_discount text-center" value="${discountFixed.toFixed(2)}" ${(priceValidationEnabled === 1 && !canEditDiscount && !isEditing) ? 'readonly' : ''}></td>
-        <td class="text-center"><input type="number" name="discount_percent[]" class="form-control percent_discount text-center" value="${priceValidationEnabled === 0 ? '' : discountPercent.toFixed(2)}" ${priceValidationEnabled === 0 ? 'readonly' : ((priceValidationEnabled === 1 && !canEditDiscount && !isEditing) ? 'readonly' : '')}></td>
-        <td class="text-center">
-            <input type="number" value="${finalPrice.toFixed(2)}" class="form-control price-input unit-price text-center"
+        <td class="text-center" style="padding: 6px;"><input type="number" name="discount_fixed[]" class="form-control form-control-sm fixed_discount text-center" value="${discountFixed.toFixed(2)}" ${(priceValidationEnabled === 1 && !canEditDiscount && !isEditing) ? 'readonly' : ''}></td>
+        <td class="text-center" style="padding: 6px;"><input type="number" name="discount_percent[]" class="form-control form-control-sm percent_discount text-center" value="${priceValidationEnabled === 0 ? '' : discountPercent.toFixed(2)}" ${priceValidationEnabled === 0 ? 'readonly' : ((priceValidationEnabled === 1 && !canEditDiscount && !isEditing) ? 'readonly' : '')}></td>
+        <td class="text-center" style="padding: 6px;">
+            <input type="number" value="${finalPrice.toFixed(2)}" class="form-control form-control-sm price-input unit-price text-center"
                 data-price="${finalPrice}"
                 data-quantity="${adjustedBatchQuantity}"
                 data-retail-price="${batch ? batch.retail_price : product.retail_price}"
@@ -7379,8 +7435,8 @@
                 data-max-retail-price="${batch ? batch.max_retail_price || product.max_retail_price : product.max_retail_price}"
                 min="0" ${(priceValidationEnabled === 1 && !canEditUnitPrice && !isEditing) ? 'readonly' : ''}>
         </td>
-        <td class="subtotal total-price text-center" data-total="${(parseFloat(initialQuantityValue) * finalPrice).toFixed(2)}">${formatAmountWithSeparators((parseFloat(initialQuantityValue) * finalPrice).toFixed(2))}</td>
-        <td class="text-center"><button class="btn btn-danger btn-sm remove-btn">×</button></td>
+        <td class="subtotal total-price text-center" style="padding: 6px;" data-total="${(parseFloat(initialQuantityValue) * finalPrice).toFixed(2)}">${formatAmountWithSeparators((parseFloat(initialQuantityValue) * finalPrice).toFixed(2))}</td>
+        <td class="text-center" style="padding: 6px;"><button class="btn btn-danger btn-sm remove-btn">×</button></td>
         <td class="product-id d-none">${product.id}</td>
         <td class="location-id d-none">${locationId}</td>
         <td class="batch-id d-none">${batchId || 'all'}</td>
@@ -9068,6 +9124,7 @@
                     const isImeiProduct = productRow.find('.imei-data').text().trim() !== '';
 
                     // Determine which discount is active
+                    // ✅ CORRECT: Send per-unit discount (receipt will multiply by quantity)
                     const discountType = discountFixed > 0 ? 'fixed' : 'percentage';
                     const discountAmount = discountFixed > 0 ? discountFixed : discountPercent;
 
@@ -11337,8 +11394,8 @@
 </script>
 
 
-<!-- Include cleave.js -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/cleave.js/1.6.0/cleave.min.js"></script>
+<!-- Cleave.js: Commented out until downloaded locally -->
+{{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/cleave.js/1.6.0/cleave.min.js"></script> --}}
 {{-- For sound --}}
 <audio class="successSound" src="{{ asset('assets/sounds/success.mp3') }}"></audio>
 <audio class="errorSound" src="{{ asset('assets/sounds/error.mp3') }}"></audio>
@@ -11362,9 +11419,9 @@
 <script src="{{ asset('assets/plugins/bootstrap-tagsinput/js/bootstrap-tagsinput.js') }}"></script>
 <script src="{{ asset('assets/js/script.js') }}"></script>
 
-<!-- jQuery Validation Plugin -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.6/jquery.inputmask.min.js"></script>
+<!-- jQuery Validation Plugin - LOCAL VERSION -->
+<script src="{{ asset('vendor/jquery-validate/jquery.validate.min.js') }}"></script>
+<script src="{{ asset('vendor/inputmask/inputmask.min.js') }}"></script>
 
 <script>
     $(function() {
