@@ -4,6 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>POS Receipt</title>
+    @php
+        // Get receipt configuration with defaults
+        $config = $receiptConfig ?? [];
+        $showLogo = $config['show_logo'] ?? true;
+        $showCustomerPhone = $config['show_customer_phone'] ?? true;
+        $showMrpStrikethrough = $config['show_mrp_strikethrough'] ?? true;
+        $showImei = $config['show_imei'] ?? true;
+        $showDiscountBreakdown = $config['show_discount_breakdown'] ?? true;
+        $showPaymentMethod = $config['show_payment_method'] ?? true;
+        $showOutstandingDue = $config['show_outstanding_due'] ?? true;
+        $showStatsSection = $config['show_stats_section'] ?? true;
+        $showFooterNote = $config['show_footer_note'] ?? true;
+        $spacingMode = $config['spacing_mode'] ?? 'compact';
+        $fontSizeBase = $config['font_size_base'] ?? 11;
+        $lineSpacing = $config['line_spacing'] ?? 5;
+
+        // Calculate spacing multipliers based on mode and line spacing
+        $spacingMultiplier = $spacingMode === 'spacious' ? 1.5 : 1;
+        $lineSpacingFactor = $lineSpacing / 5; // 5 is default, creates 0.2 to 2.0 range
+        $finalSpacing = $spacingMultiplier * $lineSpacingFactor;
+    @endphp
     <style>
         * {
             margin: 0;
@@ -12,15 +33,15 @@
         }
 
         @page {
-            margin: 5px;
+            margin: {{ 5 * $finalSpacing }}px;
         }
 
         body {
             font-family: 'Arial', sans-serif;
-            font-size: 11px;
+            font-size: {{ $fontSizeBase }}px;
             color: #000;
             text-transform: uppercase;
-            line-height: 1.2;
+            line-height: {{ 1.2 * $finalSpacing }};
         }
 
         .receipt-container {
@@ -32,7 +53,7 @@
         /* Logo Section */
         .logo-section {
             text-align: center;
-            margin-bottom: 4px;
+            margin-bottom: {{ 4 * $finalSpacing }}px;
         }
 
         .logo-section img {
@@ -45,24 +66,24 @@
         }
 
         .logo-section .text-logo {
-            font-size: 24px;
+            font-size: {{ $fontSizeBase + 13 }}px;
             font-weight: bold;
         }
 
         /* Business Info Section */
         .business-info {
             text-align: center;
-            margin-bottom: 4px;
+            margin-bottom: {{ 4 * $finalSpacing }}px;
         }
 
         .business-info .business-name {
-            font-size: 16px;
+            font-size: {{ $fontSizeBase + 5 }}px;
             font-weight: bold;
-            margin-bottom: 1px;
+            margin-bottom: {{ 1 * $finalSpacing }}px;
         }
 
         .business-info .contact-line {
-            font-size: 10px;
+            font-size: {{ $fontSizeBase - 1 }}px;
             margin-bottom: 0px;
         }
 
@@ -71,19 +92,19 @@
         }
 
         .business-info .date-time {
-            font-size: 11px;
+            font-size: {{ $fontSizeBase }}px;
             font-weight: bold;
-            margin-top: 2px;
+            margin-top: {{ 2 * $finalSpacing }}px;
         }
 
         /* Header Section */
         .receipt-header {
             display: flex;
             justify-content: space-between;
-            padding: 2px 0;
+            padding: {{ 2 * $finalSpacing }}px 0;
             border-top: 1px dashed #000;
             border-bottom: 1px dashed #000;
-            margin: 2px 0;
+            margin: {{ 2 * $finalSpacing }}px 0;
         }
 
         .customer-info {
@@ -375,6 +396,7 @@
     <div class="receipt-container">
 
         {{-- Logo Section --}}
+        @if($showLogo)
         <section class="logo-section">
             @if ($location && $location->logo_image)
                 <img src="{{ asset($location->logo_image) }}" alt="{{ $location->name }} Logo">
@@ -382,6 +404,7 @@
                 <div class="text-logo">{{ $location->name ?? 'LOCATION NAME' }}</div>
             @endif
         </section>
+        @endif
 
         {{-- Business Info Section --}}
         <section class="business-info">
@@ -410,7 +433,7 @@
         <header class="receipt-header">
             <div class="customer-info">
                 <div class="customer-name">{{ $customer->first_name }} {{ $customer->last_name }}</div>
-                @if($customer->mobile_no)
+                @if($showCustomerPhone && $customer->mobile_no)
                     <div class="customer-phone">{{ $customer->mobile_no }}</div>
                 @endif
             </div>
@@ -479,8 +502,8 @@
                         <td>{{ $loop->iteration }}</td>
                         <td colspan="4" class="product-name">
                             {{ $item['product']->product->product_name }}
-                            @if ($item['type'] == 'imei')
-                                <span style="font-size: 10px;">({{ $item['imei'] }})</span>
+                            @if ($showImei && $item['type'] == 'imei')
+                                <span style="font-size: {{ $fontSizeBase - 1 }}px;">({{ $item['imei'] }})</span>
                             @endif
                             @if ($item['product']->price_type == 'retail')
                                 <span class="price-badge">*</span>
@@ -508,7 +531,7 @@
                                 $selling_price = $item['product']->price;
                                 $per_unit_discount = $mrp - $selling_price;
                             @endphp
-                            @if($mrp > 0 && $per_unit_discount > 0)
+                            @if($showMrpStrikethrough && $mrp > 0 && $per_unit_discount > 0)
                                 <span class="mrp-price">{{ number_format($mrp, 2, '.', ',') }}</span>
                                 <span class="discount-amount">({{ number_format($per_unit_discount, 2, '.', ',') }})</span>
                             @endif
@@ -536,29 +559,31 @@
         {{-- Totals Section --}}
         <section class="totals-section">
             <table class="totals-table">
-                 @if ($sale->discount_amount > 0)
+                @if ($showDiscountBreakdown)
                     <tr>
                         <td class="label">SUBTOTAL</td>
                         <td class="value">{{ number_format($sale->subtotal, 2, '.', ',') }}</td>
                     </tr>
 
-                    <tr>
-                        <td class="label">
-                            DISCOUNT
-                            @if ($sale->discount_type == 'percentage')
-                                ({{ $sale->discount_amount }}%)
-                            @else
-                                (RS)
-                            @endif
-                        </td>
-                        <td class="value discount-value">
-                            @if ($sale->discount_type == 'percentage')
-                                -{{ number_format(($sale->subtotal * $sale->discount_amount) / 100, 2, '.', ',') }}
-                            @else
-                                -{{ number_format($sale->discount_amount, 2, '.', ',') }}
-                            @endif
-                        </td>
-                    </tr>
+                    @if ($sale->discount_amount > 0)
+                        <tr>
+                            <td class="label">
+                                DISCOUNT
+                                @if ($sale->discount_type == 'percentage')
+                                    ({{ $sale->discount_amount }}%)
+                                @else
+                                    (RS)
+                                @endif
+                            </td>
+                            <td class="value discount-value">
+                                @if ($sale->discount_type == 'percentage')
+                                    -{{ number_format(($sale->subtotal * $sale->discount_amount) / 100, 2, '.', ',') }}
+                                @else
+                                    -{{ number_format($sale->discount_amount, 2, '.', ',') }}
+                                @endif
+                            </td>
+                        </tr>
+                    @endif
                 @endif
 
                 @if ($sale->shipping_charges > 0)
@@ -602,17 +627,19 @@
                     @endif
 
                     {{-- Total Outstanding Balance --}}
-                    @php
-                        $customer_outstanding = $customer ? \App\Helpers\BalanceHelper::getCustomerBalance($customer->id) : 0;
-                    @endphp
-                    @if ($customer && $customer_outstanding > 0)
-                        <tr>
-                            <td colspan="2"><hr class="divider"></td>
-                        </tr>
-                        <tr>
-                            <td class="label">TOTAL OUTSTANDING DUE</td>
-                            <td class="value outstanding-due">RS {{ number_format($customer_outstanding, 2, '.', ',') }}</td>
-                        </tr>
+                    @if($showOutstandingDue)
+                        @php
+                            $customer_outstanding = $customer ? \App\Helpers\BalanceHelper::getCustomerBalance($customer->id) : 0;
+                        @endphp
+                        @if ($customer && $customer_outstanding > 0)
+                            <tr>
+                                <td colspan="2"><hr class="divider"></td>
+                            </tr>
+                            <tr>
+                                <td class="label">TOTAL OUTSTANDING DUE</td>
+                                <td class="value outstanding-due">RS {{ number_format($customer_outstanding, 2, '.', ',') }}</td>
+                            </tr>
+                        @endif
                     @endif
                 @endif
             </table>
@@ -651,6 +678,7 @@
         <hr class="divider-section">
 
         {{-- Stats Section --}}
+        @if($showStatsSection)
         <section class="stats-section">
             <div class="stat-box">
                 <span class="stat-number">{{ count($products) }}</span>
@@ -665,10 +693,11 @@
                 <span class="stat-label">TOTAL DISCOUNT</span>
             </div>
         </section>
+        @endif
 
     {{-- Payment Method / Status --}}
         @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))
-            @if ($payments->count() > 0)
+            @if ($showPaymentMethod && $payments->count() > 0)
                 <hr class="divider-section">
                 <div class="payment-method">
                     <p><strong>PAYMENT METHOD:</strong>
@@ -704,7 +733,7 @@
         @endif
 
         {{-- Footer --}}
-        @if ($location && $location->footer_note)
+        @if ($showFooterNote && $location && $location->footer_note)
             <hr class="divider-section">
             <div class="footer-note">{{ $location->footer_note }}</div>
         @endif

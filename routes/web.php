@@ -42,7 +42,8 @@ use App\Http\Controllers\{
     PaymentController,
     DiscountController,
     ReportController,
-    SettingController
+    SettingController,
+    ReceiptSettingsController
 };
 use App\Http\Controllers\Web\{
     SalesRepController,
@@ -568,6 +569,13 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/location-store', [LocationController::class, 'store']);
         Route::post('/location-update/{id}', [LocationController::class, 'update']);
         Route::delete('/location-delete/{id}', [LocationController::class, 'destroy']);
+
+        // Receipt Settings Routes
+        Route::get('/receipt-settings/{locationId}', [ReceiptSettingsController::class, 'show'])->name('receipt.settings.show');
+        Route::post('/receipt-settings/update/{locationId}', [ReceiptSettingsController::class, 'update'])->name('receipt.settings.update');
+        Route::post('/receipt-settings/reset/{locationId}', [ReceiptSettingsController::class, 'reset'])->name('receipt.settings.reset');
+        Route::post('/receipt-settings/apply-preset/{locationId}', [ReceiptSettingsController::class, 'applyPreset'])->name('receipt.settings.preset');
+        Route::post('/receipt-settings/preview', [ReceiptSettingsController::class, 'preview'])->name('receipt.settings.preview');
 
         // New vehicle and hierarchy routes
         Route::get('/location-parents', [LocationController::class, 'getParentLocations']);

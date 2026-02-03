@@ -27,9 +27,14 @@ class Location extends Model
         'vehicle_type',
         'invoice_layout_pos',
         'footer_note',
+        'receipt_config',
     ];
 
     protected $appends = ['logo_url'];
+
+    protected $casts = [
+        'receipt_config' => 'array',
+    ];
 
     public function parent()
     {
@@ -212,5 +217,39 @@ class Location extends Model
     {
         $options = self::getLayoutOptions();
         return $options[$this->invoice_layout_pos] ?? 'Unknown Layout';
+    }
+
+    /**
+     * Get receipt configuration merged with defaults
+     *
+     * @return array
+     */
+    public function getReceiptConfig(): array
+    {
+        return \App\ValueObjects\ReceiptConfig::merge($this->receipt_config);
+    }
+
+    /**
+     * Update receipt configuration
+     *
+     * @param array $config
+     * @return bool
+     */
+    public function updateReceiptConfig(array $config): bool
+    {
+        \App\ValueObjects\ReceiptConfig::validate($config);
+        $this->receipt_config = $config;
+        return $this->save();
+    }
+
+    /**
+     * Reset receipt configuration to defaults
+     *
+     * @return bool
+     */
+    public function resetReceiptConfig(): bool
+    {
+        $this->receipt_config = \App\ValueObjects\ReceiptConfig::defaults();
+        return $this->save();
     }
 }

@@ -1871,6 +1871,7 @@ class SaleController extends Controller
                 'customer_outstanding_balance' => $customerOutstandingBalance,
                 'user' => $user,
                 'location' => $location,
+                'receiptConfig' => $location ? $location->getReceiptConfig() : [],
             ];
 
             // ✨ PERFORMANCE FIX: Only render receipt HTML if needed
@@ -1971,6 +1972,9 @@ class SaleController extends Controller
                     // Get location from sale for receipt template selection
                     $location = $sale->location;
                     $receiptView = $location ? $location->getReceiptViewName() : 'sell.receipt';
+
+                    // Add receipt config to view data
+                    $viewData['receiptConfig'] = $location ? $location->getReceiptConfig() : [];
 
                     // Render the location-specific receipt view to HTML
                     $receiptHtml = view($receiptView, $viewData)->render();
@@ -3058,6 +3062,7 @@ class SaleController extends Controller
                 'customer_outstanding_balance' => $customerOutstandingBalance,
                 'user' => $user,
                 'location' => $location,
+                'receiptConfig' => $location ? $location->getReceiptConfig() : [],
             ];
 
             // Get location-specific receipt view

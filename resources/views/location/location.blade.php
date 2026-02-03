@@ -518,7 +518,162 @@
                 </div>
             </div>
         </div>
+
+        {{-- Receipt Settings Modal --}}
+        <div id="receiptSettingsModal" class="modal fade" tabindex="-1" role="dialog">
+            <div class="modal-dialog modal-xl" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="fas fa-receipt me-2"></i>Receipt Settings - 80mm Thermal Printer</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            {{-- Left Column: Settings Form --}}
+                            <div class="col-md-5">
+                                <form id="receiptSettingsForm">
+                                    {{-- Preset Templates --}}
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-primary text-white">
+                                            <h6 class="mb-0"><i class="fas fa-magic me-2"></i>Quick Presets</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <select id="receipt_preset" class="form-select">
+                                                <option value="">-- Select Preset --</option>
+                                            </select>
+                                            <small class="text-muted">Apply pre-configured templates instantly</small>
+                                        </div>
+                                    </div>
+
+                                    {{-- Display Options --}}
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-info text-white">
+                                            <h6 class="mb-0"><i class="fas fa-eye me-2"></i>Display Options</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" id="receipt_show_logo">
+                                                <label class="form-check-label" for="receipt_show_logo">Show Logo</label>
+                                            </div>
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" id="receipt_show_customer_phone">
+                                                <label class="form-check-label" for="receipt_show_customer_phone">Show Customer Phone</label>
+                                            </div>
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" id="receipt_show_mrp_strikethrough">
+                                                <label class="form-check-label" for="receipt_show_mrp_strikethrough">Show MRP Strikethrough</label>
+                                            </div>
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" id="receipt_show_imei">
+                                                <label class="form-check-label" for="receipt_show_imei">Show IMEI Numbers</label>
+                                            </div>
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" id="receipt_show_discount_breakdown">
+                                                <label class="form-check-label" for="receipt_show_discount_breakdown">Show Discount Details</label>
+                                            </div>
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" id="receipt_show_payment_method">
+                                                <label class="form-check-label" for="receipt_show_payment_method">Show Payment Method</label>
+                                            </div>
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" id="receipt_show_outstanding_due">
+                                                <label class="form-check-label" for="receipt_show_outstanding_due">Show Outstanding Due</label>
+                                            </div>
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" id="receipt_show_stats_section">
+                                                <label class="form-check-label" for="receipt_show_stats_section">Show Stats (Items/Qty/Discount)</label>
+                                            </div>
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" id="receipt_show_footer_note">
+                                                <label class="form-check-label" for="receipt_show_footer_note">Show Footer Note</label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {{-- Layout Settings --}}
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-success text-white">
+                                            <h6 class="mb-0"><i class="fas fa-sliders-h me-2"></i>Layout Settings</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Spacing Mode</label>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" name="spacing_mode" value="compact" id="spacing_compact" checked>
+                                                    <label class="form-check-label" for="spacing_compact">
+                                                        <strong>Compact</strong> - Shrunk, fast print, less paper
+                                                    </label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" name="spacing_mode" value="spacious" id="spacing_spacious">
+                                                    <label class="form-check-label" for="spacing_spacious">
+                                                        <strong>Spacious</strong> - Comfortable reading, more paper
+                                                    </label>
+                                                </div>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label for="receipt_font_size_base" class="form-label fw-bold">Font Size (9-14px)</label>
+                                                <input type="number" class="form-control" id="receipt_font_size_base" min="9" max="14" value="11">
+                                                <small class="text-muted">Base font size for receipt text</small>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label for="receipt_line_spacing" class="form-label fw-bold">
+                                                    Line Spacing: <span id="line_spacing_value" class="badge bg-primary">5</span>
+                                                </label>
+                                                <input type="range" class="form-range" id="receipt_line_spacing" min="1" max="10" value="5">
+                                                <div class="d-flex justify-content-between">
+                                                    <small class="text-muted">Tight (1)</small>
+                                                    <small class="text-muted">Relaxed (10)</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+
+                            {{-- Right Column: Live Preview --}}
+                            <div class="col-md-7">
+                                <div class="card h-100">
+                                    <div class="card-header bg-secondary text-white">
+                                        <h6 class="mb-0"><i class="fas fa-eye me-2"></i>Live Preview</h6>
+                                    </div>
+                                    <div class="card-body p-0" style="background: #f8f9fa;">
+                                        <div class="text-center p-3" style="background: #fff; border-bottom: 1px solid #dee2e6;">
+                                            <small class="text-muted"><i class="fas fa-info-circle me-1"></i>Changes update automatically</small>
+                                        </div>
+                                        <div class="d-flex justify-content-center align-items-start p-3" style="min-height: 600px; overflow-y: auto;">
+                                            <div style="width: 80mm; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                                <iframe id="receiptPreviewFrame" style="width: 100%; border: none; min-height: 800px;" frameborder="0"></iframe>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" id="resetReceiptSettings">
+                            <i class="fas fa-undo me-1"></i> Reset to Defaults
+                        </button>
+                        <button type="button" class="btn btn-success" id="saveReceiptSettings">
+                            <i class="fas fa-save me-1"></i> Save Settings
+                        </button>
+                        <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-1"></i> Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     @include('location.location_ajax')
 @endsection
+
+@push('scripts')
+    {{-- Include receipt settings JS - Vite automatically handles versioning --}}
+    @vite('resources/js/receipt-settings.js')
+@endpush
+

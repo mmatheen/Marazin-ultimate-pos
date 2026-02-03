@@ -1,4 +1,20 @@
 <script type="text/javascript">
+    // Check if jQuery is loaded
+    if (typeof jQuery === 'undefined') {
+        console.error('jQuery is not loaded! Make sure jquery-3.6.0.min.js is loaded before this script.');
+        // Try to wait for jQuery to load
+        (function checkjQuery() {
+            if (typeof jQuery !== 'undefined') {
+                initLocationScript();
+            } else {
+                setTimeout(checkjQuery, 100);
+            }
+        })();
+    } else {
+        initLocationScript();
+    }
+
+    function initLocationScript() {
     $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
         showFetchData();
@@ -397,7 +413,10 @@
                         searchable: false,
                         render: data => `
                         @can('edit location')
-                        <button value="${data.id}" class='edit_btn btn btn-sm btn-outline-info me-2'><i class="feather-edit"></i> Edit</button>
+                        <button value="${data.id}" class='edit_btn btn btn-sm btn-outline-info me-1'><i class="feather-edit"></i> Edit</button>
+                        @endcan
+                        @can('view location')
+                        <button onclick="openReceiptSettings(${data.id})" class='btn btn-sm btn-outline-warning me-1' title="Receipt Settings"><i class="fas fa-receipt"></i> Receipt</button>
                         @endcan
                         @can('delete location')
                         <button value="${data.id}" class='delete_btn btn btn-sm btn-outline-danger'><i class="feather-trash-2"></i> Delete</button>
@@ -800,4 +819,5 @@
         });
 
     });
+    } // End of initLocationScript function
 </script>
