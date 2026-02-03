@@ -280,7 +280,7 @@ class Ledger extends Model
             throw new \Exception("Invalid contact_id: must be a positive number. Received: " . $data['contact_id']);
         }
 
-        // ✅ CRITICAL FIX: Prevent duplicate ledger entries
+        // ✅ CRITICAL FIX: Prevent duplicate ledger entries (REFINED FOR PAYMENTS)
         // Check if an active entry with the same criteria already exists
         $duplicateQuery = self::where('contact_id', $data['contact_id'])
             ->where('contact_type', $data['contact_type'])
@@ -288,14 +288,14 @@ class Ledger extends Model
             ->where('transaction_type', $data['transaction_type'])
             ->where('status', 'active');
 
-        // For payment transactions, also check amount and timestamp to allow multiple payments
-        // but prevent exact duplicates within a short time window (reduced to 2 minutes for better detection)
+        // For payment transactions, check EXACT DUPLICATE only (same amount + same reference + very recent)
+        // This allows multiple legitimate payments to the same supplier/customer
         if (in_array($data['transaction_type'], ['payment', 'payments', 'sale_payment', 'purchase_payment'])) {
             $duplicateQuery->where(function($query) use ($data) {
                 $query->where('debit', abs($data['amount']))
                       ->orWhere('credit', abs($data['amount']));
             })
-            ->where('created_at', '>=', Carbon::now()->subMinutes(2)); // Within 2 minutes (stricter)
+            ->where('created_at', '>=', Carbon::now()->subSeconds(10)); // Only within 10 seconds (prevents double-click only)
         } else {
             // For non-payment transactions (sales, purchases, etc.), check for exact duplicates
             // within a very short window to prevent double-click submissions
