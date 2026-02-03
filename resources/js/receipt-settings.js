@@ -339,6 +339,9 @@ function openReceiptSettings(locationId) {
         receiptSettingsManager.bindEventListeners();
     }
 
+    
+
+
     receiptSettingsManager.init(locationId);
     modal.show();
 }
