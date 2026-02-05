@@ -654,9 +654,17 @@ function loadCustomersForBulkPayment() {
                     if (currentDue > 0) {
                         var lastName = customer.last_name ? customer.last_name : '';
                         var fullName = customer.first_name + (lastName ? ' ' + lastName : '');
-                        var displayText = fullName + ' (Due: Rs. ' + currentDue.toFixed(2) + ')';
-                        if (openingBalance > 0) {
-                            displayText += ' [Opening: Rs. ' + openingBalance.toFixed(2) + ']';
+
+                        // Build clear display text with total due prominent
+                        var displayText = fullName + ' [Total Due: Rs. ' + currentDue.toFixed(2) + ']';
+
+                        // Show breakdown if available
+                        if (openingBalance > 0 && saleDue > 0) {
+                            displayText += ' (Opening: Rs. ' + openingBalance.toFixed(2) + ', Sales: Rs. ' + saleDue.toFixed(2) + ')';
+                        } else if (openingBalance > 0) {
+                            displayText += ' (Opening Balance)';
+                        } else if (saleDue > 0) {
+                            displayText += ' (Sales Due)';
                         }
 
                         customerSelect.append(
@@ -741,6 +749,9 @@ $(document).ready(function() {
         $('#paymentMethodSection').show();
         $('#notesSection').show();
         $('#submitButtonSection').show();
+
+        // Trigger payment type change to set proper defaults
+        $('input[name="paymentType"]:checked').trigger('change');
     }, 1500);
 
     // Progressive Disclosure: Hide Returns Button
@@ -748,10 +759,17 @@ $(document).ready(function() {
         $('#customerReturnsSection').slideUp();
     });
 
-    // Progressive Disclosure: Customize Payment Link
+    // Progressive Disclosure: Customize Payment Link - Toggle functionality
     $(document).on('click', '#customizePaymentLink', function(e) {
         e.preventDefault();
-        $('#paymentTypeSection').slideDown();
+        var $section = $('#paymentTypeSection');
+        if ($section.is(':visible')) {
+            $section.slideUp();
+            $(this).text('Customize');
+        } else {
+            $section.slideDown();
+            $(this).text('Hide Options');
+        }
     });
 
     // Progressive Disclosure: Show Advanced Options
@@ -785,20 +803,34 @@ $(document).ready(function() {
         $helpText.html(helpTexts[selectedType] || '');
 
         if (selectedType === 'opening_balance') {
-            // Opening Balance: Use Multiple Methods mode
-            $paymentMethod.find('option[value="multiple"]').show();
-            if ($paymentMethod.val() !== 'multiple') {
-                $paymentMethod.val('multiple').trigger('change');
+            // Opening Balance: Disable Multiple Methods, enable only cash/card/cheque/bank_transfer
+            $paymentMethod.find('option').prop('disabled', false);
+            $paymentMethod.find('option[value="multiple"]').prop('disabled', true);
+
+            // If currently on multiple, switch to cash
+            if ($paymentMethod.val() === 'multiple' || $paymentMethod.val() === null) {
+                $paymentMethod.val('cash');
             }
+
+            // Force update the UI
+            if (typeof togglePaymentFields === 'function') {
+                togglePaymentFields();
+            }
+
             $('#bothPaymentTypeInfo').hide();
             $('.both-payment-hint').hide();
             $('.both-payment-breakdown').hide();
         } else if (selectedType === 'both') {
-            // Both: Show all including Multiple Methods and info banner
-            $paymentMethod.find('option[value="multiple"]').show();
-            if ($paymentMethod.val() !== 'multiple') {
-                $paymentMethod.val('multiple').trigger('change');
+            // Both: Select Multiple Methods by default and disable other options
+            $paymentMethod.find('option').prop('disabled', true);
+            $paymentMethod.find('option[value="multiple"]').prop('disabled', false);
+            $paymentMethod.val('multiple');
+
+            // Force update the UI
+            if (typeof togglePaymentFields === 'function') {
+                togglePaymentFields();
             }
+
             // Show info banner with OB amount
             var selectedOption = $('#customerSelect').find(':selected');
             var customerOpeningBalance = parseFloat(selectedOption.data('opening-balance')) || 0;
@@ -808,11 +840,16 @@ $(document).ready(function() {
             // Show hints for both payment type
             $('.both-payment-hint').show();
         } else {
-            // Pay Sale Dues: Show all including Multiple Methods
-            $paymentMethod.find('option[value="multiple"]').show();
-            if ($paymentMethod.val() !== 'multiple') {
-                $paymentMethod.val('multiple').trigger('change');
+            // Pay Sale Dues: Select Multiple Methods by default and disable other options
+            $paymentMethod.find('option').prop('disabled', true);
+            $paymentMethod.find('option[value="multiple"]').prop('disabled', false);
+            $paymentMethod.val('multiple');
+
+            // Force update the UI
+            if (typeof togglePaymentFields === 'function') {
+                togglePaymentFields();
             }
+
             $('#bothPaymentTypeInfo').hide();
             $('.both-payment-hint').hide();
             $('.both-payment-breakdown').hide();
@@ -849,6 +886,9 @@ $(document).on('change', '#customerSelect', function() {
     var saleDue = parseFloat(selectedOption.data('sale-due')) || 0;
     var totalDue = parseFloat(selectedOption.data('total-due')) || 0;
 
+    // Trigger payment type change to set proper payment method options
+    $('input[name="paymentType"]:checked').trigger('change');
+
     console.log('Customer balances:', {
         openingBalance: customerOpeningBalance,
         saleDue: saleDue,
@@ -859,9 +899,14 @@ $(document).on('change', '#customerSelect', function() {
     $('#openingBalance').text(customerOpeningBalance.toFixed(2));
     $('#totalDueAmount').text(saleDue.toFixed(2));
 
-    // Store original opening balance globally
+    // Store values globally
     window.originalOpeningBalance = customerOpeningBalance;
     window.saleDueAmount = saleDue;
+    window.totalCustomerDue = totalDue;
+
+    // Set amount to pay
+    $('#netCustomerDue').text('Rs. ' + totalDue.toFixed(2));
+    window.netCustomerDue = totalDue;
 
     // Reset and clear previous validation errors
     $('#globalPaymentAmount').removeClass('is-invalid').next('.invalid-feedback').remove();
@@ -1447,7 +1492,7 @@ function updateExistingBillAllocationsForReturnCredits() {
 function updateNetCustomerDue() {
     var openingBalance = window.originalOpeningBalance || 0;
     var saleDue = window.saleDueAmount || 0;
-    var totalDue = openingBalance + saleDue;
+    var totalDue = window.totalCustomerDue || 0; // Use actual total from backend (ledger)
 
     // Get return credits to apply to sales
     var returnsToApply = 0;
@@ -2458,13 +2503,8 @@ function loadCustomerSalesForMultiMethod(customerId) {
 
                 console.log('Outstanding bills for flexible UI:', availableCustomerSales.length);
 
-                if (availableCustomerSales.length === 0) {
-                    toastr.warning('No outstanding bills found for this customer');
-                    populateFlexibleBillsList();
-                } else {
-                    populateFlexibleBillsList();
-
-                }
+                // Populate the bills list (UI will show appropriate message if empty)
+                populateFlexibleBillsList();
 
                 window.isLoadingCustomerSales = false;
             }
@@ -2821,8 +2861,9 @@ function updateSummaryTotals() {
             });
         }
 
-        // Calculate balance
-        let balanceAmount = totalDueAmount - totalPaymentAmount;
+        // Calculate balance - include opening balance from the customer's total due
+        let customerTotalDue = window.totalCustomerDue || 0; // This includes opening balance + sales
+        let balanceAmount = customerTotalDue - totalPaymentAmount;
 
         // Update UI elements if they exist
         const $totalBillsCount = $('#totalBillsCount');
@@ -2847,7 +2888,7 @@ function updateSummaryTotals() {
             // Enhanced balance display with better messaging
             if (balanceAmount > 0) {
                 $balanceAmount.text(`Rs. ${balanceAmount.toFixed(2)}`).removeClass('text-success text-danger').addClass('text-warning');
-                // Show remaining due amount
+                $('#excessInfo').remove(); // Remove excess info when balance is positive
             } else if (balanceAmount < 0) {
                 const excessAmount = Math.abs(balanceAmount);
                 $balanceAmount.text(`Rs. ${balanceAmount.toFixed(2)}`).removeClass('text-warning text-success').addClass('text-danger');
@@ -2863,7 +2904,7 @@ function updateSummaryTotals() {
                         </div>
                     `);
                 } else {
-                    $('#excessInfo small').text(`Excess Rs. ${excessAmount.toFixed(2)} will be treated as advance payment`);
+                    $('#excessInfo small').html(`<i class="fas fa-info-circle"></i> Excess Rs. ${excessAmount.toFixed(2)} will be treated as advance payment`);
                 }
             } else {
                 $balanceAmount.text(`Rs. ${balanceAmount.toFixed(2)}`).removeClass('text-warning text-danger').addClass('text-success');

@@ -33,44 +33,19 @@ class BalanceHelper
             return 0.0; // Walk-in customer always 0
         }
 
-        // ✅ FIX: Get customer bypassing global scopes to avoid location filtering issues
-        $customer = \App\Models\Customer::withoutGlobalScopes()->find($customerId);
-        if (!$customer) {
-            return 0.0;
-        }
+        // Simple and correct: Sum all active ledger entries
+        $result = DB::selectOne("
+            SELECT
+                COALESCE(SUM(debit), 0) as total_debits,
+                COALESCE(SUM(credit), 0) as total_credits,
+                COALESCE(SUM(debit) - SUM(credit), 0) as balance
+            FROM ledgers
+            WHERE contact_id = ?
+                AND contact_type = 'customer'
+                AND status = 'active'
+        ", [$customerId]);
 
-        // Check if there are opening balance corrections
-        $hasOpeningBalanceCorrections = \App\Models\Ledger::where('contact_id', $customerId)
-            ->where('contact_type', 'customer')
-            ->where('transaction_type', 'opening_balance_adjustment')
-            ->exists();
-
-        if ($hasOpeningBalanceCorrections) {
-            // When opening balance has been corrected, use smart calculation
-            // Use customer's current opening balance + non-opening-balance transactions
-            $nonOpeningBalanceSum = \App\Models\Ledger::where('contact_id', $customerId)
-                ->where('contact_type', 'customer')
-                ->where('status', 'active')
-                ->where('transaction_type', '!=', 'opening_balance')
-                ->where('transaction_type', '!=', 'opening_balance_adjustment')
-                ->sum(DB::raw('debit - credit'));
-
-            return (float)($customer->opening_balance + $nonOpeningBalanceSum);
-        } else {
-            // Normal calculation when no opening balance corrections
-            $result = DB::selectOne("
-                SELECT
-                    COALESCE(SUM(debit), 0) as total_debits,
-                    COALESCE(SUM(credit), 0) as total_credits,
-                    COALESCE(SUM(debit) - SUM(credit), 0) as balance
-                FROM ledgers
-                WHERE contact_id = ?
-                    AND contact_type = 'customer'
-                    AND status = 'active'
-            ", [$customerId]);
-
-            return $result ? (float) $result->balance : 0.0;
-        }
+        return $result ? (float) $result->balance : 0.0;
     }
 
     /**
@@ -197,9 +172,7 @@ class BalanceHelper
 
     /**
      * Get multiple customer balances at once (for reports)
-     *
-     * ⚠️ IMPORTANT: This method handles opening balance adjustments correctly.
-     * It uses the same logic as getCustomerBalance() but optimized for bulk operations.
+     * Uses the same simple logic as getCustomerBalance() - just sum all active ledger entries
      */
     public static function getBulkCustomerBalances($customerIds)
     {
@@ -214,69 +187,22 @@ class BalanceHelper
             return collect();
         }
 
-        // Check which customers have opening balance adjustments
-        $customersWithAdjustments = \App\Models\Ledger::whereIn('contact_id', $customerIds)
-            ->where('contact_type', 'customer')
-            ->where('transaction_type', 'opening_balance_adjustment')
-            ->pluck('contact_id')
-            ->unique()
-            ->values() // Reset array keys
-            ->toArray();
+        // Simple calculation: Sum all active ledger entries for all customers
+        $placeholders = str_repeat('?,', count($customerIds) - 1) . '?';
+        $results = DB::select("
+            SELECT
+                contact_id,
+                COALESCE(SUM(debit) - SUM(credit), 0) as balance
+            FROM ledgers
+            WHERE contact_id IN ({$placeholders})
+                AND contact_type = 'customer'
+                AND status = 'active'
+            GROUP BY contact_id
+        ", $customerIds);
 
         $balances = collect();
-
-        // For customers WITH opening balance adjustments
-        if (!empty($customersWithAdjustments)) {
-            // ✅ FIX: Get opening balances from customer table bypassing global scopes
-            $customers = \App\Models\Customer::withoutGlobalScopes()
-                ->whereIn('id', $customersWithAdjustments)
-                ->select('id', 'opening_balance')
-                ->get()
-                ->keyBy('id');
-
-            // Get non-opening-balance transactions for these customers
-            $placeholders = str_repeat('?,', count($customersWithAdjustments) - 1) . '?';
-            $nonOBTransactions = DB::select("
-                SELECT
-                    contact_id,
-                    COALESCE(SUM(debit) - SUM(credit), 0) as balance
-                FROM ledgers
-                WHERE contact_id IN ({$placeholders})
-                    AND contact_type = 'customer'
-                    AND status = 'active'
-                    AND transaction_type NOT IN ('opening_balance', 'opening_balance_adjustment')
-                GROUP BY contact_id
-            ", $customersWithAdjustments);
-
-            $nonOBBalances = collect($nonOBTransactions)->keyBy('contact_id');
-
-            foreach ($customersWithAdjustments as $customerId) {
-                $openingBalance = $customers->get($customerId)->opening_balance ?? 0;
-                $nonOBBalance = $nonOBBalances->get($customerId)->balance ?? 0;
-                $balances->put($customerId, (float)($openingBalance + $nonOBBalance));
-            }
-        }
-
-        // For customers WITHOUT opening balance adjustments (normal calculation)
-        $customersWithoutAdjustments = array_values(array_diff($customerIds, $customersWithAdjustments));
-
-        if (!empty($customersWithoutAdjustments)) {
-            $placeholders = str_repeat('?,', count($customersWithoutAdjustments) - 1) . '?';
-
-            $results = DB::select("
-                SELECT
-                    contact_id,
-                    COALESCE(SUM(debit) - SUM(credit), 0) as balance
-                FROM ledgers
-                WHERE contact_id IN ({$placeholders})
-                    AND contact_type = 'customer'
-                    AND status = 'active'
-                GROUP BY contact_id
-            ", $customersWithoutAdjustments);
-
-            foreach ($results as $result) {
-                $balances->put((int) $result->contact_id, (float) $result->balance);
-            }
+        foreach ($results as $result) {
+            $balances->put((int) $result->contact_id, (float) $result->balance);
         }
 
         // Ensure all requested customer IDs are in the result (fill missing with 0)

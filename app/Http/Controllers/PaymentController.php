@@ -1167,6 +1167,16 @@ class PaymentController extends Controller
                 // For "both" payment type: create OB payment first if needed
                 $obAlreadyAllocated = 0;
                 if ($request->payment_type === 'both' && $totalOBPayment > 0) {
+                    // ✅ CHECK: Prevent duplicate opening balance payments
+                    $existingOBPayment = Payment::where('customer_id', $request->customer_id)
+                        ->where('payment_type', 'opening_balance')
+                        ->where('status', 'active')
+                        ->exists();
+
+                    if ($existingOBPayment) {
+                        throw new \Exception('Opening balance payment already exists for this customer. Cannot create duplicate opening balance payments.');
+                    }
+
                     // Create OB payment for each payment method that has ob_amount
                     foreach ($request->payment_groups as $paymentGroup) {
                         $obAmount = isset($paymentGroup['ob_amount']) ? floatval($paymentGroup['ob_amount']) : 0;
@@ -1278,6 +1288,16 @@ class PaymentController extends Controller
 
                     // Handle opening balance payments differently
                     if ($request->payment_type === 'opening_balance') {
+                        // ✅ CHECK: Prevent duplicate opening balance payments
+                        $existingOBPayment = Payment::where('customer_id', $request->customer_id)
+                            ->where('payment_type', 'opening_balance')
+                            ->where('status', 'active')
+                            ->exists();
+
+                        if ($existingOBPayment) {
+                            throw new \Exception('Opening balance payment already exists for this customer. Cannot create duplicate opening balance payments.');
+                        }
+
                         // Opening balance payment - no bills involved
                         $paymentData = [
                             'payment_date' => $request->payment_date,

@@ -124,7 +124,7 @@ class CustomerController extends Controller
                 'email' => $customer->email,
                 'address' => $customer->address,
                 'location_id' => $customer->location_id,
-                'opening_balance' => (float)$customer->opening_balance,
+                'opening_balance' => (float)$customer->opening_balance, // ✅ Customer table is updated correctly on payments
                 'current_balance' => (float)$currentBalance, // ✅ Accurate balance from unified ledger
                 'total_sale_due' => $totalSaleDue, // ✅ Actual unpaid sales from sales table
                 'total_return_due' => $totalReturnDue, // ✅ Actual returns from sales_returns table

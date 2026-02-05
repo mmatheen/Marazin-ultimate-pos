@@ -14,7 +14,7 @@ class Customer extends Model
 {
     use HasFactory,LocationTrait;
 
-    
+
 
     protected $table = 'customers';
 

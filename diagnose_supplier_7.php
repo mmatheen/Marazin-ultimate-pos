@@ -49,7 +49,7 @@ foreach ($allLedgers as $ledger) {
     );
 }
 
-$activeBalance = $allLedgers->where('status', 'active')->sum('credit') - 
+$activeBalance = $allLedgers->where('status', 'active')->sum('credit') -
                  $allLedgers->where('status', 'active')->sum('debit');
 $totalBalance = $allLedgers->sum('credit') - $allLedgers->sum('debit');
 
@@ -150,7 +150,7 @@ foreach ($purchases as $purchase) {
         ->where('credit', $purchase->final_total)
         ->where('status', 'active')
         ->exists();
-    
+
     if (!$ledgerExists) {
         echo "  ⚠ Missing purchase ledger for {$purchase->reference_no} (Amount: {$purchase->final_total})\n";
         $missingPurchaseLedgers++;
@@ -173,7 +173,7 @@ foreach ($activePayments as $payment) {
         ->where('debit', $payment->amount)
         ->where('status', 'active')
         ->exists();
-    
+
     if (!$ledgerExists) {
         echo "  ⚠ Missing payment ledger for Payment #{$payment->id} {$payment->reference_no} (Amount: {$payment->amount})\n";
         $missingPaymentLedgers++;
