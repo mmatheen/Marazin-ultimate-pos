@@ -2,6 +2,8 @@
 
 namespace App\ValueObjects;
 
+use Illuminate\Support\Facades\Validator;
+
 class ReceiptConfig
 {
     // Spacing mode constants
@@ -89,7 +91,7 @@ class ReceiptConfig
      */
     public static function validate(array $config): bool
     {
-        $validator = \Validator::make($config, self::validationRules());
+        $validator = Validator::make($config, self::validationRules());
 
         if ($validator->fails()) {
             throw new \InvalidArgumentException('Invalid receipt configuration: ' . $validator->errors()->first());

@@ -3,20 +3,20 @@
 $(document).ready(function() {
     // Initialize DataTable variable
     let ledgerDataTable;
-    
+
     // Add debug logging
     console.log('Account Ledger AJAX loaded');
-    
+
     // Function to clear previous ledger display data
     function clearLedgerDisplay() {
         console.log('🧹 AGGRESSIVELY clearing all previous ledger display data');
-        
+
         // FORCE clear account summary section
         $('#accountSummary').empty().html('');
-        
+
         // Also clear individual elements if they exist
-        $('#totalTransactions, #totalPaid, #totalReturns, #outstandingDue, #effectiveDue, #advanceAmount').text('Rs. 0.00');
-        
+        $('#totalTransactions, #totalPaid, #totalReturns, #outstandingDue, #effectiveDue').text('Rs. 0.00');
+
         // Force clear customer information with empty values
         $('#customerName, #supplierName').text('').html('');
         $('#customerMobile, #supplierMobile').text('').html('');
@@ -24,11 +24,11 @@ $(document).ready(function() {
         $('#customerAddress, #supplierAddress').text('').html('');
         $('#customerOpeningBalance, #supplierOpeningBalance').text('Rs. 0.00').html('Rs. 0.00');
         $('#customerCurrentBalance, #supplierCurrentBalance').text('Rs. 0.00').html('Rs. 0.00');
-        
+
         // FORCE clear the entire contact details section
         $('#contactDetails').empty().html('');
         $('#contactDetailsSection').hide();
-        
+
         // AGGRESSIVELY clear ledger table
         if (ledgerDataTable) {
             try {
@@ -41,32 +41,31 @@ $(document).ready(function() {
         }
         $('#ledgerTableBody').empty().html('');
         $('#ledgerTable tbody').empty();
-        
+
         // Reset status with forced updates
         $('#filterStatus').empty().html('<i class="fa fa-info-circle text-muted"></i> <small class="text-muted">Select customer to load ledger</small>');
         $('#readyStatus').empty().html('<small class="text-muted">Ready to load</small>');
-        
+
         // FORCE hide all sections
         $('#customerInfo, #supplierInfo').addClass('d-none').hide();
         $('#summaryCard').addClass('d-none').hide();
         $('#ledgerTableContainer').addClass('d-none').hide();
         $('#noDataMessage').hide();
-        $('#advanceActionsSection').hide();
-        
+
         // Clear any cached AJAX responses
         if (window.lastLedgerResponse) {
             delete window.lastLedgerResponse;
         }
-        
+
         console.log('✅ Aggressive clearing completed');
     }
-    
+
     // Check for URL parameters and auto-load data
     const urlParams = new URLSearchParams(window.location.search);
     const customerIdParam = urlParams.get('customer_id');
     const supplierIdParam = urlParams.get('supplier_id');
     const contactIdParam = urlParams.get('contact_id');
-    
+
     // Load locations on page load
     loadLocations();
 
@@ -143,15 +142,15 @@ $(document).ready(function() {
         const contactSelect = $('#contact_id');
         const contactLabel = $('#contact_label');
         const summaryCard = $('#summaryCard');
-        
+
         // Reset form
         contactSelect.val('').trigger('change');
         hideAllSections();
-        
+
         if (ledgerType) {
             // Enable contact dropdown
             contactSelect.prop('disabled', false);
-            
+
             // Update labels and styles based on type
             if (ledgerType === 'customer') {
                 contactLabel.text('Customer');
@@ -175,16 +174,16 @@ $(document).ready(function() {
     $('#contact_id').on('change', function() {
         const contactId = $(this).val();
         const ledgerType = $('#ledger_type').val();
-        
+
         // Clear previous data first
         clearLedgerDisplay();
-        
+
         if (contactId && ledgerType) {
             // Show loading status
             $('#readyStatus').hide();
             $('#loadingStatus').show();
             $('#refreshBtn').show();
-            
+
             // Auto-load ledger after short delay
             setTimeout(function() {
                 loadLedger();
@@ -213,7 +212,7 @@ $(document).ready(function() {
     $('#start_date, #end_date').on('change', function() {
         const contactId = $('#contact_id').val();
         const ledgerType = $('#ledger_type').val();
-        
+
         if (contactId && ledgerType) {
             $('#loadingStatus').show();
             $('#readyStatus').hide();
@@ -227,7 +226,7 @@ $(document).ready(function() {
     $('#location_id').on('change', function() {
         const contactId = $('#contact_id').val();
         const ledgerType = $('#ledger_type').val();
-        
+
         if (contactId && ledgerType) {
             $('#loadingStatus').show();
             $('#readyStatus').hide();
@@ -241,7 +240,7 @@ $(document).ready(function() {
     $('#show_full_history').on('change', function() {
         const contactId = $('#contact_id').val();
         const ledgerType = $('#ledger_type').val();
-        
+
         if (contactId && ledgerType) {
             $('#loadingStatus').show();
             $('#readyStatus').hide();
@@ -261,17 +260,17 @@ $(document).ready(function() {
             dataType: 'json',
             success: function(response) {
                 console.log('Customer API Response:', response); // Debug log
-                
+
                 const customerSelect = $('#contact_id');
                 customerSelect.empty().append('<option value="">Select Customer</option>');
-                
+
                 // Handle both response formats: status=true with data array OR status=200 with message array
                 const customers = response.data || response.message || [];
                 const isSuccess = response.status === true || response.status === 200;
-                
+
                 console.log('Customers found:', customers.length); // Debug log
                 console.log('API Success status:', isSuccess); // Debug log
-                
+
                 if (isSuccess && customers.length > 0) {
                     // Sort customers by name for better UX
                     customers.sort((a, b) => {
@@ -279,7 +278,7 @@ $(document).ready(function() {
                         const nameB = (b.first_name || '') + ' ' + (b.last_name || '');
                         return nameA.localeCompare(nameB);
                     });
-                    
+
                     customers.forEach(customer => {
                         const fullName = (customer.first_name || '') + ' ' + (customer.last_name || '');
                         customerSelect.append(`<option value="${customer.id}">${fullName.trim()}</option>`);
@@ -295,7 +294,7 @@ $(document).ready(function() {
             error: function(xhr, status, error) {
                 console.error('Error loading customers:', error);
                 console.error('Response:', xhr.responseText); // Debug log
-                
+
                 // Check for authentication errors
                 if (xhr.status === 401) {
                     toastr.error('Authentication required. Please log in again.');
@@ -318,7 +317,7 @@ $(document).ready(function() {
                 console.log('Supplier response:', response);
                 const supplierSelect = $('#contact_id');
                 supplierSelect.empty().append('<option value="">Select Supplier</option>');
-                
+
                 // Handle different response structures
                 let suppliers = [];
                 if (response.status === 200) {
@@ -328,7 +327,7 @@ $(document).ready(function() {
                         suppliers = response.message;
                     }
                 }
-                
+
                 if (suppliers.length > 0) {
                     suppliers.forEach(function(supplier) {
                         const option = $('<option></option>')
@@ -338,7 +337,7 @@ $(document).ready(function() {
                         supplierSelect.append(option);
                     });
                     console.log(`Loaded ${suppliers.length} suppliers`);
-                    
+
                     // Reinitialize Select2 after adding options
                     if (supplierSelect.hasClass('select2-hidden-accessible')) {
                         supplierSelect.select2('destroy');
@@ -353,7 +352,7 @@ $(document).ready(function() {
                 console.error('Status:', status);
                 console.error('Status Code:', xhr.status);
                 console.error('Response:', xhr.responseText);
-                
+
                 if (xhr.status === 401) {
                     toastr.error('Authentication required. Please login again.');
                 } else if (xhr.status === 403) {
@@ -372,16 +371,16 @@ $(document).ready(function() {
             dataType: 'json',
             success: function(response) {
                 console.log('Location API Response:', response); // Debug log
-                
+
                 const locationSelect = $('#location_id');
                 locationSelect.empty().append('<option value="">All Locations</option>');
-                
+
                 // Handle both response formats: status=true with data array OR status=200 with message array
                 const locations = response.data || response.message || [];
                 const isSuccess = response.status === true || response.status === 200;
-                
+
                 console.log('Locations found:', locations.length); // Debug log
-                
+
                 if (isSuccess && locations.length > 0) {
                     locations.forEach(location => {
                         locationSelect.append(`<option value="${location.id}">${location.name}</option>`);
@@ -422,9 +421,9 @@ $(document).ready(function() {
 
         // AGGRESSIVE CACHE CLEARING AND DATA RESET
         clearLedgerDisplay(); // Clear all previous data first
-        
+
         // Disable AJAX caching completely
-        $.ajaxSetup({ 
+        $.ajaxSetup({
             cache: false,
             headers: {
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -444,7 +443,7 @@ $(document).ready(function() {
         // Then load ledger data
         const url = ledgerType === 'customer' ? '/customer-ledger-data' : '/supplier-ledger-data';
         const dataKey = ledgerType === 'customer' ? 'customer_id' : 'supplier_id';
-        
+
         // Get show_full_history parameter
         const showFullHistory = $('#show_full_history').is(':checked');
 
@@ -465,33 +464,32 @@ $(document).ready(function() {
                 console.log('🎯 Customer ID requested:', contactId);
                 console.log('📊 Response customer object:', response.customer);
                 console.log('💰 Response summary object:', response.summary);
-                
+
                 $('#filterStatus').html('<i class="fa fa-check-circle text-success"></i> <small class="text-success">Loaded</small>');
-                
+
                 // Hide loading and show ready status
                 $('#loadingStatus').hide();
                 $('#readyStatus').show();
                 $('#readyStatus').html('<i class="fa fa-check-circle text-success"></i> <small class="text-success">Ledger loaded</small>');
-                
+
                 // Handle the correct response structure
                 const isSuccess = response.status === 200;
                 const transactions = response.transactions || [];
                 const customer = response.customer || {};
                 const summary = response.summary || {};
-                const advanceApp = response.advance_application || {};
-                
+
                 console.log('🔍 Processing response for customer:', customer.name || 'Unknown', 'ID:', customer.id, 'Transactions:', transactions.length);
                 console.log('💸 Summary effective_due:', summary.effective_due, 'outstanding_due:', summary.outstanding_due);
-                
+
                 if (isSuccess) {
                     // ALWAYS update customer details when response is successful
                     if (customer.id) {
                         updateContactDetailsFromResponse(customer, ledgerType);
                     }
-                    
+
                     // Update summary even if no transactions (to show correct customer balance)
                     updateSummaryDisplay(summary);
-                    
+
                     if (transactions.length > 0) {
                         populateLedgerTable(transactions, summary);
                         $('#ledgerTableSection').show();
@@ -510,37 +508,17 @@ $(document).ready(function() {
                     $('#ledgerTableSection').hide();
                     $('#noDataMessage').show();
                 }
-
-                // Show advance management for customers with credit balance
-                if (ledgerType === 'customer' && summary) {
-                    const advanceAmount = advanceApp.available_advance || summary.advance_amount || 0;
-                    console.log('Available advance amount:', advanceAmount);
-                    
-                    $('#advanceAmount').text(`Rs ${formatCurrency(advanceAmount)}`);
-                    $('#advanceActionsSection').show();
-                    
-                    // Enable/disable button based on advance availability
-                    if (advanceAmount > 0) {
-                        $('#applyAdvanceBtn, #manageAdvanceBtn').prop('disabled', false);
-                        $('#applyAdvanceBtn').removeClass('btn-secondary').addClass('btn-success');
-                    } else {
-                        $('#applyAdvanceBtn').prop('disabled', true).removeClass('btn-success').addClass('btn-secondary');
-                        $('#manageAdvanceBtn').prop('disabled', false); // Always allow manage for customers
-                    }
-                } else {
-                    $('#advanceActionsSection').hide();
-                }
             },
             error: function(xhr, status, error) {
                 $('#filterStatus').html('<i class="fa fa-exclamation-circle text-danger"></i> <small class="text-danger">Error</small>');
                 console.error('Error loading ledger:', error);
                 toastr.error('Failed to load ledger data');
-                
+
                 // Hide loading and show error status
                 $('#loadingStatus').hide();
                 $('#readyStatus').show();
                 $('#readyStatus').html('<i class="fa fa-exclamation-circle text-danger"></i> <small class="text-danger">Error loading</small>');
-                
+
                 hideAllSections();
             }
         });
@@ -549,11 +527,11 @@ $(document).ready(function() {
     function loadContactDetails(ledgerType, contactId) {
         const contactData = $('#contact_id option:selected').data('details');
         const contactInfoTitle = $('#contact_info_title');
-        
+
         if (contactData) {
             // Update section title
             contactInfoTitle.text(ledgerType === 'customer' ? 'Customer' : 'Supplier');
-            
+
             // Populate contact details
             const contactDetailsHtml = `
                 <p><strong>Name:</strong> ${contactData.first_name} ${contactData.last_name}</p>
@@ -563,7 +541,7 @@ $(document).ready(function() {
                 <p><strong>Opening Balance:</strong> Rs. ${formatCurrency(contactData.opening_balance || 0)}</p>
                 <p><strong>Current Balance:</strong> Rs. ${formatCurrency(contactData.balance || 0)}</p>
             `;
-            
+
             $('#contactDetails').html(contactDetailsHtml);
             $('#contactDetailsSection').show();
         }
@@ -571,10 +549,10 @@ $(document).ready(function() {
 
     function updateContactDetailsFromResponse(customer, ledgerType) {
         const contactInfoTitle = $('#contact_info_title');
-        
+
         // Update section title
         contactInfoTitle.text(ledgerType === 'customer' ? 'Customer' : 'Supplier');
-        
+
         // Populate contact details from API response
         const contactDetailsHtml = `
             <p><strong>Name:</strong> ${customer.name || 'N/A'}</p>
@@ -584,14 +562,14 @@ $(document).ready(function() {
             <p><strong>Opening Balance:</strong> Rs. ${formatCurrency(customer.opening_balance || 0)}</p>
             <p><strong>Current Balance:</strong> Rs. ${formatCurrency(customer.balance || 0)}</p>
         `;
-        
+
         $('#contactDetails').html(contactDetailsHtml);
         $('#contactDetailsSection').show();
     }
 
     function updateSummaryDisplay(summary) {
         console.log('🎯 updateSummaryDisplay called with summary:', summary);
-        
+
         // Extract values with detailed logging
         const totalTransactions = summary.total_transactions || 0;
         const totalPaid = summary.total_paid || 0;
@@ -599,16 +577,16 @@ $(document).ready(function() {
         const outstandingDue = summary.outstanding_due || 0;
         const effectiveDue = summary.effective_due || 0;
         const advanceAmount = summary.advance_amount || 0;
-        
+
         console.log('💰 Extracted values:', {
             totalTransactions,
-            totalPaid, 
+            totalPaid,
             totalReturns,
             outstandingDue,
             effectiveDue,
             advanceAmount
         });
-        
+
         // Build the complete account summary HTML
         const summaryHtml = `
             <div class="row text-center">
@@ -643,14 +621,14 @@ $(document).ready(function() {
                 </div>
             </div>
         `;
-        
+
         // Update the account summary container
         $('#accountSummary').html(summaryHtml);
-        
+
         // Show the summary card and ensure proper styling
         $('#summaryCard').removeClass('d-none').show();
         $('#summaryCard .card-body').addClass('bg-info text-white'); // Ensure blue background
-        
+
         console.log('✅ Summary display updated successfully with HTML');
     }
 
@@ -674,7 +652,7 @@ $(document).ready(function() {
                 console.log('First entry date format:', entry.date, typeof entry.date);
                 console.log('Full entry object:', entry);
             }
-            
+
             totalDebit += parseFloat(entry.debit || 0);
             totalCredit += parseFloat(entry.credit || 0);
 
@@ -682,7 +660,7 @@ $(document).ready(function() {
             const statusClass = getStatusClass(entry.payment_status);
             const runningBalance = parseFloat(entry.running_balance || 0);
             const balanceClass = runningBalance < 0 ? 'text-success' : 'text-dark';
-            
+
             // Enhanced balance display using running_balance from response
             let balanceDisplay = '';
             if (runningBalance < 0) {
@@ -695,7 +673,7 @@ $(document).ready(function() {
 
             // Try different date fields that might be present in the API response
             const dateValue = entry.date || entry.created_at || entry.transaction_date || entry.updated_at;
-            
+
             tableData.push([
                 index + 1,
                 formatDate(dateValue), // Try multiple possible date fields
@@ -759,21 +737,8 @@ $(document).ready(function() {
                         <div class="alert ${(summary.opening_balance || 0) > 0 ? 'alert-warning' : 'alert-info'} alert-sm p-2 mb-0">
                             <small class="text-dark">
                                 <i class="fa fa-info-circle"></i>
-                                Opening Balance: Rs. ${formatCurrency(summary.opening_balance || 0)} 
+                                Opening Balance: Rs. ${formatCurrency(summary.opening_balance || 0)}
                                 ${(summary.opening_balance || 0) > 0 ? '(Amount owed)' : '(Credit balance)'}
-                            </small>
-                        </div>
-                    </div>
-                </div>
-                ` : ''}
-                ${(summary.advance_amount || 0) > 0 ? `
-                <div class="row text-center mt-2">
-                    <div class="col-12">
-                        <div class="alert alert-info alert-sm p-2 mb-0">
-                            <small class="text-dark">
-                                <i class="fa fa-info-circle"></i>
-                                Advance Rs. ${formatCurrency(Math.min(summary.advance_amount || 0, summary.outstanding || summary.outstanding_due || 0))} 
-                                available for application
                             </small>
                         </div>
                     </div>
@@ -793,31 +758,31 @@ $(document).ready(function() {
             lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
             ordering: false, // Disable sorting to maintain chronological order
             columnDefs: [
-                { 
+                {
                     targets: [0], // Serial number column
                     orderable: false,
                     searchable: false,
                     className: 'text-center'
                 },
-                { 
+                {
                     targets: [1], // Date column
                     className: 'text-center'
                 },
-                { 
+                {
                     targets: [2], // Reference no
                     className: 'text-center'
                 },
-                { 
+                {
                     targets: [3, 5], // Type and Status columns
                     orderable: false,
                     className: 'text-center'
                 },
-                { 
+                {
                     targets: [6, 7, 8], // Amount columns
                     orderable: false,
                     className: 'text-end'
                 },
-                { 
+                {
                     targets: [9, 10], // Payment method and others
                     orderable: false,
                     className: 'text-center'
@@ -891,28 +856,27 @@ $(document).ready(function() {
     function hideAllSections() {
         $('#contactDetailsSection').hide();
         $('#ledgerTableSection').hide();
-        $('#advanceActionsSection').hide();
         $('#noDataMessage').hide();
     }
 
     function formatDate(dateString) {
         if (!dateString) return 'N/A';
-        
+
         try {
             let date;
-            
+
             // If it's already a valid date string
             if (typeof dateString === 'string') {
                 // Clean up escaped forward slashes from JSON response
                 let cleanDateString = dateString.replace(/\\\//g, '/');
-                
+
                 // Handle API format: DD/MM/YYYY HH:MM:SS (23/09/2025 08:47:30)
                 if (cleanDateString.match(/^\d{1,2}\/\d{1,2}\/\d{4} \d{1,2}:\d{2}:\d{2}$/)) {
                     // Parse DD/MM/YYYY HH:MM:SS format
                     const parts = cleanDateString.split(' ');
                     const dateParts = parts[0].split('/');
                     const timeParts = parts[1].split(':');
-                    
+
                     // Create date object (month is 0-indexed in JS)
                     date = new Date(
                         parseInt(dateParts[2]), // year
@@ -951,146 +915,26 @@ $(document).ready(function() {
             } else {
                 date = new Date(dateString);
             }
-            
+
             // Check if the date is valid
             if (isNaN(date.getTime())) {
                 console.warn('Invalid date format:', dateString);
                 return dateString; // Return original string if can't parse
             }
-            
+
             // Format as DD/MM/YYYY HH:MM
             const day = String(date.getDate()).padStart(2, '0');
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const year = date.getFullYear();
             const hours = String(date.getHours()).padStart(2, '0');
             const minutes = String(date.getMinutes()).padStart(2, '0');
-            
+
             return `${day}/${month}/${year} ${hours}:${minutes}`;
-            
+
         } catch (error) {
             console.error('Error formatting date:', dateString, error);
             return dateString; // Return original string if error occurs
         }
-    }
-
-    // Advance payment handlers (for customer ledger)
-    $('body').on('click', '#applyAdvanceBtn', function(e) {
-        e.preventDefault();
-        const customerId = $('#contact_id').val();
-        const ledgerType = $('#ledger_type').val();
-        
-        if (ledgerType !== 'customer') return;
-        
-        if (!customerId) {
-            toastr.warning('Please select a customer first');
-            return;
-        }
-        
-        const advanceAmount = parseFloat($('#advanceAmount').text().replace('Rs. ', '') || 0);
-        if (advanceAmount <= 0) {
-            toastr.warning('No advance amount available to apply');
-            return;
-        }
-        
-        if (confirm(`Apply Rs. ${advanceAmount.toFixed(2)} advance to outstanding bills?`)) {
-            applyAdvancePayments(customerId);
-        }
-    });
-
-    function applyAdvancePayments(customerId) {
-        console.log('applyAdvancePayments called with customerId:', customerId);
-        
-        const csrfToken = $('meta[name="csrf-token"]').attr('content');
-        console.log('CSRF token:', csrfToken);
-        
-        $.ajax({
-            url: '/apply-customer-advance',
-            type: 'POST',
-            data: {
-                customer_id: customerId,
-                _token: csrfToken
-            },
-            dataType: 'json',
-            beforeSend: function() {
-                console.log('AJAX request starting...');
-                $('#applyAdvanceBtn').prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Applying...');
-            },
-            success: function(response) {
-                console.log('AJAX success:', response);
-                if (response.status === 200 || response.success) {
-                    toastr.success(response.message || 'Advance payments applied successfully');
-                    // Reload the ledger to show updated data
-                    loadLedger();
-                } else {
-                    toastr.error(response.message || 'Failed to apply advance payments');
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('AJAX error:', error);
-                console.error('XHR:', xhr);
-                console.error('Status:', status);
-                toastr.error('Failed to apply advance payments: ' + error);
-            },
-            complete: function() {
-                console.log('AJAX complete');
-                $('#applyAdvanceBtn').prop('disabled', false).html('<i class="fas fa-check"></i> Apply to Outstanding');
-            }
-        });
-    }
-
-    // Advanced customer management handlers
-    $('body').on('click', '#manageAdvanceBtn', function(e) {
-        e.preventDefault();
-        console.log('Manage advance button clicked');
-        const contactId = $('#contact_id').val();
-        const ledgerType = $('#ledger_type').val();
-        
-        if (!contactId) {
-            toastr.warning('Please select a contact first');
-            return;
-        }
-        
-        if (ledgerType === 'customer') {
-            $('#modalAdvanceAmount').text($('#advanceAmount').text());
-            // Show advance management modal (you can create this modal)
-            toastr.info('Advanced management features coming soon');
-        }
-    });
-
-    // Handle return processing options (for customers)
-    function handleReturnOption(option) {
-        const contactId = $('#contact_id').val();
-        const ledgerType = $('#ledger_type').val();
-        
-        if (!contactId || ledgerType !== 'customer') {
-            toastr.error('Please select a customer first');
-            return;
-        }
-        
-        let message = '';
-        switch(option) {
-            case 'cash':
-                message = 'Process return as cash refund. This will create a cash payment record.';
-                break;
-            case 'advance':
-                message = 'Add return amount to customer advance balance for future purchases.';
-                break;
-            case 'adjust':
-                message = 'Automatically adjust return amount against outstanding bills.';
-                break;
-        }
-        
-        if (confirm(message + ' Continue?')) {
-            toastr.info('Return processing option: ' + option.toUpperCase());
-            processReturn(contactId, option);
-        }
-    }
-
-    // Process return (placeholder for future implementation)
-    function processReturn(contactId, option) {
-        console.log('Processing return for contact:', contactId, 'Option:', option);
-        toastr.success('Return processing initiated');
-        // Implement return processing logic here
     }
 
     // URL parameter handling for auto-selection
@@ -1098,7 +942,7 @@ $(document).ready(function() {
         const urlParams = new URLSearchParams(window.location.search);
         const customerIdParam = urlParams.get('customer_id');
         const supplierIdParam = urlParams.get('supplier_id');
-        
+
         if (customerIdParam) {
             $('#ledger_type').val('customer').trigger('change');
             setTimeout(function() {

@@ -67,10 +67,10 @@ foreach ($duplicatePayments as $dupPayment) {
         ->where('status', 'active')
         ->where('reference_no', $dupPayment->reference_no)
         ->first();
-    
+
     if ($ledgerEntry) {
         echo "  • Found ledger entry ID {$ledgerEntry->id} for payment {$dupPayment->id}\n";
-        
+
         // Mark payment as deleted (payments table uses active/deleted)
         DB::table('payments')
             ->where('id', $dupPayment->id)
@@ -78,7 +78,7 @@ foreach ($duplicatePayments as $dupPayment) {
                 'status' => 'deleted',
                 'notes' => DB::raw("CONCAT(COALESCE(notes, ''), ' [DELETED: Duplicate opening balance payment - " . date('Y-m-d H:i:s') . "]')")
             ]);
-        
+
         // Reverse the ledger entry (ledgers use active/reversed)
         DB::table('ledgers')
             ->where('id', $ledgerEntry->id)
@@ -86,7 +86,7 @@ foreach ($duplicatePayments as $dupPayment) {
                 'status' => 'reversed',
                 'notes' => DB::raw("CONCAT(COALESCE(notes, ''), ' [REVERSED: Duplicate opening balance payment - " . date('Y-m-d H:i:s') . "]')")
             ]);
-        
+
         echo "  ✅ Deleted payment ID {$dupPayment->id} and reversed ledger ID {$ledgerEntry->id}\n";
         $totalFixed++;
     } else {

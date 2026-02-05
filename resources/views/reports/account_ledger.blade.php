@@ -122,32 +122,6 @@
                         </div>
                     </div>
 
-                    <!-- Advance Management Section (Customer Only) -->
-                    <div id="advanceActionsSection" class="row mb-3" style="display: none;">
-                        <div class="col-12">
-                            <div class="card border-primary">
-                                <div class="card-body p-3">
-                                    <div class="row align-items-center">
-                                        <div class="col-md-8">
-                                            <h6 class="card-title mb-2 text-primary">
-                                                <i class="fas fa-money-bill-wave"></i> Advanced Payment Management
-                                            </h6>
-                                            <p class="mb-0 text-muted">Available Advance: <strong id="advanceAmount">Rs. 0.00</strong></p>
-                                        </div>
-                                        <div class="col-md-4 text-end">
-                                            <button type="button" class="btn btn-sm btn-success me-2" id="applyAdvanceBtn" disabled>
-                                                <i class="fas fa-check"></i> Apply to Outstanding
-                                            </button>
-                                            <button type="button" class="btn btn-sm btn-info" id="manageAdvanceBtn" disabled>
-                                                <i class="fas fa-cog"></i> Manage
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Ledger Table -->
                     <div id="ledgerTableSection" style="display: none;">
                         <div class="table-responsive">
