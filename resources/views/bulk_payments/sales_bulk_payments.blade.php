@@ -2472,11 +2472,37 @@ $(document).ready(function() {
         const paymentMethod = $('#paymentMethod').val();
 
         if (customerId && paymentMethod === 'multiple') {
-            // Clear existing data and reload bills for simple table
+            // CLEAR ALL OLD CUSTOMER DATA
+            // 1. Clear bill allocations tracking
+            billPaymentAllocations = {};
+            paymentMethodAllocations = {};
+            
+            // 2. Clear return credit allocations
+            if (window.billReturnCreditAllocations) {
+                window.billReturnCreditAllocations = {};
+            }
+            
+            // 3. Clear all payment method cards
+            $('#flexiblePaymentsList').empty();
+            flexiblePaymentCounter = 0;
+            
+            // 4. Clear simple table
             $('#billsPaymentTableBody').empty();
+            
+            // 5. Clear available sales
             availableCustomerSales = [];
-
+            
+            // 6. Clear selected returns
+            selectedReturns = [];
+            $('.return-checkbox').prop('checked', false);
+            
+            // 7. Reset summary
+            updateSummaryTotals();
+            
+            // 8. Load new customer bills
             loadCustomerSalesForMultiMethod(customerId);
+            
+            console.log('Customer changed - all old data cleared');
         }
     });
 });
@@ -2773,7 +2799,7 @@ function addBillAllocation(paymentId) {
         </div>
     `;
 
-    $(`.bill-allocations-list[data-payment-id="${paymentId}"]`).append(allocationHTML);
+    $(`.bill-allocations-list[data-payment-id="${paymentId}"]`).prepend(allocationHTML);
 
     // Removed excessive toastr notification
 }
@@ -2948,9 +2974,9 @@ function autoDistributeToBills(paymentId, amountToDistribute) {
     let remainingAmount = amountToDistribute;
     let billIndex = 0;
 
-    // Sort bills by invoice number (oldest first)
+    // Sort bills by date (FIFO - oldest first)
     const sortedBills = [...availableCustomerSales].sort((a, b) => {
-        return a.invoice_no.localeCompare(b.invoice_no);
+        return new Date(a.sales_date) - new Date(b.sales_date);
     });
 
     // Auto-select bills until amount is exhausted
@@ -2993,7 +3019,7 @@ function autoDistributeToBills(paymentId, amountToDistribute) {
                 </div>
             `;
 
-            $billAllocationsList.append(allocationHTML);
+            $billAllocationsList.prepend(allocationHTML);
 
             // Update tracking
             billPaymentAllocations[bill.id] = (billPaymentAllocations[bill.id] || 0) + amountForThisBill;
@@ -3377,7 +3403,34 @@ $(document).ready(function() {
     // Add Bill Allocation
     $(document).on('click', '.add-bill-allocation-btn', function() {
         const paymentId = $(this).data('payment-id');
-        addBillAllocation(paymentId);
+        const $paymentContainer = $(this).closest('.payment-method-item');
+        const totalAmount = parseFloat($paymentContainer.find('.payment-total-amount').val()) || 0;
+        const paymentType = $('input[name="paymentType"]:checked').val();
+        
+        // If total amount is entered, auto-allocate bills in FIFO order
+        if (totalAmount > 0 && paymentType !== 'both') {
+            // Calculate how much is already allocated
+            let alreadyAllocated = 0;
+            $paymentContainer.find('.allocation-amount').each(function() {
+                alreadyAllocated += parseFloat($(this).val()) || 0;
+            });
+            
+            const remainingToAllocate = totalAmount - alreadyAllocated;
+            
+            if (remainingToAllocate > 0.01) {
+                // Auto-allocate remaining amount using FIFO
+                autoDistributeToBills(paymentId, remainingToAllocate);
+                toastr.success('Bills auto-allocated in FIFO order (oldest first)', 'Success');
+            } else if (remainingToAllocate < -0.01) {
+                toastr.warning('Total amount is less than already allocated bills. Please adjust.', 'Warning');
+            } else {
+                // Add manual row if exact match
+                addBillAllocation(paymentId);
+            }
+        } else {
+            // No total amount entered or "both" type - add manual row
+            addBillAllocation(paymentId);
+        }
     });
 
     // Remove Bill Allocation (handle both old and new button classes)
@@ -3635,6 +3688,50 @@ $(document).ready(function() {
                     }
 
                     updateSummaryTotals();
+                    return;
+                }
+
+                // FOR "SALE_DUES" TYPE: Auto-allocate bills in FIFO order
+                if (paymentType === 'sale_dues' || paymentType === 'opening_balance') {
+                    if (totalAmount > 0) {
+                        // Clear existing allocations for this payment method
+                        $paymentContainer.find('.bill-allocation-row').each(function() {
+                            const $row = $(this);
+                            const billId = $row.find('.bill-select').val();
+                            const amount = parseFloat($row.find('.allocation-amount').val()) || 0;
+                            if (billId && amount > 0) {
+                                billPaymentAllocations[billId] = Math.max(0, (billPaymentAllocations[billId] || 0) - amount);
+                                if (billPaymentAllocations[billId] <= 0) {
+                                    delete billPaymentAllocations[billId];
+                                }
+                            }
+                        });
+                        
+                        // Auto-distribute to bills in FIFO order
+                        autoDistributeToBills(paymentId, totalAmount);
+                        
+                        populateFlexibleBillsList();
+                        updateSummaryTotals();
+                    } else {
+                        // Amount is 0 or cleared - clear all bill allocations
+                        $paymentContainer.find('.bill-allocation-row').each(function() {
+                            const $row = $(this);
+                            const billId = $row.find('.bill-select').val();
+                            const amount = parseFloat($row.find('.allocation-amount').val()) || 0;
+
+                            if (billId && amount > 0) {
+                                billPaymentAllocations[billId] = (billPaymentAllocations[billId] || 0) - amount;
+                                if (billPaymentAllocations[billId] <= 0) {
+                                    delete billPaymentAllocations[billId];
+                                }
+                            }
+                        });
+
+                        // Clear bill allocations list
+                        $paymentContainer.find('.bill-allocations-list').empty();
+                        populateFlexibleBillsList();
+                        updateSummaryTotals();
+                    }
                     return;
                 }
 
