@@ -85,6 +85,7 @@ class CustomerController extends Controller
         // Fetch all customer balances in one optimized query using BalanceHelper
         $customerIds = $customers->pluck('id')->toArray();
         $balances = BalanceHelper::getBulkCustomerBalances($customerIds);
+        $advances = BalanceHelper::getBulkCustomerAdvances($customerIds);
 
         // Fetch sales dues from sales table (optimized bulk query)
         $salesDues = DB::table('sales')
@@ -101,7 +102,7 @@ class CustomerController extends Controller
             ->groupBy('customer_id')
             ->pluck('total_return_due', 'customer_id');
 
-        $customers = $customers->map(function ($customer) use ($balances, $salesDues, $returnDues) {
+        $customers = $customers->map(function ($customer) use ($balances, $advances, $salesDues, $returnDues) {
             // Concatenate full name in PHP instead of using accessor
             $fullName = trim(($customer->prefix ? $customer->prefix . ' ' : '') .
                             $customer->first_name . ' ' .
@@ -109,6 +110,7 @@ class CustomerController extends Controller
 
             // Get the calculated balance from BalanceHelper (single source of truth)
             $currentBalance = $balances->get($customer->id, (float)$customer->opening_balance);
+            $advanceCredit = $advances->get($customer->id, 0);
 
             // Get actual sales and return dues from respective tables
             $totalSaleDue = (float)($salesDues->get($customer->id, 0));
@@ -128,6 +130,7 @@ class CustomerController extends Controller
                 'current_balance' => (float)$currentBalance, // ✅ Accurate balance from unified ledger
                 'total_sale_due' => $totalSaleDue, // ✅ Actual unpaid sales from sales table
                 'total_return_due' => $totalReturnDue, // ✅ Actual returns from sales_returns table
+                'total_advance_credit' => (float)$advanceCredit, // ✅ Advance credit from overpayments
                 'current_due' => (float)max(0, $currentBalance), // Only positive balances (customer owes)
                 'city_id' => $customer->city_id,
                 'city_name' => $customer->city?->name ?? '',

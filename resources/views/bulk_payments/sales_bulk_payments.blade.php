@@ -232,6 +232,7 @@
                         <span class="text-muted small">Opening Balance: <strong class="text-dark">Rs. <span id="openingBalance">0.00</span></strong></span>
                         <span class="text-muted small">Sale Due: <strong class="text-dark">Rs. <span id="totalDueAmount">0.00</span></strong></span>
                         <span id="returnCount" class="text-info small" style="display: none;">(Has <span id="returnCountNumber">0</span> returns available)</span>
+                        <span id="advanceCount" class="text-success small" style="display: none;">(Advance: Rs. <span id="advanceAmount">0.00</span>)</span>
                     </div>
 
                     <div class="text-end">
@@ -328,6 +329,31 @@
                         <button type="button" class="btn btn-sm btn-primary mt-2" id="reallocateAllCreditsBtn">
                             <i class="fas fa-exchange-alt"></i> Change Allocation
                         </button>
+                    </div>
+                </div>
+
+                <!-- Advance Credit Section - Similar to Returns -->
+                <div id="customerAdvanceSection" class="mb-3" style="display: none;">
+                    <div class="border rounded p-3 bg-light">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0 text-success">
+                                <i class="fas fa-piggy-bank"></i> Advance Credit (Rs. <span id="advanceToApplyToBills">0.00</span> available)
+                            </h6>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="hideAdvanceBtn">
+                                <i class="fas fa-times"></i> Hide
+                            </button>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="applyAdvanceCreditCheckbox">
+                            <label class="form-check-label" for="applyAdvanceCreditCheckbox">
+                                Apply advance credit to this payment
+                            </label>
+                        </div>
+                        <div id="advanceCreditAmountSection" style="display: none;">
+                            <label for="advanceCreditAmountInput" class="form-label small">Amount to apply (max: Rs. <span id="maxAdvanceCredit">0.00</span>)</label>
+                            <input type="number" class="form-control form-control-sm" id="advanceCreditAmountInput" placeholder="Enter amount" step="0.01" min="0">
+                            <small class="text-muted">This will reduce the amount you need to pay</small>
+                        </div>
                     </div>
                 </div>
 
@@ -649,6 +675,13 @@ function loadCustomersForBulkPayment() {
                     var openingBalance = parseFloat(customer.opening_balance) || 0;
                     var saleDue = parseFloat(customer.total_sale_due) || 0;
                     var currentDue = parseFloat(customer.current_due) || 0;
+                    var advanceCredit = parseFloat(customer.total_advance_credit) || 0;
+
+                    console.log('Customer data received:', {
+                        name: customer.first_name,
+                        advance_credit: customer.total_advance_credit,
+                        parsed_advance: advanceCredit
+                    });
 
                     // Only show customers who have due amounts
                     if (currentDue > 0) {
@@ -672,6 +705,7 @@ function loadCustomersForBulkPayment() {
                             '" data-opening-balance="' + openingBalance +
                             '" data-sale-due="' + saleDue +
                             '" data-total-due="' + currentDue +
+                            '" data-advance-credit="' + advanceCredit +
                             '">' + displayText + '</option>'
                         );
                     }
@@ -757,6 +791,42 @@ $(document).ready(function() {
     // Progressive Disclosure: Hide Returns Button
     $(document).on('click', '#hideReturnsBtn', function() {
         $('#customerReturnsSection').slideUp();
+    });
+
+    // Progressive Disclosure: Hide Advance Credit Button
+    $(document).on('click', '#hideAdvanceBtn', function() {
+        $('#customerAdvanceSection').slideUp();
+    });
+
+    // Advance Credit Checkbox Handler
+    $(document).on('change', '#applyAdvanceCreditCheckbox', function() {
+        if ($(this).is(':checked')) {
+            $('#advanceCreditAmountSection').slideDown();
+            // Set default to full advance amount
+            var maxAdvance = window.customerAdvanceCredit || 0;
+            var totalDue = window.totalCustomerDue || 0;
+            var suggestedAmount = Math.min(maxAdvance, totalDue);
+            $('#advanceCreditAmountInput').val(suggestedAmount.toFixed(2));
+            $('#advanceCreditAmountInput').attr('max', maxAdvance);
+            updateNetCustomerDue();
+        } else {
+            $('#advanceCreditAmountSection').slideUp();
+            $('#advanceCreditAmountInput').val('');
+            updateNetCustomerDue();
+        }
+    });
+
+    // Advance Credit Amount Input Handler
+    $(document).on('input', '#advanceCreditAmountInput', function() {
+        var maxAdvance = window.customerAdvanceCredit || 0;
+        var inputAmount = parseFloat($(this).val()) || 0;
+
+        if (inputAmount > maxAdvance) {
+            $(this).val(maxAdvance.toFixed(2));
+            toastr.warning('Amount cannot exceed available advance credit of Rs. ' + maxAdvance.toFixed(2));
+        }
+
+        updateNetCustomerDue();
     });
 
     // Progressive Disclosure: Customize Payment Link - Toggle functionality
@@ -885,6 +955,16 @@ $(document).on('change', '#customerSelect', function() {
     var customerOpeningBalance = parseFloat(selectedOption.data('opening-balance')) || 0;
     var saleDue = parseFloat(selectedOption.data('sale-due')) || 0;
     var totalDue = parseFloat(selectedOption.data('total-due')) || 0;
+    var advanceCredit = parseFloat(selectedOption.data('advance-credit')) || 0;
+
+    // DEBUG: Log all data attributes from selected option
+    console.log('Selected option attributes:', selectedOption[0].attributes);
+    console.log('Data attributes parsed:', {
+        'data-opening-balance': selectedOption.data('opening-balance'),
+        'data-sale-due': selectedOption.data('sale-due'),
+        'data-total-due': selectedOption.data('total-due'),
+        'data-advance-credit': selectedOption.data('advance-credit')
+    });
 
     // Trigger payment type change to set proper payment method options
     $('input[name="paymentType"]:checked').trigger('change');
@@ -892,7 +972,8 @@ $(document).on('change', '#customerSelect', function() {
     console.log('Customer balances:', {
         openingBalance: customerOpeningBalance,
         saleDue: saleDue,
-        totalDue: totalDue
+        totalDue: totalDue,
+        advanceCredit: advanceCredit
     });
 
     // Update balance displays (text-based, no cards)
@@ -903,6 +984,23 @@ $(document).on('change', '#customerSelect', function() {
     window.originalOpeningBalance = customerOpeningBalance;
     window.saleDueAmount = saleDue;
     window.totalCustomerDue = totalDue;
+    window.customerAdvanceCredit = advanceCredit;
+
+    // Show advance credit if available
+    if (advanceCredit > 0) {
+        $('#advanceAmount').text(advanceCredit.toFixed(2));
+        $('#advanceCount').show();
+
+        // Show advance credit application section
+        $('#advanceToApplyToBills').text(advanceCredit.toFixed(2));
+        $('#maxAdvanceCredit').text(advanceCredit.toFixed(2));
+        $('#customerAdvanceSection').show();
+    } else {
+        $('#advanceCount').hide();
+        $('#customerAdvanceSection').hide();
+        $('#applyAdvanceCreditCheckbox').prop('checked', false);
+        $('#advanceCreditAmountSection').hide();
+    }
 
     // Set amount to pay
     $('#netCustomerDue').text('Rs. ' + totalDue.toFixed(2));
@@ -1504,16 +1602,33 @@ function updateNetCustomerDue() {
         }
     });
 
-    var netDue = totalDue - returnsToApply;
+    // Get advance credit to apply
+    var advanceCreditToApply = 0;
+    if ($('#applyAdvanceCreditCheckbox').is(':checked')) {
+        advanceCreditToApply = parseFloat($('#advanceCreditAmountInput').val()) || 0;
+    }
+
+    var netDue = totalDue - returnsToApply - advanceCreditToApply;
     if (netDue < 0) netDue = 0; // Can't be negative
 
     $('#netCustomerDue').text('Rs. ' + netDue.toFixed(2));
 
     // Update calculation display
+    var calculationParts = [];
+    calculationParts.push('Rs.' + totalDue.toFixed(2));
+
     if (returnsToApply > 0) {
-        $('#netCalculation').html(`<i class="fas fa-calculator"></i> Rs.${totalDue.toFixed(2)} - Rs.${returnsToApply.toFixed(2)}`);
+        calculationParts.push('- Rs.' + returnsToApply.toFixed(2) + ' (Returns)');
+    }
+
+    if (advanceCreditToApply > 0) {
+        calculationParts.push('- Rs.' + advanceCreditToApply.toFixed(2) + ' (Advance)');
+    }
+
+    if (calculationParts.length > 1) {
+        $('#netCalculation').html('<i class="fas fa-calculator"></i> ' + calculationParts.join(' '));
     } else {
-        $('#netCalculation').text('Sale Due - Returns');
+        $('#netCalculation').text('Sale Due - Returns - Advance');
     }
 
     // Store for later use
@@ -1524,6 +1639,7 @@ function updateNetCustomerDue() {
         saleDue: saleDue,
         totalDue: totalDue,
         returnsToApply: returnsToApply,
+        advanceCreditToApply: advanceCreditToApply,
         netDue: netDue
     });
 }
@@ -3264,10 +3380,17 @@ function submitMultiMethodPayment() {
     // Show loading
     $('#submitBulkPayment').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Processing...');
 
+    // Collect advance credit application if checked
+    let advanceCreditApplied = 0;
+    if ($('#applyAdvanceCreditCheckbox').is(':checked')) {
+        advanceCreditApplied = parseFloat($('#advanceCreditAmountInput').val()) || 0;
+    }
+
     console.log('Submitting payment with:', {
         selected_returns: selectedReturns,
         hasApplyToSalesReturns: hasApplyToSalesReturns,
         bill_return_allocations: billReturnAllocations,
+        advance_credit_applied: advanceCreditApplied,
         payment_groups: paymentGroups
     });
 
@@ -3294,6 +3417,7 @@ function submitMultiMethodPayment() {
             payment_groups: paymentGroups,
             selected_returns: selectedReturns, // Include selected returns
             bill_return_allocations: billReturnAllocations, // Include which bills got return credits (only for apply_to_sales)
+            advance_credit_applied: advanceCreditApplied, // Include advance credit usage
             notes: $('#notes').val() || '',
             _token: $('meta[name="csrf-token"]').attr('content')
         },

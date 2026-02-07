@@ -397,6 +397,32 @@ class UnifiedLedgerService
     }
 
     /**
+     * Record advance credit usage (when customer applies advance to bills)
+     * This reduces their negative balance (advance) by increasing debit
+     */
+    public function recordAdvanceCreditUsage($payment, $contactType = 'customer', $createdBy = null)
+    {
+        $transactionDate = $payment->created_at ?
+            Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo') :
+            Carbon::now('Asia/Colombo');
+
+        $contactId = $contactType === 'customer' ? $payment->customer_id : $payment->supplier_id;
+
+        return Ledger::createEntry([
+            'contact_id' => $contactId,
+            'contact_type' => $contactType,
+            'transaction_date' => $transactionDate,
+            'reference_no' => $payment->reference_no ?: 'ADV-USE-' . $payment->id,
+            'transaction_type' => 'advance_credit_usage',
+            'amount' => $payment->amount,
+            'notes' => $payment->notes ?: "Advance credit applied to bills",
+            'created_by' => $createdBy,
+            // This is a debit entry - reduces advance (negative balance)
+            'amount_type' => 'debit'
+        ]);
+    }
+
+    /**
      * Edit sale with proper ledger management - FIXED LOGIC
      * When editing a sale amount, we should only have the final amount count
      */

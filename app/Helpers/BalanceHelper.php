@@ -162,12 +162,28 @@ class BalanceHelper
     }
 
     /**
-     * Get only customer advance amount (negative balance only)
+     * Get only customer advance amount (when credits exceed debits)
+     * This represents overpayments that can be used for future purchases
      */
     public static function getCustomerAdvance($customerId)
     {
-        $balance = self::getCustomerBalance($customerId);
-        return $balance < 0 ? abs($balance) : 0;
+        if ($customerId == 1) {
+            return 0.0; // Walk-in customer never has advance
+        }
+
+        $result = DB::selectOne("
+            SELECT
+                COALESCE(SUM(credit), 0) as total_credits,
+                COALESCE(SUM(debit), 0) as total_debits,
+                COALESCE(SUM(credit) - SUM(debit), 0) as advance
+            FROM ledgers
+            WHERE contact_id = ?
+                AND contact_type = 'customer'
+                AND status = 'active'
+        ", [$customerId]);
+
+        // Return advance only if credits exceed debits (customer has overpaid)
+        return $result && $result->advance > 0 ? (float) $result->advance : 0.0;
     }
 
     /**
@@ -213,6 +229,52 @@ class BalanceHelper
         }
 
         return $balances;
+    }
+
+    /**
+     * Get multiple customer advance amounts at once (negative balances only)
+     * Returns collection with customer_id => advance_amount
+     */
+    public static function getBulkCustomerAdvances($customerIds)
+    {
+        if (empty($customerIds)) {
+            return collect();
+        }
+
+        // Remove walk-in customer (ID = 1) as they always have 0 balance
+        $customerIds = array_values(array_filter($customerIds, fn($id) => $id != 1));
+
+        if (empty($customerIds)) {
+            return collect();
+        }
+
+        // Query for customers with negative balances (credits > debits = advance payment)
+        $placeholders = str_repeat('?,', count($customerIds) - 1) . '?';
+        $results = DB::select("
+            SELECT
+                contact_id,
+                COALESCE(SUM(credit) - SUM(debit), 0) as advance_amount
+            FROM ledgers
+            WHERE contact_id IN ({$placeholders})
+                AND contact_type = 'customer'
+                AND status = 'active'
+            GROUP BY contact_id
+            HAVING SUM(credit) > SUM(debit)
+        ", $customerIds);
+
+        $advances = collect();
+        foreach ($results as $result) {
+            $advances->put((int) $result->contact_id, (float) $result->advance_amount);
+        }
+
+        // Ensure all requested customer IDs are in the result (fill missing with 0)
+        foreach ($customerIds as $customerId) {
+            if (!$advances->has($customerId)) {
+                $advances->put($customerId, 0.0);
+            }
+        }
+
+        return $advances;
     }
 
     /**

@@ -1103,7 +1103,7 @@ class PaymentController extends Controller
             'payment_date' => 'required|date',
             'payment_type' => 'required|in:opening_balance,sale_dues,both,all',
             'payment_groups' => 'required|array|min:1',
-            'payment_groups.*.method' => 'required|in:cash,cheque,card,bank_transfer,discount',
+            'payment_groups.*.method' => 'required|in:cash,cheque,card,bank_transfer,discount,advance_credit',
             'payment_groups.*.bills' => 'required_unless:payment_type,opening_balance|array|min:1',
             'payment_groups.*.bills.*.sale_id' => 'required_unless:payment_type,opening_balance|exists:sales,id',
             'payment_groups.*.bills.*.amount' => 'required_unless:payment_type,opening_balance|numeric|min:0.01',
@@ -1114,6 +1114,8 @@ class PaymentController extends Controller
             'selected_returns.*.return_id' => 'required|exists:sales_returns,id',
             'selected_returns.*.amount' => 'required|numeric|min:0.01',
             'selected_returns.*.action' => 'required|in:apply_to_sales,cash_refund',
+            // Advance credit validation
+            'advance_credit_applied' => 'nullable|numeric|min:0',
             // Cheque specific validation
             'payment_groups.*.cheque_number' => 'required_if:payment_groups.*.method,cheque',
             'payment_groups.*.cheque_bank_branch' => 'required_if:payment_groups.*.method,cheque',
@@ -1279,6 +1281,43 @@ class PaymentController extends Controller
                             $this->unifiedLedgerService->recordReturnRefund($returnPayment, 'customer');
                         }
                     }
+                }
+
+                // Process advance credit application if provided
+                if ($request->has('advance_credit_applied') && $request->advance_credit_applied > 0) {
+                    $advanceCreditAmount = floatval($request->advance_credit_applied);
+
+                    // Validate customer has sufficient advance credit
+                    $customerBalance = BalanceHelper::getCustomerBalance($request->customer_id);
+                    if ($customerBalance >= 0) {
+                        throw new \Exception("Customer does not have any advance credit available.");
+                    }
+
+                    $availableAdvanceCredit = abs($customerBalance);
+                    if ($advanceCreditAmount > $availableAdvanceCredit) {
+                        throw new \Exception("Advance credit amount Rs.{$advanceCreditAmount} exceeds available advance credit Rs.{$availableAdvanceCredit}");
+                    }
+
+                    // Create a virtual payment entry to apply advance credit
+                    $advancePayment = Payment::create([
+                        'payment_date' => $request->payment_date,
+                        'amount' => $advanceCreditAmount,
+                        'payment_method' => 'advance_credit', // Special method for advance credit usage
+                        'payment_type' => 'advance_credit_usage',
+                        'reference_id' => null,
+                        'reference_no' => $bulkReference,
+                        'customer_id' => $request->customer_id,
+                        'notes' => 'Advance credit applied to bills (from previous overpayments)',
+                    ]);
+
+                    // Record ledger entry - this reduces the negative balance (advance)
+                    $this->unifiedLedgerService->recordAdvanceCreditUsage($advancePayment, 'customer', auth()->id());
+
+                    Log::info('Advance credit applied to bills', [
+                        'customer_id' => $request->customer_id,
+                        'amount_applied' => $advanceCreditAmount,
+                        'payment_id' => $advancePayment->id
+                    ]);
                 }
 
                 // Process payment groups FIRST (before applying return credits to sales)
