@@ -2476,32 +2476,32 @@ $(document).ready(function() {
             // 1. Clear bill allocations tracking
             billPaymentAllocations = {};
             paymentMethodAllocations = {};
-            
+
             // 2. Clear return credit allocations
             if (window.billReturnCreditAllocations) {
                 window.billReturnCreditAllocations = {};
             }
-            
+
             // 3. Clear all payment method cards
             $('#flexiblePaymentsList').empty();
             flexiblePaymentCounter = 0;
-            
+
             // 4. Clear simple table
             $('#billsPaymentTableBody').empty();
-            
+
             // 5. Clear available sales
             availableCustomerSales = [];
-            
+
             // 6. Clear selected returns
             selectedReturns = [];
             $('.return-checkbox').prop('checked', false);
-            
+
             // 7. Reset summary
             updateSummaryTotals();
-            
+
             // 8. Load new customer bills
             loadCustomerSalesForMultiMethod(customerId);
-            
+
             console.log('Customer changed - all old data cleared');
         }
     });
@@ -3406,7 +3406,7 @@ $(document).ready(function() {
         const $paymentContainer = $(this).closest('.payment-method-item');
         const totalAmount = parseFloat($paymentContainer.find('.payment-total-amount').val()) || 0;
         const paymentType = $('input[name="paymentType"]:checked').val();
-        
+
         // If total amount is entered, auto-allocate bills in FIFO order
         if (totalAmount > 0 && paymentType !== 'both') {
             // Calculate how much is already allocated
@@ -3414,9 +3414,9 @@ $(document).ready(function() {
             $paymentContainer.find('.allocation-amount').each(function() {
                 alreadyAllocated += parseFloat($(this).val()) || 0;
             });
-            
+
             const remainingToAllocate = totalAmount - alreadyAllocated;
-            
+
             if (remainingToAllocate > 0.01) {
                 // Auto-allocate remaining amount using FIFO
                 autoDistributeToBills(paymentId, remainingToAllocate);
@@ -3706,10 +3706,10 @@ $(document).ready(function() {
                                 }
                             }
                         });
-                        
+
                         // Auto-distribute to bills in FIFO order
                         autoDistributeToBills(paymentId, totalAmount);
-                        
+
                         populateFlexibleBillsList();
                         updateSummaryTotals();
                     } else {
