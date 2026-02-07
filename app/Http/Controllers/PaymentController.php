@@ -1108,6 +1108,7 @@ class PaymentController extends Controller
             'payment_groups.*.bills.*.sale_id' => 'required_unless:payment_type,opening_balance|exists:sales,id',
             'payment_groups.*.bills.*.amount' => 'required_unless:payment_type,opening_balance|numeric|min:0.01',
             'payment_groups.*.totalAmount' => 'required_if:payment_type,opening_balance|numeric|min:0.01',
+            'payment_groups.*.advance_amount' => 'nullable|numeric|min:0',
             // Return bills validation
             'selected_returns' => 'nullable|array',
             'selected_returns.*.return_id' => 'required|exists:sales_returns,id',
@@ -1407,6 +1408,34 @@ class PaymentController extends Controller
                                 'sale_id' => $bill['sale_id'],
                                 'invoice_no' => $sale->invoice_no,
                                 'amount' => $bill['amount']
+                            ];
+                        }
+
+                        // Handle advance payment for this group (excess amount)
+                        $advanceAmount = isset($paymentGroup['advance_amount']) ? floatval($paymentGroup['advance_amount']) : 0;
+                        if ($advanceAmount > 0.01) {
+                            $advancePaymentData = [
+                                'payment_date' => $request->payment_date,
+                                'amount' => $advanceAmount,
+                                'payment_method' => $paymentGroup['method'],
+                                'payment_type' => 'advance',
+                                'reference_id' => null,
+                                'reference_no' => $bulkReference,
+                                'customer_id' => $request->customer_id,
+                                'notes' => ($request->notes ?? '') . ' [Advance Payment]'
+                            ];
+
+                            $this->addMethodSpecificFields($advancePaymentData, $paymentGroup);
+                            $advancePayment = Payment::create($advancePaymentData);
+
+                            // Record in unified ledger as customer credit
+                            $this->unifiedLedgerService->recordAdvancePayment($advancePayment, 'customer');
+
+                            $groupTotal += $advanceAmount;
+                            $groupPayments[] = [
+                                'payment_id' => $advancePayment->id,
+                                'type' => 'advance',
+                                'amount' => $advanceAmount
                             ];
                         }
                     }

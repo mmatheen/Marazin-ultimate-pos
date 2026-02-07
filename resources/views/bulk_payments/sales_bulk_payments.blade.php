@@ -2567,7 +2567,23 @@ function escapeHtml(text) {
 }
 
 // Populate flexible bills list (left side)
+function recalcBillPaymentAllocationsFromUI() {
+    const newAllocations = {};
+
+    $('.bill-allocation-row').each(function() {
+        const billId = $(this).find('.bill-select').val();
+        const amount = parseFloat($(this).find('.allocation-amount').val()) || 0;
+
+        if (billId && amount > 0) {
+            newAllocations[billId] = (newAllocations[billId] || 0) + amount;
+        }
+    });
+
+    billPaymentAllocations = newAllocations;
+}
+
 function populateFlexibleBillsList(searchTerm = '') {
+    recalcBillPaymentAllocationsFromUI();
     let billsHTML = '';
 
     // Filter bills based on search term (invoice number or notes)
@@ -3030,6 +3046,8 @@ function autoDistributeToBills(paymentId, amountToDistribute) {
     }
 
     populateFlexibleBillsList();
+
+    return remainingAmount;
 }
 
 // Update payment method allocation totals (FOR NON-BOTH TYPES)
@@ -3183,6 +3201,17 @@ function submitMultiMethodPayment() {
                 });
             }
         });
+
+        // Include advance amount if user selected "Keep as Advance Payment"
+        let totalBillsAllocated = 0;
+        groupData.bills.forEach(bill => {
+            totalBillsAllocated += bill.amount;
+        });
+        const advancePaymentAmount = totalAmount - totalBillsAllocated;
+        const selectedAdvanceOption = $payment.find(`input[name="excess_${paymentId}"]:checked`).val();
+        if (advancePaymentAmount > 0.01 && selectedAdvanceOption === 'advance') {
+            groupData.advance_amount = advancePaymentAmount;
+        }
 
         // For "both" payment type, include OB portion from breakdown
         if (paymentType === 'both') {
@@ -3692,23 +3721,106 @@ $(document).ready(function() {
                 }
 
                 // FOR "SALE_DUES" TYPE: Auto-allocate bills in FIFO order
-                if (paymentType === 'sale_dues' || paymentType === 'opening_balance') {
+                if (paymentType === 'sale_dues') {
                     if (totalAmount > 0) {
-                        // Clear existing allocations for this payment method
+                        // Step 1: Get allocations from OTHER payment methods ONLY (exclude this one)
+                        const otherPaymentsAllocations = {};
+                        $('.bill-allocation-row').each(function() {
+                            const $container = $(this).closest('.payment-method-item');
+                            const currentPaymentId = $container.data('payment-id');
+
+                            // Skip rows from THIS payment method
+                            if (currentPaymentId === paymentId) {
+                                return;
+                            }
+
+                            const billId = $(this).find('.bill-select').val();
+                            const amount = parseFloat($(this).find('.allocation-amount').val()) || 0;
+
+                            if (billId && amount > 0.01) {
+                                otherPaymentsAllocations[billId] = (otherPaymentsAllocations[billId] || 0) + amount;
+                            }
+                        });
+
+                        // Step 2: Set billPaymentAllocations to only include OTHER payment methods
+                        billPaymentAllocations = otherPaymentsAllocations;
+
+                        // Step 3: Clear existing allocations for THIS payment method
                         $paymentContainer.find('.bill-allocation-row').each(function() {
                             const $row = $(this);
                             const billId = $row.find('.bill-select').val();
                             const amount = parseFloat($row.find('.allocation-amount').val()) || 0;
-                            if (billId && amount > 0) {
-                                billPaymentAllocations[billId] = Math.max(0, (billPaymentAllocations[billId] || 0) - amount);
-                                if (billPaymentAllocations[billId] <= 0) {
-                                    delete billPaymentAllocations[billId];
-                                }
+                            if (billId && amount > 0.01) {
+                                // Already removed by setting billPaymentAllocations = otherPaymentsAllocations above
                             }
                         });
 
-                        // Auto-distribute to bills in FIFO order
-                        autoDistributeToBills(paymentId, totalAmount);
+                        // Step 4: Clear bill allocations list for THIS payment method
+                        $paymentContainer.find('.bill-allocations-list').empty();
+
+                        // Step 5: Auto-distribute to bills in FIFO order
+                        // At this point, billPaymentAllocations contains ONLY OTHER payment methods
+                        const returnedAmount = autoDistributeToBills(paymentId, totalAmount);
+
+                        // Step 6: Get actual allocated amount from newly created rows
+                        let actualAllocatedAmount = 0;
+                        $paymentContainer.find('.allocation-amount').each(function() {
+                            actualAllocatedAmount += parseFloat($(this).val()) || 0;
+                        });
+
+                        // Step 7: Calculate advance/excess amount
+                        const advanceAmount = totalAmount - actualAllocatedAmount;
+
+                        // Step 8: Update hint/excess options (advance payment support)
+                        const $hint = $paymentContainer.find('.payment-total-hint');
+
+                        if (advanceAmount > 0.01) {
+                            const hintText = `⚠️ Excess Rs. ${advanceAmount.toFixed(2)} - Will be treated as advance payment`;
+                            if ($hint.length === 0) {
+                                $paymentContainer.find('.payment-total-amount').after(
+                                    `<small class="payment-total-hint text-warning d-block">${hintText}</small>`
+                                );
+                            } else {
+                                $hint.text(hintText).removeClass('text-success text-info').addClass('text-warning');
+                            }
+
+                            const $excessOptions = $paymentContainer.find('.excess-options');
+                            if ($excessOptions.length === 0) {
+                                $paymentContainer.find('.payment-total-hint').after(`
+                                    <div class="excess-options mt-2 p-2 bg-light rounded border">
+                                        <small class="text-muted d-block mb-1">💡 Excess Amount Options:</small>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input excess-option" type="radio" name="excess_${paymentId}" id="advance_${paymentId}" value="advance" checked>
+                                            <label class="form-check-label small" for="advance_${paymentId}">
+                                                💰 Keep as Advance Payment (Customer Credit)
+                                            </label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input excess-option" type="radio" name="excess_${paymentId}" id="reduce_${paymentId}" value="reduce">
+                                            <label class="form-check-label small" for="reduce_${paymentId}">
+                                                ✂️ Reduce Total to Rs. ${actualAllocatedAmount.toFixed(2)}
+                                            </label>
+                                        </div>
+                                    </div>
+                                `);
+                            } else {
+                                $excessOptions.find(`label[for="reduce_${paymentId}"]`).text(`✂️ Reduce Total to Rs. ${actualAllocatedAmount.toFixed(2)}`);
+                            }
+                        } else {
+                            const hintText = `✅ Perfect allocation: Rs. ${actualAllocatedAmount.toFixed(2)}`;
+                            if ($hint.length === 0) {
+                                $paymentContainer.find('.payment-total-amount').after(
+                                    `<small class="payment-total-hint text-success d-block">${hintText}</small>`
+                                );
+                            } else {
+                                $hint.text(hintText).removeClass('text-warning text-info').addClass('text-success');
+                            }
+
+                            $paymentContainer.find('.excess-options').remove();
+                        }
+
+                        // Recalculate billPaymentAllocations from UI to include the newly created allocations
+                        recalcBillPaymentAllocationsFromUI();
 
                         populateFlexibleBillsList();
                         updateSummaryTotals();
@@ -3727,8 +3839,10 @@ $(document).ready(function() {
                             }
                         });
 
-                        // Clear bill allocations list
+                        // Clear bill allocations list and hints
                         $paymentContainer.find('.bill-allocations-list').empty();
+                        $paymentContainer.find('.payment-total-hint').remove();
+                        $paymentContainer.find('.excess-options').remove();
                         populateFlexibleBillsList();
                         updateSummaryTotals();
                     }
