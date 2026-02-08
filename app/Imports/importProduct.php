@@ -22,6 +22,12 @@ use Illuminate\Support\Collection;
 
 class importProduct implements ToCollection, WithHeadingRow
 {
+    // Maximum values to prevent database overflow
+    // batches.qty is decimal(15,4) - max value ~99,999,999,999.9999
+    // location_product.qty is integer - max value 2,147,483,647
+    // We'll use a safe maximum that works for both
+    private const MAX_QTY_VALUE = 2147483647; // Max signed integer value
+    
     private $data = [];
     private $validationErrors = []; // Array to store validation errors with row numbers
     private $currentRow = 1; // Track current row number (starting from 1 for header)
@@ -341,6 +347,20 @@ class importProduct implements ToCollection, WithHeadingRow
                 }
             }
 
+            // Validate and cap quantity to prevent database overflow
+            if (isset($rowArray['qty']) && is_numeric($rowArray['qty'])) {
+                $qtyValue = (float)$rowArray['qty'];
+                if ($qtyValue > self::MAX_QTY_VALUE) {
+                    $this->validationErrors[] = "Row {$excelRowNumber}: Quantity value ({$qtyValue}) exceeds maximum allowed value (" . number_format(self::MAX_QTY_VALUE) . "). Please check your Excel file for formula errors or invalid values.";
+                    continue;
+                }
+                // Also check for scientific notation values that might be too large
+                if ($qtyValue >= 1E15) {
+                    $this->validationErrors[] = "Row {$excelRowNumber}: Quantity value ({$qtyValue}) is too large. Maximum allowed: " . number_format(self::MAX_QTY_VALUE) . ". This may be caused by Excel formula errors.";
+                    continue;
+                }
+            }
+
             $validator = Validator::make($rowArray, [
                 'sku' => [
                     'nullable',
@@ -359,7 +379,7 @@ class importProduct implements ToCollection, WithHeadingRow
                 'whole_sale_price' => 'required|numeric|min:0',
                 'special_price' => 'nullable|numeric|min:0',
                 'max_retail_price' => 'nullable|numeric|min:0',
-                'qty' => 'nullable|numeric|min:0',
+                'qty' => 'nullable|numeric|min:0|max:' . self::MAX_QTY_VALUE,
                 'batch_no' => 'nullable|string|max:255',
                 'expiry_date' => 'nullable|date_format:Y-m-d',
                 'is_imei_or_serial_no' => 'nullable|integer|in:0,1',
@@ -379,7 +399,7 @@ class importProduct implements ToCollection, WithHeadingRow
                 'retail_price.numeric' => 'Retail price must be a valid number.',
                 'whole_sale_price.required' => 'Wholesale price is required.',
                 'whole_sale_price.numeric' => 'Wholesale price must be a valid number.',
-                'expiry_date.date_format' => 'Expiry date must be in Y-m-d format (YYYY-MM-DD).',
+                'qty.max' => 'Quantity exceeds maximum allowed value (' . number_format(self::MAX_QTY_VALUE) . '). This may be caused by Excel formula errors.',
                 'expiry_date.date_format' => 'Expiry date must be in Y-m-d format (YYYY-MM-DD).',
                 'is_imei_or_serial_no.integer' => 'IMEI/Serial number field must be 0 or 1.',
                 'is_imei_or_serial_no.in' => 'IMEI/Serial number field must be 0 or 1.',
@@ -548,6 +568,12 @@ class importProduct implements ToCollection, WithHeadingRow
 
             // Handle Batch, LocationBatch, StockHistory - Check IMEI first to determine quantity
             $actualQty = $row['qty'] ?? 0;
+            
+            // Safety check: Cap quantity to prevent database overflow
+            if (is_numeric($actualQty) && $actualQty > self::MAX_QTY_VALUE) {
+                Log::warning("Row {$excelRowNumber}: Quantity ({$actualQty}) exceeds maximum. Capping to " . self::MAX_QTY_VALUE);
+                $actualQty = self::MAX_QTY_VALUE;
+            }
             $imeiCount = 0;
 
             // Check for IMEI - use enhanced detection logic

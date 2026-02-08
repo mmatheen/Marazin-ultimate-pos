@@ -360,7 +360,7 @@
                 <!-- Advanced Options - Progressive Disclosure -->
                 <div class="mb-3">
                     <a href="#" id="showAdvancedOptions" class="text-decoration-none small">
-                        <i class="fas fa-chevron-down"></i> Show advanced options
+                        <i class="fas fa-chevron-down"></i> Show outstanding bills & payment allocation
                     </a>
                 </div>
 
@@ -846,7 +846,7 @@ $(document).ready(function() {
     $(document).on('click', '#showAdvancedOptions', function(e) {
         e.preventDefault();
         $('#advancedOptionsContainer').slideDown();
-        $(this).html('<i class="fas fa-chevron-up"></i> Hide advanced options');
+        $(this).html('<i class="fas fa-chevron-up"></i> Hide outstanding bills & payment allocation');
         $(this).attr('id', 'hideAdvancedOptions');
     });
 
@@ -854,7 +854,7 @@ $(document).ready(function() {
     $(document).on('click', '#hideAdvancedOptions', function(e) {
         e.preventDefault();
         $('#advancedOptionsContainer').slideUp();
-        $(this).html('<i class="fas fa-chevron-down"></i> Show advanced options');
+        $(this).html('<i class="fas fa-chevron-down"></i> Show outstanding bills & payment allocation');
         $(this).attr('id', 'showAdvancedOptions');
     });
 
