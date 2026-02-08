@@ -27,14 +27,11 @@ class importProduct implements ToCollection, WithHeadingRow
     // location_product.qty is integer - max value 2,147,483,647
     // We'll use a safe maximum that works for both
     private const MAX_QTY_VALUE = 2147483647; // Max signed integer value
-    
+
     private $data = [];
     private $validationErrors = []; // Array to store validation errors with row numbers
     private $currentRow = 1; // Track current row number (starting from 1 for header)
     private $importedProducts = []; // Track successfully imported products for rollback
-    private $totalRows = 0; // Total rows in Excel (excluding header)
-    private $skippedEmptyRows = []; // Track which rows were skipped because they were empty
-    private $processedRows = 0; // Count of successfully processed rows
 
     public function getData()
     {
@@ -44,32 +41,6 @@ class importProduct implements ToCollection, WithHeadingRow
     public function getValidationErrors()
     {
         return $this->validationErrors;
-    }
-
-    public function getTotalRows()
-    {
-        return $this->totalRows;
-    }
-
-    public function getSkippedEmptyRows()
-    {
-        return $this->skippedEmptyRows;
-    }
-
-    public function getProcessedRows()
-    {
-        return $this->processedRows;
-    }
-
-    public function getImportStats()
-    {
-        return [
-            'total_rows' => $this->totalRows,
-            'processed_rows' => $this->processedRows,
-            'skipped_empty_rows' => count($this->skippedEmptyRows),
-            'validation_errors' => count($this->validationErrors),
-            'empty_row_numbers' => $this->skippedEmptyRows,
-        ];
     }
 
     // Increase max execution time for bulk import
@@ -82,20 +53,12 @@ class importProduct implements ToCollection, WithHeadingRow
 
     public function collection(Collection $rows)
     {
-        // ⚠️ CRITICAL: ALL OR NOTHING IMPORT BEHAVIOR ⚠️
         // First pass: Validate all rows without inserting anything
-        // If ANY validation error is found, the ENTIRE import is cancelled
-        // NO data will be imported until ALL errors are fixed
         $this->validateAllRows($rows);
 
         // If there are any validation errors, don't proceed with import
         if (!empty($this->validationErrors)) {
-            $errorCount = count($this->validationErrors);
-            Log::error("🚫 IMPORT CANCELLED: {$errorCount} validation error(s) found. ZERO products imported.", [
-                'total_rows' => $this->totalRows,
-                'error_count' => $errorCount,
-                'errors' => $this->validationErrors
-            ]);
+            Log::error("Import cancelled due to validation errors:", $this->validationErrors);
             return; // Stop processing - no data will be imported
         }
 
@@ -111,7 +74,6 @@ class importProduct implements ToCollection, WithHeadingRow
                     $result = $this->processRow($row->toArray(), $excelRowNumber);
                     if ($result !== null) {
                         $processedCount++;
-                        $this->processedRows++;
                     }
                 } catch (\Exception $rowException) {
                     Log::error("Error processing row {$excelRowNumber}: " . $rowException->getMessage());
@@ -122,13 +84,6 @@ class importProduct implements ToCollection, WithHeadingRow
             }
 
             DB::commit();
-            
-            Log::info("✅ IMPORT SUCCESSFUL: ALL data imported! Processed: {$this->processedRows}/{$this->totalRows} rows. Skipped empty: " . count($this->skippedEmptyRows), [
-                'total_rows' => $this->totalRows,
-                'processed_rows' => $this->processedRows,
-                'skipped_empty_rows' => count($this->skippedEmptyRows),
-                'success_rate' => '100%'
-            ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -327,16 +282,12 @@ class importProduct implements ToCollection, WithHeadingRow
 
     private function validateAllRows(Collection $rows)
     {
-        $this->totalRows = $rows->count();
-        
         foreach ($rows as $index => $row) {
             $rowArray = $row->toArray();
             $excelRowNumber = $index + 2; // Excel row number (accounting for header)
 
             // Skip empty rows during validation
             if (empty(array_filter($rowArray))) {
-                $this->skippedEmptyRows[] = $excelRowNumber;
-                Log::info("Skipping empty row {$excelRowNumber}");
                 continue;
             }
 
@@ -617,7 +568,7 @@ class importProduct implements ToCollection, WithHeadingRow
 
             // Handle Batch, LocationBatch, StockHistory - Check IMEI first to determine quantity
             $actualQty = $row['qty'] ?? 0;
-            
+
             // Safety check: Cap quantity to prevent database overflow
             if (is_numeric($actualQty) && $actualQty > self::MAX_QTY_VALUE) {
                 Log::warning("Row {$excelRowNumber}: Quantity ({$actualQty}) exceeds maximum. Capping to " . self::MAX_QTY_VALUE);

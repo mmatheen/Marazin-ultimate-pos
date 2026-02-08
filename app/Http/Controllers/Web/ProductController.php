@@ -2924,37 +2924,23 @@ class ProductController extends Controller
                 // Process the Excel file
                 Excel::import($import, $file);
 
-                // Get validation errors and statistics from the import process
+                // Get validation errors from the import process
                 $validationErrors = $import->getValidationErrors();
                 $records = $import->getData();
-                $stats = $import->getImportStats();
 
                 // If there are validation errors, return them in the response
                 if (!empty($validationErrors)) {
-                    $errorCount = $stats['validation_errors'];
-                    $totalRows = $stats['total_rows'];
-                    
                     return response()->json([
                         'status' => 401,
-                        'validation_errors' => $validationErrors,
-                        'import_stats' => $stats,
-                        'message' => "🚫 IMPORT CANCELLED - ZERO products imported! Found {$errorCount} error(s) in your Excel file. Please fix ALL errors and re-upload. The system uses 'All or Nothing' import - if ANY row has errors, NO data is imported.",
-                        'instruction' => "Fix all {$errorCount} error(s) in your Excel file, then re-upload to import all {$totalRows} products successfully."
-                    ]);
-                }
+                        'validation_errors' => $validationErrors, // Return specific error messages
 
-                // Prepare success message with statistics
-                $message = "Import successful! {$stats['processed_rows']} products imported.";
-                if ($stats['skipped_empty_rows'] > 0) {
-                    $message .= " {$stats['skipped_empty_rows']} empty rows were skipped.";
+                    ]);
                 }
 
                 return response()->json([
                     'status' => 200,
                     'data' => $records,
-                    'import_stats' => $stats,
-                    'success_count' => $stats['processed_rows'],
-                    'message' => $message
+                    'message' => "Import Products Excel file uploaded successfully!"
                 ]);
             } else {
                 return response()->json([

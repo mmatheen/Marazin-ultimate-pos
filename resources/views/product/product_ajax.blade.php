@@ -3994,34 +3994,15 @@
                     $('#error-display-area').html(''); // Clear any previous errors
                     $('.successSound')[0].play();
 
-                    // Show detailed success message with statistics
-                    let successCount = response.success_count || response.import_stats?.processed_rows || 0;
-                    let totalRows = response.import_stats?.total_rows || 0;
-                    let skippedEmpty = response.import_stats?.skipped_empty_rows || 0;
-                    
-                    let successMessage = response.message || `Import successful! ${successCount} products imported.`;
-                    
-                    // Add additional info if available
-                    if (response.import_stats) {
-                        let detailsHtml = '<div class="mt-2"><strong>Import Summary:</strong><ul class="mb-0">';
-                        detailsHtml += `<li>Total rows in Excel: ${totalRows}</li>`;
-                        detailsHtml += `<li>Successfully imported: ${successCount}</li>`;
-                        if (skippedEmpty > 0) {
-                            detailsHtml += `<li>Empty rows skipped: ${skippedEmpty}</li>`;
-                        }
-                        detailsHtml += '</ul></div>';
-                        
-                        toastr.success(successMessage + detailsHtml, 'Import Complete', {
-                            timeOut: 7000,
-                            extendedTimeOut: 3000,
-                            allowHtml: true
-                        });
-                    } else {
-                        toastr.success(successMessage, 'Import Complete', {
+                    // Show single consolidated success message
+                    let successCount = response.success_count || 0;
+
+                    // If status is 200, it's successful regardless of success_count
+                    toastr.success(response.message ||
+                        `Import successful! Products have been imported.`, 'Import Complete', {
                             timeOut: 5000,
                             extendedTimeOut: 2000
                         });
-                    }
 
                     // Show navigation button after a delay
                     setTimeout(function() {
@@ -4040,12 +4021,6 @@
 
                     // Show detailed error messages with row numbers
                     if (response.validation_errors && response.validation_errors.length > 0) {
-                        // Get import statistics
-                        let stats = response.import_stats || {};
-                        let totalRows = stats.total_rows || 0;
-                        let errorCount = response.validation_errors.length;
-                        let skippedEmpty = stats.skipped_empty_rows || 0;
-                        
                         // Group errors by row number for better display
                         let errorsByRow = {};
                         response.validation_errors.forEach(function(error) {
@@ -4065,28 +4040,12 @@
                         });
 
                         let errorHtml =
-                            '<div class="alert alert-danger"><h5><i class="fas fa-exclamation-triangle"></i> IMPORT CANCELLED - ZERO Products Imported!</h5>';
-                        errorHtml += '<div class="alert alert-info mb-3">';
-                        errorHtml += '<h6><i class="fas fa-info-circle"></i> All or Nothing Import Policy:</h6>';
-                        errorHtml += '<p class="mb-0">This system uses <strong>"All or Nothing"</strong> import. If ANY row has errors, <strong>NO data is imported</strong>. This protects your database from partial/corrupt imports.</p>';
-                        errorHtml += '</div>';
-                        errorHtml += '<p><strong>' + (response.message || 'Validation errors found') + '</strong></p>';
-                        
-                        // Add statistics summary
-                        errorHtml += '<div class="alert alert-warning mb-3">';
-                        errorHtml += '<h6><i class="fas fa-chart-bar"></i> Import Statistics:</h6>';
+                            '<div class="alert alert-danger"><h5><i class="fas fa-exclamation-triangle"></i> Import Failed</h5>';
+                        errorHtml += '<p><strong>' + response.message + '</strong></p>';
                         errorHtml += '<div class="row">';
-                        errorHtml += '<div class="col-md-3"><strong>Total Rows in Excel:</strong> ' + totalRows + '</div>';
-                        errorHtml += '<div class="col-md-3"><strong>Validation Errors:</strong> <span class="text-danger font-weight-bold">' + errorCount + '</span></div>';
-                        errorHtml += '<div class="col-md-3"><strong>Failed Rows:</strong> ' + Object.keys(errorsByRow).filter(k => k !== 'general').length + '</div>';
-                        if (skippedEmpty > 0) {
-                            errorHtml += '<div class="col-md-3"><strong>Empty Rows:</strong> ' + skippedEmpty + '</div>';
-                        }
-                        errorHtml += '</div>';
-                        errorHtml += '<div class="mt-3 p-3 bg-white border-left border-danger" style="border-left-width: 4px !important;">';
-                        errorHtml += '<h6 class="text-danger mb-2"><i class="fas fa-ban"></i> Import Result:</h6>';
-                        errorHtml += '<p class="mb-0"><strong class="text-danger">ZERO products imported</strong> because ' + errorCount + ' validation error(s) were found.</p>';
-                        errorHtml += '<p class="mb-0 mt-2"><strong>What to do:</strong> Fix ALL errors listed below in your Excel file, then re-upload to import all ' + totalRows + ' products successfully.</p>';
+                        errorHtml += '<div class="col-md-6">';
+                        errorHtml += '<p><strong>Total Errors:</strong> ' + response
+                            .validation_errors.length + '</p>';
                         errorHtml += '</div>';
                         errorHtml += '</div>';
 
@@ -4157,10 +4116,10 @@
                         let uniqueRows = Object.keys(errorsByRow).filter(k => k !== 'general')
                             .length;
                         let summary =
-                            `🚫 IMPORT CANCELLED - ZERO products imported! Found ${errorCount} error(s) in ${uniqueRows} row(s). Fix ALL errors in Excel and re-upload to import all products successfully.`;
-                        toastr.error(summary, 'All or Nothing Import Policy', {
-                            timeOut: 10000,
-                            extendedTimeOut: 5000
+                            `Import failed with ${errorCount} error${errorCount > 1 ? 's' : ''} across ${uniqueRows} row${uniqueRows > 1 ? 's' : ''}. Please check the detailed errors above.`;
+                        toastr.error(summary, 'Import Failed', {
+                            timeOut: 8000,
+                            extendedTimeOut: 3000
                         });
                     }
                 } else if (response.status == 500) {
