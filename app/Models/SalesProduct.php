@@ -16,7 +16,7 @@ class SalesProduct extends Model
         'location_id',
         'quantity',
         'price_type',
-        'price',
+        'price', // Unit price (quantity × price = subtotal)
         'discount_amount',
         'discount_type', // 'fixed' or 'percentage'
         'tax',

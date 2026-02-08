@@ -533,9 +533,60 @@ class SaleController extends Controller
                     }
                 }
 
+                // 🔧 CRITICAL FIX: Recalculate and validate all product subtotals from server-side
+                // This prevents incorrect subtotals from frontend calculation errors
+                if (!empty($request->products)) {
+                    $correctedProducts = [];
+                    foreach ($request->products as $productData) {
+                        $quantity = floatval($productData['quantity'] ?? 0);
+                        $unitPrice = floatval($productData['unit_price'] ?? 0);
+                        $frontendSubtotal = floatval($productData['subtotal'] ?? 0);
+
+                        // Recalculate the correct subtotal
+                        $correctSubtotal = $quantity * $unitPrice;
+
+                        // Log any discrepancies for debugging
+                        if (abs($correctSubtotal - $frontendSubtotal) > 0.01) {
+                            Log::warning('⚠️ API: SUBTOTAL MISMATCH DETECTED AND FIXED', [
+                                'product_id' => $productData['product_id'] ?? 'unknown',
+                                'quantity' => $quantity,
+                                'unit_price' => $unitPrice,
+                                'frontend_subtotal' => $frontendSubtotal,
+                                'corrected_subtotal' => $correctSubtotal,
+                                'difference' => $correctSubtotal - $frontendSubtotal
+                            ]);
+                        }
+
+                        // Override with correct value
+                        $productData['subtotal'] = $correctSubtotal;
+                        $correctedProducts[] = $productData;
+                    }
+                    // Merge corrected products back to request
+                    $request->merge(['products' => $correctedProducts]);
+                }
+
                 // ----- Amount Calculation -----
+                // 🔧 CRITICAL: Calculate subtotal from corrected product subtotals
                 $subtotal = array_reduce($request->products, fn($carry, $p) => $carry + $p['subtotal'], 0);
                 $discount = $request->discount_amount ?? 0;
+
+                // 🔍 VALIDATION: Double-check subtotal calculation
+                $validationSubtotal = 0;
+                foreach ($request->products as $p) {
+                    $validationSubtotal += floatval($p['quantity'] ?? 0) * floatval($p['unit_price'] ?? 0);
+                }
+
+                if (abs($subtotal - $validationSubtotal) > 0.01) {
+                    Log::error('🚨 API CRITICAL: Subtotal calculation mismatch after correction!', [
+                        'calculated_subtotal' => $subtotal,
+                        'validation_subtotal' => $validationSubtotal,
+                        'products' => $request->products,
+                        'sale_id' => $sale->id ?? 'NEW'
+                    ]);
+                    // Use the validation subtotal as it's calculated fresh
+                    $subtotal = $validationSubtotal;
+                }
+
                 $finalTotal = $request->discount_type === 'percentage'
                     ? $subtotal - ($subtotal * $discount / 100)
                     : $subtotal - $discount;

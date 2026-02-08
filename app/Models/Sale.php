@@ -307,6 +307,30 @@ class Sale extends Model
             // Generate invoice number
             $invoiceNo = self::generateInvoiceNo($this->location_id);
 
+            // 🔧 RECALCULATE SUBTOTAL: Ensure correct calculation during conversion
+            $correctSubtotal = $this->products->sum(function ($product) {
+                return $product->quantity * $product->price;
+            });
+
+            // Calculate final_total with discount and shipping
+            $discountAmount = $this->discount_amount ?? 0;
+            if ($this->discount_type === 'percentage') {
+                $discountAmount = ($correctSubtotal * $discountAmount) / 100;
+            }
+            $shippingCharges = $this->shipping_charges ?? 0;
+            $correctFinalTotal = $correctSubtotal - $discountAmount + $shippingCharges;
+
+            // Log if recalculation found difference
+            if (abs($this->subtotal - $correctSubtotal) > 0.01) {
+                Log::warning('Sale Order subtotal corrected during conversion', [
+                    'sale_id' => $this->id,
+                    'order_number' => $this->order_number,
+                    'old_subtotal' => $this->subtotal,
+                    'corrected_subtotal' => $correctSubtotal,
+                    'difference' => $this->subtotal - $correctSubtotal,
+                ]);
+            }
+
             // Update THIS record from sale_order to invoice
             $this->update([
                 'transaction_type' => 'invoice',
@@ -314,8 +338,10 @@ class Sale extends Model
                 'sales_date' => now(),
                 'status' => 'final',
                 'order_status' => 'completed', // Keep for reference
+                'subtotal' => $correctSubtotal, // 🔧 Use recalculated subtotal
+                'final_total' => $correctFinalTotal, // 🔧 Use recalculated final total
                 'total_paid' => 0,
-                'total_due' => $this->final_total,
+                'total_due' => $correctFinalTotal, // 🔧 Use recalculated amount
                 'payment_status' => 'Due',
             ]);
 
@@ -424,6 +450,16 @@ class Sale extends Model
         $invalidItems = [];
 
         foreach ($this->products as $item) {
+            // 🔧 FIX: Skip validation for products without batch_id (non-batch tracked items)
+            if (empty($item->batch_id)) {
+                Log::info("Skipping batch validation for non-batch tracked product", [
+                    'sale_product_id' => $item->id,
+                    'product_id' => $item->product_id,
+                    'product_name' => $item->product->product_name ?? 'Unknown'
+                ]);
+                continue;
+            }
+
             // Verify the batch still exists and is valid
             $locationBatch = \App\Models\LocationBatch::where('batch_id', $item->batch_id)
                 ->where('location_id', $item->location_id)
@@ -464,6 +500,15 @@ class Sale extends Model
      */
     protected function updateStockOnConversion($item)
     {
+        // 🔧 FIX: Skip stock history update for products without batch_id
+        if (empty($item->batch_id)) {
+            Log::info("Skipping stock history update for non-batch tracked product", [
+                'sale_product_id' => $item->id,
+                'product_id' => $item->product_id
+            ]);
+            return;
+        }
+
         // Find the location batch
         $locationBatch = \App\Models\LocationBatch::where('batch_id', $item->batch_id)
             ->where('location_id', $item->location_id)

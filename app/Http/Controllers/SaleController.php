@@ -1052,7 +1052,17 @@ class SaleController extends Controller
                 // Only do credit limit validation for non Walk-In customers
                 // Use withoutGlobalScopes to avoid location/route filtering
                 $customer = Customer::withoutGlobalScopes()->findOrFail($request->customer_id);
-                $subtotal = array_reduce($request->products, fn($carry, $p) => $carry + $p['subtotal'], 0);
+
+                // 🔧 FIX: Calculate subtotal correctly from quantity × unit_price (don't trust frontend)
+                $subtotal = 0;
+                if (!empty($request->products)) {
+                    foreach ($request->products as $productData) {
+                        $quantity = floatval($productData['quantity'] ?? 0);
+                        $unitPrice = floatval($productData['unit_price'] ?? 0);
+                        $subtotal += ($quantity * $unitPrice);
+                    }
+                }
+
                 $discount = $request->discount_amount ?? 0;
                 $shippingCharges = $request->shipping_charges ?? 0; // Add shipping here too
 
@@ -1081,6 +1091,38 @@ class SaleController extends Controller
 
                 $oldStatus = $isUpdate ? $sale->getOriginal('status') : null;
                 $newStatus = $request->status;
+
+                // 🔧 CRITICAL FIX: Recalculate and validate all product subtotals from server-side
+                // This prevents incorrect subtotals from frontend calculation errors
+                if (!empty($request->products)) {
+                    $correctedProducts = [];
+                    foreach ($request->products as $productData) {
+                        $quantity = floatval($productData['quantity'] ?? 0);
+                        $unitPrice = floatval($productData['unit_price'] ?? 0);
+                        $frontendSubtotal = floatval($productData['subtotal'] ?? 0);
+
+                        // Recalculate the correct subtotal
+                        $correctSubtotal = $quantity * $unitPrice;
+
+                        // Log any discrepancies for debugging
+                        if (abs($correctSubtotal - $frontendSubtotal) > 0.01) {
+                            Log::warning('⚠️ SUBTOTAL MISMATCH DETECTED AND FIXED', [
+                                'product_id' => $productData['product_id'] ?? 'unknown',
+                                'quantity' => $quantity,
+                                'unit_price' => $unitPrice,
+                                'frontend_subtotal' => $frontendSubtotal,
+                                'corrected_subtotal' => $correctSubtotal,
+                                'difference' => $correctSubtotal - $frontendSubtotal
+                            ]);
+                        }
+
+                        // Override with correct value
+                        $productData['subtotal'] = $correctSubtotal;
+                        $correctedProducts[] = $productData;
+                    }
+                    // Merge corrected products back to request
+                    $request->merge(['products' => $correctedProducts]);
+                }
 
                 // ✨ NEW: Determine transaction type
                 $transactionType = $request->transaction_type ?? 'invoice';
@@ -1157,15 +1199,34 @@ class SaleController extends Controller
                 }
 
                 // ----- Amount Calculation -----
+                // 🔧 CRITICAL: Calculate subtotal from corrected product subtotals
                 $subtotal = array_reduce($request->products, fn($carry, $p) => $carry + $p['subtotal'], 0);
                 $discount = $request->discount_amount ?? 0;
                 $shippingCharges = $request->shipping_charges ?? 0;
+
+                // 🔍 VALIDATION: Double-check subtotal calculation
+                $validationSubtotal = 0;
+                foreach ($request->products as $p) {
+                    $validationSubtotal += floatval($p['quantity'] ?? 0) * floatval($p['unit_price'] ?? 0);
+                }
+
+                if (abs($subtotal - $validationSubtotal) > 0.01) {
+                    Log::error('🚨 CRITICAL: Subtotal calculation mismatch after correction!', [
+                        'calculated_subtotal' => $subtotal,
+                        'validation_subtotal' => $validationSubtotal,
+                        'products' => $request->products,
+                        'sale_id' => $sale->id ?? 'NEW'
+                    ]);
+                    // Use the validation subtotal as it's calculated fresh
+                    $subtotal = $validationSubtotal;
+                }
 
                 // Debug the incoming request data
                 Log::info('🔍 SHIPPING REQUEST DATA:', [
                     'request_shipping_charges' => $request->shipping_charges,
                     'final_shipping_charges_used' => $shippingCharges,
-                    'request_has_shipping' => isset($request->shipping_charges)
+                    'request_has_shipping' => isset($request->shipping_charges),
+                    'corrected_subtotal' => $subtotal
                 ]);
 
                 // Calculate total after discount
@@ -2137,13 +2198,12 @@ class SaleController extends Controller
         // Loop through batch deductions
         foreach ($batchDeductions as $deduction) {
             // Create sales_product record for this batch
+            // Note: subtotal = quantity × price (calculated, not stored)
             $saleProduct = SalesProduct::create([
                 'sale_id' => $saleId,
                 'product_id' => $productData['product_id'],
                 'quantity' => $deduction['quantity'],
-                'price' => $productData['unit_price'],
-                'unit_price' => $productData['unit_price'],
-                'subtotal' => $productData['subtotal'] * ($deduction['quantity'] / $totalQuantity),
+                'price' => $productData['unit_price'], // price column stores unit price
                 'batch_id' => $deduction['batch_id'],
                 'location_id' => $locationId,
                 'price_type' => $productData['price_type'],
@@ -2287,13 +2347,12 @@ class SaleController extends Controller
         ]);
 
         // Record the sales product for unlimited stock product
+        // Note: subtotal = quantity × price (calculated, not stored)
         SalesProduct::create([
             'sale_id' => $saleId,
             'product_id' => $productData['product_id'],
             'quantity' => $productData['quantity'],
-            'price' => $productData['unit_price'],
-            'unit_price' => $productData['unit_price'],
-            'subtotal' => $productData['subtotal'],
+            'price' => $productData['unit_price'], // price column stores unit price
             'batch_id' => null,
             'location_id' => $locationId,
             'price_type' => $productData['price_type'],
@@ -2387,8 +2446,6 @@ class SaleController extends Controller
                 'product_id' => $productData['product_id'],
                 'quantity' => $deduction['quantity'],
                 'price' => $productData['unit_price'],
-                'unit_price' => $productData['unit_price'],
-                'subtotal' => $productData['subtotal'] * ($deduction['quantity'] / $totalQuantity),
                 'batch_id' => $deduction['batch_id'],
                 'location_id' => $locationId,
                 'price_type' => $productData['price_type'],
