@@ -4185,10 +4185,15 @@ $(document).ready(function() {
         updateSummaryTotals();
     });
 
-    // Add to Payment from Bill (Quick Add)
+    // Add to Payment from Bill (Quick Add) - FIXED: Prevent triggering auto-allocation
     $(document).on('click', '.add-to-payment-btn', function() {
         const billId = $(this).data('bill-id');
         const bill = availableCustomerSales.find(s => s.id == billId);
+
+        if (!bill) {
+            toastr.error('Bill not found');
+            return;
+        }
 
         if ($('.payment-method-item').length === 0) {
             addFlexiblePayment();
@@ -4198,21 +4203,56 @@ $(document).ready(function() {
         const $firstPayment = $('.payment-method-item').first();
         const paymentId = $firstPayment.data('payment-id');
 
-        // Add allocation
-        addBillAllocation(paymentId);
-
-        // Pre-select the bill
-        const $lastAllocation = $firstPayment.find('.bill-allocation-row').last();
-        $lastAllocation.find('.bill-select').val(billId).trigger('change');
-
-        // Calculate remaining amount after return credits and other allocations
+        // Calculate remaining amount BEFORE adding allocation
         const allocatedAmount = billPaymentAllocations[billId] || 0;
         const returnCreditApplied = window.billReturnCreditAllocations ? (window.billReturnCreditAllocations[billId] || 0) : 0;
         const remainingAmount = bill.total_due - allocatedAmount - returnCreditApplied;
 
-        $lastAllocation.find('.allocation-amount').val(Math.max(0, remainingAmount).toFixed(2)).trigger('input');
+        if (remainingAmount <= 0.01) {
+            toastr.warning(`${bill.invoice_no} is already fully paid or allocated`);
+            return;
+        }
 
-        toastr.success(`Added ${bill.invoice_no} to payment (Rs. ${Math.max(0, remainingAmount).toFixed(2)} remaining)`);
+        // Add allocation row
+        addBillAllocation(paymentId);
+
+        // Pre-select the bill in the newly created row
+        const $lastAllocation = $firstPayment.find('.bill-allocation-row').first(); // Get the first one since prepend
+        const $billSelect = $lastAllocation.find('.bill-select');
+        const $amountInput = $lastAllocation.find('.allocation-amount');
+        const $hint = $lastAllocation.find('.bill-amount-hint');
+
+        // Set the bill selection
+        $billSelect.val(billId);
+
+        // Enable amount input
+        $amountInput.prop('disabled', false);
+        $amountInput.attr('max', remainingAmount.toFixed(2));
+        $amountInput.attr('placeholder', `Max: Rs. ${remainingAmount.toFixed(2)}`);
+
+        // Set amount value
+        const amountValue = parseFloat(remainingAmount.toFixed(2));
+        $amountInput.val(amountValue.toFixed(2));
+        $amountInput.data('prev-amount', amountValue);
+
+        // Update tracking
+        billPaymentAllocations[billId] = (billPaymentAllocations[billId] || 0) + amountValue;
+
+        // Update hint
+        if (returnCreditApplied > 0) {
+            $hint.html(`✅ Bill will be fully paid <span class="badge bg-info" style="font-size: 0.65rem;"><i class="fas fa-undo"></i> Rs.${returnCreditApplied.toFixed(2)} credit</span>`).removeClass('text-muted').addClass('text-success').show();
+        } else {
+            $hint.text('✅ Bill will be fully paid').removeClass('text-muted').addClass('text-success').show();
+        }
+
+        // Update payment method totals
+        updatePaymentMethodTotal(paymentId);
+
+        // Refresh UI
+        populateFlexibleBillsList();
+        updateSummaryTotals();
+
+        toastr.success(`Added ${bill.invoice_no} - Rs. ${amountValue.toFixed(2)}`);
     });
 });
 
