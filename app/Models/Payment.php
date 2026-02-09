@@ -204,17 +204,34 @@ class Payment extends Model
 
     public function scopePendingCheques($query)
     {
-        return $query->chequePayments()->where('cheque_status', 'pending');
+        return $query->chequePayments()
+                    ->where('cheque_status', 'pending')
+                    ->whereNull('recovery_for_payment_id') // Exclude recovery payments
+                    ->where('payment_type', '!=', 'recovery'); // Exclude recovery type
+    }
+
+    public function scopeDepositedCheques($query)
+    {
+        return $query->chequePayments()
+                    ->where('cheque_status', 'deposited')
+                    ->whereNull('recovery_for_payment_id') // Exclude recovery payments
+                    ->where('payment_type', '!=', 'recovery'); // Exclude recovery type
     }
 
     public function scopeClearedCheques($query)
     {
-        return $query->chequePayments()->where('cheque_status', 'cleared');
+        return $query->chequePayments()
+                    ->where('cheque_status', 'cleared')
+                    ->whereNull('recovery_for_payment_id') // Exclude recovery payments
+                    ->where('payment_type', '!=', 'recovery'); // Exclude recovery type
     }
 
     public function scopeBouncedCheques($query)
     {
-        return $query->chequePayments()->where('cheque_status', 'bounced');
+        return $query->chequePayments()
+                    ->where('cheque_status', 'bounced')
+                    ->whereNull('recovery_for_payment_id') // Exclude recovery payments
+                    ->where('payment_type', '!=', 'recovery'); // Exclude recovery type
     }
 
     public function scopeDueSoon($query, $days = 7)

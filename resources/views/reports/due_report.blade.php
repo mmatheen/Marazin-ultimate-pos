@@ -2,9 +2,10 @@
 @section('title', 'Due Report')
 
 @push('styles')
-    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/rowgroup/1.4.0/css/rowGroup.bootstrap5.min.css">
-    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+    <!-- Local Vendor Files -->
+    <link rel="stylesheet" href="{{ asset('vendor/datatables-buttons/css/buttons.dataTables.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('vendor/datatables-rowgroup/css/rowGroup.dataTables.min.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ asset('vendor/daterangepicker/daterangepicker.css') }}" />
     <style>
         .selected-column {
             background-color: #007bff !important;
@@ -1230,5 +1231,6 @@
 @endsection
 
 @push('scripts')
-    <script src="https://cdn.datatables.net/rowgroup/1.4.0/js/dataTables.rowGroup.min.js"></script>
+    <!-- Local Vendor File -->
+    <script src="{{ asset('vendor/datatables-rowgroup/js/dataTables.rowGroup.min.js') }}"></script>
 @endpush

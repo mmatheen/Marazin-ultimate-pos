@@ -3105,7 +3105,15 @@ class PaymentController extends Controller
      */
     public function chequeManagement(Request $request)
     {
-        $query = Payment::chequePayments()->with(['customer', 'sale']);
+        // Get only active cheque payments (exclude deleted and recovery payments)
+        $query = Payment::chequePayments()
+            ->where('status', 'active')
+            ->whereNull('recovery_for_payment_id')
+            ->where(function($q) {
+                $q->whereNull('payment_type')
+                  ->orWhere('payment_type', '!=', 'recovery');
+            })
+            ->with(['customer', 'sale']);
 
         // Filter by status
         if ($request->filled('status') && $request->status !== '' && $request->status !== 'all') {
@@ -3130,15 +3138,19 @@ class PaymentController extends Controller
             $query->where('cheque_number', 'like', '%' . $request->cheque_number . '%');
         }
 
-        $cheques = $query->orderBy('cheque_valid_date', 'asc')->paginate(50);
+        // Get all records for DataTables client-side pagination (not Laravel pagination)
+        $cheques = $query->orderBy('cheque_valid_date', 'asc')->get();
 
         // Get summary stats with proper null handling
+        // Explicitly filter for active status to ensure deleted payments are excluded
+        // Also exclude recovery payments as they are negative amounts
         $stats = [
-            'total_pending' => Payment::pendingCheques()->sum('amount') ?? 0,
-            'total_cleared' => Payment::clearedCheques()->sum('amount') ?? 0,
-            'total_bounced' => Payment::bouncedCheques()->sum('amount') ?? 0,
-            'due_soon_count' => Payment::dueSoon(7)->count() ?? 0,
-            'overdue_count' => Payment::overdue()->count() ?? 0,
+            'total_pending' => abs(Payment::pendingCheques()->where('status', 'active')->sum('amount') ?? 0),
+            'total_deposited' => abs(Payment::depositedCheques()->where('status', 'active')->sum('amount') ?? 0),
+            'total_cleared' => abs(Payment::clearedCheques()->where('status', 'active')->sum('amount') ?? 0),
+            'total_bounced' => abs(Payment::bouncedCheques()->where('status', 'active')->sum('amount') ?? 0),
+            'due_soon_count' => Payment::dueSoon(7)->where('status', 'active')->count() ?? 0,
+            'overdue_count' => Payment::overdue()->where('status', 'active')->count() ?? 0,
         ];
 
         if ($request->ajax()) {
