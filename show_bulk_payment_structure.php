@@ -39,14 +39,14 @@ echo str_repeat('=', 120) . "\n";
 echo "📋 PAYMENTS TABLE (User-facing - For Reports & Grouping)\n";
 echo str_repeat('=', 120) . "\n\n";
 
-printf("%-10s %-18s %-12s %-10s %-15s %-25s\n", 
+printf("%-10s %-18s %-12s %-10s %-15s %-25s\n",
     "Payment ID", "Reference No", "Amount", "Sale ID", "Cheque No", "Purpose");
 echo str_repeat('-', 120) . "\n";
 
 $totalPaymentAmount = 0;
 foreach ($payments as $payment) {
     $totalPaymentAmount += $payment->amount;
-    
+
     printf("%-10s %-18s %-12s %-10s %-15s %-25s\n",
         $payment->id,
         $payment->reference_no,  // ← All same: BLK-S0075
@@ -91,14 +91,14 @@ echo str_repeat('=', 120) . "\n\n";
 if (count($ledgersOld) > 0) {
     echo "❌ CURRENT FORMAT (HAS BUG - Missing entries):\n";
     echo str_repeat('-', 120) . "\n";
-    printf("%-10s %-30s %-12s %-12s %-40s\n", 
+    printf("%-10s %-30s %-12s %-12s %-40s\n",
         "Ledger ID", "Reference No", "Debit", "Credit", "Notes");
     echo str_repeat('-', 120) . "\n";
-    
+
     $totalLedgerCredit = 0;
     foreach ($ledgersOld as $ledger) {
         $totalLedgerCredit += $ledger->credit;
-        
+
         printf("%-10s %-30s %-12s %-12s %-40s\n",
             $ledger->id,
             $ledger->reference_no,  // ← All same: BLK-S0075
@@ -107,7 +107,7 @@ if (count($ledgersOld) > 0) {
             substr($ledger->notes, 0, 40)
         );
     }
-    
+
     echo str_repeat('-', 120) . "\n";
     echo "TOTAL CREDITS: Rs. " . number_format($totalLedgerCredit, 2) . "\n";
     echo "MISSING: Rs. " . number_format($totalPaymentAmount - $totalLedgerCredit, 2) . " ❌\n";
@@ -117,7 +117,7 @@ if (count($ledgersOld) > 0) {
 // Show new format
 echo "✅ NEW FORMAT (After Fix - All entries created):\n";
 echo str_repeat('-', 120) . "\n";
-printf("%-10s %-30s %-12s %-12s %-40s\n", 
+printf("%-10s %-30s %-12s %-12s %-40s\n",
     "Ledger ID", "Reference No", "Debit", "Credit", "Links to Payment");
 echo str_repeat('-', 120) . "\n";
 
@@ -128,11 +128,11 @@ $totalNewCredit = 0;
 foreach ($ledgersNew as $ledger) {
     $totalNewCredit += $ledger->credit;
     $displayedNew++;
-    
+
     // Extract payment ID from reference
     preg_match('/-PAY(\d+)$/', $ledger->reference_no, $matches);
     $paymentId = $matches[1] ?? '?';
-    
+
     printf("%-10s %-30s %-12s %-12s %-40s\n",
         $ledger->id,
         $ledger->reference_no,  // ← Unique: BLK-S0075-PAY638
@@ -146,7 +146,7 @@ foreach ($ledgersNew as $ledger) {
 $missingCount = 0;
 foreach ($payments as $payment) {
     $expectedRef = $bulkRef . '-PAY' . $payment->id;
-    
+
     // Check if ledger exists
     $exists = false;
     foreach ($ledgersNew as $ledger) {
@@ -155,11 +155,11 @@ foreach ($payments as $payment) {
             break;
         }
     }
-    
+
     if (!$exists) {
         $missingCount++;
         $totalNewCredit += $payment->amount;
-        
+
         printf("%-10s %-30s %-12s %-12s %-40s\n",
             "[NEW]",
             $expectedRef,  // ← Will be created: BLK-S0075-PAY649

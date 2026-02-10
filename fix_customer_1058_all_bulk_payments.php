@@ -2,11 +2,11 @@
 
 /**
  * Fix Customer 1058 Bulk Payments - BLK-S0075 and BLK-S0076
- * 
+ *
  * Fixes both bulk payments for customer 1058:
  * - BLK-S0075 (18 cheque payments)
  * - BLK-S0076 (1 discount/return credit payment)
- * 
+ *
  * Usage: php fix_customer_1058_all_bulk_payments.php --auto
  */
 
@@ -45,30 +45,30 @@ foreach ($bulkRefs as $bulkRef) {
         ->where('customer_id', $customerId)
         ->where('status', 'active')
         ->get();
-    
+
     if (count($payments) == 0) {
         continue;
     }
-    
+
     // Get old format ledgers
     $oldLedgers = Ledger::where('contact_id', $customerId)
         ->where('contact_type', 'customer')
         ->where('reference_no', $bulkRef)
         ->where('status', 'active')
         ->get();
-    
+
     // Get new format ledgers
     $newLedgers = Ledger::where('contact_id', $customerId)
         ->where('contact_type', 'customer')
         ->where('reference_no', 'LIKE', $bulkRef . '-PAY%')
         ->where('status', 'active')
         ->get();
-    
+
     $paymentCount = count($payments);
     $oldCount = count($oldLedgers);
     $newCount = count($newLedgers);
     $missing = $paymentCount - ($oldCount + $newCount);
-    
+
     // Check if needs fixing
     if ($oldCount > 0 || $newCount != $paymentCount) {
         $issuesFound[] = [
@@ -80,12 +80,12 @@ foreach ($bulkRefs as $bulkRef) {
             'payment_objects' => $payments,
             'old_ledger_objects' => $oldLedgers
         ];
-        
+
         $totalPayments += $paymentCount;
         $totalOldLedgers += $oldCount;
         $totalNewLedgers += $newCount;
     }
-    
+
     // Show status
     $status = ($oldCount > 0 || $newCount != $paymentCount) ? '❌' : '✅';
     echo "{$status} {$bulkRef}: Payments={$paymentCount}, Old Ledgers={$oldCount}, New Ledgers={$newCount}\n";
@@ -106,7 +106,7 @@ foreach ($issuesFound as $issue) {
     echo "\n{$issue['reference']}:\n";
     printf("%-10s %-15s %-12s %-15s %-15s\n", "Payment ID", "Amount", "Method", "Sale ID", "Type");
     echo str_repeat('-', 100) . "\n";
-    
+
     foreach ($issue['payment_objects'] as $payment) {
         printf("%-10s %-15s %-12s %-15s %-15s\n",
             $payment->id,
@@ -131,7 +131,7 @@ if (!$autoMode) {
     $handle = fopen("php://stdin", "r");
     $line = trim(fgets($handle));
     fclose($handle);
-    
+
     if (strtolower($line) !== 'yes') {
         echo "\n❌ Operation cancelled.\n\n";
         exit(0);
@@ -146,13 +146,13 @@ $deletedCount = 0;
 
 try {
     DB::transaction(function() use ($issuesFound, $customerId, &$createdCount, &$deletedCount) {
-        
+
         foreach ($issuesFound as $issue) {
             $bulkRef = $issue['reference'];
             $payments = $issue['payment_objects'];
-            
+
             echo "Processing: {$bulkRef}\n";
-            
+
             // Step 1: Delete old format ledgers
             if ($issue['old_ledgers'] > 0) {
                 $deleted = Ledger::where('contact_id', $customerId)
@@ -160,30 +160,30 @@ try {
                     ->where('reference_no', $bulkRef)
                     ->where('status', 'active')
                     ->delete();
-                
+
                 $deletedCount += $deleted;
                 echo "  ✓ Deleted {$deleted} old format ledgers\n";
             }
-            
+
             // Step 2: Create new format ledgers for each payment
             foreach ($payments as $payment) {
                 $newRef = $bulkRef . '-PAY' . $payment->id;
-                
+
                 // Check if already exists
                 $exists = Ledger::where('contact_id', $customerId)
                     ->where('contact_type', 'customer')
                     ->where('reference_no', $newRef)
                     ->where('status', 'active')
                     ->exists();
-                
+
                 if ($exists) {
                     echo "  ⊘ Payment #{$payment->id} - ledger already exists\n";
                     continue;
                 }
-                
+
                 // Use original payment creation date
                 $transactionDate = Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo');
-                
+
                 // Create new ledger entry
                 $ledger = new Ledger();
                 $ledger->contact_id = $customerId;
@@ -199,22 +199,22 @@ try {
                 $ledger->created_at = $transactionDate;
                 $ledger->updated_at = Carbon::now();
                 $ledger->save();
-                
+
                 echo "  ✓ Payment #{$payment->id} → {$newRef} (Rs. " . number_format($payment->amount, 2) . ") [{$payment->payment_method}]\n";
                 $createdCount++;
             }
-            
+
             echo "\n";
         }
     });
-    
+
     echo str_repeat('=', 80) . "\n";
     echo "✅ FIX COMPLETED SUCCESSFULLY\n";
     echo str_repeat('=', 80) . "\n";
     echo "Old ledgers deleted: {$deletedCount}\n";
     echo "New ledgers created: {$createdCount}\n";
     echo str_repeat('=', 80) . "\n\n";
-    
+
 } catch (\Exception $e) {
     echo "\n";
     echo str_repeat('=', 80) . "\n";
@@ -235,24 +235,24 @@ foreach ($bulkRefs as $bulkRef) {
         ->where('customer_id', $customerId)
         ->where('status', 'active')
         ->count();
-    
+
     if ($paymentCount == 0) continue;
-    
+
     $newLedgerCount = Ledger::where('contact_id', $customerId)
         ->where('contact_type', 'customer')
         ->where('reference_no', 'LIKE', $bulkRef . '-PAY%')
         ->where('status', 'active')
         ->count();
-    
+
     $oldLedgerCount = Ledger::where('contact_id', $customerId)
         ->where('contact_type', 'customer')
         ->where('reference_no', $bulkRef)
         ->where('status', 'active')
         ->count();
-    
+
     $status = ($paymentCount == $newLedgerCount && $oldLedgerCount == 0) ? '✅' : '❌';
     echo "{$status} {$bulkRef}: Payments={$paymentCount}, New Ledgers={$newLedgerCount}, Old Ledgers={$oldLedgerCount}\n";
-    
+
     if ($paymentCount != $newLedgerCount || $oldLedgerCount > 0) {
         $allGood = false;
     }

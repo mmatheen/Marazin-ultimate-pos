@@ -186,7 +186,7 @@ class UnifiedLedgerService
         // ✅ CRITICAL FIX: For bulk payments, append payment ID to reference to ensure unique ledger entries
         // This prevents duplicate detection from incorrectly skipping legitimate payments
         $baseReferenceNo = $payment->reference_no ?: ($sale ? $sale->invoice_no : 'PAY-' . $payment->id);
-        
+
         // Check if this is a bulk payment (reference starts with BLK-)
         $referenceNo = $baseReferenceNo;
         if (strpos($baseReferenceNo, 'BLK-') === 0 && $payment->id) {
@@ -235,7 +235,7 @@ class UnifiedLedgerService
 
         // ✅ CRITICAL FIX: For bulk payments, append payment ID to reference to ensure unique ledger entries
         $baseReferenceNo = $payment->reference_no ?: ($purchase ? $purchase->reference_no : 'PAY-' . $payment->id);
-        
+
         // Check if this is a bulk payment (reference starts with BLK-)
         $referenceNo = $baseReferenceNo;
         if (strpos($baseReferenceNo, 'BLK-') === 0 && $payment->id) {
@@ -256,14 +256,6 @@ class UnifiedLedgerService
             'transaction_type' => 'purchase_payment',
             'amount' => $payment->amount,
             'notes' => $payment->notes ?: "Payment for purchase #{$baseReferenceNo}",
-            'created_by' => $createdBy
-        ]);
-    }
-            'transaction_date' => $transactionDate,
-            'reference_no' => $referenceNo,
-            'transaction_type' => 'payments',
-            'amount' => $payment->amount,
-            'notes' => $payment->notes ?: "Payment for purchase #{$referenceNo}",
             'created_by' => $createdBy
         ]);
     }

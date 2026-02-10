@@ -2,7 +2,7 @@
 
 /**
  * Migrate Bulk Payment Ledgers from Old to New Format
- * 
+ *
  * Old: BLK-S0075 (same for all - caused duplicates)
  * New: BLK-S0075-PAY638, BLK-S0075-PAY639, etc. (unique for each)
  */
@@ -86,7 +86,7 @@ $successCount = 0;
 $errorCount = 0;
 
 DB::transaction(function() use ($bulkRef, $customerId, $payments, $oldLedgers, &$successCount, &$errorCount) {
-    
+
     // Step 1: Mark old ledgers as migrated
     echo "📝 Step 1: Marking old ledgers as 'migrated'...\n";
     foreach ($oldLedgers as $oldLedger) {
@@ -100,28 +100,28 @@ DB::transaction(function() use ($bulkRef, $customerId, $payments, $oldLedgers, &
             $errorCount++;
         }
     }
-    
+
     echo "\n📝 Step 2: Creating new ledgers with unique references...\n";
-    
+
     // Step 2: Create new ledgers for ALL payments (including the missing one)
     foreach ($payments as $payment) {
         try {
             $newRef = $bulkRef . '-PAY' . $payment->id;
-            
+
             // Check if already exists (shouldn't, but safety check)
             $exists = Ledger::where('contact_id', $customerId)
                 ->where('reference_no', $newRef)
                 ->where('status', 'active')
                 ->exists();
-            
+
             if ($exists) {
                 echo "   ⊘ Skipped payment #{$payment->id} - ledger already exists\n";
                 continue;
             }
-            
+
             // Use original payment creation date
             $transactionDate = Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo');
-            
+
             // Create new ledger entry
             $newLedger = new Ledger();
             $newLedger->contact_id = $customerId;
@@ -137,10 +137,10 @@ DB::transaction(function() use ($bulkRef, $customerId, $payments, $oldLedgers, &
             $newLedger->created_at = $transactionDate;
             $newLedger->updated_at = Carbon::now();
             $newLedger->save();
-            
+
             echo "   ✓ Created ledger for payment #{$payment->id} → {$newRef} (Rs. " . number_format($payment->amount, 2) . ")\n";
             $successCount++;
-            
+
         } catch (\Exception $e) {
             echo "   ✗ Error creating ledger for payment #{$payment->id}: {$e->getMessage()}\n";
             $errorCount++;

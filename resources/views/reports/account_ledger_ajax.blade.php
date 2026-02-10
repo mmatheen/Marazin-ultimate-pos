@@ -664,25 +664,28 @@ $(document).ready(function() {
             // Enhanced balance display using running_balance from response
             let balanceDisplay = '';
             if (runningBalance < 0) {
-                balanceDisplay = `<div class="text-end fw-bold text-success">Rs. ${formatCurrency(Math.abs(runningBalance))} (Advance)</div>`;
+                balanceDisplay = '<div class="text-end fw-bold text-success">Rs. ' + formatCurrency(Math.abs(runningBalance)) + ' (Advance)</div>';
             } else if (runningBalance > 0) {
-                balanceDisplay = `<div class="text-end fw-bold text-danger">Rs. ${formatCurrency(runningBalance)} (Due)</div>`;
+                balanceDisplay = '<div class="text-end fw-bold text-danger">Rs. ' + formatCurrency(runningBalance) + ' (Due)</div>';
             } else {
-                balanceDisplay = `<div class="text-end fw-bold text-secondary">Rs. 0.00 (Clear)</div>`;
+                balanceDisplay = '<div class="text-end fw-bold text-secondary">Rs. 0.00 (Clear)</div>';
             }
 
             // Try different date fields that might be present in the API response
             const dateValue = entry.date || entry.created_at || entry.transaction_date || entry.updated_at;
 
+            // Format reference number for better display (especially for bulk payments)
+            const formattedReferenceNo = formatReferenceNo(entry.reference_no);
+
             tableData.push([
                 index + 1,
                 formatDate(dateValue), // Try multiple possible date fields
-                entry.reference_no || 'N/A',
-                `<span class="badge ${typeClass}">${entry.type || 'N/A'}</span>`, // Using 'type' field
+                formattedReferenceNo,
+                '<span class="badge ' + typeClass + '">' + (entry.type || 'N/A') + '</span>', // Using 'type' field
                 entry.location || 'N/A', // Using 'location' field
-                `<span class="badge ${statusClass}">${entry.payment_status || 'N/A'}</span>`,
-                entry.debit > 0 ? `<div class="text-end">Rs. ${formatCurrency(entry.debit)}</div>` : '<div class="text-end">-</div>',
-                entry.credit > 0 ? `<div class="text-end">Rs. ${formatCurrency(entry.credit)}</div>` : '<div class="text-end">-</div>',
+                '<span class="badge ' + statusClass + '">' + (entry.payment_status || 'N/A') + '</span>',
+                entry.debit > 0 ? '<div class="text-end">Rs. ' + formatCurrency(entry.debit) + '</div>' : '<div class="text-end">-</div>',
+                entry.credit > 0 ? '<div class="text-end">Rs. ' + formatCurrency(entry.credit) + '</div>' : '<div class="text-end">-</div>',
                 balanceDisplay,
                 entry.payment_method || 'N/A',
                 entry.notes || entry.others || 'N/A'
@@ -691,9 +694,9 @@ $(document).ready(function() {
 
         // Update totals in footer - use the final running balance from the last entry
         const finalBalance = ledgerData.length > 0 ? ledgerData[ledgerData.length - 1].running_balance : 0;
-        $('#totalDebit').text(`Rs. ${formatCurrency(totalDebit)}`);
-        $('#totalCredit').text(`Rs. ${formatCurrency(totalCredit)}`);
-        $('#totalBalance').text(`Rs. ${formatCurrency(finalBalance)}`);
+        $('#totalDebit').text('Rs. ' + formatCurrency(totalDebit));
+        $('#totalCredit').text('Rs. ' + formatCurrency(totalCredit));
+        $('#totalBalance').text('Rs. ' + formatCurrency(finalBalance));
 
         // Populate account summary with detailed information
         if (summary) {
@@ -851,6 +854,35 @@ $(document).ready(function() {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         });
+    }
+
+    /**
+     * Format reference number for better display
+     * Converts bulk payment references like "BLK-S0075-PAY638" to a more user-friendly format
+     */
+    function formatReferenceNo(referenceNo) {
+        if (!referenceNo || referenceNo === 'N/A') {
+            return 'N/A';
+        }
+
+        // Check if it's a bulk payment reference with payment ID appended
+        // Pattern: BLK-S#### or BLK-P#### followed by -PAY###
+        const bulkPaymentPattern = /^(BLK-[SP]\d+)-PAY(\d+)$/;
+        const match = referenceNo.match(bulkPaymentPattern);
+
+        if (match) {
+            const bulkRef = match[1];  // e.g., "BLK-S0075"
+            const paymentId = match[2]; // e.g., "638"
+
+            // Return formatted HTML with tooltip showing full reference
+            return '<div title="Payment ID: ' + paymentId + ' (' + referenceNo + ')">' +
+                        bulkRef +
+                        '<small class="text-muted" style="font-size: 0.75em;"> #' + paymentId + '</small>' +
+                    '</div>';
+        }
+
+        // For non-bulk payment references, return as-is
+        return referenceNo;
     }
 
     function hideAllSections() {

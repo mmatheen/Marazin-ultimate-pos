@@ -2,11 +2,11 @@
 
 /**
  * Fix Missing Ledger Entries for Bulk Payments
- * 
+ *
  * Issue: When multiple payments are created in a bulk transaction with the same reference_no,
  * the duplicate detection logic in Ledger::createEntry() was incorrectly treating them as duplicates
  * and skipping ledger entry creation for subsequent payments.
- * 
+ *
  * This script:
  * 1. Finds all payments that don't have corresponding ledger entries
  * 2. Creates missing ledger entries with unique reference numbers (appends payment ID)
@@ -71,14 +71,14 @@ if (count($paymentsWithoutLedger) == 0) {
 
 echo "Missing ledger entries:\n";
 echo str_repeat('-', 100) . "\n";
-printf("%-8s %-15s %-15s %-12s %-15s %-12s %s\n", 
+printf("%-8s %-15s %-15s %-12s %-15s %-12s %s\n",
     "Pay ID", "Reference", "Type", "Amount", "Date", "Contact ID", "Contact Type");
 echo str_repeat('-', 100) . "\n";
 
 foreach ($paymentsWithoutLedger as $payment) {
     $contactType = $payment->customer_id ? 'customer' : 'supplier';
     $contactId = $payment->customer_id ?: $payment->supplier_id;
-    
+
     printf("%-8s %-15s %-15s %-12s %-15s %-12s %s\n",
         $payment->id,
         substr($payment->reference_no, 0, 15),
@@ -113,7 +113,7 @@ DB::transaction(function() use ($paymentsWithoutLedger, &$successCount, &$errorC
         try {
             // Load the actual Payment model
             $payment = Payment::find($paymentData->id);
-            
+
             if (!$payment) {
                 $errorCount++;
                 $errors[] = "Payment ID {$paymentData->id}: Not found";
@@ -133,7 +133,7 @@ DB::transaction(function() use ($paymentsWithoutLedger, &$successCount, &$errorC
             // Create unique reference number for bulk payments
             $baseReferenceNo = $payment->reference_no;
             $uniqueReferenceNo = $baseReferenceNo;
-            
+
             if (strpos($baseReferenceNo, 'BLK-') === 0) {
                 $uniqueReferenceNo = $baseReferenceNo . '-PAY' . $payment->id;
             }

@@ -2,9 +2,9 @@
 
 /**
  * Fix Specific Bulk Payment - Customer 1058, BLK-S0075
- * 
+ *
  * This script fixes ONLY the specific issue for customer 1058 bulk payment BLK-S0075
- * 
+ *
  * Usage: php fix_customer_1058_blk_s0075.php --auto
  */
 
@@ -72,15 +72,15 @@ echo str_repeat('-', 100) . "\n";
 $totalAmount = 0;
 foreach ($payments as $payment) {
     $totalAmount += $payment->amount;
-    
+
     // Check if ledger exists
     $hasOldLedger = $oldLedgers->where('id', '>=', 0)->count() > 0;
     $hasNewLedger = $newLedgers->contains(function($ledger) use ($payment, $bulkRef) {
         return $ledger->reference_no === $bulkRef . '-PAY' . $payment->id;
     });
-    
+
     $ledgerStatus = $hasNewLedger ? '✅' : ($hasOldLedger ? '⚠️ Old' : '❌ Missing');
-    
+
     printf("%-10s %-15s %-12s %-15s %s\n",
         $payment->id,
         'Rs. ' . number_format($payment->amount, 2),
@@ -103,7 +103,7 @@ if (!$autoMode) {
     $handle = fopen("php://stdin", "r");
     $line = trim(fgets($handle));
     fclose($handle);
-    
+
     if (strtolower($line) !== 'yes') {
         echo "\n❌ Operation cancelled.\n\n";
         exit(0);
@@ -115,7 +115,7 @@ echo str_repeat('-', 80) . "\n\n";
 
 try {
     DB::transaction(function() use ($bulkRef, $customerId, $payments, $oldLedgers, $newLedgers) {
-        
+
         // Step 1: Delete old format ledgers
         if (count($oldLedgers) > 0) {
             $deleted = Ledger::where('contact_id', $customerId)
@@ -123,32 +123,32 @@ try {
                 ->where('reference_no', $bulkRef)
                 ->where('status', 'active')
                 ->delete();
-            
+
             echo "✓ Deleted {$deleted} old format ledgers\n\n";
         }
-        
+
         // Step 2: Create new format ledgers for each payment
         echo "Creating new ledgers:\n";
         $created = 0;
-        
+
         foreach ($payments as $payment) {
             $newRef = $bulkRef . '-PAY' . $payment->id;
-            
+
             // Check if already exists
             $exists = Ledger::where('contact_id', $customerId)
                 ->where('contact_type', 'customer')
                 ->where('reference_no', $newRef)
                 ->where('status', 'active')
                 ->exists();
-            
+
             if ($exists) {
                 echo "  ⊘ Payment #{$payment->id} - ledger already exists\n";
                 continue;
             }
-            
+
             // Use original payment creation date
             $transactionDate = Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo');
-            
+
             // Create new ledger entry
             $ledger = new Ledger();
             $ledger->contact_id = $customerId;
@@ -164,19 +164,19 @@ try {
             $ledger->created_at = $transactionDate;
             $ledger->updated_at = Carbon::now();
             $ledger->save();
-            
+
             echo "  ✓ Payment #{$payment->id} → {$newRef} (Rs. " . number_format($payment->amount, 2) . ")\n";
             $created++;
         }
-        
+
         echo "\n✅ Created {$created} new ledger entries\n";
     });
-    
+
     echo "\n";
     echo str_repeat('=', 80) . "\n";
     echo "✅ FIX COMPLETED SUCCESSFULLY\n";
     echo str_repeat('=', 80) . "\n\n";
-    
+
 } catch (\Exception $e) {
     echo "\n";
     echo str_repeat('=', 80) . "\n";

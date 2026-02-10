@@ -2,7 +2,7 @@
 
 /**
  * Diagnose Bulk Payment Ledger Issue
- * 
+ *
  * This script shows exactly what the problem is:
  * - Multiple payments created with same reference_no (e.g., BLK-S0075)
  * - Only first payment gets ledger entry
@@ -47,14 +47,14 @@ foreach ($payments1 as $payment) {
         ->where('reference_no', $bulkRef1)
         ->where('status', 'active')
         ->first();
-    
+
     $ledgerNew = Ledger::where('contact_id', $payment->customer_id)
         ->where('reference_no', $bulkRef1 . '-PAY' . $payment->id)
         ->where('status', 'active')
         ->first();
-    
+
     $hasLedger = $ledgerOld || $ledgerNew ? '✅ YES' : '❌ NO';
-    
+
     printf("%-8s %-12s %-12s %-15s %s\n",
         $payment->id,
         number_format($payment->amount, 2),
@@ -82,7 +82,7 @@ echo "   Missing Ledger Entries: " . (count($payments1) - $ledgerCount) . "\n\n"
 
 if ($ledgerCount < count($payments1)) {
     echo "❌ PROBLEM DETECTED: Not all payments have ledger entries!\n\n";
-    
+
     echo "🔍 WHY THIS HAPPENS:\n";
     echo "   1. All payments created with same reference_no: '{$bulkRef1}'\n";
     echo "   2. When creating ledger entries, duplicate detection checks:\n";
@@ -114,14 +114,14 @@ foreach ($payments2 as $payment) {
         ->where('reference_no', $bulkRef2)
         ->where('status', 'active')
         ->first();
-    
+
     $ledgerNew = Ledger::where('contact_id', $payment->customer_id)
         ->where('reference_no', $bulkRef2 . '-PAY' . $payment->id)
         ->where('status', 'active')
         ->first();
-    
+
     $hasLedger = $ledgerOld || $ledgerNew;
-    
+
     echo "Payment ID: {$payment->id}, Amount: " . number_format($payment->amount, 2);
     echo ", Has Ledger: " . ($hasLedger ? '✅ YES' : '❌ NO') . "\n";
 }
