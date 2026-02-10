@@ -1815,12 +1815,40 @@ class UnifiedLedgerService
      */
     public function recordNewSaleEntry($sale)
     {
+        Log::info('RecordNewSaleEntry: Called', [
+            'sale_id' => $sale->id,
+            'customer_id' => $sale->customer_id,
+            'invoice_no' => $sale->invoice_no,
+            'final_total' => $sale->final_total,
+            'status' => $sale->status
+        ]);
+
         if (empty($sale->customer_id)) {
+            Log::error('RecordNewSaleEntry: Missing customer_id', [
+                'sale_id' => $sale->id,
+                'customer_id' => $sale->customer_id
+            ]);
             throw new \Exception("Cannot record sale: customer_id is missing. Sale ID: {$sale->id}");
         }
 
         // ✅ FIX: Force creation even if converting from draft/quotation to final
-        return $this->recordSale($sale, null, Carbon::now('Asia/Colombo'), true);
+        $result = $this->recordSale($sale, null, Carbon::now('Asia/Colombo'), true);
+
+        if (!$result) {
+            Log::error('🚨 RecordNewSaleEntry: recordSale returned NULL', [
+                'sale_id' => $sale->id,
+                'customer_id' => $sale->customer_id,
+                'invoice_no' => $sale->invoice_no
+            ]);
+            throw new \Exception("Failed to create ledger entry in recordSale for sale #{$sale->id}");
+        }
+
+        Log::info('✅ RecordNewSaleEntry: Success', [
+            'ledger_id' => $result->id,
+            'sale_id' => $sale->id
+        ]);
+
+        return $result;
     }
 
     /**
@@ -1829,9 +1857,51 @@ class UnifiedLedgerService
      */
     public function updateSale($sale, $oldReferenceNo = null)
     {
-        // For backward compatibility, call both steps
-        $this->reverseSale($sale, $oldReferenceNo);
-        return $this->recordNewSaleEntry($sale);
+        Log::info('UpdateSale: Starting update process', [
+            'sale_id' => $sale->id,
+            'customer_id' => $sale->customer_id,
+            'invoice_no' => $sale->invoice_no,
+            'final_total' => $sale->final_total,
+            'old_reference' => $oldReferenceNo
+        ]);
+
+        try {
+            // STEP 1: Reverse old entry
+            $reversalResult = $this->reverseSale($sale, $oldReferenceNo);
+            Log::info('UpdateSale: Reversal completed', [
+                'reversal_entry_id' => $reversalResult ? $reversalResult->id : 'none',
+                'sale_id' => $sale->id
+            ]);
+
+            // STEP 2: Create new entry
+            $newEntry = $this->recordNewSaleEntry($sale);
+
+            if (!$newEntry) {
+                Log::error('🚨 CRITICAL: recordNewSaleEntry returned NULL', [
+                    'sale_id' => $sale->id,
+                    'customer_id' => $sale->customer_id,
+                    'invoice_no' => $sale->invoice_no,
+                    'final_total' => $sale->final_total
+                ]);
+                throw new \Exception("Failed to create new ledger entry for sale #{$sale->id}");
+            }
+
+            Log::info('✅ UpdateSale: New entry created successfully', [
+                'new_entry_id' => $newEntry->id,
+                'sale_id' => $sale->id,
+                'debit_amount' => $newEntry->debit
+            ]);
+
+            return $newEntry;
+        } catch (\Exception $e) {
+            Log::error('🚨 CRITICAL ERROR in updateSale', [
+                'sale_id' => $sale->id,
+                'invoice_no' => $sale->invoice_no,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e; // Re-throw to ensure caller knows about the failure
+        }
     }
 
     /**

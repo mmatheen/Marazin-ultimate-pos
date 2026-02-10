@@ -119,10 +119,10 @@ class SaleReturnController extends Controller
             foreach ($request->products as $productData) {
                 // Match by both product_id AND batch_id to handle same product with different batches
                 $soldProduct = $sale->products->first(function($item) use ($productData) {
-                    return $item->product_id == $productData['product_id'] 
+                    return $item->product_id == $productData['product_id']
                         && $item->batch_id == $productData['batch_id'];
                 });
-                
+
                 if ($soldProduct && $productData['quantity'] > $soldProduct->quantity) {
                     $productName = optional($soldProduct->product)->product_name ?? "Product ID {$productData['product_id']}";
                     $batchInfo = $productData['batch_id'] ? " (Batch ID: {$productData['batch_id']})" : "";
@@ -318,7 +318,7 @@ class SaleReturnController extends Controller
 
         // Execute query
         $salesReturns = $query->get();
-        
+
         // Calculate totals
         $totalAmount = $salesReturns->sum('return_total');
         $totalDue = $salesReturns->sum('total_due');

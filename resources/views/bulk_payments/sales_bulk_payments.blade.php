@@ -3634,6 +3634,12 @@ $(document).ready(function() {
                 }
             }
 
+            // CRITICAL FIX: Update payment method total after removing bill
+            // This ensures paymentMethodAllocations[paymentId].totalAmount is recalculated
+            if (paymentId) {
+                updatePaymentMethodTotal(paymentId);
+            }
+
             populateFlexibleBillsList();
             updateSummaryTotals();
         });
