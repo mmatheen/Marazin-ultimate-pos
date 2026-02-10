@@ -117,9 +117,21 @@ class SaleReturnController extends Controller
         $errors = [];
         if ($sale) {
             foreach ($request->products as $productData) {
-                $soldProduct = $sale->products->firstWhere('product_id', $productData['product_id']);
+                // Match by both product_id AND batch_id to handle same product with different batches
+                $soldProduct = $sale->products->first(function($item) use ($productData) {
+                    return $item->product_id == $productData['product_id'] 
+                        && $item->batch_id == $productData['batch_id'];
+                });
+                
                 if ($soldProduct && $productData['quantity'] > $soldProduct->quantity) {
-                    $errors[] = "Return quantity for product ID {$productData['product_id']} exceeds sold quantity.";
+                    $productName = optional($soldProduct->product)->product_name ?? "Product ID {$productData['product_id']}";
+                    $batchInfo = $productData['batch_id'] ? " (Batch ID: {$productData['batch_id']})" : "";
+                    $errors[] = "Return quantity for {$productName}{$batchInfo} exceeds sold quantity. Sold: {$soldProduct->quantity}, Attempted return: {$productData['quantity']}";
+                } elseif (!$soldProduct && $request->sale_id) {
+                    // Product/batch combination not found in the sale
+                    $productName = \App\Models\Product::find($productData['product_id'])->product_name ?? "Product ID {$productData['product_id']}";
+                    $batchInfo = $productData['batch_id'] ? " with Batch ID {$productData['batch_id']}" : "";
+                    $errors[] = "{$productName}{$batchInfo} was not found in the original sale.";
                 }
             }
         }
