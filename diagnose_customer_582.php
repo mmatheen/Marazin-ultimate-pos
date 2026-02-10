@@ -45,12 +45,12 @@ $reversedCredit = 0;
 foreach ($allEntries as $entry) {
     $statusIcon = $entry->status === 'active' ? '✅' : '🔄';
     $type = $entry->debit > 0 ? "DR: " . number_format($entry->debit, 2) : "CR: " . number_format($entry->credit, 2);
-    
+
     echo "{$statusIcon} ID: {$entry->id} | Date: {$entry->transaction_date} | {$entry->reference_no}\n";
     echo "   Type: {$entry->transaction_type} | Amount: {$type} | Status: {$entry->status}\n";
     echo "   Notes: " . substr($entry->notes, 0, 80) . "\n";
     echo "   Created: {$entry->created_at}\n\n";
-    
+
     if ($entry->status === 'active') {
         $activeDebit += $entry->debit;
         $activeCredit += $entry->credit;
@@ -79,7 +79,7 @@ echo "SALES WITHOUT ACTIVE LEDGER ENTRIES\n";
 echo "========================================================================\n\n";
 
 $salesWithoutLedger = DB::select("
-    SELECT 
+    SELECT
         s.id as sale_id,
         s.invoice_no,
         s.final_total,
@@ -89,12 +89,12 @@ $salesWithoutLedger = DB::select("
         COUNT(l_reversed.id) as reversed_count
     FROM sales s
     LEFT JOIN ledgers l_active ON (
-        l_active.reference_no = s.invoice_no 
+        l_active.reference_no = s.invoice_no
         AND l_active.transaction_type = 'sale'
         AND l_active.status = 'active'
     )
     LEFT JOIN ledgers l_reversed ON (
-        l_reversed.reference_no = s.invoice_no 
+        l_reversed.reference_no = s.invoice_no
         AND l_reversed.transaction_type = 'sale'
         AND l_reversed.status = 'reversed'
     )
@@ -109,7 +109,7 @@ if (empty($salesWithoutLedger)) {
     echo "✅ No issues found - All finalized sales have active ledger entries\n\n";
 } else {
     echo "❌ Found " . count($salesWithoutLedger) . " sales without active ledger entries:\n\n";
-    
+
     foreach ($salesWithoutLedger as $sale) {
         echo "  Sale ID: {$sale->sale_id}\n";
         echo "  Invoice: {$sale->invoice_no}\n";
@@ -160,14 +160,14 @@ if ($actualPayments->isEmpty()) {
     echo "No payments found in payments table\n\n";
 } else {
     echo "Found " . count($actualPayments) . " payments:\n\n";
-    
+
     $totalPayments = 0;
     foreach ($actualPayments as $payment) {
         echo "  Payment ID: {$payment->id} | Sale ID: {$payment->reference_id} | Rs. " . number_format($payment->amount, 2) . "\n";
         echo "  Date: {$payment->payment_date} | Method: {$payment->payment_method} | Status: {$payment->status}\n\n";
         $totalPayments += $payment->amount;
     }
-    
+
     echo "Total Payments: Rs. " . number_format($totalPayments, 2) . "\n\n";
 }
 

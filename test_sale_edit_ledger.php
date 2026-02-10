@@ -1,7 +1,7 @@
 <?php
 /**
  * TEST SCRIPT: Sale Edit Ledger Creation
- * 
+ *
  * This script tests if ledger entries are properly created after sale edits
  * Simulates the sale edit process to identify where ledger creation fails
  */
@@ -73,26 +73,26 @@ echo "========================================================================\n
 
 try {
     DB::beginTransaction();
-    
+
     // Check if active entry already exists
     $existingActive = Ledger::where('reference_no', $sale->invoice_no)
         ->where('transaction_type', 'sale')
         ->where('status', 'active')
         ->first();
-    
+
     if ($existingActive) {
         echo "✅ Active entry already exists (ID: {$existingActive->id})\n";
         echo "No action needed.\n\n";
         DB::rollBack();
     } else {
         echo "Creating missing ledger entry...\n\n";
-        
+
         // Use UnifiedLedgerService to create the entry
         $unifiedLedgerService = app(UnifiedLedgerService::class);
-        
+
         echo "Step 1: Calling recordNewSaleEntry()...\n";
         $newEntry = $unifiedLedgerService->recordNewSaleEntry($sale);
-        
+
         if ($newEntry) {
             echo "✅ SUCCESS: Ledger entry created!\n";
             echo "   Entry ID: {$newEntry->id}\n";
@@ -100,9 +100,9 @@ try {
             echo "   Status: {$newEntry->status}\n";
             echo "   Transaction Date: {$newEntry->transaction_date}\n";
             echo "   Created At: {$newEntry->created_at}\n\n";
-            
+
             DB::commit();
-            
+
             // Verify the entry
             $verification = Ledger::find($newEntry->id);
             if ($verification && $verification->status === 'active') {
@@ -116,7 +116,7 @@ try {
             DB::rollBack();
         }
     }
-    
+
 } catch (\Exception $e) {
     DB::rollBack();
     echo "❌ EXCEPTION CAUGHT:\n";
@@ -180,18 +180,18 @@ try {
                   ->where('transaction_type', 'sale');
         })
         ->first();
-    
+
     if ($testSale) {
         echo "Found test sale: {$testSale->invoice_no}\n";
         echo "Amount: Rs. {$testSale->final_total}\n\n";
-        
+
         echo "Simulating updateSale()...\n";
         $unifiedLedgerService = app(UnifiedLedgerService::class);
-        
+
         DB::beginTransaction();
-        
+
         $result = $unifiedLedgerService->updateSale($testSale);
-        
+
         if ($result) {
             echo "✅ updateSale() returned a result: Entry ID {$result->id}\n";
             DB::commit();
@@ -202,7 +202,7 @@ try {
     } else {
         echo "No test sales available (all sales have proper entries)\n";
     }
-    
+
 } catch (\Exception $e) {
     DB::rollBack();
     echo "❌ ERROR in updateSale():\n";
@@ -218,14 +218,14 @@ if (!$hasActiveLedger && $hasReversedLedger) {
     echo "   When sale {$sale->invoice_no} was edited:\n";
     echo "   ✅ Old ledger entry was marked as 'reversed'\n";
     echo "   ❌ NEW ledger entry creation FAILED or returned NULL\n\n";
-    
+
     echo "💡 FIX APPLIED IN CODE:\n";
     echo "   File: app/Services/UnifiedLedgerService.php\n";
     echo "   Method: updateSale() and recordNewSaleEntry()\n";
     echo "   - Added null checks and exception handling\n";
     echo "   - Added comprehensive logging\n";
     echo "   - Throws exception if ledger creation fails\n\n";
-    
+
     echo "🔧 TO FIX EXISTING DATA:\n";
     echo "   Run: php fix_missing_ledger_entries.php --customer-id={$sale->customer_id}\n\n";
 } else if ($hasActiveLedger) {

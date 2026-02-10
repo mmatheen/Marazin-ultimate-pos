@@ -45,7 +45,7 @@ foreach ($sales as $sale) {
         ->where('contact_id', $customerId)
         ->where('status', 'active')
         ->first();
-    
+
     // Check for REVERSED ledger entries
     $reversedLedgers = DB::table('ledgers')
         ->where('reference_no', $sale->invoice_no)
@@ -53,10 +53,10 @@ foreach ($sales as $sale) {
         ->where('contact_id', $customerId)
         ->where('status', 'reversed')
         ->count();
-    
+
     $status = $activeLedger ? '✅' : '❌';
     $totalExpected += $sale->final_total;
-    
+
     if ($activeLedger) {
         $totalInLedger += $activeLedger->debit;
         echo "{$status} {$sale->invoice_no} | Rs. " . number_format($sale->final_total, 2) . " | {$sale->sales_date}\n";
@@ -68,14 +68,14 @@ foreach ($sales as $sale) {
         echo "   ⚠️  MISSING ACTIVE LEDGER ENTRY!\n";
         if ($reversedLedgers > 0) {
             echo "   Found {$reversedLedgers} reversed entries - ledger creation failed after edit\n";
-            
+
             // Get the reversed entry details
             $reversedEntry = DB::table('ledgers')
                 ->where('reference_no', $sale->invoice_no)
                 ->where('transaction_type', 'sale')
                 ->where('status', 'reversed')
                 ->first();
-            
+
             if ($reversedEntry) {
                 echo "   Reversed Entry ID: {$reversedEntry->id} | Original Amount: Rs. " . number_format($reversedEntry->debit, 2) . "\n";
                 echo "   Reversed On: {$reversedEntry->updated_at}\n";
@@ -83,7 +83,7 @@ foreach ($sales as $sale) {
         } else {
             echo "   No ledger entry at all - creation failed on initial save\n";
         }
-        
+
         $issues[] = [
             'sale_id' => $sale->id,
             'invoice_no' => $sale->invoice_no,
@@ -105,7 +105,7 @@ echo "Missing from Ledger: Rs. " . number_format($totalExpected - $totalInLedger
 
 if (!empty($issues)) {
     echo "❌ FOUND " . count($issues) . " SALES WITH MISSING LEDGER ENTRIES:\n\n";
-    
+
     $missingTotal = 0;
     foreach ($issues as $issue) {
         echo "  • {$issue['invoice_no']} (Sale ID: {$issue['sale_id']})\n";
@@ -114,7 +114,7 @@ if (!empty($issues)) {
         echo "    Type: " . ($issue['reversed_count'] > 0 ? "Failed after edit" : "Failed on create") . "\n\n";
         $missingTotal += $issue['amount'];
     }
-    
+
     echo "Total Missing: Rs. " . number_format($missingTotal, 2) . "\n\n";
 } else {
     echo "✅ ALL SALES HAVE PROPER ACTIVE LEDGER ENTRIES\n\n";
@@ -177,10 +177,10 @@ if (!empty($issues)) {
     echo "========================================================================\n";
     echo "ROOT CAUSE ANALYSIS\n";
     echo "========================================================================\n\n";
-    
+
     foreach ($issues as $issue) {
         echo "Issue: {$issue['invoice_no']}\n";
-        
+
         if ($issue['reversed_count'] > 0) {
             echo "Problem: Sale was edited but new ledger entry creation FAILED\n";
             echo "Cause: UnifiedLedgerService->updateSale() called reverseSale() but\n";
@@ -193,7 +193,7 @@ if (!empty($issues)) {
         }
         echo "\n";
     }
-    
+
     echo "========================================================================\n";
     echo "FIX COMMAND\n";
     echo "========================================================================\n";

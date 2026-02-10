@@ -50,7 +50,7 @@ $customer = DB::table('customers')->where('id', 582)->first();
 if ($customer) {
     $customerName = $customer->customer_name ?? 'Unknown';
     echo "Customer: {$customerName}\n";
-    
+
     // Calculate balance from ledger
     $result = DB::selectOne("
         SELECT
@@ -62,7 +62,7 @@ if ($customer) {
             AND contact_type = 'customer'
             AND status = 'active'
     ");
-    
+
     $ledgerBalance = $result ? (float) $result->balance : 0.0;
     echo "Ledger Balance: Rs. " . number_format($ledgerBalance, 2) . "\n";
     echo "Opening Balance (from customer): Rs. " . number_format($customer->opening_balance ?? 0, 2) . "\n";
