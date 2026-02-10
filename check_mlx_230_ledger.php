@@ -48,10 +48,26 @@ if ($ledgers->count() > 0) {
 echo "\n=== Customer 582 Balance Check ===\n";
 $customer = DB::table('customers')->where('id', 582)->first();
 if ($customer) {
-    $customerName = $customer->customer_name ?? $customer->name ?? 'Unknown';
+    $customerName = $customer->customer_name ?? 'Unknown';
     echo "Customer: {$customerName}\n";
-    echo "Balance: {$customer->balance}\n";
-    echo "Opening Balance: {$customer->opening_balance}\n";
+    
+    // Calculate balance from ledger
+    $result = DB::selectOne("
+        SELECT
+            COALESCE(SUM(debit), 0) as total_debits,
+            COALESCE(SUM(credit), 0) as total_credits,
+            COALESCE(SUM(debit) - SUM(credit), 0) as balance
+        FROM ledgers
+        WHERE contact_id = 582
+            AND contact_type = 'customer'
+            AND status = 'active'
+    ");
+    
+    $ledgerBalance = $result ? (float) $result->balance : 0.0;
+    echo "Ledger Balance: Rs. " . number_format($ledgerBalance, 2) . "\n";
+    echo "Opening Balance (from customer): Rs. " . number_format($customer->opening_balance ?? 0, 2) . "\n";
+} else {
+    echo "Customer 582 not found!\n";
 }
 
 echo "\n=== All Sales for Customer 582 ===\n";
