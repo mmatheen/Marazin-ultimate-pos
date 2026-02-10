@@ -712,8 +712,14 @@ $(document).ready(function() {
         $('#fromDate').val('');
         $('#toDate').val('');
         $('#chequeNumberFilter').val('');
+
+        // Safely clear DataTable filters
         if (chequesDataTable) {
-            chequesDataTable.search('').columns().search('').draw();
+            try {
+                chequesDataTable.search('').columns().search('').draw();
+            } catch (e) {
+                console.warn('Clear filters warning:', e);
+            }
         }
     });
 
@@ -830,6 +836,9 @@ $(document).ready(function() {
             const fromDate = $('#fromDate').val();
             const toDate = $('#toDate').val();
 
+            // Get row element to access data attributes
+            const row = $('#chequesTable').DataTable().row(dataIndex).node();
+
             // Get row data - data array contains plain text from columns
             const rowCustomer = data[2] ? data[2].toLowerCase() : ''; // Customer column
             const rowChequeNumber = data[3] ? data[3].toLowerCase().replace(/<[^>]*>/g, '').trim() : ''; // Cheque Number (strip HTML)
@@ -843,14 +852,16 @@ $(document).ready(function() {
                 }
             }
 
-            // Filter by customer
+            // Filter by customer - USE CUSTOMER ID from data attribute
             if (customerFilter && customerFilter !== '' && customerFilter !== '0') {
-                // Get customer name from selected option
-                const selectedCustomerName = $('#customerFilter option:selected').text().toLowerCase();
-                if (selectedCustomerName && selectedCustomerName !== 'all customers') {
-                    if (!rowCustomer.includes(selectedCustomerName)) {
-                        return false;
-                    }
+                const rowCustomerId = $(row).data('customer-id') || $(row).attr('data-customer-id');
+                const filterCustomerId = String(customerFilter).trim();
+                const rowCustomerIdStr = String(rowCustomerId).trim();
+
+                console.log('Customer filter check - Row ID:', rowCustomerIdStr, 'Filter ID:', filterCustomerId, 'Match:', rowCustomerIdStr === filterCustomerId);
+
+                if (rowCustomerIdStr !== filterCustomerId) {
+                    return false;
                 }
             }
 
@@ -1070,12 +1081,28 @@ function updateFilterIndicators() {
 
 function clearAllFilters() {
     $('#statusFilter').val('');
-    $('#customerFilter').val('');
+    $('#customerFilter').val('').trigger('change');
     $('#fromDate').val('');
     $('#toDate').val('');
     $('#chequeNumberFilter').val('');
+
+    // Safely clear all DataTable custom filters
+    try {
+        $.fn.dataTable.ext.search = [];
+    } catch (e) {
+        console.warn('Clear search filters warning:', e);
+    }
+
     updateFilterIndicators();
-    loadCheques();
+
+    // Redraw table without filters
+    if (chequesDataTable) {
+        try {
+            chequesDataTable.draw();
+        } catch (e) {
+            console.warn('DataTable draw warning:', e);
+        }
+    }
 }
 
 function loadCustomers() {
@@ -1298,8 +1325,13 @@ function updateSelectAllCheckbox() {
 let chequesDataTable;
 
 function initializeDataTable() {
+    // Safely destroy existing DataTable if it exists
     if ($.fn.DataTable.isDataTable('#chequesTable')) {
-        $('#chequesTable').DataTable().destroy();
+        try {
+            $('#chequesTable').DataTable().destroy(true); // true = remove DataTable from DOM
+        } catch (e) {
+            console.warn('DataTable destroy warning:', e);
+        }
     }
 
     chequesDataTable = $('#chequesTable').DataTable({
@@ -1370,38 +1402,6 @@ function initializeDataTable() {
             }
         }
     });
-}
-
-function loadCheques() {
-    // Reload DataTable without page refresh for faster filtering
-    if (chequesDataTable) {
-        toastr.info('Applying filters...', 'Loading', {
-            timeOut: 500,
-            progressBar: true
-        });
-
-        // Get current filter values
-        const status = $('#statusFilter').val();
-        const fromDate = $('#fromDate').val();
-        const toDate = $('#toDate').val();
-        const customer = $('#customerFilter').val();
-        const chequeNumber = $('#chequeNumberFilter').val();
-
-        // Build query string
-        const params = new URLSearchParams();
-        if (status) params.append('status', status);
-        if (fromDate) params.append('from_date', fromDate);
-        if (toDate) params.append('to_date', toDate);
-        if (customer) params.append('customer_id', customer);
-        if (chequeNumber) params.append('cheque_number', chequeNumber);
-
-        // Update URL without reload
-        const newUrl = params.toString() ? '{{ route("cheque-management") }}?' + params.toString() : '{{ route("cheque-management") }}';
-        window.history.pushState({}, '', newUrl);
-
-        // Reload the page to get filtered data from server
-        window.location.href = newUrl;
-    }
 }
 
 function viewChequeDetails(paymentId) {

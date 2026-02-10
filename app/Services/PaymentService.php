@@ -294,14 +294,19 @@ class PaymentService
      */
     public function updateSalePaymentStatus(Sale $sale): void
     {
-        // Calculate total paid excluding cancelled/bounced/deleted payments
+        // Calculate total paid excluding cancelled/bounced/deleted/pending payments
+        // ✅ FIX: EXCLUDE pending cheque payments from total_paid calculation
+        // Pending cheques should not count as paid until they are cleared/deposited
         $totalPaid = Payment::where('reference_id', $sale->id)
             ->where('payment_type', 'sale')
-            ->where('status', '!=', 'deleted') // ✅ CRITICAL FIX: Exclude deleted payments
+            ->where('status', '!=', 'deleted') // Exclude deleted payments
             ->where(function($query) {
                 $query->where('payment_status', '!=', 'bounced')
                       ->where('payment_status', '!=', 'cancelled')
-                      ->orWhereNull('payment_status');
+                      ->where('payment_status', '!=', 'pending') // EXCLUDE pending (cheque) payments
+                      ->orWhereNull('payment_status')
+                      ->orWhere('payment_status', 'completed') // Only include completed payments
+                      ->orWhere('payment_status', 'cleared'); // Include cleared cheques
             })
             ->sum('amount');
 

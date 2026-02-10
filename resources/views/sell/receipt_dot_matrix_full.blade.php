@@ -466,7 +466,7 @@
                     <tr>
                         <td>{{ $index++ }}</td>
                         <td>
-                            {{ substr($item['product']->product->product_name, 0, 35) }}
+                            {{($item['product']->product->product_name) }}
                             @if ($item['type'] == 'imei')
                                 <span style="font-size: 10px;">({{ $item['imei'] }})</span>
                             @elseif($item['product']->product->product_variation ?? false)

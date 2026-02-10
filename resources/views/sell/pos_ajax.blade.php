@@ -10061,7 +10061,6 @@
                 const chequeReceivedDate = $('#cheque_received_date').val().trim();
                 const chequeValidDate = $('#cheque_valid_date').val().trim();
                 const chequeGivenBy = $('#cheque_given_by').val().trim();
-                const chequeStatus = $('#cheque_status').val() || 'pending'; // Default to pending
                 const totalAmount = parseFormattedAmount($('#final-total-amount').text()
                     .trim()); // Ensure #total-amount element exists
                 const today = new Date().toISOString().slice(0, 10);
@@ -10075,7 +10074,8 @@
                     cheque_received_date: chequeReceivedDate,
                     cheque_valid_date: chequeValidDate,
                     cheque_given_by: chequeGivenBy,
-                    cheque_status: chequeStatus
+                    cheque_status: 'pending',
+                    payment_status: 'pending' // Explicitly set payment_status for cheque
                 }];
             }
 
@@ -10404,9 +10404,13 @@
                             ...conditionalFields
                         };
 
-                        // Ensure cheque_status is always included for cheque payments
-                        if (paymentMethod === 'cheque' && !paymentRow.cheque_status) {
-                            paymentRow.cheque_status = 'pending';
+                        // Ensure cheque_status and payment_status are always included for cheque payments
+                        if (paymentMethod === 'cheque') {
+                            if (!paymentRow.cheque_status) {
+                                paymentRow.cheque_status = 'pending';
+                            }
+                            // Set payment_status based on cheque_status (pending cheques = pending payment)
+                            paymentRow.payment_status = (paymentRow.cheque_status === 'cleared' || paymentRow.cheque_status === 'deposited') ? 'completed' : 'pending';
                         }
 
                         paymentData.push(paymentRow);
