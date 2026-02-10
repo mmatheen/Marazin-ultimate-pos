@@ -1,10 +1,10 @@
 <?php
 /**
  * Fix Audit Trail Order for Corrected Ledger Entries
- * 
+ *
  * Problem: Fixed ledger entries have created_at = today (2026-02-10)
  *          But should appear right after reversal entries in audit trail
- * 
+ *
  * Solution: Adjust created_at to be 1 second after the reversal entry
  */
 require __DIR__ . '/vendor/autoload.php';
@@ -40,7 +40,7 @@ foreach ($fixedEntries as $entry) {
     echo "Amount: Rs. " . number_format($entry->debit, 2) . "\n";
     echo "Transaction Date: {$entry->transaction_date}\n";
     echo "Current Created At: {$entry->created_at}\n";
-    
+
     // Find the latest reversal entry for this reference
     $latestReversal = DB::table('ledgers')
         ->where('reference_no', 'LIKE', $entry->reference_no . '%')
@@ -48,13 +48,13 @@ foreach ($fixedEntries as $entry) {
         ->where('status', 'reversed')
         ->orderBy('created_at', 'desc')
         ->first();
-    
+
     if ($latestReversal) {
         // Set created_at to 1 second after the reversal
         $newCreatedAt = date('Y-m-d H:i:s', strtotime($latestReversal->created_at) + 1);
         echo "Reversal Entry Created At: {$latestReversal->created_at}\n";
         echo "New Created At: {$newCreatedAt} (1 second after reversal)\n";
-        
+
         try {
             DB::table('ledgers')
                 ->where('id', $entry->id)
@@ -62,7 +62,7 @@ foreach ($fixedEntries as $entry) {
                     'created_at' => $newCreatedAt,
                     'updated_at' => $newCreatedAt
                 ]);
-            
+
             echo "✅ UPDATED - Audit trail order corrected\n";
         } catch (\Exception $e) {
             echo "❌ ERROR: " . $e->getMessage() . "\n";
@@ -72,7 +72,7 @@ foreach ($fixedEntries as $entry) {
         $newCreatedAt = date('Y-m-d H:i:s', strtotime($entry->transaction_date) + 60);
         echo "No reversal found, using transaction_date + 1 minute\n";
         echo "New Created At: {$newCreatedAt}\n";
-        
+
         try {
             DB::table('ledgers')
                 ->where('id', $entry->id)
@@ -80,13 +80,13 @@ foreach ($fixedEntries as $entry) {
                     'created_at' => $newCreatedAt,
                     'updated_at' => $newCreatedAt
                 ]);
-            
+
             echo "✅ UPDATED - Timestamp adjusted\n";
         } catch (\Exception $e) {
             echo "❌ ERROR: " . $e->getMessage() . "\n";
         }
     }
-    
+
     echo "\n";
 }
 
@@ -107,7 +107,7 @@ $runningBalance = 0;
 foreach ($ledgers as $ledger) {
     $amount = $ledger->debit > 0 ? "+{$ledger->debit}" : "-{$ledger->credit}";
     $statusIcon = $ledger->status === 'active' ? '✅' : '🔄';
-    
+
     if ($ledger->status === 'active') {
         $runningBalance += $ledger->debit;
         $runningBalance -= $ledger->credit;
@@ -115,7 +115,7 @@ foreach ($ledgers as $ledger) {
     } else {
         $balanceStr = " | (reversed)";
     }
-    
+
     echo "{$statusIcon} ID: {$ledger->id} | {$ledger->reference_no} | {$amount}{$balanceStr}\n";
     echo "   Created: {$ledger->created_at} | Trans Date: {$ledger->transaction_date}\n\n";
 }

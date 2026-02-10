@@ -290,12 +290,13 @@ class Ledger extends Model
 
         // For payment transactions, check EXACT DUPLICATE only (same amount + same reference + very recent)
         // This allows multiple legitimate payments to the same supplier/customer
+        // NOTE: Bulk payments now have unique reference_no (includes payment ID), so they won't be flagged as duplicates
         if (in_array($data['transaction_type'], ['payment', 'payments', 'sale_payment', 'purchase_payment'])) {
             $duplicateQuery->where(function($query) use ($data) {
                 $query->where('debit', abs($data['amount']))
                       ->orWhere('credit', abs($data['amount']));
             })
-            ->where('created_at', '>=', Carbon::now()->subSeconds(10)); // Only within 10 seconds (prevents double-click only)
+            ->where('created_at', '>=', Carbon::now()->subSeconds(5)); // Only within 5 seconds (prevents double-click only)
         } else {
             // For non-payment transactions (sales, purchases, etc.), check for exact duplicates
             // within a very short window to prevent double-click submissions

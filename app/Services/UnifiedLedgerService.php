@@ -183,7 +183,16 @@ class UnifiedLedgerService
             return null;
         }
 
-        $referenceNo = $payment->reference_no ?: ($sale ? $sale->invoice_no : 'PAY-' . $payment->id);
+        // ✅ CRITICAL FIX: For bulk payments, append payment ID to reference to ensure unique ledger entries
+        // This prevents duplicate detection from incorrectly skipping legitimate payments
+        $baseReferenceNo = $payment->reference_no ?: ($sale ? $sale->invoice_no : 'PAY-' . $payment->id);
+        
+        // Check if this is a bulk payment (reference starts with BLK-)
+        $referenceNo = $baseReferenceNo;
+        if (strpos($baseReferenceNo, 'BLK-') === 0 && $payment->id) {
+            // Append payment ID to make it unique: BLK-S0075-PAY638
+            $referenceNo = $baseReferenceNo . '-PAY' . $payment->id;
+        }
 
         // Use the actual creation time converted to Asia/Colombo timezone
         $transactionDate = $payment->created_at ?
@@ -197,7 +206,7 @@ class UnifiedLedgerService
             'reference_no' => $referenceNo,
             'transaction_type' => 'payments', // ✅ FIXED: Standardized to 'payments'
             'amount' => $payment->amount,
-            'notes' => $payment->notes ?: "Payment for sale #{$referenceNo}",
+            'notes' => $payment->notes ?: "Payment for sale #{$baseReferenceNo}",
             'created_by' => $createdBy
         ]);
     }
@@ -224,7 +233,15 @@ class UnifiedLedgerService
             throw new \Exception("Cannot record payment in ledger: amount is missing. Payment ID: " . ($payment->id ?? 'unknown'));
         }
 
-        $referenceNo = $payment->reference_no ?: ($purchase ? $purchase->reference_no : 'PAY-' . $payment->id);
+        // ✅ CRITICAL FIX: For bulk payments, append payment ID to reference to ensure unique ledger entries
+        $baseReferenceNo = $payment->reference_no ?: ($purchase ? $purchase->reference_no : 'PAY-' . $payment->id);
+        
+        // Check if this is a bulk payment (reference starts with BLK-)
+        $referenceNo = $baseReferenceNo;
+        if (strpos($baseReferenceNo, 'BLK-') === 0 && $payment->id) {
+            // Append payment ID to make it unique: BLK-P0075-PAY638
+            $referenceNo = $baseReferenceNo . '-PAY' . $payment->id;
+        }
 
         // Use the actual creation time converted to Asia/Colombo timezone
         $transactionDate = $payment->created_at ?
@@ -234,6 +251,14 @@ class UnifiedLedgerService
         return Ledger::createEntry([
             'contact_id' => $payment->supplier_id,
             'contact_type' => 'supplier',
+            'transaction_date' => $transactionDate,
+            'reference_no' => $referenceNo,
+            'transaction_type' => 'purchase_payment',
+            'amount' => $payment->amount,
+            'notes' => $payment->notes ?: "Payment for purchase #{$baseReferenceNo}",
+            'created_by' => $createdBy
+        ]);
+    }
             'transaction_date' => $transactionDate,
             'reference_no' => $referenceNo,
             'transaction_type' => 'payments',
