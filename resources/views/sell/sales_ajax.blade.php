@@ -7,20 +7,13 @@
         const urlCustomerId = urlParams.get('customer_id');
         const urlLocationId = urlParams.get('location_id');
 
-        console.log('=== Sales Page URL Parameters ===');
-        console.log('customer_id from URL:', urlCustomerId);
-        console.log('location_id from URL:', urlLocationId);
 
         // Set filter values IMMEDIATELY before DataTable initialization
         if (urlCustomerId) {
-            console.log('Pre-setting customer filter to:', urlCustomerId);
             $('#customerFilter').val(urlCustomerId);
-            console.log('Customer filter value after setting:', $('#customerFilter').val());
         }
         if (urlLocationId) {
-            console.log('Pre-setting location filter to:', urlLocationId);
             $('#locationFilter').val(urlLocationId);
-            console.log('Location filter value after setting:', $('#locationFilter').val());
         }
 
         // Make sure table exists and destroy any existing DataTable
@@ -65,11 +58,6 @@
                         requestData['order[0][dir]'] = d.order[0].dir || 'desc';
                     }
 
-                    // Add custom filters
-                    console.log('=== Reading Filter Values ===');
-                    console.log('customerFilter element:', $('#customerFilter').length > 0);
-                    console.log('customerFilter value:', $('#customerFilter').val());
-                    console.log('locationFilter value:', $('#locationFilter').val());
 
                     if ($('#customerFilter').val()) requestData.customer_id = $('#customerFilter')
                         .val();
@@ -88,19 +76,10 @@
                         }
                     }
 
-                    console.log('DataTable AJAX request data:', requestData);
-                    console.log('================================');
                     return requestData;
                 },
                 // Simple DataTable server-side response handler
                 dataSrc: function(json) {
-                    console.log('DataTable Success:', {
-                        recordsTotal: json.recordsTotal,
-                        recordsFiltered: json.recordsFiltered,
-                        data_length: json.data ? json.data.length : 0,
-                        draw: json.draw,
-                        debug: json.debug || null
-                    });
 
                     // Handle empty database case
                     if (json.debug && json.debug.message === 'No sales found in database') {
@@ -451,10 +430,6 @@
 
         // Enhanced pagination event tracking
         table.on('length.dt', function(e, settings, len) {
-            console.log('=== Page Length Changed ===');
-            console.log('New length:', len);
-            console.log('Previous page info:', table.page.info());
-            console.log('Table will reload with', len, 'entries per page');
 
             // Force immediate reload to ensure strict compliance
             setTimeout(() => {
@@ -1356,6 +1331,9 @@
                         $('#locationDetails').text(location.name);
                         $('#salesDetails').text('Date: ' + saleDetails.sales_date +
                             ', Status: ' + saleDetails.status);
+                        
+                        // Populate sales notes
+                        $('#salesNotes').text(saleDetails.sale_notes || 'No notes available');
 
                         // Populate products table
                         const productsTableBody = $('#productsTable tbody');

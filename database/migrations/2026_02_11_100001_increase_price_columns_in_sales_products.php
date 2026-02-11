@@ -16,7 +16,7 @@ return new class extends Migration
             // Old max: 999,999.99
             // New max: 9,999,999,999,999.99
             $table->decimal('price', 15, 2)->change();
-            
+
             // Also increase discount_amount and tax for consistency
             $table->decimal('discount_amount', 15, 2)->nullable()->change();
             $table->decimal('tax', 15, 2)->nullable()->change();

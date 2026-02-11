@@ -226,6 +226,12 @@
                                 </div>
                             </div>
                             <div class="row">
+                                <div class="col-md-12 mt-3">
+                                    <h5>Sales Notes:</h5>
+                                    <p id="salesNotes" class="text-muted"></p>
+                                </div>
+                            </div>
+                            <div class="row">
                                 <div class="col-md-12  mt-4">
                                     <h5>Products:</h5>
                                     <table class="table table-bordered" id="productsTable">
