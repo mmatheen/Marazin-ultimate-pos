@@ -2,417 +2,410 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Payment Report</title>
+    <title>Collection Receipt Summary</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            font-size: 9px;
-            margin: 10px 15px;
-        }
-        h1 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 8px;
-            font-size: 16px;
-        }
-        .summary {
-            margin-bottom: 10px;
-            padding: 6px;
-            background-color: #f8f9fa;
-            border-radius: 3px;
-        }
-        .summary-item {
-            display: inline-block;
-            margin-right: 15px;
-            margin-bottom: 4px;
-        }
-        .summary-label {
-            font-weight: bold;
-            color: #666;
-            font-size: 8px;
-        }
-        .summary-value {
-            color: #000;
-            font-size: 9px;
-            font-weight: bold;
-        }
+        @page { margin: 30px 28px 45px 28px; }
+        body { font-family: Arial, Helvetica, sans-serif; font-size: 9px; color: #1a1a2e; margin: 0; padding: 0; line-height: 1.35; }
 
-        /* Collection Group Styles */
-        .collection-group {
-            margin-bottom: 10px;
-            border: 1px solid #dee2e6;
-            border-radius: 3px;
-            page-break-inside: avoid;
-        }
-        .collection-header {
-            background-color: #4a5568;
-            color: white;
-            padding: 5px 8px;
-            font-weight: bold;
-            border-bottom: 2px solid #2d3748;
-        }
-        .collection-header h3 {
-            margin: 0;
-            font-size: 10px;
-            display: inline-block;
-        }
-        .collection-header .amount-badge {
-            float: right;
-            background-color: #22c55e;
-            padding: 3px 8px;
-            border-radius: 2px;
-            font-size: 9px;
-        }
-        .collection-header .payment-count {
-            float: right;
-            margin-right: 8px;
-            background-color: white;
-            color: #333;
-            padding: 3px 6px;
-            border-radius: 2px;
-            font-size: 8px;
-        }
-        .collection-header .notes {
-            font-size: 8px;
-            font-weight: normal;
-            color: #e0e0e0;
-            font-style: italic;
-            margin-top: 2px;
-        }
-        .collection-info {
-            background-color: #f8f9fa;
-            padding: 5px 8px;
-            border-bottom: 1px solid #e9ecef;
-            font-size: 8px;
-        }
-        .collection-info-row {
-            margin-bottom: 2px;
-        }
-        .collection-info-row strong {
-            color: #495057;
-            display: inline-block;
-            width: 80px;
-        }
-        .collection-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 0;
-        }
-        .collection-table th {
-            background-color: #f1f3f5;
-            color: #495057;
-            padding: 4px 6px;
-            text-align: left;
-            font-size: 8px;
-            border-bottom: 2px solid #dee2e6;
-            font-weight: 600;
-        }
-        .collection-table td {
-            padding: 3px 6px;
-            border-bottom: 1px solid #e9ecef;
-            font-size: 8px;
-        }
-        .collection-table .text-right {
-            text-align: right;
-        }
-        .collection-table .text-center {
-            text-align: center;
-        }
-        .collection-table tbody tr:nth-child(odd) {
-            background-color: #f9fafb;
-        }
-        .collection-footer {
-            background-color: #f8f9fa;
-            padding: 5px 8px;
-            border-top: 2px solid #dee2e6;
-            text-align: right;
-            font-weight: bold;
-        }
-        .collection-footer .total-label {
-            font-size: 9px;
-            color: #2d3748;
-        }
-        .collection-footer .total-amount {
-            font-size: 10px;
-            color: #16a34a;
-            margin-left: 8px;
-        }
+        /* HEADER */
+        .hdr { width: 100%; margin-bottom: 14px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+        .hdr table { width: 100%; border-collapse: collapse; }
+        .hdr td { vertical-align: top; padding: 0; }
+        .logo { display: inline-block; width: 34px; height: 34px; background: #1e293b; color: #fff; text-align: center; line-height: 34px; font-size: 17px; font-weight: 700; border-radius: 5px; float: left; margin-right: 10px; }
+        .co-name { font-size: 14px; font-weight: 700; color: #0f172a; margin: 0; padding-top: 1px; letter-spacing: 0.3px; }
+        .co-div { font-size: 8.5px; color: #64748b; margin: 2px 0 0 0; letter-spacing: 0.3px; }
+        .rpt-title { font-size: 15px; font-weight: 700; color: #0f172a; text-align: right; margin: 0; letter-spacing: 0.2px; }
+        .rpt-meta { font-size: 8px; color: #64748b; text-align: right; margin-top: 5px; line-height: 1.5; }
+        .rpt-meta strong { color: #475569; font-size: 7.5px; text-transform: uppercase; letter-spacing: 0.5px; }
 
-        /* Payment Method Badges */
-        .badge {
-            padding: 2px 6px;
-            border-radius: 2px;
-            font-size: 7px;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-        .badge-cash {
-            background-color: #22c55e;
-            color: white;
-        }
-        .badge-card {
-            background-color: #6f42c1;
-            color: white;
-        }
-        .badge-cheque {
-            background-color: #fd7e14;
-            color: white;
-        }
-        .badge-bank {
-            background-color: #17a2b8;
-            color: white;
-        }
-        .badge-other {
-            background-color: #6c757d;
-            color: white;
-        }
+        /* SUMMARY BAR */
+        .sum-bar { width: 100%; margin-bottom: 16px; border: 1px solid #e2e8f0; border-radius: 4px; overflow: hidden; }
+        .sum-bar table { width: 100%; border-collapse: collapse; }
+        .sum-bar td { padding: 7px 10px; vertical-align: middle; border-right: 1px solid #e2e8f0; }
+        .sum-bar td:last-child { border-right: none; }
+        .sum-total-cell { background: #f8fafc; }
+        .sum-lbl { font-size: 7px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: #64748b; margin-bottom: 2px; }
+        .sum-lbl-main { color: #2563eb; }
+        .sum-val { font-size: 14px; font-weight: 700; color: #0f172a; }
+        .sum-mval { font-size: 10.5px; font-weight: 700; color: #334155; text-align: center; }
+        .sum-pct { font-size: 7px; color: #94a3b8; font-weight: 600; }
 
-        /* Single Payment Group */
-        .single-payment-group {
-            margin-bottom: 10px;
-            border: 1px solid #dee2e6;
-            border-radius: 3px;
-            page-break-inside: avoid;
-        }
+        /* COLLECTION CARD */
+        .coll { border: 1px solid #e2e8f0; border-radius: 5px; margin-bottom: 10px; overflow: hidden; page-break-inside: avoid; }
+        .coll-hdr { padding: 7px 12px; border-bottom: 1px solid #e9ecef; }
+        .coll-hdr table { width: 100%; border-collapse: collapse; }
+        .coll-hdr td { padding: 0; vertical-align: middle; }
+        .coll-ref { font-size: 12px; font-weight: 700; color: #0f172a; }
+        .coll-cust { font-size: 9px; color: #475569; display: inline; margin-left: 8px; }
+        .coll-date { font-size: 9px; color: #64748b; display: inline; margin-left: 6px; }
+        .coll-loc { font-size: 8.5px; color: #16a34a; display: inline; margin-left: 6px; }
+        .coll-loc:before { content: "● "; font-size: 6px; }
+        .coll-amt { font-size: 14px; font-weight: 700; color: #16a34a; text-align: right; }
 
-        .filters-info {
-            margin-bottom: 8px;
-            padding: 5px;
-            background-color: #e7f3ff;
-            border-left: 2px solid #0d6efd;
-            font-size: 8px;
-        }
-        .filters-info h4 {
-            margin: 0 0 3px 0;
-            color: #0d6efd;
-            font-size: 9px;
-        }
+        /* METHOD SUB-HEADER */
+        .meth-hdr { background: #f9fafb; padding: 4px 12px; border-bottom: 1px solid #f1f5f9; }
+        .meth-hdr table { width: 100%; border-collapse: collapse; }
+        .meth-hdr td { padding: 0; vertical-align: middle; }
+        .meth-label { font-size: 8px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; }
+        .meth-count { font-size: 7.5px; color: #94a3b8; text-align: right; }
+        .meth-subtotal { font-size: 8px; font-weight: 600; text-align: right; }
+        .meth-subtotal-cheque { color: #ea580c; }
+        .meth-subtotal-cash { color: #16a34a; }
+        .meth-subtotal-card { color: #9333ea; }
+        .meth-subtotal-bank { color: #0891b2; }
 
-        .report-footer {
-            margin-top: 20px;
-            text-align: center;
-            font-size: 9px;
-            color: #666;
-            border-top: 1px solid #dee2e6;
-            padding-top: 10px;
-        }
-        .status-pending {
-            background-color: #fff3cd;
-            color: #856404;
-        }
-        .status-cleared {
-            background-color: #d1edff;
-            color: #0c5460;
-        }
-        .status-bounced {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-        .filters-info {
-            margin-bottom: 15px;
-            padding: 10px;
-            background-color: #e7f3ff;
-            border-left: 4px solid #0d6efd;
-        }
-        .filters-info h4 {
-            margin: 0 0 10px 0;
-            color: #0d6efd;
-        }
+        /* PAYMENT ROWS */
+        .pay-row { padding: 3px 12px 3px 20px; border-bottom: 1px solid #f8f9fa; }
+        .pay-row table { width: 100%; border-collapse: collapse; }
+        .pay-row td { padding: 2px 0; vertical-align: middle; font-size: 8.5px; color: #334155; }
+        .pay-ref { font-weight: 600; color: #1e293b; }
+        .pay-bank { color: #64748b; }
+        .pay-due { color: #64748b; }
+        .pay-amt { font-weight: 700; color: #0f172a; text-align: right; font-size: 9px; }
+
+        /* STATUS BADGES */
+        .st { padding: 1.5px 6px; border-radius: 3px; font-size: 6.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
+        .st-pending { background: #fef3c7; color: #92400e; }
+        .st-cleared { background: #d1fae5; color: #065f46; }
+        .st-settled { background: #d1fae5; color: #065f46; }
+        .st-bounced { background: #fee2e2; color: #991b1b; }
+
+        /* CONTINUE NOTE */
+        .cont-note { text-align: center; padding: 14px 0; font-size: 8px; color: #94a3b8; letter-spacing: 2px; font-style: italic; }
+
+        /* SIGNATURE */
+        .sig { margin-top: 30px; width: 100%; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+        .sig table { width: 100%; border-collapse: collapse; }
+        .sig td { width: 33.33%; text-align: center; padding: 0 14px; vertical-align: top; }
+        .sig-line { border-top: 1px solid #64748b; margin-bottom: 5px; margin-top: 30px; }
+        .sig-title { font-size: 8.5px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.3px; }
+        .sig-sub { font-size: 7px; color: #94a3b8; margin-top: 1px; font-style: italic; }
+
+        /* FOOTER */
+        .pg-foot { margin-top: 20px; text-align: center; padding-top: 10px; }
+        .pg-foot-txt { font-size: 7.5px; color: #64748b; letter-spacing: 0.8px; font-weight: 600; }
+        .pg-foot-sub { font-size: 6.5px; color: #94a3b8; margin-top: 2px; }
     </style>
 </head>
 <body>
-    <h1>Payment Report - Grouped by Collection</h1>
 
-    @if(isset($request) && ($request->start_date || $request->end_date || $request->customer_id || $request->supplier_id || $request->location_id || $request->payment_method || $request->payment_type))
-    <div class="filters-info">
-        <h4>Applied Filters:</h4>
-        @if($request->start_date && $request->end_date)
-            <strong>Date Range:</strong> {{ $request->start_date }} to {{ $request->end_date }} &nbsp; | &nbsp;
-        @endif
-        @if($request->customer_id)
-            <strong>Customer ID:</strong> {{ $request->customer_id }} &nbsp; | &nbsp;
-        @endif
-        @if($request->supplier_id)
-            <strong>Supplier ID:</strong> {{ $request->supplier_id }} &nbsp; | &nbsp;
-        @endif
-        @if($request->payment_method)
-            <strong>Method:</strong> {{ ucfirst($request->payment_method) }} &nbsp; | &nbsp;
-        @endif
-        @if($request->payment_type)
-            <strong>Type:</strong> {{ ucfirst($request->payment_type) }}
-        @endif
-    </div>
-    @endif
+@php
+    $companyName = isset($mainLocation) && $mainLocation ? ($mainLocation->name ?? 'ENTERPRISE ERP SYSTEMS') : 'ENTERPRISE ERP SYSTEMS';
+    $companyDiv = isset($mainLocation) && $mainLocation ? ($mainLocation->address ?? 'Commercial Division • Regional HQ') : 'Commercial Division • Regional HQ';
+    $companyInitial = strtoupper(substr($companyName, 0, 1));
+    $adminId = auth()->check() ? (auth()->user()->id ?? 'N/A') : 'N/A';
+    $dateFrom = isset($request) && $request->start_date ? \Carbon\Carbon::parse($request->start_date)->format('M d') : 'All';
+    $dateTo = isset($request) && $request->end_date ? \Carbon\Carbon::parse($request->end_date)->format('M d, Y') : 'All';
+    $dateYear = isset($request) && $request->start_date ? \Carbon\Carbon::parse($request->start_date)->format(', Y') : '';
+    $printedDate = \Carbon\Carbon::now()->format('M d, Y');
+    $totalAmt = $summaryData['total_amount'] ?? 0;
+    $cashT = $summaryData['cash_total'] ?? 0;
+    $chequeT = $summaryData['cheque_total'] ?? 0;
+    $cardT = $summaryData['card_total'] ?? 0;
+    $bankT = $summaryData['bank_transfer_total'] ?? 0;
+    $cCash = isset($paymentCounts) ? ($paymentCounts['cash'] ?? 0) : 0;
+    $cCheque = isset($paymentCounts) ? ($paymentCounts['cheque'] ?? 0) : 0;
+    $cCard = isset($paymentCounts) ? ($paymentCounts['card'] ?? 0) : 0;
+    $cTransfer = isset($paymentCounts) ? ($paymentCounts['bank_transfer'] ?? 0) : 0;
+    $pCash = $totalAmt > 0 ? round(($cashT / $totalAmt) * 100) : 0;
+    $pCheque = $totalAmt > 0 ? round(($chequeT / $totalAmt) * 100) : 0;
+    $pCard = $totalAmt > 0 ? round(($cardT / $totalAmt) * 100) : 0;
+    $pTransfer = $totalAmt > 0 ? round(($bankT / $totalAmt) * 100) : 0;
 
-    @if(isset($summaryData))
-    <div class="summary">
-        <div class="summary-item">
-            <div class="summary-label">Total Payments:</div>
-            <div class="summary-value">Rs {{ number_format($summaryData['total_amount'], 2) }}</div>
-        </div>
-        <div class="summary-item">
-            <div class="summary-label">Cash:</div>
-            <div class="summary-value">Rs {{ number_format($summaryData['cash_total'], 2) }}</div>
-        </div>
-        <div class="summary-item">
-            <div class="summary-label">Card:</div>
-            <div class="summary-value">Rs {{ number_format($summaryData['card_total'], 2) }}</div>
-        </div>
-        <div class="summary-item">
-            <div class="summary-label">Cheque:</div>
-            <div class="summary-value">Rs {{ number_format($summaryData['cheque_total'], 2) }}</div>
-        </div>
-        @if(isset($summaryData['bank_transfer_total']) && $summaryData['bank_transfer_total'] > 0)
-        <div class="summary-item">
-            <div class="summary-label">Bank Transfer:</div>
-            <div class="summary-value">Rs {{ number_format($summaryData['bank_transfer_total'], 2) }}</div>
-        </div>
-        @endif
-        <div class="summary-item">
-            <div class="summary-label">Sale Payments:</div>
-            <div class="summary-value">Rs {{ number_format($summaryData['sale_payments'], 2) }}</div>
-        </div>
-        <div class="summary-item">
-            <div class="summary-label">Purchase Payments:</div>
-            <div class="summary-value">Rs {{ number_format($summaryData['purchase_payments'], 2) }}</div>
-        </div>
-    </div>
-    @endif
+    if (!function_exists('fmtShort')) {
+        function fmtShort($a) {
+            if ($a >= 1000000) return number_format($a / 1000000, 1) . 'M';
+            if ($a >= 100000) return number_format($a / 1000, 0) . 'K';
+            return number_format($a, 0);
+        }
+    }
 
-    @if(isset($collections) && count($collections) > 0)
-        @foreach($collections as $collection)
-            @if($collection['is_bulk'])
-                {{-- Bulk Collection Group --}}
-                <div class="collection-group">
-                    <div class="collection-header">
-                        <h3>Collection Receipt: {{ $collection['reference_no'] }}</h3>
-                        <span class="amount-badge">Rs {{ number_format($collection['total_amount'], 2) }}</span>
-                        <span class="payment-count">{{ count($collection['payments']) }} Payment{{ count($collection['payments']) > 1 ? 's' : '' }}</span>
-                        <div style="clear: both;"></div>
-                        <div style="font-size: 8px; margin-top: 2px; font-weight: normal;">
-                            {{ $collection['payment_date'] }} | {{ $collection['customer_name'] ?: $collection['supplier_name'] ?: 'N/A' }}
-                        </div>
-                        @if(!empty($collection['payments'][0]['notes']))
-                        <div class="notes">
-                            <strong>Notes:</strong> {{ $collection['payments'][0]['notes'] }}
-                        </div>
+    // Format date to Y-m-d only (strip time)
+    if (!function_exists('fmtDate')) {
+        function fmtDate($d) {
+            if (empty($d)) return '';
+            try {
+                return \Carbon\Carbon::parse($d)->format('Y-m-d');
+            } catch (\Exception $e) {
+                // If parsing fails, try to strip time manually
+                return substr(trim($d), 0, 10);
+            }
+        }
+    }
+
+    $collList = isset($collections) ? $collections : [];
+    $totalColls = count($collList);
+
+    // Items per page for high-density mode
+    $maxPerPage = 50;
+    $shownCount = 0;
+@endphp
+
+{{-- ===== HEADER ===== --}}
+<div class="hdr">
+    <table>
+        <tr>
+            <td style="width:50%;">
+                <div class="logo">{{ $companyInitial }}</div>
+                <div style="overflow:hidden;">
+                    <p class="co-name">{{ strtoupper($companyName) }}</p>
+                    <p class="co-div">{{ strtoupper($companyDiv) }}</p>
+                </div>
+            </td>
+            <td style="width:50%;">
+                <p class="rpt-title">COLLECTION RECEIPT SUMMARY</p>
+                <div class="rpt-meta">
+                    <strong>Range:</strong> {{ $dateFrom }} - {{ $dateTo }} &nbsp;&nbsp;
+                    <strong>Admin:</strong> {{ $adminId }} &nbsp;&nbsp;
+                    <strong>Printed:</strong> {{ $printedDate }}
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+
+{{-- ===== SUMMARY BAR ===== --}}
+<div class="sum-bar">
+    <table>
+        <tr>
+            <td class="sum-total-cell" style="width:26%;">
+                <div class="sum-lbl sum-lbl-main">TOTAL COLLECTION</div>
+                <div class="sum-val">Rs. {{ number_format($totalAmt, 2) }}</div>
+            </td>
+            <td style="width:18.5%;text-align:center;">
+                <div class="sum-lbl">CASH ({{ $cCash }})</div>
+                <div class="sum-mval">{{ fmtShort($cashT) }} <span class="sum-pct">({{ $pCash }}%)</span></div>
+            </td>
+            <td style="width:18.5%;text-align:center;">
+                <div class="sum-lbl">CHEQUE ({{ $cCheque }})</div>
+                <div class="sum-mval">{{ fmtShort($chequeT) }} <span class="sum-pct">({{ $pCheque }}%)</span></div>
+            </td>
+            <td style="width:18.5%;text-align:center;">
+                <div class="sum-lbl">CARD ({{ $cCard }})</div>
+                <div class="sum-mval">{{ fmtShort($cardT) }} <span class="sum-pct">({{ $pCard }}%)</span></div>
+            </td>
+            <td style="width:18.5%;text-align:center;">
+                <div class="sum-lbl">TRANSFER ({{ $cTransfer }})</div>
+                <div class="sum-mval">{{ fmtShort($bankT) }} <span class="sum-pct">({{ $pTransfer }}%)</span></div>
+            </td>
+        </tr>
+    </table>
+</div>
+
+{{-- ===== COLLECTION CARDS ===== --}}
+@if($totalColls > 0)
+    @foreach($collList as $cIdx => $collection)
+    @php
+        $contactName = $collection['customer_name'] ?: ($collection['supplier_name'] ?: 'N/A');
+        $collDate = fmtDate($collection['payment_date'] ?? '');
+        $collLoc = $collection['location'] ?? '';
+        $collTotal = (float) $collection['total_amount'];
+        $collNotes = !empty($collection['payments'][0]['notes']) ? $collection['payments'][0]['notes'] : '';
+
+        // Group payments by method
+        $methodGroups = [];
+        foreach ($collection['payments'] as $p) {
+            $m = strtolower($p['payment_method']);
+            if (!isset($methodGroups[$m])) {
+                $methodGroups[$m] = ['total' => 0, 'payments' => []];
+            }
+            $methodGroups[$m]['total'] += (float) $p['amount'];
+            $methodGroups[$m]['payments'][] = $p;
+        }
+
+        $shownCount++;
+    @endphp
+
+    <div class="coll">
+        {{-- Collection Header --}}
+        <div class="coll-hdr">
+            <table>
+                <tr>
+                    <td style="width:70%;">
+                        <span class="coll-ref">{{ $collection['reference_no'] ?? 'N/A' }}</span>
+                        <span class="coll-cust">{{ $contactName }}</span>
+                        <span class="coll-date">| &nbsp;{{ $collDate }}</span>
+                        @if($collLoc)
+                        <span class="coll-loc">{{ $collLoc }}</span>
                         @endif
-                    </div>
-
-                    <div class="collection-info">
-                        <div class="collection-info-row">
-                            <strong>Customer:</strong> {{ $collection['customer_name'] ?: 'N/A' }}
-                        </div>
-                        <div class="collection-info-row">
-                            <strong>Address:</strong> {{ $collection['customer_address'] ?: 'N/A' }}
-                        </div>
-                        <div class="collection-info-row">
-                            <strong>Collection Date:</strong> {{ $collection['payment_date'] }}
-                        </div>
-                        <div class="collection-info-row">
-                            <strong>Location:</strong> {{ $collection['location'] ?: 'N/A' }}
-                        </div>
-                    </div>
-
-                    <table class="collection-table">
-                        <thead>
-                            <tr>
-                                <th>Invoice Date</th>
-                                <th>Invoice No.</th>
-                                <th class="text-right">Invoice Value</th>
-                                <th>Payment Method</th>
-                                <th>Cheque No.</th>
-                                <th>Bank & Branch</th>
-                                <th>Due Date</th>
-                                <th class="text-right">Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($collection['payments'] as $payment)
-                                <tr>
-                                    <td>{{ $payment['invoice_date'] ?: $payment['payment_date'] }}</td>
-                                    <td>{{ $payment['invoice_no'] ?: '-' }}</td>
-                                    <td class="text-right">Rs {{ number_format($payment['invoice_value'], 2) }}</td>
-                                    <td>
-                                        @php
-                                            $method = strtolower($payment['payment_method']);
-                                            $badgeClass = 'badge-other';
-                                            if ($method === 'cash') $badgeClass = 'badge-cash';
-                                            elseif ($method === 'card') $badgeClass = 'badge-card';
-                                            elseif ($method === 'cheque') $badgeClass = 'badge-cheque';
-                                            elseif ($method === 'bank_transfer') $badgeClass = 'badge-bank';
-                                        @endphp
-                                        <span class="badge {{ $badgeClass }}">{{ ucfirst($payment['payment_method']) }}</span>
-                                    </td>
-                                    <td>{{ $payment['cheque_number'] ?: '-' }}</td>
-                                    <td>{{ $payment['cheque_bank_branch'] ?: '-' }}</td>
-                                    <td>{{ $payment['cheque_valid_date'] ?: '-' }}</td>
-                                    <td class="text-right" style="color: #16a34a; font-weight: bold;">Rs {{ number_format($payment['amount'], 2) }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-
-                    <div class="collection-footer">
-                        <span class="total-label">Total Collection Amount:</span>
-                        <span class="total-amount">Rs {{ number_format($collection['total_amount'], 2) }}</span>
-                    </div>
-                </div>
-            @else
-                {{-- Single Payment (Not Bulk Collection) --}}
-                <div class="single-payment-group">
-                    <table class="collection-table">
-                        <thead>
-                            <tr>
-                                <th>Payment ID</th>
-                                <th>Date</th>
-                                <th>Customer/Supplier</th>
-                                <th>Invoice No.</th>
-                                <th>Payment Method</th>
-                                <th>Payment Type</th>
-                                <th>Reference No</th>
-                                <th class="text-right">Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($collection['payments'] as $payment)
-                                <tr>
-                                    <td>{{ $payment['id'] }}</td>
-                                    <td>{{ $payment['payment_date'] }}</td>
-                                    <td>{{ $collection['customer_name'] ?: $collection['supplier_name'] ?: '-' }}</td>
-                                    <td>{{ $payment['invoice_no'] ?: '-' }}</td>
-                                    <td>
-                                        @php
-                                            $method = strtolower($payment['payment_method']);
-                                            $badgeClass = 'badge-other';
-                                            if ($method === 'cash') $badgeClass = 'badge-cash';
-                                            elseif ($method === 'card') $badgeClass = 'badge-card';
-                                            elseif ($method === 'cheque') $badgeClass = 'badge-cheque';
-                                            elseif ($method === 'bank_transfer') $badgeClass = 'badge-bank';
-                                        @endphp
-                                        <span class="badge {{ $badgeClass }}">{{ ucfirst($payment['payment_method']) }}</span>
-                                    </td>
-                                    <td>{{ ucfirst($payment['payment_type']) }}</td>
-                                    <td>{{ $collection['reference_no'] }}</td>
-                                    <td class="text-right" style="color: #16a34a; font-weight: bold;">Rs {{ number_format($payment['amount'], 2) }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            @endif
-        @endforeach
-    @else
-        <div style="text-align: center; padding: 30px; color: #666;">
-            <p>No payment collections found for the selected filters.</p>
+                    </td>
+                    <td style="width:30%;">
+                        <div class="coll-amt">Rs. {{ number_format($collTotal, 2) }}</div>
+                    </td>
+                </tr>
+            </table>
         </div>
+
+        {{-- Method Groups --}}
+        @foreach($methodGroups as $methodKey => $group)
+        @php
+            $methodLabel = strtoupper($methodKey);
+            if ($methodKey === 'bank_transfer') $methodLabel = 'BANK TRANSFER';
+            $methodCount = count($group['payments']);
+            $methodTotal = $group['total'];
+            $subtotalClass = 'meth-subtotal-cash';
+            if ($methodKey === 'cheque') $subtotalClass = 'meth-subtotal-cheque';
+            elseif ($methodKey === 'card') $subtotalClass = 'meth-subtotal-card';
+            elseif ($methodKey === 'bank_transfer') $subtotalClass = 'meth-subtotal-bank';
+        @endphp
+
+        {{-- Method Sub-header --}}
+        <div class="meth-hdr">
+            <table>
+                <tr>
+                    <td style="width:30%;"><span class="meth-label">METHOD: {{ $methodLabel }}</span></td>
+                    <td style="width:35%;"><span class="meth-count">{{ $methodCount }} PAYMENT{{ $methodCount > 1 ? 'S' : '' }}</span></td>
+                    <td style="width:35%;"><span class="meth-subtotal {{ $subtotalClass }}">Subtotal: Rs. {{ number_format($methodTotal, 2) }}</span></td>
+                </tr>
+            </table>
+        </div>
+
+        {{-- Payment Rows - GROUPED by cheque number / reference --}}
+        @php
+            // Group payments within this method by a grouping key
+            $groupedRows = [];
+            foreach ($group['payments'] as $p) {
+                if ($methodKey === 'cheque') {
+                    $gKey = $p['cheque_number'] ?: ('cheque_' . $p['id']);
+                } elseif ($methodKey === 'cash') {
+                    // Group all cash into one row per collection, or by reference
+                    $gKey = $p['cheque_number'] ?: ('CASH-' . $p['id']);
+                } elseif ($methodKey === 'card') {
+                    $gKey = $p['cheque_number'] ?: ('card_' . $p['id']);
+                } elseif ($methodKey === 'bank_transfer') {
+                    $gKey = $p['cheque_number'] ?: ('txn_' . $p['id']);
+                } else {
+                    $gKey = 'other_' . $p['id'];
+                }
+                if (!isset($groupedRows[$gKey])) {
+                    $groupedRows[$gKey] = [
+                        'first' => $p,
+                        'total' => 0,
+                        'count' => 0,
+                    ];
+                }
+                $groupedRows[$gKey]['total'] += (float) $p['amount'];
+                $groupedRows[$gKey]['count']++;
+            }
+        @endphp
+
+        @foreach($groupedRows as $gKey => $gRow)
+        @php
+            $fp = $gRow['first'];
+            $gAmt = $gRow['total'];
+            $payRef = '';
+            $payBank = '';
+            $payDueLabel = '';
+            $payDueVal = '';
+            $payStatus = '';
+            $statusClass = 'st-pending';
+
+            if ($methodKey === 'cheque') {
+                $payRef = $fp['cheque_number'] ? 'Chq: ' . $fp['cheque_number'] : 'Cheque';
+                $payBank = $fp['cheque_bank_branch'] ?? '';
+                $payDueLabel = 'Due:';
+                $payDueVal = fmtDate($fp['cheque_valid_date'] ?? '');
+                $payStatus = isset($fp['cheque_status']) ? $fp['cheque_status'] : 'Pending';
+                $sl = strtolower($payStatus);
+                if ($sl === 'cleared' || $sl === 'settled') $statusClass = 'st-cleared';
+                elseif ($sl === 'bounced') $statusClass = 'st-bounced';
+                else $statusClass = 'st-pending';
+            } elseif ($methodKey === 'cash') {
+                $payRef = 'Ref: ' . ($fp['cheque_number'] ?: ('CASH-' . $fp['id']));
+                $payBank = 'CASH';
+                $payDueLabel = 'Paid:';
+                $payDueVal = fmtDate($fp['payment_date'] ?? '');
+                $payStatus = 'Settled';
+                $statusClass = 'st-settled';
+            } elseif ($methodKey === 'card') {
+                $payRef = $fp['cheque_number'] ? 'Card: *' . substr($fp['cheque_number'], -4) : 'Card Payment';
+                $payBank = $fp['cheque_bank_branch'] ?? 'Terminal';
+                $payDueLabel = 'Paid:';
+                $payDueVal = fmtDate($fp['payment_date'] ?? '');
+                $payStatus = 'Settled';
+                $statusClass = 'st-settled';
+            } elseif ($methodKey === 'bank_transfer') {
+                $payRef = $fp['cheque_number'] ? 'TXN: ' . $fp['cheque_number'] : 'Bank Transfer';
+                $payBank = $fp['cheque_bank_branch'] ?? 'Bank';
+                $payDueLabel = 'Paid:';
+                $payDueVal = fmtDate($fp['payment_date'] ?? '');
+                $payStatus = 'Settled';
+                $statusClass = 'st-settled';
+            } else {
+                $payRef = ucfirst($methodKey);
+                $payBank = '-';
+                $payDueLabel = 'Date:';
+                $payDueVal = fmtDate($fp['payment_date'] ?? '');
+                $payStatus = 'Pending';
+            }
+        @endphp
+        <div class="pay-row">
+            <table>
+                <tr>
+                    <td style="width:18%;"><span class="pay-ref">{{ $payRef }}</span></td>
+                    <td style="width:14%;"><span class="pay-bank">{{ $payBank }}</span></td>
+                    <td style="width:24%;"><span class="pay-due">{{ $payDueLabel }} {{ $payDueVal }}</span></td>
+                    <td style="width:14%;"><span class="st {{ $statusClass }}">{{ strtoupper($payStatus) }}</span></td>
+                    <td style="width:30%;"><span class="pay-amt">Rs. {{ number_format($gAmt, 2) }}</span></td>
+                </tr>
+            </table>
+        </div>
+        @endforeach
+        @endforeach
+    </div>
+
+    @if($shownCount >= $maxPerPage && $cIdx < $totalColls - 1)
+        @php $remaining = $totalColls - $shownCount; @endphp
+        <div class="cont-note">
+            ... CONTINUE HIGH-DENSITY LIST: {{ $remaining }} ADDITIONAL RECEIPTS ...
+        </div>
+        @break
+    @endif
+    @endforeach
+
+    {{-- If all shown --}}
+    @if($shownCount >= $totalColls && $totalColls > 5)
+    <div class="cont-note">
+        --- ALL {{ $totalColls }} COLLECTION RECEIPTS DISPLAYED ---
+    </div>
     @endif
 
-    <div class="report-footer">
-        <p>Generated on {{ date('Y-m-d H:i:s') }}</p>
-        @if(isset($collections))
-            <p>Total Collections: {{ count($collections) }}</p>
-        @endif
+@else
+    <div style="text-align:center;padding:40px 20px;color:#94a3b8;">
+        <p style="font-size:12px;font-weight:700;color:#64748b;">No Payment Records Found</p>
+        <p>No payment collections found for the selected filters.</p>
     </div>
+@endif
+
+{{-- ===== SIGNATURE SECTION ===== --}}
+<div class="sig">
+    <table>
+        <tr>
+            <td>
+                <div class="sig-line"></div>
+                <div class="sig-title">ACCOUNTANT SIGNATURE</div>
+                <div class="sig-sub">Prepared By: Admin {{ $adminId }}</div>
+            </td>
+            <td>
+                <div class="sig-line"></div>
+                <div class="sig-title">BRANCH AUTHORIZATION</div>
+                <div class="sig-sub">Seal & Signature</div>
+            </td>
+            <td>
+                <div class="sig-line"></div>
+                <div class="sig-title">SYSTEM VERIFICATION</div>
+                <div class="sig-sub">Auth Code: {{ substr(md5(date('YmdHis')), 0, 5) }}-BLK-CONT</div>
+            </td>
+        </tr>
+    </table>
+</div>
+
+{{-- ===== PAGE FOOTER ===== --}}
+<div class="pg-foot">
+    <div class="pg-foot-txt">
+        --- END OF PAYMENT COLLECTION RECEIPT SUMMARY REPORT (PAGE 1 OF 1) ---
+    </div>
+</div>
+
 </body>
 </html>

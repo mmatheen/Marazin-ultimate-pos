@@ -1,0 +1,902 @@
+﻿@extends('layout.layout')
+@section('title', 'Payment Report')
+
+@section('content')
+    <style>
+        /* ===================================
+           PRINT STYLES
+           =================================== */
+        @media print {
+            body {
+                font-size: 12px !important;
+                color: #000 !important;
+            }
+
+            .page-header, .dt-buttons, .student-group-form,
+            .btn-group, #advancedFilters, .no-print {
+                display: none !important;
+            }
+
+            .collection-group, .summary-card {
+                page-break-inside: avoid;
+            }
+
+            .collection-main-header {
+                background: #4a5568 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            @page {
+                margin: 0.5in;
+            }
+        }
+
+        /* ===================================
+           SUMMARY CARDS (TOP STATISTICS)
+           =================================== */
+        .summary-section {
+            margin-bottom: 24px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+        }
+
+        .summary-card {
+            background: white;
+            border-radius: 10px;
+            padding: 16px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            border-left: 4px solid;
+        }
+
+        .summary-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        }
+
+        .summary-card.total { border-left-color: #2563eb; }
+        .summary-card.cash { border-left-color: #16a34a; }
+        .summary-card.card { border-left-color: #9333ea; }
+        .summary-card.cheque { border-left-color: #ea580c; }
+        .summary-card.bank { border-left-color: #8b5cf6; }
+        .summary-card.other { border-left-color: #f59e0b; }
+
+        .summary-card-title {
+            font-size: 13px;
+            color: #6b7280;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .summary-card-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .summary-card.total .summary-card-value { color: #2563eb; }
+        .summary-card.cash .summary-card-value { color: #16a34a; }
+        .summary-card.card .summary-card-value { color: #9333ea; }
+        .summary-card.cheque .summary-card-value { color: #ea580c; }
+        .summary-card.bank .summary-card-value { color: #8b5cf6; }
+        .summary-card.other .summary-card-value { color: #f59e0b; }
+
+        .summary-card-percentage {
+            font-size: 11px;
+            color: #16a34a;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        /* ===================================
+           FILTERS SECTION
+           =================================== */
+        .filters-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            margin-bottom: 24px;
+        }
+
+        .filters-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .filters-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .form-group.local-forms {
+            margin-bottom: 16px;
+        }
+
+        .form-group.local-forms label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+
+        /* Select2 Styling */
+        .select2-container .select2-selection--single {
+            height: 42px !important;
+            border: 1px solid #d1d5db !important;
+            border-radius: 8px !important;
+            background-color: #fff !important;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            line-height: 40px !important;
+            padding-left: 14px !important;
+            color: #1f2937 !important;
+            font-size: 14px;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 40px !important;
+        }
+
+        .select2-container--default.select2-container--focus .select2-selection--single {
+            border-color: #667eea !important;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+        }
+
+        /* Date Range Picker */
+        #reportrange {
+            background: #fff;
+            cursor: pointer;
+            padding: 10px 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 42px;
+            transition: all 0.2s ease;
+        }
+
+        #reportrange:hover {
+            border-color: #667eea;
+        }
+
+        #reportrange i {
+            color: #6b7280;
+        }
+
+        #reportrange span {
+            flex: 1;
+            margin: 0 10px;
+            color: #1f2937;
+            font-size: 14px;
+        }
+
+        /* ===================================
+           COLLECTION GROUP - LEVEL 1
+           =================================== */
+        .collections-container {
+            margin-top: 24px;
+        }
+
+        .collection-group {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .collection-group:hover {
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .collection-main-header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+            color: white;
+            padding: 18px 24px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .collection-main-header:hover {
+            background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+        }
+
+        .collection-main-header.active {
+            background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+        }
+
+        .collection-header-left {
+            flex: 1;
+        }
+
+        .collection-reference {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .collection-reference i {
+            font-size: 20px;
+        }
+
+        .collection-meta {
+            font-size: 13px;
+            opacity: 0.95;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 8px;
+        }
+
+        .collection-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .collection-meta-item i {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .collection-header-right {
+            text-align: right;
+        }
+
+        .collection-total-amount {
+            font-size: 26px;
+            font-weight: 700;
+            color: #10b981;
+            margin-bottom: 4px;
+        }
+
+        .collection-payment-count {
+            font-size: 12px;
+            opacity: 0.9;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 4px 12px;
+            border-radius: 20px;
+            display: inline-block;
+        }
+
+        .collapse-icon {
+            font-size: 20px;
+            transition: transform 0.3s ease;
+            margin-left: 12px;
+        }
+
+        .collection-main-header.active .collapse-icon {
+            transform: rotate(180deg);
+        }
+
+        /* ===================================
+           PAYMENT METHOD TABS - LEVEL 2
+           =================================== */
+        .payment-method-tabs {
+            background: #f9fafb;
+            border-bottom: 2px solid #e5e7eb;
+            padding: 0;
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .payment-method-tab {
+            flex: 1;
+            min-width: 150px;
+            padding: 14px 20px;
+            text-align: center;
+            cursor: pointer;
+            background: #f3f4f6;
+            border-right: 1px solid #e5e7eb;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .payment-method-tab:last-child {
+            border-right: none;
+        }
+
+        .payment-method-tab:hover {
+            background: #e5e7eb;
+        }
+
+        .payment-method-tab.active {
+            background: #ffffff;
+            border-bottom: 3px solid;
+        }
+
+        .payment-method-tab.active.cheque {
+            border-bottom-color: #ea580c;
+        }
+
+        .payment-method-tab.active.cash {
+            border-bottom-color: #16a34a;
+        }
+
+        .payment-method-tab.active.card {
+            border-bottom-color: #9333ea;
+        }
+
+        .payment-method-tab.active.bank_transfer {
+            border-bottom-color: #0891b2;
+        }
+
+        .tab-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .payment-method-tab.active .tab-label {
+            color: #1f2937;
+        }
+
+        .tab-icon {
+            font-size: 18px;
+        }
+
+        .tab-count {
+            font-size: 11px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .tab-amount {
+            font-size: 15px;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+
+        .payment-method-tab.cheque .tab-amount {
+            color: #ea580c;
+        }
+
+        .payment-method-tab.cash .tab-amount {
+            color: #16a34a;
+        }
+
+        .payment-method-tab.card .tab-amount {
+            color: #9333ea;
+        }
+
+        .payment-method-tab.bank_transfer .tab-amount {
+            color: #0891b2;
+        }
+
+        /* ===================================
+           PAYMENT REFERENCE CARDS - LEVEL 3
+           =================================== */
+        .payment-references-container {
+            padding: 20px;
+            background: #fafbfc;
+        }
+
+        .payment-reference-card {
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+            border-left: 4px solid;
+            transition: all 0.3s ease;
+        }
+
+        .payment-reference-card.cheque {
+            border-left-color: #ea580c;
+        }
+
+        .payment-reference-card.cash {
+            border-left-color: #16a34a;
+        }
+
+        .payment-reference-card.card {
+            border-left-color: #9333ea;
+        }
+
+        .payment-reference-card.bank_transfer {
+            border-left-color: #0891b2;
+        }
+
+        .payment-reference-card:hover {
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+            transform: translateX(4px);
+        }
+
+        .reference-header {
+            padding: 16px 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f9fafb;
+            transition: all 0.2s ease;
+        }
+
+        .reference-header:hover {
+            background: #f3f4f6;
+        }
+
+        .reference-header.active {
+            background: #eff6ff;
+        }
+
+        .reference-left {
+            flex: 1;
+        }
+
+        .reference-number {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .reference-badge {
+            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .reference-badge.cheque {
+            background: #fed7aa;
+            color: #9a3412;
+        }
+
+        .reference-badge.cash {
+            background: #bbf7d0;
+            color: #166534;
+        }
+
+        .reference-badge.card {
+            background: #e9d5ff;
+            color: #6b21a8;
+        }
+
+        .reference-badge.bank_transfer {
+            background: #bfdbfe;
+            color: #1e40af;
+        }
+
+        .reference-details {
+            font-size: 13px;
+            color: #6b7280;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .reference-detail-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .reference-detail-item i {
+            font-size: 13px;
+            opacity: 0.7;
+        }
+
+        .reference-right {
+            text-align: right;
+        }
+
+        .reference-amount {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .payment-reference-card.cheque .reference-amount {
+            color: #ea580c;
+        }
+
+        .payment-reference-card.cash .reference-amount {
+            color: #16a34a;
+        }
+
+        .payment-reference-card.card .reference-amount {
+            color: #9333ea;
+        }
+
+        .payment-reference-card.bank_transfer .reference-amount {
+            color: #0891b2;
+        }
+
+        .reference-invoice-count {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .reference-expand-icon {
+            font-size: 16px;
+            color: #9ca3af;
+            transition: transform 0.3s ease;
+            margin-left: 12px;
+        }
+
+        .reference-header.active .reference-expand-icon {
+            transform: rotate(180deg);
+        }
+
+        /* ===================================
+           INVOICE SETTLEMENT TABLE - LEVEL 4
+           =================================== */
+        .invoice-settlement-table {
+            padding: 0;
+        }
+
+        .invoice-settlement-table table {
+            width: 100%;
+            margin: 0;
+            background: white;
+            font-size: 13px;
+        }
+
+        .invoice-settlement-table thead th {
+            background: #f9fafb;
+            color: #374151;
+            font-weight: 700;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 12px 16px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .invoice-settlement-table tbody td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f3f4f6;
+            color: #1f2937;
+            vertical-align: middle;
+        }
+
+        .invoice-settlement-table tbody tr:hover {
+            background: #f9fafb;
+        }
+
+        .invoice-settlement-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .invoice-link {
+            color: #2563eb;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .invoice-link:hover {
+            color: #1e40af;
+            text-decoration: underline;
+        }
+
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-badge.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-badge.cleared {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-badge.bounced {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .reference-footer {
+            background: #f9fafb;
+            padding: 14px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 2px solid #e5e7eb;
+        }
+
+        .reference-footer-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .reference-footer-amount {
+            font-size: 20px;
+            font-weight: 700;
+            color: #16a34a;
+        }
+
+        /* ===================================
+           EMPTY STATE
+           =================================== */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            color: #d1d5db;
+            margin-bottom: 16px;
+        }
+
+        .empty-state-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 8px;
+        }
+
+        .empty-state-text {
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        /* ===================================
+           RESPONSIVE DESIGN
+           =================================== */
+        @media (max-width: 1200px) {
+            .summary-grid {
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            }
+        }
+
+        @media (max-width: 768px) {
+            .collection-main-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .collection-header-right {
+                width: 100%;
+                text-align: left;
+            }
+
+            .collection-meta {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .payment-method-tabs {
+                flex-direction: column;
+            }
+
+            .payment-method-tab {
+                border-right: none;
+                border-bottom: 1px solid #e5e7eb;
+            }
+
+            .reference-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .reference-right {
+                width: 100%;
+                text-align: left;
+            }
+
+            .invoice-settlement-table {
+                overflow-x: auto;
+            }
+        }
+    </style>
+
+    <div class="content container-fluid">
+        <div class="row">
+            <!-- Page Header -->
+            <div class="page-header no-print">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h3 class="page-title">Payment Report</h3>
+                        <ul class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="#">Reports</a></li>
+                            <li class="breadcrumb-item active">Payment Report</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <div class="btn-group">
+                            <button class="btn btn-primary" id="exportPdf">
+                                <i class="fas fa-file-pdf me-2"></i>Export PDF
+                            </button>
+                            <button class="btn btn-success" id="exportExcel">
+                                <i class="fas fa-file-excel me-2"></i>Export Excel
+                            </button>
+                            <button class="btn btn-info" onclick="window.print()">
+                                <i class="fas fa-print me-2"></i>Print
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Statistics Cards -->
+            <div class="summary-section no-print">
+                <div class="summary-grid">
+                    <div class="summary-card total">
+                        <div class="summary-card-title">Total Payments</div>
+                        <div class="summary-card-value" id="totalPayments">Rs {{ number_format(['total_amount'], 2) }}</div>
+                        <div class="summary-card-percentage">100% of total</div>
+                    </div>
+                    <div class="summary-card cash">
+                        <div class="summary-card-title">Cash Payments</div>
+                        <div class="summary-card-value" id="cashPayments">Rs {{ number_format(['cash_total'], 2) }}</div>
+                        <div class="summary-card-percentage" id="cashPercentage">{{ ['total_amount'] > 0 ? round((['cash_total'] / ['total_amount']) * 100, 1) : 0 }}% of total</div>
+                    </div>
+                    <div class="summary-card card">
+                        <div class="summary-card-title">Card Payments</div>
+                        <div class="summary-card-value" id="cardPayments">Rs {{ number_format(['card_total'], 2) }}</div>
+                        <div class="summary-card-percentage" id="cardPercentage">{{ ['total_amount'] > 0 ? round((['card_total'] / ['total_amount']) * 100, 1) : 0 }}% of total</div>
+                    </div>
+                    <div class="summary-card cheque">
+                        <div class="summary-card-title">Cheque Payments</div>
+                        <div class="summary-card-value" id="chequePayments">Rs {{ number_format(['cheque_total'], 2) }}</div>
+                        <div class="summary-card-percentage" id="chequePercentage">{{ ['total_amount'] > 0 ? round((['cheque_total'] / ['total_amount']) * 100, 1) : 0 }}% of total</div>
+                    </div>
+                    <div class="summary-card bank">
+                        <div class="summary-card-title">Bank Transfers</div>
+                        <div class="summary-card-value" id="bankPayments">Rs {{ number_format(['bank_transfer_total'], 2) }}</div>
+                        <div class="summary-card-percentage" id="bankPercentage">{{ ['total_amount'] > 0 ? round((['bank_transfer_total'] / ['total_amount']) * 100, 1) : 0 }}% of total</div>
+                    </div>
+                    @if(['other_total'] > 0)
+                    <div class="summary-card other">
+                        <div class="summary-card-title">Other Methods</div>
+                        <div class="summary-card-value" id="otherPayments">Rs {{ number_format(['other_total'], 2) }}</div>
+                        <div class="summary-card-percentage" id="otherPercentage">{{ ['total_amount'] > 0 ? round((['other_total'] / ['total_amount']) * 100, 1) : 0 }}% of total</div>
+                    </div>
+                    @endif
+                </div>
+            </div>
+
+            <!-- Filters Card -->
+            <div class="filters-card no-print">
+                <div class="filters-header">
+                    <div class="filters-title">
+                        <i class="fas fa-filter me-2"></i>Filters
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#advancedFilters">
+                        <i class="fas fa-sliders-h me-1"></i>Advanced Filters
+                    </button>
+                </div>
+
+                <div class="row">
+                    <div class="col-lg-3 col-md-6">
+                        <div class="form-group local-forms">
+                            <label>Date Range</label>
+                            <div id="reportrange">
+                                <i class="far fa-calendar-alt"></i>
+                                <span></span>
+                                <i class="fas fa-caret-down"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-3 col-md-6">
+                        <div class="form-group local-forms">
+                            <label>Contact Type</label>
+                            <select class="form-control selectBox" id="contactTypeFilter">
+                                <option value="">All Contacts</option>
+                                <option value="customer">Customers</option>
+                                <option value="supplier">Suppliers</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-3 col-md-6">
+                        <div class="form-group local-forms">
+                            <label>Location</label>
+                            <select class="form-control selectBox" id="locationFilter">
+                                <option value="">All Locations</option>
+                                @foreach( as )
+                                    <option value="{{ ->id }}">{{ ->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-3 col-md-6">
+                        <div class="form-group local-forms">
+                            <label>Payment Method</label>
+                            <select class="form-control selectBox" id="paymentMethodFilter">
+                                <option value="">All Methods</option>
+                                <option value="cash">Cash</option>
+                                <option value="card">Card</option>
+                                <option value="cheque">Cheque</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Advanced Filters (Collapsible) -->
+                <div class="collapse" id="advancedFilters">
+                    <hr class="my-3">
+                    <div class="row">
+                        <div class="col-lg-4 col-md-6">
+                            <div class="form-group local-forms">
+                                <label id="contactFilterLabel">Customer/Supplier</label>
+                                <select class="form-control selectBox" id="customerFilter">
+                                    <option value="">All Customers</option>
+                                    @foreach( as )
+                                        <option value="{{ ->id }}">{{ ->first_name }} {{ ->last_name }}</option>
+                                    @endforeach
+                                </select>
+                                <select class="form-control selectBox d-none" id="supplierFilter">
+                                    <option value="">All Suppliers</option>
+                                    @foreach( as )
+                                        <option value="{{ ->id }}">{{ ->first_name }} {{ ->last_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-4 col-md-6">
+                            <div class="form-group local-forms">
+                                <label>Payment Type</label>
+                                <select class="form-control selectBox" id="paymentTypeFilter">
+                                    <option value="">All Types</option>
+                                    <option value="sale">Sale Payment</option>
+                                    <option value="purchase">Purchase Payment</option>
+                                    <option value="return">Return Payment</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Collections Container -->
+            <div class="collections-container" id="collectionsContainer">
+                <div class="text-center py-5">
+                    <i class="fas fa-spinner fa-spin fa-3x text-primary"></i>
+                    <p class="mt-3 text-muted">Loading payment data...</p>
+                </div>
+            </div>
+        </div>
+    </div>

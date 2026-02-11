@@ -1067,7 +1067,10 @@ public function fetchActivityLog(Request $request)
             ->orderBy('first_name')
             ->get();
 
-        return view('reports.payment_report', compact('locations', 'customers', 'suppliers', 'summaryData'));
+        // Get main/parent location for report header
+        $mainLocation = Location::whereNull('parent_id')->first();
+
+        return view('reports.payment_report', compact('locations', 'customers', 'suppliers', 'summaryData', 'mainLocation'));
     }
 
     /**
@@ -1354,9 +1357,41 @@ public function fetchActivityLog(Request $request)
             $collections = $this->getPaymentCollectionsForExport($request);
             $summaryData = $this->calculatePaymentSummary($request);
 
+            // Get main location for header
+            $mainLocation = Location::whereNull('parent_id')->first();
+
+            // Calculate payment method counts
+            $countQuery = \App\Models\Payment::query();
+            if ($request->has('start_date') && $request->start_date != '') {
+                $countQuery->whereDate('payment_date', '>=', $request->start_date);
+            }
+            if ($request->has('end_date') && $request->end_date != '') {
+                $countQuery->whereDate('payment_date', '<=', $request->end_date);
+            }
+            if ($request->has('customer_id') && $request->customer_id != '') {
+                $countQuery->where('customer_id', $request->customer_id);
+            }
+            if ($request->has('supplier_id') && $request->supplier_id != '') {
+                $countQuery->where('supplier_id', $request->supplier_id);
+            }
+            if ($request->has('payment_method') && $request->payment_method != '') {
+                $countQuery->where('payment_method', $request->payment_method);
+            }
+            if ($request->has('payment_type') && $request->payment_type != '') {
+                $countQuery->where('payment_type', $request->payment_type);
+            }
+
+            $paymentCounts = [
+                'cash' => (clone $countQuery)->where('payment_method', 'cash')->count(),
+                'cheque' => (clone $countQuery)->where('payment_method', 'cheque')->count(),
+                'card' => (clone $countQuery)->where('payment_method', 'card')->count(),
+                'bank_transfer' => (clone $countQuery)->where('payment_method', 'bank_transfer')->count(),
+                'total' => (clone $countQuery)->count(),
+            ];
+
             Log::info('PDF Export Collections Count:', ['count' => count($collections)]);
 
-            $pdf = Pdf::loadView('reports.payment_report_pdf', compact('collections', 'summaryData', 'request'))
+            $pdf = Pdf::loadView('reports.payment_report_pdf', compact('collections', 'summaryData', 'request', 'mainLocation', 'paymentCounts'))
                 ->setPaper('a4', 'portrait');
 
             $filename = 'payment-report-' . date('Y-m-d-H-i-s') . '.pdf';
@@ -1504,6 +1539,7 @@ public function fetchActivityLog(Request $request)
                     'cheque_number' => $payment->cheque_number,
                     'cheque_bank_branch' => $payment->cheque_bank_branch,
                     'cheque_valid_date' => $payment->cheque_valid_date,
+                    'cheque_status' => $payment->cheque_status,
                     'notes' => $payment->notes,
                 ];
             });
