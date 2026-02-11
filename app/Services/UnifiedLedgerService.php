@@ -199,12 +199,19 @@ class UnifiedLedgerService
             Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo') :
             Carbon::now('Asia/Colombo');
 
+        // ✅ SPECIAL HANDLING: Discount payment method should be recorded as 'discount_given', not 'payments'
+        // This allows proper reporting and audit trail while still being a CREDIT entry (reduces customer debt)
+        $transactionType = 'payments';
+        if ($payment->payment_method === 'discount') {
+            $transactionType = 'discount_given';
+        }
+
         return Ledger::createEntry([
             'contact_id' => $payment->customer_id,
             'contact_type' => 'customer',
             'transaction_date' => $transactionDate,
             'reference_no' => $referenceNo,
-            'transaction_type' => 'payments', // ✅ FIXED: Standardized to 'payments'
+            'transaction_type' => $transactionType,
             'amount' => $payment->amount,
             'notes' => $payment->notes ?: "Payment for sale #{$baseReferenceNo}",
             'created_by' => $createdBy

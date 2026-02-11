@@ -455,6 +455,18 @@ class Ledger extends Model
                 }
                 break;
 
+            case 'discount_given':
+                // Discount given to customer reduces what they owe (CREDIT - same as payment)
+                // This is used when payment_method = 'discount' in bulk payments
+                // Discount works like a payment - reduces customer's outstanding debt
+                if ($data['contact_type'] === 'customer') {
+                    $credit = $data['amount']; // Discount reduces customer's debt (credit entry, like payment)
+                } else {
+                    // Discount from supplier (reduces what we owe them)
+                    $debit = $data['amount'];
+                }
+                break;
+
             case 'opening_balance_adjustment':
                 // Opening balance adjustment for reversal accounting
                 // This handles the reversal entry in perfect reversal accounting
@@ -833,6 +845,7 @@ class Ledger extends Model
             'return_payment' => 'Return Payment',
             'opening_balance_payment' => 'Opening Balance Payment',
             'opening_balance_adjustment' => 'Opening Balance Adjustment',
+            'discount_given' => 'Discount Given',
             default => ucfirst(str_replace('_', ' ', $type))
         };
     }
