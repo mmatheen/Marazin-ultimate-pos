@@ -1331,7 +1331,7 @@
                         $('#locationDetails').text(location.name);
                         $('#salesDetails').text('Date: ' + saleDetails.sales_date +
                             ', Status: ' + saleDetails.status);
-                        
+
                         // Populate sales notes
                         $('#salesNotes').text(saleDetails.sale_notes || 'No notes available');
 
