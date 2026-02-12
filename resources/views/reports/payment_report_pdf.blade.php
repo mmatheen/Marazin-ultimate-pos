@@ -114,9 +114,7 @@
 
     if (!function_exists('fmtShort')) {
         function fmtShort($a) {
-            if ($a >= 1000000) return number_format($a / 1000000, 1) . 'M';
-            if ($a >= 100000) return number_format($a / 1000, 0) . 'K';
-            return number_format($a, 0);
+            return number_format($a, 2);
         }
     }
 
@@ -174,19 +172,19 @@
             </td>
             <td style="width:18.5%;text-align:center;">
                 <div class="sum-lbl">CASH ({{ $cCash }})</div>
-                <div class="sum-mval">{{ fmtShort($cashT) }} <span class="sum-pct">({{ $pCash }}%)</span></div>
+                <div class="sum-mval">{{ number_format($cashT, 2) }} <span class="sum-pct">({{ $pCash }}%)</span></div>
             </td>
             <td style="width:18.5%;text-align:center;">
                 <div class="sum-lbl">CHEQUE ({{ $cCheque }})</div>
-                <div class="sum-mval">{{ fmtShort($chequeT) }} <span class="sum-pct">({{ $pCheque }}%)</span></div>
+                <div class="sum-mval">{{ number_format($chequeT, 2) }} <span class="sum-pct">({{ $pCheque }}%)</span></div>
             </td>
             <td style="width:18.5%;text-align:center;">
                 <div class="sum-lbl">CARD ({{ $cCard }})</div>
-                <div class="sum-mval">{{ fmtShort($cardT) }} <span class="sum-pct">({{ $pCard }}%)</span></div>
+                <div class="sum-mval">{{ number_format($cardT, 2) }} <span class="sum-pct">({{ $pCard }}%)</span></div>
             </td>
             <td style="width:18.5%;text-align:center;">
                 <div class="sum-lbl">TRANSFER ({{ $cTransfer }})</div>
-                <div class="sum-mval">{{ fmtShort($bankT) }} <span class="sum-pct">({{ $pTransfer }}%)</span></div>
+                <div class="sum-mval">{{ number_format($bankT, 2) }} <span class="sum-pct">({{ $pTransfer }}%)</span></div>
             </td>
         </tr>
     </table>
@@ -227,6 +225,11 @@
                         <span class="coll-date">| &nbsp;{{ $collDate }}</span>
                         @if($collLoc)
                         <span class="coll-loc">{{ $collLoc }}</span>
+                        @endif
+                        @if($collNotes)
+                        <div style="font-size: 8px; color: #3b82f6; font-weight: 600; margin-top: 3px;">
+                            <strong>Note:</strong> {{ $collNotes }}
+                        </div>
                         @endif
                     </td>
                     <td style="width:30%;">
@@ -357,7 +360,7 @@
     @if($shownCount >= $maxPerPage && $cIdx < $totalColls - 1)
         @php $remaining = $totalColls - $shownCount; @endphp
         <div class="cont-note">
-            ... CONTINUE HIGH-DENSITY LIST: {{ $remaining }} ADDITIONAL RECEIPTS ...
+            ... CONTINUE HIGH-DENSITY LIST: {{ $remaining }} MORE COLLECTION RECEIPTS ...
         </div>
         @break
     @endif

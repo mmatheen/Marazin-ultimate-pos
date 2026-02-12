@@ -23,18 +23,18 @@
 }
 
 /* Summary Cards - Top Level Statistics */
-.summary-section { margin-bottom: 24px; }
+.summary-section { margin-bottom: 16px; }
 .summary-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 16px;
+    gap: 12px;
 }
 .summary-card {
     background: white;
-    border-radius: 10px;
-    padding: 16px;
+    border-radius: 8px;
+    padding: 12px;
     text-align: center;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     transition: all 0.3s ease;
     border-left: 4px solid;
 }
@@ -74,19 +74,19 @@
 /* Filters Card */
 .filters-card {
     background: white;
-    border-radius: 10px;
-    padding: 20px;
+    border-radius: 8px;
+    padding: 16px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    margin-bottom: 24px;
+    margin-bottom: 16px;
 }
 .filters-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 12px;
 }
-.filters-title { font-size: 16px; font-weight: 700; color: #1f2937; }
-.form-group.local-forms { margin-bottom: 16px; }
+.filters-title { font-size: 14px; font-weight: 700; color: #1f2937; }
+.form-group.local-forms { margin-bottom: 12px; }
 .form-group.local-forms label {
     font-size: 13px;
     font-weight: 600;
@@ -156,13 +156,15 @@
 .collection-main-header {
     background: #f8f9fa;
     color: #1f2937;
-    padding: 18px 24px;
+    padding: 12px 16px;
     cursor: pointer;
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
+    gap: 12px;
     transition: all 0.3s ease;
     border-bottom: 2px solid #e5e7eb;
+    flex-wrap: wrap;
 }
 .collection-main-header:hover {
     background: #e9ecef;
@@ -171,52 +173,57 @@
     background: #ffffff;
     border-bottom: 2px solid #3b82f6;
 }
-.collection-header-left { flex: 1; }
+.collection-header-left { flex: 1; min-width: 250px; }
 .collection-reference {
-    font-size: 18px;
+    font-size: 15px;
     font-weight: 700;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     color: #1f2937;
+    word-break: break-word;
 }
-.collection-reference i { font-size: 20px; color: #4b5563; }
+.collection-reference i { font-size: 16px; color: #4b5563; flex-shrink: 0; }
 .collection-meta {
-    font-size: 13px;
+    font-size: 12px;
     color: #6b7280;
     display: flex;
     flex-wrap: wrap;
-    gap: 20px;
-    margin-top: 8px;
+    gap: 12px;
+    margin-top: 6px;
 }
 .collection-meta-item {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     color: #6b7280;
+    white-space: nowrap;
+    font-size: 12px;
 }
-.collection-meta-item i { font-size: 14px; color: #9ca3af; }
-.collection-header-right { text-align: right; }
+.collection-meta-item i { font-size: 13px; color: #9ca3af; flex-shrink: 0; }
+.collection-header-right { text-align: right; white-space: nowrap; flex-shrink: 0; }
 .collection-total-amount {
-    font-size: 26px;
+    font-size: 24px;
     font-weight: 700;
     color: #10b981;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
+    letter-spacing: -0.5px;
 }
 .collection-payment-count {
-    font-size: 12px;
-    background: #e0e7ff;
-    color: #3730a3;
-    padding: 4px 12px;
-    border-radius: 20px;
+    font-size: 11px;
+    background: #dbeafe;
+    color: #1e40af;
+    padding: 4px 10px;
+    border-radius: 16px;
     display: inline-block;
     font-weight: 600;
+    white-space: nowrap;
 }
 .collapse-icon {
-    font-size: 20px;
+    font-size: 18px;
     transition: transform 0.3s ease;
-    margin-left: 12px;
+    color: #6b7280;
 }
 .collection-main-header.active .collapse-icon { transform: rotate(180deg); }
 
@@ -652,6 +659,18 @@ function formatCurrency(amount, decimals = 2) {
     });
 }
 
+function escapeHtml(text) {
+    if (!text) return '';
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.toString().replace(/[&<>"']/g, m => map[m]);
+}
+
 function getPaymentMethodConfig(method) {
     const methodLower = method.toLowerCase();
     return PAYMENT_METHOD_CONFIG[methodLower] || {
@@ -773,7 +792,7 @@ $(document).ready(function() {
                             <div class="collection-meta">
                                 <div class="collection-meta-item">
                                     <i class="fas fa-user"></i>
-                                    <span>${collection.customer_name || 'N/A'}</span>
+                                    <span>${escapeHtml(collection.customer_name || 'N/A')}</span>
                                 </div>
                                 <div class="collection-meta-item">
                                     <i class="fas fa-calendar"></i>
@@ -782,13 +801,15 @@ $(document).ready(function() {
                                 ${collection.location ? `
                                 <div class="collection-meta-item">
                                     <i class="fas fa-map-marker-alt"></i>
-                                    <span>${collection.location}</span>
+                                    <span>${escapeHtml(collection.location)}</span>
                                 </div>
                                 ` : ''}
                                 ${collectionNotes ? `
-                                <div class="collection-meta-item" style="flex-basis: 100%; margin-top: 6px;">
-                                    <i class="fas fa-sticky-note"></i>
-                                    <span style="color: #3b82f6; font-weight: 600;">${collectionNotes}</span>
+                                <div style="flex-basis: 100%; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
+                                    <div style="display: flex; align-items: flex-start; gap: 6px;">
+                                        <i class="fas fa-sticky-note" style="color: #3b82f6; font-size: 12px; margin-top: 2px; flex-shrink: 0;"></i>
+                                        <span style="color: #1f2937; font-weight: 600; font-size: 12px; line-height: 1.4;">${escapeHtml(collectionNotes)}</span>
+                                    </div>
                                 </div>
                                 ` : ''}
                             </div>
@@ -949,7 +970,7 @@ $(document).ready(function() {
                         html += `
                                         <div class="reference-detail-item" style="flex-basis: 100%; margin-top: 4px;">
                                             <i class="fas fa-sticky-note"></i>
-                                            <span style="color: #3b82f6; font-weight: 500;">${firstPayment.notes}</span>
+                                            <span style="color: #3b82f6; font-weight: 500;">${escapeHtml(firstPayment.notes)}</span>
                                         </div>
                         `;
                     }
@@ -989,7 +1010,7 @@ $(document).ready(function() {
                                 <td>${formatCurrency(payment.invoice_value)}</td>
                                 <td class="fw-bold text-success">${formatCurrency(payment.amount)}</td>
                                 <td><span class="badge bg-info">${payment.payment_type}</span></td>
-                                <td><small class="text-muted">${payment.notes || '-'}</small></td>
+                                <td><small class="text-muted">${escapeHtml(payment.notes) || '-'}</small></td>
                             </tr>
                         `;
                     });
