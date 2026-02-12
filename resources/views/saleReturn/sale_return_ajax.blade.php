@@ -718,15 +718,15 @@
 
 
             function addProductToTable(product) {
+                const stockDisplay = product.total_stock !== undefined && product.total_stock !== null ? product.total_stock : 0;
                 const newRow = `
                 <tr>
                     <td></td>
                     <td>${product.label} <br> ${product.sku}</td>
                     <td>Rs. ${product.retail_price.toFixed(2)}</td>
-                    <td>${product.total_stock !== undefined && product.total_stock !== null ? product.total_stock : 0} Pcs</td>
+                    <td>${stockDisplay} Pcs</td>
                     <td>
-                        <input type="number" class="form-control return-quantity" name="products[${product.value}][quantity]" placeholder="Enter qty (optional)" max="${product.total_stock}" data-unit-price="${product.retail_price}" data-product-id="${product.value}">
-                        <div class="quantity-error">Quantity cannot exceed<br>the available amount.</div>
+                        <input type="number" class="form-control return-quantity" name="products[${product.value}][quantity]" placeholder="Enter qty" min="1" step="any" data-unit-price="${product.retail_price}" data-product-id="${product.value}">
                     </td>
                     <td class="return-subtotal">Rs. 0.00</td>
                     <td><button type="button" class="btn btn-danger remove-product"><i class="fas fa-trash-alt"></i></button></td>
@@ -737,18 +737,14 @@
                 updateRowNumbers();
                 calculateReturnTotal();
 
-                $(".return-quantity").on('input', function() {
-                    const max = parseInt($(this).attr('max'));
-                    let quantity = parseInt($(this).val());
+                $(".return-quantity").off('input').on('input', function() {
+                    let quantity = parseFloat($(this).val()) || 0;
                     const unitPrice = parseFloat($(this).data('unit-price'));
-                    const errorDiv = $(this).siblings('.quantity-error');
 
-                    if (quantity > max) {
-                        quantity = max;
+                    // For without-bill returns, no max stock limit — returns restore stock
+                    if (quantity < 0) {
+                        quantity = 0;
                         $(this).val(quantity);
-                        errorDiv.html('Quantity cannot exceed<br>the available amount.').show();
-                    } else {
-                        errorDiv.hide();
                     }
 
                     const returnSubtotal = quantity * unitPrice;

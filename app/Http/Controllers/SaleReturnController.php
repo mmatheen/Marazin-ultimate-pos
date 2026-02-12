@@ -448,13 +448,22 @@ class SaleReturnController extends Controller
     private function restockBatchStock($batchId, $locationId, $quantity, $stockType)
     {
         $batch = Batch::findOrFail($batchId);
-        $locationBatch = LocationBatch::where('batch_id', $batch->id)
-            ->where('location_id', $locationId)
-            ->firstOrFail();
+
+        // Use firstOrCreate to handle cases where LocationBatch doesn't exist
+        // for this batch+location combination (e.g., product sold from a different
+        // location, or LocationBatch record was missing)
+        $locationBatch = LocationBatch::firstOrCreate(
+            [
+                'batch_id' => $batch->id,
+                'location_id' => $locationId,
+            ],
+            [
+                'qty' => 0,
+            ]
+        );
 
         // Restock stock to location batch
         $locationBatch->increment('qty', $quantity);
-
 
         // Create stock history record
         StockHistory::create([
