@@ -199,6 +199,42 @@
         let isEditing = false;
         let currentEditingSaleId = null; // Track the sale ID being edited
         let isEditingFinalizedSale = false; // Track if editing a finalized sale with invoice
+
+        // ✅ Navigate to POS create page without full page refresh
+        function navigateToPosCreate() {
+            console.log('🔄 Navigating to POS create (no page refresh)');
+            // Update URL without page refresh
+            window.history.pushState({ page: 'pos-create' }, 'POS', '/pos-create');
+            // Reset editing state
+            isEditing = false;
+            currentEditingSaleId = null;
+            isEditingFinalizedSale = false;
+            window.originalSaleData = null;
+            // Reset the invoice number display
+            const saleInvoiceElement = document.getElementById('sale-invoice-no');
+            if (saleInvoiceElement) {
+                saleInvoiceElement.textContent = '';
+            }
+            // Update page title
+            document.title = 'POS - Create Sale';
+            // Reset form to clean state
+            resetForm();
+            // Focus search input
+            setTimeout(() => {
+                const searchInput = document.getElementById('productSearchInput');
+                if (searchInput) {
+                    searchInput.focus();
+                    searchInput.select();
+                }
+            }, 100);
+        }
+
+        // Handle browser back/forward button
+        window.addEventListener('popstate', function(event) {
+            if (window.location.pathname === '/pos-create') {
+                navigateToPosCreate();
+            }
+        });
         let isSalesRep = false; // Track if current user is a sales rep
         let salesRepCustomersFiltered = false; // Track if sales rep customer filtering has been applied
         let salesRepCustomersLoaded = false; // Track if customers have been loaded for this session
@@ -9314,11 +9350,11 @@
                                     progressBar: true
                                 });
 
-                                // 🔄 Redirect to POS page after Sale Order update (edit mode)
+                                // 🔄 Navigate to POS page after Sale Order update (edit mode)
                                 if (saleId && window.location.pathname.includes('/edit/')) {
-                                    // Don't reset form for sale orders in edit mode - just redirect
+                                    // Don't reset form for sale orders in edit mode - just navigate
                                     setTimeout(() => {
-                                        window.location.href = '/pos-create';
+                                        navigateToPosCreate();
                                     }, 1500); // Small delay to show success message
                                     if (onComplete) onComplete();
                                     return; // Exit early to prevent form reset
@@ -9333,12 +9369,12 @@
                             } else {
                                 toastr.success(response.message);
 
-                                // 🔄 Redirect to POS page after Draft/Quotation update (edit mode)
+                                // 🔄 Navigate to POS page after Draft/Quotation update (edit mode)
                                 // Check if editing draft or quotation
                                 if (saleId && window.location.pathname.includes('/edit/') &&
                                     (saleData.status === 'draft' || saleData.status === 'quotation')) {
                                     setTimeout(() => {
-                                        window.location.href = '/pos-create';
+                                        navigateToPosCreate();
                                     }, 1500); // Small delay to show success message
                                     if (onComplete) onComplete();
                                     return; // Exit early to prevent form reset
@@ -9391,7 +9427,7 @@
                                                     const checkClosed = setInterval(() => {
                                                         if (printWindow.closed) {
                                                             clearInterval(checkClosed);
-                                                            window.location.href = '/pos-create';
+                                                            navigateToPosCreate();
                                                         }
                                                     }, 100);
                                                     setTimeout(() => clearInterval(checkClosed), 30000);
@@ -9442,9 +9478,9 @@
                                                 // Clean up iframe after print
                                                 setTimeout(() => {
                                                     if (document.body.contains(iframe)) document.body.removeChild(iframe);
-                                                    // Redirect for edit page
+                                                    // Navigate for edit page
                                                     if (saleId && window.location.pathname.includes('/edit/')) {
-                                                        window.location.href = '/pos-create';
+                                                        navigateToPosCreate();
                                                     } else {
                                                         // 🎯 Fallback: Focus search input after cleanup
                                                         setTimeout(() => {
@@ -11197,8 +11233,8 @@
                                     const checkClosed = setInterval(() => {
                                         if (printWindow.closed) {
                                             clearInterval(checkClosed);
-                                            console.log('Mobile print window closed, redirecting to POS immediately...');
-                                            window.location.href = '/pos-create';
+                                            console.log('Mobile print window closed, navigating to POS immediately...');
+                                            navigateToPosCreate();
                                         }
                                     }, 100); // Faster detection for immediate redirect
 
@@ -11206,8 +11242,8 @@
                                     setTimeout(() => {
                                         clearInterval(checkClosed);
                                         if (!printWindow.closed) {
-                                            console.log('Mobile print window still open after 30s, redirecting anyway...');
-                                            window.location.href = '/pos-create';
+                                            console.log('Mobile print window still open after 30s, navigating anyway...');
+                                            navigateToPosCreate();
                                         }
                                     }, 30000);
                                 } else {
@@ -11275,11 +11311,11 @@
                                             document.body.removeChild(iframe);
                                         }
 
-                                        // Redirect to POS after cleanup if this is an edit
+                                        // Navigate to POS after cleanup if this is an edit
                                         if (window.location.pathname.includes('/edit/')) {
-                                            console.log('Desktop print completed, redirecting to POS immediately...');
-                                            // Immediate redirect - no delay
-                                            window.location.href = '/pos-create';
+                                            console.log('Desktop print completed, navigating to POS immediately...');
+                                            // Immediate navigate - no delay
+                                            navigateToPosCreate();
                                         } else {
                                             // 🎯 Non-edit mode: Focus search input after cleanup
                                             setTimeout(() => {
@@ -11322,8 +11358,8 @@
                                 const checkClosed = setInterval(() => {
                                     if (printWindow.closed) {
                                         clearInterval(checkClosed);
-                                        console.log('Fallback print window closed, redirecting to POS immediately...');
-                                        window.location.href = '/pos-create';
+                                        console.log('Fallback print window closed, navigating to POS immediately...');
+                                        navigateToPosCreate();
                                     }
                                 }, 100); // Faster detection for immediate redirect
 
@@ -11331,8 +11367,8 @@
                                 setTimeout(() => {
                                     clearInterval(checkClosed);
                                     if (!printWindow.closed) {
-                                        console.log('Fallback print window still open after 30s, redirecting anyway...');
-                                        window.location.href = '/pos-create';
+                                        console.log('Fallback print window still open after 30s, navigating anyway...');
+                                        navigateToPosCreate();
                                     }
                                 }, 30000);
                             }
@@ -11347,10 +11383,10 @@
                     const printWindow = window.open(`/sales/print-recent-transaction/${saleId}`, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
                     if (!printWindow) {
                         toastr.error('Print window was blocked. Please allow pop-ups and try again.');
-                        // Still redirect after error if this is an edit
+                        // Still navigate after error if this is an edit
                         if (window.location.pathname.includes('/edit/')) {
                             setTimeout(() => {
-                                window.location.href = '/pos-create';
+                                navigateToPosCreate();
                             }, 2000);
                         }
                     } else {
@@ -11361,8 +11397,8 @@
                             const checkClosed = setInterval(() => {
                                 if (printWindow.closed) {
                                     clearInterval(checkClosed);
-                                    console.log('Error fallback print window closed, redirecting to POS immediately...');
-                                    window.location.href = '/pos-create';
+                                    console.log('Error fallback print window closed, navigating to POS immediately...');
+                                    navigateToPosCreate();
                                 }
                             }, 100); // Faster detection for immediate redirect
 
@@ -11370,8 +11406,8 @@
                             setTimeout(() => {
                                 clearInterval(checkClosed);
                                 if (!printWindow.closed) {
-                                    console.log('Error fallback print window still open after 30s, redirecting anyway...');
-                                    window.location.href = '/pos-create';
+                                    console.log('Error fallback print window still open after 30s, navigating anyway...');
+                                    navigateToPosCreate();
                                 }
                             }, 30000);
                         }
