@@ -93,7 +93,7 @@
     $companyName = isset($mainLocation) && $mainLocation ? ($mainLocation->name ?? 'ENTERPRISE ERP SYSTEMS') : 'ENTERPRISE ERP SYSTEMS';
     $companyDiv = isset($mainLocation) && $mainLocation ? ($mainLocation->address ?? 'Commercial Division • Regional HQ') : 'Commercial Division • Regional HQ';
     $companyInitial = strtoupper(substr($companyName, 0, 1));
-    $adminId = auth()->check() ? (auth()->user()->id ?? 'N/A') : 'N/A';
+    $adminId = auth()->check() ? (auth()->user()->full_name ?? auth()->user()->name ?? 'N/A') : 'N/A';
     $dateFrom = isset($request) && $request->start_date ? \Carbon\Carbon::parse($request->start_date)->format('M d') : 'All';
     $dateTo = isset($request) && $request->end_date ? \Carbon\Carbon::parse($request->end_date)->format('M d, Y') : 'All';
     $dateYear = isset($request) && $request->start_date ? \Carbon\Carbon::parse($request->start_date)->format(', Y') : '';
