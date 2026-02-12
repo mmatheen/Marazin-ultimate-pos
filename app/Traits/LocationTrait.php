@@ -8,7 +8,12 @@ use Illuminate\Support\Facades\Auth;
 
 trait LocationTrait
 {
-    protected static $bypassLocationScope = false;
+    /**
+     * Per-instance bypass flag. This is an instance property (not static)
+     * so bypassing on one model query does NOT leak into other queries
+     * on the same model class within the same request.
+     */
+    public bool $bypassLocationScope = false;
 
     protected static function booted()
     {
@@ -19,20 +24,14 @@ trait LocationTrait
                 $user = auth()->user();
                 if ($user) {
                     try {
-                        // Use dynamic property access to avoid static analysis issues
                         if (method_exists($user, 'locations')) {
-                            /** @var \Illuminate\Database\Eloquent\Collection $userLocations */
                             $userLocations = call_user_func([$user, 'locations'])->get();
                             if ($userLocations->isNotEmpty()) {
                                 $model->location_id = $userLocations->first()->id;
                             }
                         }
                     } catch (\Exception $e) {
-                        // If locations method doesn't exist or fails, skip auto-assignment
-                        \Illuminate\Support\Facades\Log::debug('LocationTrait: Could not auto-assign location', [
-                            'user_id' => $user->id,
-                            'error' => $e->getMessage()
-                        ]);
+                        // Skip auto-assignment on failure
                     }
                 }
             }
@@ -40,27 +39,22 @@ trait LocationTrait
     }
 
     /**
-     * Scope to bypass location scope
+     * Scope to bypass location scope for THIS query only.
+     * Uses Eloquent's built-in withoutGlobalScope() so the bypass
+     * is query-scoped and automatically cleaned up.
+     *
+     * Usage: Model::withoutLocationScope()->where(...)->get()
      */
     public function scopeWithoutLocationScope($query)
     {
-        static::$bypassLocationScope = true;
-        return $query;
+        return $query->withoutGlobalScope(LocationScope::class);
     }
 
     /**
-     * Check if location scope should be bypassed
+     * Check if location scope should be bypassed for this model instance.
      */
-    public function shouldBypassLocationScope()
+    public function shouldBypassLocationScope(): bool
     {
-        return (bool) static::$bypassLocationScope;
-    }
-
-    /**
-     * Reset the bypass flag (optional)
-     */
-    public static function resetLocationScope()
-    {
-        static::$bypassLocationScope = false;
+        return $this->bypassLocationScope;
     }
 }
