@@ -1690,6 +1690,33 @@ class SaleController extends Controller
                             $totalPaid += $request->floating_balance_amount;
                         }
 
+                        // ✅ NEW: Handle excess payment saved as customer advance
+                        if ($request->save_excess_as_advance && $request->excess_amount > 0 && $sale->customer_id != 1) {
+                            $excessAmount = floatval($request->excess_amount);
+
+                            // Prepare advance payment data
+                            $advancePaymentData = [
+                                'payment_date' => now(),
+                                'amount' => $excessAmount,
+                                'payment_method' => 'cash', // Excess is from cash payment
+                                'reference_no' => 'ADV-' . $sale->invoice_no,
+                                'notes' => 'Customer advance from excess payment on invoice ' . $sale->invoice_no,
+                                'payment_status' => 'completed',
+                                'customer_id' => $sale->customer_id,
+                                'location_id' => $sale->location_id,
+                            ];
+
+                            // Use PaymentService to record advance payment (handles ledger automatically)
+                            $this->paymentService->recordCustomerAdvancePayment($advancePaymentData);
+
+                            Log::info('💰 Excess payment saved as customer advance', [
+                                'sale_id' => $sale->id,
+                                'customer_id' => $sale->customer_id,
+                                'advance_amount' => $excessAmount,
+                                'invoice_no' => $sale->invoice_no
+                            ]);
+                        }
+
                         // ✨ PERFORMANCE FIX: Single update for payment status
                         // ✅ FIX: Calculate payment status for all transaction types (invoice, Normal, etc.)
                         $totalDue = max(0, $sale->final_total - $totalPaid);

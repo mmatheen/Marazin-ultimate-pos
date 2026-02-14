@@ -831,4 +831,48 @@ class PaymentService
             'payments' => $payments
         ];
     }
+
+    /**
+     * Record customer advance payment (excess payment saved as credit)
+     * ✅ Handles payment creation and ledger recording
+     *
+     * @param array $paymentData
+     * @return Payment
+     */
+    public function recordCustomerAdvancePayment(array $paymentData): Payment
+    {
+        return DB::transaction(function () use ($paymentData) {
+            // Create advance payment record
+            $payment = Payment::create([
+                'customer_id' => $paymentData['customer_id'],
+                'payment_type' => 'advance',
+                'reference_id' => null, // No specific reference for advance
+                'reference_no' => $paymentData['reference_no'],
+                'amount' => $paymentData['amount'],
+                'payment_method' => $paymentData['payment_method'] ?? 'cash',
+                'payment_date' => $paymentData['payment_date'] ?? now(),
+                'notes' => $paymentData['notes'] ?? 'Customer advance payment',
+                'payment_status' => 'completed',
+                'status' => 'active',
+                'location_id' => $paymentData['location_id'] ?? null,
+                'user_id' => auth()->id()
+            ]);
+
+            // Record in unified ledger as advance payment (CREDIT entry - reduces customer debt)
+            $this->unifiedLedgerService->recordAdvancePayment(
+                $payment,
+                'customer',
+                auth()->id()
+            );
+
+            Log::info('PaymentService: Customer advance payment recorded', [
+                'payment_id' => $payment->id,
+                'customer_id' => $payment->customer_id,
+                'amount' => $payment->amount,
+                'reference_no' => $payment->reference_no
+            ]);
+
+            return $payment;
+        });
+    }
 }

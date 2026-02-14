@@ -9846,6 +9846,22 @@
                     saleData.amount_given = amountGiven;
                     saleData.balance_amount = Math.max(0, balance); // Prevent negatives
 
+                    // Check if user chose to save excess as advance
+                    const excessPaymentAction = sessionStorage.getItem('excessPaymentAction');
+                    const excessPaymentAmount = parseFloat(sessionStorage.getItem('excessPaymentAmount')) || 0;
+
+                    if (excessPaymentAction === 'save_advance' && excessPaymentAmount > 0 && balance > 0) {
+                        saleData.save_excess_as_advance = true;
+                        saleData.excess_amount = excessPaymentAmount;
+                        console.log('💰 Excess payment will be saved as advance:', excessPaymentAmount);
+                    } else {
+                        saleData.save_excess_as_advance = false;
+                    }
+
+                    // Clear session storage after reading
+                    sessionStorage.removeItem('excessPaymentAction');
+                    sessionStorage.removeItem('excessPaymentAmount');
+
                     // Block partial payment for Walk-In Customer
                     if (isWalkInCustomer && paidAmount < totalAmount) {
                         toastr.error(
@@ -10069,6 +10085,19 @@
                         enableButton(button);
                         return;
                     }
+
+                    // Check if user chose to save excess as advance (from amount given flow)
+                    const excessPaymentAction = sessionStorage.getItem('excessPaymentAction');
+                    const excessPaymentAmount = parseFloat(sessionStorage.getItem('excessPaymentAmount')) || 0;
+
+                    if (excessPaymentAction === 'save_advance' && excessPaymentAmount > 0) {
+                        saleData.save_excess_as_advance = true;
+                        saleData.excess_amount = excessPaymentAmount;
+                    }
+
+                    // Clear session storage after reading
+                    sessionStorage.removeItem('excessPaymentAction');
+                    sessionStorage.removeItem('excessPaymentAmount');
 
                     saleData.payments = gatherCardPaymentData();
                     sendSaleData(saleData, null, () => {
@@ -10648,29 +10677,68 @@
 
                     if (balance > 0) {
                         const formattedBalance = formatAmountWithSeparators(balance.toFixed(2));
+                        const customerId = $('#customer-id').val();
+                        const isWalkInCustomer = customerId == 1;
 
-                        swal({
-                            title: "Return Amount",
-                            text: `<div style="text-align: center; font-size: 24px; font-weight: bold; color: #2ecc71; margin: 20px 0;">
-                                      <div style="font-size: 18px; color: #7f8c8d; margin-bottom: 10px;">Balance amount to be returned</div>
-                                      <div style="font-size: 32px; color: #e74c3c;">Rs. ${formattedBalance}</div>
-                                   </div>`,
-                            html: true,
-                            type: "info",
-                            showCancelButton: false,
-                            confirmButtonText: "OK",
-                            allowOutsideClick: false,
-                            allowEscapeKey: true,
-                            closeOnEsc: true
-                        }, function(isConfirm) {
-                            // Reset flag whether OK clicked or ESC pressed
-                            isProcessingAmountGiven = false;
+                        // For Walk-In customers, just show return amount (no advance option)
+                        if (isWalkInCustomer) {
+                            swal({
+                                title: "Return Amount",
+                                text: `<div style="text-align: center; font-size: 24px; font-weight: bold; color: #2ecc71; margin: 20px 0;">
+                                          <div style="font-size: 18px; color: #7f8c8d; margin-bottom: 10px;">Balance amount to be returned</div>
+                                          <div style="font-size: 32px; color: #e74c3c;">Rs. ${formattedBalance}</div>
+                                       </div>`,
+                                html: true,
+                                type: "info",
+                                showCancelButton: false,
+                                confirmButtonText: "OK",
+                                allowOutsideClick: false,
+                                allowEscapeKey: true,
+                                closeOnEsc: true
+                            }, function(isConfirm) {
+                                isProcessingAmountGiven = false;
+                                if (isConfirm) {
+                                    $('#cashButton').trigger('click');
+                                }
+                            });
+                        } else {
+                            // For regular customers, show option to save as advance
+                            swal({
+                                title: "Excess Payment Received",
+                                text: `<div style="text-align: center; margin: 20px 0;">
+                                          <div style="font-size: 18px; color: #7f8c8d; margin-bottom: 10px;">Excess Amount Received</div>
+                                          <div style="font-size: 32px; color: #e74c3c; margin-bottom: 20px;">Rs. ${formattedBalance}</div>
+                                          <div style="font-size: 16px; color: #34495e; margin-top: 15px;">
+                                              How would you like to handle this amount?
+                                          </div>
+                                       </div>`,
+                                html: true,
+                                type: "warning",
+                                showCancelButton: true,
+                                confirmButtonText: "💰 Save as Advance",
+                                confirmButtonColor: "#3498db",
+                                cancelButtonText: "💵 Return Cash",
+                                cancelButtonColor: "#27ae60",
+                                allowOutsideClick: false,
+                                allowEscapeKey: true,
+                                closeOnEsc: true
+                            }, function(saveAsAdvance) {
+                                isProcessingAmountGiven = false;
 
-                            // Only proceed with cash button if OK was clicked
-                            if (isConfirm) {
+                                // Store the decision in sessionStorage for the payment processing
+                                if (saveAsAdvance) {
+                                    sessionStorage.setItem('excessPaymentAction', 'save_advance');
+                                    sessionStorage.setItem('excessPaymentAmount', balance);
+                                    toastr.success(`Rs. ${formattedBalance} will be saved as customer advance credit`, '💰 Advance Credit');
+                                } else {
+                                    sessionStorage.setItem('excessPaymentAction', 'return_cash');
+                                    sessionStorage.setItem('excessPaymentAmount', balance);
+                                    toastr.info(`Rs. ${formattedBalance} will be returned to customer`, '💵 Return Cash');
+                                }
+
                                 $('#cashButton').trigger('click');
-                            }
-                        });
+                            });
+                        }
                     } else {
                         isProcessingAmountGiven = false;
                         $('#cashButton').trigger('click');
