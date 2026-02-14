@@ -10656,9 +10656,8 @@
             $('#amount-given').on('keyup', function(event) {
                 if (event.key === 'Enter') {
                     // Prevent double processing
-
-
                     if (isProcessingAmountGiven) {
+                        console.log('Already processing amount given, skipping...');
                         return;
                     }
                     isProcessingAmountGiven = true;
@@ -10697,47 +10696,90 @@
                                 closeOnEsc: true
                             }, function(isConfirm) {
                                 isProcessingAmountGiven = false;
-                                if (isConfirm) {
+                                if (isConfirm === true) {
                                     $('#cashButton').trigger('click');
+                                } else {
+                                    console.log('Walk-in modal dismissed without confirmation');
                                 }
                             });
                         } else {
                             // For regular customers, show option to save as advance
+                            // NOTE: SweetAlert v1 callback doesn't fire on ESC when showConfirmButton=false,
+                            // so we use a MutationObserver to detect modal close and reset the flag.
+                            let userMadeChoice = false;
+
                             swal({
                                 title: "Excess Payment Received",
                                 text: `<div style="text-align: center; margin: 20px 0;">
                                           <div style="font-size: 18px; color: #7f8c8d; margin-bottom: 10px;">Excess Amount Received</div>
                                           <div style="font-size: 32px; color: #e74c3c; margin-bottom: 20px;">Rs. ${formattedBalance}</div>
-                                          <div style="font-size: 16px; color: #34495e; margin-top: 15px;">
+                                          <div style="font-size: 16px; color: #34495e; margin-top: 15px; margin-bottom: 20px;">
                                               How would you like to handle this amount?
+                                          </div>
+                                          <div style="display: flex; gap: 12px; justify-content: center; margin-top: 20px;">
+                                              <button id="btnReturnCash" type="button" style="padding: 12px 24px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; background-color: #27ae60; color: white; font-weight: bold;">
+                                                  💵 Return Cash
+                                              </button>
+                                              <button id="btnSaveAdvance" type="button" style="padding: 12px 24px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; background-color: #3498db; color: white; font-weight: bold;">
+                                                  💰 Save as Advance
+                                              </button>
                                           </div>
                                        </div>`,
                                 html: true,
                                 type: "warning",
-                                showCancelButton: true,
-                                confirmButtonText: "💰 Save as Advance",
-                                confirmButtonColor: "#3498db",
-                                cancelButtonText: "💵 Return Cash",
-                                cancelButtonColor: "#27ae60",
+                                showConfirmButton: false,
+                                showCancelButton: false,
                                 allowOutsideClick: false,
                                 allowEscapeKey: true,
                                 closeOnEsc: true
-                            }, function(saveAsAdvance) {
-                                isProcessingAmountGiven = false;
+                            });
 
-                                // Store the decision in sessionStorage for the payment processing
-                                if (saveAsAdvance) {
-                                    sessionStorage.setItem('excessPaymentAction', 'save_advance');
-                                    sessionStorage.setItem('excessPaymentAmount', balance);
-                                    toastr.success(`Rs. ${formattedBalance} will be saved as customer advance credit`, '💰 Advance Credit');
-                                } else {
+                            // Watch for modal close (ESC key) using MutationObserver
+                            const swalOverlay = document.querySelector('.sweet-overlay');
+                            if (swalOverlay) {
+                                const observer = new MutationObserver(function(mutations) {
+                                    mutations.forEach(function(mutation) {
+                                        if (mutation.attributeName === 'style' || mutation.attributeName === 'class') {
+                                            const overlay = document.querySelector('.sweet-overlay');
+                                            const isHidden = !overlay || overlay.style.display === 'none' || 
+                                                             !overlay.classList.contains('sweet-overlay-visible') ||
+                                                             getComputedStyle(overlay).display === 'none';
+                                            if (isHidden && !userMadeChoice) {
+                                                // Modal was closed by ESC - reset flag
+                                                isProcessingAmountGiven = false;
+                                                sessionStorage.removeItem('excessPaymentAction');
+                                                sessionStorage.removeItem('excessPaymentAmount');
+                                                console.log('Modal closed with ESC - flag reset, user can try again');
+                                                observer.disconnect();
+                                            }
+                                        }
+                                    });
+                                });
+                                observer.observe(swalOverlay, { attributes: true });
+                            }
+
+                            // Attach click handlers to custom buttons after modal renders
+                            setTimeout(function() {
+                                $('#btnReturnCash').on('click', function() {
+                                    userMadeChoice = true;
+                                    swal.close();
+                                    isProcessingAmountGiven = false;
                                     sessionStorage.setItem('excessPaymentAction', 'return_cash');
                                     sessionStorage.setItem('excessPaymentAmount', balance);
                                     toastr.info(`Rs. ${formattedBalance} will be returned to customer`, '💵 Return Cash');
-                                }
-
-                                $('#cashButton').trigger('click');
-                            });
+                                    $('#cashButton').trigger('click');
+                                });
+                                
+                                $('#btnSaveAdvance').on('click', function() {
+                                    userMadeChoice = true;
+                                    swal.close();
+                                    isProcessingAmountGiven = false;
+                                    sessionStorage.setItem('excessPaymentAction', 'save_advance');
+                                    sessionStorage.setItem('excessPaymentAmount', balance);
+                                    toastr.success(`Rs. ${formattedBalance} will be saved as customer advance credit`, '💰 Advance Credit');
+                                    $('#cashButton').trigger('click');
+                                });
+                            }, 100);
                         }
                     } else {
                         isProcessingAmountGiven = false;
