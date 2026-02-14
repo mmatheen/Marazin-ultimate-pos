@@ -760,20 +760,32 @@ class SaleController extends Controller
                             // Use PaymentService for consistent payment handling
                             $payment = $this->paymentService->recordSalePayment($paymentData, $sale);
                         }
-                    } elseif ($isUpdate) {
-                        $totalPaid = $sale->total_paid;
                     }
 
-                    // --- FIX: total_paid should be min(amount_given, final_total) ---
-                    $amountGiven = $request->amount_given ?? $sale->final_total;
-                    $totalPaid = min($amountGiven, $finalTotal);
+                    // ✅ FIX: For sale updates, don't manually set total_paid here
+                    // Let updatePaymentStatus() calculate it correctly from payments table
+                    // This ensures discount payments and other existing payments are properly counted
+                    if (!$isUpdate) {
+                        // Only for NEW sales: set total_paid based on amount_given
+                        $amountGiven = $request->amount_given ?? $sale->final_total;
+                        $totalPaid = min($amountGiven, $finalTotal);
 
-                    $sale->update([
-                        'total_paid' => $totalPaid,
-                        'total_due' => max(0, $sale->final_total - $totalPaid),
-                        'amount_given' => $amountGiven,
-                        'balance_amount' => max(0, $amountGiven - $sale->final_total),
-                    ]);
+                        $sale->update([
+                            'total_paid' => $totalPaid,
+                            'total_due' => max(0, $sale->final_total - $totalPaid),
+                            'amount_given' => $amountGiven,
+                            'balance_amount' => max(0, $amountGiven - $sale->final_total),
+                        ]);
+                    } else {
+                        // For UPDATES: only update amount_given and balance_amount
+                        // total_paid and total_due will be recalculated by updatePaymentStatus()
+                        $amountGiven = $request->amount_given ?? $sale->final_total;
+
+                        $sale->update([
+                            'amount_given' => $amountGiven,
+                            'balance_amount' => max(0, $amountGiven - $sale->final_total),
+                        ]);
+                    }
                 }
 
                 // Check for partial payments for Walk-In Customer (but allow suspended sales)

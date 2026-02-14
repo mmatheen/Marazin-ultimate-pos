@@ -1707,17 +1707,30 @@ class SaleController extends Controller
                         ]);
 
                     } elseif ($isUpdate) {
-                        // ✨ PERFORMANCE FIX: Only update if needed
-                        $amountGiven = $request->amount_given ?? $sale->final_total;
-                        $calculatedTotalPaid = min($amountGiven, $finalTotal);
+                        // ✅ FIX: For sale updates without new payments, recalculate from existing payments table
+                        // Don't use amount_given to calculate total_paid - this ignores discount payments!
+                        $actualTotalPaid = Payment::where('reference_id', $sale->id)
+                            ->where('payment_type', 'sale')
+                            ->sum('amount');
 
-                        if ($sale->total_paid !== $calculatedTotalPaid || $sale->amount_given !== $amountGiven) {
-                            $sale->update([
-                                'total_paid' => $calculatedTotalPaid,
-                                'amount_given' => $amountGiven,
-                                'balance_amount' => max(0, $amountGiven - $sale->final_total),
-                            ]);
+                        $totalDue = max(0, $sale->final_total - $actualTotalPaid);
+                        if ($totalDue <= 0) {
+                            $paymentStatus = 'Paid';
+                        } elseif ($actualTotalPaid > 0) {
+                            $paymentStatus = 'Partial';
+                        } else {
+                            $paymentStatus = 'Due';
                         }
+
+                        $amountGiven = $request->amount_given ?? $sale->final_total;
+
+                        $sale->update([
+                            'total_paid' => $actualTotalPaid,
+                            'total_due' => $totalDue,
+                            'payment_status' => $paymentStatus,
+                            'amount_given' => $amountGiven,
+                            'balance_amount' => max(0, $amountGiven - $sale->final_total),
+                        ]);
                     }
                 } elseif ($transactionType === 'sale_order') {
                     // Sale Order: No payment required
