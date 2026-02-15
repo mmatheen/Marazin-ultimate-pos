@@ -14,6 +14,7 @@ class AdjustmentProduct extends Model
         'product_id',
         'batch_id',
         'quantity',
+        'free_quantity',    // Free items adjusted
         'unit_price',
         'subtotal',
     ];

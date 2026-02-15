@@ -14,6 +14,7 @@ class PurchaseReturnProduct extends Model
         'product_id',
         'batch_no',
         'quantity',
+        'free_quantity',     // Free items returned to supplier
         'unit_price',
         'subtotal',
     ];

@@ -41,7 +41,10 @@ class ProfitLossService
         // Use sales.final_total as single source of truth (backend now ensures this is correct)
         $totalSales = $salesQuery->sum('final_total');
 
-        $totalQuantity = $salesQuery->sum(DB::raw('(SELECT SUM(quantity) FROM sales_products WHERE sale_id = sales.id)'));
+        // Total quantity includes both paid and free quantities
+        $totalQuantity = $salesQuery->sum(DB::raw('(SELECT SUM(quantity + COALESCE(free_quantity, 0)) FROM sales_products WHERE sale_id = sales.id)'));
+        $totalPaidQuantity = $salesQuery->sum(DB::raw('(SELECT SUM(quantity) FROM sales_products WHERE sale_id = sales.id)'));
+        $totalFreeQuantity = $salesQuery->sum(DB::raw('(SELECT SUM(COALESCE(free_quantity, 0)) FROM sales_products WHERE sale_id = sales.id)'));
         $totalTransactions = $salesQuery->count();
 
         // Calculate total cost using FIFO method
@@ -70,7 +73,10 @@ class ProfitLossService
         return [
             'total_sales' => round($netSales, 2), // Net sales after returns
             'total_cost' => round($netCost, 2), // Net cost after returns
-            'total_quantity' => $netQuantity, // Net quantity after returns
+            'total_quantity' => $totalQuantity, // GROSS quantity (paid + free combined) - matches paid + free shown separately
+            'total_paid_quantity' => $totalPaidQuantity, // Paid quantities (gross)
+            'total_free_quantity' => $totalFreeQuantity, // Free quantities (gross)
+            'net_quantity' => $netQuantity, // Net quantity after returns deducted
             'total_transactions' => $totalTransactions,
             'gross_profit' => round($grossProfit, 2),
             'profit_margin' => round($grossProfitMargin, 2),
@@ -105,7 +111,9 @@ class ProfitLossService
                 'products.product_name',
                 'products.sku',
                 'products.unit_id',
-                DB::raw('SUM(sales_products.quantity) as total_quantity'),
+                DB::raw('SUM(sales_products.quantity) as total_paid_quantity'),
+                DB::raw('SUM(COALESCE(sales_products.free_quantity, 0)) as total_free_quantity'),
+                DB::raw('SUM(sales_products.quantity + COALESCE(sales_products.free_quantity, 0)) as total_quantity'),
                 DB::raw('SUM(sales_products.quantity * sales_products.price) as total_sales'),
                 DB::raw('AVG(sales_products.price) as avg_selling_price'),
                 'brands.name as brand_name',
@@ -150,6 +158,15 @@ class ProfitLossService
                 'quantity_sold' => $product->allow_decimal ?
                     round($netQuantity, 2) :
                     intval($netQuantity),
+                'paid_quantity' => $product->allow_decimal ?
+                    round($product->total_paid_quantity, 2) :
+                    intval($product->total_paid_quantity),
+                'free_quantity' => $product->allow_decimal ?
+                    round($product->total_free_quantity, 2) :
+                    intval($product->total_free_quantity),
+                'total_quantity' => $product->allow_decimal ?
+                    round($product->total_quantity, 2) :
+                    intval($product->total_quantity),
                 'total_sales' => round($netSales, 2),
                 'total_cost' => round($netCost, 2),
                 'gross_profit' => round($profit, 2),
@@ -194,7 +211,9 @@ class ProfitLossService
                 'products.product_name',
                 'products.sku',
                 'products.unit_id',
-                DB::raw('SUM(sales_products.quantity) as total_quantity'),
+                DB::raw('SUM(sales_products.quantity) as total_paid_quantity'),
+                DB::raw('SUM(COALESCE(sales_products.free_quantity, 0)) as total_free_quantity'),
+                DB::raw('SUM(sales_products.quantity + COALESCE(sales_products.free_quantity, 0)) as total_quantity'),
                 DB::raw('SUM(sales_products.quantity * sales_products.price) as total_sales'),
                 DB::raw('AVG(sales_products.price) as avg_selling_price'),
                 'brands.name as brand_name',
@@ -239,6 +258,15 @@ class ProfitLossService
                 'sku' => $batch->sku,
                 'brand_name' => $batch->brand_name ?? 'No Brand',
                 'expiry_date' => $batch->expiry_date ? date('Y-m-d', strtotime($batch->expiry_date)) : 'N/A',
+                'paid_quantity' => $batch->allow_decimal ?
+                    round($batch->total_paid_quantity, 2) :
+                    intval($batch->total_paid_quantity),
+                'free_quantity' => $batch->allow_decimal ?
+                    round($batch->total_free_quantity, 2) :
+                    intval($batch->total_free_quantity),
+                'total_quantity' => $batch->allow_decimal ?
+                    round($batch->total_quantity, 2) :
+                    intval($batch->total_quantity),
                 'purchase_price' => round($batch->unit_cost, 2),
                 'quantity_sold' => $batch->allow_decimal ?
                     round($netQuantity, 2) :

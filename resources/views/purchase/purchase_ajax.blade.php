@@ -553,6 +553,9 @@
                 <input type="number" class="form-control purchase-quantity" value="${prices.quantity || 1}" min="${quantityMin}" step="${quantityStep}" pattern="${quantityPattern}" data-allow-decimal="${allowDecimal}">
             </td>
             <td>
+                <input type="number" class="form-control free-quantity" value="${prices.free_quantity || 0}" min="0" step="${quantityStep}" pattern="${quantityPattern}" data-allow-decimal="${allowDecimal}" placeholder="Free qty">
+            </td>
+            <td>
                 <input type="number" class="form-control product-price" value="${unitCost.toFixed(2)}" min="0">
             </td>
             <td>
@@ -579,14 +582,14 @@
 
                 // Handle quantity, discount, and price changes
                 $newRow.find(
-                    ".purchase-quantity, .discount-percent, .product-price, .unit-cost"
+                    ".purchase-quantity, .free-quantity, .discount-percent, .product-price, .unit-cost"
                 ).on("input", function() {
                     updateRow($newRow);
                     updateFooter();
                 });
 
                 // ✅ ADD: Custom validation for quantity based on unit type
-                $newRow.find(".purchase-quantity").on("blur", function() {
+                $newRow.find(".purchase-quantity, .free-quantity").on("blur", function() {
                     const allowDecimal = $(this).data('allow-decimal');
                     const value = parseFloat($(this).val());
 
@@ -767,6 +770,7 @@
 
         function updateFooter() {
             let totalItems = 0;
+            let totalFreeItems = 0;
             let netTotalAmount = 0;
 
             // CRITICAL FIX: Use DataTables API to get ALL rows (including paginated ones)
@@ -776,26 +780,35 @@
                 purchaseProductTable.rows().every(function() {
                     const row = this.node();
                     const quantity = parseFloat($(row).find('.purchase-quantity').val()) || 0;
+                    const freeQuantity = parseFloat($(row).find('.free-quantity').val()) || 0;
                     // Remove any commas before parsing (safety for formatted numbers)
                     const subTotal = parseFloat($(row).find('.sub-total').text().replace(/,/g, '')) ||
                         0;
 
                     totalItems += quantity;
+                    totalFreeItems += freeQuantity;
                     netTotalAmount += subTotal;
                 });
             } else {
                 // Fallback for when DataTable is not initialized yet
                 $('#purchase_product tbody tr').each(function() {
                     const quantity = parseFloat($(this).find('.purchase-quantity').val()) || 0;
+                    const freeQuantity = parseFloat($(this).find('.free-quantity').val()) || 0;
                     const subTotal = parseFloat($(this).find('.sub-total').text().replace(/,/g, '')) ||
                         0;
 
                     totalItems += quantity;
+                    totalFreeItems += freeQuantity;
                     netTotalAmount += subTotal;
                 });
             }
 
-            $('#total-items').text(totalItems.toFixed(2));
+            // Display paid items + free items breakdown
+            const totalItemsDisplay = totalFreeItems > 0
+                ? `${totalItems.toFixed(2)} + ${totalFreeItems.toFixed(2)} free = ${(totalItems + totalFreeItems).toFixed(2)}`
+                : totalItems.toFixed(2);
+
+            $('#total-items').text(totalItemsDisplay);
             $('#net-total-amount').text(netTotalAmount.toFixed(2));
             $('#total').val(netTotalAmount.toFixed(2));
 
@@ -1081,7 +1094,8 @@
                             .special_price,
                         max_retail_price: product.batch ? product.batch.max_retail_price : product
                             .max_retail_price,
-                        quantity: product.quantity
+                        quantity: product.quantity,
+                        free_quantity: product.free_quantity || 0
                     };
 
                     addProductToTable(productData, true, batchPrices);
@@ -1594,6 +1608,7 @@
             allRows.forEach((row, index) => {
                 const productId = $(row).data('id');
                 const quantity = $(row).find('.purchase-quantity').val() || 0;
+                const freeQuantity = $(row).find('.free-quantity').val() || 0;
                 const price = $(row).find('.product-price').val() || 0;
                 const discountPercent = $(row).find('.discount-percent').val() || 0;
                 const unitCost = $(row).find('.unit-cost').val() || 0;
@@ -1610,6 +1625,7 @@
                 console.log(`Product ${index}:`, {
                     productId,
                     quantity,
+                    free_quantity: freeQuantity,
                     price: price,
                     discount_percent: discountPercent,
                     unit_cost: unitCost,
@@ -1618,6 +1634,7 @@
 
                 formData.append(`products[${index}][product_id]`, productId);
                 formData.append(`products[${index}][quantity]`, quantity);
+                formData.append(`products[${index}][free_quantity]`, freeQuantity);
                 formData.append(`products[${index}][price]`, price);
                 formData.append(`products[${index}][discount_percent]`, discountPercent);
                 formData.append(`products[${index}][unit_cost]`, unitCost);
@@ -2518,13 +2535,14 @@
                             row.append('<td>' + (product.product ? product.product.sku :
                                 'N/A') + '</td>');
                             row.append('<td>' + product.quantity + '</td>');
+                            row.append('<td>' + (product.free_quantity || 0) + '</td>');
                             row.append('<td>' + product.unit_cost + '</td>');
                             row.append('<td>' + product.total + '</td>');
                             productsTable.append(row);
                         });
                     } else {
                         productsTable.append(
-                            '<tr><td colspan="6" class="text-center">No products found</td></tr>'
+                            '<tr><td colspan="7" class="text-center">No products found</td></tr>'
                         );
                     }
 
@@ -3568,6 +3586,8 @@
                                 row.append('<td>' + product.product.sku +
                                     '</td>');
                                 row.append('<td>' + product.quantity +
+                                    '</td>');
+                                row.append('<td>' + (product.free_quantity || 0) +
                                     '</td>');
                                 row.append('<td>' + (product.unit_cost ||
                                         0) +

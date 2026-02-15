@@ -14,12 +14,12 @@
         transition: all 0.3s ease;
         height: 100%;
     }
-    
+
     #summaryCards .card:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
-    
+
     #summaryCards .dash-widget-icon {
         width: 50px;
         height: 50px;
@@ -30,39 +30,39 @@
         font-size: 20px;
         border: 2px solid;
     }
-    
+
     #summaryCards h4 {
         font-weight: 700;
         font-size: 1.5rem;
     }
-    
+
     #summaryCards h6 {
         color: #6c757d;
         font-weight: 500;
         margin-bottom: 0.5rem;
     }
-    
+
     /* Ensure horizontal layout */
     #summaryCards .row {
         margin: 0;
     }
-    
+
     #summaryCards .col-lg-3 {
         padding: 0 8px;
         margin-bottom: 15px;
     }
-    
+
     /* Mobile responsiveness */
     @media (max-width: 768px) {
         #summaryCards .col-lg-3 {
             margin-bottom: 10px;
         }
-        
+
         #summaryCards .d-flex {
             flex-direction: column;
             text-align: center;
         }
-        
+
         #summaryCards .dash-widget-icon {
             margin-bottom: 10px;
             margin-right: 0 !important;
@@ -102,12 +102,12 @@
                             <!-- Date Range -->
                             <div class="col-md-3">
                                 <label class="form-label">Start Date</label>
-                                <input type="date" class="form-control" id="start_date" name="start_date" 
+                                <input type="date" class="form-control" id="start_date" name="start_date"
                                        value="{{ $startDate ?? date('Y-m-01') }}" required>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">End Date</label>
-                                <input type="date" class="form-control" id="end_date" name="end_date" 
+                                <input type="date" class="form-control" id="end_date" name="end_date"
                                        value="{{ $endDate ?? date('Y-m-t') }}" required>
                             </div>
 
@@ -181,7 +181,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="col-lg-3 col-md-6 col-sm-6 col-12">
                     <div class="card board1 fill h-100">
                         <div class="card-body text-center">
@@ -197,7 +197,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="col-lg-3 col-md-6 col-sm-6 col-12">
                     <div class="card board1 fill h-100">
                         <div class="card-body text-center">
@@ -213,7 +213,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="col-lg-3 col-md-6 col-sm-6 col-12">
                     <div class="card board1 fill h-100">
                         <div class="card-body text-center">
@@ -224,6 +224,69 @@
                                 <div>
                                     <h6 class="card-title mb-1">Profit Margin</h6>
                                     <h4 class="text-info mb-0" id="profitMargin">0.00%</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quantity Breakdown Row -->
+            <div class="row g-3 mt-2">
+                <div class="col-lg-4 col-md-6 col-sm-6 col-12">
+                    <div class="card board1 fill h-100">
+                        <div class="card-body text-center">
+                            <div class="d-flex align-items-center justify-content-center mb-2">
+                                <span class="dash-widget-icon text-dark border-dark me-3">
+                                    <i class="fe fe-package"></i>
+                                </span>
+                                <div>
+                                    <h6 class="card-title mb-1">Paid Quantity</h6>
+                                    <h4 class="text-dark mb-0">
+                                        <span id="totalPaidQty">0</span>
+                                        <small class="text-muted" style="font-size: 0.6em;"> units</small>
+                                    </h4>
+                                    <small class="text-muted">Items sold (not amount)</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4 col-md-6 col-sm-6 col-12">
+                    <div class="card board1 fill h-100">
+                        <div class="card-body text-center">
+                            <div class="d-flex align-items-center justify-content-center mb-2">
+                                <span class="dash-widget-icon text-success border-success me-3">
+                                    <i class="fe fe-gift"></i>
+                                </span>
+                                <div>
+                                    <h6 class="card-title mb-1">Free Quantity</h6>
+                                    <h4 class="text-success mb-0">
+                                        <span id="totalFreeQty">0</span>
+                                        <small class="text-muted" style="font-size: 0.6em;"> units</small>
+                                    </h4>
+                                    <small class="text-muted">Bonus items (not amount)</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4 col-md-6 col-sm-6 col-12">
+                    <div class="card board1 fill h-100">
+                        <div class="card-body text-center">
+                            <div class="d-flex align-items-center justify-content-center mb-2">
+                                <span class="dash-widget-icon text-primary border-primary me-3">
+                                    <i class="fe fe-box"></i>
+                                </span>
+                                <div>
+                                    <h6 class="card-title mb-1">Total Quantity</h6>
+                                    <h4 class="text-primary mb-0">
+                                        <span id="totalQuantity">0</span>
+                                        <small class="text-muted" style="font-size: 0.6em;"> units</small>
+                                    </h4>
+                                    <small class="text-muted">Paid + Free (not amount)</small>
                                 </div>
                             </div>
                         </div>
@@ -280,7 +343,7 @@ let profitLossDataTable = null;
 function setDateRange(period) {
     const today = new Date();
     let startDate, endDate;
-    
+
     switch(period) {
         case 'today':
             startDate = endDate = today.toISOString().split('T')[0];
@@ -308,7 +371,7 @@ function setDateRange(period) {
             endDate = new Date(today.getFullYear(), today.getMonth(), 0).toISOString().split('T')[0];
             break;
     }
-    
+
     document.getElementById('start_date').value = startDate;
     document.getElementById('end_date').value = endDate;
 }
@@ -316,16 +379,16 @@ function setDateRange(period) {
 // Generate report
 function generateReport() {
     const formData = new FormData(document.getElementById('reportFilters'));
-    
+
     // Add debugging
     console.log('Form data:');
     for (let [key, value] of formData.entries()) {
         console.log(key, value);
     }
-    
+
     // Show loading
     showLoading();
-    
+
     // Make AJAX request
     fetch('{{ route("profit-loss.data") }}', {
         method: 'POST',
@@ -347,7 +410,7 @@ function generateReport() {
         console.log('Data keys:', Object.keys(data));
         console.log('Data.data:', data.data);
         console.log('Data.summary:', data.summary);
-        
+
         if (data.error) {
             throw new Error(data.error);
         }
@@ -369,9 +432,12 @@ function updateSummaryCards(summary) {
         totalCost: document.getElementById('totalCost'),
         grossProfit: document.getElementById('grossProfit'),
         profitMargin: document.getElementById('profitMargin'),
+        totalPaidQty: document.getElementById('totalPaidQty'),
+        totalFreeQty: document.getElementById('totalFreeQty'),
+        totalQuantity: document.getElementById('totalQuantity'),
         summaryCards: document.getElementById('summaryCards')
     };
-    
+
     // Check if all elements exist
     for (const [key, element] of Object.entries(elements)) {
         if (!element) {
@@ -379,33 +445,38 @@ function updateSummaryCards(summary) {
             return;
         }
     }
-    
+
     elements.totalSales.textContent = `Rs.${formatNumber(summary.total_sales || 0)}`;
     elements.totalCost.textContent = `Rs.${formatNumber(summary.total_cost || 0)}`;
     elements.grossProfit.textContent = `Rs.${formatNumber(summary.gross_profit || 0)}`;
     elements.profitMargin.textContent = `${(summary.profit_margin || 0).toFixed(2)}%`;
-    
+
+    // Update quantity breakdown
+    elements.totalPaidQty.textContent = formatQuantity(summary.total_paid_quantity || 0);
+    elements.totalFreeQty.textContent = formatQuantity(summary.total_free_quantity || 0);
+    elements.totalQuantity.textContent = formatQuantity(summary.total_quantity || 0);
+
     elements.summaryCards.style.display = 'block';
 }
 
 // Update report table
 function updateReportTable(data) {
     const reportType = document.getElementById('report_type').value;
-    
+
     // Show the table card first so elements are accessible
     const reportTableCard = document.getElementById('reportTableCard');
     if (reportTableCard) {
         reportTableCard.style.display = 'block';
     }
-    
+
     // Destroy existing DataTable
     if (profitLossDataTable) {
         profitLossDataTable.destroy();
     }
-    
+
     // Clear table content
     $('#profitLossTable').empty();
-    
+
     // Check if we have data
     if (!data.data || data.data.length === 0) {
         const tableElement = document.getElementById('profitLossTable');
@@ -425,18 +496,20 @@ function updateReportTable(data) {
         }
         return;
     }
-    
+
     // Set table headers based on report type
     let headers = [];
     let columns = [];
-    
+
     switch(reportType) {
         case 'product':
-            headers = ['Product Name', 'SKU', 'Qty Sold', 'Total Sales', 'Total Cost', 'Gross Profit', 'Profit Margin'];
+            headers = ['Product Name', 'SKU', 'Paid Qty', 'Free Qty', 'Total Qty', 'Total Sales', 'Total Cost', 'Gross Profit', 'Profit Margin'];
             columns = [
                 {data: 'product_name', defaultContent: 'N/A'},
                 {data: 'sku', defaultContent: 'N/A'},
-                {data: 'quantity_sold', render: (data, type, row) => formatQuantity(data, row.allow_decimal), defaultContent: '0'},
+                {data: 'paid_quantity', render: (data, type, row) => `<strong>${formatQuantity(data, row.allow_decimal)}</strong>`, defaultContent: '<strong>0</strong>'},
+                {data: 'free_quantity', render: (data, type, row) => `<span class="text-success">${formatQuantity(data, row.allow_decimal)}</span>`, defaultContent: '<span class="text-success">0</span>'},
+                {data: 'total_quantity', render: (data, type, row) => `<span class="text-primary fw-bold">${formatQuantity(data, row.allow_decimal)}</span>`, defaultContent: '<span class="text-primary fw-bold">0</span>'},
                 {data: 'total_sales', render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'},
                 {data: 'total_cost', render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'},
                 {data: 'gross_profit', render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'},
@@ -444,12 +517,14 @@ function updateReportTable(data) {
             ];
             break;
         case 'batch':
-            headers = ['Batch Number', 'Product Name', 'Expiry Date', 'Qty Sold', 'Total Sales', 'Total Cost', 'Gross Profit', 'Profit Margin'];
+            headers = ['Batch Number', 'Product Name', 'Expiry Date', 'Paid Qty', 'Free Qty', 'Total Qty', 'Total Sales', 'Total Cost', 'Gross Profit', 'Profit Margin'];
             columns = [
                 {data: 'batch_number', defaultContent: 'N/A'},
                 {data: 'product_name', defaultContent: 'N/A'},
                 {data: 'expiry_date', defaultContent: 'N/A'},
-                {data: 'quantity_sold', render: (data, type, row) => formatQuantity(data, row.allow_decimal), defaultContent: '0'},
+                {data: 'paid_quantity', render: (data, type, row) => `<strong>${formatQuantity(data, row.allow_decimal)}</strong>`, defaultContent: '<strong>0</strong>'},
+                {data: 'free_quantity', render: (data, type, row) => `<span class="text-success">${formatQuantity(data, row.allow_decimal)}</span>`, defaultContent: '<span class="text-success">0</span>'},
+                {data: 'total_quantity', render: (data, type, row) => `<span class="text-primary fw-bold">${formatQuantity(data, row.allow_decimal)}</span>`, defaultContent: '<span class="text-primary fw-bold">0</span>'},
                 {data: 'total_sales', render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'},
                 {data: 'total_cost', render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'},
                 {data: 'gross_profit', render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'},
@@ -485,14 +560,14 @@ function updateReportTable(data) {
                 {data: 'amount', render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'}
             ];
     }
-    
+
     // Rebuild the table structure
     const tableElement = document.getElementById('profitLossTable');
     if (!tableElement) {
         console.error('profitLossTable element not found');
         return;
     }
-    
+
     tableElement.innerHTML = `
         <thead>
             <tr id="tableHeaders">
@@ -503,17 +578,17 @@ function updateReportTable(data) {
             <!-- Data will be populated by DataTables -->
         </tbody>
     `;
-    
+
     // Update report title
     const reportTitle = document.getElementById('reportTitle');
     if (reportTitle) {
         reportTitle.textContent = getReportTitle(reportType);
     }
-    
+
     // Debug: Log the data structure
     console.log('Table data:', data.data);
     console.log('First row:', data.data[0]);
-    
+
     // Initialize DataTable with export buttons
     try {
         profitLossDataTable = $('#profitLossTable').DataTable({
@@ -547,9 +622,9 @@ function updateReportTable(data) {
                 }
             ]
         });
-        
+
         console.log('DataTable initialized successfully');
-        
+
     } catch (error) {
         console.error('DataTable initialization error:', error);
         alert('Error initializing table: ' + error.message);
@@ -579,7 +654,7 @@ function formatQuantity(qty, allowDecimal) {
         // For aggregated data (brand/location), always show decimal
         return parseFloat(qty || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     }
-    
+
     if (allowDecimal) {
         // Show with 2 decimal places
         return parseFloat(qty || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});

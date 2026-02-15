@@ -13,6 +13,7 @@ class StockTransferProduct extends Model
         'product_id',
         'batch_id',
         'quantity',
+        'free_quantity',    // Free items transferred between locations
         'unit_price',
         'sub_total'
 

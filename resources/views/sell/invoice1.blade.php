@@ -839,6 +839,7 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
                             <td class="border-b-2 border-main pb-3 pl-2 font-bold text-main">Product Name</td>
                             <td class="border-b-2 border-main pb-3 pl-2 text-right font-bold text-main">Price</td>
                             <td class="border-b-2 border-main pb-3 pl-2 text-center font-bold text-main">Qty.</td>
+                            <td class="border-b-2 border-main pb-3 pl-2 text-center font-bold text-main">Free Qty</td>
                             <td class="border-b-2 border-main pb-3 pl-2 text-right font-bold text-main">Subtotal</td>
                         </tr>
                     </thead>
@@ -858,6 +859,7 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
                                 <td class="border-b py-3 pl-2">{{ $item->product->product_name }}</td>
                                 <td class="border-b py-3 pl-2 text-right">{{ $item->unit_price }}</td>
                                 <td class="border-b py-3 pl-2 text-center">{{ $item->quantity }}</td>
+                                <td class="border-b py-3 pl-2 text-center">{{ $item->free_quantity ?? 0 }}</td>
                                 <td class="border-b py-3 pl-2 text-right">{{ $item->subtotal }}</td>
                             </tr>
                         @endforeach

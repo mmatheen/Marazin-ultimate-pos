@@ -84,6 +84,7 @@
                     <th>Image</th>
                     <th>Product Name</th>
                     <th>Quantity</th>
+                    <th>Free Qty</th>
                     <th>Unit Price</th>
                     <th>Subtotal</th>
                 </tr>
@@ -94,6 +95,7 @@
                     <td><img src="{{ asset('assets/images/' . $item->product->product_image) }}" alt="Product Image" width="50"></td>
                     <td>{{ $item->product->product_name }}</td>
                     <td>{{ $item->quantity }}</td>
+                    <td>{{ $item->free_quantity ?? 0 }}</td>
                     <td>{{ $item->unit_price }}</td>
                     <td>{{ $item->subtotal }}</td>
                 </tr>

@@ -1771,6 +1771,7 @@
 
             $('#addSaleProduct tbody tr').each(function(index) {
                 const quantity = parseFloat($(this).find('.quantity-input').val()) || 0;
+                const freeQuantity = parseFloat($(this).find('.free-quantity-input').val()) || 0;
                 const unitPrice = parseFloat($(this).find('.price-input').val()) || 0;
                 const discount = parseFloat($(this).find('.discount-percent').val()) || 0;
                 const tax = parseFloat($(this).find('.product-tax').val()) || 0;
@@ -1779,6 +1780,7 @@
 
                 formData.append(`products[${index}][product_id]`, $(this).data('id'));
                 formData.append(`products[${index}][quantity]`, quantity);
+                formData.append(`products[${index}][free_quantity]`, freeQuantity);
                 formData.append(`products[${index}][unit_price]`, unitPrice);
                 formData.append(`products[${index}][discount]`, discount);
                 formData.append(`products[${index}][tax]`, tax);
@@ -2115,6 +2117,9 @@
                 <input type="number" class="form-control quantity-input" value="${product.quantity}" min="1">
             </td>
             <td>
+                <input type="number" class="form-control free-quantity-input" value="${product.free_quantity || 0}" min="0" placeholder="Free" title="Free items (promotional giveaway)">
+            </td>
+            <td>
                 <input type="number" class="form-control price-input" value="${finalPrice.toFixed(2)}" min="0">
             </td>
             <td>
@@ -2145,6 +2150,7 @@
 
             // Event listeners for row updates
             const quantityInput = $newRow.find('.quantity-input');
+            const freeQuantityInput = $newRow.find('.free-quantity-input');
             const priceInput = $newRow.find('.price-input');
             const discountTypeSelect = $newRow.find('.discount-type');
             const batchDropdown = $newRow.find('.batch-dropdown');
@@ -2198,6 +2204,12 @@
             quantityInput.on('input', () => {
                 // Update row and totals when quantity is changed
                 updateRow($newRow);
+                updateTotals();
+            });
+
+            // Add event listener for free quantity changes
+            freeQuantityInput.on('input', () => {
+                // Update totals when free quantity is changed (no price impact, just quantity count)
                 updateTotals();
             });
 
@@ -2268,14 +2280,21 @@
 
         function updateTotals() {
             let totalItems = 0;
+            let totalFreeItems = 0;
             let netTotalAmount = 0;
 
             $('#addSaleProduct tbody tr').each(function() {
                 totalItems += parseFloat($(this).find('.quantity-input').val()) || 0;
+                totalFreeItems += parseFloat($(this).find('.free-quantity-input').val()) || 0;
                 netTotalAmount += parseFloat($(this).find('.subtotal').text()) || 0;
             });
 
-            $('#total-items').text(totalItems.toFixed(2));
+            // Display paid items + free items breakdown
+            const totalItemsDisplay = totalFreeItems > 0
+                ? `${totalItems.toFixed(2)} paid + ${totalFreeItems.toFixed(2)} free = ${(totalItems + totalFreeItems).toFixed(2)}`
+                : totalItems.toFixed(2);
+
+            $('#total-items').text(totalItemsDisplay);
             $('#net-total-amount').text(netTotalAmount.toFixed(2));
 
             const discountType = $('#discount_type').val();

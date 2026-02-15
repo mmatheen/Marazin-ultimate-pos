@@ -13,12 +13,13 @@
                         <th>Product Name</th>
                         <th>SKU</th>
                         <th>Brand</th>
-                        <th class="text-end">Qty Sold</th>
+                        <th class="text-end">Paid Qty</th>
+                        <th class="text-end">Free Qty</th>
+                        <th class="text-end">Total Qty</th>
                         <th class="text-end">Total Sales</th>
                         <th class="text-end">Total Cost</th>
                         <th class="text-end">Profit/Loss</th>
                         <th class="text-end">Margin %</th>
-                        <th class="text-end">Avg Price</th>
                         <th class="text-center">Actions</th>
                     </tr>
                 </thead>
@@ -27,9 +28,9 @@
                     <tr>
                         <td>
                             <strong>{{ $product['product_name'] }}</strong>
-                            @if($product['profit_loss'] < 0)
+                            @if($product['gross_profit'] < 0)
                                 <span class="badge bg-danger ms-1">Loss</span>
-                            @elseif($product['profit_loss'] > 0)
+                            @elseif($product['gross_profit'] > 0)
                                 <span class="badge bg-success ms-1">Profit</span>
                             @else
                                 <span class="badge bg-secondary ms-1">Break Even</span>
@@ -37,12 +38,14 @@
                         </td>
                         <td><code>{{ $product['sku'] }}</code></td>
                         <td>{{ $product['brand_name'] }}</td>
-                        <td class="text-end">{{ number_format($product['total_quantity']) }}</td>
+                        <td class="text-end"><strong>{{ number_format($product['paid_quantity']) }}</strong></td>
+                        <td class="text-end"><span class="text-success">{{ number_format($product['free_quantity']) }}</span></td>
+                        <td class="text-end"><span class="text-primary fw-bold">{{ number_format($product['total_quantity']) }}</span></td>
                         <td class="text-end">Rs. {{ number_format($product['total_sales'], 2) }}</td>
                         <td class="text-end">Rs. {{ number_format($product['total_cost'], 2) }}</td>
                         <td class="text-end">
-                            <span class="{{ $product['profit_loss'] >= 0 ? 'profit-positive' : 'profit-negative' }}">
-                                Rs. {{ number_format($product['profit_loss'], 2) }}
+                            <span class="{{ $product['gross_profit'] >= 0 ? 'profit-positive' : 'profit-negative' }}">
+                                Rs. {{ number_format($product['gross_profit'], 2) }}
                             </span>
                         </td>
                         <td class="text-end">
@@ -50,15 +53,14 @@
                                 {{ number_format($product['profit_margin'], 2) }}%
                             </span>
                         </td>
-                        <td class="text-end">Rs. {{ number_format($product['avg_selling_price'], 2) }}</td>
                         <td class="text-center">
                             <div class="btn-group" role="group">
-                                <button class="btn btn-sm btn-outline-primary" 
+                                <button class="btn btn-sm btn-outline-primary"
                                         onclick="viewProductDetails({{ $product['product_id'] }})"
                                         title="View Details">
                                     <i class="fas fa-eye"></i>
                                 </button>
-                                <button class="btn btn-sm btn-outline-info" 
+                                <button class="btn btn-sm btn-outline-info"
                                         onclick="viewFifoBreakdown({{ $product['product_id'] }})"
                                         title="FIFO Breakdown">
                                     <i class="fas fa-layer-group"></i>
@@ -68,7 +70,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="10" class="text-center text-muted py-4">
+                        <td colspan="11" class="text-center text-muted py-4">
                             <i class="fas fa-inbox fa-3x mb-3"></i>
                             <p>No products found for the selected criteria.</p>
                         </td>
@@ -79,12 +81,14 @@
                 <tfoot class="table-secondary">
                     <tr>
                         <th colspan="3">TOTALS</th>
+                        <th class="text-end">{{ number_format(collect($products)->sum('paid_quantity')) }}</th>
+                        <th class="text-end">{{ number_format(collect($products)->sum('free_quantity')) }}</th>
                         <th class="text-end">{{ number_format(collect($products)->sum('total_quantity')) }}</th>
                         <th class="text-end">Rs. {{ number_format(collect($products)->sum('total_sales'), 2) }}</th>
                         <th class="text-end">Rs. {{ number_format(collect($products)->sum('total_cost'), 2) }}</th>
                         <th class="text-end">
                             @php
-                                $totalProfit = collect($products)->sum('profit_loss');
+                                $totalProfit = collect($products)->sum('gross_profit');
                             @endphp
                             <span class="{{ $totalProfit >= 0 ? 'profit-positive' : 'profit-negative' }}">
                                 Rs. {{ number_format($totalProfit, 2) }}
@@ -105,7 +109,7 @@
                 @endif
             </table>
         </div>
-        
+
         <!-- Summary Statistics -->
         @if(count($products) > 0)
         <div class="row mt-4">

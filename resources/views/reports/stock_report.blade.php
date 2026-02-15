@@ -228,42 +228,35 @@
 
             {{-- Summary Cards --}}
             <div class="row mb-3">
-                <div class="col-xl-3 col-sm-6 col-12 d-flex">
+                <div class="col-xl-4 col-sm-6 col-12 d-flex">
                     <div class="card bg-info w-100">
                         <div class="card-body">
                             <div class="text-white">
                                 <h6 class="text-white mb-2">Closing stock (By purchase price)</h6>
                                 <h4 class="text-white mb-0">Rs. {{ number_format($summaryData['total_stock_by_purchase_price'], 2) }}</h4>
+                                <small class="text-white-50">Total inventory value at cost</small>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-xl-3 col-sm-6 col-12 d-flex">
+                <div class="col-xl-4 col-sm-6 col-12 d-flex">
                     <div class="card bg-success w-100">
                         <div class="card-body">
                             <div class="text-white">
                                 <h6 class="text-white mb-2">Closing stock (By sale price)</h6>
                                 <h4 class="text-white mb-0">Rs. {{ number_format($summaryData['total_stock_by_sale_price'], 2) }}</h4>
+                                <small class="text-white-50">If all sold at retail price</small>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-xl-3 col-sm-6 col-12 d-flex">
+                <div class="col-xl-4 col-sm-6 col-12 d-flex">
                     <div class="card bg-warning w-100">
                         <div class="card-body">
                             <div class="text-white">
-                                <h6 class="text-white mb-2">Potential profit</h6>
+                                <h6 class="text-white mb-2">Potential Markup Value</h6>
                                 <h4 class="text-white mb-0">Rs. {{ number_format($summaryData['total_potential_profit'], 2) }}</h4>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-xl-3 col-sm-6 col-12 d-flex">
-                    <div class="card bg-primary w-100">
-                        <div class="card-body">
-                            <div class="text-white">
-                                <h6 class="text-white mb-2">Profit Margin</h6>
-                                <h4 class="text-white mb-0">{{ number_format($summaryData['profit_margin'], 2) }}%</h4>
+                                <small class="text-white-50">Markup on unsold stock ({{ number_format($summaryData['profit_margin'], 2) }}%)</small>
                             </div>
                         </div>
                     </div>
@@ -285,10 +278,10 @@
                                 <th>Location</th>
                                 <th>Unit Cost</th>
                                 <th>Unit Selling Price</th>
-                                <th>Current stock</th>
+                                <th>Current Stock (Qty)</th>
                                 <th>Stock Value (Purchase)</th>
                                 <th>Stock Value (Sale)</th>
-                                <th>Potential profit</th>
+                                <th>Markup Value</th>
                                 <th>Expiry Date</th>
                             </tr>
                         </thead>
@@ -307,12 +300,12 @@
             box-shadow: 0 0 15px rgba(0,0,0,0.1);
             margin-bottom: 20px;
         }
-        
+
         /* Fix primary button text visibility */
         .bg-primary {
             background-color: #0d6efd !important;
         }
-        
+
         .bg-primary .text-white {
             color: #ffffff !important;
         }
@@ -349,7 +342,7 @@
                     }
                 },
                 "columns": [
-                    { 
+                    {
                         "data": null,
                         "orderable": false,
                         "render": function(data, type, row) {
@@ -366,13 +359,13 @@
                         }
                     },
                     { "data": "sku" },
-                    { 
+                    {
                         "data": "product_name",
                         "render": function(data) {
                             return '<strong>' + data + '</strong>';
                         }
                     },
-                    { 
+                    {
                         "data": "batch_no",
                         "render": function(data) {
                             return '<span class="badge bg-secondary">' + data + '</span>';
@@ -380,67 +373,76 @@
                     },
                     { "data": "category" },
                     { "data": "location" },
-                    { 
+                    {
                         "data": "unit_cost",
                         "render": function(data) {
                             return 'Rs. ' + parseFloat(data).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                         }
                     },
-                    { 
+                    {
                         "data": "unit_selling_price",
                         "render": function(data) {
                             return 'Rs. ' + parseFloat(data).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                         }
                     },
-                    { 
+                    {
                         "data": "current_stock",
                         "className": "text-center",
                         "render": function(data) {
                             return '<strong>' + parseFloat(data).toFixed(2) + '</strong>';
                         }
                     },
-                    { 
+                    {
                         "data": "stock_value_purchase",
                         "className": "text-end",
                         "render": function(data) {
                             return 'Rs. ' + parseFloat(data).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                         }
                     },
-                    { 
+                    {
                         "data": "stock_value_sale",
                         "className": "text-end",
-                        "render": function(data) {
-                            return 'Rs. ' + parseFloat(data).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        "render": function(data, type, row) {
+                            if (parseFloat(row.unit_selling_price) <= 0) {
+                                return '<span class="text-muted">N/A</span>';
+                            }                            if (parseFloat(data) <= 0) {
+                                return '<span class="text-muted">Not Set</span>';
+                            }                            return 'Rs. ' + parseFloat(data).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                         }
                     },
-                    { 
+                    {
                         "data": "potential_profit",
-                        "className": "text-end text-success",
-                        "render": function(data) {
-                            return '<strong>Rs. ' + parseFloat(data).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong>';
+                        "className": "text-end",
+                        "render": function(data, type, row) {
+                            if (parseFloat(row.unit_selling_price) <= 0) {
+                                return '<span class="text-muted">N/A</span>';
+                            }
+                            var value = parseFloat(data);
+                            var colorClass = value >= 0 ? 'text-success' : 'text-danger';
+                            return '<strong class="' + colorClass + '">Rs. ' + value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong>';
                         }
                     },
-                    { 
+                    {
                         "data": "expiry_date",
                         "className": "text-center",
                         "render": function(data) {
                             if (!data) return '<span class="text-muted">N/A</span>';
-                            
+
                             var expiryDate = new Date(data);
                             var today = new Date();
                             var daysToExpiry = Math.floor((expiryDate - today) / (1000 * 60 * 60 * 24));
-                            
+
                             var badgeClass = daysToExpiry < 0 ? 'bg-danger' : (daysToExpiry < 30 ? 'bg-warning text-dark' : 'bg-success');
                             var formattedDate = expiryDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-                            
+
                             var html = '<span class="badge ' + badgeClass + '">' + formattedDate + '</span>';
-                            
+
                             if (daysToExpiry < 0) {
                                 html += '<br><small class="text-danger">Expired</small>';
                             } else if (daysToExpiry < 30) {
                                 html += '<br><small class="text-warning">' + daysToExpiry + ' days left</small>';
                             }
-                            
+
                             return html;
                         }
                     }
@@ -544,24 +546,24 @@
                 // Reload page with new location filter to update summary cards
                 var url = new URL(window.location.href);
                 var locationId = $(this).val();
-                
+
                 if (locationId) {
                     url.searchParams.set('location_id', locationId);
                 } else {
                     url.searchParams.delete('location_id');
                 }
-                
+
                 // Preserve other filters
                 var categoryId = $('#categoryFilter').val();
                 var subCategoryId = $('#subCategoryFilter').val();
                 var brandId = $('#brandFilter').val();
                 var unitId = $('#unitFilter').val();
-                
+
                 if (categoryId) url.searchParams.set('category_id', categoryId);
                 if (subCategoryId) url.searchParams.set('sub_category_id', subCategoryId);
                 if (brandId) url.searchParams.set('brand_id', brandId);
                 if (unitId) url.searchParams.set('unit_id', unitId);
-                
+
                 window.location.href = url.toString();
             });
         });

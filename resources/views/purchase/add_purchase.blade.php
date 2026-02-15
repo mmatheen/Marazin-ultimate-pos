@@ -334,6 +334,7 @@
                                                 <th>#</th>
                                                 <th>Product<br>Name</th>
                                                 <th>Purchase<br>Quantity</th>
+                                                <th>Free<br>Qty</th>
                                                 <th>Unit Cost<br>(Before Discount)</th>
                                                 <th>Discount<br>Percent</th>
                                                 <th>Unit<br>Cost</th>

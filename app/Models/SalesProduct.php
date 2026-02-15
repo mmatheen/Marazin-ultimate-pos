@@ -15,6 +15,7 @@ class SalesProduct extends Model
         'batch_id',
         'location_id',
         'quantity',
+        'free_quantity',     // Free items given to customer (promotions)
         'price_type',
         'price', // Unit price (quantity × price = subtotal)
         'discount_amount',

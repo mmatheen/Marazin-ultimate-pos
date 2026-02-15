@@ -77,6 +77,27 @@ class SaleReturnController extends Controller
                     }
                 },
             ],
+            'products.*.free_quantity' => [
+                'nullable',
+                'numeric',
+                'min:0',
+                function ($attribute, $value, $fail) use ($request) {
+                    if ($value !== null && $value > 0) {
+                        // Extract the index from the attribute
+                        if (preg_match('/products\.(\d+)\.free_quantity/', $attribute, $matches)) {
+                            $index = $matches[1];
+                            $productData = $request->input("products.$index");
+                            if ($productData && isset($productData['product_id'])) {
+                                $product = \App\Models\Product::find($productData['product_id']);
+                                // Validate unit type (integer vs decimal)
+                                if ($product && $product->unit && !$product->unit->allow_decimal && floor($value) != $value) {
+                                    $fail("The free quantity must be an integer for this unit.");
+                                }
+                            }
+                        }
+                    }
+                },
+            ],
             'products.*.original_price' => 'required|numeric',
             'products.*.return_price' => 'required|numeric',
             'products.*.subtotal' => 'required|numeric',
@@ -112,7 +133,7 @@ class SaleReturnController extends Controller
             }
         }
 
-        // Check if the return quantity is greater than the sale quantity
+        // Check if the return quantity is greater than the sale quantity (paid + free)
         $sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->find($request->sale_id);
         $errors = [];
         if ($sale) {
@@ -123,10 +144,24 @@ class SaleReturnController extends Controller
                         && $item->batch_id == $productData['batch_id'];
                 });
 
-                if ($soldProduct && $productData['quantity'] > $soldProduct->quantity) {
-                    $productName = optional($soldProduct->product)->product_name ?? "Product ID {$productData['product_id']}";
-                    $batchInfo = $productData['batch_id'] ? " (Batch ID: {$productData['batch_id']})" : "";
-                    $errors[] = "Return quantity for {$productName}{$batchInfo} exceeds sold quantity. Sold: {$soldProduct->quantity}, Attempted return: {$productData['quantity']}";
+                if ($soldProduct) {
+                    $returnQty = floatval($productData['quantity'] ?? 0);
+                    $returnFreeQty = floatval($productData['free_quantity'] ?? 0);
+                    $soldQty = floatval($soldProduct->quantity ?? 0);
+                    $soldFreeQty = floatval($soldProduct->free_quantity ?? 0);
+
+                    // Validate that return quantities don't exceed sold quantities
+                    if ($returnQty > $soldQty) {
+                        $productName = optional($soldProduct->product)->product_name ?? "Product ID {$productData['product_id']}";
+                        $batchInfo = $productData['batch_id'] ? " (Batch ID: {$productData['batch_id']})" : "";
+                        $errors[] = "Return paid quantity for {$productName}{$batchInfo} exceeds sold quantity. Sold: {$soldQty}, Attempted return: {$returnQty}";
+                    }
+
+                    if ($returnFreeQty > $soldFreeQty) {
+                        $productName = optional($soldProduct->product)->product_name ?? "Product ID {$productData['product_id']}";
+                        $batchInfo = $productData['batch_id'] ? " (Batch ID: {$productData['batch_id']})" : "";
+                        $errors[] = "Return free quantity for {$productName}{$batchInfo} exceeds sold free quantity. Sold free: {$soldFreeQty}, Attempted return: {$returnFreeQty}";
+                    }
                 } elseif (!$soldProduct && $request->sale_id) {
                     // Product/batch combination not found in the sale
                     $productName = \App\Models\Product::find($productData['product_id'])->product_name ?? "Product ID {$productData['product_id']}";
@@ -392,7 +427,9 @@ class SaleReturnController extends Controller
 
     private function processProductReturn($productData, $salesReturnId, $locationId, $stockType)
     {
-        $quantityToRestock = $productData['quantity'];
+        $paidQtyToRestock = floatval($productData['quantity'] ?? 0);
+        $freeQtyToRestock = floatval($productData['free_quantity'] ?? 0);
+        $totalQuantityToRestock = $paidQtyToRestock + $freeQtyToRestock;
         $batchId = $productData['batch_id'];
 
         if (empty($batchId)) {
@@ -401,7 +438,7 @@ class SaleReturnController extends Controller
                 'batch_no' => Batch::generateNextBatchNo(),
                 'product_id' => $productData['product_id'],
                 'unit_cost' => $productData['original_price'],
-                'qty' => $quantityToRestock,
+                'qty' => $totalQuantityToRestock, // Restock both paid + free
                 'wholesale_price' => $productData['return_price'],
                 'special_price' => $productData['return_price'],
                 'retail_price' => $productData['return_price'],
@@ -413,7 +450,7 @@ class SaleReturnController extends Controller
             $locationBatch = LocationBatch::create([
                 'batch_id' => $batch->id,
                 'location_id' => $locationId,
-                'qty' => $quantityToRestock,
+                'qty' => $totalQuantityToRestock, // Restock both paid + free
             ]);
 
             $batchId = $batch->id;
@@ -421,19 +458,20 @@ class SaleReturnController extends Controller
             // Create stock history record
             StockHistory::create([
                 'loc_batch_id' => $locationBatch->id,
-                'quantity' => $quantityToRestock,
+                'quantity' => $totalQuantityToRestock, // Record both paid + free
                 'stock_type' => $stockType === 'with_bill' ? 'sales_return_with_bill' : 'sales_return_without_bill',
             ]);
         } else {
-            // Restock specific batch
-            $this->restockBatchStock($batchId, $locationId, $quantityToRestock, $stockType);
+            // Restock specific batch (both paid + free quantities)
+            $this->restockBatchStock($batchId, $locationId, $totalQuantityToRestock, $stockType);
         }
 
         // Create sales return product record
         SalesReturnProduct::create([
             'sales_return_id' => $salesReturnId,
             'product_id' => $productData['product_id'],
-            'quantity' => $productData['quantity'],
+            'quantity' => $paidQtyToRestock,
+            'free_quantity' => $freeQtyToRestock,
             'original_price' => $productData['original_price'],
             'return_price' => $productData['return_price'],
             'subtotal' => $productData['subtotal'],

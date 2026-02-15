@@ -476,6 +476,7 @@
                                     'product' => $product,
                                     'imei' => $imei->imei_number,
                                     'quantity' => 1,
+                                    'free_quantity' => 0,
                                     'amount' => $product->price * 1,
                                 ];
                             }
@@ -486,10 +487,12 @@
                                     'type' => 'grouped',
                                     'product' => $product,
                                     'quantity' => 0,
+                                    'free_quantity' => 0,
                                     'amount' => 0,
                                 ];
                             }
                             $nonImeiGroups[$groupKey]['quantity'] += $product->quantity;
+                            $nonImeiGroups[$groupKey]['free_quantity'] += ($product->free_quantity ?? 0);
                             $nonImeiGroups[$groupKey]['amount'] += $product->price * $product->quantity;
                         }
                     }
@@ -539,6 +542,9 @@
                         <td class="quantity">
                             <span class="multiply-symbol">&times;</span>
                             <span>{{ $item['quantity'] }}</span>
+                            @if(isset($item['free_quantity']) && $item['free_quantity'] > 0)
+                                <span> + {{ $item['free_quantity'] }} free</span>
+                            @endif
                             <small class="pcs-text">PCS</small>
                         </td>
                         <td class="rate">{{ number_format($item['product']->price, 2, '.', ',') }}</td>
@@ -685,8 +691,12 @@
                 <span class="stat-label">TOTAL ITEMS</span>
             </div>
             <div class="stat-box">
-                <span class="stat-number">{{ $products->sum('quantity') }}</span>
-                <span class="stat-label">TOTAL QTY</span>
+                @php
+                    $totalQty = $products->sum('quantity');
+                    $totalFreeQty = $products->sum('free_quantity');
+                @endphp
+                <span class="stat-number">{{ $totalQty + $totalFreeQty }}</span>
+                <span class="stat-label">TOTAL QTY @if($totalFreeQty > 0)({{ $totalQty }} + {{ $totalFreeQty }} free)@endif</span>
             </div>
             <div class="stat-box">
                 <span class="stat-number">{{ number_format($total_all_discounts, 2, '.', ',') }}</span>

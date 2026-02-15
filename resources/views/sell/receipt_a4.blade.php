@@ -339,6 +339,7 @@
                                 'product' => $product,
                                 'imei' => $imei->imei_number,
                                 'quantity' => 1,
+                                'free_quantity' => 0,
                                 'amount' => $product->price * 1,
                             ];
                         }
@@ -350,10 +351,12 @@
                                 'type' => 'grouped',
                                 'product' => $product,
                                 'quantity' => 0,
+                                'free_quantity' => 0,
                                 'amount' => 0,
                             ];
                         }
                         $nonImeiGroups[$groupKey]['quantity'] += $product->quantity;
+                        $nonImeiGroups[$groupKey]['free_quantity'] += ($product->free_quantity ?? 0);
                         $nonImeiGroups[$groupKey]['amount'] += $product->price * $product->quantity;
                     }
                 }
@@ -411,6 +414,9 @@
                     </td>
                     <td class="text-right" style="white-space: nowrap;">
                         <strong>&times; {{ number_format($item['quantity'], 2) }} pcs</strong>
+                        @if(isset($item['free_quantity']) && $item['free_quantity'] > 0)
+                            <strong style="color: #28a745;"> + {{ $item['free_quantity'] }} free</strong>
+                        @endif
                     </td>
                     <td class="text-right" style="white-space: nowrap;">
                         <strong>Rs. {{ number_format($item['amount'], 2) }}</strong>
@@ -530,7 +536,11 @@
             <div class="stat-label">Total Items</div>
         </div>
         <div class="stat-item">
-            <div class="stat-number">{{ array_sum(array_column($displayItems, 'quantity')) }}</div>
+            @php
+                $totalQty = array_sum(array_column($displayItems, 'quantity'));
+                $totalFreeQty = array_sum(array_column($displayItems, 'free_quantity'));
+            @endphp
+            <div class="stat-number">{{ $totalQty + $totalFreeQty }}@if($totalFreeQty > 0) ({{ $totalFreeQty }}F)@endif</div>
             <div class="stat-label">Total Qty</div>
         </div>
         <div class="stat-item">

@@ -15,6 +15,7 @@ class SalesReturnProduct extends Model
         'batch_id',         // Nullable, for batch-specific stock tracking
         'location_id',      // Location where the product is returned
         'quantity',         // Quantity returned
+        'free_quantity',    // Free items returned by customer
         'price_type',       // Price type (retail, wholesale, special)
         'original_price',   // Price at the time of sale
         'return_price',     // Price for the return

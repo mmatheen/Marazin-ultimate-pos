@@ -127,7 +127,8 @@ class ReportController extends Controller
 
                     $stockByPurchasePrice = $currentStock * $unitCost;
                     $stockBySalePrice = $currentStock * $retailPrice;
-                    $potentialProfit = $stockBySalePrice - $stockByPurchasePrice;
+                    // Only calculate markup if retail price is set (> 0)
+                    $potentialProfit = ($retailPrice > 0) ? ($stockBySalePrice - $stockByPurchasePrice) : 0;
 
                     $stockData[] = [
                         'sku' => $product->sku ?? 'N/A',
@@ -206,7 +207,8 @@ class ReportController extends Controller
 
                     $totalStockByPurchasePrice += ($currentStock * $unitCost);
                     $totalStockBySalePrice += ($currentStock * $retailPrice);
-                    $totalPotentialProfit += (($currentStock * $retailPrice) - ($currentStock * $unitCost));
+                    // Only add to markup if retail price is set (> 0)
+                    $totalPotentialProfit += ($retailPrice > 0) ? (($currentStock * $retailPrice) - ($currentStock * $unitCost)) : 0;
                 }
             }
         }
@@ -215,7 +217,7 @@ class ReportController extends Controller
             'total_stock_by_purchase_price' => $totalStockByPurchasePrice,
             'total_stock_by_sale_price' => $totalStockBySalePrice,
             'total_potential_profit' => $totalPotentialProfit,
-            'profit_margin' => $totalStockBySalePrice > 0 ? (($totalPotentialProfit / $totalStockBySalePrice) * 100) : 0,
+            'profit_margin' => $totalStockByPurchasePrice > 0 ? (($totalPotentialProfit / $totalStockByPurchasePrice) * 100) : 0,
         ];
     }
 

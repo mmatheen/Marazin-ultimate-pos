@@ -68,6 +68,27 @@ class PurchaseReturnController extends Controller
                     }
                 },
             ],
+            'products.*.free_quantity' => [
+                'nullable',
+                'numeric',
+                'min:0',
+                function ($attribute, $value, $fail) use ($request) {
+                    if ($value !== null && $value > 0) {
+                        // Extract the index from the attribute
+                        if (preg_match('/products\.(\d+)\.free_quantity/', $attribute, $matches)) {
+                            $index = $matches[1];
+                            $productData = $request->input("products.$index");
+                            if ($productData && isset($productData['product_id'])) {
+                                $product = \App\Models\Product::find($productData['product_id']);
+                                // Validate unit type (integer vs decimal)
+                                if ($product && $product->unit && !$product->unit->allow_decimal && floor($value) != $value) {
+                                    $fail("The free quantity must be an integer for this unit.");
+                                }
+                            }
+                        }
+                    }
+                },
+            ],
             'products.*.unit_price' => 'required|numeric|min:0',
             'products.*.subtotal' => 'required|numeric|min:0',
             'products.*.batch_id' => 'nullable|integer|exists:batches,id',
@@ -81,7 +102,7 @@ class PurchaseReturnController extends Controller
             DB::transaction(function () use ($request, $purchaseReturnId) {
                 $attachDocument = $this->handleAttachedDocument($request);
                 $isUpdate = !is_null($purchaseReturnId);
-                
+
                 // Store old values for ledger reversal if updating
                 $oldReturnTotal = 0;
                 $oldReferenceNo = null;
@@ -92,7 +113,7 @@ class PurchaseReturnController extends Controller
                         $oldReferenceNo = $existingReturn->reference_no;
                     }
                 }
-                
+
                 $referenceNo = $purchaseReturnId ? PurchaseReturn::find($purchaseReturnId)->reference_no : $this->generateReferenceNo();
 
                 $totalReturnAmount = collect($request->products)->sum(fn($product) => $product['subtotal']);
@@ -116,7 +137,7 @@ class PurchaseReturnController extends Controller
                 // If updating, reverse stock adjustments for existing products
                 if ($isUpdate) {
                     // Note: UnifiedLedgerService will handle ledger cleanup automatically
-                    
+
                     $existingProducts = $purchaseReturn->purchaseReturnProducts;
                     foreach ($existingProducts as $existingProduct) {
                         $quantity = $existingProduct->quantity;
@@ -203,22 +224,25 @@ class PurchaseReturnController extends Controller
     }
     private function processProductReturn($productData, $purchaseReturnId, $locationId)
     {
-        $quantityToReturn = $productData['quantity'];
+        $paidQtyToReturn = floatval($productData['quantity'] ?? 0);
+        $freeQtyToReturn = floatval($productData['free_quantity'] ?? 0);
+        $totalQuantityToReturn = $paidQtyToReturn + $freeQtyToReturn;
         $batchId = $productData['batch_id'];
 
         if (empty($batchId)) {
-            // Handle FIFO return (no specific batch)
-            $this->reduceStockFIFO($productData['product_id'], $locationId, $quantityToReturn);
+            // Handle FIFO return (no specific batch) - reduce both paid + free
+            $this->reduceStockFIFO($productData['product_id'], $locationId, $totalQuantityToReturn);
         } else {
-            // Handle batch-specific return
-            $this->reduceBatchStock($batchId, $locationId, $quantityToReturn);
+            // Handle batch-specific return - reduce both paid + free
+            $this->reduceBatchStock($batchId, $locationId, $totalQuantityToReturn);
         }
 
         // Create purchase return product record
         PurchaseReturnProduct::create([
             'purchase_return_id' => $purchaseReturnId,
             'product_id' => $productData['product_id'],
-            'quantity' => $productData['quantity'],
+            'quantity' => $paidQtyToReturn,
+            'free_quantity' => $freeQtyToReturn,
             'unit_price' => $productData['unit_price'],
             'subtotal' => $productData['subtotal'],
             'batch_no' => $batchId,
@@ -351,7 +375,7 @@ class PurchaseReturnController extends Controller
         }
     }
 
-   
+
     private function getProductStockInLocation($productId, $locationId, $batchId = null)
     {
         if ($batchId) {
@@ -373,7 +397,7 @@ class PurchaseReturnController extends Controller
     /**
      * Get all products with stock in a specific location for purchase returns
      * Supports search functionality similar to POS autocomplete
-     * 
+     *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
@@ -382,7 +406,7 @@ class PurchaseReturnController extends Controller
         try {
             $locationId = $request->get('location_id');
             $search = $request->get('search'); // Add search parameter
-            
+
             if (!$locationId) {
                 return response()->json(['message' => 'Location ID is required.'], 400);
             }
@@ -424,7 +448,7 @@ class PurchaseReturnController extends Controller
 
                 // Order by relevance: exact matches first, then partial matches
                 $productsQuery->orderByRaw("
-                    CASE 
+                    CASE
                         WHEN sku = ? THEN 1
                         WHEN LOWER(product_name) = LOWER(?) THEN 2
                         WHEN sku LIKE ? THEN 3
@@ -505,8 +529,8 @@ class PurchaseReturnController extends Controller
     public function edit($id)
     {
         $purchaseReturn = PurchaseReturn::with([
-            'supplier', 
-            'location', 
+            'supplier',
+            'location',
             'purchaseReturnProducts' => function($query) {
                 $query->with([
                     'product',
@@ -527,7 +551,7 @@ class PurchaseReturnController extends Controller
                     })
                     ->orderBy('created_at', 'desc')
                     ->first();
-                
+
                 if ($latestBatch) {
                     // Create a mock batch relationship for consistency
                     $returnProduct->setRelation('batch', $latestBatch);

@@ -56,6 +56,32 @@
         };
     }
 
+    // Global flag to track if a validation toast is currently showing
+    let isValidationToastActive = false;
+
+    // Helper function to show validation toasts only when no toast is active
+    function showValidationToast(message, title = 'Stock Limit', type = 'warning') {
+        if (isValidationToastActive) {
+            return; // Don't show another toast if one is already active
+        }
+
+        isValidationToastActive = true;
+
+        const toastOptions = {
+            onHidden: function() {
+                isValidationToastActive = false; // Reset flag when toast is hidden
+            }
+        };
+
+        if (type === 'warning') {
+            toastr.warning(message, title, toastOptions);
+        } else if (type === 'error') {
+            toastr.error(message, title, toastOptions);
+        } else {
+            toastr.info(message, title, toastOptions);
+        }
+    }
+
         // Search results cache - 30 seconds for fast autocomplete while keeping data relatively fresh
         let searchCache = new Map();
         let searchCacheExpiry = 30 * 1000; // 30 seconds cache for performance
@@ -5819,6 +5845,13 @@
                         }, 300);
                     } else {
                         // Add non-IMEI product to billing with quantity 1
+                        console.log('🎯 BATCH SELECTED FROM MODAL:', {
+                            batchId: selectedBatch.id,
+                            batchNo: selectedBatch.batch_no,
+                            productName: product.product_name,
+                            quantity: qty
+                        });
+
                         addProductToBillingBody(
                             productWithBatchPrices,
                             stockEntry,
@@ -7430,6 +7463,10 @@
             </div>
             <div style="font-size: 0.85em; color: #888; text-align:center;">${unitName}</div>
         </td>
+        <td class="text-center">
+            <input type="number" name="free_quantity[]" class="form-control free-quantity-input text-center" value="0" min="0" max="${adjustedBatchQuantity}" placeholder="Free" title="Free items (max: ${adjustedBatchQuantity})" step="${qtyInputStep}" data-max-stock="${adjustedBatchQuantity}">
+            <div style="font-size: 0.75em; color: #888; margin-top: 2px;">Free</div>
+        </td>
         <td class="text-center"><input type="number" name="discount_fixed[]" class="form-control fixed_discount text-center" value="${discountFixed.toFixed(2)}" ${(priceValidationEnabled === 1 && !canEditDiscount && !isEditing) ? 'readonly' : ''}></td>
         <td class="text-center"><input type="number" name="discount_percent[]" class="form-control percent_discount text-center" value="${priceValidationEnabled === 0 ? '' : discountPercent.toFixed(2)}" ${priceValidationEnabled === 0 ? 'readonly' : ((priceValidationEnabled === 1 && !canEditDiscount && !isEditing) ? 'readonly' : '')}></td>
         <td class="text-center">
@@ -7450,6 +7487,13 @@
         <td class="discount-data d-none">${JSON.stringify(activeDiscount || {})}</td>
         <td class="d-none imei-data">${imeis.join(',') || ''}</td>
         `;
+
+            console.log('📋 BILLING ROW CREATED:', {
+                productName: product.product_name,
+                batchIdParam: batchId,
+                batchIdStored: batchId || 'all',
+                imeiCount: imeis.length
+            });
 
             // Append the row first to ensure elements are available
             billingBody.insertBefore(row, billingBody.firstChild);
@@ -7604,26 +7648,20 @@
                 }
             }, 100); // Quick focus after product is added
         }
-        // Global flag to throttle error display
-        let isErrorShown = false;
 
         // Throttled function to show error only once within a time window
         function showQuantityLimitError(maxQuantity) {
-            if (!isErrorShown) {
-                const errorSound = document.getElementsByClassName('errorSound')[0];
-                if (errorSound) {
-                    errorSound.play(); // Play sound only once
-                }
-
-                toastr.error(`You cannot add more than ${maxQuantity} units of this product.`, 'Error');
-
-                isErrorShown = true;
-
-                // Allow error to be shown again after 2 seconds
-                setTimeout(() => {
-                    isErrorShown = false;
-                }, 2000); // Adjust this duration as needed
+            // Use the unified validation toast handler
+            const errorSound = document.getElementsByClassName('errorSound')[0];
+            if (errorSound && !isValidationToastActive) {
+                errorSound.play(); // Play sound only if no toast is active
             }
+
+            showValidationToast(
+                `You cannot add more than ${maxQuantity} units of this product.`,
+                'Error',
+                'error'
+            );
         }
 
         function attachRowEventListeners(row, product, stockEntry) {
@@ -7718,6 +7756,21 @@
 
 
 
+            // Debounced validation for quantity input to prevent multiple toasts
+            const debouncedQuantityValidation = debounce((quantityValue, freeQty, maxQuantity) => {
+                const totalQty = quantityValue + freeQty;
+
+                if (totalQty > maxQuantity && product.stock_alert !== 0) {
+                    showValidationToast(
+                        `Total quantity (${quantityValue} + ${freeQty} free = ${totalQty}) exceeds available stock (${maxQuantity}) for ${product.product_name}.`
+                    );
+                } else if (quantityValue > maxQuantity && product.stock_alert !== 0) {
+                    showValidationToast(
+                        `You are entering more than available stock for ${product.product_name}.`
+                    );
+                }
+            }, 500);
+
             quantityInput.addEventListener('input', () => {
                 const value = quantityInput.value.trim();
                 const maxQuantity = parseFloat(priceInput.getAttribute('data-quantity'));
@@ -7733,11 +7786,9 @@
                         if (value !== '' && !value.endsWith('.')) {
                             const quantityValue = parseFloat(value);
                             if (!isNaN(quantityValue)) {
-                                if (quantityValue > maxQuantity && product.stock_alert !== 0) {
-                                    toastr.warning(
-                                        `You are entering more than available stock for ${product.product_name}.`
-                                    );
-                                }
+                                // Check total (paid + free) against available stock - debounced
+                                const freeQty = parseFloat(freeQuantityInput?.value || 0);
+                                debouncedQuantityValidation(quantityValue, freeQty, maxQuantity);
 
                                 const subtotalElement = row.querySelector('.subtotal');
                                 const price = parseFloat(priceInput.value);
@@ -7760,11 +7811,9 @@
 
                         const quantityValue = parseInt(value, 10);
                         if (!isNaN(quantityValue)) {
-                            if (quantityValue > maxQuantity && product.stock_alert !== 0) {
-                                toastr.warning(
-                                    `You are entering more than available stock for ${product.product_name}.`
-                                );
-                            }
+                            // Check total (paid + free) against available stock - debounced
+                            const freeQty = parseFloat(freeQuantityInput?.value || 0);
+                            debouncedQuantityValidation(quantityValue, freeQty, maxQuantity);
 
                             const subtotalElement = row.querySelector('.subtotal');
                             const price = parseFloat(priceInput.value);
@@ -7823,6 +7872,51 @@
                     }
                 }
             });
+
+            // Free quantity input event listener with debounced validation
+            const freeQuantityInput = row.querySelector('.free-quantity-input');
+            if (freeQuantityInput) {
+                // Debounced validation to prevent multiple toasts
+                const debouncedFreeQtyValidation = debounce((currentQty, freeQty, totalQty, maxStock) => {
+                    if (freeQty > 0) {
+                        showValidationToast(
+                            `Total quantity (${currentQty} + ${freeQty} free = ${totalQty}) exceeds available stock (${maxStock})`,
+                            'Stock Limit'
+                        );
+                    }
+                }, 500);
+
+                freeQuantityInput.addEventListener('input', () => {
+                    const value = freeQuantityInput.value.trim();
+                    const freeQty = parseFloat(value) || 0;
+                    const maxStock = parseFloat(freeQuantityInput.dataset.maxStock) || 0;
+                    const currentQty = parseFloat(quantityInput.value) || 0;
+                    const totalQty = currentQty + freeQty;
+
+                    // Validate format (decimal or integer)
+                    let formatValid = false;
+                    if (allowDecimal) {
+                        const validDecimalPattern = /^\d*\.?\d{0,2}$/;
+                        formatValid = value === '' || validDecimalPattern.test(value);
+                    } else {
+                        const validIntegerPattern = /^\d+$/;
+                        formatValid = value === '' || validIntegerPattern.test(value);
+                    }
+
+                    // Validate against stock availability
+                    const stockValid = totalQty <= maxStock;
+
+                    if (formatValid && stockValid) {
+                        freeQuantityInput.classList.remove('is-invalid');
+                        updateTotals();
+                    } else {
+                        freeQuantityInput.classList.add('is-invalid');
+                        if (!stockValid) {
+                            debouncedFreeQtyValidation(currentQty, freeQty, totalQty, maxStock);
+                        }
+                    }
+                });
+            }
 
             // Event listener for the remove button
             removeBtn.addEventListener('click', () => {
@@ -8117,19 +8211,25 @@
         function updateTotals() {
             const billingBody = document.getElementById('billing-body');
             let totalItems = 0;
+            let totalFreeItems = 0;
             let totalAmount = 0;
 
             // Calculate total items and total amount from each row and update row counters
             billingBody.querySelectorAll('tr').forEach((row, index) => {
                 const quantityInput = row.querySelector('.quantity-input');
+                const freeQuantityInput = row.querySelector('.free-quantity-input');
                 const priceInput = row.querySelector('.price-input');
                 const fixedDiscountInput = row.querySelector('.fixed_discount');
                 const percentDiscountInput = row.querySelector('.percent_discount');
                 const counterCell = row.querySelector('.counter-cell');
 
                 let quantity = 0;
+                let freeQuantity = 0;
                 if (quantityInput) {
                     quantity = quantityInput.value === "" ? 0 : parseFloat(quantityInput.value);
+                }
+                if (freeQuantityInput) {
+                    freeQuantity = freeQuantityInput.value === "" ? 0 : parseFloat(freeQuantityInput.value);
                 }
 
                 // Check if priceInput exists before accessing its value
@@ -8152,6 +8252,7 @@
                 }
 
                 totalItems += quantity;
+                totalFreeItems += freeQuantity;
                 totalAmount += subtotal;
             });
 
@@ -8197,12 +8298,15 @@
             // Update UI with null checks
             // Calculate total quantity and build unit summary for all products in billing
             let unitSummary = {};
+            let freeUnitSummary = {};
             try {
                 billingBody.querySelectorAll('tr').forEach(row => {
                     const productId = row.querySelector('.product-id')?.textContent;
                     const quantityInput = row.querySelector('.quantity-input');
+                    const freeQuantityInput = row.querySelector('.free-quantity-input');
                     let quantity = quantityInput ? parseFloat(quantityInput.value) : 0;
-                    if (productId && quantity > 0) {
+                    let freeQuantity = freeQuantityInput ? parseFloat(freeQuantityInput.value) : 0;
+                    if (productId && (quantity > 0 || freeQuantity > 0)) {
                         // Find the product in stockData or allProducts with proper null checks
                         let stock = null;
 
@@ -8234,11 +8338,15 @@
                             let unitShort = stock.product.unit.short_name || stock.product.unit.name ||
                                 'pcs';
                             if (!unitSummary[unitShort]) unitSummary[unitShort] = 0;
+                            if (!freeUnitSummary[unitShort]) freeUnitSummary[unitShort] = 0;
                             unitSummary[unitShort] += quantity;
+                            freeUnitSummary[unitShort] += freeQuantity;
                         } else {
                             // Default to 'pcs' if no unit information available
                             if (!unitSummary['pcs']) unitSummary['pcs'] = 0;
+                            if (!freeUnitSummary['pcs']) freeUnitSummary['pcs'] = 0;
                             unitSummary['pcs'] += quantity;
+                            freeUnitSummary['pcs'] += freeQuantity;
                         }
                     }
                 });
@@ -8248,11 +8356,30 @@
                 unitSummary = {
                     'pcs': totalItems
                 };
+                freeUnitSummary = {
+                    'pcs': totalFreeItems
+                };
             }
-            // Build display string like "4 kg, 2 pcs, 1 pack"
-            let unitDisplay = Object.entries(unitSummary)
-                .map(([unit, qty]) => `${qty % 1 === 0 ? qty : qty.toFixed(4).replace(/\.?0+$/, '')} ${unit}`)
-                .join(', ');
+
+            // Build display string with paid + free breakdown
+            let unitDisplay = '';
+            if (totalFreeItems > 0) {
+                // Show "paid + free = total" breakdown for each unit
+                let displayParts = Object.entries(unitSummary).map(([unit, qty]) => {
+                    const freeQty = freeUnitSummary[unit] || 0;
+                    const totalQty = qty + freeQty;
+                    const qtyStr = qty % 1 === 0 ? qty : qty.toFixed(4).replace(/\.?0+$/, '');
+                    const freeQtyStr = freeQty % 1 === 0 ? freeQty : freeQty.toFixed(4).replace(/\.?0+$/, '');
+                    const totalQtyStr = totalQty % 1 === 0 ? totalQty : totalQty.toFixed(4).replace(/\.?0+$/, '');
+                    return freeQty > 0 ? `${qtyStr} + ${freeQtyStr} free = ${totalQtyStr} ${unit}` : `${qtyStr} ${unit}`;
+                });
+                unitDisplay = displayParts.join(', ');
+            } else {
+                // No free items, show normal display
+                unitDisplay = Object.entries(unitSummary)
+                    .map(([unit, qty]) => `${qty % 1 === 0 ? qty : qty.toFixed(4).replace(/\.?0+$/, '')} ${unit}`)
+                    .join(', ');
+            }
 
             // Safe DOM updates with null checks
             const itemsCountEl = document.getElementById('items-count');
@@ -9114,7 +9241,12 @@
                     return null;
                 }
 
+                // Flag to track validation errors
+                let hasValidationError = false;
+
                 productRows.each(function() {
+                    if (hasValidationError) return; // Skip if already found error
+
                     const productRow = $(this);
                     const batchId = productRow.find('.batch-id').text().trim();
                     const locationId = productRow.find('.location-id').text().trim();
@@ -9142,40 +9274,50 @@
 
                     if (!locationId) {
                         toastr.error('Location ID is missing for a product.');
+                        hasValidationError = true;
                         return;
                     }
 
                     // ✨ PERFORMANCE FIX: Build optimized product data with minimal payload
                     const productId = parseInt(productRow.find('.product-id').text().trim(), 10);
                     const qtyVal = productRow.find('.quantity-input').val().trim();
+                    const freeQtyVal = productRow.find('.free-quantity-input').val().trim();
                     const quantity = isImeiProduct ? 1 : (parseFloat(qtyVal) || 0);
+                    const freeQuantity = parseFloat(freeQtyVal) || 0;
+
+                    // ✅ VALIDATE: Check if total quantity exceeds available stock
+                    const totalQuantity = quantity + freeQuantity;
+                    const maxStock = parseFloat(productRow.find('.quantity-input').attr('max')) || 0;
+
+                    if (totalQuantity > maxStock && maxStock > 0) {
+                        const productName = productRow.find('.product-name').text().trim();
+                        toastr.error(`Product "${productName}": Total quantity (${quantity} + ${freeQuantity} free = ${totalQuantity}) exceeds available stock (${maxStock}). Please reduce the quantity.`);
+                        hasValidationError = true;
+                        return; // Stop processing this row
+                    }
 
                     // Process batch_id to ensure proper format for backend FIFO logic
                     // Send "all" for FIFO method when no specific batch is selected
                     // Send specific batch_id string when a batch is selected
 
-                    // EMERGENCY FIX: Force all products to use FIFO method to prevent stock issues
-                    let processedBatchId = "all"; // Always use FIFO method
+                    // ✅ FIX: Respect user's batch selection - deduct from selected batch, not FIFO
+                    let processedBatchId = "all"; // Default to FIFO if no batch selected
 
-                    // Only allow specific batch IDs for IMEI products (they need their specific batches)
+                    // If user selected a specific batch, respect their selection
                     if (batchId && batchId !== "null" && batchId !== "" && batchId !== "all") {
-                        // Check if this is an IMEI product by looking at the row
-                        const isImeiProduct = productRow.find('.imei-data').text().trim() !== '';
-                        if (isImeiProduct) {
-                            processedBatchId = String(batchId); // Keep specific batch for IMEI products
-                            console.log('🔧 IMEI product keeping specific batch_id:', processedBatchId);
-                        } else {
-                            console.log('🔧 EMERGENCY FIX: Non-IMEI product forced to use FIFO method instead of batch:', batchId);
-                        }
+                        processedBatchId = String(batchId); // Use the selected batch
+                        console.log('✅ Using user-selected batch_id:', processedBatchId);
+                    } else {
+                        console.log('📦 No specific batch selected, using FIFO method');
                     }
 
-                    console.log('Processed batchId:', processedBatchId, 'from original:', batchId, 'type:', typeof batchId, '(FIFO method if "all")');
-
-                    // Critical debugging - log every batch_id being sent to server
-                    if (processedBatchId !== "all") {
-                        console.error('🚨 ALERT: Sending specific batch_id to server:', processedBatchId, 'This may cause "Insufficient stock" errors!');
-                        console.trace('Stack trace for specific batch_id');
-                    }
+                    console.log('🔍 BATCH ID DEBUG:', {
+                        rawBatchId: batchId,
+                        rawType: typeof batchId,
+                        processedBatchId: processedBatchId,
+                        processedType: typeof processedBatchId,
+                        productName: productRow.find('.product-id').text().trim()
+                    });
 
                     const rawSubtotalText = productRow.find('.subtotal').text().trim();
                     const parsedSubtotal = parseFormattedAmount(rawSubtotalText);
@@ -9197,6 +9339,7 @@
                         product_id: productId,
                         location_id: parseInt(locationId, 10),
                         quantity: quantity,
+                        free_quantity: freeQuantity,
                         price_type: priceType,
                         unit_price: unitPrice,
                         subtotal: parsedSubtotal,
@@ -9213,6 +9356,11 @@
 
                     saleData.products.push(productData);
                 });
+
+                // Check if validation failed
+                if (hasValidationError) {
+                    return null;
+                }
 
                 // Add shipping data to sale
                 const shippingInfo = getShippingDataForSale();

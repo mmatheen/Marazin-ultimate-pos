@@ -432,6 +432,7 @@
                                     'product' => $product,
                                     'imei' => $imei->imei_number,
                                     'quantity' => 1,
+                                    'free_quantity' => 0,
                                     'amount' => $product->price * 1,
                                     'discount' => ($mrp - $product->price) * 1,
                                     'unitPrice' => $mrp,
@@ -446,6 +447,7 @@
                                     'type' => 'grouped',
                                     'product' => $product,
                                     'quantity' => 0,
+                                    'free_quantity' => 0,
                                     'amount' => 0,
                                     'discount' => ($mrp - $product->price),
                                     'unitPrice' => $mrp,
@@ -453,6 +455,7 @@
                                 ];
                             }
                             $nonImeiGroups[$groupKey]['quantity'] += $product->quantity;
+                            $nonImeiGroups[$groupKey]['free_quantity'] += ($product->free_quantity ?? 0);
                             $nonImeiGroups[$groupKey]['amount'] += $product->price * $product->quantity;
                         }
                     }
@@ -473,7 +476,12 @@
                                 ({{ substr($item['product']->product->product_variation, 0, 8) }})
                             @endif
                         </td>
-                        <td>{{ number_format($item['quantity'], 0) }}</td>
+                        <td>
+                            {{ number_format($item['quantity'], 0) }}
+                            @if(isset($item['free_quantity']) && $item['free_quantity'] > 0)
+                                +{{ $item['free_quantity'] }}F
+                            @endif
+                        </td>
                         <td>{{ number_format($item['unitPrice'], 2) }}</td>
                         <td>{{ number_format($item['discount'], 2) }}</td>
                         <td>{{ number_format($item['rate'], 2) }}</td>
@@ -526,8 +534,12 @@
                         <span>{{ count($products) }}</span>
                     </div>
                     <div class="summary-row">
+                        @php
+                            $totalQty = $products->sum('quantity');
+                            $totalFreeQty = $products->sum('free_quantity');
+                        @endphp
                         <span>Total Quantity:</span>
-                        <span>{{ $products->sum('quantity') }}</span>
+                        <span>{{ $totalQty + $totalFreeQty }}@if($totalFreeQty > 0) ({{ $totalFreeQty }}F)@endif</span>
                     </div>
                     @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))
                         @if (isset($customer_outstanding_balance) && $customer_outstanding_balance > 0)

@@ -15,23 +15,23 @@
                         <th>SKU</th>
                         <th>Brand</th>
                         <th class="text-end">Purchase Price</th>
-                        <th class="text-end">Qty Sold</th>
-                        <th class="text-end">Avg Selling Price</th>
+                        <th class="text-end">Paid Qty</th>
+                        <th class="text-end">Free Qty</th>
+                        <th class="text-end">Total Qty</th>
                         <th class="text-end">Total Cost</th>
                         <th class="text-end">Total Sales</th>
                         <th class="text-end">Profit/Loss</th>
                         <th class="text-end">Margin %</th>
-                        <th class="text-end">Profit per Unit</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($batches as $batch)
                     <tr>
                         <td>
-                            <code>{{ $batch['batch_no'] }}</code>
-                            @if($batch['profit_loss'] < 0)
+                            <code>{{ $batch['batch_number'] }}</code>
+                            @if($batch['gross_profit'] < 0)
                                 <span class="badge bg-danger ms-1">Loss</span>
-                            @elseif($batch['profit_loss'] > 0)
+                            @elseif($batch['gross_profit'] > 0)
                                 <span class="badge bg-success ms-1">Profit</span>
                             @else
                                 <span class="badge bg-secondary ms-1">Break Even</span>
@@ -41,23 +41,19 @@
                         <td><code>{{ $batch['sku'] }}</code></td>
                         <td>{{ $batch['brand_name'] }}</td>
                         <td class="text-end">Rs. {{ number_format($batch['purchase_price'], 2) }}</td>
-                        <td class="text-end">{{ number_format($batch['total_quantity']) }}</td>
-                        <td class="text-end">Rs. {{ number_format($batch['avg_selling_price'], 2) }}</td>
+                        <td class="text-end"><strong>{{ number_format($batch['paid_quantity']) }}</strong></td>
+                        <td class="text-end"><span class="text-success">{{ number_format($batch['free_quantity']) }}</span></td>
+                        <td class="text-end"><span class="text-primary fw-bold">{{ number_format($batch['total_quantity']) }}</span></td>
                         <td class="text-end">Rs. {{ number_format($batch['total_cost'], 2) }}</td>
                         <td class="text-end">Rs. {{ number_format($batch['total_sales'], 2) }}</td>
                         <td class="text-end">
-                            <span class="{{ $batch['profit_loss'] >= 0 ? 'profit-positive' : 'profit-negative' }}">
-                                Rs. {{ number_format($batch['profit_loss'], 2) }}
+                            <span class="{{ $batch['gross_profit'] >= 0 ? 'profit-positive' : 'profit-negative' }}">
+                                Rs. {{ number_format($batch['gross_profit'], 2) }}
                             </span>
                         </td>
                         <td class="text-end">
                             <span class="{{ $batch['profit_margin'] >= 0 ? 'profit-positive' : 'profit-negative' }}">
                                 {{ number_format($batch['profit_margin'], 2) }}%
-                            </span>
-                        </td>
-                        <td class="text-end">
-                            <span class="{{ $batch['profit_per_unit'] >= 0 ? 'profit-positive' : 'profit-negative' }}">
-                                Rs. {{ number_format($batch['profit_per_unit'], 2) }}
                             </span>
                         </td>
                     </tr>
@@ -74,20 +70,14 @@
                 <tfoot class="table-secondary">
                     <tr>
                         <th colspan="5">TOTALS</th>
+                        <th class="text-end">{{ number_format(collect($batches)->sum('paid_quantity')) }}</th>
+                        <th class="text-end">{{ number_format(collect($batches)->sum('free_quantity')) }}</th>
                         <th class="text-end">{{ number_format(collect($batches)->sum('total_quantity')) }}</th>
-                        <th class="text-end">
-                            @php
-                                $totalSales = collect($batches)->sum('total_sales');
-                                $totalQty = collect($batches)->sum('total_quantity');
-                                $avgSellingPrice = $totalQty > 0 ? $totalSales / $totalQty : 0;
-                            @endphp
-                            Rs. {{ number_format($avgSellingPrice, 2) }}
-                        </th>
                         <th class="text-end">Rs. {{ number_format(collect($batches)->sum('total_cost'), 2) }}</th>
-                        <th class="text-end">Rs. {{ number_format($totalSales, 2) }}</th>
+                        <th class="text-end">Rs. {{ number_format(collect($batches)->sum('total_sales'), 2) }}</th>
                         <th class="text-end">
                             @php
-                                $totalProfit = collect($batches)->sum('profit_loss');
+                                $totalProfit = collect($batches)->sum('gross_profit');
                             @endphp
                             <span class="{{ $totalProfit >= 0 ? 'profit-positive' : 'profit-negative' }}">
                                 Rs. {{ number_format($totalProfit, 2) }}
@@ -95,18 +85,11 @@
                         </th>
                         <th class="text-end">
                             @php
+                                $totalSales = collect($batches)->sum('total_sales');
                                 $avgMargin = $totalSales > 0 ? ($totalProfit / $totalSales) * 100 : 0;
                             @endphp
                             <span class="{{ $avgMargin >= 0 ? 'profit-positive' : 'profit-negative' }}">
                                 {{ number_format($avgMargin, 2) }}%
-                            </span>
-                        </th>
-                        <th class="text-end">
-                            @php
-                                $avgProfitPerUnit = $totalQty > 0 ? $totalProfit / $totalQty : 0;
-                            @endphp
-                            <span class="{{ $avgProfitPerUnit >= 0 ? 'profit-positive' : 'profit-negative' }}">
-                                Rs. {{ number_format($avgProfitPerUnit, 2) }}
                             </span>
                         </th>
                     </tr>
@@ -114,7 +97,7 @@
                 @endif
             </table>
         </div>
-        
+
         <!-- Batch Performance Analysis -->
         @if(count($batches) > 0)
         <div class="row mt-4">

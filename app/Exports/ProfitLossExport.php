@@ -130,6 +130,8 @@ class ProfitLossProductSheet implements FromArray, WithTitle, WithHeadings, With
             'SKU',
             'Brand',
             'Category',
+            'Paid Qty',
+            'Free Qty',
             'Total Quantity',
             'Total Sales (Rs.)',
             'Total Cost (Rs.)',
@@ -149,13 +151,15 @@ class ProfitLossProductSheet implements FromArray, WithTitle, WithHeadings, With
                 $product['sku'] ?? '',
                 $product['brand_name'] ?? '',
                 $product['category_name'] ?? '',
+                $product['paid_quantity'] ?? 0,
+                $product['free_quantity'] ?? 0,
                 $product['total_quantity'],
                 number_format($product['total_sales'], 2),
                 number_format($product['total_cost'], 2),
-                number_format($product['profit_loss'], 2),
+                number_format($product['gross_profit'] ?? $product['profit_loss'], 2),
                 number_format($product['profit_margin'], 2),
                 number_format($product['avg_selling_price'], 2),
-                number_format($product['avg_cost_price'], 2)
+                number_format($product['avg_cost_price'] ?? $product['cost_per_unit'], 2)
             ];
         }
         return $rows;
@@ -190,7 +194,9 @@ class ProfitLossBatchSheet implements FromArray, WithTitle, WithHeadings, WithSt
             'Batch Number',
             'Purchase Price (Rs.)',
             'Selling Price (Rs.)',
-            'Quantity Sold',
+            'Paid Qty',
+            'Free Qty',
+            'Total Sold',
             'Total Sales (Rs.)',
             'Total Cost (Rs.)',
             'Profit/Loss (Rs.)',
@@ -207,11 +213,13 @@ class ProfitLossBatchSheet implements FromArray, WithTitle, WithHeadings, WithSt
                 $batch['product_name'],
                 $batch['batch_number'],
                 number_format($batch['purchase_price'], 2),
-                number_format($batch['selling_price'], 2),
-                $batch['quantity_sold'],
+                number_format($batch['avg_selling_price'] ?? $batch['selling_price'], 2),
+                $batch['paid_quantity'] ?? 0,
+                $batch['free_quantity'] ?? 0,
+                $batch['total_quantity'] ?? $batch['quantity_sold'],
                 number_format($batch['total_sales'], 2),
                 number_format($batch['total_cost'], 2),
-                number_format($batch['profit_loss'], 2),
+                number_format($batch['gross_profit'] ?? $batch['profit_loss'], 2),
                 number_format($batch['profit_margin'], 2),
                 $batch['expiry_date'] ?? 'N/A'
             ];
@@ -316,7 +324,7 @@ class ProfitLossLocationSheet implements FromArray, WithTitle, WithHeadings, Wit
     {
         $rows = [];
         $totalSales = collect($this->data)->sum('total_sales');
-        
+
         foreach ($this->data as $location) {
             $revenueShare = $totalSales > 0 ? ($location['total_sales'] / $totalSales) * 100 : 0;
             $rows[] = [

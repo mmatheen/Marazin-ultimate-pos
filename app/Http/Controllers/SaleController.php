@@ -981,6 +981,27 @@ class SaleController extends Controller
                     }
                 },
             ],
+            'products.*.free_quantity' => [
+                'nullable',
+                'numeric',
+                'min:0',
+                function ($attribute, $value, $fail) use ($request) {
+                    if ($value !== null && $value > 0) {
+                        // Extract the index from the attribute
+                        if (preg_match('/products\.(\d+)\.free_quantity/', $attribute, $matches)) {
+                            $index = $matches[1];
+                            $productData = $request->input("products.$index");
+                            if ($productData && isset($productData['product_id'])) {
+                                $product = Product::find($productData['product_id']);
+                                // Validate unit type (integer vs decimal)
+                                if ($product && $product->unit && !$product->unit->allow_decimal && floor($value) != $value) {
+                                    $fail("The free quantity must be an integer for this unit.");
+                                }
+                            }
+                        }
+                    }
+                },
+            ],
             'products.*.unit_price' => 'required|numeric|min:0',
             'products.*.subtotal' => 'required|numeric|min:0',
             'products.*.batch_id' => 'nullable|string|max:255',
@@ -1784,10 +1805,17 @@ class SaleController extends Controller
 
                 // ----- Products Logic (allow multiple for jobticket) -----
                 if ($isUpdate) {
-                    // Store original quantities for stock validation during update
+                    // Store original quantities for stock validation during update (paid + free)
                     $originalProducts = [];
                     foreach ($sale->products as $product) {
-                        $originalProducts[$product->product_id][$product->batch_id] = ($originalProducts[$product->product_id][$product->batch_id] ?? 0) + $product->quantity;
+                        if (!isset($originalProducts[$product->product_id][$product->batch_id])) {
+                            $originalProducts[$product->product_id][$product->batch_id] = [
+                                'quantity' => 0,
+                                'free_quantity' => 0
+                            ];
+                        }
+                        $originalProducts[$product->product_id][$product->batch_id]['quantity'] += $product->quantity;
+                        $originalProducts[$product->product_id][$product->batch_id]['free_quantity'] += ($product->free_quantity ?? 0);
 
                         if (in_array($oldStatus, ['final', 'suspend'])) {
                             $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
@@ -2132,21 +2160,39 @@ class SaleController extends Controller
     private function processProductSale($productData, $saleId, $locationId, $stockType, $newStatus)
     {
         // ✅ CRITICAL FIX: Log product sale processing for debugging
+        $freeQuantity = floatval($productData['free_quantity'] ?? 0);
         Log::info("🛒 PROCESSING PRODUCT SALE", [
             'sale_id' => $saleId,
             'product_id' => $productData['product_id'],
             'quantity' => $productData['quantity'],
+            'free_quantity' => $freeQuantity,
             'batch_id' => $productData['batch_id'] ?? 'all',
+            'batch_id_type' => gettype($productData['batch_id'] ?? null),
+            'batch_id_empty' => empty($productData['batch_id']),
+            'batch_id_equals_all' => ($productData['batch_id'] ?? null) == 'all',
+            'batch_id_strict_equals_all' => ($productData['batch_id'] ?? null) === 'all',
             'location_id' => $locationId,
             'stock_type' => $stockType,
             'status' => $newStatus
         ]);
 
-        $totalQuantity = $productData['quantity'];
+        // Total quantity to deduct from inventory = paid + free
+        $totalQuantity = $productData['quantity'] + $freeQuantity;
         $remainingQuantity = $totalQuantity;
 
         // We'll store info about each batch deduction
         $batchDeductions = [];
+
+        // ✅ CRITICAL DEBUG: Log the exact condition check
+        $batchIdValue = $productData['batch_id'] ?? null;
+        $isNotEmpty = !empty($batchIdValue);
+        $isNotAll = $batchIdValue != 'all';
+        Log::info("🔍 BATCH SELECTION DEBUG", [
+            'batch_id_value' => $batchIdValue,
+            'is_not_empty' => $isNotEmpty,
+            'is_not_all' => $isNotAll,
+            'will_use_specific_batch' => ($isNotEmpty && $isNotAll)
+        ]);
 
         if (!empty($productData['batch_id']) && $productData['batch_id'] != 'all') {
             // Specific batch selected
@@ -2247,10 +2293,18 @@ class SaleController extends Controller
         foreach ($batchDeductions as $deduction) {
             // Create sales_product record for this batch
             // Note: subtotal = quantity × price (calculated, not stored)
+            // Calculate proportional free quantity for this batch deduction
+            $proportionalFreeQty = ($freeQuantity > 0 && $productData['quantity'] > 0)
+                ? ($deduction['quantity'] / $totalQuantity) * $freeQuantity
+                : 0;
+
+            $paidQtyForBatch = $deduction['quantity'] - $proportionalFreeQty;
+
             $saleProduct = SalesProduct::create([
                 'sale_id' => $saleId,
                 'product_id' => $productData['product_id'],
-                'quantity' => $deduction['quantity'],
+                'quantity' => $paidQtyForBatch,
+                'free_quantity' => $proportionalFreeQty,
                 'price' => $productData['unit_price'], // price column stores unit price
                 'batch_id' => $deduction['batch_id'],
                 'location_id' => $locationId,
@@ -2506,29 +2560,38 @@ class SaleController extends Controller
 
     private function validateStockForUpdate($productData, $locationId, $originalProducts)
     {
-        $totalQuantity = $productData['quantity'];
+        // ✅ INCLUDE FREE QUANTITY: Total = paid + free
+        $freeQuantity = floatval($productData['free_quantity'] ?? 0);
+        $totalQuantity = $productData['quantity'] + $freeQuantity;
         $productId = $productData['product_id'];
         $batchId = $productData['batch_id'];
 
-        // Get original quantity sold for this product/batch combination
+        // Get original quantity sold for this product/batch combination (paid + free)
         $originalQuantity = 0;
+        $originalFreeQuantity = 0;
         if (isset($originalProducts[$productId])) {
             if ($batchId === 'all') {
                 // For 'all' batches, sum all original quantities for this product
-                $originalQuantity = array_sum($originalProducts[$productId]);
+                foreach ($originalProducts[$productId] as $batchData) {
+                    $originalQuantity += $batchData['quantity'] ?? 0;
+                    $originalFreeQuantity += $batchData['free_quantity'] ?? 0;
+                }
             } else {
                 // For specific batch, get original quantity for this batch
-                $originalQuantity = $originalProducts[$productId][$batchId] ?? 0;
+                $batchData = $originalProducts[$productId][$batchId] ?? [];
+                $originalQuantity = $batchData['quantity'] ?? 0;
+                $originalFreeQuantity = $batchData['free_quantity'] ?? 0;
             }
         }
+        $originalTotalQuantity = $originalQuantity + $originalFreeQuantity;
 
         if (!empty($batchId) && $batchId != 'all') {
             // Specific batch selected
             $currentStock = Sale::getAvailableStock($batchId, $locationId);
-            $availableStock = $currentStock + $originalQuantity;
+            $availableStock = $currentStock + $originalTotalQuantity;
 
             if ($totalQuantity > $availableStock) {
-                throw new \Exception("Batch ID {$batchId} does not have enough stock. Available: {$availableStock}, Requested: {$totalQuantity}");
+                throw new \Exception("Batch ID {$batchId} does not have enough stock. Available: {$availableStock}, Requested: {$totalQuantity} (paid: {$productData['quantity']} + free: {$freeQuantity})");
             }
         } else {
             // All batches selected - check total available stock
@@ -2538,10 +2601,10 @@ class SaleController extends Controller
                 ->where('location_batches.location_id', $locationId)
                 ->sum('location_batches.qty');
 
-            $availableStock = $currentTotalStock + $originalQuantity;
+            $availableStock = $currentTotalStock + $originalTotalQuantity;
 
             if ($totalQuantity > $availableStock) {
-                throw new \Exception("Not enough stock available. Available: {$availableStock}, Requested: {$totalQuantity}");
+                throw new \Exception("Not enough stock available. Available: {$availableStock}, Requested: {$totalQuantity} (paid: {$productData['quantity']} + free: {$freeQuantity})");
             }
         }
     }

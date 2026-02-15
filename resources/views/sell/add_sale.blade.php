@@ -191,6 +191,7 @@
                                             <tr>
                                                 <th>Product</th>
                                                 <th>Quantity</th>
+                                                <th>Free Qty</th>
                                                 <th>Unit Price</th>
                                                 <th>Discount</th>
                                                 <th>Price inc.Dis</th>

@@ -558,6 +558,7 @@
                                                     <th class="text-center" style="width: 50px;">#</th>
                                                     <th>Product</th>
                                                     <th class="text-center">Quantity</th>
+                                                    <th class="text-center">Free Qty</th>
                                                     <th class="text-center">Discount (Rs)</th>
                                                     <th class="text-center">Discount (%)</th>
                                                     <th class="text-center">Unit Price</th>

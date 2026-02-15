@@ -282,6 +282,7 @@
                                                 <th>Product Name</th>
                                                 <th>SKU</th>
                                                 <th>Quantity</th>
+                                                <th>Free Qty</th>
                                                 <th>Price</th>
                                                 <th>Total</th>
                                             </tr>
