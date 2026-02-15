@@ -10741,7 +10741,7 @@
                                     mutations.forEach(function(mutation) {
                                         if (mutation.attributeName === 'style' || mutation.attributeName === 'class') {
                                             const overlay = document.querySelector('.sweet-overlay');
-                                            const isHidden = !overlay || overlay.style.display === 'none' || 
+                                            const isHidden = !overlay || overlay.style.display === 'none' ||
                                                              !overlay.classList.contains('sweet-overlay-visible') ||
                                                              getComputedStyle(overlay).display === 'none';
                                             if (isHidden && !userMadeChoice) {
@@ -10769,7 +10769,7 @@
                                     toastr.info(`Rs. ${formattedBalance} will be returned to customer`, '💵 Return Cash');
                                     $('#cashButton').trigger('click');
                                 });
-                                
+
                                 $('#btnSaveAdvance').on('click', function() {
                                     userMadeChoice = true;
                                     swal.close();
