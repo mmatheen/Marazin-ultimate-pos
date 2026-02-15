@@ -126,7 +126,7 @@ class PaymentService
             $newAmount = $newPaymentData['amount'];
             $newPaymentStatus = $newPaymentData['payment_status'] ?? 'completed';
 
-            $sale = Sale::findOrFail($payment->reference_id);
+            $sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->findOrFail($payment->reference_id);
 
             // ✅ STEP 1: Mark original payment as deleted (soft delete for audit trail)
             $payment->update([
@@ -230,7 +230,7 @@ class PaymentService
     public function deleteSalePayment(Payment $payment, string $reason = 'Payment deleted'): bool
     {
         return DB::transaction(function () use ($payment, $reason) {
-            $sale = Sale::findOrFail($payment->reference_id);
+            $sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->findOrFail($payment->reference_id);
 
             // Create reverse entry for the payment (if ledger tracking is enabled)
             if ($sale->customer_id != 1) { // Skip Walk-In customers

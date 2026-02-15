@@ -1427,18 +1427,18 @@ class UnifiedLedgerService
                 $sale = null;
 
                 // Pattern 1: Direct invoice_no match
-                $sale = Sale::where('invoice_no', $referenceNo)->with('location')->first();
+                $sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->where('invoice_no', $referenceNo)->with('location')->first();
 
                 // Pattern 2: MLX prefix (MLX001, MLX002, etc.)
                 if (!$sale && strpos($referenceNo, 'MLX') === 0) {
                     $saleId = str_replace('MLX', '', $referenceNo);
-                    $sale = Sale::where('id', $saleId)->with('location')->first();
+                    $sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->where('id', $saleId)->with('location')->first();
                 }
 
                 // Pattern 3: INV- prefix
                 if (!$sale && strpos($referenceNo, 'INV-') === 0) {
                     $saleId = str_replace('INV-', '', $referenceNo);
-                    $sale = Sale::where('id', $saleId)->with('location')->first();
+                    $sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->where('id', $saleId)->with('location')->first();
                 }
 
                 if ($sale && $sale->location) {
@@ -1497,7 +1497,7 @@ class UnifiedLedgerService
                 if ($payment) {
                     // If it's a sale payment, get location from sale
                     if ($payment->payment_type === 'sale' && $payment->reference_id) {
-                        $sale = Sale::where('id', $payment->reference_id)->with('location')->first();
+                        $sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->where('id', $payment->reference_id)->with('location')->first();
                         if ($sale && $sale->location) {
                             return $sale->location->name;
                         }

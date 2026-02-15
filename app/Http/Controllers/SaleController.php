@@ -486,7 +486,15 @@ class SaleController extends Controller
             }
             else {
                 // Original logic for All Sales page - only final invoices
-                $sales = Sale::with('products.product', 'customer', 'location', 'payments', 'user')
+                // ✅ When customer_id is passed (e.g., from bulk payments), bypass LocationScope
+                // so all customer sales across locations are visible
+                $query = $request->has('customer_id')
+                    ? Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
+                        ->with('products.product', 'customer', 'location', 'payments', 'user')
+                        ->where('customer_id', $request->customer_id)
+                    : Sale::with('products.product', 'customer', 'location', 'payments', 'user');
+
+                $sales = $query
                     ->where('status', 'final')
                     ->where('transaction_type', '!=', 'sale_order') // Explicitly exclude sale orders
                     ->where(function($query) {

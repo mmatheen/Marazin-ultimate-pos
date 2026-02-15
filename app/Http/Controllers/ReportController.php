@@ -860,7 +860,7 @@ public function fetchActivityLog(Request $request)
             foreach ($data as $row) {
                 if (isset($row['id'])) {
                     // Get the sale to find customer_id
-                    $sale = \App\Models\Sale::find($row['id']);
+                    $sale = \App\Models\Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->find($row['id']);
                     if ($sale && $sale->customer_id) {
                         $uniqueCustomerIds[$sale->customer_id] = true;
                     }
@@ -1167,7 +1167,7 @@ public function fetchActivityLog(Request $request)
                 // Fallback: Try to find the related sale/purchase by reference_id
                 if ($invoiceValue == 0 && $payment->reference_id) {
                     if ($payment->payment_type === 'sale') {
-                        $sale = \App\Models\Sale::find($payment->reference_id);
+                        $sale = \App\Models\Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->find($payment->reference_id);
                         if ($sale) {
                             $invoiceNo = $sale->invoice_no ?? '';
                             $invoiceValue = (float) ($sale->final_total ?? 0); // Use final_total

@@ -139,8 +139,9 @@ class PaymentController extends Controller
             return;
         }
 
-        // Get outstanding sales ordered by date (oldest first) - respecting location scope
-        $outstandingSales = Sale::where('customer_id', $customerId)
+        // Get outstanding sales ordered by date (oldest first) - bypass location scope for cross-location payments
+        $outstandingSales = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
+            ->where('customer_id', $customerId)
             ->where('total_due', '>', 0)
             ->orderBy('sales_date', 'asc')
             ->get();
@@ -738,7 +739,8 @@ class PaymentController extends Controller
 
     private function updateSaleTable($saleId, $returnCreditForThisSale = 0)
     {
-        $sale = Sale::find($saleId);
+        // ✅ Bypass LocationScope: sale updates during payment should work across all locations
+        $sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->find($saleId);
         if ($sale) {
             // ✅ Calculate total CASH payments from payments table
             $totalCashPayments = Payment::where('reference_id', $sale->id)
@@ -1059,7 +1061,7 @@ class PaymentController extends Controller
             // For both type, should not exceed current_balance
             if ($paymentType === 'opening_balance') {
                 $refDue = $contactType === 'customer'
-                    ? Sale::where('customer_id', $contactId)->where('total_due', '>', 0)->sum('total_due')
+                    ? Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->where('customer_id', $contactId)->where('total_due', '>', 0)->sum('total_due')
                     : Purchase::where('supplier_id', $contactId)->where('total_due', '>', 0)->sum('total_due');
 
                 $maxOBPayment = max(0, $entity->current_balance - $refDue);
@@ -1083,7 +1085,7 @@ class PaymentController extends Controller
         // For "both" or "sale_dues/purchase_dues" type, validate reference payment portion
         if ($totalRefPayment > 0 && ($paymentType === 'both' || $paymentType === 'sale_dues' || $paymentType === 'purchase_dues')) {
             $totalRefDue = $contactType === 'customer'
-                ? Sale::where('customer_id', $contactId)->where('total_due', '>', 0)->sum('total_due')
+                ? Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->where('customer_id', $contactId)->where('total_due', '>', 0)->sum('total_due')
                 : Purchase::where('supplier_id', $contactId)->where('total_due', '>', 0)->sum('total_due');
 
             if ($totalRefPayment > $totalRefDue) {
@@ -1368,7 +1370,9 @@ class PaymentController extends Controller
                         // Sale payments - process bills
                         foreach ($paymentGroup['bills'] as $bill) {
                             // Validate sale belongs to customer and amount
-                            $sale = Sale::where('id', $bill['sale_id'])
+                            // ✅ Bypass LocationScope: payments should work across all locations for the customer
+                            $sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
+                                      ->where('id', $bill['sale_id'])
                                       ->where('customer_id', $request->customer_id)
                                       ->first();
 
@@ -1504,7 +1508,9 @@ class PaymentController extends Controller
                     foreach ($request->bill_return_allocations as $saleId => $creditAmount) {
                         if ($creditAmount > 0) {
                             // Validate sale belongs to customer
-                            $sale = Sale::where('id', $saleId)
+                            // ✅ Bypass LocationScope: return allocations should work across all locations
+                            $sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
+                                      ->where('id', $saleId)
                                       ->where('customer_id', $request->customer_id)
                                       ->first();
 
@@ -1654,7 +1660,7 @@ class PaymentController extends Controller
 
                         // CRITICAL: Break sale relationship - restore due amount
                         if ($payment->reference_id) {
-                            $sale = Sale::find($payment->reference_id);
+                            $sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->find($payment->reference_id);
                             if ($sale) {
                                 // Reduce total_paid by bounced amount
                                 $sale->total_paid = max(0, $sale->total_paid - $payment->amount);
@@ -1991,7 +1997,7 @@ class PaymentController extends Controller
                 function ($attribute, $value, $fail) use ($request) {
                     if ($request->entity_type === 'supplier' && !Purchase::where('id', $value)->exists()) {
                         $fail('The selected ' . $attribute . ' is invalid.');
-                    } elseif ($request->entity_type === 'customer' && !Sale::where('id', $value)->exists()) {
+                    } elseif ($request->entity_type === 'customer' && !Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->where('id', $value)->exists()) {
                         $fail('The selected ' . $attribute . ' is invalid.');
                     }
                 }
@@ -2013,7 +2019,7 @@ class PaymentController extends Controller
     {
         $totalDueFromReferences = match ($entityType) {
             'supplier' => Purchase::where('supplier_id', $entityId)->where('total_due', '>', 0)->sum('total_due'),
-            'customer' => Sale::where('customer_id', $entityId)->where('total_due', '>', 0)->sum('total_due'),
+            'customer' => Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->where('customer_id', $entityId)->where('total_due', '>', 0)->sum('total_due'),
             default => 0,
         };
 
@@ -2032,7 +2038,7 @@ class PaymentController extends Controller
     {
         $totalDueFromReferences = match ($entityType) {
             'supplier' => Purchase::where('supplier_id', $entityId)->where('total_due', '>', 0)->sum('total_due'),
-            'customer' => Sale::where('customer_id', $entityId)->where('total_due', '>', 0)->sum('total_due'),
+            'customer' => Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->where('customer_id', $entityId)->where('total_due', '>', 0)->sum('total_due'),
             default => 0,
         };
 
@@ -2176,7 +2182,7 @@ class PaymentController extends Controller
     {
         return match ($entityType) {
             'supplier' => Purchase::where('supplier_id', $entityId)->where('total_due', '>', 0)->orderBy('created_at', 'asc')->get(),
-            'customer' => Sale::where('customer_id', $entityId)->where('total_due', '>', 0)->orderBy('created_at', 'asc')->get(),
+            'customer' => Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->where('customer_id', $entityId)->where('total_due', '>', 0)->orderBy('created_at', 'asc')->get(),
             default => collect(),
         };
     }
@@ -2185,7 +2191,7 @@ class PaymentController extends Controller
     {
         return $entityType === 'supplier'
             ? Purchase::find($refId)
-            : Sale::find($refId);
+            : Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->find($refId);
     }
 
     private function createBulkPayment($reference, $amount, $paymentMethod, $entityType, $entityId, $notes, $request)
@@ -2506,7 +2512,7 @@ class PaymentController extends Controller
             foreach ($payments as $payment) {
                 switch ($payment->payment_type) {
                     case 'sale':
-                        $payment->sale = Sale::find($payment->reference_id);
+                        $payment->sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->find($payment->reference_id);
                         break;
                     case 'purchase':
                         $payment->purchase = Purchase::find($payment->reference_id);
@@ -2564,8 +2570,8 @@ class PaymentController extends Controller
             // Get related entity
             $entity = null;
             if ($entityType === 'sale') {
-                $entity = Sale::find($payment->reference_id);
-                $contact = Customer::find($payment->customer_id);
+                $entity = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->find($payment->reference_id);
+                $contact = Customer::withoutGlobalScope(\App\Scopes\LocationScope::class)->find($payment->customer_id);
             } else {
                 $entity = Purchase::find($payment->reference_id);
                 $contact = Supplier::find($payment->supplier_id);
@@ -2662,7 +2668,7 @@ class PaymentController extends Controller
                     ]);
                     // Allow edit for payments without entity reference (opening balance, etc.)
                 } elseif ($entityType === 'sale') {
-                    $entity = Sale::find($entityId);
+                    $entity = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->find($entityId);
                     if (!$entity) {
                         // Handle missing sale record gracefully
                         Log::warning("Payment edit attempted for missing sale", [
