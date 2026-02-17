@@ -2385,6 +2385,7 @@ class ProductController extends Controller
                     'batch_no',
                     'product_id',
                     'unit_cost',
+                    'qty',
                     'wholesale_price',
                     'special_price',
                     'retail_price',
@@ -2557,6 +2558,17 @@ class ProductController extends Controller
                         ->when($locationId, fn($q) => $q->where('location_id', $locationId))
                         ->sum('qty');
 
+                    // Calculate free quantity based on ACTUAL transactions at this location
+                    if ($locationId) {
+                        $freeQty = $batch->calculateFreeQtyForLocation($locationId);
+                    } else {
+                        // No location filter - use batch total (faster than summing per location)
+                        $freeQty = $batch->calculateFreeQty();
+                    }
+
+                    $paidQty = max(0, $batchQty - $freeQty);
+                    $freeQtyPercentage = $batchQty > 0 ? round(($freeQty / $batchQty) * 100, 1) : 0;
+
                     return [
                         'id' => $batch->id,
                         'batch_no' => $batch->batch_no,
@@ -2569,6 +2581,9 @@ class ProductController extends Controller
                         'total_batch_quantity' => $allowDecimal
                             ? round((float)$batchQty, 2)
                             : (int)$batchQty,
+                        'free_qty' => $allowDecimal ? round($freeQty, 2) : (int)$freeQty,
+                        'paid_qty' => $allowDecimal ? round($paidQty, 2) : (int)$paidQty,
+                        'free_qty_percentage' => $freeQtyPercentage,
                         'location_batches' => $locationBatches->map(function ($lb) use ($allowDecimal) {
                             return [
                                 'batch_id' => $lb->batch_id,

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class Batch extends Model
 {
@@ -37,7 +38,7 @@ class Batch extends Model
     }
     public function purchaseReturns()
     {
-        return $this->hasMany(PurchaseReturnProduct::class, 'batch_no', 'id');
+        return $this->hasMany(PurchaseReturnProduct::class, 'batch_no', 'batch_no');
     }
 
     public function saleReturns()
@@ -64,6 +65,83 @@ class Batch extends Model
     {
         return $this->hasMany(LocationBatch::class);
     }
+
+    /**
+     * Calculate free quantity remaining from transaction history (NO MIGRATION NEEDED)
+     * Calculates dynamically from existing purchase_products, sales_products, etc.
+     */
+    public function calculateFreeQty()
+    {
+        $purchased = $this->purchaseProducts()->sum('free_quantity') ?? 0;
+        $sold = $this->salesProducts()->sum('free_quantity') ?? 0;
+        $returnedToSupplier = $this->purchaseReturns()->sum('free_quantity') ?? 0;
+        $returnedByCustomer = $this->saleReturns()->sum('free_quantity') ?? 0;
+        $adjusted = $this->stockAdjustments()->sum('free_quantity') ?? 0;
+
+        $freeQty = $purchased - $sold - $returnedToSupplier + $returnedByCustomer + $adjusted;
+        return max(0, min($freeQty, $this->qty));
+    }
+
+    /**
+     * Calculate free quantity for a specific location (location-specific calculation)
+     * This respects the location-based inventory system and actual transactions
+     */
+    public function calculateFreeQtyForLocation($locationId)
+    {
+        // Calculate based on ACTUAL transactions at this location
+        $purchased = $this->purchaseProducts()->where('location_id', $locationId)->sum('free_quantity') ?? 0;
+        $sold = $this->salesProducts()->where('location_id', $locationId)->sum('free_quantity') ?? 0;
+
+        // For returns, we need to check if they have location_id
+        // Purchase returns are tracked by batch_no, not batch_id
+        $returnedToSupplier = DB::table('purchase_return_products as prp')
+            ->join('purchase_returns as pr', 'prp.purchase_return_id', '=', 'pr.id')
+            ->where('prp.batch_no', $this->batch_no)
+            ->where('pr.location_id', $locationId)
+            ->sum('prp.free_quantity') ?? 0;
+
+        $returnedByCustomer = $this->saleReturns()->where('location_id', $locationId)->sum('free_quantity') ?? 0;
+
+        // Adjustments
+        $adjusted = DB::table('adjustment_products as ap')
+            ->join('stock_adjustments as sa', 'ap.stock_adjustment_id', '=', 'sa.id')
+            ->where('ap.batch_id', $this->id)
+            ->where('sa.location_id', $locationId)
+            ->sum('ap.free_quantity') ?? 0;
+
+        $freeQty = $purchased - $sold - $returnedToSupplier + $returnedByCustomer + $adjusted;
+
+        // Get location batch quantity
+        $locationBatch = $this->locationBatches()->where('location_id', $locationId)->first();
+        $maxQty = $locationBatch ? $locationBatch->qty : 0;
+
+        return max(0, min($freeQty, $maxQty));
+    }
+
+    /**
+     * Get free quantity breakdown for debugging
+     */
+    public function getFreeQtyBreakdown()
+    {
+        $purchased = $this->purchaseProducts()->sum('free_quantity') ?? 0;
+        $sold = $this->salesProducts()->sum('free_quantity') ?? 0;
+        $returnedToSupplier = $this->purchaseReturns()->sum('free_quantity') ?? 0;
+        $returnedByCustomer = $this->saleReturns()->sum('free_quantity') ?? 0;
+        $adjusted = $this->stockAdjustments()->sum('free_quantity') ?? 0;
+
+        return [
+            'batch_no' => $this->batch_no,
+            'total_qty' => $this->qty,
+            'free_purchased' => $purchased,
+            'free_sold' => $sold,
+            'free_returned_to_supplier' => $returnedToSupplier,
+            'free_returned_by_customer' => $returnedByCustomer,
+            'free_adjusted' => $adjusted,
+            'free_qty_remaining' => $this->calculateFreeQty(),
+            'paid_qty' => $this->qty - $this->calculateFreeQty(),
+        ];
+    }
+
     public static function generateNextBatchNo()
     {
         // Fetch the last valid batch number in the 'BATCH' format

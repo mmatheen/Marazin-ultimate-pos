@@ -3893,20 +3893,6 @@
 
             // Return all results to autocomplete
             response(results);
-
-            // Force menu refresh after a short delay to ensure all items are rendered
-            setTimeout(() => {
-                const instance = $("#productSearchInput").autocomplete("instance");
-                if (instance && instance.menu && instance.menu.element) {
-                    // Ensure scrolling is enabled
-                    instance.menu.element.css({
-                        'max-height': '350px',
-                        'overflow-y': 'auto',
-                        'overflow-x': 'hidden'
-                    });
-                    console.log(`Autocomplete menu rendered with ${instance.menu.element.find('li').length} items`);
-                }
-            }, 50);
         }
 
         function handleSearchError(jqXHR, textStatus, response) {
@@ -3923,18 +3909,9 @@
         }
 
         function filterStockData(stockArray) {
-            // Optimized filtering with early returns
-            return stockArray.filter(stock => {
-                if (!stock.product) return false;
-
-                // Fast path for unlimited stock
-                if (stock.product.stock_alert == 0) return true;
-
-                // Check stock level
-                const stockLevel = stock.product.unit?.allow_decimal ?
-                    parseFloat(stock.total_stock) : parseInt(stock.total_stock);
-                return stockLevel > 0;
-            });
+            // ✅ Backend now filters zero-stock products for better performance
+            // Frontend just validates data structure
+            return stockArray.filter(stock => stock && stock.product);
         }
 
         function mapSearchResults(filteredStocks, term) {
@@ -4025,13 +4002,13 @@
                     autocompleteState.currentTerm = request.term;
                     resetAutocompleteState();
 
-                    // Debounce requests - reduced to 100ms for faster response
+                    // Debounce requests - reduced to 50ms for faster response
                     autocompleteState.debounceTimer = setTimeout(() => {
                         if (!autocompleteState.isRequesting) {
                             autocompleteState.isRequesting = true;
                             createProductSearchRequest(request.term, response);
                         }
-                    }, 100);
+                    }, 50);
                 },
                 select: function(event, ui) {
                     console.log('Item selected:', ui.item);
@@ -4812,6 +4789,9 @@
             }
 
             // Add product directly to billing body with the specified quantity
+            // Get the first batch for free qty info
+            const firstBatch = stockEntry.batches && stockEntry.batches.length > 0 ? stockEntry.batches[0] : null;
+
             addProductToBillingBody(
                 product,
                 stockEntry,
@@ -4823,7 +4803,7 @@
                 [], // imeis
                 null, // discountType
                 null, // discountAmount
-                stockEntry.location_batches[0] // selectedBatch with all price info
+                firstBatch // selectedBatch with free_qty info
             );
         }
 
@@ -5523,7 +5503,11 @@
                     "all", // batchId is "all"
                     0, // unlimited stock, so quantity is 0
                     currentCustomer.customer_type,
-                    mobileQty || 1 // pass mobile quantity or default to 1
+                    mobileQty || 1, // pass mobile quantity or default to 1
+                    [], // imeis
+                    null, // discountType
+                    null, // discountAmount
+                    latestBatch // selectedBatch with free_qty
                 );
                 return;
             }
@@ -5658,7 +5642,11 @@
                     "all", // batchId is "all"
                     totalQty,
                     currentCustomer.customer_type,
-                    mobileQty || 1 // pass mobile quantity or default to 1
+                    mobileQty || 1, // pass mobile quantity or default to 1
+                    [], // imeis
+                    null, // discountType
+                    null, // discountAmount
+                    latestBatch // selectedBatch with free_qty
                 );
             } else {
                 // Multiple prices found → show modal (user must select batch)
@@ -5788,7 +5776,10 @@
             <td><strong>[${index + 1}]</strong></td>
             <td>${batch.batch_no}</td>
             ${priceColumnsHtml}
-            <td class="text-center">${locationBatch.quantity} PC(s)</td>
+            <td class="text-center">
+                ${locationBatch.quantity} PC(s)
+                ${batch.free_qty && batch.free_qty > 0 ? `<br><small style="color: #28a745; font-weight: 600;">FREE: ${batch.free_qty} (${batch.free_qty_percentage}%)</small>` : ''}
+            </td>
             <td class="text-center">${buttonContent}</td>
         `;
                 tbody.appendChild(tr);
@@ -7152,6 +7143,16 @@
                 availableBatches: normalizeBatches(stockEntry).length
             });
 
+            // Debug logging for free quantity
+            console.log('🆓 Free Qty Debug:', {
+                productName: product.product_name,
+                hasBatch: !!batch,
+                batchFreeQty: batch ? batch.free_qty : 'N/A',
+                batchPaidQty: batch ? batch.paid_qty : 'N/A',
+                batchFreeQtyPercentage: batch ? batch.free_qty_percentage : 'N/A',
+                selectedBatchPassed: !!selectedBatch
+            });
+
             // *** CRITICAL FIX: In edit mode, preserve original sale price ***
             if (isEditing && currentEditingSaleId) {
                 // In edit mode, the price parameter contains the original sale price
@@ -7260,6 +7261,16 @@
                 isEditing: isEditing
             });
 
+            // 🔍 DEBUG: Check batch free_qty
+            console.log('🆓 FREE QTY DEBUG:', {
+                productName: product.product_name,
+                batchId: batchId,
+                batch: batch,
+                batchFreeQty: batch ? batch.free_qty : 'NO BATCH',
+                batchPaidQty: batch ? batch.paid_qty : 'NO BATCH',
+                batchPercentage: batch ? batch.free_qty_percentage : 'NO BATCH'
+            });
+
             let adjustedBatchQuantity = batchQuantity;
             if (batchId === "all") {
                 adjustedBatchQuantity = stockEntry.total_stock;
@@ -7269,6 +7280,18 @@
                     adjustedBatchQuantity = parseFloat(locationBatch.quantity);
                 }
             }
+
+            // 🆓 Prepare free qty display text
+            let freeQtyDisplayHtml = '';
+            if (batch && batch.free_qty && parseFloat(batch.free_qty) > 0) {
+                const freeQtyValue = parseFloat(batch.free_qty);
+                // Simple integer display if value is whole number, else 2 decimals
+                const displayValue = freeQtyValue % 1 === 0 ? Math.floor(freeQtyValue) : freeQtyValue.toFixed(2).replace(/\.?0+$/, '');
+                freeQtyDisplayHtml = `<div style="font-size: 0.75em; color: #28a745; font-weight: 600; margin-top: 2px;">FREE: ${displayValue}</div>`;
+            } else {
+                freeQtyDisplayHtml = `<div style="font-size: 0.75em; color: #888; margin-top: 2px;">Free</div>`;
+            }
+            console.log('🆓 Free Qty Display HTML:', freeQtyDisplayHtml, 'Batch free_qty:', batch?.free_qty);
 
             // In edit mode, use the provided batchQuantity (which comes from backend calculation)
             // This already includes the correct max available for editing
@@ -7465,7 +7488,7 @@
         </td>
         <td class="text-center">
             <input type="number" name="free_quantity[]" class="form-control free-quantity-input text-center" value="0" min="0" max="${adjustedBatchQuantity}" placeholder="Free" title="Free items (max: ${adjustedBatchQuantity})" step="${qtyInputStep}" data-max-stock="${adjustedBatchQuantity}">
-            <div style="font-size: 0.75em; color: #888; margin-top: 2px;">Free</div>
+            ${freeQtyDisplayHtml}
         </td>
         <td class="text-center"><input type="number" name="discount_fixed[]" class="form-control fixed_discount text-center" value="${discountFixed.toFixed(2)}" ${(priceValidationEnabled === 1 && !canEditDiscount && !isEditing) ? 'readonly' : ''}></td>
         <td class="text-center"><input type="number" name="discount_percent[]" class="form-control percent_discount text-center" value="${priceValidationEnabled === 0 ? '' : discountPercent.toFixed(2)}" ${priceValidationEnabled === 0 ? 'readonly' : ((priceValidationEnabled === 1 && !canEditDiscount && !isEditing) ? 'readonly' : '')}></td>
@@ -9046,10 +9069,16 @@
                                 // For edit mode, use FIFO method except for IMEI products
                                 // IMEI products must keep their specific batch IDs
                                 let editModeBatchId = "all"; // Default to FIFO
+                                let editBatch = null;
+
                                 if (saleProduct.imei_numbers && saleProduct.imei_numbers.length > 0) {
                                     editModeBatchId = saleProduct.batch_id; // Keep original batch for IMEI
+                                    // Find the specific batch
+                                    editBatch = normalizedStockEntry.batches?.find(b => b.id === parseInt(saleProduct.batch_id));
                                     console.log('🔄 Edit Mode - IMEI product, keeping original batch_id:', saleProduct.batch_id);
                                 } else {
+                                    // For FIFO method, use the first/latest batch
+                                    editBatch = normalizedStockEntry.batches && normalizedStockEntry.batches.length > 0 ? normalizedStockEntry.batches[0] : null;
                                     console.log('🔄 Edit Mode - Non-IMEI product, using FIFO method: "all"');
                                 }
 
@@ -9064,7 +9093,8 @@
                                     .quantity, // Sale quantity (current quantity in sale)
                                     saleProduct.imei_numbers || [],
                                     saleProduct.discount_type,
-                                    saleProduct.discount_amount
+                                    saleProduct.discount_amount,
+                                    editBatch // Pass batch with free_qty
                                 );
 
                                 console.log('Product added to billing:', saleProduct.product.product_name, {
