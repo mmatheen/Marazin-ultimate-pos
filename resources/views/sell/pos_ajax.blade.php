@@ -11563,7 +11563,7 @@
     window.printReceipt = function(saleId) {
         console.log('printReceipt called with saleId:', saleId);
 
-        // Close any open modals before showing preview
+        // Close any open modals before printing
         const openModals = document.querySelectorAll('.modal.show');
         openModals.forEach(modal => {
             const modalInstance = bootstrap.Modal.getInstance(modal);
@@ -11572,9 +11572,119 @@
             }
         });
 
-        // Add a small delay to ensure modal is fully closed, then show preview
+        // Add a small delay to ensure modal is fully closed
         setTimeout(() => {
-            showReceiptPreview(saleId);
+            console.log('Fetching print data for sale:', saleId);
+            fetch(`/sales/print-recent-transaction/${saleId}`)
+                .then(response => {
+                    console.log('Print fetch response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Print data received:', data);
+                    if (data.invoice_html) {
+                        // Check if mobile device
+                        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+                        if (isMobile) {
+                            // For mobile: Open in new window/tab for better print support
+                            const printWindow = window.open('', '_blank');
+                            if (printWindow) {
+                                printWindow.document.open();
+                                printWindow.document.write(data.invoice_html);
+                                printWindow.document.close();
+
+                                // Wait for content to load then trigger print
+                                printWindow.onload = function() {
+                                    setTimeout(() => {
+                                        printWindow.print();
+
+                                        // Return focus to product search after print
+                                        printWindow.onafterprint = function() {
+                                            setTimeout(() => {
+                                                const searchInput = document.getElementById('productSearchInput');
+                                                if (searchInput) {
+                                                    searchInput.focus();
+                                                    searchInput.select();
+                                                }
+                                            }, 300);
+                                        };
+                                    }, 500);
+                                };
+                            } else {
+                                toastr.error('Please allow pop-ups to print the receipt.');
+                            }
+                        } else {
+                            // For desktop: Use hidden iframe method (no new window opens!)
+                            const iframe = document.createElement('iframe');
+                            iframe.style.position = 'absolute';
+                            iframe.style.width = '0';
+                            iframe.style.height = '0';
+                            iframe.style.border = 'none';
+                            iframe.style.left = '-9999px';
+                            iframe.style.top = '-9999px';
+                            iframe.style.visibility = 'hidden';
+                            document.body.appendChild(iframe);
+
+                            const iframeDoc = iframe.contentWindow.document;
+                            iframeDoc.open();
+                            iframeDoc.write(data.invoice_html);
+                            iframeDoc.close();
+
+                            // Wait for content to load
+                            iframe.onload = function() {
+                                setTimeout(() => {
+                                    try {
+                                        iframe.contentWindow.focus();
+                                        iframe.contentWindow.print();
+                                    } catch (e) {
+                                        console.error('Print error:', e);
+                                        toastr.error('Unable to print. Please try again.');
+                                    }
+
+                                    // Cleanup after printing
+                                    const cleanup = () => {
+                                        if (iframe && document.body.contains(iframe)) {
+                                            document.body.removeChild(iframe);
+                                        }
+
+                                        // Return focus to product search
+                                        setTimeout(() => {
+                                            const searchInput = document.getElementById('productSearchInput');
+                                            if (searchInput) {
+                                                searchInput.focus();
+                                                searchInput.select();
+                                            }
+                                        }, 300);
+                                    };
+
+                                    // Try to cleanup after print dialog closes
+                                    if (iframe.contentWindow.matchMedia) {
+                                        const mediaQueryList = iframe.contentWindow.matchMedia('print');
+                                        mediaQueryList.addListener(function(mql) {
+                                            if (!mql.matches) {
+                                                setTimeout(cleanup, 500);
+                                            }
+                                        });
+                                    }
+
+                                    // Fallback cleanup after 3 seconds
+                                    setTimeout(cleanup, 3000);
+                                }, 100);
+                            };
+                        }
+                    } else {
+                        console.log('No invoice_html found in response');
+                        toastr.error('Failed to load receipt. Please try again.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching the receipt:', error);
+                    toastr.error('Error loading receipt. Please try again.');
+                });
         }, 300);
     };
 });
@@ -12054,10 +12164,10 @@
         spinnerDiv.style.display = 'block';
         contentDiv.style.display = 'none';
 
-        fetch(\`/sales/print-recent-transaction/\${saleId}?layout=\${layout}\`)
+        fetch(`/sales/print-recent-transaction/${saleId}?layout=${layout}`)
             .then(response => {
                 if (!response.ok) {
-                    throw new Error(\`HTTP \${response.status}\`);
+                    throw new Error(`HTTP ${response.status}`);
                 }
                 return response.json();
             })
@@ -12093,10 +12203,10 @@
     function printReceiptWithLayout(saleId, layout) {
         console.log('printReceiptWithLayout called with:', saleId, layout);
 
-        fetch(\`/sales/print-recent-transaction/\${saleId}?layout=\${layout}\`)
+        fetch(`/sales/print-recent-transaction/${saleId}?layout=${layout}`)
             .then(response => {
                 if (!response.ok) {
-                    throw new Error(\`HTTP \${response.status}\`);
+                    throw new Error(`HTTP ${response.status}`);
                 }
                 return response.json();
             })
