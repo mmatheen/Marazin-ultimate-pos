@@ -7,65 +7,121 @@
 <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.2.3/css/buttons.bootstrap5.min.css">
 
 <style>
-    /* Summary Cards Row Layout */
+    /* Modern Minimalist Card Design */
     #summaryCards .card {
-        border: 1px solid #e9ecef;
-        border-radius: 8px;
-        transition: all 0.3s ease;
+        border: 1px solid #e8e9ed;
+        border-radius: 12px;
         height: 100%;
+        background: #ffffff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+        transition: all 0.3s ease;
+        overflow: hidden;
     }
 
     #summaryCards .card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
 
-    #summaryCards .dash-widget-icon {
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 20px;
-        border: 2px solid;
+    #summaryCards .card-body {
+        padding: 1.25rem 1.5rem;
+    }
+
+    #summaryCards h6.card-title {
+        color: #8492a6;
+        font-weight: 600;
+        font-size: 0.6875rem;
+        margin: 0 0 0.75rem 0;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        line-height: 1;
     }
 
     #summaryCards h4 {
         font-weight: 700;
-        font-size: 1.5rem;
-    }
-
-    #summaryCards h6 {
-        color: #6c757d;
-        font-weight: 500;
-        margin-bottom: 0.5rem;
-    }
-
-    /* Ensure horizontal layout */
-    #summaryCards .row {
+        font-size: 1.75rem;
         margin: 0;
+        line-height: 1.2;
+        color: #2c3e50;
     }
 
-    #summaryCards .col-lg-3 {
-        padding: 0 8px;
-        margin-bottom: 15px;
+    #summaryCards h4.text-primary { color: #4e73df !important; }
+    #summaryCards h4.text-warning { color: #f6c23e !important; }
+    #summaryCards h4.text-success { color: #1cc88a !important; }
+    #summaryCards h4.text-info { color: #36b9cc !important; }
+    #summaryCards h4.text-dark { color: #5a5c69 !important; }
+
+    #summaryCards h4 .units-text {
+        font-size: 0.5em;
+        font-weight: 500;
+        color: #95a5a6;
+        margin-left: 0.3rem;
     }
 
-    /* Mobile responsiveness */
+    #summaryCards small.text-muted {
+        font-size: 0.6875rem;
+        color: #95a5a6;
+        display: block;
+        margin-top: 0.5rem;
+        line-height: 1.3;
+    }
+
+    /* Spacing */
+    #summaryCards {
+        margin-top: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    #summaryCards .row.g-3 {
+        --bs-gutter-x: 1rem;
+        --bs-gutter-y: 1rem;
+    }
+
+    #summaryCards .row.g-3.mt-3 {
+        margin-top: 1.5rem !important;
+    }
+
+    #reportTableCard {
+        margin-top: 1.5rem;
+    }
+
+    /* Ensure consistent card spacing */
+    #summaryCards .card {
+        margin-bottom: 0;
+    }
+
+    /* Mobile */
     @media (max-width: 768px) {
-        #summaryCards .col-lg-3 {
-            margin-bottom: 10px;
+        #summaryCards {
+            margin-top: 1.5rem;
+            margin-bottom: 1.5rem;
         }
 
-        #summaryCards .d-flex {
-            flex-direction: column;
-            text-align: center;
+        #summaryCards .card-body {
+            padding: 1rem 1.25rem;
         }
 
-        #summaryCards .dash-widget-icon {
-            margin-bottom: 10px;
-            margin-right: 0 !important;
+        #summaryCards h4 {
+            font-size: 1.5rem;
+        }
+
+        #summaryCards .row.g-3.mt-3 {
+            margin-top: 1rem !important;
+        }
+    }
+
+    @media (max-width: 576px) {
+        #summaryCards {
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        #summaryCards h6.card-title {
+            font-size: 0.625rem;
+        }
+
+        #summaryCards h4 {
+            font-size: 1.375rem;
         }
     }
 </style>
@@ -151,7 +207,7 @@
                         <!-- Generate Button -->
                         <div class="row mt-3">
                             <div class="col-12">
-                                <button type="button" class="btn btn-primary" onclick="generateReport()">
+                                <button type="button" class="btn btn-primary" id="generateReportBtn">
                                     <i class="fas fa-chart-line"></i> Generate Report
                                 </button>
                             </div>
@@ -167,128 +223,76 @@
         <div class="col-12">
             <div class="row g-3">
                 <div class="col-lg-3 col-md-6 col-sm-6 col-12">
-                    <div class="card board1 fill h-100">
-                        <div class="card-body text-center">
-                            <div class="d-flex align-items-center justify-content-center mb-2">
-                                <span class="dash-widget-icon text-primary border-primary me-3">
-                                    <i class="fe fe-money"></i>
-                                </span>
-                                <div>
-                                    <h6 class="card-title mb-1">Total Sales</h6>
-                                    <h4 class="text-primary mb-0" id="totalSales">Rs.0.00</h4>
-                                </div>
-                            </div>
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h6 class="card-title">Total Sales</h6>
+                            <h4 class="text-primary" id="totalSales">Rs.0.00</h4>
                         </div>
                     </div>
                 </div>
 
                 <div class="col-lg-3 col-md-6 col-sm-6 col-12">
-                    <div class="card board1 fill h-100">
-                        <div class="card-body text-center">
-                            <div class="d-flex align-items-center justify-content-center mb-2">
-                                <span class="dash-widget-icon text-warning border-warning me-3">
-                                    <i class="fe fe-money"></i>
-                                </span>
-                                <div>
-                                    <h6 class="card-title mb-1">Total Cost</h6>
-                                    <h4 class="text-warning mb-0" id="totalCost">Rs.0.00</h4>
-                                </div>
-                            </div>
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h6 class="card-title">Total Cost</h6>
+                            <h4 class="text-warning" id="totalCost">Rs.0.00</h4>
                         </div>
                     </div>
                 </div>
 
                 <div class="col-lg-3 col-md-6 col-sm-6 col-12">
-                    <div class="card board1 fill h-100">
-                        <div class="card-body text-center">
-                            <div class="d-flex align-items-center justify-content-center mb-2">
-                                <span class="dash-widget-icon text-success border-success me-3">
-                                    <i class="fe fe-money"></i>
-                                </span>
-                                <div>
-                                    <h6 class="card-title mb-1">Gross Profit</h6>
-                                    <h4 class="text-success mb-0" id="grossProfit">Rs.0.00</h4>
-                                </div>
-                            </div>
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h6 class="card-title">Gross Profit</h6>
+                            <h4 class="text-success" id="grossProfit">Rs.0.00</h4>
                         </div>
                     </div>
                 </div>
 
                 <div class="col-lg-3 col-md-6 col-sm-6 col-12">
-                    <div class="card board1 fill h-100">
-                        <div class="card-body text-center">
-                            <div class="d-flex align-items-center justify-content-center mb-2">
-                                <span class="dash-widget-icon text-info border-info me-3">
-                                    <i class="fe fe-percent"></i>
-                                </span>
-                                <div>
-                                    <h6 class="card-title mb-1">Profit Margin</h6>
-                                    <h4 class="text-info mb-0" id="profitMargin">0.00%</h4>
-                                </div>
-                            </div>
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h6 class="card-title">Profit Margin</h6>
+                            <h4 class="text-info" id="profitMargin">0.00%</h4>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Quantity Breakdown Row -->
-            <div class="row g-3 mt-2">
+            <div class="row g-3 mt-3">
                 <div class="col-lg-4 col-md-6 col-sm-6 col-12">
-                    <div class="card board1 fill h-100">
-                        <div class="card-body text-center">
-                            <div class="d-flex align-items-center justify-content-center mb-2">
-                                <span class="dash-widget-icon text-dark border-dark me-3">
-                                    <i class="fe fe-package"></i>
-                                </span>
-                                <div>
-                                    <h6 class="card-title mb-1">Paid Quantity</h6>
-                                    <h4 class="text-dark mb-0">
-                                        <span id="totalPaidQty">0</span>
-                                        <small class="text-muted" style="font-size: 0.6em;"> units</small>
-                                    </h4>
-                                    <small class="text-muted">Items sold (not amount)</small>
-                                </div>
-                            </div>
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h6 class="card-title">Paid Quantity</h6>
+                            <h4 class="text-dark">
+                                <span id="totalPaidQty">0</span> <span class="units-text">units</span>
+                            </h4>
+                            <small class="text-muted">Items sold (not amount)</small>
                         </div>
                     </div>
                 </div>
 
                 <div class="col-lg-4 col-md-6 col-sm-6 col-12">
-                    <div class="card board1 fill h-100">
-                        <div class="card-body text-center">
-                            <div class="d-flex align-items-center justify-content-center mb-2">
-                                <span class="dash-widget-icon text-success border-success me-3">
-                                    <i class="fe fe-gift"></i>
-                                </span>
-                                <div>
-                                    <h6 class="card-title mb-1">Free Quantity</h6>
-                                    <h4 class="text-success mb-0">
-                                        <span id="totalFreeQty">0</span>
-                                        <small class="text-muted" style="font-size: 0.6em;"> units</small>
-                                    </h4>
-                                    <small class="text-muted">Bonus items (not amount)</small>
-                                </div>
-                            </div>
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h6 class="card-title">Free Quantity</h6>
+                            <h4 class="text-success">
+                                <span id="totalFreeQty">0</span> <span class="units-text">units</span>
+                            </h4>
+                            <small class="text-muted">Bonus items (not amount)</small>
                         </div>
                     </div>
                 </div>
 
                 <div class="col-lg-4 col-md-6 col-sm-6 col-12">
-                    <div class="card board1 fill h-100">
-                        <div class="card-body text-center">
-                            <div class="d-flex align-items-center justify-content-center mb-2">
-                                <span class="dash-widget-icon text-primary border-primary me-3">
-                                    <i class="fe fe-box"></i>
-                                </span>
-                                <div>
-                                    <h6 class="card-title mb-1">Total Quantity</h6>
-                                    <h4 class="text-primary mb-0">
-                                        <span id="totalQuantity">0</span>
-                                        <small class="text-muted" style="font-size: 0.6em;"> units</small>
-                                    </h4>
-                                    <small class="text-muted">Paid + Free (not amount)</small>
-                                </div>
-                            </div>
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h6 class="card-title">Total Quantity</h6>
+                            <h4 class="text-primary">
+                                <span id="totalQuantity">0</span> <span class="units-text">units</span>
+                            </h4>
+                            <small class="text-muted">Paid + Free (not amount)</small>
                         </div>
                     </div>
                 </div>
@@ -297,7 +301,7 @@
     </div>
 
     <!-- Report Data Table -->
-    <div class="row">
+    <div class="row mt-4">
         <div class="col-12">
             <div class="card" id="reportTableCard" style="display: none;">
                 <div class="card-header">
@@ -337,6 +341,7 @@
 <script src="https://cdn.datatables.net/buttons/2.2.3/js/buttons.print.min.js"></script>
 
 <script>
+console.log('Profit & Loss Report script loaded');
 let profitLossDataTable = null;
 
 // Date range presets
@@ -378,6 +383,7 @@ function setDateRange(period) {
 
 // Generate report
 function generateReport() {
+    console.log('generateReport called');
     const formData = new FormData(document.getElementById('reportFilters'));
 
     // Add debugging
@@ -424,6 +430,8 @@ function generateReport() {
         alert('Error generating report: ' + error.message);
     });
 }
+
+console.log('generateReport function defined:', typeof generateReport);
 
 // Update summary cards
 function updateSummaryCards(summary) {
@@ -666,15 +674,26 @@ function formatQuantity(qty, allowDecimal) {
 
 function showLoading() {
     // Add loading spinner or indicator
-    document.querySelector('.btn[onclick="generateReport()"]').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+    const btn = document.getElementById('generateReportBtn');
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+        btn.disabled = true;
+    }
 }
 
 function hideLoading() {
-    document.querySelector('.btn[onclick="generateReport()"]').innerHTML = '<i class="fas fa-chart-line"></i> Generate Report';
+    const btn = document.getElementById('generateReportBtn');
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-chart-line"></i> Generate Report';
+        btn.disabled = false;
+    }
 }
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, initializing event listeners');
+    console.log('generateReport type:', typeof generateReport);
+
     // Initialize select2 for multi-select
     if (typeof $.fn.select2 !== 'undefined') {
         $('#location_ids').select2({
@@ -682,6 +701,28 @@ document.addEventListener('DOMContentLoaded', function() {
             allowClear: true
         });
     }
+
+    // Attach event listener to generate report button
+    const generateBtn = document.getElementById('generateReportBtn');
+    if (generateBtn) {
+        console.log('Generate button found, attaching listener');
+        generateBtn.addEventListener('click', function() {
+            console.log('Generate button clicked');
+            generateReport();
+        });
+    } else {
+        console.error('Generate button not found');
+    }
+
+    // Attach event listeners to date range buttons
+    const dateRangeBtns = document.querySelectorAll('.btn[onclick^="setDateRange"]');
+    dateRangeBtns.forEach(btn => {
+        const period = btn.getAttribute('onclick').match(/setDateRange\('(.+?)'\)/)[1];
+        btn.removeAttribute('onclick');
+        btn.addEventListener('click', function() {
+            setDateRange(period);
+        });
+    });
 });
 </script>
 @endpush

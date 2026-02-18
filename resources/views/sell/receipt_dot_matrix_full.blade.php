@@ -404,10 +404,7 @@
                 </tr>
             </thead>
             <tbody>
-                {{-- Load IMEI data and batch data for all products --}}
-                @php
-                    $products->load(['imeis', 'batch', 'product']);
-                @endphp
+                {{-- Batch, IMEI, and product data already loaded from controller --}}
 
                 {{-- Process products: separate IMEI products, group non-IMEI products --}}
                 @php
@@ -474,6 +471,18 @@
                                 <span style="font-size: 10px;">({{ $item['imei'] }})</span>
                             @elseif($item['product']->product->product_variation ?? false)
                                 ({{ substr($item['product']->product->product_variation, 0, 8) }})
+                            @endif
+                            {{-- Show batch number and expiry date if available --}}
+                            @if($item['product']->batch)
+                                <br><span style="font-size: 9px;">
+                                    @if($item['product']->batch->batch_no)
+                                        Batch: {{ $item['product']->batch->batch_no }}
+                                    @endif
+                                    @if($item['product']->batch->expiry_date)
+                                        @if($item['product']->batch->batch_no) | @endif
+                                        Exp: {{ \Carbon\Carbon::parse($item['product']->batch->expiry_date)->format('d/m/Y') }}
+                                    @endif
+                                </span>
                             @endif
                         </td>
                         <td>

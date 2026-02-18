@@ -150,6 +150,7 @@
                                             <th>Product</th>
                                             <th>Batch</th>
                                             <th>Return Quantity</th>
+                                            <th>Return Free Qty</th>
                                             <th>Unit Price</th>
                                             <th>Subtotal</th>
                                             <th><i class="fas fa-trash"></i></th>

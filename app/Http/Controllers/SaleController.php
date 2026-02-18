@@ -2203,19 +2203,34 @@ class SaleController extends Controller
                 ->where('location_id', $locationId)
                 ->firstOrFail();
 
-            if ($locationBatch->qty < $remainingQuantity) {
-                Log::error("❌ INSUFFICIENT STOCK in selected batch", [
+            // Check both paid and free stock separately
+            $availablePaidStock = $locationBatch->qty ?? 0;
+            $availableFreeStock = $locationBatch->free_qty ?? 0;
+
+            if ($availablePaidStock < $productData['quantity']) {
+                Log::error("❌ INSUFFICIENT PAID STOCK in selected batch", [
                     'batch_id' => $productData['batch_id'],
-                    'available' => $locationBatch->qty,
-                    'requested' => $remainingQuantity
+                    'available_paid' => $availablePaidStock,
+                    'requested_paid' => $productData['quantity']
                 ]);
-                throw new \Exception("Batch ID {$productData['batch_id']} does not have enough stock. Available: {$locationBatch->qty}, Requested: {$remainingQuantity}");
+                throw new \Exception("Batch ID {$productData['batch_id']} does not have enough paid stock. Available: {$availablePaidStock}, Requested: {$productData['quantity']}");
             }
 
-            $this->deductBatchStock($productData['batch_id'], $locationId, $remainingQuantity, $stockType);
+            if ($availableFreeStock < $freeQuantity) {
+                Log::error("❌ INSUFFICIENT FREE STOCK in selected batch", [
+                    'batch_id' => $productData['batch_id'],
+                    'available_free' => $availableFreeStock,
+                    'requested_free' => $freeQuantity
+                ]);
+                throw new \Exception("Batch ID {$productData['batch_id']} does not have enough free stock. Available: {$availableFreeStock}, Requested: {$freeQuantity}");
+            }
+
+            $this->deductBatchStock($productData['batch_id'], $locationId, $totalQuantity, $stockType, $productData['quantity'], $freeQuantity);
             $batchDeductions[] = [
                 'batch_id' => $batch->id,
-                'quantity' => $remainingQuantity
+                'quantity' => $remainingQuantity,
+                'paid_qty' => $productData['quantity'],
+                'free_qty' => $freeQuantity
             ];
         } else {
             // ✨ PERFORMANCE FIX: All batches selected — apply FIFO with optimized query
@@ -2223,8 +2238,14 @@ class SaleController extends Controller
             Log::info("📦 Processing FIFO batch selection (all batches)", [
                 'product_id' => $productData['product_id'],
                 'location_id' => $locationId,
-                'quantity_needed' => $remainingQuantity
+                'paid_quantity_needed' => $productData['quantity'],
+                'free_quantity_needed' => $freeQuantity,
+                'total_quantity_needed' => $totalQuantity
             ]);
+
+            // Track remaining paid and free quantities separately
+            $remainingPaidQty = $productData['quantity'];
+            $remainingFreeQty = $freeQuantity;
 
             // Use lockForUpdate to prevent race conditions when reading batch quantities
             $batches = DB::transaction(function () use ($productData, $locationId) {
@@ -2232,51 +2253,79 @@ class SaleController extends Controller
                     ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
                     ->where('batches.product_id', $productData['product_id'])
                     ->where('location_batches.location_id', $locationId)
-                    ->where('location_batches.qty', '>', 0)
+                    ->where(function($q) {
+                        // Include batches with either paid or free stock available
+                        $q->where('location_batches.qty', '>', 0)
+                          ->orWhere('location_batches.free_qty', '>', 0);
+                    })
                     ->orderBy('batches.created_at')
-                    ->select('location_batches.batch_id', 'location_batches.qty', 'location_batches.id as loc_batch_id')
+                    ->select('location_batches.batch_id', 'location_batches.qty', 'location_batches.free_qty', 'location_batches.id as loc_batch_id')
                     ->lockForUpdate() // Lock rows to prevent concurrent reads
                     ->get();
             });
 
             Log::info("📦 Available batches for FIFO", [
                 'batch_count' => $batches->count(),
-                'total_available' => $batches->sum('qty'),
-                'batches' => $batches->map(fn($b) => ['batch_id' => $b->batch_id, 'qty' => $b->qty])->toArray()
+                'total_available_paid' => $batches->sum('qty'),
+                'total_available_free' => $batches->sum('free_qty'),
+                'batches' => $batches->map(fn($b) => ['batch_id' => $b->batch_id, 'paid_qty' => $b->qty, 'free_qty' => $b->free_qty ?? 0])->toArray()
             ]);
 
             foreach ($batches as $batch) {
-                if ($remainingQuantity <= 0) break;
+                if ($remainingPaidQty <= 0 && $remainingFreeQty <= 0) break;
 
-                $deductQuantity = min($batch->qty, $remainingQuantity);
+                // Deduct paid quantity from this batch (FIFO)
+                $deductPaidQty = min($batch->qty ?? 0, $remainingPaidQty);
+                // Deduct free quantity from this batch (FIFO)
+                $deductFreeQty = min($batch->free_qty ?? 0, $remainingFreeQty);
+                $deductTotalQty = $deductPaidQty + $deductFreeQty;
+
+                if ($deductTotalQty <= 0) continue; // Skip batches with no stock to deduct
 
                 Log::info("📦 Deducting from batch via FIFO", [
                     'batch_id' => $batch->batch_id,
-                    'available' => $batch->qty,
-                    'deducting' => $deductQuantity,
-                    'remaining_after' => $remainingQuantity - $deductQuantity
+                    'available_paid' => $batch->qty ?? 0,
+                    'available_free' => $batch->free_qty ?? 0,
+                    'deducting_paid' => $deductPaidQty,
+                    'deducting_free' => $deductFreeQty,
+                    'remaining_paid_after' => $remainingPaidQty - $deductPaidQty,
+                    'remaining_free_after' => $remainingFreeQty - $deductFreeQty
                 ]);
 
-                $this->deductBatchStock($batch->batch_id, $locationId, $deductQuantity, $stockType);
+                $this->deductBatchStock($batch->batch_id, $locationId, $deductTotalQty, $stockType, $deductPaidQty, $deductFreeQty);
                 $batchDeductions[] = [
                     'batch_id' => $batch->batch_id,
-                    'quantity' => $deductQuantity
+                    'quantity' => $deductTotalQty,
+                    'paid_qty' => $deductPaidQty,
+                    'free_qty' => $deductFreeQty
                 ];
 
-                $remainingQuantity -= $deductQuantity;
+                $remainingPaidQty -= $deductPaidQty;
+                $remainingFreeQty -= $deductFreeQty;
             }
 
             // Only validate stock if the sale status is final/suspend
             if (in_array($newStatus, ['final', 'suspend'])) {
-                if ($remainingQuantity > 0) {
-                    Log::error("❌ INSUFFICIENT TOTAL STOCK across all batches", [
+                if ($remainingPaidQty > 0) {
+                    Log::error("❌ INSUFFICIENT PAID STOCK across all batches", [
                         'product_id' => $productData['product_id'],
                         'location_id' => $locationId,
-                        'requested' => $totalQuantity,
-                        'unfulfilled' => $remainingQuantity,
+                        'requested_paid' => $productData['quantity'],
+                        'unfulfilled_paid' => $remainingPaidQty,
                         'batches_checked' => $batches->count()
                     ]);
-                    throw new \Exception("Not enough stock across all batches to fulfill the sale. Product ID: {$productData['product_id']}, Requested: {$totalQuantity}, Short: {$remainingQuantity}");
+                    throw new \Exception("Not enough paid stock across all batches to fulfill the sale. Product ID: {$productData['product_id']}, Requested: {$productData['quantity']}, Short: {$remainingPaidQty}");
+                }
+
+                if ($remainingFreeQty > 0) {
+                    Log::error("❌ INSUFFICIENT FREE STOCK across all batches", [
+                        'product_id' => $productData['product_id'],
+                        'location_id' => $locationId,
+                        'requested_free' => $freeQuantity,
+                        'unfulfilled_free' => $remainingFreeQty,
+                        'batches_checked' => $batches->count()
+                    ]);
+                    throw new \Exception("Not enough free stock across all batches to fulfill the sale. Product ID: {$productData['product_id']}, Requested: {$freeQuantity}, Short: {$remainingFreeQty}");
                 }
             }
         }
@@ -2347,19 +2396,28 @@ class SaleController extends Controller
             }
         }
     }
-    private function deductBatchStock($batchId, $locationId, $quantity, $stockType)
+    private function deductBatchStock($batchId, $locationId, $quantity, $stockType, $paidQty = null, $freeQty = null)
     {
+        // ✅ NEW: Support separate paid and free quantity deduction
+        // If not specified, assume all quantity is paid (backward compatibility)
+        if ($paidQty === null && $freeQty === null) {
+            $paidQty = $quantity;
+            $freeQty = 0;
+        }
+
         // ✅ CRITICAL FIX: Enhanced logging for stock deduction tracking
         Log::info("🔻 STOCK DEDUCTION INITIATED", [
             'batch_id' => $batchId,
             'location_id' => $locationId,
-            'quantity_to_deduct' => $quantity,
+            'total_quantity_to_deduct' => $quantity,
+            'paid_qty' => $paidQty,
+            'free_qty' => $freeQty,
             'stock_type' => $stockType,
             'timestamp' => now()->toDateTimeString()
         ]);
 
         // Use database transaction with proper locking to prevent race conditions
-        return DB::transaction(function () use ($batchId, $locationId, $quantity, $stockType) {
+        return DB::transaction(function () use ($batchId, $locationId, $quantity, $stockType, $paidQty, $freeQty) {
             // First, get current stock with row-level locking
             $locationBatch = DB::table('location_batches')
                 ->where('batch_id', $batchId)
@@ -2376,33 +2434,52 @@ class SaleController extends Controller
             }
 
             // Use round to handle decimal precision issues (4 decimal places)
-            $currentStock = round((float) $locationBatch->qty, 4);
-            $requestedQuantity = round((float) $quantity, 4);
+            $currentPaidStock = round((float) $locationBatch->qty, 4);
+            $currentFreeStock = round((float) ($locationBatch->free_qty ?? 0), 4);
+            $requestedPaidQty = round((float) $paidQty, 4);
+            $requestedFreeQty = round((float) $freeQty, 4);
 
             Log::info("📊 STOCK CHECK", [
                 'batch_id' => $batchId,
-                'current_stock' => $currentStock,
-                'requested_quantity' => $requestedQuantity,
-                'sufficient' => ($currentStock + 0.0001) >= $requestedQuantity
+                'current_paid_stock' => $currentPaidStock,
+                'current_free_stock' => $currentFreeStock,
+                'requested_paid_qty' => $requestedPaidQty,
+                'requested_free_qty' => $requestedFreeQty,
+                'paid_sufficient' => ($currentPaidStock + 0.0001) >= $requestedPaidQty,
+                'free_sufficient' => ($currentFreeStock + 0.0001) >= $requestedFreeQty
             ]);
 
             // Add small tolerance for floating point comparison (0.0001)
-            if (($currentStock + 0.0001) < $requestedQuantity) {
-                Log::error("❌ INSUFFICIENT STOCK", [
+            if (($currentPaidStock + 0.0001) < $requestedPaidQty) {
+                Log::error("❌ INSUFFICIENT PAID STOCK", [
                     'batch_id' => $batchId,
                     'location_id' => $locationId,
-                    'available' => $currentStock,
-                    'requested' => $requestedQuantity,
-                    'shortfall' => $requestedQuantity - $currentStock
+                    'available_paid' => $currentPaidStock,
+                    'requested_paid' => $requestedPaidQty,
+                    'shortfall' => $requestedPaidQty - $currentPaidStock
                 ]);
-                throw new \Exception("Insufficient stock in batch ID $batchId at location $locationId. Available: $currentStock, Requested: $requestedQuantity");
+                throw new \Exception("Insufficient paid stock in batch ID $batchId at location $locationId. Available: $currentPaidStock, Requested: $requestedPaidQty");
             }
 
-            // Now safely deduct the stock
+            if (($currentFreeStock + 0.0001) < $requestedFreeQty) {
+                Log::error("❌ INSUFFICIENT FREE STOCK", [
+                    'batch_id' => $batchId,
+                    'location_id' => $locationId,
+                    'available_free' => $currentFreeStock,
+                    'requested_free' => $requestedFreeQty,
+                    'shortfall' => $requestedFreeQty - $currentFreeStock
+                ]);
+                throw new \Exception("Insufficient free stock in batch ID $batchId at location $locationId. Available: $currentFreeStock, Requested: $requestedFreeQty");
+            }
+
+            // Now safely deduct both paid and free stock
             $affected = DB::table('location_batches')
                 ->where('batch_id', $batchId)
                 ->where('location_id', $locationId)
-                ->update(['qty' => DB::raw("qty - $quantity")]);
+                ->update([
+                    'qty' => DB::raw("qty - $requestedPaidQty"),
+                    'free_qty' => DB::raw("free_qty - $requestedFreeQty")
+                ]);
 
             if ($affected === 0) {
                 Log::error("❌ STOCK UPDATE FAILED", [
@@ -2427,9 +2504,13 @@ class SaleController extends Controller
             Log::info("✅ STOCK DEDUCTION SUCCESSFUL", [
                 'batch_id' => $batchId,
                 'location_id' => $locationId,
-                'deducted_quantity' => $quantity,
-                'previous_stock' => $currentStock,
-                'new_stock' => $currentStock - $requestedQuantity,
+                'deducted_total_quantity' => $quantity,
+                'deducted_paid_qty' => $requestedPaidQty,
+                'deducted_free_qty' => $requestedFreeQty,
+                'previous_paid_stock' => $currentPaidStock,
+                'previous_free_stock' => $currentFreeStock,
+                'new_paid_stock' => $currentPaidStock - $requestedPaidQty,
+                'new_free_stock' => $currentFreeStock - $requestedFreeQty,
                 'stock_type' => $stockType
             ]);
 
@@ -2611,7 +2692,16 @@ class SaleController extends Controller
 
     private function restoreStock($product, $stockType)
     {
-        Log::info("Restoring stock for product ID {$product->product_id} from batch ID {$product->batch_id} at location {$product->location_id}");
+        // ✅ CRITICAL FIX: Restore paid and free quantities separately
+        $paidQuantity = floatval($product->quantity ?? 0);
+        $freeQuantity = floatval($product->free_quantity ?? 0);
+        $totalQuantityToRestore = $paidQuantity + $freeQuantity;
+
+        Log::info("Restoring stock for product ID {$product->product_id} from batch ID {$product->batch_id} at location {$product->location_id}", [
+            'paid_quantity' => $paidQuantity,
+            'free_quantity' => $freeQuantity,
+            'total_quantity_to_restore' => $totalQuantityToRestore
+        ]);
 
         // Check if batch_id is null - skip stock restoration for unlimited stock products
         if (is_null($product->batch_id)) {
@@ -2619,17 +2709,22 @@ class SaleController extends Controller
             return;
         }
 
-        // Optimized: Single update query
+        // ✅ FIX: Restore paid and free quantities separately
         $affected = DB::table('location_batches')
             ->where('batch_id', $product->batch_id)
             ->where('location_id', $product->location_id)
-            ->update(['qty' => DB::raw("qty + {$product->quantity}")]);
+            ->update([
+                'qty' => DB::raw("qty + {$paidQuantity}"),
+                'free_qty' => DB::raw("free_qty + {$freeQuantity}")
+            ]);
 
         Log::info("Stock restoration result", [
             'affected_rows' => $affected,
             'batch_id' => $product->batch_id,
             'location_id' => $product->location_id,
-            'quantity_restored' => $product->quantity
+            'paid_quantity_restored' => $paidQuantity,
+            'free_quantity_restored' => $freeQuantity,
+            'total_quantity_restored' => $totalQuantityToRestore
         ]);
 
         if ($affected > 0) {
@@ -2639,14 +2734,17 @@ class SaleController extends Controller
                 ->first();
 
             if ($locationBatch) {
+                // ✅ FIX: Record total quantity (paid + free) in stock history
                 StockHistory::create([
                     'loc_batch_id' => $locationBatch->id,
-                    'quantity' => $product->quantity,
+                    'quantity' => $totalQuantityToRestore,
                     'stock_type' => $stockType,
                 ]);
                 Log::info("Stock history created successfully", [
                     'stock_history_type' => $stockType,
-                    'quantity' => $product->quantity
+                    'paid_quantity' => $paidQuantity,
+                    'free_quantity' => $freeQuantity,
+                    'total_quantity' => $totalQuantityToRestore
                 ]);
             } else {
                 Log::warning("LocationBatch not found after successful stock update", [
@@ -2658,7 +2756,9 @@ class SaleController extends Controller
             Log::error("Failed to restore stock - no rows affected", [
                 'batch_id' => $product->batch_id,
                 'location_id' => $product->location_id,
-                'quantity' => $product->quantity
+                'paid_quantity' => $paidQuantity,
+                'free_quantity' => $freeQuantity,
+                'total_quantity' => $totalQuantityToRestore
             ]);
         }
 
@@ -2882,6 +2982,7 @@ class SaleController extends Controller
                             'batch_id' => 'all',
                             'location_id' => $product->location_id,
                             'quantity' => $product->quantity,
+                            'free_quantity' => $product->free_quantity ?? 0,
                             'price_type' => $product->price_type,
                             'price' => $product->price,
                             'discount_type' => $product->discount_type,
@@ -2934,9 +3035,10 @@ class SaleController extends Controller
                         ->sum('location_batches.qty')
                         : Sale::getAvailableStock($batchId, $product->location_id);
 
-                    // For editing: max allowed = current stock + quantity from this sale
-                    // This represents what would be available if we "undo" this sale
-                    $totalAllowedQuantity = $currentStock + $product->quantity;
+                    // ✅ FIX: For editing, max allowed = current stock + (paid qty + free qty) from this sale
+                    // This represents what would be available if we "undo" this sale completely
+                    $freeQuantity = $product->free_quantity ?? 0;
+                    $totalAllowedQuantity = $currentStock + $product->quantity + $freeQuantity;
 
                     // Get product batches with location data for frontend compatibility
                     $productBatches = [];
@@ -2971,6 +3073,7 @@ class SaleController extends Controller
                         'batch_id' => $product->batch_id,
                         'location_id' => $product->location_id,
                         'quantity' => $product->quantity,
+                        'free_quantity' => $product->free_quantity ?? 0,
                         'price_type' => $product->price_type,
                         'price' => $product->price,
                         'discount_type' => $product->discount_type,
@@ -3196,12 +3299,12 @@ class SaleController extends Controller
         ], 200);
     }
 
-    public function printRecentTransaction($id)
+    public function printRecentTransaction($id, Request $request)
     {
         try {
             $sale = Sale::findOrFail($id);
             $customer = Customer::withoutLocationScope()->findOrFail($sale->customer_id);
-            $products = SalesProduct::with(['product', 'imeis'])->where('sale_id', $sale->id)->get();
+            $products = SalesProduct::with(['product', 'imeis', 'batch'])->where('sale_id', $sale->id)->get();
             $payments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->get();
             $totalDiscount = array_reduce($products->toArray(), function ($carry, $product) {
                 return $carry + ($product['discount'] ?? 0);
@@ -3233,8 +3336,24 @@ class SaleController extends Controller
                 'receiptConfig' => $location ? $location->getReceiptConfig() : [],
             ];
 
-            // Get location-specific receipt view
-            $receiptView = $location ? $location->getReceiptViewName() : 'sell.receipt';
+            // Get receipt view based on layout parameter or location default
+            $layout = $request->query('layout'); // Get layout from query parameter
+            $receiptView = 'sell.receipt'; // Default 80mm
+
+            if ($layout) {
+                // Map layout parameter to view name
+                $layoutMap = [
+                    '80mm' => 'sell.receipt',
+                    'a4' => 'sell.receipt_a4',
+                    'dot_matrix' => 'sell.receipt_dot_matrix',
+                    'dot_matrix_full' => 'sell.receipt_dot_matrix_full',
+                ];
+                $receiptView = $layoutMap[$layout] ?? $receiptView;
+            } else {
+                // Use location default if no layout specified
+                $receiptView = $location ? $location->getReceiptViewName() : 'sell.receipt';
+            }
+
             $html = view($receiptView, $viewData)->render();
 
             return response()->json(['invoice_html' => $html], 200);

@@ -118,7 +118,10 @@ class ReportController extends Controller
                 }
 
                 foreach ($locationBatches as $locationBatch) {
-                    $currentStock = floatval($locationBatch->qty ?? 0);
+                    // ✅ FIX: Include both paid and free stock in total
+                    $paidStock = floatval($locationBatch->qty ?? 0);
+                    $freeStock = floatval($locationBatch->free_qty ?? 0);
+                    $currentStock = $paidStock + $freeStock;
 
                     // Show all stocks including zero
                     $locationName = $locationBatch->location->name ?? 'Unknown Location';
@@ -200,7 +203,10 @@ class ReportController extends Controller
                 }
 
                 foreach ($locationBatches as $locationBatch) {
-                    $currentStock = floatval($locationBatch->qty ?? 0);
+                    // ✅ FIX: Include both paid and free stock in total
+                    $paidStock = floatval($locationBatch->qty ?? 0);
+                    $freeStock = floatval($locationBatch->free_qty ?? 0);
+                    $currentStock = $paidStock + $freeStock;
                     // Include zero stock
                     $unitCost = floatval($batch->unit_cost ?? 0);
                     $retailPrice = floatval($batch->retail_price ?? 0);

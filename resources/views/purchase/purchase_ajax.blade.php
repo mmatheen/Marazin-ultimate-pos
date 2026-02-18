@@ -465,8 +465,14 @@
         // Location change handler (moved to consolidated document.ready below)
 
         function addProductToTable(product, isEditing = false, prices = {}) {
-            // Use global variable or get existing instance (don't create new!)
-            const table = purchaseProductTable || $('#purchase_product').DataTable();
+            // Safely get DataTable instance - check if initialized first
+            let table;
+            if ($.fn.DataTable.isDataTable('#purchase_product')) {
+                table = $('#purchase_product').DataTable();
+            } else {
+                console.warn('⚠️ DataTable not initialized yet - using purchaseProductTable global or raw table');
+                table = purchaseProductTable || $('#purchase_product');
+            }
             let existingRow = null;
 
             // ENHANCED DUPLICATE CHECKING: Use DataTable API for more reliable checking
@@ -666,7 +672,8 @@
             }
         }
 
-        function updateRow($row) {
+        // Make updateRow globally accessible for modal
+        window.updateRow = function($row) {
             const quantity = parseFloat($row.find(".purchase-quantity").val()) || 0;
             const price = parseFloat($row.find(".product-price").val()) || 0;
             const discountPercent = parseFloat($row.find(".discount-percent").val()) || 0;
@@ -681,10 +688,13 @@
             $row.find(".sub-total").text(subTotal.toFixed(2));
 
             // Recalculate profit margin based on current retail price and unit cost
-            calculateProfitMargin($row);
+            window.calculateProfitMargin($row);
         }
+        // Alias for internal use
+        const updateRow = window.updateRow;
 
-        function calculateProfitMargin($row) {
+        // Make calculateProfitMargin globally accessible (called by updateRow)
+        window.calculateProfitMargin = function($row) {
             const retailPrice = parseFloat($row.find(".retail-price").val()) || 0;
             const unitCost = parseFloat($row.find(".unit-cost").val()) || 0;
 
@@ -695,8 +705,11 @@
 
             $row.find(".profit-margin").val(profitMargin.toFixed(2));
         }
+        // Alias for internal use
+        const calculateProfitMargin = window.calculateProfitMargin;
 
-        function validateRetailPriceAgainstMRP($row) {
+        // Make validateRetailPriceAgainstMRP globally accessible
+        window.validateRetailPriceAgainstMRP = function($row) {
             const retailPriceInput = $row.find(".retail-price");
             const retailPrice = parseFloat(retailPriceInput.val()) || 0;
             // ✅ FIX: Read current MRP value from input field, not cached data attribute
@@ -722,6 +735,8 @@
                 retailPriceInput.attr('placeholder', `Max: ${mrp.toFixed(2)}`);
             }
         }
+        // Alias for internal use
+        const validateRetailPriceAgainstMRP = window.validateRetailPriceAgainstMRP;
 
         function initializeExistingRowValidation($row) {
             // Add MRP validation to existing rows
@@ -768,7 +783,8 @@
             };
         }
 
-        function updateFooter() {
+        // Make updateFooter globally accessible for modal
+        window.updateFooter = function() {
             let totalItems = 0;
             let totalFreeItems = 0;
             let netTotalAmount = 0;
@@ -842,6 +858,8 @@
             const paymentDue = finalTotal - paidAmount;
             $('.payment-due').text(`Rs ${paymentDue.toFixed(2)}`);
         }
+        // Alias for internal use
+        const updateFooter = window.updateFooter;
 
         $('#discount-type, #discount-amount, #tax-type, #paid-amount').on('change input', updateFooter);
 
@@ -2260,10 +2278,16 @@
                     "ordering": true,
                     "searching": false,
                     "info": true,
-                    "lengthChange": true
+                    "lengthChange": true,
+                    "scrollX": true,
+                    "scrollCollapse": true,
+                    "autoWidth": false
                 });
+                console.log('✅ DataTable initialized');
             } else {
+                // DataTable already initialized - just get the instance
                 purchaseProductTable = $('#purchase_product').DataTable();
+                console.log('✅ DataTable already initialized - using existing instance');
             }
 
             // 2. Fetch locations (only once)

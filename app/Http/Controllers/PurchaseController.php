@@ -15,6 +15,7 @@ use App\Models\Payment;
 use App\Models\StockHistory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Cache;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -464,34 +465,45 @@ class PurchaseController extends Controller
 
         $locationBatch = LocationBatch::firstOrCreate(
             ['batch_id' => $batch->id, 'location_id' => $locationId],
-            ['qty' => 0]
+            ['qty' => 0, 'free_qty' => 0]
         );
 
         // Store original quantities for logging
-        $originalLocationQty = $locationBatch->qty;
-        $originalBatchQty = $batch->qty;
+        $originalLocationPaidQty = $locationBatch->qty;
+        $originalLocationFreeQty = $locationBatch->free_qty ?? 0;
+        $originalBatchPaidQty = $batch->qty;
+        $originalBatchFreeQty = $batch->free_qty ?? 0;
 
-        // Total stock change includes both paid and free quantities
-        $totalQuantityDifference = $quantityDifference + $freeQuantityDifference;
-
-        // Validate stock reduction
-        if ($originalLocationQty + $totalQuantityDifference < 0) {
-            throw new \Exception("Stock quantity cannot be reduced below zero. Location stock: {$originalLocationQty}, trying to change by: {$totalQuantityDifference}");
+        // Validate stock reduction for paid quantities
+        if ($originalLocationPaidQty + $quantityDifference < 0) {
+            throw new \Exception("Paid stock quantity cannot be reduced below zero. Location paid stock: {$originalLocationPaidQty}, trying to change by: {$quantityDifference}");
         }
 
-        if ($originalBatchQty + $totalQuantityDifference < 0) {
-            throw new \Exception("Batch stock quantity cannot be reduced below zero. Batch stock: {$originalBatchQty}, trying to change by: {$totalQuantityDifference}");
+        if ($originalBatchPaidQty + $quantityDifference < 0) {
+            throw new \Exception("Batch paid stock quantity cannot be reduced below zero. Batch paid stock: {$originalBatchPaidQty}, trying to change by: {$quantityDifference}");
+        }
+
+        // Validate stock reduction for free quantities
+        if ($originalLocationFreeQty + $freeQuantityDifference < 0) {
+            throw new \Exception("Free stock quantity cannot be reduced below zero. Location free stock: {$originalLocationFreeQty}, trying to change by: {$freeQuantityDifference}");
+        }
+
+        if ($originalBatchFreeQty + $freeQuantityDifference < 0) {
+            throw new \Exception("Batch free stock quantity cannot be reduced below zero. Batch free stock: {$originalBatchFreeQty}, trying to change by: {$freeQuantityDifference}");
         }
 
         // CRITICAL: Use DB transaction to ensure atomicity
-        DB::transaction(function () use ($locationBatch, $batch, $quantityDifference, $freeQuantityDifference, $totalQuantityDifference, $originalLocationQty, $originalBatchQty, $existingProduct) {
-            // Update location batch quantity with combined quantity
-            $locationBatch->increment('qty', $totalQuantityDifference);
+        DB::transaction(function () use ($locationBatch, $batch, $quantityDifference, $freeQuantityDifference, $existingProduct) {
+            // Update location batch paid and free quantities separately
+            $locationBatch->increment('qty', $quantityDifference); // Paid qty
+            $locationBatch->increment('free_qty', $freeQuantityDifference); // Free qty
 
-            // Update batch quantity with combined quantity
-            $batch->increment('qty', $totalQuantityDifference);
+            // Update batch paid and free quantities separately
+            $batch->increment('qty', $quantityDifference); // Paid qty
+            $batch->increment('free_qty', $freeQuantityDifference); // Free qty
 
-            // Create stock history record for combined quantity
+            // Create stock history record for total change
+            $totalQuantityDifference = $quantityDifference + $freeQuantityDifference;
             StockHistory::create([
                 'loc_batch_id' => $locationBatch->id,
                 'quantity' => $totalQuantityDifference,
@@ -500,14 +512,15 @@ class PurchaseController extends Controller
                 'reference_type' => 'purchase_edit'
             ]);
 
-            Log::info('Stock updated successfully with free quantity', [
+            Log::info('Stock updated successfully with paid and free quantities separately', [
                 'product_id' => $existingProduct->product_id,
                 'batch_id' => $batch->id,
                 'paid_quantity_difference' => $quantityDifference,
                 'free_quantity_difference' => $freeQuantityDifference,
-                'total_quantity_difference' => $totalQuantityDifference,
-                'location_stock_before' => $originalLocationQty,
-                'location_stock_after' => $locationBatch->qty,
+                'location_paid_stock_before' => $locationBatch->qty - $quantityDifference,
+                'location_paid_stock_after' => $locationBatch->qty,
+                'location_free_stock_before' => ($locationBatch->free_qty ?? 0) - $freeQuantityDifference,
+                'location_free_stock_after' => $locationBatch->free_qty,
                 'batch_stock_before' => $originalBatchQty,
                 'batch_stock_after' => $batch->qty
             ]);
@@ -527,7 +540,7 @@ class PurchaseController extends Controller
         ])->first();
 
         if ($batch) {
-            // Update existing batch with new prices and add total quantity (paid + free)
+            // Update existing batch with new prices and add quantities separately
             $batch->update([
                 'wholesale_price' => $productData['wholesale_price'],
                 'special_price' => $productData['special_price'],
@@ -535,51 +548,53 @@ class PurchaseController extends Controller
                 'max_retail_price' => $productData['max_retail_price'],
                 // Note: Don't update unit_cost and expiry_date as they should remain from original batch
             ]);
-            $batch->increment('qty', $totalQuantity);
+            $batch->increment('qty', $productData['quantity']); // Paid quantity only
+            $batch->increment('free_qty', $freeQuantity); // Free quantity separately
 
-            Log::info('Updated existing batch with new prices and quantities (paid + free)', [
+            Log::info('Updated existing batch with new prices and quantities (paid + free separately)', [
                 'batch_id' => $batch->id,
                 'batch_no' => $batchNo,
                 'product_id' => $productData['product_id'],
                 'added_paid_quantity' => $productData['quantity'],
                 'added_free_quantity' => $freeQuantity,
-                'added_total_quantity' => $totalQuantity,
-                'new_total_qty' => $batch->qty,
+                'new_paid_qty' => $batch->qty,
+                'new_free_qty' => $batch->free_qty,
                 'retail_price' => $productData['retail_price'],
             ]);
         } else {
-            // Create new batch with all prices and total quantity
+            // Create new batch with paid and free quantities stored separately
             $batch = Batch::create([
                 'batch_no' => $batchNo,
                 'product_id' => $productData['product_id'],
                 'unit_cost' => $productData['unit_cost'],
                 'expiry_date' => $productData['expiry_date'],
-                'qty' => $totalQuantity, // Total includes both paid and free items
+                'qty' => $productData['quantity'], // Paid quantity only
+                'free_qty' => $freeQuantity, // Free quantity separately
                 'wholesale_price' => $productData['wholesale_price'],
                 'special_price' => $productData['special_price'],
                 'retail_price' => $productData['retail_price'],
                 'max_retail_price' => $productData['max_retail_price'],
             ]);
 
-            Log::info('Created new batch with all prices and quantities (paid + free)', [
+            Log::info('Created new batch with paid and free quantities separately', [
                 'batch_id' => $batch->id,
                 'batch_no' => $batchNo,
                 'product_id' => $productData['product_id'],
                 'paid_quantity' => $productData['quantity'],
                 'free_quantity' => $freeQuantity,
-                'total_quantity' => $totalQuantity,
                 'unit_cost' => $productData['unit_cost'],
                 'retail_price' => $productData['retail_price'],
                 'wholesale_price' => $productData['wholesale_price'],
             ]);
         }
 
-        // Update location batch with total quantity
+        // Update location batch with paid and free quantities separately
         $locationBatch = LocationBatch::firstOrCreate(
             ['batch_id' => $batch->id, 'location_id' => $locationId],
-            ['qty' => 0]
+            ['qty' => 0, 'free_qty' => 0]
         );
-        $locationBatch->increment('qty', $totalQuantity);
+        $locationBatch->increment('qty', $productData['quantity']); // Paid quantity
+        $locationBatch->increment('free_qty', $freeQuantity); // Free quantity
 
         // Create purchase product record with both quantities tracked
         $purchase->purchaseProducts()->updateOrCreate(
@@ -619,14 +634,18 @@ class PurchaseController extends Controller
             ->where('location_id', $locationId)
             ->first();
 
-        // Total quantity to remove includes both paid and free quantities
-        $totalQuantityToRemove = $productToRemove->quantity + ($productToRemove->free_quantity ?? 0);
+        // Remove paid and free quantities separately
+        $paidQuantityToRemove = $productToRemove->quantity;
+        $freeQuantityToRemove = $productToRemove->free_quantity ?? 0;
+        $totalQuantityToRemove = $paidQuantityToRemove + $freeQuantityToRemove;
 
         if ($locationBatch) {
-            $locationBatch->decrement('qty', $totalQuantityToRemove);
+            $locationBatch->decrement('qty', $paidQuantityToRemove); // Paid qty
+            $locationBatch->decrement('free_qty', $freeQuantityToRemove); // Free qty
         }
 
-        $batch->decrement('qty', $totalQuantityToRemove);
+        $batch->decrement('qty', $paidQuantityToRemove); // Paid qty
+        $batch->decrement('free_qty', $freeQuantityToRemove); // Free qty
 
         StockHistory::create([
             'loc_batch_id' => $locationBatch->id,
@@ -634,10 +653,10 @@ class PurchaseController extends Controller
             'stock_type' => StockHistory::STOCK_TYPE_PURCHASE,
         ]);
 
-        Log::info('Removed product from purchase with free quantity', [
+        Log::info('Removed product from purchase with paid and free quantities separately', [
             'product_id' => $productToRemove->product_id,
-            'paid_quantity_removed' => $productToRemove->quantity,
-            'free_quantity_removed' => $productToRemove->free_quantity ?? 0,
+            'paid_quantity_removed' => $paidQuantityToRemove,
+            'free_quantity_removed' => $freeQuantityToRemove,
             'total_quantity_removed' => $totalQuantityToRemove,
         ]);
 
@@ -743,7 +762,7 @@ class PurchaseController extends Controller
             ]));
 
             // Cache ALL purchases for 5 minutes (fast loading + instant pagination)
-            $purchases = \Cache::remember($cacheKey, 300, function() use ($request) {
+            $purchases = Cache::remember($cacheKey, 300, function() use ($request) {
                 $query = DB::table('purchases as p')
                     ->select([
                         'p.id',

@@ -458,10 +458,7 @@
                 </tr>
             </thead>
             <tbody>
-                {{-- Load IMEI data and batch data for all products --}}
-                @php
-                    $products->load(['imeis', 'batch']);
-                @endphp
+                {{-- Batch and IMEI data already loaded from controller --}}
 
                 {{-- Process products: separate IMEI products, group non-IMEI products --}}
                 @php

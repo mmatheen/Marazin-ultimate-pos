@@ -84,14 +84,15 @@ class ProductController extends Controller
                     $query->with('batch');
                 },
                 'locationBatches.stockHistories' => function ($query) {
-                    $query->with([
-                        'locationBatch.batch.purchaseProducts.purchase.supplier',
-                        'locationBatch.batch.salesProducts.sale.customer',
-                        'locationBatch.batch.purchaseReturns.purchaseReturn.supplier',
-                        'locationBatch.batch.saleReturns.salesReturn.customer',
-                        'locationBatch.batch.stockAdjustments.stockAdjustment',
-                        'locationBatch.batch.stockTransfers.stockTransfer',
-                    ]);
+                    $query->orderBy('created_at', 'asc') // FIFO order
+                        ->with([
+                            'locationBatch.batch.purchaseProducts.purchase.supplier',
+                            'locationBatch.batch.salesProducts.sale.customer',
+                            'locationBatch.batch.purchaseReturns.purchaseReturn.supplier',
+                            'locationBatch.batch.saleReturns.salesReturn.customer',
+                            'locationBatch.batch.stockAdjustments.stockAdjustment',
+                            'locationBatch.batch.stockTransfers.stockTransfer',
+                        ]);
                 }
             ]);
 
@@ -127,6 +128,7 @@ class ProductController extends Controller
                 StockHistory::STOCK_TYPE_SALE_RETURN_WITH_BILL,
                 StockHistory::STOCK_TYPE_SALE_RETURN_WITHOUT_BILL,
                 StockHistory::STOCK_TYPE_SALE_REVERSAL,
+                StockHistory::STOCK_TYPE_PURCHASE_RETURN_REVERSAL,
                 StockHistory::STOCK_TYPE_TRANSFER_IN,
             ];
 
@@ -134,8 +136,6 @@ class ProductController extends Controller
                 StockHistory::STOCK_TYPE_SALE,
                 StockHistory::STOCK_TYPE_ADJUSTMENT,
                 StockHistory::STOCK_TYPE_PURCHASE_RETURN,
-                StockHistory::STOCK_TYPE_SALE_REVERSAL,
-                StockHistory::STOCK_TYPE_PURCHASE_RETURN_REVERSAL,
                 StockHistory::STOCK_TYPE_TRANSFER_OUT,
             ];
 
@@ -2104,7 +2104,7 @@ class ProductController extends Controller
                 // Determine if allow_decimal is true for this product's unit
                 $allowDecimal = $product->unit && $product->unit->allow_decimal;
 
-                // Calculate total stock based on location filter using live DB sum to avoid stale eager-loaded data
+                // Calculate total paid stock based on location filter
                 $totalStock = DB::table('location_batches')
                     ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
                     ->where('batches.product_id', $product->id)
@@ -2113,10 +2113,21 @@ class ProductController extends Controller
                     })
                     ->sum('location_batches.qty');
 
+                // Calculate total free stock based on location filter
+                $totalFreeStock = DB::table('location_batches')
+                    ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                    ->where('batches.product_id', $product->id)
+                    ->when($locationId, function ($q) use ($locationId) {
+                        return $q->where('location_batches.location_id', $locationId);
+                    })
+                    ->sum('location_batches.free_qty');
+
                 if ($allowDecimal) {
                     $totalStock = round($totalStock, 2);
+                    $totalFreeStock = round($totalFreeStock, 2);
                 } else {
                     $totalStock = (int)$totalStock;
+                    $totalFreeStock = (int)$totalFreeStock;
                 }
 
                 // Note: We show all products for the location to allow browsing
@@ -2260,6 +2271,7 @@ class ProductController extends Controller
                         'latest_batch_id' => $latestBatch ? $latestBatch->id : null, // Track which batch is being used
                     ],
                     'total_stock' => $totalStock,
+                    'total_free_stock' => $totalFreeStock,
                     'batches' => $filteredBatches->map(function ($batch) use ($allowDecimal, $locationId) {
                         // Filter location batches based on location filter
                         $locationBatches = $locationId
@@ -2271,6 +2283,11 @@ class ProductController extends Controller
                             ->where('batch_id', $batch->id)
                             ->when($locationId, fn($q) => $q->where('location_id', $locationId))
                             ->sum('qty');
+
+                        $batchFreeQty = DB::table('location_batches')
+                            ->where('batch_id', $batch->id)
+                            ->when($locationId, fn($q) => $q->where('location_id', $locationId))
+                            ->sum('free_qty');
 
                         return [
                             'id' => $batch->id,
@@ -2284,12 +2301,16 @@ class ProductController extends Controller
                             'total_batch_quantity' => $allowDecimal
                                 ? round((float)$batchQty, 2)
                                 : (int)$batchQty,
+                            'total_batch_free_quantity' => $allowDecimal
+                                ? round((float)$batchFreeQty, 2)
+                                : (int)$batchFreeQty,
                             'location_batches' => $locationBatches->map(function ($lb) use ($allowDecimal) {
                                 return [
                                     'batch_id' => $lb->batch_id,
                                     'location_id' => $lb->location_id,
                                     'location_name' => optional($lb->location)->name ?? 'N/A',
-                                    'quantity' => $allowDecimal ? round((float)($lb->qty ?? 0), 2) : (int)($lb->qty ?? 0)
+                                    'quantity' => $allowDecimal ? round((float)($lb->qty ?? 0), 2) : (int)($lb->qty ?? 0),
+                                    'free_quantity' => $allowDecimal ? round((float)($lb->free_qty ?? 0), 2) : (int)($lb->free_qty ?? 0)
                                 ];
                             })->values()
                         ];

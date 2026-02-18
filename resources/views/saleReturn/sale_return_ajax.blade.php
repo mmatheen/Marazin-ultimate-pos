@@ -246,6 +246,191 @@
                 console.log('📋 List page detected: Skipping form location/customer loading');
             }
 
+            // ==========================================
+            // EDIT MODE: Load existing sale return data (from URL like purchase return)
+            // ==========================================
+            const saleReturnId = window.location.pathname.split('/').pop();
+            const isEditMode = window.location.pathname.includes('/sale-return/edit/');
+
+            if (isEditMode && saleReturnId && !isNaN(saleReturnId)) {
+                console.log('✏️ Edit mode detected from URL - Loading existing data');
+
+                $.ajax({
+                    url: `/sale-return/edit/${saleReturnId}`,
+                    method: 'GET',
+                    success: function(response) {
+                        if (response.sales_return) {
+                            populateSaleReturnForm(response.sales_return);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error fetching sale return:', error);
+                        toastr.error('Failed to load sale return data');
+                    }
+                });
+            }
+
+            function populateSaleReturnForm(data) {
+                console.log('Populating form with data:', data);
+                console.log('Return products:', data.return_products);
+
+                // Set form to edit mode
+                $('#salesReturnForm').attr('data-edit-mode', 'true');
+                $('#salesReturnForm').attr('data-return-id', data.id);
+
+                // Update page title
+                $('#form-title').text('Edit Sale Return');
+                $('#breadcrumb-title').text('Edit Sale Return');
+
+                // Pre-select location and customer
+                setTimeout(function() {
+                    $('#locationId').val(data.location_id).trigger('change');
+
+                    if (data.sale_id) {
+                        // With bill mode
+                        $('#withBill').prop('checked', true).trigger('change');
+                        $('#sale-id').val(data.sale_id);
+                        $('#invoiceNo').val(data.sale ? data.sale.invoice_no : '');
+                        $('#customer-id').val(data.customer_id);
+
+                        if (data.sale) {
+                            $('#displayInvoiceNo').html(`<strong>Invoice No.:</strong> ${data.sale.invoice_no || ''}`);
+                            $('#displayDate').html(`<strong>Date:</strong> ${data.sale.created_at ? new Date(data.sale.created_at).toLocaleDateString() : ''}`);
+                        }
+                        if (data.customer) {
+                            $('#displayCustomer').html(`<strong>Customer:</strong> ${data.customer.first_name || ''} ${data.customer.last_name || ''}`);
+                        }
+                        if (data.location) {
+                            $('#displayLocation').html(`<strong>Business Location:</strong> ${data.location.name || ''}`);
+                        }
+                    } else {
+                        // Without bill mode
+                        $('#withoutBill').prop('checked', true).trigger('change');
+                        if (data.customer_id) {
+                            $('#customerId').val(data.customer_id);
+                        }
+                    }
+
+                    // Set other fields
+                    $('#date').val(data.return_date ? data.return_date.split(' ')[0] : '');
+                    $('#isDefective').prop('checked', data.is_defective);
+                    $('#notes').val(data.notes || '');
+
+                    // Load existing products into the table - handle both snake_case and camelCase
+                    const returnProducts = data.return_products || data.returnProducts || [];
+                    console.log('Loading products count:', returnProducts.length);
+                    loadExistingProductsFromData(returnProducts);
+                }, 500);
+            }
+
+            function loadExistingProductsFromData(returnProducts) {
+                console.log('Loading existing products:', returnProducts);
+
+                if (!returnProducts || returnProducts.length === 0) {
+                    console.warn('No return products to load');
+                    toastr.warning('No products found in this return');
+                    return;
+                }
+
+                const productsTableBody = $("#productsTableBody");
+                productsTableBody.empty();
+
+                returnProducts.forEach((product, index) => {
+                    const productData = product.product;
+                    const batchId = product.batch_id;
+                    const quantity = parseFloat(product.quantity || 0);
+                    const freeQuantity = parseFloat(product.free_quantity || 0);
+                    const returnPrice = parseFloat(product.return_price || 0);
+                    const subtotal = parseFloat(product.subtotal || 0);
+
+                    const unitDisplay = productData.unit ? productData.unit.short_name : 'Pc(s)';
+                    const withBill = $('#withBill').is(':checked');
+
+                    // For edit mode, show current quantities (editable)
+                    const row = `
+                        <tr data-index="${index}">
+                            <td>${index + 1}</td>
+                            <td>
+                                ${productData.product_name}<br>
+                                <small class="text-muted">${productData.sku}</small>
+                            </td>
+                            <td>
+                                <div>Rs. ${returnPrice.toFixed(2)}</div>
+                            </td>
+                            <td>${quantity} ${unitDisplay}</td>
+                            <td>
+                                <input type="number" class="form-control return-quantity"
+                                       name="products[${index}][quantity]"
+                                       placeholder="Enter qty"
+                                       step="any"
+                                       value="${quantity}"
+                                       data-unit-price="${returnPrice}"
+                                       data-original-price="${returnPrice}"
+                                       data-product-id="${productData.id}"
+                                       data-batch-id="${batchId}">
+                                <div class="quantity-error">Quantity cannot exceed<br>the available amount.</div>
+                            </td>
+                            <td>${freeQuantity} ${unitDisplay}</td>
+                            <td>
+                                <input type="number" class="form-control return-free-quantity"
+                                       name="products[${index}][free_quantity]"
+                                       placeholder="Free qty"
+                                       step="any"
+                                       value="${freeQuantity}"
+                                       data-product-id="${productData.id}"
+                                       data-batch-id="${batchId}">
+                                <div class="free-quantity-error">Free quantity cannot exceed<br>the available amount.</div>
+                            </td>
+                            <td class="return-subtotal">Rs. ${subtotal.toFixed(2)}</td>
+                            <td><button type="button" class="btn btn-danger remove-product"><i class="fas fa-trash-alt"></i></button></td>
+                        </tr>
+                    `;
+                    productsTableBody.append(row);
+                });
+
+                // Attach event handlers to the loaded products
+                attachProductEventHandlers();
+                calculateReturnTotal();
+            }
+
+            function attachProductEventHandlers() {
+                $(".return-quantity").off('input').on('input', function() {
+                    let quantity = parseFloat($(this).val()) || 0;
+                    const unitPrice = parseFloat($(this).data('unit-price'));
+
+                    if (quantity < 0) {
+                        quantity = 0;
+                        $(this).val(quantity);
+                    }
+
+                    const returnSubtotal = quantity * unitPrice;
+                    $(this).closest('tr').find('.return-subtotal').text(`Rs. ${returnSubtotal.toFixed(2)}`);
+                    calculateReturnTotal();
+                });
+
+                $(".return-free-quantity").off('input').on('input', function() {
+                    let freeQuantity = parseFloat($(this).val()) || 0;
+
+                    if (freeQuantity < 0) {
+                        freeQuantity = 0;
+                        $(this).val(freeQuantity);
+                    }
+
+                    calculateReturnTotal();
+                });
+
+                $(".remove-product").off('click').on('click', function() {
+                    $(this).closest('tr').remove();
+                    toastr.info('Product removed. Don\'t forget to save changes.');
+                    updateRowNumbers();
+                    calculateReturnTotal();
+                });
+            }
+
+            // ==========================================
+            // END EDIT MODE
+            // ==========================================
+
             // Function to get query parameters
             function getQueryParam(param) {
                 const urlParams = new URLSearchParams(window.location.search);
@@ -373,6 +558,10 @@
                             const returnPrice = parseFloat(product.return_price || product.price || 0);
                             const discountInfo = `<small class="text-info">Return: Rs. ${returnPrice.toFixed(2)}/unit</small>`;
 
+                            // Get free quantity information
+                            const freeQuantity = parseFloat(product.free_quantity || 0);
+                            const currentFreeQuantity = parseFloat(product.current_free_quantity || freeQuantity);
+
                             const row = `
                                             <tr data-index="${index}">
                                                 <td>${index + 1}</td>
@@ -395,6 +584,17 @@
                                                            data-product-id="${product.product.id}"
                                                            data-batch-id="${product.batch_id}">
                                                     <div class="quantity-error">Quantity cannot exceed<br>the available amount.</div>
+                                                </td>
+                                                <td>${freeQuantity > 0 ? `<del>${freeQuantity}</del>` : ''} ${currentFreeQuantity} ${unitDisplay}</td>
+                                                <td>
+                                                    <input ${inputAttrs} class="form-control return-free-quantity"
+                                                           name="products[${index}][free_quantity]"
+                                                           placeholder="Free qty (optional)"
+                                                           max="${currentFreeQuantity}"
+                                                           data-product-id="${product.product.id}"
+                                                           data-batch-id="${product.batch_id}"
+                                                           value="0">
+                                                    <div class="free-quantity-error">Free quantity cannot exceed<br>the available amount.</div>
                                                 </td>
                                                 <td class="return-subtotal">Rs. 0.00</td>
                                                 <td><button type="button" class="btn btn-danger remove-product"><i class="fas fa-trash-alt"></i></button></td>
@@ -463,6 +663,51 @@
                             const returnSubtotal = quantity * unitPrice;
                             $input.closest('tr').find('.return-subtotal').text(
                                 `Rs. ${returnSubtotal.toFixed(2)}`);
+                            calculateReturnTotal();
+                        });
+
+                        // Handler for free quantity input validation
+                        $(".return-free-quantity").on('input', function(e) {
+                            const $input = $(this);
+                            let value = $input.val();
+
+                            // Allow only numbers and one decimal point
+                            value = value.replace(/[^0-9.]/g, '');
+
+                            // Prevent multiple decimals
+                            const parts = value.split('.');
+                            if (parts.length > 2) {
+                                value = parts[0] + '.' + parts[1];
+                            }
+
+                            // If user types just ".", convert to "0."
+                            if (value === '.') {
+                                value = '0.';
+                            }
+
+                            // If value starts with "0" and not "0." (e.g. "01"), remove leading zero
+                            if (value.length > 1 && value.startsWith('0') && value[1] !== '.') {
+                                value = value.replace(/^0+/, '');
+                                if (value === '') value = '0';
+                            }
+
+                            // Set value back
+                            $input.val(value);
+
+                            const max = parseFloat($input.attr('max'));
+                            let freeQuantity = parseFloat(value) || 0;
+                            const errorDiv = $input.siblings('.free-quantity-error');
+
+                            if (freeQuantity > max) {
+                                freeQuantity = max;
+                                $input.val(freeQuantity);
+                                errorDiv.html('Free quantity cannot exceed<br>the available amount.')
+                                    .show();
+                            } else {
+                                errorDiv.hide();
+                            }
+
+                            // Free quantity doesn't affect subtotal (it's free), but update total calculation
                             calculateReturnTotal();
                         });
 
@@ -719,6 +964,7 @@
 
             function addProductToTable(product) {
                 const stockDisplay = product.total_stock !== undefined && product.total_stock !== null ? product.total_stock : 0;
+                const freeStockDisplay = product.free_stock !== undefined && product.free_stock !== null ? product.free_stock : 0;
                 const newRow = `
                 <tr>
                     <td></td>
@@ -726,7 +972,11 @@
                     <td>Rs. ${product.retail_price.toFixed(2)}</td>
                     <td>${stockDisplay} Pcs</td>
                     <td>
-                        <input type="number" class="form-control return-quantity" name="products[${product.value}][quantity]" placeholder="Enter qty" min="1" step="any" data-unit-price="${product.retail_price}" data-product-id="${product.value}">
+                        <input type="number" class="form-control return-quantity" name="products[${product.value}][quantity]" placeholder="Enter qty" min="0" step="any" data-unit-price="${product.retail_price}" data-product-id="${product.value}">
+                    </td>
+                    <td>${freeStockDisplay} Pcs</td>
+                    <td>
+                        <input type="number" class="form-control return-free-quantity" name="products[${product.value}][free_quantity]" placeholder="Free qty" min="0" step="any" data-product-id="${product.value}" value="0">
                     </td>
                     <td class="return-subtotal">Rs. 0.00</td>
                     <td><button type="button" class="btn btn-danger remove-product"><i class="fas fa-trash-alt"></i></button></td>
@@ -749,6 +999,19 @@
 
                     const returnSubtotal = quantity * unitPrice;
                     $(this).closest('tr').find('.return-subtotal').text(`Rs. ${returnSubtotal.toFixed(2)}`);
+                    calculateReturnTotal();
+                });
+
+                $(".return-free-quantity").off('input').on('input', function() {
+                    let freeQuantity = parseFloat($(this).val()) || 0;
+
+                    // Validate free quantity (should be non-negative)
+                    if (freeQuantity < 0) {
+                        freeQuantity = 0;
+                        $(this).val(freeQuantity);
+                    }
+
+                    // Free quantity doesn't affect subtotal but update total calculation
                     calculateReturnTotal();
                 });
 
@@ -816,10 +1079,12 @@
                     const withBill = $('#withBill').is(':checked');
                     console.log('Billing mode:', withBill ? 'With Bill' : 'Without Bill');
 
+                    const isEditMode = $('#salesReturnForm').data('edit-mode');
                     const isValid = validateForm();
                     console.log('Form validation result:', isValid);
 
                     const $submitButton = $('.btn[type="submit"]');
+                    const originalButtonText = isEditMode ? 'Update' : 'Save';
                     $submitButton.prop('disabled', true).html('Processing...');
 
                     if (isValid) {
@@ -832,13 +1097,15 @@
                         jsonData.products = [];
                         $("#productsTableBody tr").each(function(index, row) {
                             const quantity = parseFloat($(row).find('.return-quantity').val()) || 0;
+                            const freeQuantity = parseFloat($(row).find('.return-free-quantity').val()) || 0;
 
-                            // Only include products with return quantity > 0
-                            if (quantity > 0) {
+                            // Only include products with return quantity > 0 (paid or free)
+                            if (quantity > 0 || freeQuantity > 0) {
                                 const $input = $(row).find('.return-quantity');
                                 const product = {
                                     product_id: $input.data('productId'),
                                     quantity: quantity,
+                                    free_quantity: freeQuantity,
                                     original_price: $input.data('originalPrice') || $input.data('unitPrice'),
                                     return_price: $input.data('unitPrice'), // This is the actual return price
                                     subtotal: parseFloat($(row).find('.return-subtotal').text()
@@ -855,23 +1122,29 @@
                         // Check if at least one product is being returned
                         if (jsonData.products.length === 0) {
                             toastr.error("Please add at least one product and enter return quantity.");
-                            $submitButton.prop('disabled', false).html('Save');
+                            $submitButton.prop('disabled', false).html(originalButtonText);
                             return;
                         }
 
                         // Additional validation for billing options
                         if (withBill && !jsonData.sale_id) {
                             toastr.error("Please select a valid invoice first.");
-                            $submitButton.prop('disabled', false).html('Save');
+                            $submitButton.prop('disabled', false).html(originalButtonText);
                             return;
                         }
 
                         console.log('Submitting form data:', jsonData);
 
+                        // Determine URL and method based on edit mode
+                        const isEditMode = $('#salesReturnForm').data('edit-mode');
+                        const returnId = $('#salesReturnForm').data('return-id');
+                        const submitUrl = isEditMode ? `/sale-return/update/${returnId}` : "/sale-return/store";
+                        const httpMethod = isEditMode ? "PUT" : "POST";
+
                         // Using jQuery AJAX
                         $.ajax({
-                            url: "/sale-return/store",
-                            type: "POST",
+                            url: submitUrl,
+                            type: httpMethod,
                             data: JSON.stringify(jsonData),
                             contentType: "application/json",
                             dataType: "json",
@@ -880,13 +1153,15 @@
                             },
                             success: function(response) {
                                 if (response.status === 200) {
+                                    console.log('✅ Sale return saved successfully!');
+                                    console.log('Return ID:', response.return_id);
                                     toastr.success(response.message);
                                     setTimeout(() => {
                                         window.location.href = "/sale-return/list";
                                     }, 1500);
                                 } else {
                                     toastr.error(response.errors.join("<br>"));
-                                    $submitButton.prop('disabled', false).html('Save');
+                                    $submitButton.prop('disabled', false).html(originalButtonText);
                                 }
                             },
                             error: function(xhr, status, error) {
@@ -909,13 +1184,12 @@
                                 }
 
                                 toastr.error(errorMessage);
-                                $submitButton.prop('disabled', false).html('Save');
+                                $submitButton.prop('disabled', false).html(originalButtonText);
                             }
                         });
                     } else {
                         toastr.error("Please fill in all required fields.");
-                        $submitButton.prop('disabled', false).html(
-                            'Save'); // Re-enable on validation fail
+                        $submitButton.prop('disabled', false).html(originalButtonText); // Re-enable on validation fail
                     }
                 }
 
@@ -1386,12 +1660,14 @@
                             $('#productsTable tbody').empty();
                             saleReturn.return_products.forEach(function(product,
                                 index) {
+                                var freeQty = product.free_quantity || 0;
                                 $('#productsTable tbody').append(`
                                                     <tr>
                                                         <td>${index + 1}</td>
                                                         <td>${product.product.product_name}</td>
                                                         <td>${product.product.sku}</td>
                                                         <td>${product.quantity}</td>
+                                                        <td>${freeQty}</td>
                                                         <td>${product.return_price}</td>
                                                         <td>${product.subtotal}</td>
                                                     </tr>

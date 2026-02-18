@@ -6,10 +6,10 @@
                 <div class="row align-items-center">
                     <div class="col-sm-12">
                         <div class="page-sub-header">
-                            <h3 class="page-title">Add Sale Return</h3>
+                            <h3 class="page-title" id="form-title">Add Sale Return</h3>
                             <ul class="breadcrumb">
                                 <li class="breadcrumb-item"><a href="#">Sell</a></li>
-                                <li class="breadcrumb-item active">Add Sale Return</li>
+                                <li class="breadcrumb-item active" id="breadcrumb-title">Add Sale Return</li>
                             </ul>
                         </div>
                     </div>
@@ -173,6 +173,8 @@
                                     <th>Retail Price</th>
                                     <th id="stockColumn">Sales Quantity</th>
                                     <th>Return Quantity</th>
+                                    <th id="freeStockColumn">Sales Free Qty</th>
+                                    <th>Return Free Qty</th>
                                     <th>Return Subtotal</th>
                                     <th>Action</th>
                                 </tr>
@@ -295,6 +297,14 @@
             text-align: left;
         }
 
+        .free-quantity-error {
+            font-size: 12px;
+            color: red;
+            margin-top: 5px;
+            display: none;
+            text-align: left;
+        }
+
         .btn-danger {
             padding: 6px 10px;
             font-size: 14px;
@@ -333,6 +343,7 @@
                 const productSearchSection = document.getElementById('productSearchSection');
                 const productsTableBody = document.getElementById('productsTableBody');
                 const stockColumn = document.getElementById('stockColumn');
+                const freeStockColumn = document.getElementById('freeStockColumn');
                 const customerSelectionSection = document.getElementById('customerSelectionSection');
 
                 if (withBill) {
@@ -340,6 +351,7 @@
                     productSearchSection.style.display = 'none';
                     customerSelectionSection.style.display = 'none';
                     stockColumn.textContent = 'Sales Quantity';
+                    freeStockColumn.textContent = 'Sales Free Qty';
                     setFieldState(true);
 
                     // Only use hidden input for customer_id
@@ -350,6 +362,7 @@
                     productSearchSection.style.display = 'block';
                     customerSelectionSection.style.display = 'block';
                     stockColumn.textContent = 'Current Total Stock';
+                    freeStockColumn.textContent = 'Current Free Stock';
                     setFieldState(false);
 
                     // Only use select input for customer_id

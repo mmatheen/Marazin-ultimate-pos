@@ -134,17 +134,67 @@ class PurchaseReturnController extends Controller
                     ]
                 );
 
-                // If updating, reverse stock adjustments for existing products
+                // If updating, we need to consider old return quantities for validation
+                $oldReturnProducts = [];
                 if ($isUpdate) {
-                    // Note: UnifiedLedgerService will handle ledger cleanup automatically
-
                     $existingProducts = $purchaseReturn->purchaseReturnProducts;
                     foreach ($existingProducts as $existingProduct) {
-                        $quantity = $existingProduct->quantity;
+                        $key = $existingProduct->product_id . '_' . ($existingProduct->batch_no ?? 'null');
+                        $oldReturnProducts[$key] = [
+                            'qty' => floatval($existingProduct->quantity ?? 0),
+                            'free_qty' => floatval($existingProduct->free_quantity ?? 0),
+                        ];
+                    }
+                }
+
+                // Validate each product first before making any changes
+                foreach ($request->products as $productData) {
+                    $product = \App\Models\Product::find($productData['product_id']);
+                    if (!$product) {
+                        throw new \Exception("Product ID {$productData['product_id']} not found.");
+                    }
+
+                    $paidQtyToReturn = floatval($productData['quantity'] ?? 0);
+                    $freeQtyToReturn = floatval($productData['free_quantity'] ?? 0);
+                    $batchId = $productData['batch_id'] ?? null;
+
+                    // Get current available stock (returns array with qty and free_qty)
+                    $availableStock = $this->getProductStockInLocation($productData['product_id'], $request->location_id, $batchId);
+
+                    // For edit mode, add back the old return quantities to get true available stock
+                    $key = $productData['product_id'] . '_' . ($batchId ?? 'null');
+                    if (isset($oldReturnProducts[$key])) {
+                        $availableStock['qty'] += $oldReturnProducts[$key]['qty'];
+                        $availableStock['free_qty'] += $oldReturnProducts[$key]['free_qty'];
+                    }
+
+                    // Validate paid quantity
+                    if ($paidQtyToReturn > 0 && $availableStock['qty'] < $paidQtyToReturn) {
+                        throw new \Exception(
+                            "Insufficient paid stock for product '{$product->product_name}'. " .
+                            "Available: {$availableStock['qty']}, Requested: {$paidQtyToReturn}"
+                        );
+                    }
+
+                    // Validate free quantity
+                    if ($freeQtyToReturn > 0 && $availableStock['free_qty'] < $freeQtyToReturn) {
+                        throw new \Exception(
+                            "Insufficient free stock for product '{$product->product_name}'. " .
+                            "Available: {$availableStock['free_qty']}, Requested: {$freeQtyToReturn}"
+                        );
+                    }
+                }
+
+                // If updating, now restore the old stock before processing new returns
+                if ($isUpdate) {
+                    $existingProducts = $purchaseReturn->purchaseReturnProducts;
+                    foreach ($existingProducts as $existingProduct) {
+                        $paidQty = floatval($existingProduct->quantity ?? 0);
+                        $freeQty = floatval($existingProduct->free_quantity ?? 0);
                         $batchId = $existingProduct->batch_no;
 
-                        // Restore batch or FIFO stock
-                        $this->restoreStock($existingProduct->product_id, $purchaseReturn->location_id, $quantity, $batchId);
+                        // Restore both paid and free quantities
+                        $this->restoreStock($existingProduct->product_id, $purchaseReturn->location_id, $paidQty, $freeQty, $batchId);
 
                         // Delete existing purchase return products
                         $existingProduct->delete();
@@ -153,18 +203,6 @@ class PurchaseReturnController extends Controller
 
                 // Process each product in the request
                 foreach ($request->products as $productData) {
-                    // Validate that product exists and has stock in the location
-                    $product = \App\Models\Product::find($productData['product_id']);
-                    if (!$product) {
-                        throw new \Exception("Product ID {$productData['product_id']} not found.");
-                    }
-
-                    // Check if there's sufficient stock in the location for the return
-                    $availableStock = $this->getProductStockInLocation($productData['product_id'], $request->location_id, $productData['batch_id'] ?? null);
-                    if ($availableStock < $productData['quantity']) {
-                        throw new \Exception("Insufficient stock for product '{$product->product_name}'. Available: {$availableStock}, Requested: {$productData['quantity']}");
-                    }
-
                     $this->processProductReturn($productData, $purchaseReturn->id, $request->location_id);
                 }
 
@@ -188,12 +226,12 @@ class PurchaseReturnController extends Controller
         }
     }
 
-    private function restoreStock($productId, $locationId, $quantity, $batchId = null)
+    private function restoreStock($productId, $locationId, $paidQty, $freeQty, $batchId = null)
     {
         if (empty($batchId)) {
-            $this->restoreStockFIFO($productId, $locationId, $quantity);
+            $this->restoreStockFIFO($productId, $locationId, $paidQty, $freeQty);
         } else {
-            $this->restoreBatchStock($batchId, $locationId, $quantity);
+            $this->restoreBatchStock($batchId, $locationId, $paidQty, $freeQty);
         }
     }
 
@@ -226,15 +264,14 @@ class PurchaseReturnController extends Controller
     {
         $paidQtyToReturn = floatval($productData['quantity'] ?? 0);
         $freeQtyToReturn = floatval($productData['free_quantity'] ?? 0);
-        $totalQuantityToReturn = $paidQtyToReturn + $freeQtyToReturn;
-        $batchId = $productData['batch_id'];
+        $batchId = $productData['batch_id'] ?? null;
 
         if (empty($batchId)) {
-            // Handle FIFO return (no specific batch) - reduce both paid + free
-            $this->reduceStockFIFO($productData['product_id'], $locationId, $totalQuantityToReturn);
+            // Handle FIFO return (no specific batch) - reduce paid and free separately
+            $this->reduceStockFIFO($productData['product_id'], $locationId, $paidQtyToReturn, $freeQtyToReturn);
         } else {
-            // Handle batch-specific return - reduce both paid + free
-            $this->reduceBatchStock($batchId, $locationId, $totalQuantityToReturn);
+            // Handle batch-specific return - reduce paid and free separately
+            $this->reduceBatchStock($batchId, $locationId, $paidQtyToReturn, $freeQtyToReturn);
         }
 
         // Create purchase return product record
@@ -249,7 +286,7 @@ class PurchaseReturnController extends Controller
         ]);
     }
 
-    private function reduceBatchStock($batchId, $locationId, $quantity)
+    private function reduceBatchStock($batchId, $locationId, $paidQty, $freeQty)
     {
         $locationBatch = LocationBatch::where('batch_id', $batchId)
             ->where('location_id', $locationId)
@@ -260,24 +297,42 @@ class PurchaseReturnController extends Controller
             throw new \Exception('LocationBatch record not found for batch ID ' . $batchId . ' and location ID ' . $locationId);
         }
 
-        if ($locationBatch->qty < $quantity) {
-            throw new \Exception('Insufficient stock to complete the return.');
+        // Validate sufficient stock for paid quantity
+        if ($paidQty > 0 && $locationBatch->qty < $paidQty) {
+            throw new \Exception("Insufficient paid stock to complete the return. Available: {$locationBatch->qty}, Requested: {$paidQty}");
         }
 
-        $locationBatch->decrement('qty', $quantity);
+        // Validate sufficient stock for free quantity
+        if ($freeQty > 0 && $locationBatch->free_qty < $freeQty) {
+            throw new \Exception("Insufficient free stock to complete the return. Available: {$locationBatch->free_qty}, Requested: {$freeQty}");
+        }
 
+        // Decrement paid and free quantities separately
+        if ($paidQty > 0) {
+            $locationBatch->decrement('qty', $paidQty);
+        }
+        if ($freeQty > 0) {
+            $locationBatch->decrement('free_qty', $freeQty);
+        }
+
+        // Record total quantity in stock history
+        $totalQty = $paidQty + $freeQty;
         StockHistory::create([
             'loc_batch_id' => $locationBatch->id,
-            'quantity' => -$quantity,
+            'quantity' => -$totalQty,
             'stock_type' => StockHistory::STOCK_TYPE_PURCHASE_RETURN,
         ]);
     }
 
-    private function reduceStockFIFO($productId, $locationId, $quantity)
+    private function reduceStockFIFO($productId, $locationId, $paidQty, $freeQty)
     {
+        // Get batches ordered by FIFO (oldest first)
         $batches = Batch::where('product_id', $productId)
             ->whereHas('locationBatches', function ($query) use ($locationId) {
-                $query->where('location_id', $locationId)->where('qty', '>', 0);
+                $query->where('location_id', $locationId)
+                      ->where(function($q) {
+                          $q->where('qty', '>', 0)->orWhere('free_qty', '>', 0);
+                      });
             })
             ->orderBy('created_at')
             ->get();
@@ -286,91 +341,149 @@ class PurchaseReturnController extends Controller
             throw new \Exception('No batches found for this product in the selected location.');
         }
 
+        $remainingPaidQty = $paidQty;
+        $remainingFreeQty = $freeQty;
+
         foreach ($batches as $batch) {
             $locationBatch = LocationBatch::where('batch_id', $batch->id)
                 ->where('location_id', $locationId)
                 ->first();
 
-            // Ensure the LocationBatch exists
             if (!$locationBatch) {
-                continue; // Skip to next batch if LocationBatch does not exist
-            }
-
-            if ($quantity <= 0) {
-                break;
-            }
-
-            $deductQuantity = min($quantity, $locationBatch->qty);
-
-            if ($deductQuantity <= 0) {
                 continue;
             }
 
-            $locationBatch->decrement('qty', $deductQuantity);
-            $quantity -= $deductQuantity;
+            if ($remainingPaidQty <= 0 && $remainingFreeQty <= 0) {
+                break;
+            }
 
-            StockHistory::create([
-                'loc_batch_id' => $locationBatch->id,
-                'quantity' => -$deductQuantity,
-                'stock_type' => StockHistory::STOCK_TYPE_PURCHASE_RETURN,
-            ]);
+            $totalDeducted = 0;
+
+            // Deduct paid quantity using FIFO
+            if ($remainingPaidQty > 0) {
+                $deductPaidQty = min($remainingPaidQty, $locationBatch->qty);
+                if ($deductPaidQty > 0) {
+                    $locationBatch->decrement('qty', $deductPaidQty);
+                    $remainingPaidQty -= $deductPaidQty;
+                    $totalDeducted += $deductPaidQty;
+                }
+            }
+
+            // Deduct free quantity using FIFO
+            if ($remainingFreeQty > 0) {
+                $deductFreeQty = min($remainingFreeQty, $locationBatch->free_qty);
+                if ($deductFreeQty > 0) {
+                    $locationBatch->decrement('free_qty', $deductFreeQty);
+                    $remainingFreeQty -= $deductFreeQty;
+                    $totalDeducted += $deductFreeQty;
+                }
+            }
+
+            // Record stock history for this batch if any quantity was deducted
+            if ($totalDeducted > 0) {
+                StockHistory::create([
+                    'loc_batch_id' => $locationBatch->id,
+                    'quantity' => -$totalDeducted,
+                    'stock_type' => StockHistory::STOCK_TYPE_PURCHASE_RETURN,
+                ]);
+            }
         }
 
-        if ($quantity > 0) {
-            throw new \Exception('Insufficient stock to complete the return.');
+        // Check if we couldn't deduct all requested quantities
+        if ($remainingPaidQty > 0) {
+            throw new \Exception("Insufficient paid stock to complete the return. Still need: {$remainingPaidQty}");
+        }
+        if ($remainingFreeQty > 0) {
+            throw new \Exception("Insufficient free stock to complete the return. Still need: {$remainingFreeQty}");
         }
     }
 
-    private function restoreBatchStock($batchId, $locationId, $quantity)
+    private function restoreBatchStock($batchId, $locationId, $paidQty, $freeQty)
     {
         $locationBatch = LocationBatch::where('batch_id', $batchId)
             ->where('location_id', $locationId)
             ->firstOrFail();
 
-        $locationBatch->increment('qty', $quantity);
+        // Restore paid and free quantities separately
+        if ($paidQty > 0) {
+            $locationBatch->increment('qty', $paidQty);
+        }
+        if ($freeQty > 0) {
+            $locationBatch->increment('free_qty', $freeQty);
+        }
 
+        // Record total quantity in stock history
+        $totalQty = $paidQty + $freeQty;
         StockHistory::create([
             'loc_batch_id' => $locationBatch->id,
-            'quantity' => $quantity,
+            'quantity' => $totalQty,
             'stock_type' => StockHistory::STOCK_TYPE_PURCHASE_RETURN_REVERSAL,
         ]);
     }
 
-    private function restoreStockFIFO($productId, $locationId, $quantity)
+    private function restoreStockFIFO($productId, $locationId, $paidQty, $freeQty)
     {
+        // Restore to most recent batches first (LIFO for restoration)
         $batches = Batch::where('product_id', $productId)
             ->whereHas('locationBatches', function ($query) use ($locationId) {
-                $query->where('location_id', $locationId)->where('qty', '>', 0);
+                $query->where('location_id', $locationId);
             })
             ->orderBy('created_at', 'desc')
             ->get();
 
+        if ($batches->isEmpty()) {
+            throw new \Exception('No batches found for this product in the selected location for restoration.');
+        }
+
+        $remainingPaidQty = $paidQty;
+        $remainingFreeQty = $freeQty;
+
         foreach ($batches as $batch) {
             $locationBatch = LocationBatch::where('batch_id', $batch->id)
                 ->where('location_id', $locationId)
-                ->firstOrFail();
+                ->first();
 
-            if ($quantity <= 0) {
-                break;
-            }
-
-            $restoreQuantity = min($quantity, $locationBatch->qty);
-
-            if ($restoreQuantity <= 0) {
+            if (!$locationBatch) {
                 continue;
             }
 
-            $locationBatch->increment('qty', $restoreQuantity);
-            $quantity -= $restoreQuantity;
+            if ($remainingPaidQty <= 0 && $remainingFreeQty <= 0) {
+                break;
+            }
 
-            StockHistory::create([
-                'loc_batch_id' => $locationBatch->id,
-                'quantity' => $restoreQuantity,
-                'stock_type' => StockHistory::STOCK_TYPE_PURCHASE_RETURN_REVERSAL,
-            ]);
+            $totalRestored = 0;
+
+            // Restore paid quantity
+            if ($remainingPaidQty > 0) {
+                $locationBatch->increment('qty', $remainingPaidQty);
+                $totalRestored += $remainingPaidQty;
+                $remainingPaidQty = 0;
+            }
+
+            // Restore free quantity
+            if ($remainingFreeQty > 0) {
+                $locationBatch->increment('free_qty', $remainingFreeQty);
+                $totalRestored += $remainingFreeQty;
+                $remainingFreeQty = 0;
+            }
+
+            // Record stock history if any quantity was restored
+            if ($totalRestored > 0) {
+                StockHistory::create([
+                    'loc_batch_id' => $locationBatch->id,
+                    'quantity' => $totalRestored,
+                    'stock_type' => StockHistory::STOCK_TYPE_PURCHASE_RETURN_REVERSAL,
+                ]);
+            }
+
+            // Exit loop if everything is restored
+            if ($remainingPaidQty <= 0 && $remainingFreeQty <= 0) {
+                break;
+            }
         }
 
-        if ($quantity > 0) {
+        // This shouldn't happen, but check just in case
+        if ($remainingPaidQty > 0 || $remainingFreeQty > 0) {
             throw new \Exception('Cannot fully restore the stock. Please check the inventory.');
         }
     }
@@ -379,18 +492,28 @@ class PurchaseReturnController extends Controller
     private function getProductStockInLocation($productId, $locationId, $batchId = null)
     {
         if ($batchId) {
-            // Get stock for specific batch
+            // Get stock for specific batch - return both paid qty and free qty
             $locationBatch = LocationBatch::where('batch_id', $batchId)
                 ->where('location_id', $locationId)
                 ->first();
-            return $locationBatch ? $locationBatch->qty : 0;
+
+            return [
+                'qty' => $locationBatch ? floatval($locationBatch->qty) : 0,
+                'free_qty' => $locationBatch ? floatval($locationBatch->free_qty) : 0,
+            ];
         } else {
             // Get total stock for product across all batches in location
-            return LocationBatch::whereHas('batch', function ($query) use ($productId) {
+            $totals = LocationBatch::whereHas('batch', function ($query) use ($productId) {
                 $query->where('product_id', $productId);
             })
             ->where('location_id', $locationId)
-            ->sum('qty');
+            ->selectRaw('SUM(qty) as total_qty, SUM(free_qty) as total_free_qty')
+            ->first();
+
+            return [
+                'qty' => $totals ? floatval($totals->total_qty) : 0,
+                'free_qty' => $totals ? floatval($totals->total_free_qty) : 0,
+            ];
         }
     }
 
@@ -429,13 +552,19 @@ class PurchaseReturnController extends Controller
                 },
                 'batches.locationBatches' => function ($q) use ($locationId) {
                     $q->where('location_id', $locationId)
-                      ->where('qty', '>', 0)
-                      ->select(['id', 'batch_id', 'location_id', 'qty']);
+                      ->where(function($query) {
+                          $query->where('qty', '>', 0)
+                                ->orWhere('free_qty', '>', 0);
+                      })
+                      ->select(['id', 'batch_id', 'location_id', 'qty', 'free_qty']);
                 }
             ])->where('is_active', true)
               ->whereHas('batches.locationBatches', function ($q) use ($locationId) {
                   $q->where('location_id', $locationId)
-                    ->where('qty', '>', 0);
+                    ->where(function($query) {
+                        $query->where('qty', '>', 0)
+                              ->orWhere('free_qty', '>', 0);
+                    });
               });
 
             // Add search functionality if search term is provided
@@ -474,11 +603,12 @@ class PurchaseReturnController extends Controller
                 $batches = [];
                 foreach ($product->batches as $batch) {
                     foreach ($batch->locationBatches as $locationBatch) {
-                        if ($locationBatch->qty > 0) {
+                        if ($locationBatch->qty > 0 || $locationBatch->free_qty > 0) {
                             $batches[] = [
                                 'batch_id' => $batch->id,
                                 'batch_no' => $batch->batch_no,
-                                'quantity' => $locationBatch->qty,
+                                'quantity' => floatval($locationBatch->qty),
+                                'free_quantity' => floatval($locationBatch->free_qty ?? 0),
                                 'unit_cost' => $batch->unit_cost,
                                 'wholesale_price' => $batch->wholesale_price,
                                 'special_price' => $batch->special_price,
@@ -491,11 +621,14 @@ class PurchaseReturnController extends Controller
                 }
 
                 if (!empty($batches)) {
+                    $totalQty = array_sum(array_column($batches, 'quantity'));
+                    $totalFreeQty = array_sum(array_column($batches, 'free_quantity'));
                     $products[] = [
                         'product' => $product,
                         'unit' => $product->unit ?? null,
                         'batches' => $batches,
-                        'total_stock' => array_sum(array_column($batches, 'quantity'))
+                        'total_stock' => $totalQty,
+                        'total_free_stock' => $totalFreeQty
                     ];
                 }
             }

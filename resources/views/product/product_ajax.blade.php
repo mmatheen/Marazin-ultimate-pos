@@ -157,6 +157,7 @@
     window.initialProductData = null;
     window.initialDataFetchTime = null;
 
+
     $(document).ready(function() {
     var csrfToken = $('meta[name="csrf-token"]').attr('content'); // For CSRF token
     let allProducts = [];
@@ -2556,6 +2557,9 @@
                     <input type="number" class="form-control purchase-quantity" value="${prices.quantity || 1}" min="${quantityMin}" step="${quantityStep}" pattern="${quantityPattern}" ${allowDecimal ? '' : 'oninput="this.value = this.value.replace(/[^0-9]/g, \'\')"'}>
                 </td>
                 <td>
+                    <input type="number" class="form-control free-quantity" value="${prices.free_quantity || 0}" min="0" step="${quantityStep}" pattern="${quantityPattern}" ${allowDecimal ? '' : 'oninput="this.value = this.value.replace(/[^0-9]/g, \'\')"'}>
+                </td>
+                <td>
                     <input type="number" class="form-control product-price" value="${unitCost.toFixed(2)}" min="0">
                 </td>
                 <td>
@@ -2579,14 +2583,53 @@
 
                 if (isDataTable) {
                     // Add to DataTable
-                    table.row.add($newRow).draw();
+                    const addedRow = table.row.add($newRow).draw();
+
+                    // Get the actual DOM node after DataTables processes it
+                    const $actualRow = $(addedRow.node());
+
+                    // Attach event listeners to the actual DOM node's inputs for real-time updates
+                    $actualRow.find('.purchase-quantity, .free-quantity, .discount-percent, .product-price, .unit-cost').on('input', function() {
+                        // Call updateRow if it exists (from purchase_ajax.blade.php)
+                        if (typeof window.updateRow === 'function') {
+                            window.updateRow($actualRow);
+                        }
+
+                        // Call updateFooter if it exists (from purchase_ajax.blade.php)
+                        if (typeof window.updateFooter === 'function') {
+                            window.updateFooter();
+                        }
+                    });
+
+                    // Trigger initial calculation (purchase quantity and free quantity)
+                    $actualRow.find('.purchase-quantity').trigger('input');
+                    $actualRow.find('.free-quantity').trigger('input');
+                    $actualRow.find('.purchase-quantity').trigger('input');
+                    $actualRow.find('.free-quantity').trigger('input');
                 } else {
                     // Add to regular table
                     $('#purchase_product tbody').append($newRow);
+
+                    // Attach event listeners for regular table
+                    $newRow.find('.purchase-quantity, .free-quantity, .discount-percent, .product-price, .unit-cost').on('input', function() {
+                        if (typeof window.updateRow === 'function') {
+                            window.updateRow($newRow);
+                        }
+                        if (typeof window.updateFooter === 'function') {
+                            window.updateFooter();
+                        }
+                    });
+
+                    // Trigger initial calculation
+                    $newRow.find('.purchase-quantity').trigger('input');
                 }
 
-                // Trigger any necessary events
-                $newRow.find('.purchase-quantity').trigger('input');
+                // Call updateFooter to ensure totals are correct after adding
+                if (typeof window.updateFooter === 'function') {
+                    setTimeout(function() {
+                        window.updateFooter();
+                    }, 150);
+                }
 
             } catch (error) {
                 console.error('Error adding row to table:', error);
@@ -4558,4 +4601,8 @@
             }
         }
     }, 5000);
+
+    // $(document).ready(function() {
+    //     fetchLastAddedProducts();
+    // });
 </script>

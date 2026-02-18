@@ -150,7 +150,7 @@
         // Initialize autocomplete functionality with server-side search
         function initAutocomplete() {
             const $input = $("#productSearchInput");
-            
+
             // Add Enter key support for quick selection - Updated with working POS AJAX solution
             $input.off('keydown.autocomplete').on('keydown.autocomplete', function(event) {
                 if (event.key === 'Enter') {
@@ -187,7 +187,7 @@
                     if (!locationId) {
                         return response([]);
                     }
-                    
+
                     $.ajax({
                         url: `/purchase-returns/products-with-stock`,
                         type: 'GET',
@@ -199,7 +199,7 @@
                         success: function(data) {
                             if (data && data.products && data.products.length > 0) {
                                 const results = data.products.map(product => ({
-                                    label: `${product.product.product_name} ${product.product.sku ? `(${product.product.sku})` : ''} [Stock: ${product.total_stock}]`,
+                                    label: `${product.product.product_name} ${product.product.sku ? `(${product.product.sku})` : ''} [Stock: ${product.total_stock} + ${product.total_free_stock || 0} Free]`,
                                     value: product.product.product_name,
                                     product: {
                                         id: product.product.id,
@@ -207,10 +207,12 @@
                                         sku: product.product.sku,
                                         unit: product.unit,
                                         total_stock: product.total_stock,
+                                        total_free_stock: product.total_free_stock || 0,
                                         batches: product.batches.map(batch => ({
                                             batch_id: batch.batch_id,
                                             batch_no: batch.batch_no,
                                             quantity: batch.quantity,
+                                            free_quantity: batch.free_quantity || 0,
                                             unit_cost: batch.unit_cost,
                                             wholesale_price: batch.wholesale_price,
                                             special_price: batch.special_price,
@@ -236,7 +238,7 @@
                         addProductToTable(ui.item.product);
                         $("#productSearchInput").val('').blur();
                         $("#productSearchInput").focus();
-                        
+
                         $(this).autocomplete('close');
                     }
                     return false;
@@ -247,7 +249,7 @@
                         const autocompleteInstance = $input.autocomplete("instance");
                         const menu = autocompleteInstance.menu;
                         const firstItem = menu.element.find("li:first-child");
-                        
+
                         if (firstItem.length > 0 && !firstItem.text().includes("No products found") && !firstItem.text().includes("Error searching")) {
                             // Properly set the active item using jQuery UI's method
                             menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
@@ -286,21 +288,23 @@
                 $('#location-id').val(data.location_id).change();
                 $('#reference_no').val(data.reference_no);
                 $('#return_date').val(formatDate(data.return_date));
-                
+
                 data.purchase_return_products.forEach(product => {
                     // Handle both batch and FIFO scenarios
                     let batch = product.batch;
                     let batchId = product.batch_no || (batch ? batch.id : null);
                     let batchNo = batch ? batch.batch_no : 'FIFO';
-                    
+
                     // For editing, we show the current quantity that was returned
                     // The batch quantity shown should be the available quantity + the returned quantity
                     let availableQty = 0;
+                    let availableFreeQty = 0;
                     if (batch && batch.location_batches && batch.location_batches.length > 0) {
                         const locationBatch = batch.location_batches.find(lb => lb.location_id == data.location_id);
                         availableQty = locationBatch ? parseFloat(locationBatch.qty) : 0;
+                        availableFreeQty = locationBatch ? parseFloat(locationBatch.free_qty || 0) : 0;
                     }
-                    
+
                     addProductToTable({
                         id: product.product.id,
                         name: product.product.product_name,
@@ -309,6 +313,7 @@
                             batch_id: batchId,
                             batch_no: batchNo,
                             quantity: availableQty + parseFloat(product.quantity), // Available + what was returned
+                            free_quantity: availableFreeQty + parseFloat(product.free_quantity || 0), // Available free + what was returned
                             unit_cost: parseFloat(product.unit_price),
                             wholesale_price: batch ? (batch.wholesale_price || 0) : 0,
                             special_price: batch ? (batch.special_price || 0) : 0,
@@ -317,6 +322,7 @@
                             expiry_date: batch ? batch.expiry_date : null
                         }],
                         returnedQuantity: parseFloat(product.quantity), // Track the originally returned quantity
+                        returnedFreeQuantity: parseFloat(product.free_quantity || 0), // Track the originally returned free quantity
                         returnedUnitPrice: parseFloat(product.unit_price)
                     });
                 });
@@ -353,10 +359,10 @@
                 undefined) {
                 allowDecimal = product.product.unit.allow_decimal == 1;
             }
-            
+
             // Check if this is for editing (has returnedQuantity)
             const isEditing = product.returnedQuantity !== undefined;
-            
+
             if (existingRow.length > 0 && !isEditing) {
                 const quantityInput = existingRow.find('.purchase-quantity');
                 const maxQuantity = parseFloat(quantityInput.attr('max')) || 0;
@@ -373,21 +379,25 @@
                 updateFooter();
             } else {
                 const firstBatch = product.batches[0];
-                
-                // For editing, pre-fill with returned quantity and price; for new, start empty
+
+                // For editing, pre-fill with returned quantity/free qty and price; for new, start empty
                 const initialQuantity = isEditing ? product.returnedQuantity : "";
+                const initialFreeQty = isEditing ? product.returnedFreeQuantity : "";
                 const unitPrice = isEditing ? product.returnedUnitPrice : (firstBatch.unit_cost || 0);
                 const subtotal = isEditing ? (product.returnedQuantity * product.returnedUnitPrice) : 0;
-                
+
                 const batchOptions = product.batches.map(batch => {
                     const isSelected = isEditing && batch.batch_id == firstBatch.batch_id ? 'selected' : '';
                     return `
-                    <option value="${batch.batch_id}" data-unit-cost="${batch.unit_cost}" data-max-qty="${batch.quantity}" ${isSelected}>
-                        ${batch.batch_no} - Qty: ${batch.quantity} - Unit Price: ${batch.unit_cost} - Exp: ${batch.expiry_date || '-'}
+                    <option value="${batch.batch_id}"
+                            data-unit-cost="${batch.unit_cost}"
+                            data-max-qty="${batch.quantity}"
+                            data-max-free-qty="${batch.free_quantity || 0}" ${isSelected}>
+                        ${batch.batch_no} - Qty: ${batch.quantity} (Free: ${batch.free_quantity || 0}) - Unit Price: ${batch.unit_cost} - Exp: ${batch.expiry_date || '-'}
                     </option>
                 `;
                 }).join('');
-                
+
                 const newRow = `
                 <tr data-id="${product.id}">
                     <td>${product.id}</td>
@@ -397,9 +407,17 @@
                         <input type="number" class="form-control purchase-quantity"
                         value="${initialQuantity}"
                         placeholder="Enter return quantity"
-                        min="0.01"
+                        min="0"
                         ${allowDecimal ? 'step="0.01"' : 'step="1"'}
                         max="${firstBatch.quantity}">
+                    </td>
+                    <td>
+                        <input type="number" class="form-control purchase-free-quantity"
+                        value="${initialFreeQty}"
+                        placeholder="Enter return free qty"
+                        min="0"
+                        ${allowDecimal ? 'step="0.01"' : 'step="1"'}
+                        max="${firstBatch.free_quantity || 0}">
                     </td>
                     <td class="unit-price amount">${unitPrice}</td>
                     <td class="sub-total amount">${subtotal.toFixed(2)}</td>
@@ -409,11 +427,11 @@
                 const $newRow = $(newRow);
                 $('#purchase_return').DataTable().row.add($newRow).draw();
                 updateFooter();
-                
+
                 if (!isEditing) {
                     toastr.success('New product added to the table!', 'Success');
                 }
-                
+
                 $newRow.find('.purchase-quantity').on('input', function() {
                     if (!allowDecimal) {
                         let val = parseInt($(this).val());
@@ -436,18 +454,50 @@
                         return;
                     }
                     // Ensure that it is a number and stop the keypress
-                    if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && 
-                        (e.keyCode < 96 || e.keyCode > 105) && 
+                    if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) &&
+                        (e.keyCode < 96 || e.keyCode > 105) &&
                         e.keyCode !== 190 && e.keyCode !== 110) {
                         e.preventDefault();
                     }
                 });
+
+                // Add event handler for free quantity input
+                $newRow.find('.purchase-free-quantity').on('input', function() {
+                    if (!allowDecimal) {
+                        let val = parseInt($(this).val());
+                        if (isNaN(val)) val = 0;
+                        $(this).val(val);
+                    }
+                    // Free quantity doesn't affect subtotal, but update footer
+                    updateFooter();
+                }).on('focus', function() {
+                    $(this).select();
+                }).on('keydown', function(e) {
+                    // Allow backspace, delete, tab, escape, enter
+                    if ([8, 9, 27, 13, 46].indexOf(e.keyCode) !== -1 ||
+                        // Allow Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+                        (e.keyCode === 65 && e.ctrlKey === true) ||
+                        (e.keyCode === 67 && e.ctrlKey === true) ||
+                        (e.keyCode === 86 && e.ctrlKey === true) ||
+                        (e.keyCode === 88 && e.ctrlKey === true)) {
+                        return;
+                    }
+                    // Ensure that it is a number and stop the keypress
+                    if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) &&
+                        (e.keyCode < 96 || e.keyCode > 105) &&
+                        e.keyCode !== 190 && e.keyCode !== 110) {
+                        e.preventDefault();
+                    }
+                });
+
                 $newRow.find('.batch-select').on('change', function() {
                     const selectedOption = $(this).find('option:selected');
                     const unitCost = parseFloat(selectedOption.data('unit-cost')) || 0;
                     const maxQty = parseFloat(selectedOption.data('max-qty')) || 0;
+                    const maxFreeQty = parseFloat(selectedOption.data('max-free-qty')) || 0;
                     $newRow.find('.unit-price').text(unitCost.toFixed(2));
                     $newRow.find('.purchase-quantity').attr('max', maxQty);
+                    $newRow.find('.purchase-free-quantity').attr('max', maxFreeQty);
                     updateRow($newRow);
                     updateFooter();
                 });
@@ -512,11 +562,13 @@
             $('#purchase_return tbody tr').each(function(index) {
                 const row = $(this);
                 const quantity = parseFloat(row.find('.purchase-quantity').val()) || 0;
+                const freeQuantity = parseFloat(row.find('.purchase-free-quantity').val()) || 0;
                 const unitPrice = parseFloat(row.find('.unit-price').text()) || 0;
                 const subtotal = parseFloat(row.find('.sub-total').text()) || 0;
                 const batchId = row.find('.batch-select').val();
                 formData.append(`products[${index}][product_id]`, row.data('id'));
                 formData.append(`products[${index}][quantity]`, quantity);
+                formData.append(`products[${index}][free_quantity]`, freeQuantity);
                 formData.append(`products[${index}][unit_price]`, unitPrice);
                 formData.append(`products[${index}][subtotal]`, subtotal);
                 formData.append(`products[${index}][batch_id]`, batchId);
@@ -579,7 +631,7 @@
         if ($('#purchase_return').length && !$.fn.DataTable.isDataTable('#purchase_return')) {
             $('#purchase_return').DataTable();
         }
-        
+
         // Initialize purchase_return_list DataTable only if the element exists
         var table = null;
         if ($('#purchase_return_list').length) {
@@ -680,6 +732,7 @@
                         row.append('<td>' + product.product.product_name + '</td>');
                         row.append('<td>' + product.product.sku + '</td>');
                         row.append('<td>' + product.quantity + '</td>');
+                        row.append('<td>' + (product.free_quantity || 0) + '</td>');
                         row.append('<td>' + product.unit_price + '</td>');
                         row.append('<td>' + product.subtotal + '</td>');
                         productsTable.append(row);
@@ -927,16 +980,16 @@
                     },
                     success: function(response) {
                         console.log('Delete response:', response); // Debug logging
-                        
+
                         // Check multiple success conditions
                         if (response.status === 200 || response.success === true || response.message) {
                             toastr.success(response.message || 'Payment deleted successfully', 'Payment Deleted');
-                            
+
                             // Refresh the main data table
                             if (typeof fetchData === 'function') {
                                 fetchData();
                             }
-                            
+
                             // Refresh the payment modal if we have the purchase return ID
                             if (purchaseReturnId) {
                                 setTimeout(function() {
@@ -970,9 +1023,9 @@
                             responseJSON: xhr.responseJSON,
                             statusCode: xhr.status
                         });
-                        
+
                         let errorMessage = 'Error deleting payment.';
-                        
+
                         // Check if this is actually a successful deletion with network error
                         if (xhr.status === 200 || (xhr.responseJSON && xhr.responseJSON.success)) {
                             toastr.success('Payment deleted successfully', 'Payment Deleted');
@@ -982,7 +1035,7 @@
                             }
                             return;
                         }
-                        
+
                         // Try to extract error message from response
                         if (xhr.responseJSON && xhr.responseJSON.message) {
                             errorMessage = xhr.responseJSON.message;
@@ -997,7 +1050,7 @@
                                 console.warn('Could not parse error response:', xhr.responseText);
                             }
                         }
-                        
+
                         toastr.error(errorMessage);
                     }
                 });

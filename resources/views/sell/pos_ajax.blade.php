@@ -3354,12 +3354,28 @@
                 let quantityDisplay;
                 if (product.stock_alert === 0) {
                     quantityDisplay = `Unlimited`;
-                } else if (product.unit && (product.unit.allow_decimal === true || product.unit
-                            .allow_decimal === 1)) {
-                    quantityDisplay =
-                        `${parseFloat(stock.total_stock).toFixed(4).replace(/\.?0+$/, '')} ${unitName} in stock`;
                 } else {
-                    quantityDisplay = `${parseInt(stock.total_stock, 10)} ${unitName} in stock`;
+                    const paidStock = stock.total_stock || 0;
+                    const freeStock = stock.total_free_stock || 0;
+                    const totalStock = paidStock + freeStock;
+
+                    if (product.unit && (product.unit.allow_decimal === true || product.unit.allow_decimal === 1)) {
+                        const paidDisplay = parseFloat(paidStock).toFixed(4).replace(/\.?0+$/, '');
+                        const freeDisplay = parseFloat(freeStock).toFixed(4).replace(/\.?0+$/, '');
+                        // Only show free stock if it's greater than 0
+                        if (freeStock > 0) {
+                            quantityDisplay = `<span style="font-size: 0.85em">Paid: ${paidDisplay}</span><br><span style="font-size: 0.85em">Free: ${freeDisplay}</span>`;
+                        } else {
+                            quantityDisplay = `<span style="font-size: 0.85em">${paidDisplay} ${unitName} in stock</span>`;
+                        }
+                    } else {
+                        // Only show free stock if it's greater than 0
+                        if (freeStock > 0) {
+                            quantityDisplay = `<span style="font-size: 0.85em">Paid: ${parseInt(paidStock, 10)}</span><br><span style="font-size: 0.85em">Free: ${parseInt(freeStock, 10)}</span>`;
+                        } else {
+                            quantityDisplay = `<span style="font-size: 0.85em">${parseInt(paidStock, 10)} ${unitName} in stock</span>`;
+                        }
+                    }
                 }
                 // Create card element with safe image handling
                 const cardDiv = document.createElement('div');
@@ -3379,7 +3395,7 @@
                         <span class="badge text-dark">SKU: ${product.sku || 'N/A'}</span>
                     </h6>
                     <h6>
-                        <span class="badge ${product.stock_alert === 0 ? 'bg-info' : stock.total_stock > 0 ? 'bg-success' : 'bg-warning'}">
+                        <span class="badge ${product.stock_alert === 0 ? 'bg-info' : (stock.total_stock + (stock.total_free_stock || 0)) > 0 ? 'bg-success' : 'bg-warning'}">
                         ${quantityDisplay}
                         </span>
                     </h6>
@@ -3483,10 +3499,27 @@
                 let quantityDisplay;
                 if (product.stock_alert === 0) {
                     quantityDisplay = `Unlimited`;
-                } else if (product.unit && (product.unit.allow_decimal === true || product.unit.allow_decimal === 1)) {
-                    quantityDisplay = `${parseFloat(stock.total_stock).toFixed(4).replace(/\.?0+$/, '')} ${unitName}`;
                 } else {
-                    quantityDisplay = `${parseInt(stock.total_stock, 10)} ${unitName}`;
+                    const paidStock = stock.total_stock || 0;
+                    const freeStock = stock.total_free_stock || 0;
+
+                    if (product.unit && (product.unit.allow_decimal === true || product.unit.allow_decimal === 1)) {
+                        const paidDisplay = parseFloat(paidStock).toFixed(4).replace(/\.?0+$/, '');
+                        const freeDisplay = parseFloat(freeStock).toFixed(4).replace(/\.?0+$/, '');
+                        // Only show free stock if it's greater than 0
+                        if (freeStock > 0) {
+                            quantityDisplay = `Paid: ${paidDisplay}<br>Free: ${freeDisplay}`;
+                        } else {
+                            quantityDisplay = `${paidDisplay} ${unitName} in stock`;
+                        }
+                    } else {
+                        // Only show free stock if it's greater than 0
+                        if (freeStock > 0) {
+                            quantityDisplay = `Paid: ${parseInt(paidStock, 10)}<br>Free: ${parseInt(freeStock, 10)}`;
+                        } else {
+                            quantityDisplay = `${parseInt(paidStock, 10)} ${unitName} in stock`;
+                        }
+                    }
                 }
 
                 // Create mobile card (3 per row)
@@ -3505,7 +3538,7 @@
                 cardBody.innerHTML = `
                     <h6 class="mb-1" style="font-size: 11px; line-height: 1.2;">${product.product_name}</h6>
                     <small class="text-muted d-block mb-1" style="font-size: 9px;">SKU: ${product.sku || 'N/A'}</small>
-                    <span class="badge ${product.stock_alert === 0 ? 'bg-info' : stock.total_stock > 0 ? 'bg-success' : 'bg-warning'}" style="font-size: 9px;">
+                    <span class="badge ${product.stock_alert === 0 ? 'bg-info' : ((stock.total_stock || 0) + (stock.total_free_stock || 0)) > 0 ? 'bg-success' : 'bg-warning'}" style="font-size: 9px;">
                         ${quantityDisplay}
                     </span>
                 `;
@@ -6700,6 +6733,28 @@
             // Normalize batches to array using helper function
             const batchesArray = normalizeBatches(stockEntry);
 
+            // ✅ FIX: Get current row's quantities to add back when editing
+            let currentRowPaidQty = 0;
+            let currentRowFreeQty = 0;
+            let currentRowBatchId = null;
+
+            if (row) {
+                // Get quantities from the current row being edited
+                const qtyInput = row.querySelector('input[name="quantity[]"]');
+                const freeQtyInput = row.querySelector('input[name="free_quantity[]"]');
+                const batchIdCell = row.querySelector('.batch-id');
+
+                currentRowPaidQty = qtyInput ? parseFloat(qtyInput.value) || 0 : 0;
+                currentRowFreeQty = freeQtyInput ? parseFloat(freeQtyInput.value) || 0 : 0;
+                currentRowBatchId = batchIdCell ? batchIdCell.textContent.trim() : null;
+
+                console.log('🔍 EDIT MODE: Adding back quantities from current row', {
+                    paid: currentRowPaidQty,
+                    free: currentRowFreeQty,
+                    batchId: currentRowBatchId
+                });
+            }
+
             // Only show batches for the selected location
             locationBatches = batchesArray
                 .filter(batch =>
@@ -6710,6 +6765,17 @@
                     // Find the location batch for the selected location
                     const locationBatch = batch.location_batches.find(lb => String(lb.location_id) ==
                         String(selectedLocationId));
+
+                    let batchQuantity = locationBatch ? parseFloat(locationBatch.quantity) : 0;
+                    let batchFreeQuantity = locationBatch ? parseFloat(locationBatch.free_quantity || 0) : 0;
+
+                    // ✅ FIX: Add back quantities ONLY if editing a SPECIFIC batch (not 'all')
+                    if (row && currentRowBatchId && currentRowBatchId !== 'all' && String(batch.id) === String(currentRowBatchId)) {
+                        batchQuantity += currentRowPaidQty;
+                        batchFreeQuantity += currentRowFreeQty;
+                        console.log(`📦 Adjusted batch ${batch.batch_no}: paid ${batchQuantity} (+${currentRowPaidQty}), free ${batchFreeQuantity} (+${currentRowFreeQty})`);
+                    }
+
                     return {
                         batch_id: batch.id,
                         batch_no: batch.batch_no,
@@ -6718,11 +6784,12 @@
                         special_price: parseFloat(batch.special_price),
                         max_retail_price: parseFloat(batch.max_retail_price) || parseFloat(product
                             .max_retail_price),
-                        batch_quantity: locationBatch ? parseFloat(locationBatch.quantity) : 0,
+                        batch_quantity: batchQuantity,
+                        batch_free_quantity: batchFreeQuantity,
                         created_at: batch.created_at || null // If available
                     };
                 })
-                .filter(batch => batch.batch_quantity > 0);
+                .filter(batch => (batch.batch_quantity + batch.batch_free_quantity) > 0);
 
             // Calculate total quantity for all batches in the selected location
             let totalQuantity = 0;
@@ -6735,6 +6802,13 @@
                     }
                     return sum;
                 }, 0);
+
+                // ✅ FIX: Add back total quantities from current row if editing with 'all' batches
+                if (row && currentRowBatchId === 'all') {
+                    const totalRowQty = currentRowPaidQty + currentRowFreeQty;
+                    totalQuantity += totalRowQty;
+                    console.log(`📊 Adjusted TOTAL quantity for 'all': +${totalRowQty} = ${totalQuantity}`);
+                }
             }
 
             // Find latest batch by created_at or by highest batch_id
@@ -6815,6 +6889,14 @@
 
                     priceDisplay = priceComponents.join(' | ');
 
+                    // Calculate paid and free quantities
+                    const paidQty = batch.batch_quantity || 0;
+                    const freeQty = batch.batch_free_quantity || 0;
+                    // Only show free quantity if it's greater than 0
+                    const qtyDisplay = freeQty > 0
+                        ? `Paid: ${formatAmountWithSeparators(paidQty)} | Free: ${formatAmountWithSeparators(freeQty)}`
+                        : `${formatAmountWithSeparators(paidQty)}`;
+
                     return `
                         <option value="${batch.batch_id}"
                         data-retail-price="${batch.retail_price}"
@@ -6822,7 +6904,7 @@
                         data-special-price="${batch.special_price}"
                         data-max-retail-price="${batch.max_retail_price}"
                         data-quantity="${batch.batch_quantity}" ${selectedBatchId === batch.batch_id ? 'selected' : ''}>
-                        ${batch.batch_no} - Qty: ${formatAmountWithSeparators(batch.batch_quantity)} - ${priceDisplay}
+                        ${batch.batch_no} - ${qtyDisplay} - ${priceDisplay}
                         </option>
                     `;
                 }).join('');
@@ -7098,10 +7180,17 @@
         }
 
         async function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType,
-            saleQuantity = 1, imeis = [], discountType = null, discountAmount = null, selectedBatch = null) {
+            saleQuantity = 1, imeis = [], discountType = null, discountAmount = null, selectedBatch = null, editFreeQuantity = 0) {
 
             console.log('===== addProductToBillingBody DEBUG =====');
             console.log('saleQuantity received:', saleQuantity, 'Type:', typeof saleQuantity);
+            console.log('editFreeQuantity received:', editFreeQuantity, 'Type:', typeof editFreeQuantity);
+            console.log('🆓 FREE QTY EDIT MODE:', {
+                editFreeQuantity: editFreeQuantity,
+                productName: product.product_name,
+                isEditMode: isEditing && currentEditingSaleId,
+                willSetValue: editFreeQuantity || 0
+            });
             console.log('productId:', product.id);
             console.log('productName:', product.product_name);
             console.log('batchId:', batchId);
@@ -7150,7 +7239,9 @@
                 batchFreeQty: batch ? batch.free_qty : 'N/A',
                 batchPaidQty: batch ? batch.paid_qty : 'N/A',
                 batchFreeQtyPercentage: batch ? batch.free_qty_percentage : 'N/A',
-                selectedBatchPassed: !!selectedBatch
+                selectedBatchPassed: !!selectedBatch,
+                editFreeQuantity: editFreeQuantity,
+                isEditMode: isEditing && currentEditingSaleId
             });
 
             // *** CRITICAL FIX: In edit mode, preserve original sale price ***
@@ -7487,8 +7578,9 @@
             <div style="font-size: 0.85em; color: #888; text-align:center;">${unitName}</div>
         </td>
         <td class="text-center">
-            <input type="number" name="free_quantity[]" class="form-control free-quantity-input text-center" value="0" min="0" max="${adjustedBatchQuantity}" placeholder="Free" title="Free items (max: ${adjustedBatchQuantity})" step="${qtyInputStep}" data-max-stock="${adjustedBatchQuantity}">
+            <input type="number" name="free_quantity[]" class="form-control free-quantity-input text-center" value="${editFreeQuantity || 0}" min="0" max="${adjustedBatchQuantity}" placeholder="Free" title="Free items (max: ${adjustedBatchQuantity})" step="${qtyInputStep}" data-max-stock="${adjustedBatchQuantity}" data-original-free-qty="${editFreeQuantity || 0}">
             ${freeQtyDisplayHtml}
+            <small style="font-size: 0.7em; color: #666;" class="free-qty-debug">Max: ${adjustedBatchQuantity}</small>
         </td>
         <td class="text-center"><input type="number" name="discount_fixed[]" class="form-control fixed_discount text-center" value="${discountFixed.toFixed(2)}" ${(priceValidationEnabled === 1 && !canEditDiscount && !isEditing) ? 'readonly' : ''}></td>
         <td class="text-center"><input type="number" name="discount_percent[]" class="form-control percent_discount text-center" value="${priceValidationEnabled === 0 ? '' : discountPercent.toFixed(2)}" ${priceValidationEnabled === 0 ? 'readonly' : ((priceValidationEnabled === 1 && !canEditDiscount && !isEditing) ? 'readonly' : '')}></td>
@@ -9065,6 +9157,13 @@
                             try {
                                 // Debug edit mode batch handling
                                 console.log('🔄 Edit Mode - Adding product with original batch_id:', saleProduct.batch_id, 'for product:', saleProduct.product.product_name);
+                                console.log('🆓 Edit Mode - Free Quantity Check:', {
+                                    product: saleProduct.product.product_name,
+                                    free_quantity: saleProduct.free_quantity,
+                                    quantity: saleProduct.quantity,
+                                    hasFreqQty: 'free_quantity' in saleProduct,
+                                    freeQtyValue: saleProduct.free_quantity || 0
+                                });
 
                                 // For edit mode, use FIFO method except for IMEI products
                                 // IMEI products must keep their specific batch IDs
@@ -9094,13 +9193,15 @@
                                     saleProduct.imei_numbers || [],
                                     saleProduct.discount_type,
                                     saleProduct.discount_amount,
-                                    editBatch // Pass batch with free_qty
+                                    editBatch, // Pass batch with free_qty
+                                    saleProduct.free_quantity || 0 // Pass existing free quantity for edit mode
                                 );
 
                                 console.log('Product added to billing:', saleProduct.product.product_name, {
                                     discount_type: saleProduct.discount_type,
                                     discount_amount: saleProduct.discount_amount,
-                                    price: saleProduct.price
+                                    price: saleProduct.price,
+                                    free_quantity: saleProduct.free_quantity
                                 });
                             } catch (error) {
                                 console.error('Error adding product to billing:', error,
@@ -11462,7 +11563,7 @@
     window.printReceipt = function(saleId) {
         console.log('printReceipt called with saleId:', saleId);
 
-        // Close any open modals before printing
+        // Close any open modals before showing preview
         const openModals = document.querySelectorAll('.modal.show');
         openModals.forEach(modal => {
             const modalInstance = bootstrap.Modal.getInstance(modal);
@@ -11471,238 +11572,11 @@
             }
         });
 
-        // Add a small delay to ensure modal is fully closed
+        // Add a small delay to ensure modal is fully closed, then show preview
         setTimeout(() => {
-            console.log('Fetching print data for sale:', saleId);
-            fetch(`/sales/print-recent-transaction/${saleId}`)
-                .then(response => {
-                    console.log('Print fetch response status:', response.status);
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Print data received:', data);
-                    if (data.invoice_html) {
-                        // Check if mobile device
-                        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-                        if (isMobile) {
-                            // For mobile: Open in new window/tab for better print support
-                            const printWindow = window.open('', '_blank');
-                            if (printWindow) {
-                                printWindow.document.open();
-                                printWindow.document.write(data.invoice_html);
-                                printWindow.document.close();
-
-                                // Wait for content to load then trigger print
-                                printWindow.onload = function() {
-                                    setTimeout(() => {
-                                        printWindow.print();
-                                        // Don't auto-close on mobile - let user close manually
-
-                                        // 🎯 Focus search input after print dialog closes
-                                        printWindow.onafterprint = function() {
-                                            setTimeout(() => {
-                                                const searchInput = document.getElementById('productSearchInput');
-                                                if (searchInput) {
-                                                    searchInput.focus();
-                                                    searchInput.select();
-                                                    console.log('✅ Product search input focused after printReceipt mobile print');
-                                                }
-                                            }, 300);
-                                        };
-                                    }, 500);
-                                };
-
-                                // Monitor window closure for edit redirects (mobile)
-                                if (window.location.pathname.includes('/edit/')) {
-                                    const checkClosed = setInterval(() => {
-                                        if (printWindow.closed) {
-                                            clearInterval(checkClosed);
-                                            console.log('Mobile print window closed, navigating to POS immediately...');
-                                            navigateToPosCreate();
-                                        }
-                                    }, 100); // Faster detection for immediate redirect
-
-                                    // Fallback timeout (30 seconds)
-                                    setTimeout(() => {
-                                        clearInterval(checkClosed);
-                                        if (!printWindow.closed) {
-                                            console.log('Mobile print window still open after 30s, navigating anyway...');
-                                            navigateToPosCreate();
-                                        }
-                                    }, 30000);
-                                } else {
-                                    // 🎯 Non-edit mode: Focus search input when print window closes
-                                    const checkClosed = setInterval(() => {
-                                        if (printWindow.closed) {
-                                            clearInterval(checkClosed);
-                                            setTimeout(() => {
-                                                const searchInput = document.getElementById('productSearchInput');
-                                                if (searchInput) {
-                                                    searchInput.focus();
-                                                    searchInput.select();
-                                                    console.log('✅ Product search input focused after printReceipt mobile window closed');
-                                                }
-                                            }, 100);
-                                        }
-                                    }, 500);
-                                }
-                            } else {
-                                toastr.error('Please allow pop-ups to print the receipt.');
-                            }
-                        } else {
-                            // For desktop: Use hidden iframe method (no blank page)
-                            const iframe = document.createElement('iframe');
-                            iframe.style.position = 'absolute';
-                            iframe.style.width = '0';
-                            iframe.style.height = '0';
-                            iframe.style.border = 'none';
-                            iframe.style.left = '-9999px';
-                            iframe.style.top = '-9999px';
-                            iframe.style.visibility = 'hidden';
-                            document.body.appendChild(iframe);
-
-                            const iframeDoc = iframe.contentWindow.document;
-                            iframeDoc.open();
-                            iframeDoc.write(data.invoice_html);
-                            iframeDoc.close();
-
-                            // Wait for content to load
-                            iframe.onload = function() {
-                                setTimeout(() => {
-                                    try {
-                                        iframe.contentWindow.focus();
-                                        iframe.contentWindow.print();
-
-                                        // 🎯 Listen for afterprint event to focus search input
-                                        iframe.contentWindow.onafterprint = function() {
-                                            setTimeout(() => {
-                                                const searchInput = document.getElementById('productSearchInput');
-                                                if (searchInput) {
-                                                    searchInput.focus();
-                                                    searchInput.select();
-                                                    console.log('✅ Product search input focused after printReceipt desktop print');
-                                                }
-                                            }, 200);
-                                        };
-                                    } catch (e) {
-                                        console.error('Print error:', e);
-                                        toastr.error('Unable to print. Please try again.');
-                                    }
-
-                                    // Cleanup after printing or after timeout
-                                    const cleanup = () => {
-                                        if (iframe && document.body.contains(iframe)) {
-                                            document.body.removeChild(iframe);
-                                        }
-
-                                        // Navigate to POS after cleanup if this is an edit
-                                        if (window.location.pathname.includes('/edit/')) {
-                                            console.log('Desktop print completed, navigating to POS immediately...');
-                                            // Immediate navigate - no delay
-                                            navigateToPosCreate();
-                                        } else {
-                                            // 🎯 Non-edit mode: Focus search input after cleanup
-                                            setTimeout(() => {
-                                                const searchInput = document.getElementById('productSearchInput');
-                                                if (searchInput) {
-                                                    searchInput.focus();
-                                                    searchInput.select();
-                                                    console.log('✅ Product search input focused after printReceipt desktop cleanup');
-                                                }
-                                            }, 100);
-                                        }
-                                    };
-
-                                    // Try to cleanup after print dialog closes
-                                    if (iframe.contentWindow.matchMedia) {
-                                        const mediaQueryList = iframe.contentWindow.matchMedia('print');
-                                        mediaQueryList.addListener(function(mql) {
-                                            if (!mql.matches) {
-                                                setTimeout(cleanup, 500);
-                                            }
-                                        });
-                                    }
-
-                                    // Fallback cleanup after 3 seconds (increased for edit redirect)
-                                    setTimeout(cleanup, 3000);
-                                }, 100);
-                            };
-                        }
-                    } else {
-                        console.log('No invoice_html found in response, trying direct print URL');
-                        // Fallback: Open print URL directly
-                        const printWindow = window.open(`/sales/print-recent-transaction/${saleId}`, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
-                        if (!printWindow) {
-                            toastr.error('Print window was blocked. Please allow pop-ups and try again.');
-                        } else {
-                            toastr.success('Receipt opened in new window for printing.');
-
-                            // Monitor window closure for edit redirects (fallback method)
-                            if (window.location.pathname.includes('/edit/')) {
-                                const checkClosed = setInterval(() => {
-                                    if (printWindow.closed) {
-                                        clearInterval(checkClosed);
-                                        console.log('Fallback print window closed, navigating to POS immediately...');
-                                        navigateToPosCreate();
-                                    }
-                                }, 100); // Faster detection for immediate redirect
-
-                                // Fallback timeout (30 seconds)
-                                setTimeout(() => {
-                                    clearInterval(checkClosed);
-                                    if (!printWindow.closed) {
-                                        console.log('Fallback print window still open after 30s, navigating anyway...');
-                                        navigateToPosCreate();
-                                    }
-                                }, 30000);
-                            }
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching the receipt:', error);
-                    console.log('Trying direct print URL as fallback');
-
-                    // Fallback: Open print URL directly
-                    const printWindow = window.open(`/sales/print-recent-transaction/${saleId}`, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
-                    if (!printWindow) {
-                        toastr.error('Print window was blocked. Please allow pop-ups and try again.');
-                        // Still navigate after error if this is an edit
-                        if (window.location.pathname.includes('/edit/')) {
-                            setTimeout(() => {
-                                navigateToPosCreate();
-                            }, 2000);
-                        }
-                    } else {
-                        toastr.info('Opened receipt in new window (fallback method).');
-
-                        // Monitor window closure for edit redirects (error fallback)
-                        if (window.location.pathname.includes('/edit/')) {
-                            const checkClosed = setInterval(() => {
-                                if (printWindow.closed) {
-                                    clearInterval(checkClosed);
-                                    console.log('Error fallback print window closed, navigating to POS immediately...');
-                                    navigateToPosCreate();
-                                }
-                            }, 100); // Faster detection for immediate redirect
-
-                            // Fallback timeout (30 seconds)
-                            setTimeout(() => {
-                                clearInterval(checkClosed);
-                                if (!printWindow.closed) {
-                                    console.log('Error fallback print window still open after 30s, navigating anyway...');
-                                    navigateToPosCreate();
-                                }
-                            }, 30000);
-                        }
-                    }
-                });
-        }, 300); // Delay to ensure modal is closed
-    }
+            showReceiptPreview(saleId);
+        }, 300);
+    };
 });
 </script>
 
@@ -12063,4 +11937,256 @@
             toastr.error('Error displaying price history');
         }
     };
+
+    // Receipt Preview Modal Function
+    window.showReceiptPreview = function(saleId) {
+        console.log('showReceiptPreview called with saleId:', saleId);
+
+        const modalHtml = `
+            <div class="modal fade" id="receiptPreviewModal" tabindex="-1" aria-labelledby="receiptPreviewLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+                <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="receiptPreviewLabel">
+                                <i class="fas fa-receipt me-2"></i>Receipt Preview
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <div class="btn-group w-100" role="group" aria-label="Receipt Layout Selector">
+                                        <input type="radio" class="btn-check" name="receiptLayout" id="layout_80mm" value="80mm" checked>
+                                        <label class="btn btn-outline-primary" for="layout_80mm">
+                                            <i class="fas fa-receipt me-1"></i>80mm Thermal
+                                        </label>
+
+                                        <input type="radio" class="btn-check" name="receiptLayout" id="layout_a4" value="a4">
+                                        <label class="btn btn-outline-primary" for="layout_a4">
+                                            <i class="fas fa-file-invoice me-1"></i>A4 Size
+                                        </label>
+
+                                        <input type="radio" class="btn-check" name="receiptLayout" id="layout_dot_matrix" value="dot_matrix">
+                                        <label class="btn btn-outline-primary" for="layout_dot_matrix">
+                                            <i class="fas fa-print me-1"></i>Dot Matrix (Half)
+                                        </label>
+
+                                        <input type="radio" class="btn-check" name="receiptLayout" id="layout_dot_matrix_full" value="dot_matrix_full">
+                                        <label class="btn btn-outline-primary" for="layout_dot_matrix_full">
+                                            <i class="fas fa-print me-1"></i>Dot Matrix (Full)
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="text-center py-3" id="receiptLoadingSpinner">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <p class="mt-2">Loading receipt preview...</p>
+                                    </div>
+                                    <div id="receiptPreviewContent" style="display: none; max-height: 70vh; overflow-y: auto; overflow-x: auto; background: #f5f5f5; padding: 20px; border-radius: 8px; text-align: center;">
+                                        <div id="receiptInnerContainer" style="background: white; display: inline-block; box-shadow: 0 2px 8px rgba(0,0,0,0.1); zoom: 1.5; margin: 0 auto;">
+                                            <!-- Receipt HTML will be loaded here -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                <i class="fas fa-times me-1"></i>Close
+                            </button>
+                            <button type="button" class="btn btn-primary" id="printReceiptBtn">
+                                <i class="fas fa-print me-1"></i>Print Receipt
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Add modal to body
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // Initialize modal
+        const modalElement = document.getElementById('receiptPreviewModal');
+        const modal = new bootstrap.Modal(modalElement);
+
+        // Load initial receipt (80mm default)
+        loadReceiptPreview(saleId, '80mm');
+
+        // Handle layout change
+        const layoutRadios = document.querySelectorAll('input[name="receiptLayout"]');
+        layoutRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.checked) {
+                    loadReceiptPreview(saleId, this.value);
+                }
+            });
+        });
+
+        // Handle print button
+        document.getElementById('printReceiptBtn').addEventListener('click', function() {
+            const selectedLayout = document.querySelector('input[name="receiptLayout"]:checked').value;
+            printReceiptWithLayout(saleId, selectedLayout);
+            modal.hide();
+        });
+
+        // Show modal
+        modal.show();
+
+        // Remove modal from DOM when closed
+        modalElement.addEventListener('hidden.bs.modal', function() {
+            this.remove();
+        });
+    };
+
+    // Load receipt preview for specific layout
+    function loadReceiptPreview(saleId, layout) {
+        const contentDiv = document.getElementById('receiptPreviewContent');
+        const innerContainer = document.getElementById('receiptInnerContainer');
+        const spinnerDiv = document.getElementById('receiptLoadingSpinner');
+
+        // Show spinner, hide content
+        spinnerDiv.style.display = 'block';
+        contentDiv.style.display = 'none';
+
+        fetch(\`/sales/print-recent-transaction/\${saleId}?layout=\${layout}\`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(\`HTTP \${response.status}\`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.invoice_html) {
+                    // Insert receipt into the inner container
+                    if (innerContainer) {
+                        innerContainer.innerHTML = data.invoice_html;
+                    } else {
+                        contentDiv.innerHTML = data.invoice_html;
+                    }
+
+                    // Hide spinner, show content
+                    spinnerDiv.style.display = 'none';
+                    contentDiv.style.display = 'block';
+                } else {
+                    throw new Error('No invoice HTML received');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading receipt preview:', error);
+                if (innerContainer) {
+                    innerContainer.innerHTML = '<div class="alert alert-danger m-3">Error loading receipt preview. Please try again.</div>';
+                } else {
+                    contentDiv.innerHTML = '<div class="alert alert-danger m-3">Error loading receipt preview. Please try again.</div>';
+                }
+                spinnerDiv.style.display = 'none';
+                contentDiv.style.display = 'block';
+            });
+    }
+
+    // Print receipt with specific layout
+    function printReceiptWithLayout(saleId, layout) {
+        console.log('printReceiptWithLayout called with:', saleId, layout);
+
+        fetch(\`/sales/print-recent-transaction/\${saleId}?layout=\${layout}\`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(\`HTTP \${response.status}\`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.invoice_html) {
+                    // Check if mobile device
+                    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+                    if (isMobile) {
+                        // For mobile: Open in new window/tab
+                        const printWindow = window.open('', '_blank');
+                        if (printWindow) {
+                            printWindow.document.open();
+                            printWindow.document.write(data.invoice_html);
+                            printWindow.document.close();
+
+                            printWindow.onload = function() {
+                                setTimeout(() => {
+                                    printWindow.print();
+
+                                    printWindow.onafterprint = function() {
+                                        setTimeout(() => {
+                                            const searchInput = document.getElementById('productSearchInput');
+                                            if (searchInput) {
+                                                searchInput.focus();
+                                                searchInput.select();
+                                            }
+                                        }, 300);
+                                    };
+                                }, 500);
+                            };
+                        } else {
+                            toastr.error('Please allow pop-ups to print the receipt.');
+                        }
+                    } else {
+                        // For desktop: Use hidden iframe method
+                        const iframe = document.createElement('iframe');
+                        iframe.style.position = 'absolute';
+                        iframe.style.width = '0';
+                        iframe.style.height = '0';
+                        iframe.style.border = 'none';
+                        iframe.style.left = '-9999px';
+                        iframe.style.top = '-9999px';
+                        iframe.style.visibility = 'hidden';
+                        document.body.appendChild(iframe);
+
+                        const iframeDoc = iframe.contentWindow.document;
+                        iframeDoc.open();
+                        iframeDoc.write(data.invoice_html);
+                        iframeDoc.close();
+
+                        iframe.onload = function() {
+                            setTimeout(() => {
+                                try {
+                                    iframe.contentWindow.focus();
+                                    iframe.contentWindow.print();
+
+                                    iframe.contentWindow.onafterprint = function() {
+                                        setTimeout(() => {
+                                            const searchInput = document.getElementById('productSearchInput');
+                                            if (searchInput) {
+                                                searchInput.focus();
+                                                searchInput.select();
+                                            }
+                                        }, 200);
+                                    };
+                                } catch (e) {
+                                    console.error('Print error:', e);
+                                    toastr.error('Unable to print. Please try again.');
+                                }
+
+                                // Cleanup
+                                setTimeout(() => {
+                                    if (iframe && document.body.contains(iframe)) {
+                                        document.body.removeChild(iframe);
+                                    }
+
+                                    // Navigate if edit mode
+                                    if (window.location.pathname.includes('/edit/')) {
+                                        navigateToPosCreate();
+                                    }
+                                }, 1000);
+                            }, 500);
+                        };
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error printing receipt:', error);
+                toastr.error('Error printing receipt. Please try again.');
+            });
+    }
 </script>

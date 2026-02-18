@@ -1577,9 +1577,10 @@ class SaleController extends Controller
                         ->sum('location_batches.qty')
                         : Sale::getAvailableStock($batchId, $product->location_id);
 
-                    // For editing: max allowed = current stock + quantity from this sale
-                    // This represents what would be available if we "undo" this sale
-                    $totalAllowedQuantity = $currentStock + $product->quantity;
+                    // ✅ FIX: For editing, max allowed = current stock + (paid qty + free qty) from this sale
+                    // This represents what would be available if we "undo" this sale completely
+                    $freeQuantity = $product->free_quantity ?? 0;
+                    $totalAllowedQuantity = $currentStock + $product->quantity + $freeQuantity;
 
                     return [
                         'id' => $product->id,

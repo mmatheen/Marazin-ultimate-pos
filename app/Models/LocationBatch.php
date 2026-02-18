@@ -13,6 +13,7 @@ class LocationBatch extends Model
         'batch_id',
         'location_id',
         'qty',
+        'free_qty',
     ];
 
     public function batch()
@@ -31,18 +32,12 @@ class LocationBatch extends Model
     }
 
     /**
-     * Calculate free quantity for this location batch (based on actual transactions)
-     * NO MIGRATION NEEDED - calculates from transaction history at this location
-     *
-     * Since inventory is tracked per location, this calculates the actual
-     * free quantity based on purchases, sales, and returns at THIS location
+     * Get free quantity for this location batch
+     * Reads directly from the free_qty column which is maintained during transactions
      */
     public function calculateFreeQty()
     {
-        $batch = $this->batch;
-        if (!$batch) return 0;
-
-        // Calculate based on ACTUAL transactions at this location
-        return $batch->calculateFreeQtyForLocation($this->location_id);
+        // Return the free_qty column value (already maintained by transactions)
+        return (float) $this->free_qty;
     }
 }

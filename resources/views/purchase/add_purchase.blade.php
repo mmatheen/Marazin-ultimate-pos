@@ -10,6 +10,21 @@
                 font-family: Arial, sans-serif;
             }
 
+            /* DataTables Scroll Container */
+            .dataTables_wrapper {
+                width: 100%;
+                overflow-x: auto !important;
+            }
+
+            .dataTables_scroll {
+                overflow-x: auto !important;
+                width: 100% !important;
+            }
+
+            .dataTables_scrollBody {
+                overflow-x: auto !important;
+            }
+
             .datatable {
                 width: 100%;
                 border-collapse: collapse;

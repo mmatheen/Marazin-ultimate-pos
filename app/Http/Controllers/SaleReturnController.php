@@ -175,8 +175,12 @@ class SaleReturnController extends Controller
             return response()->json(['status' => 400, 'errors' => $errors]);
         }
 
+        // Variable to track if this is an update operation
+        $isUpdate = !empty($id);
+        $salesReturnId = null;
+
         // Use transaction to ensure atomicity
-        DB::transaction(function () use ($request, $id) {
+        DB::transaction(function () use ($request, $id, &$salesReturnId) {
             $stockType = $request->sale_id ? 'with_bill' : 'without_bill';
             $transactionType = $request->sale_id ? 'sale_return_with_bill' : 'sale_return_without_bill';
 
@@ -202,8 +206,19 @@ class SaleReturnController extends Controller
                 ]
             );
 
+            // Capture the sale return ID
+            $salesReturnId = $salesReturn->id;
+
             // Delete existing products for the sale return if updating
             if ($id) {
+                // CRITICAL: Reverse the old stock before deleting products
+                // This prevents double-counting when we restock with new quantities
+                $existingProducts = SalesReturnProduct::where('sales_return_id', $id)->get();
+                foreach ($existingProducts as $existingProduct) {
+                    $this->reverseProductReturn($existingProduct);
+                }
+
+                // Now safe to delete the old product records
                 SalesReturnProduct::where('sales_return_id', $id)->delete();
             }
 
@@ -295,7 +310,16 @@ class SaleReturnController extends Controller
             }
         });
 
-        return response()->json(['status' => 200, 'message' => 'Sales return recorded successfully!']);
+        // Return appropriate success message based on whether it was create or update
+        $message = $isUpdate
+            ? 'Sale return updated successfully!'
+            : 'Sale return created successfully!';
+
+        return response()->json([
+            'status' => 200,
+            'message' => $message,
+            'return_id' => $salesReturnId
+        ]);
     }
 
 
@@ -305,7 +329,7 @@ class SaleReturnController extends Controller
     // Controller method
     public function getAllSaleReturns(Request $request)
     {
-        // Start with base query - order by latest first for better UX
+        // Start with base query - order by latest created first for better UX
         // Use select() to only fetch needed columns for better performance
         $query = SalesReturn::select([
                 'sales_returns.*'
@@ -318,8 +342,8 @@ class SaleReturnController extends Controller
                 'location:id,name',
                 'user:id,user_name,full_name'
             ])
-            ->orderBy('sales_returns.return_date', 'desc')
-            ->orderBy('sales_returns.id', 'desc'); // Secondary sort by ID for same-date returns
+            ->orderBy('sales_returns.created_at', 'desc')
+            ->orderBy('sales_returns.id', 'desc'); // Secondary sort by ID for same-datetime returns
 
         // Apply filters if provided - use indexed columns
         if ($request->filled('location_id')) {
@@ -418,11 +442,19 @@ class SaleReturnController extends Controller
      */
     public function editSaleReturn($id)
     {
-        $salesReturn = SalesReturn::find($id);
+        $salesReturn = SalesReturn::with(['returnProducts.product.unit', 'sale', 'customer', 'location'])
+            ->find($id);
+
         if (!$salesReturn) {
             return response()->json(['status' => 404, 'message' => 'Sale return not found']);
         }
-        return view('saleReturn.edit_sale_return', compact('salesReturn'));
+
+        // Use the same add blade for editing (like purchase return does)
+        if (request()->ajax() || request()->is('api/*')) {
+            return response()->json(['sales_return' => $salesReturn], 200);
+        }
+
+        return view('saleReturn.add_sale_return', compact('salesReturn'));
     }
 
     private function processProductReturn($productData, $salesReturnId, $locationId, $stockType)
@@ -438,7 +470,8 @@ class SaleReturnController extends Controller
                 'batch_no' => Batch::generateNextBatchNo(),
                 'product_id' => $productData['product_id'],
                 'unit_cost' => $productData['original_price'],
-                'qty' => $totalQuantityToRestock, // Restock both paid + free
+                'qty' => $paidQtyToRestock, // Restock paid quantity
+                'free_qty' => $freeQtyToRestock, // Restock free quantity
                 'wholesale_price' => $productData['return_price'],
                 'special_price' => $productData['return_price'],
                 'retail_price' => $productData['return_price'],
@@ -446,11 +479,12 @@ class SaleReturnController extends Controller
                 'expiry_date' => now()->addYear(), // Assuming 1 year expiry
             ]);
 
-            // Create location batch record
+            // Create location batch record with separate paid and free quantities
             $locationBatch = LocationBatch::create([
                 'batch_id' => $batch->id,
                 'location_id' => $locationId,
-                'qty' => $totalQuantityToRestock, // Restock both paid + free
+                'qty' => $paidQtyToRestock, // Restock paid quantity
+                'free_qty' => $freeQtyToRestock, // Restock free quantity
             ]);
 
             $batchId = $batch->id;
@@ -462,8 +496,8 @@ class SaleReturnController extends Controller
                 'stock_type' => $stockType === 'with_bill' ? 'sales_return_with_bill' : 'sales_return_without_bill',
             ]);
         } else {
-            // Restock specific batch (both paid + free quantities)
-            $this->restockBatchStock($batchId, $locationId, $totalQuantityToRestock, $stockType);
+            // Restock specific batch (pass paid and free quantities separately)
+            $this->restockBatchStock($batchId, $locationId, $paidQtyToRestock, $freeQtyToRestock, $stockType);
         }
 
         // Create sales return product record
@@ -483,9 +517,10 @@ class SaleReturnController extends Controller
         ]);
     }
 
-    private function restockBatchStock($batchId, $locationId, $quantity, $stockType)
+    private function restockBatchStock($batchId, $locationId, $paidQty, $freeQty, $stockType)
     {
         $batch = Batch::findOrFail($batchId);
+        $totalQuantity = $paidQty + $freeQty;
 
         // Use firstOrCreate to handle cases where LocationBatch doesn't exist
         // for this batch+location combination (e.g., product sold from a different
@@ -497,17 +532,76 @@ class SaleReturnController extends Controller
             ],
             [
                 'qty' => 0,
+                'free_qty' => 0,
             ]
         );
 
-        // Restock stock to location batch
-        $locationBatch->increment('qty', $quantity);
+        // Restock paid and free quantities separately to location batch
+        $locationBatch->increment('qty', $paidQty);
+        $locationBatch->increment('free_qty', $freeQty);
 
-        // Create stock history record
+        // Create stock history record with total quantity
         StockHistory::create([
             'loc_batch_id' => $locationBatch->id,
-            'quantity' => $quantity,
-            'stock_type' => $stockType === 'with_bill' ? 'sales_return_with_bill' : 'sales_return_without_bill',
+            'quantity' => $totalQuantity,
+            'stock_type' => $stockType === 'with_bill'
+                ? StockHistory::STOCK_TYPE_SALE_RETURN_WITH_BILL
+                : StockHistory::STOCK_TYPE_SALE_RETURN_WITHOUT_BILL,
+        ]);
+    }
+
+    /**
+     * Reverse a product return (used when editing/deleting a return)
+     * This deducts the previously restocked quantities from location_batches
+     */
+    private function reverseProductReturn($salesReturnProduct)
+    {
+        $paidQty = floatval($salesReturnProduct->quantity ?? 0);
+        $freeQty = floatval($salesReturnProduct->free_quantity ?? 0);
+        $totalQuantity = $paidQty + $freeQty;
+        $batchId = $salesReturnProduct->batch_id;
+        $locationId = $salesReturnProduct->location_id;
+
+        if (!$batchId || !$locationId) {
+            Log::warning('Cannot reverse product return: missing batch_id or location_id', [
+                'sales_return_product_id' => $salesReturnProduct->id,
+                'batch_id' => $batchId,
+                'location_id' => $locationId
+            ]);
+            return;
+        }
+
+        // Find the location batch
+        $locationBatch = LocationBatch::where('batch_id', $batchId)
+            ->where('location_id', $locationId)
+            ->first();
+
+        if (!$locationBatch) {
+            Log::warning('Cannot reverse product return: LocationBatch not found', [
+                'batch_id' => $batchId,
+                'location_id' => $locationId
+            ]);
+            return;
+        }
+
+        // Deduct the previously restocked quantities (reverse the return)
+        $locationBatch->decrement('qty', $paidQty);
+        $locationBatch->decrement('free_qty', $freeQty);
+
+        // Use sale_reversal for reversing sale returns (when editing, we reverse the old return)
+        // This makes stock go down, which is correct because we're undoing the previous return
+        StockHistory::create([
+            'loc_batch_id' => $locationBatch->id,
+            'quantity' => -$totalQuantity,
+            'stock_type' => StockHistory::STOCK_TYPE_SALE_REVERSAL,
+        ]);
+
+        Log::info('Product return reversed successfully', [
+            'sales_return_product_id' => $salesReturnProduct->id,
+            'batch_id' => $batchId,
+            'location_id' => $locationId,
+            'paid_qty_reversed' => $paidQty,
+            'free_qty_reversed' => $freeQty
         ]);
     }
 

@@ -34,7 +34,7 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="card-title" id="product-sku">{{ $product->product_name }} ({{ $product->sku }})</h5>
-                
+
                 <!-- Location Filter Status Indicator -->
                 <div id="location-filter-status" style="display: none;" class="alert alert-info mb-3">
                     <i class="fas fa-filter"></i> <strong>Location Filter Active:</strong> <span id="filter-location-name"></span>
@@ -42,7 +42,7 @@
                         <i class="fas fa-times"></i> Clear Filter
                     </button>
                 </div>
-                
+
                 <div class="row">
                     <div class="col-md-4">
                         <h6>Quantities In</h6>
@@ -60,6 +60,10 @@
                                     <td>Total Sell Return</td>
                                     <td id="total-sell-return">{{ $stock_type_sums['sales_return_with_bill'] ?? '0.00' }}
                                         packets</td>
+                                </tr>
+                                <tr>
+                                    <td>Purchase Return Reversal</td>
+                                    <td id="purchase-return-reversal">{{ $stock_type_sums['purchase_return_reversal'] ?? '0.00' }} packets</td>
                                 </tr>
                                 <tr>
                                     <td>Stock Transfers (In)</td>
@@ -113,7 +117,8 @@
                     <thead>
                         <tr>
                             <th>Type</th>
-                            <th>Quantity change</th>
+                            <th>Paid Qty Change</th>
+                            <th>Free Qty Change</th>
                             <th>New Quantity</th>
                             <th>Date</th>
                             <th>Reference No</th>
@@ -171,7 +176,12 @@
                     }
                 }, 10); // Very short delay to allow DOM render
             });
-            var stockTable = $('#stockTable').DataTable();
+            var stockTable = $('#stockTable').DataTable({
+                order: [[4, 'asc']], // Order by Date column (index 4) in ascending order (FIFO)
+                columnDefs: [
+                    { orderable: true, targets: [0, 1, 2, 3, 4, 5, 6] } // All columns orderable
+                ]
+            });
             var productId = getProductIdFromUrl(); // Get product ID from URL
             var initialLoad = true;
 
@@ -205,7 +215,7 @@
             function updateLocationFilterStatus() {
                 const locationId = $('#businessLocation').val();
                 const locationName = $('#businessLocation option:selected').text();
-                
+
                 if (locationId) {
                     $('#filter-location-name').text(locationName);
                     $('#location-filter-status').show();
@@ -223,13 +233,13 @@
                     console.log('No product ID provided');
                     return;
                 }
-                
+
                 const locationId = $('#businessLocation').val();
                 const locationName = $('#businessLocation option:selected').text();
                 console.log('Fetching stock history for product:', productId, 'location:', locationId, 'location name:', locationName);
 
                 // Show loading state
-                $('#stock-history-body').html('<tr><td colspan="6" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading stock history...</td></tr>');
+                $('#stock-history-body').html('<tr><td colspan="7" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading stock history...</td></tr>');
 
                 $.ajax({
                     url: "/products/stock-history/" + productId,
@@ -255,7 +265,7 @@
                         console.error('Error fetching stock history:', error);
                         console.error('Status:', status);
                         console.error('Response:', xhr.responseText);
-                        
+
                         // Show user-friendly error message
                         let errorMessage = 'Error loading stock history. Please try again.';
                         if (xhr.status === 404) {
@@ -263,9 +273,9 @@
                         } else if (xhr.status === 500) {
                             errorMessage = 'Server error. Please contact support if the problem persists.';
                         }
-                        
+
                         $('#stock-history-body').html(
-                            '<tr><td colspan="6" class="text-center text-muted">' + errorMessage + '</td></tr>'
+                            '<tr><td colspan="7" class="text-center text-muted">' + errorMessage + '</td></tr>'
                         );
                     }
                 });
@@ -273,15 +283,15 @@
 
             function updateStockHistoryView(data) {
                 console.log('Updating stock history view with data:', data);
-                
+
                 // Handle error cases
                 if (data.error) {
                     $('#stock-history-body').html(
-                        '<tr><td colspan="6" class="text-center text-muted">' + data.error + '</td></tr>'
+                        '<tr><td colspan="7" class="text-center text-muted">' + data.error + '</td></tr>'
                     );
                     return;
                 }
-                
+
                 // Ensure we have valid data structure
                 if (!data.product) {
                     $('#stock-history-body').html(
@@ -294,17 +304,18 @@
                 const locationId = $('#businessLocation').val();
                 const locationName = $('#businessLocation option:selected').text();
                 const productTitle = data.product.product_name + (locationId ? ' - Filtered by: ' + locationName : ' - All Locations');
-                
+
                 $('#product-name').text(data.product.product_name);
                 $('#product-sku').text(productTitle + ' (' + data.product.sku + ')');
 
                 // Safely handle stock_type_sums with default values
                 const stockSums = data.stock_type_sums || {};
-                
+
                 // Update Quantities In
                 $('#total-purchase').text((stockSums['purchase'] || 0) + ' Pcs');
                 $('#opening-stock').text((stockSums['opening_stock'] || 0) + ' Pcs');
                 $('#total-sell-return').text((stockSums['sales_return_with_bill'] || 0) + ' Pcs');
+                $('#purchase-return-reversal').text((stockSums['purchase_return_reversal'] || 0) + ' Pcs');
                 $('#stock-transfers-in').text((stockSums['transfer_in'] || 0) + ' Pcs');
 
                 // Update Quantities Out
@@ -318,27 +329,27 @@
 
                 // Clear existing data
                 stockTable.clear();
-                
+
                 // Handle empty stock histories
                 if (!data.stock_histories || data.stock_histories.length === 0) {
                     const locationId = $('#businessLocation').val();
                     const locationName = $('#businessLocation option:selected').text();
                     let message = 'No stock movements found for this product';
-                    
+
                     if (locationId) {
                         message += ' in location: <strong>' + locationName + '</strong>';
                         message += '<br><small class="text-muted">Try selecting "All Locations" to see all stock movements for this product.</small>';
                     }
-                    
+
                     $('#stock-history-body').html(
-                        '<tr><td colspan="6" class="text-center text-muted">' + message + '</td></tr>'
+                        '<tr><td colspan="7" class="text-center text-muted">' + message + '</td></tr>'
                     );
                     return;
                 }
 
                 let runningStock = 0;
 
-                // Sort histories by date ascending
+                // Sort histories by date ascending (FIFO)
                 const sortedHistories = [...data.stock_histories].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
                 if (sortedHistories.length > 0) {
@@ -346,12 +357,12 @@
                         if ([
                                 'purchase', 'opening_stock',
                                 'sales_return_with_bill', 'sales_return_without_bill',
-                                'sale_reversal', 'transfer_in'
+                                'sale_reversal', 'purchase_return_reversal', 'transfer_in'
                             ].includes(history.stock_type)) {
                             runningStock += parseFloat(history.quantity);
                         } else if ([
                                 'sale', 'adjustment',
-                                'purchase_return', 'purchase_reversal', 'purchase_return_reversal',
+                                'purchase_return', 'purchase_reversal',
                                 'transfer_out'
                             ].includes(history.stock_type)) {
                             runningStock -= Math.abs(history.quantity);
@@ -360,15 +371,34 @@
                         var referenceNo = getReferenceNo(history);
                         var customerSupplierInfo = getCustomerSupplierInfo(history);
 
+                        // Calculate paid and free quantities with correct signs
+                        var totalQty = parseFloat(history.quantity);
+                        var absoluteFreeQty = parseFloat(history.free_quantity) || 0;
+
+                        // Apply the same direction (sign) to free qty as the total quantity
+                        // If total is negative (sale/return), free qty should also be negative
+                        var sign = totalQty >= 0 ? 1 : -1;
+                        var freeQty = absoluteFreeQty * sign;
+                        var paidQty = totalQty - freeQty;
+
+                        // Format with + or - sign
+                        var paidQtyDisplay = paidQty > 0 ? '+' + paidQty.toFixed(2) : paidQty.toFixed(2);
+                        var freeQtyDisplay = freeQty > 0 ? '+' + freeQty.toFixed(2) : (freeQty !== 0 ? freeQty.toFixed(2) : '0.00');
+
+                        // Add row without drawing (for performance)
                         stockTable.row.add([
                             history.stock_type.replace('_', ' ').toUpperCase(),
-                            history.quantity > 0 ? '+' + history.quantity : history.quantity,
+                            paidQtyDisplay,
+                            freeQtyDisplay,
                             runningStock.toFixed(2),
                             new Date(history.created_at).toLocaleString(),
                             referenceNo,
                             customerSupplierInfo
-                        ]).draw();
+                        ]);
                     });
+
+                    // Draw all rows at once (maintains FIFO order with date column sort)
+                    stockTable.draw();
                 }
             }
 
@@ -376,30 +406,30 @@
                 // Try to find the most relevant transaction for this stock history
                 if (history.stock_type === 'purchase' && history.location_batch?.batch?.purchase_products?.length) {
                     const matchedPurchase = findBestMatchingTransaction(
-                        history, 
+                        history,
                         history.location_batch.batch.purchase_products,
                         'purchase'
                     );
                     return matchedPurchase?.purchase?.reference_no || 'N/A';
                 } else if (history.stock_type === 'sale' && history.location_batch?.batch?.sales_products?.length) {
                     const matchedSale = findBestMatchingTransaction(
-                        history, 
+                        history,
                         history.location_batch.batch.sales_products,
                         'sale'
                     );
                     return matchedSale?.sale?.invoice_no || 'N/A';
-                } else if (history.stock_type === 'purchase_return' && history.location_batch?.batch
+                } else if ((history.stock_type === 'purchase_return' || history.stock_type === 'purchase_return_reversal') && history.location_batch?.batch
                     ?.purchase_returns?.length) {
                     const matchedReturn = findBestMatchingTransaction(
-                        history, 
+                        history,
                         history.location_batch.batch.purchase_returns,
                         'purchase_return'
                     );
                     return matchedReturn?.purchase_return?.reference_no || 'N/A';
-                } else if (history.stock_type === 'sale_return' && history.location_batch?.batch?.sale_returns
+                } else if ((history.stock_type === 'sales_return_with_bill' || history.stock_type === 'sales_return_without_bill' || history.stock_type === 'sale_reversal') && history.location_batch?.batch?.sale_returns
                     ?.length) {
                     const matchedReturn = findBestMatchingTransaction(
-                        history, 
+                        history,
                         history.location_batch.batch.sale_returns,
                         'sale_return'
                     );
@@ -422,7 +452,7 @@
                 // Try to match based on quantity and timing
                 const historyDate = new Date(stockHistory.created_at);
                 const historyQuantity = Math.abs(stockHistory.quantity);
-                
+
                 // Find transactions with matching quantity
                 const quantityMatches = transactions.filter(transaction => {
                     return Math.abs(transaction.quantity) === historyQuantity;
@@ -439,7 +469,7 @@
                 for (let i = 1; i < transactions.length; i++) {
                     const transactionDate = new Date(transactions[i].created_at || transactions[i].updated_at);
                     const timeDiff = Math.abs(transactionDate - historyDate);
-                    
+
                     if (timeDiff < smallestTimeDiff) {
                         smallestTimeDiff = timeDiff;
                         bestMatch = transactions[i];
@@ -452,7 +482,7 @@
             function getCustomerSupplierInfo(history) {
                 if (history.stock_type === 'purchase' && history.location_batch?.batch?.purchase_products?.length) {
                     const matchedPurchase = findBestMatchingTransaction(
-                        history, 
+                        history,
                         history.location_batch.batch.purchase_products,
                         'purchase'
                     );
@@ -460,25 +490,25 @@
                     return supplier ? (supplier.first_name + ' ' + supplier.last_name) : 'N/A';
                 } else if (history.stock_type === 'sale' && history.location_batch?.batch?.sales_products?.length) {
                     const matchedSale = findBestMatchingTransaction(
-                        history, 
+                        history,
                         history.location_batch.batch.sales_products,
                         'sale'
                     );
                     const customer = matchedSale?.sale?.customer;
                     return customer ? (customer.first_name + ' ' + customer.last_name) : 'N/A';
-                } else if (history.stock_type === 'purchase_return' && history.location_batch?.batch
+                } else if ((history.stock_type === 'purchase_return' || history.stock_type === 'purchase_return_reversal') && history.location_batch?.batch
                     ?.purchase_returns?.length) {
                     const matchedReturn = findBestMatchingTransaction(
-                        history, 
+                        history,
                         history.location_batch.batch.purchase_returns,
                         'purchase_return'
                     );
                     const supplier = matchedReturn?.purchase_return?.supplier;
                     return supplier ? (supplier.first_name + ' ' + supplier.last_name) : 'N/A';
-                } else if (history.stock_type === 'sale_return' && history.location_batch?.batch?.sale_returns
+                } else if ((history.stock_type === 'sales_return_with_bill' || history.stock_type === 'sales_return_without_bill' || history.stock_type === 'sale_reversal') && history.location_batch?.batch?.sale_returns
                     ?.length) {
                     const matchedReturn = findBestMatchingTransaction(
-                        history, 
+                        history,
                         history.location_batch.batch.sale_returns,
                         'sale_return'
                     );
@@ -503,7 +533,7 @@
                 }, '', newUrl);
             }
         });
-        
+
     </script>
     @include('product.product_ajax')
 @endsection

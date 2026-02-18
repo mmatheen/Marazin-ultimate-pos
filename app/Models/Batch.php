@@ -15,6 +15,7 @@ class Batch extends Model
         'product_id',
         'unit_cost',
         'qty',
+        'free_qty',
         'wholesale_price',
         'special_price',
         'retail_price',
@@ -36,9 +37,12 @@ class Batch extends Model
     {
         return $this->hasMany(SalesProduct::class, 'batch_id');
     }
+
     public function purchaseReturns()
     {
-        return $this->hasMany(PurchaseReturnProduct::class, 'batch_no', 'batch_no');
+        // IMPORTANT: purchase_return_products.batch_no stores the Batch ID (not batch_no string)
+        // So we match: purchase_return_products.batch_no = batches.id
+        return $this->hasMany(PurchaseReturnProduct::class, 'batch_no', 'id');
     }
 
     public function saleReturns()
@@ -67,55 +71,22 @@ class Batch extends Model
     }
 
     /**
-     * Calculate free quantity remaining from transaction history (NO MIGRATION NEEDED)
-     * Calculates dynamically from existing purchase_products, sales_products, etc.
+     * Calculate total free quantity across all locations
+     * Sums free_qty from all location_batches (already maintained during transactions)
      */
     public function calculateFreeQty()
     {
-        $purchased = $this->purchaseProducts()->sum('free_quantity') ?? 0;
-        $sold = $this->salesProducts()->sum('free_quantity') ?? 0;
-        $returnedToSupplier = $this->purchaseReturns()->sum('free_quantity') ?? 0;
-        $returnedByCustomer = $this->saleReturns()->sum('free_quantity') ?? 0;
-        $adjusted = $this->stockAdjustments()->sum('free_quantity') ?? 0;
-
-        $freeQty = $purchased - $sold - $returnedToSupplier + $returnedByCustomer + $adjusted;
-        return max(0, min($freeQty, $this->qty));
+        return (float) $this->locationBatches()->sum('free_qty');
     }
 
     /**
-     * Calculate free quantity for a specific location (location-specific calculation)
-     * This respects the location-based inventory system and actual transactions
+     * Calculate free quantity for a specific location
+     * Reads directly from location_batches.free_qty which is maintained during transactions
      */
     public function calculateFreeQtyForLocation($locationId)
     {
-        // Calculate based on ACTUAL transactions at this location
-        $purchased = $this->purchaseProducts()->where('location_id', $locationId)->sum('free_quantity') ?? 0;
-        $sold = $this->salesProducts()->where('location_id', $locationId)->sum('free_quantity') ?? 0;
-
-        // For returns, we need to check if they have location_id
-        // Purchase returns are tracked by batch_no, not batch_id
-        $returnedToSupplier = DB::table('purchase_return_products as prp')
-            ->join('purchase_returns as pr', 'prp.purchase_return_id', '=', 'pr.id')
-            ->where('prp.batch_no', $this->batch_no)
-            ->where('pr.location_id', $locationId)
-            ->sum('prp.free_quantity') ?? 0;
-
-        $returnedByCustomer = $this->saleReturns()->where('location_id', $locationId)->sum('free_quantity') ?? 0;
-
-        // Adjustments
-        $adjusted = DB::table('adjustment_products as ap')
-            ->join('stock_adjustments as sa', 'ap.stock_adjustment_id', '=', 'sa.id')
-            ->where('ap.batch_id', $this->id)
-            ->where('sa.location_id', $locationId)
-            ->sum('ap.free_quantity') ?? 0;
-
-        $freeQty = $purchased - $sold - $returnedToSupplier + $returnedByCustomer + $adjusted;
-
-        // Get location batch quantity
         $locationBatch = $this->locationBatches()->where('location_id', $locationId)->first();
-        $maxQty = $locationBatch ? $locationBatch->qty : 0;
-
-        return max(0, min($freeQty, $maxQty));
+        return $locationBatch ? (float) $locationBatch->free_qty : 0;
     }
 
     /**

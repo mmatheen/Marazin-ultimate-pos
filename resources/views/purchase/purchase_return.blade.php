@@ -105,7 +105,7 @@
                         <div class="page-header">
                             <div class="row align-items-center">
                                 <div class="col-auto text-end float-end ms-auto download-grp">
-                                    <!-- Button trigger modal -->     
+                                    <!-- Button trigger modal -->
                                 @can('create purchase-return')
                                 <a href="{{ route('add-purchase-return') }}"><button type="button"
                                     class="btn btn-outline-info">
@@ -178,6 +178,7 @@
                                             <th>Product Name</th>
                                             <th>SKU</th>
                                             <th>Quantity</th>
+                                            <th>Free Qty</th>
                                             <th>Price</th>
                                             <th>Total</th>
                                         </tr>
