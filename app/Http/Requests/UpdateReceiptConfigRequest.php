@@ -44,6 +44,7 @@ class UpdateReceiptConfigRequest extends FormRequest
             'line_spacing.integer' => 'Line spacing must be a number.',
             'line_spacing.min' => 'Line spacing must be at least ' . ReceiptConfig::LINE_SPACING_MIN . '.',
             'line_spacing.max' => 'Line spacing cannot exceed ' . ReceiptConfig::LINE_SPACING_MAX . '.',
+            'font_family.in' => 'Invalid font family selected.',
         ];
     }
 

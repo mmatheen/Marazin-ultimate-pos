@@ -18,6 +18,9 @@ class ReceiptConfig
     public const LINE_SPACING_MIN = 1;
     public const LINE_SPACING_MAX = 10;
 
+    // Supported font families
+    public const FONT_FAMILIES = ['Arial', 'Courier New', 'Times New Roman', 'Verdana', 'Tahoma'];
+
     /**
      * Get default receipt configuration
      *
@@ -41,6 +44,7 @@ class ReceiptConfig
             'spacing_mode' => self::SPACING_COMPACT,
             'font_size_base' => 11,
             'line_spacing' => 5,
+            'font_family' => 'Arial',
         ];
     }
 
@@ -79,6 +83,7 @@ class ReceiptConfig
             'spacing_mode' => 'required|in:' . self::SPACING_COMPACT . ',' . self::SPACING_SPACIOUS,
             'font_size_base' => 'required|integer|min:' . self::FONT_SIZE_MIN . '|max:' . self::FONT_SIZE_MAX,
             'line_spacing' => 'required|integer|min:' . self::LINE_SPACING_MIN . '|max:' . self::LINE_SPACING_MAX,
+            'font_family' => 'nullable|string|in:' . implode(',', self::FONT_FAMILIES),
         ];
     }
 
@@ -136,6 +141,7 @@ class ReceiptConfig
                     'spacing_mode' => self::SPACING_COMPACT,
                     'font_size_base' => 10,
                     'line_spacing' => 3,
+                    'font_family' => 'Arial',
                 ],
             ],
             'standard' => [
@@ -157,6 +163,7 @@ class ReceiptConfig
                     'spacing_mode' => self::SPACING_SPACIOUS,
                     'font_size_base' => 12,
                     'line_spacing' => 7,
+                    'font_family' => 'Arial',
                 ],
             ],
         ];

@@ -5,6 +5,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $location->name ?? 'Hardware' }} Invoice</title>
+    @php
+        $config = $receiptConfig ?? [];
+        $fontFamily = $config['font_family'] ?? 'Arial';
+        $fontSizeBase = $config['font_size_base'] ?? 12;
+        $lineSpacing = $config['line_spacing'] ?? 5;
+        $spacingMode = $config['spacing_mode'] ?? 'compact';
+        $spacingMultiplier = $spacingMode === 'spacious' ? 1.5 : 1.0;
+        $lineSpacingFactor = $lineSpacing / 5;
+        $finalLineHeight = round(1.2 * $spacingMultiplier * $lineSpacingFactor, 2);
+        $fontFamilyCss = "'" . $fontFamily . "', Arial, 'Courier New', monospace";
+    @endphp
     <style>
         * {
             margin: 0;
@@ -31,9 +42,9 @@
                 color-adjust: exact;
                 margin: 0;
                 padding: 0;
-                font-family: Arial, 'Courier New', monospace;
-                font-size: 12px;
-                line-height: 1.3;
+                font-family: {{ $fontFamilyCss }};
+                font-size: {{ $fontSizeBase }}px;
+                line-height: {{ $finalLineHeight }};
             }
 
             .invoice-page {
@@ -57,7 +68,7 @@
        SCREEN + PRINT COMMON STYLES
        ========================= */
         body {
-            font-family: Arial, 'Courier New', monospace;
+            font-family: {{ $fontFamilyCss }};
             background-color: white;
             width: 100%;
             padding: 0;

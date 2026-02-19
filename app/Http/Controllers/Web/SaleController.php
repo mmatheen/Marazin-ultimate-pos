@@ -311,6 +311,16 @@ class SaleController extends Controller
             // Payment Total: Sum of all payment methods
             $paymentTotal = $cashPayments + $chequePayments + $bankTransferPayments + $cardPayments;
 
+            // Calculate total free quantity from all sales
+            $totalFreeQuantity = $sales->sum(function ($sale) {
+                return $sale->products->sum('free_quantity');
+            });
+
+            // Calculate total paid quantity from all sales
+            $totalPaidQuantity = $sales->sum(function ($sale) {
+                return $sale->products->sum('quantity');
+            });
+
             $summaries = [
                 'billTotal' => $billTotal,
                 'discounts' => $discounts,
@@ -323,6 +333,8 @@ class SaleController extends Controller
                 'creditTotal' => $creditTotal,
                 'netIncome' => $netIncome,
                 'cashInHand' => $cashInHand,
+                'totalFreeQuantity' => $totalFreeQuantity,
+                'totalPaidQuantity' => $totalPaidQuantity,
             ];
 
             return response()->json([

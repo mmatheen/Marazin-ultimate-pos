@@ -619,6 +619,18 @@
                                             </div>
 
                                             <div class="mb-3">
+                                                <label for="receipt_font_family" class="form-label fw-bold">Font Family</label>
+                                                <select class="form-select" id="receipt_font_family">
+                                                    <option value="Arial">Arial (Default)</option>
+                                                    <option value="Courier New">Courier New (Monospace)</option>
+                                                    <option value="Times New Roman">Times New Roman (Serif)</option>
+                                                    <option value="Verdana">Verdana (Wide)</option>
+                                                    <option value="Tahoma">Tahoma (Compact)</option>
+                                                </select>
+                                                <small class="text-muted">Font style for dot matrix &amp; thermal receipts</small>
+                                            </div>
+
+                                            <div class="mb-3">
                                                 <label for="receipt_line_spacing" class="form-label fw-bold">
                                                     Line Spacing: <span id="line_spacing_value" class="badge bg-primary">5</span>
                                                 </label>

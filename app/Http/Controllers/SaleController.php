@@ -882,6 +882,16 @@ class SaleController extends Controller
             // Note: This shows money collected, not accounting for pending return refunds
             $cashInHand = $paymentTotal;
 
+            // Calculate total free quantity from all sales
+            $totalFreeQuantity = $sales->sum(function ($sale) {
+                return $sale->products->sum('free_quantity');
+            });
+
+            // Calculate total paid quantity from all sales
+            $totalPaidQuantity = $sales->sum(function ($sale) {
+                return $sale->products->sum('quantity');
+            });
+
             $summaries = [
                 'billTotal' => $billTotal,
                 'discounts' => $discounts,
@@ -894,6 +904,8 @@ class SaleController extends Controller
                 'creditTotal' => $creditTotal,
                 'netIncome' => $netIncome,
                 'cashInHand' => $cashInHand,
+                'totalFreeQuantity' => $totalFreeQuantity,
+                'totalPaidQuantity' => $totalPaidQuantity,
             ];
 
             return response()->json([
@@ -2276,7 +2288,7 @@ class SaleController extends Controller
 
                 // Deduct paid quantity from this batch (FIFO)
                 $deductPaidQty = min($batch->qty ?? 0, $remainingPaidQty);
-                // Deduct free quantity from this batch (FIFO)
+                // Deduct free quantity from this batch (FIFO) - Try free stock first
                 $deductFreeQty = min($batch->free_qty ?? 0, $remainingFreeQty);
                 $deductTotalQty = $deductPaidQty + $deductFreeQty;
 
@@ -2304,28 +2316,76 @@ class SaleController extends Controller
                 $remainingFreeQty -= $deductFreeQty;
             }
 
+            // ✨ FLEXIBLE APPROACH: If free stock ran out, use paid stock instead
+            if ($remainingFreeQty > 0 && in_array($newStatus, ['final', 'suspend'])) {
+                Log::info("🔄 FREE STOCK EXHAUSTED - Using paid stock for remaining free quantity", [
+                    'product_id' => $productData['product_id'],
+                    'remaining_free_qty' => $remainingFreeQty,
+                    'will_deduct_from_paid_stock' => true
+                ]);
+
+                // Loop through batches again to use paid stock for free items
+                foreach ($batches as $batch) {
+                    if ($remainingFreeQty <= 0) break;
+
+                    // Check if this batch has available paid stock (after previous deductions)
+                    $batchRemainingPaid = $batch->qty ?? 0;
+                    // Subtract what we already deducted in the first loop
+                    foreach ($batchDeductions as &$deduction) {
+                        if ($deduction['batch_id'] === $batch->batch_id) {
+                            $batchRemainingPaid -= $deduction['paid_qty'];
+                        }
+                    }
+
+                    if ($batchRemainingPaid <= 0) continue;
+
+                    // Deduct from paid stock to cover free quantity shortage
+                    $deductFromPaidForFree = min($batchRemainingPaid, $remainingFreeQty);
+
+                    Log::info("📦 Using paid stock for free items", [
+                        'batch_id' => $batch->batch_id,
+                        'deducting_paid_for_free' => $deductFromPaidForFree,
+                        'remaining_free_after' => $remainingFreeQty - $deductFromPaidForFree
+                    ]);
+
+                    // Update batch stock
+                    $this->deductBatchStock($batch->batch_id, $locationId, 0, $stockType, $deductFromPaidForFree, 0);
+
+                    // Update or add to batch deductions
+                    $existingIndex = array_search($batch->batch_id, array_column($batchDeductions, 'batch_id'));
+                    if ($existingIndex !== false) {
+                        $batchDeductions[$existingIndex]['paid_qty'] += $deductFromPaidForFree;
+                        $batchDeductions[$existingIndex]['quantity'] += $deductFromPaidForFree;
+                    } else {
+                        $batchDeductions[] = [
+                            'batch_id' => $batch->batch_id,
+                            'quantity' => $deductFromPaidForFree,
+                            'paid_qty' => $deductFromPaidForFree,
+                            'free_qty' => 0
+                        ];
+                    }
+
+                    $remainingFreeQty -= $deductFromPaidForFree;
+                }
+            }
+
             // Only validate stock if the sale status is final/suspend
             if (in_array($newStatus, ['final', 'suspend'])) {
-                if ($remainingPaidQty > 0) {
-                    Log::error("❌ INSUFFICIENT PAID STOCK across all batches", [
+                // Check total shortage (paid + remaining free that couldn't be covered)
+                $totalShortage = $remainingPaidQty + $remainingFreeQty;
+
+                if ($totalShortage > 0) {
+                    Log::error("❌ INSUFFICIENT TOTAL STOCK across all batches", [
                         'product_id' => $productData['product_id'],
                         'location_id' => $locationId,
                         'requested_paid' => $productData['quantity'],
-                        'unfulfilled_paid' => $remainingPaidQty,
-                        'batches_checked' => $batches->count()
-                    ]);
-                    throw new \Exception("Not enough paid stock across all batches to fulfill the sale. Product ID: {$productData['product_id']}, Requested: {$productData['quantity']}, Short: {$remainingPaidQty}");
-                }
-
-                if ($remainingFreeQty > 0) {
-                    Log::error("❌ INSUFFICIENT FREE STOCK across all batches", [
-                        'product_id' => $productData['product_id'],
-                        'location_id' => $locationId,
                         'requested_free' => $freeQuantity,
+                        'unfulfilled_paid' => $remainingPaidQty,
                         'unfulfilled_free' => $remainingFreeQty,
+                        'total_shortage' => $totalShortage,
                         'batches_checked' => $batches->count()
                     ]);
-                    throw new \Exception("Not enough free stock across all batches to fulfill the sale. Product ID: {$productData['product_id']}, Requested: {$freeQuantity}, Short: {$remainingFreeQty}");
+                    throw new \Exception("Not enough stock across all batches to fulfill the sale. Product ID: {$productData['product_id']}, Total Required: " . ($productData['quantity'] + $freeQuantity) . ", Short: {$totalShortage}");
                 }
             }
         }

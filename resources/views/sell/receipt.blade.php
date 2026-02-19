@@ -19,6 +19,7 @@
         $spacingMode = $config['spacing_mode'] ?? 'compact';
         $fontSizeBase = $config['font_size_base'] ?? 11;
         $lineSpacing = $config['line_spacing'] ?? 5;
+        $fontFamily = $config['font_family'] ?? 'Arial';
 
         // Calculate spacing multipliers based on mode and line spacing
         $spacingMultiplier = $spacingMode === 'spacious' ? 1.5 : 1;
@@ -37,7 +38,7 @@
         }
 
         body {
-            font-family: 'Arial', sans-serif;
+            font-family: '{{ $fontFamily }}', Arial, sans-serif;
             font-size: {{ $fontSizeBase }}px;
             color: #000;
             text-transform: uppercase;

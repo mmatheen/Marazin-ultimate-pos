@@ -88,6 +88,14 @@
             font-weight: 500;
             color: #333;
         }
+
+        .summary-row {
+            transition: background-color 0.15s ease;
+        }
+
+        .summary-row:hover {
+            background-color: #f5f7fa !important;
+        }
     </style>
     <div class="content container-fluid">
         <div class="row">
@@ -210,6 +218,8 @@
                                             <th>Location</th>
                                             <th>User</th>
                                             <th>Date</th>
+                                            <th>Total Qty</th>
+                                            <th>Free Qty</th>
                                             <th>Sub Total</th>
                                             <th>Bill Discount</th>
                                             <th>Net Bill Total</th>
@@ -225,6 +235,8 @@
                                     <tfoot style="border-top: 2px solid #dee2e6;">
                                         <tr>
                                             <th colspan="6" class="text-center" style="font-size: 20px;">Total</th>
+                                            <th id="totalQuantity"></th>
+                                            <th id="totalFreeQuantity"></th>
                                             <th id="totalSubTotal"></th>
                                             <th id="totalBillDiscount"></th>
                                             <th id="totalNetBillTotal"></th>
@@ -274,65 +286,80 @@
             </div>
 
             <!-- Summary Cards -->
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="card card-body">
-                        <table class="table table-bordered">
-                            <tbody>
-                                <tr>
-                                    <td>Bill Total</td>
-                                    <td id="billTotal">0.00</td>
-                                </tr>
-                                <tr>
-                                    <td>Discounts</td>
-                                    <td id="discounts">0.00</td>
-                                </tr>
-                                <tr>
-                                    <td>Cash Payments</td>
-                                    <td id="cashPayments">0.00</td>
-                                </tr>
-                                <tr>
-                                    <td>Card Payments</td>
-                                    <td id="cardPayments">0.00</td>
-                                </tr>
-                                <tr>
-                                    <td>Cheque Payments</td>
-                                    <td id="chequePayments">0.00</td>
-                                </tr>
-                                <tr>
-                                    <td>Bank Transfer</td>
-                                    <td id="bankTransfer">0.00</td>
-                                </tr>
-                                <tr>
-                                    <td>Payment Total</td>
-                                    <td id="paymentTotal">0.00</td>
-                                </tr>
-                            </tbody>
-                        </table>
+            <div class="row mt-3">
+                <!-- Payment Summary -->
+                <div class="col-md-6 mb-4" id="payment-summary-col">
+                    <div class="card h-100 shadow-sm border-0" style="border-radius: 10px; overflow: hidden;">
+                        <div class="card-header d-flex justify-content-between align-items-center py-3 px-4" style="background: #f8f9fa; border-bottom: 1px solid #e9ecef;">
+                            <h6 class="mb-0 fw-semibold text-dark" style="font-size: 15px; letter-spacing: 0.3px;">Payment Summary</h6>
+                            <span class="text-muted" style="font-size: 18px;"><i class="fas fa-credit-card"></i></span>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="summary-row d-flex justify-content-between align-items-center px-4 py-3" style="border-bottom: 1px solid #f0f0f0;">
+                                <span class="text-muted" style="font-size: 14px;">Bill Total</span>
+                                <span id="billTotal" class="fw-medium" style="font-size: 14px;">0.00</span>
+                            </div>
+                            <div class="summary-row d-flex justify-content-between align-items-center px-4 py-3" style="border-bottom: 1px solid #f0f0f0;">
+                                <span class="text-muted" style="font-size: 14px;">Discounts</span>
+                                <span id="discounts" class="fw-medium" style="font-size: 14px;">0.00</span>
+                            </div>
+                            <div class="summary-row d-flex justify-content-between align-items-center px-4 py-3" style="border-bottom: 1px solid #f0f0f0;">
+                                <span class="text-muted" style="font-size: 14px;">Cash Payments</span>
+                                <span id="cashPayments" class="fw-semibold" style="font-size: 14px; color: #0d6efd;">0.00</span>
+                            </div>
+                            <div class="summary-row d-flex justify-content-between align-items-center px-4 py-3" style="border-bottom: 1px solid #f0f0f0;">
+                                <span class="text-muted" style="font-size: 14px;">Card Payments</span>
+                                <span id="cardPayments" class="fw-medium" style="font-size: 14px;">0.00</span>
+                            </div>
+                            <div class="summary-row d-flex justify-content-between align-items-center px-4 py-3" style="border-bottom: 1px solid #f0f0f0;">
+                                <span class="text-muted" style="font-size: 14px;">Cheque Payments</span>
+                                <span id="chequePayments" class="fw-medium" style="font-size: 14px;">0.00</span>
+                            </div>
+                            <div class="summary-row d-flex justify-content-between align-items-center px-4 py-3" style="border-bottom: 1px solid #f0f0f0;">
+                                <span class="text-muted" style="font-size: 14px;">Bank Transfer</span>
+                                <span id="bankTransfer" class="fw-medium" style="font-size: 14px;">0.00</span>
+                            </div>
+                            <div class="summary-row d-flex justify-content-between align-items-center px-4 py-3" style="background: #f8f9fa;">
+                                <span class="fw-bold text-dark" style="font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Payment Total</span>
+                                <span id="paymentTotal" class="fw-bold" style="font-size: 15px; color: #198754;">0.00</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="card card-body">
-                        <table class="table table-bordered">
-                            <tbody>
-                                <tr>
-                                    <td>Credit Total</td>
-                                    <td id="creditTotal">0.00</td>
-                                </tr>
-                                <tr>
-                                    <td>Sales Returns</td>
-                                    <td id="salesReturns">0.00</td>
-                                </tr>
-                                <tr>
-                                    <td>Net Income</td>
-                                    <td id="netIncome">0.00</td>
-                                </tr>
-                                <tr>
-                                    <td>Cash in Hand</td>
-                                    <td id="cashInHand">0.00</td>
-                                </tr>
-                            </tbody>
-                        </table>
+
+                <!-- Sales Overview -->
+                <div class="col-md-6 mb-4" id="sales-overview-col">
+                    <div class="card h-100 shadow-sm border-0" style="border-radius: 10px; overflow: hidden;">
+                        <div class="card-header d-flex justify-content-between align-items-center py-3 px-4" style="background: #f8f9fa; border-bottom: 1px solid #e9ecef;">
+                            <h6 class="mb-0 fw-semibold text-dark" style="font-size: 15px; letter-spacing: 0.3px;">Sales Overview</h6>
+                            <span class="text-muted" style="font-size: 18px;"><i class="fas fa-chart-line"></i></span>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="summary-row d-flex justify-content-between align-items-center px-4 py-3" style="border-bottom: 1px solid #f0f0f0;">
+                                <span class="text-muted" style="font-size: 14px;">Total Paid Quantity</span>
+                                <span id="totalPaidQuantity" class="fw-semibold" style="font-size: 14px; color: #0d6efd;">0.00</span>
+                            </div>
+                            <div class="summary-row d-flex justify-content-between align-items-center px-4 py-3" style="border-bottom: 1px solid #f0f0f0;">
+                                <span class="text-muted" style="font-size: 14px;">Total Free Quantity</span>
+                                <span id="totalFreeQty" class="fw-semibold" style="font-size: 14px; color: #198754;">0.00</span>
+                            </div>
+                            <div class="summary-row d-flex justify-content-between align-items-center px-4 py-3" style="border-bottom: 1px solid #f0f0f0;">
+                                <span class="text-muted" style="font-size: 14px;">Credit Total</span>
+                                <span id="creditTotal" class="fw-medium" style="font-size: 14px;">0.00</span>
+                            </div>
+                            <div class="summary-row d-flex justify-content-between align-items-center px-4 py-3" style="border-bottom: 1px solid #f0f0f0;">
+                                <span class="text-muted" style="font-size: 14px;">Sales Returns</span>
+                                <span id="salesReturns" class="fw-medium" style="font-size: 14px; color: #dc3545;">0.00</span>
+                            </div>
+                            <div class="summary-row d-flex justify-content-between align-items-center px-4 py-3" style="border-bottom: 1px solid #f0f0f0;">
+                                <span class="fw-semibold text-dark" style="font-size: 14px;">Net Income</span>
+                                <span id="netIncome" class="fw-bold" style="font-size: 15px; color: #198754;">0.00</span>
+                            </div>
+                            <div class="summary-row d-flex justify-content-between align-items-center px-4 py-3" style="background: #f8f9fa;">
+                                <span class="fw-bold text-dark" style="font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Cash In Hand</span>
+                                <span id="cashInHand" class="fw-bold" style="font-size: 15px; color: #198754;">0.00</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -537,32 +564,54 @@
                                     '*'); // Distribute width evenly
 
                                 // Add summary cards below main table
-                                const summaryRows = [];
-                                $('.card-body .table-bordered tbody tr').each(function() {
-                                    const cells = [];
-                                    $(this).find('td').each(function() {
-                                        cells.push($(this).text());
-                                    });
-                                    summaryRows.push(cells);
+                                const paymentRowsPdf = [];
+                                const overviewRowsPdf = [];
+
+                                // Collect from Payment Summary card
+                                $('#payment-summary-col .summary-row').each(function() {
+                                    const spans = $(this).find('span');
+                                    paymentRowsPdf.push([
+                                        { text: spans.eq(0).text().trim(), fontSize: 8 },
+                                        { text: spans.eq(1).text().trim(), fontSize: 8, alignment: 'right', bold: true }
+                                    ]);
+                                });
+
+                                // Collect from Sales Overview card
+                                $('#sales-overview-col .summary-row').each(function() {
+                                    const spans = $(this).find('span');
+                                    overviewRowsPdf.push([
+                                        { text: spans.eq(0).text().trim(), fontSize: 8 },
+                                        { text: spans.eq(1).text().trim(), fontSize: 8, alignment: 'right', bold: true }
+                                    ]);
                                 });
 
                                 doc.content.push({
-                                    table: {
-                                        headerRows: 1,
-                                        widths: ['*', '*'],
-                                        body: [
-                                            [{
-                                                    text: 'Summary Report',
-                                                    style: 'tableHeader',
-                                                    colSpan: 2,
-                                                    alignment: 'center'
-                                                },
-                                                {}
-                                            ],
-                                            ...summaryRows
-                                        ]
-                                    },
-                                    margin: [0, 20, 0, 0]
+                                    margin: [0, 20, 0, 0],
+                                    columns: [
+                                        {
+                                            width: '*',
+                                            table: {
+                                                headerRows: 1,
+                                                widths: ['*', '*'],
+                                                body: [
+                                                    [{ text: 'Payment Summary', style: 'tableHeader', colSpan: 2, alignment: 'center', fontSize: 9 }, {}],
+                                                    ...paymentRowsPdf
+                                                ]
+                                            }
+                                        },
+                                        { width: 10, text: '' },
+                                        {
+                                            width: '*',
+                                            table: {
+                                                headerRows: 1,
+                                                widths: ['*', '*'],
+                                                body: [
+                                                    [{ text: 'Sales Overview', style: 'tableHeader', colSpan: 2, alignment: 'center', fontSize: 9 }, {}],
+                                                    ...overviewRowsPdf
+                                                ]
+                                            }
+                                        }
+                                    ]
                                 });
 
                                 // Set page margins and alignment
@@ -608,51 +657,60 @@
                                 $(win.document.body).find('table').addClass('table table-bordered');
                                 $(win.document.body).find('h1').remove();
 
-                                // Summaries
-                                const summaryRows = [];
-                                $('.card-body .table-bordered tbody tr').each(function() {
-                                    const cells = [];
-                                    $(this).find('td').each(function() {
-                                        cells.push($(this).text());
+                                // Collect summary rows from both summary cards (.summary-row divs)
+                                const paymentRows = [];
+                                const overviewRows = [];
+
+                                // Payment Summary card
+                                $('#payment-summary-col .summary-row').each(function() {
+                                    const spans = $(this).find('span');
+                                    paymentRows.push([
+                                        spans.eq(0).text().trim(),
+                                        spans.eq(1).text().trim()
+                                    ]);
+                                });
+
+                                // Sales Overview card
+                                $('#sales-overview-col .summary-row').each(function() {
+                                    const spans = $(this).find('span');
+                                    overviewRows.push([
+                                        spans.eq(0).text().trim(),
+                                        spans.eq(1).text().trim()
+                                    ]);
+                                });
+
+                                function buildSummaryTable(title, rows) {
+                                    const table = $(`
+                                        <table style="width:100%;border-collapse:collapse;margin-bottom:0;">
+                                            <thead>
+                                                <tr><th colspan="2" style="text-align:center;font-size:15px;padding:8px;background:#f8f9fa;border:1px solid #ddd;">${title}</th></tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                    `);
+                                    rows.forEach(row => {
+                                        table.find('tbody').append(
+                                            $('<tr></tr>').append(
+                                                $('<td></td>').text(row[0]).css({'padding':'6px 10px','border':'1px solid #ddd','font-size':'13px'})
+                                            ).append(
+                                                $('<td></td>').text(row[1]).css({'padding':'6px 10px','border':'1px solid #ddd','font-size':'13px','text-align':'right','font-weight':'bold'})
+                                            )
+                                        );
                                     });
-                                    summaryRows.push(cells);
-                                });
+                                    return table;
+                                }
 
-                                // Create summary table with proper alignment and smaller width
-                                const summaryTable = $(`
-                                                <div style="width: 60%; margin-top: 30px; margin-left: auto; margin-right: auto;">
-                                                    <table class="table table-bordered">
-                                                        <thead>
-                                                            <tr>
-                                                                <th colspan="2" style="text-align: center; font-size: 20px;">Summary Report</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody></tbody>
-                                                    </table>
-                                                </div>
-                                            `);
-                                // Populate summary table with rows
-                                summaryRows.forEach(row => {
-                                    const tr = $('<tr></tr>');
-                                    tr.append(
-                                        $('<td></td>').text(row[0]).css({
-                                            'text-align': 'left',
-                                            'font-size': '16px',
-                                            'font-weight': 'bold'
-                                        })
-                                    );
-                                    tr.append(
-                                        $('<td></td>').text(row[1]).css({
-                                            'text-align': 'right',
-                                            'font-size': '16px',
-                                            'font-weight': 'bold'
-                                        })
-                                    );
-                                    summaryTable.find('tbody').append(tr);
-                                });
+                                // Two-column summary wrapper
+                                const summaryWrapper = $(`
+                                    <div style="display:flex;gap:20px;margin-top:30px;width:100%;">
+                                        <div style="flex:1;" id="print-payment-summary"></div>
+                                        <div style="flex:1;" id="print-overview-summary"></div>
+                                    </div>
+                                `);
+                                summaryWrapper.find('#print-payment-summary').append(buildSummaryTable('Payment Summary', paymentRows));
+                                summaryWrapper.find('#print-overview-summary').append(buildSummaryTable('Sales Overview', overviewRows));
 
-                                // Append the summary table to the document
-                                $(win.document.body).append(summaryTable);
+                                $(win.document.body).append(summaryWrapper);
 
                                 // General styling for the print output
                                 $(win.document.body).find('table').css({
@@ -739,6 +797,12 @@
                         },
                         {
                             title: "Date"
+                        },
+                        {
+                            title: "Total Qty"
+                        },
+                        {
+                            title: "Free Qty"
                         },
                         {
                             title: "Sub Total"
@@ -848,6 +912,10 @@
                         }
                     });
 
+                    // Calculate total quantity and free quantity for this sale
+                    const totalPaidQty = sale.products.reduce((sum, p) => sum + parseFloat(p.quantity || 0), 0);
+                    const totalFreeQty = sale.products.reduce((sum, p) => sum + parseFloat(p.free_quantity || 0), 0);
+
                     const saleReturn = safeSalesReturns.find(r => r.sale_id === sale.id);
                     const salesReturnAmount = saleReturn ? parseFloat(saleReturn.return_total) : 0;
 
@@ -858,6 +926,8 @@
                         sale.location?.name || '',
                         sale.user?.user_name || '',
                         new Date(sale.sales_date).toLocaleString(),
+                        totalPaidQty.toFixed(2),
+                        totalFreeQty.toFixed(2),
                         formatNumber(parseFloat(sale.subtotal)),
                         formatNumber(parseFloat(sale.discount_amount || 0)),
                         formatNumber(parseFloat(sale.final_total)),
@@ -874,16 +944,20 @@
 
                 if (tableData.length > 0) {
                     const totals = tableData.reduce((acc, row) => ({
-                        subTotal: acc.subTotal + parseFloat(row[6].replace(/,/g, '')),
-                        billDiscount: acc.billDiscount + parseFloat(row[7].replace(/,/g, '')),
-                        netBillTotal: acc.netBillTotal + parseFloat(row[8].replace(/,/g, '')),
-                        cash: acc.cash + parseFloat(row[9].replace(/,/g, '')),
-                        bankTransfer: acc.bankTransfer + parseFloat(row[10].replace(/,/g, '')),
-                        cheque: acc.cheque + parseFloat(row[11].replace(/,/g, '')),
-                        card: acc.card + parseFloat(row[12].replace(/,/g, '')),
-                        credit: acc.credit + parseFloat(row[13].replace(/,/g, '')),
-                        salesReturn: acc.salesReturn + parseFloat(row[14].replace(/,/g, '')),
+                        totalQty: acc.totalQty + parseFloat(row[6]),
+                        freeQty: acc.freeQty + parseFloat(row[7]),
+                        subTotal: acc.subTotal + parseFloat(row[8].replace(/,/g, '')),
+                        billDiscount: acc.billDiscount + parseFloat(row[9].replace(/,/g, '')),
+                        netBillTotal: acc.netBillTotal + parseFloat(row[10].replace(/,/g, '')),
+                        cash: acc.cash + parseFloat(row[11].replace(/,/g, '')),
+                        bankTransfer: acc.bankTransfer + parseFloat(row[12].replace(/,/g, '')),
+                        cheque: acc.cheque + parseFloat(row[13].replace(/,/g, '')),
+                        card: acc.card + parseFloat(row[14].replace(/,/g, '')),
+                        credit: acc.credit + parseFloat(row[15].replace(/,/g, '')),
+                        salesReturn: acc.salesReturn + parseFloat(row[16].replace(/,/g, '')),
                     }), {
+                        totalQty: 0,
+                        freeQty: 0,
                         subTotal: 0,
                         billDiscount: 0,
                         netBillTotal: 0,
@@ -895,6 +969,8 @@
                         salesReturn: 0
                     });
 
+                    $('#totalQuantity').text(totals.totalQty.toFixed(2));
+                    $('#totalFreeQuantity').text(totals.freeQty.toFixed(2));
                     $('#totalSubTotal').text(formatNumber(totals.subTotal));
                     $('#totalBillDiscount').text(formatNumber(totals.billDiscount));
                     $('#totalNetBillTotal').text(formatNumber(totals.netBillTotal));
@@ -906,7 +982,7 @@
                     $('#totalSalesReturn').text(formatNumber(totals.salesReturn));
                 } else {
                     $('#salesTable tbody').html(
-                        '<tr><td colspan="15" class="text-center">No records found</td></tr>');
+                        '<tr><td colspan="17" class="text-center">No records found</td></tr>');
                     $('tfoot th:not(:first-child)').text('0.00');
                 }
             }
@@ -985,6 +1061,8 @@
                 $('#salesReturns').text(formatNumber(parseFloat(summaries.salesReturns || 0)));
                 $('#netIncome').text(formatNumber(parseFloat(summaries.netIncome || 0)));
                 $('#cashInHand').text(formatNumber(parseFloat(summaries.cashInHand || 0)));
+                $('#totalPaidQuantity').text(parseFloat(summaries.totalPaidQuantity || 0).toFixed(2));
+                $('#totalFreeQty').text(parseFloat(summaries.totalFreeQuantity || 0).toFixed(2));
             }
 
 

@@ -85,6 +85,12 @@ class ReceiptSettingsManager {
                 lineSpacingValue.textContent = config.line_spacing || 5;
             }
         }
+
+        // Font family select
+        const fontFamilySelect = document.getElementById('receipt_font_family');
+        if (fontFamilySelect) {
+            fontFamilySelect.value = config.font_family || 'Arial';
+        }
     }
 
     /**
@@ -210,6 +216,7 @@ class ReceiptSettingsManager {
             spacing_mode: document.querySelector('input[name="spacing_mode"]:checked')?.value || 'compact',
             font_size_base: parseInt(document.getElementById('receipt_font_size_base')?.value) || 11,
             line_spacing: parseInt(document.getElementById('receipt_line_spacing')?.value) || 5,
+            font_family: document.getElementById('receipt_font_family')?.value || 'Arial',
         };
 
         return formData;
@@ -339,7 +346,7 @@ function openReceiptSettings(locationId) {
         receiptSettingsManager.bindEventListeners();
     }
 
-    
+
 
 
     receiptSettingsManager.init(locationId);
