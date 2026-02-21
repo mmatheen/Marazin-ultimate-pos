@@ -479,7 +479,8 @@
                                 ];
                             }
                         } else {
-                            $groupKey = $product->product_id . '-' . ($product->batch_id ?? '0');
+                            // Group by product_id + price so FIFO-split batch rows merge into one clean receipt line
+                            $groupKey = $product->product_id . '-' . $product->price;
                             if (!isset($nonImeiGroups[$groupKey])) {
                                 $nonImeiGroups[$groupKey] = [
                                     'type' => 'grouped',
@@ -538,10 +539,13 @@
                             @endif
                         </td>
                         <td class="quantity">
+                            @php
+                                $fmtQty = fn($v) => rtrim(rtrim(number_format((float)$v, 4, '.', ''), '0'), '.');
+                            @endphp
                             <span class="multiply-symbol">&times;</span>
-                            <span>{{ $item['quantity'] }}</span>
+                            <span>{{ $fmtQty($item['quantity']) }}</span>
                             @if(isset($item['free_quantity']) && $item['free_quantity'] > 0)
-                                <span> + {{ $item['free_quantity'] }} free</span>
+                                <span> + {{ $fmtQty($item['free_quantity']) }} free</span>
                             @endif
                             <small class="pcs-text">PCS</small>
                         </td>
@@ -692,9 +696,10 @@
                 @php
                     $totalQty = $products->sum('quantity');
                     $totalFreeQty = $products->sum('free_quantity');
+                    $fmtQ = fn($v) => rtrim(rtrim(number_format((float)$v, 4, '.', ''), '0'), '.');
                 @endphp
-                <span class="stat-number">{{ $totalQty + $totalFreeQty }}</span>
-                <span class="stat-label">TOTAL QTY @if($totalFreeQty > 0)({{ $totalQty }} + {{ $totalFreeQty }} free)@endif</span>
+                <span class="stat-number">{{ $fmtQ($totalQty + $totalFreeQty) }}</span>
+                <span class="stat-label">TOTAL QTY @if($totalFreeQty > 0)({{ $fmtQ($totalQty) }} + {{ $fmtQ($totalFreeQty) }} FREE)@endif</span>
             </div>
             <div class="stat-box">
                 <span class="stat-number">{{ number_format($total_all_discounts, 2, '.', ',') }}</span>

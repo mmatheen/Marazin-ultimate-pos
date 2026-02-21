@@ -223,12 +223,18 @@
         }
 
         .items-table th:nth-child(3),
-        .items-table th:nth-child(4),
+        .items-table th:nth-child(4) {
+            text-align: left;
+            width: 0.9in;
+        }
+
         .items-table th:nth-child(5),
         .items-table th:nth-child(6),
-        .items-table th:nth-child(7) {
+        .items-table th:nth-child(7),
+        .items-table th:nth-child(8),
+        .items-table th:nth-child(9) {
             text-align: right;
-            width: 0.9in;
+            width: 0.8in;
         }
 
         .items-table td {
@@ -250,12 +256,18 @@
         }
 
         .items-table td:nth-child(3),
-        .items-table td:nth-child(4),
+        .items-table td:nth-child(4) {
+            text-align: left;
+            width: 0.9in;
+        }
+
         .items-table td:nth-child(5),
         .items-table td:nth-child(6),
-        .items-table td:nth-child(7) {
+        .items-table td:nth-child(7),
+        .items-table td:nth-child(8),
+        .items-table td:nth-child(9) {
             text-align: right;
-            width: 0.9in;
+            width: 0.8in;
         }
 
         .summary-section {
@@ -407,6 +419,8 @@
                 <tr>
                     <th>SN</th>
                     <th>Item</th>
+                    <th>Batch No</th>
+                    <th>Expiry</th>
                     <th>Qty</th>
                     <th>Unit Price</th>
                     <th>Discount</th>
@@ -445,11 +459,14 @@
                                     'discount' => ($mrp - $product->price) * 1,
                                     'unitPrice' => $mrp,
                                     'rate' => $product->price,
+                                    'batch_no' => $product->batch ? $product->batch->batch_no : null,
+                                    'expiry_date' => $product->batch ? $product->batch->expiry_date : null,
                                 ];
                             }
                         } else {
                             // Group non-IMEI products by product_id and batch_id
-                            $groupKey = $product->product_id . '-' . ($product->batch_id ?? '0');
+                            // Group by product_id + price so FIFO-split batch rows merge into one clean receipt line
+                            $groupKey = $product->product_id . '-' . $product->price;
                             if (!isset($nonImeiGroups[$groupKey])) {
                                 $nonImeiGroups[$groupKey] = [
                                     'type' => 'grouped',
@@ -460,6 +477,8 @@
                                     'discount' => ($mrp - $product->price),
                                     'unitPrice' => $mrp,
                                     'rate' => $product->price,
+                                    'batch_no' => $product->batch ? $product->batch->batch_no : null,
+                                    'expiry_date' => $product->batch ? $product->batch->expiry_date : null,
                                 ];
                             }
                             $nonImeiGroups[$groupKey]['quantity'] += $product->quantity;
@@ -483,23 +502,20 @@
                             @elseif($item['product']->product->product_variation ?? false)
                                 ({{ substr($item['product']->product->product_variation, 0, 8) }})
                             @endif
-                            {{-- Show batch number and expiry date if available --}}
-                            @if($item['product']->batch)
-                                <br><span style="font-size: 9px;">
-                                    @if($item['product']->batch->batch_no)
-                                        Batch: {{ $item['product']->batch->batch_no }}
-                                    @endif
-                                    @if($item['product']->batch->expiry_date)
-                                        @if($item['product']->batch->batch_no) | @endif
-                                        Exp: {{ \Carbon\Carbon::parse($item['product']->batch->expiry_date)->format('d/m/Y') }}
-                                    @endif
-                                </span>
+                        </td>
+                        <td>{{ $item['batch_no'] ?? '-' }}</td>
+                        <td>
+                            @if(!empty($item['expiry_date']))
+                                {{ \Carbon\Carbon::parse($item['expiry_date'])->format('d/m/y') }}
+                            @else
+                                -
                             @endif
                         </td>
                         <td>
-                            {{ number_format($item['quantity'], 0) }}
+                            @php $fmtQty = fn($v) => rtrim(rtrim(number_format((float)$v, 4, '.', ''), '0'), '.'); @endphp
+                            {{ $fmtQty($item['quantity']) }}
                             @if(isset($item['free_quantity']) && $item['free_quantity'] > 0)
-                                +{{ $item['free_quantity'] }}F
+                                +{{ $fmtQty($item['free_quantity']) }}F
                             @endif
                         </td>
                         <td>{{ number_format($item['unitPrice'], 2) }}</td>
@@ -509,7 +525,7 @@
                     </tr>
                     @empty
                         <tr>
-                            <td colspan="7" style="text-align: center;">NO PRODUCTS FOUND</td>
+                    <td colspan="9" style="text-align: center;">NO PRODUCTS FOUND</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -557,9 +573,10 @@
                         @php
                             $totalQty = $products->sum('quantity');
                             $totalFreeQty = $products->sum('free_quantity');
+                            $fmtQ = fn($v) => rtrim(rtrim(number_format((float)$v, 4, '.', ''), '0'), '.');
                         @endphp
                         <span>Total Quantity:</span>
-                        <span>{{ $totalQty + $totalFreeQty }}@if($totalFreeQty > 0) ({{ $totalFreeQty }}F)@endif</span>
+                        <span>{{ $fmtQ($totalQty + $totalFreeQty) }}@if($totalFreeQty > 0) ({{ $fmtQ($totalFreeQty) }}F)@endif</span>
                     </div>
                     @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))
                         @if (isset($customer_outstanding_balance) && $customer_outstanding_balance > 0)

@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="format-detection" content="telephone=no, email=no, address=no">
     <title>{{ $location->name ?? 'Hardware' }} Invoice</title>
     @php
         $config = $receiptConfig ?? [];
@@ -15,6 +16,25 @@
         $lineSpacingFactor = $lineSpacing / 5;
         $finalLineHeight = round(1.2 * $spacingMultiplier * $lineSpacingFactor, 2);
         $fontFamilyCss = "'" . $fontFamily . "', Arial, 'Courier New', monospace";
+
+        // ── Dynamic page height ──────────────────────────────────────────
+        // Count unique display items (same logic used in the table below)
+        $productCount = 0;
+        $_seenKeys = [];
+        foreach (($products ?? []) as $_p) {
+            if ($_p->imeis && $_p->imeis->count() > 0) {
+                $productCount += $_p->imeis->count();
+            } else {
+                $_key = $_p->product_id . '-' . $_p->price;
+                if (!isset($_seenKeys[$_key])) {
+                    $_seenKeys[$_key] = true;
+                    $productCount++;
+                }
+            }
+        }
+        // ≤7 → half page (5.5in)  |  ≥8 → full page (11in)
+        $pageHeight    = $productCount >= 8 ? '11in'  : '5.5in';
+        $minHeight     = $productCount >= 8 ? '10.8in': '5.3in';
     @endphp
     <style>
         * {
@@ -23,45 +43,42 @@
             box-sizing: border-box;
         }
 
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
         /* =========================
        PRINT SETTINGS
        ========================= */
         @media print {
             @page {
-                size: 8.0in 5.5in;
-                /* Actual printable width of dot matrix paper */
-                margin: 0in;
-                /* Remove extra white borders */
+                size: 8.0in {{ $pageHeight }};
+                margin: 0.15in 0.25in;
             }
 
             html,
             body {
                 width: 8.0in;
-                height: 5.5in;
                 background: white !important;
                 -webkit-print-color-adjust: exact;
                 color-adjust: exact;
                 margin: 0;
                 padding: 0;
-                font-family: {{ $fontFamilyCss }};
+                font-family: Arial, sans-serif;
                 font-size: {{ $fontSizeBase }}px;
                 line-height: {{ $finalLineHeight }};
             }
 
             .invoice-page {
                 width: 8.0in;
-                margin: 0.2 auto;
-                padding: 0.5in 0.5in 0.05in 0.5in;
+                min-height: {{ $minHeight }};
+                margin: 0;
+                padding: 0.1in 0.25in 0.1in 0.25in;
                 background: white !important;
                 box-shadow: none;
-                page-break-inside: avoid;
-            }
-
-            /* Avoid page cutting */
-            .invoice-page,
-            .items-table,
-            .summary-section {
-                page-break-after: avoid;
+                display: flex;
+                flex-direction: column;
             }
         }
 
@@ -69,20 +86,21 @@
        SCREEN + PRINT COMMON STYLES
        ========================= */
         body {
-            font-family: {{ $fontFamilyCss }};
+            font-family: Arial, sans-serif;
             background-color: white;
             width: 100%;
             padding: 0;
             margin: 0;
+            text-transform: uppercase;
         }
 
         .invoice-page {
             max-width: 8.0in;
-            min-height: 5.5in;
+            min-height: {{ $minHeight }};
             margin: 0 auto;
             background-color: white;
             position: relative;
-            padding: 0.15in 0.15in 0.05in 0.15in;
+            padding: 0.1in 0.25in 0.08in 0.25in;
             display: flex;
             flex-direction: column;
         }
@@ -103,8 +121,8 @@
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 0.12in;
-            margin-top: 0.06in;
+            margin-bottom: 0.06in;
+            margin-top: 0.03in;
             padding: 0;
         }
 
@@ -120,12 +138,14 @@
         }
 
         .company-logo {
-            font-family: Arial, 'Courier New', monospace;
-            font-size: 26px;
+            font-family: Arial, sans-serif;
+            font-size: 22px;
             font-weight: bold;
-            letter-spacing: 1.5px;
-            margin-bottom: 4px;
-            text-transform: uppercase;            text-align: center;        }
+            letter-spacing: 1px;
+            margin-bottom: 3px;
+            text-transform: uppercase;
+            text-align: center;
+        }
 
         .company-address {
             font-size: 11px;
@@ -133,14 +153,12 @@
         }
 
         .customer-box {
-            margin: 0.1in 0 0 0;
-            border: 2px dashed #333;
-            padding: 4px 8px;
-            width: 3.8in;
-            /* Reduced width */
+            margin: 0;
+            border: 1px dashed #333;
+            padding: 4px 7px;
+            width: 3.5in;
+            flex-shrink: 0;
             background-color: white;
-            border-radius: 10px;
-
         }
 
         .customer-name-bold {
@@ -152,26 +170,28 @@
         }
 
         .outstanding-highlight {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: bold;
-            border-top: 1.5px solid #333;
-            padding-top: 6px;
-            margin-top: 6px;
+            border-top: 1px solid #333;
+            padding-top: 3px;
+            margin-top: 3px;
         }
 
         .customer-line {
             display: flex;
-            font-size: 11px;
-            margin: 2.5px 0;
+            font-size: 10px;
+            margin: 1px 0;
         }
 
         .customer-line label {
-            width: 0.8in;
-            /* Reduced width */
+            min-width: 0.75in;
+            width: 0.75in;
+            flex-shrink: 0;
         }
 
         .customer-line span {
             flex: 1;
+            word-break: break-word;
         }
 
         .type-credit {
@@ -193,15 +213,15 @@
 
         .invoice-title {
             text-align: center;
-            font-size: 20px;
+            font-size: 16px;
             font-weight: bold;
-            margin: 0;
+            margin: 3px 0 4px 0;
         }
 
         .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin: 0 0 0.2in 0;
+            margin: 0 0 0.06in 0;
         }
 
         .items-table thead {
@@ -209,12 +229,10 @@
         }
 
         .items-table th {
-            padding: 6px 4px;
-            /* Reduced padding */
-            font-size: 14px;
-            /* Increased font size by 2px */
+            padding: 3px 3px;
+            font-size: 11px;
             font-weight: bold;
-            border-bottom: 1px solid #666;
+            border-bottom: 1px solid #aaa;
         }
 
         .items-table th:first-child {
@@ -228,24 +246,28 @@
         }
 
         .items-table th:nth-child(3),
-        .items-table th:nth-child(4),
+        .items-table th:nth-child(4) {
+            text-align: left;
+            width: 0.85in;
+        }
+
         .items-table th:nth-child(5),
         .items-table th:nth-child(6),
-        .items-table th:nth-child(7) {
+        .items-table th:nth-child(7),
+        .items-table th:nth-child(8),
+        .items-table th:nth-child(9) {
             text-align: right;
-            width: 0.8in;
+            width: 0.7in;
             /* Reduced width */
         }
 
         .items-table td {
-            padding: 4px;
-            /* Reduced padding */
-            font-size: 12px;
-            /* Increased font size by 2px */
+            padding: 2px 3px;
+            font-size: 11px;
         }
 
         .items-table tbody tr {
-            border-bottom: 1px solid #999;
+            border-bottom: 0.5px solid #ddd;
         }
 
         .items-table td:first-child {
@@ -258,80 +280,109 @@
         }
 
         .items-table td:nth-child(3),
-        .items-table td:nth-child(4),
+        .items-table td:nth-child(4) {
+            text-align: left;
+            width: 0.85in;
+        }
+
         .items-table td:nth-child(5),
         .items-table td:nth-child(6),
-        .items-table td:nth-child(7) {
+        .items-table td:nth-child(7),
+        .items-table td:nth-child(8),
+        .items-table td:nth-child(9) {
             text-align: right;
-            width: 0.8in;
+            width: 0.7in;
         }
 
         .summary-section {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 0.1in;
-            /* Reduced gap */
-            margin-top: 0.22in;
-            font-size: 11px;
-            /* Reduced font size */
-            padding: 0;
-            flex-grow: 1;
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid #aaa;
+            border-bottom: 1px solid #aaa;
+            padding: 4px 0;
+            margin-top: 4px;
+            font-size: 10px;
+            break-inside: avoid;
+            page-break-inside: avoid;
         }
 
         .summary-column {
             display: flex;
             flex-direction: column;
+            min-width: 2in;
         }
 
         .summary-row {
             display: flex;
             justify-content: space-between;
-            padding: 2px 0;
-            /* Reduced padding */
+            padding: 1px 0;
             line-height: 1.3;
+            gap: 0.15in;
+        }
+
+        .summary-row span:last-child {
+            text-align: right;
+            white-space: nowrap;
         }
 
         .summary-row.bold {
             font-weight: bold;
             font-size: 10px;
-            margin-top: 3px;
+            margin-top: 2px;
         }
 
         .summary-row.total {
             font-weight: bold;
             font-size: 11px;
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1.5px solid #666;
+            margin-top: 4px;
+            padding-top: 4px;
+            border-top: 1px solid #666;
         }
 
         .credit-box {
-            border: 2px solid #333;
-            padding: 6px 4px;
-            margin: 8px 0 4px 0;
+            border: 1px solid #333;
+            padding: 3px 4px;
+            margin: 3px 0 2px 0;
             background-color: white;
         }
 
         .outstanding-box {
             border: 1px dashed #000;
-            padding: 5px 6px;
-            margin-top: 6px;
+            padding: 2px 4px;
+            margin-top: 3px;
             background-color: white;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+
+        .total-due-bar {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: bold;
+            border-top: 1.5px solid #333;
+            border-bottom: 1.5px solid #333;
+            padding: 3px 4px;
+            margin: 4px 0;
+            break-inside: avoid;
+            page-break-inside: avoid;
         }
 
         .footer-line {
             border-top: 1px solid #666;
             margin-top: auto;
-            padding: 0.12in 0 0 0;
+            padding: 0.06in 0 0 0;
             display: flex;
             justify-content: space-between;
             font-size: 9px;
+            break-before: avoid;
+            page-break-before: avoid;
         }
 
         .software-info {
             text-align: center;
-            font-size: 8.5px;
-            margin-top: 0.1in;
+            font-size: 8px;
+            margin-top: 0.04in;
         }
     </style>
 </head>
@@ -373,21 +424,6 @@
                     <label>Date</label>
                     <span>: {{ \Carbon\Carbon::parse($sale->sales_date)->format('Y-m-d h:i:s A') }}</span>
                 </div>
-                <div class="customer-line">
-                    <label>Invoice No</label>
-                    <span>: <strong class="invoice-no-bold">{{ $sale->invoice_no }}</strong>@if ($sale->total_due > 0)
-                            <span class="type-credit">Type: Credit</span>
-                        @endif
-                    </span>
-                </div>
-                @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))
-                    @if (isset($customer_outstanding_balance) && $customer_outstanding_balance != 0)
-                        <div class="customer-line outstanding-highlight">
-                            <label>Prev. Outstanding</label>
-                            <span>: {{ number_format($customer_outstanding_balance - $sale->total_due, 2) }}</span>
-                        </div>
-                    @endif
-                @endif
             </div>
         </div>
 
@@ -405,6 +441,7 @@
             @else
                 INVOICE
             @endif
+            &nbsp;-&nbsp;{{ $sale->invoice_no }}@if ($sale->total_due > 0) &nbsp;<span class="type-credit" style="font-size:12px;">TYPE: CREDIT</span>@endif
         </div>
 
         <table class="items-table">
@@ -412,6 +449,8 @@
                 <tr>
                     <th>SN</th>
                     <th>Item</th>
+                    <th>Batch No</th>
+                    <th>Expiry</th>
                     <th>Qty</th>
                     <th>Unit Price</th>
                     <th>Discount</th>
@@ -450,11 +489,14 @@
                                     'discount' => ($mrp - $product->price) * 1,
                                     'unitPrice' => $mrp,
                                     'rate' => $product->price,
+                                    'batch_no' => $product->batch ? $product->batch->batch_no : null,
+                                    'expiry_date' => $product->batch ? $product->batch->expiry_date : null,
                                 ];
                             }
                         } else {
                             // Group non-IMEI products by product_id and batch_id
-                            $groupKey = $product->product_id . '-' . ($product->batch_id ?? '0');
+                            // Group by product_id + price so FIFO-split batch rows merge into one clean receipt line
+                            $groupKey = $product->product_id . '-' . $product->price;
                             if (!isset($nonImeiGroups[$groupKey])) {
                                 $nonImeiGroups[$groupKey] = [
                                     'type' => 'grouped',
@@ -465,6 +507,8 @@
                                     'discount' => ($mrp - $product->price),
                                     'unitPrice' => $mrp,
                                     'rate' => $product->price,
+                                    'batch_no' => $product->batch ? $product->batch->batch_no : null,
+                                    'expiry_date' => $product->batch ? $product->batch->expiry_date : null,
                                 ];
                             }
                             $nonImeiGroups[$groupKey]['quantity'] += $product->quantity;
@@ -488,23 +532,20 @@
                             @elseif($item['product']->product->product_variation ?? false)
                                 ({{ substr($item['product']->product->product_variation, 0, 8) }})
                             @endif
-                            {{-- Show batch number and expiry date if available --}}
-                            @if($item['product']->batch)
-                                <br><span style="font-size: 9px;">
-                                    @if($item['product']->batch->batch_no)
-                                        Batch: {{ $item['product']->batch->batch_no }}
-                                    @endif
-                                    @if($item['product']->batch->expiry_date)
-                                        @if($item['product']->batch->batch_no) | @endif
-                                        Exp: {{ \Carbon\Carbon::parse($item['product']->batch->expiry_date)->format('d/m/Y') }}
-                                    @endif
-                                </span>
+                        </td>
+                        <td>{{ $item['batch_no'] ?? '-' }}</td>
+                        <td>
+                            @if(!empty($item['expiry_date']))
+                                {{ \Carbon\Carbon::parse($item['expiry_date'])->format('d/m/y') }}
+                            @else
+                                -
                             @endif
                         </td>
                         <td>
-                            {{ number_format($item['quantity'], 0) }}
+                            @php $fmtQty = fn($v) => rtrim(rtrim(number_format((float)$v, 4, '.', ''), '0'), '.'); @endphp
+                            {{ $fmtQty($item['quantity']) }}
                             @if(isset($item['free_quantity']) && $item['free_quantity'] > 0)
-                                +{{ $item['free_quantity'] }}F
+                                +{{ $fmtQty($item['free_quantity']) }}F
                             @endif
                         </td>
                         <td>{{ number_format($item['unitPrice'], 2) }}</td>
@@ -514,7 +555,7 @@
                     </tr>
                     @empty
                         <tr>
-                            <td colspan="7" style="text-align: center;">NO PRODUCTS FOUND</td>
+                    <td colspan="9" style="text-align: center;">NO PRODUCTS FOUND</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -553,6 +594,7 @@
             @endphp
 
             <div class="summary-section">
+                {{-- LEFT: items count & qty --}}
                 <div class="summary-column">
                     <div class="summary-row">
                         <span>Total Items:</span>
@@ -562,68 +604,27 @@
                         @php
                             $totalQty = $products->sum('quantity');
                             $totalFreeQty = $products->sum('free_quantity');
+                            $fmtQ = fn($v) => rtrim(rtrim(number_format((float)$v, 4, '.', ''), '0'), '.');
                         @endphp
-                        <span>Total Quantity:</span>
-                        <span>{{ $totalQty + $totalFreeQty }}@if($totalFreeQty > 0) ({{ $totalFreeQty }}F)@endif</span>
+                        <span>Total Qty:</span>
+                        <span>{{ $fmtQ($totalQty + $totalFreeQty) }}@if($totalFreeQty > 0) ({{ $fmtQ($totalFreeQty) }}F)@endif</span>
                     </div>
-                    @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))
-                        @if (isset($customer_outstanding_balance) && $customer_outstanding_balance > 0)
-                            @php
-                                // Calculate total unpaid return amount for this customer
-                                $unpaidReturnAmount = $sale->customer_id && $sale->customer_id != 1
-                                    ? \App\Models\SalesReturn::where('customer_id', $sale->customer_id)
-                                        ->where('total_due', '>', 0)
-                                        ->sum('total_due')
-                                    : 0;
-                            @endphp
-                            <div class="outstanding-box">
-                                <div class="summary-row" style="font-size: 10px; margin: 0 0 3px 0;">
-                                    <span>Previous Balance:</span>
-                                    <span>{{ number_format($previous_outstanding, 2) }}</span>
-                                </div>
-                                @if ($unpaidReturnAmount > 0)
-                                    <div class="summary-row" style="font-size: 10px; margin: 0 0 3px 0;">
-                                        <span>Return:</span>
-                                        <span>{{ number_format($unpaidReturnAmount, 2) }}</span>
-                                    </div>
-                                @endif
-                                @if ($sale->total_due > 0)
-                                    <div class="summary-row" style="font-size: 10px; margin: 0 0 5px 0; padding-bottom: 4px; border-bottom: 1px solid #999;">
-                                        <span>*Current Credit:</span>
-                                        <span>{{ number_format($sale->total_due, 2) }}</span>
-                                    </div>
-                                @endif
-                                <div class="summary-row" style="font-size: 13px; font-weight: bold; letter-spacing: 0.3px; margin: 0;">
-                                    <span>TOTAL DUE:</span>
-                                    <span>{{ number_format($customer_outstanding_balance, 2) }}</span>
-                                </div>
-                            </div>
-                        @endif
-                    @endif
                 </div>
 
-                <div class="summary-column">
-                    <div class="summary-row">
-                        <span>Total Discounts:</span>
-                        <span>{{ number_format($total_all_discounts, 2) }}</span>
-                    </div>
+                {{-- RIGHT: discount & totals --}}
+                <div class="summary-column" style="text-align:right;">
+                    @if ($total_all_discounts > 0)
+                        <div class="summary-row">
+                            <span>Discount:</span>
+                            <span>{{ number_format($total_all_discounts, 2) }}</span>
+                        </div>
+                    @endif
                     @if (!is_null($sale->shipping_charges) && $sale->shipping_charges > 0)
                         <div class="summary-row">
-                            <span>Shipping Charges:</span>
+                            <span>Shipping:</span>
                             <span>{{ number_format($sale->shipping_charges, 2) }}</span>
                         </div>
                     @endif
-                    <div class="summary-row">
-                        <span>{{ in_array($sale->status, ['quotation', 'draft']) || (isset($sale->transaction_type) && $sale->transaction_type === 'sale_order') ? 'Estimated Total:' : 'Amount Payable:' }}</span>
-                        <span>{{ number_format($sale->final_total, 2) }}</span>
-                    </div>
-                </div>
-
-                <div class="summary-column">
-                    <div class="summary-row">
-                        <span>Discount:</span>
-                        <span>{{ number_format($total_all_discounts, 2) }}</span>
-                    </div>
                     <div class="summary-row bold">
                         <span>{{ in_array($sale->status, ['quotation', 'draft']) || (isset($sale->transaction_type) && $sale->transaction_type === 'sale_order') ? 'Estimated Total:' : 'Bill Total:' }}</span>
                         <span>{{ number_format($sale->final_total, 2) }}</span>
@@ -642,6 +643,41 @@
                     @endif
                 </div>
             </div>
+
+            {{-- Outstanding balance block (credit customers only) --}}
+            @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))
+                @if (isset($customer_outstanding_balance) && $customer_outstanding_balance > 0)
+                    @php
+                        $unpaidReturnAmount = $sale->customer_id && $sale->customer_id != 1
+                            ? \App\Models\SalesReturn::where('customer_id', $sale->customer_id)
+                                ->where('total_due', '>', 0)
+                                ->sum('total_due')
+                            : 0;
+                    @endphp
+                    <div style="font-size:10px; margin-top:3px;">
+                        <div class="summary-row">
+                            <span>Prev. Balance:</span>
+                            <span>{{ number_format($previous_outstanding, 2) }}</span>
+                        </div>
+                        @if ($unpaidReturnAmount > 0)
+                            <div class="summary-row">
+                                <span>Return:</span>
+                                <span>{{ number_format($unpaidReturnAmount, 2) }}</span>
+                            </div>
+                        @endif
+                        @if ($sale->total_due > 0)
+                            <div class="summary-row">
+                                <span>Current Credit:</span>
+                                <span>{{ number_format($sale->total_due, 2) }}</span>
+                            </div>
+                        @endif
+                    </div>
+                    <div class="total-due-bar">
+                        <span>TOTAL DUE:</span>
+                        <span>{{ number_format($customer_outstanding_balance, 2) }}</span>
+                    </div>
+                @endif
+            @endif
 
             {{-- Only show payment method for final sales, not for quotations, drafts, or sale orders --}}
             @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))

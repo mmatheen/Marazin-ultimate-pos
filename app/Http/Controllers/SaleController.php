@@ -2402,12 +2402,10 @@ class SaleController extends Controller
         foreach ($batchDeductions as $deduction) {
             // Create sales_product record for this batch
             // Note: subtotal = quantity × price (calculated, not stored)
-            // Calculate proportional free quantity for this batch deduction
-            $proportionalFreeQty = ($freeQuantity > 0 && $productData['quantity'] > 0)
-                ? ($deduction['quantity'] / $totalQuantity) * $freeQuantity
-                : 0;
-
-            $paidQtyForBatch = $deduction['quantity'] - $proportionalFreeQty;
+            // ✅ FIX: Use the already-correct paid_qty and free_qty from the FIFO deduction loop
+            // instead of recalculating proportionally (which caused fractional qty splits).
+            $proportionalFreeQty = $deduction['free_qty'];
+            $paidQtyForBatch = $deduction['paid_qty'];
 
             $saleProduct = SalesProduct::create([
                 'sale_id' => $saleId,
