@@ -3251,13 +3251,17 @@ class SaleController extends Controller
             // 1 = STRICT mode (enforce permissions - only users with permission can edit)
             // 0 = FLEXIBLE mode (free editing - all users can edit regardless of permissions)
             $priceValidationEnabled = (int)(\App\Models\Setting::value('enable_price_validation') ?? 1);
+            $freeQtyEnabled = (int)(\App\Models\Setting::value('enable_free_qty') ?? 1);
+            $canUseFreeQty = $freeQtyEnabled && $user && $user->can('use free quantity');
 
             return view('sell.pos', [
                 'saleDetails' => $saleDetails,
                 'allowedPriceTypes' => $allowedPriceTypes,
                 'canEditUnitPrice' => $canEditUnitPrice,
                 'canEditDiscount' => $canEditDiscount,
-                'priceValidationEnabled' => $priceValidationEnabled
+                'priceValidationEnabled' => $priceValidationEnabled,
+                'freeQtyEnabled' => $freeQtyEnabled,
+                'canUseFreeQty' => $canUseFreeQty,
             ]);
         } catch (ModelNotFoundException $e) {
             return response()->json(['status' => 404, 'message' => 'Sale not found.']);
