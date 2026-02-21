@@ -81,7 +81,7 @@ class Sale extends Model
 
     public function products()
     {
-        return $this->hasMany(SalesProduct::class);
+        return $this->hasMany(SalesProduct::class)->orderBy('id');
     }
 
     public function customer()

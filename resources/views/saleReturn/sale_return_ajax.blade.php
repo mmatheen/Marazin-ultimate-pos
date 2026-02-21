@@ -19,6 +19,7 @@
         window.locationCache = window.locationCache || null;
         window.invoiceSearchInProgress = false;
         window.productSearchInProgress = false;
+        const canUseFreeQty = {!! json_encode($canUseFreeQty ?? false) !!};
 
         // Debounce utility function
         function debounce(func, wait) {
@@ -370,8 +371,9 @@
                                        data-batch-id="${batchId}">
                                 <div class="quantity-error">Quantity cannot exceed<br>the available amount.</div>
                             </td>
-                            <td>${freeQuantity} ${unitDisplay}</td>
-                            <td>
+                            ${canUseFreeQty ? `<td>${freeQuantity} ${unitDisplay}</td>` : ''}
+                            ${canUseFreeQty
+                                ? `<td>
                                 <input type="number" class="form-control return-free-quantity"
                                        name="products[${index}][free_quantity]"
                                        placeholder="Free qty"
@@ -380,7 +382,8 @@
                                        data-product-id="${productData.id}"
                                        data-batch-id="${batchId}">
                                 <div class="free-quantity-error">Free quantity cannot exceed<br>the available amount.</div>
-                            </td>
+                            </td>`
+                                : `<td class="d-none"><input type="number" class="return-free-quantity" name="products[${index}][free_quantity]" value="0" style="display:none"></td>`}
                             <td class="return-subtotal">Rs. ${subtotal.toFixed(2)}</td>
                             <td><button type="button" class="btn btn-danger remove-product"><i class="fas fa-trash-alt"></i></button></td>
                         </tr>
@@ -585,8 +588,9 @@
                                                            data-batch-id="${product.batch_id}">
                                                     <div class="quantity-error">Quantity cannot exceed<br>the available amount.</div>
                                                 </td>
-                                                <td>${freeQuantity > 0 ? `<del>${freeQuantity}</del>` : ''} ${currentFreeQuantity} ${unitDisplay}</td>
-                                                <td>
+                                                ${canUseFreeQty ? `<td>${freeQuantity > 0 ? '<del>' + freeQuantity + '</del>' : ''} ${currentFreeQuantity} ${unitDisplay}</td>` : ''}
+                                                ${canUseFreeQty
+                                                    ? `<td>
                                                     <input ${inputAttrs} class="form-control return-free-quantity"
                                                            name="products[${index}][free_quantity]"
                                                            placeholder="Free qty (optional)"
@@ -595,7 +599,8 @@
                                                            data-batch-id="${product.batch_id}"
                                                            value="0">
                                                     <div class="free-quantity-error">Free quantity cannot exceed<br>the available amount.</div>
-                                                </td>
+                                                </td>`
+                                                    : `<td class="d-none"><input type="number" class="return-free-quantity" name="products[${index}][free_quantity]" value="0" style="display:none"></td>`}
                                                 <td class="return-subtotal">Rs. 0.00</td>
                                                 <td><button type="button" class="btn btn-danger remove-product"><i class="fas fa-trash-alt"></i></button></td>
                                             </tr>
@@ -974,10 +979,10 @@
                     <td>
                         <input type="number" class="form-control return-quantity" name="products[${product.value}][quantity]" placeholder="Enter qty" min="0" step="any" data-unit-price="${product.retail_price}" data-product-id="${product.value}">
                     </td>
-                    <td>${freeStockDisplay} Pcs</td>
-                    <td>
-                        <input type="number" class="form-control return-free-quantity" name="products[${product.value}][free_quantity]" placeholder="Free qty" min="0" step="any" data-product-id="${product.value}" value="0">
-                    </td>
+                    ${canUseFreeQty ? `<td>${freeStockDisplay} Pcs</td>` : ''}
+                    ${canUseFreeQty
+                        ? `<td><input type="number" class="form-control return-free-quantity" name="products[${product.value}][free_quantity]" placeholder="Free qty" min="0" step="any" data-product-id="${product.value}" value="0"></td>`
+                        : `<td class="d-none"><input type="number" class="return-free-quantity" name="products[${product.value}][free_quantity]" value="0" style="display:none"></td>`}
                     <td class="return-subtotal">Rs. 0.00</td>
                     <td><button type="button" class="btn btn-danger remove-product"><i class="fas fa-trash-alt"></i></button></td>
                 </tr>
@@ -1667,7 +1672,7 @@
                                                         <td>${product.product.product_name}</td>
                                                         <td>${product.product.sku}</td>
                                                         <td>${product.quantity}</td>
-                                                        <td>${freeQty}</td>
+                                                        ${canUseFreeQty ? `<td>${freeQty}</td>` : ''}
                                                         <td>${product.return_price}</td>
                                                         <td>${product.subtotal}</td>
                                                     </tr>

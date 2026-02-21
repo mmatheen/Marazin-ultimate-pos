@@ -1,5 +1,8 @@
 @extends('layout.layout')
 @section('content')
+@php
+    $canUseFreeQty = (bool)(\App\Models\Setting::value('enable_free_qty') ?? 1) && auth()->user()?->can('use free quantity');
+@endphp
     <div class="content container-fluid">
         <style>
             .login-fields1,
@@ -178,7 +181,7 @@
                                             <th>Product Name</th>
                                             <th>SKU</th>
                                             <th>Quantity</th>
-                                            <th>Free Qty</th>
+                                            @if($canUseFreeQty)<th>Free Qty</th>@endif
                                             <th>Price</th>
                                             <th>Total</th>
                                         </tr>

@@ -192,7 +192,8 @@ class RolesAndPermissionsSeeder extends Seeder
                 'select special price',
                 'select max retail price',
                 'edit unit price in pos',
-                'edit discount in pos'
+                'edit discount in pos',
+                'use free quantity'
             ],
 
             // 5. Purchase Management

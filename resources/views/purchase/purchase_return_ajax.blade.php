@@ -1,5 +1,6 @@
 <script>
     $(document).ready(function() {
+        const canUseFreeQty = {!! json_encode($canUseFreeQty ?? false) !!};
         const csrfToken = $('meta[name="csrf-token"]').attr('content');
 
         // Initialize jQuery Validation Plugin
@@ -411,14 +412,17 @@
                         ${allowDecimal ? 'step="0.01"' : 'step="1"'}
                         max="${firstBatch.quantity}">
                     </td>
-                    <td>
+                    ${canUseFreeQty
+                        ? `<td>
                         <input type="number" class="form-control purchase-free-quantity"
                         value="${initialFreeQty}"
                         placeholder="Enter return free qty"
                         min="0"
                         ${allowDecimal ? 'step="0.01"' : 'step="1"'}
                         max="${firstBatch.free_quantity || 0}">
-                    </td>
+                    </td>`
+                        : `<td class="d-none"><input type="number" class="purchase-free-quantity" value="0" style="display:none"></td>`
+                    }
                     <td class="unit-price amount">${unitPrice}</td>
                     <td class="sub-total amount">${subtotal.toFixed(2)}</td>
                     <td><button class="btn btn-danger btn-sm delete-product"><i class="fas fa-trash"></i></button></td>
@@ -732,7 +736,7 @@
                         row.append('<td>' + product.product.product_name + '</td>');
                         row.append('<td>' + product.product.sku + '</td>');
                         row.append('<td>' + product.quantity + '</td>');
-                        row.append('<td>' + (product.free_quantity || 0) + '</td>');
+                        if (canUseFreeQty) { row.append('<td>' + (product.free_quantity || 0) + '</td>'); }
                         row.append('<td>' + product.unit_price + '</td>');
                         row.append('<td>' + product.subtotal + '</td>');
                         productsTable.append(row);

@@ -45,6 +45,11 @@ class SettingController extends Controller
         // 0 (unchecked) = FLEXIBLE mode - free editing (all users can edit prices/discounts regardless of permissions)
         $validated['enable_price_validation'] = $request->has('enable_price_validation') ? 1 : 0;
 
+        // Handle free quantity feature toggle (super admin only setting)
+        // 1 = Free Qty column visible and usable by users with 'use free quantity' permission
+        // 0 = Free Qty column completely hidden for all users
+        $validated['enable_free_qty'] = $request->has('enable_free_qty') ? 1 : 0;
+
         // Handle logo upload
         if ($request->hasFile('logo')) {
             if ($setting->logo) {

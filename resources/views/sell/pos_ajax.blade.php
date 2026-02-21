@@ -236,6 +236,7 @@
             currentEditingSaleId = null;
             isEditingFinalizedSale = false;
             window.originalSaleData = null;
+            _editModeToastShown = false;
             // Reset the invoice number display
             const saleInvoiceElement = document.getElementById('sale-invoice-no');
             if (saleInvoiceElement) {
@@ -910,13 +911,18 @@
         /**
          * Update all existing billing rows with new pricing based on customer type
          */
+        let _editModeToastShown = false;
         function updateAllBillingRowsPricing(newCustomerType) {
             // Skip price updates during edit mode to preserve original sale data
             if (isEditing) {
                 console.log('🔒 Edit mode active: Preserving original sale prices. Customer type pricing updates disabled.');
-                toastr.info('Edit Mode: Original sale prices preserved. Customer pricing not applied.', 'Edit Mode Active');
+                if (!_editModeToastShown) {
+                    _editModeToastShown = true;
+                    toastr.info('Edit Mode: Original sale prices preserved. Customer pricing not applied.', 'Edit Mode Active');
+                }
                 return;
             }
+            _editModeToastShown = false;
 
             const billingBody = document.getElementById('billing-body');
             const existingRows = billingBody ? billingBody.querySelectorAll('tr') : [];
@@ -3362,15 +3368,15 @@
                     if (product.unit && (product.unit.allow_decimal === true || product.unit.allow_decimal === 1)) {
                         const paidDisplay = parseFloat(paidStock).toFixed(4).replace(/\.?0+$/, '');
                         const freeDisplay = parseFloat(freeStock).toFixed(4).replace(/\.?0+$/, '');
-                        // Only show free stock if it's greater than 0
-                        if (freeStock > 0) {
+                        // Only show free stock split if free qty feature is enabled and user has permission
+                        if (showFreeQtyColumn && freeStock > 0) {
                             quantityDisplay = `<span style="font-size: 0.85em">Paid: ${paidDisplay}</span><br><span style="font-size: 0.85em">Free: ${freeDisplay}</span>`;
                         } else {
                             quantityDisplay = `<span style="font-size: 0.85em">${paidDisplay} ${unitName} in stock</span>`;
                         }
                     } else {
-                        // Only show free stock if it's greater than 0
-                        if (freeStock > 0) {
+                        // Only show free stock split if free qty feature is enabled and user has permission
+                        if (showFreeQtyColumn && freeStock > 0) {
                             quantityDisplay = `<span style="font-size: 0.85em">Paid: ${parseInt(paidStock, 10)}</span><br><span style="font-size: 0.85em">Free: ${parseInt(freeStock, 10)}</span>`;
                         } else {
                             quantityDisplay = `<span style="font-size: 0.85em">${parseInt(paidStock, 10)} ${unitName} in stock</span>`;
@@ -3506,15 +3512,15 @@
                     if (product.unit && (product.unit.allow_decimal === true || product.unit.allow_decimal === 1)) {
                         const paidDisplay = parseFloat(paidStock).toFixed(4).replace(/\.?0+$/, '');
                         const freeDisplay = parseFloat(freeStock).toFixed(4).replace(/\.?0+$/, '');
-                        // Only show free stock if it's greater than 0
-                        if (freeStock > 0) {
+                        // Only show free stock split if free qty feature is enabled and user has permission
+                        if (showFreeQtyColumn && freeStock > 0) {
                             quantityDisplay = `Paid: ${paidDisplay}<br>Free: ${freeDisplay}`;
                         } else {
                             quantityDisplay = `${paidDisplay} ${unitName} in stock`;
                         }
                     } else {
-                        // Only show free stock if it's greater than 0
-                        if (freeStock > 0) {
+                        // Only show free stock split if free qty feature is enabled and user has permission
+                        if (showFreeQtyColumn && freeStock > 0) {
                             quantityDisplay = `Paid: ${parseInt(paidStock, 10)}<br>Free: ${parseInt(freeStock, 10)}`;
                         } else {
                             quantityDisplay = `${parseInt(paidStock, 10)} ${unitName} in stock`;
@@ -5811,7 +5817,7 @@
             ${priceColumnsHtml}
             <td class="text-center">
                 ${locationBatch.quantity} PC(s)
-                ${batch.free_qty && batch.free_qty > 0 ? `<br><small style="color: #28a745; font-weight: 600;">FREE: ${batch.free_qty} (${batch.free_qty_percentage}%)</small>` : ''}
+                ${batch.free_qty && batch.free_qty > 0 && showFreeQtyColumn ? `<br><small style="color: #28a745; font-weight: 600;">FREE: ${batch.free_qty} (${batch.free_qty_percentage}%)</small>` : ''}
             </td>
             <td class="text-center">${buttonContent}</td>
         `;
@@ -7180,7 +7186,7 @@
         }
 
         async function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType,
-            saleQuantity = 1, imeis = [], discountType = null, discountAmount = null, selectedBatch = null, editFreeQuantity = 0) {
+            saleQuantity = 1, imeis = [], discountType = null, discountAmount = null, selectedBatch = null, editFreeQuantity = 0, isLoadingExisting = false) {
 
             console.log('===== addProductToBillingBody DEBUG =====');
             console.log('saleQuantity received:', saleQuantity, 'Type:', typeof saleQuantity);
@@ -7512,7 +7518,7 @@
                     const updatedSubtotal = newQuantity * finalPrice;
                     subtotalElement.textContent = formatAmountWithSeparators(updatedSubtotal.toFixed(2));
 
-                    // Move the updated row to the top of the billing body for better visibility
+                    // Always move the updated row to the top for better visibility
                     billingBody.insertBefore(existingRow, billingBody.firstChild);
 
                     // Add a subtle highlight effect to show the row was updated
@@ -7577,11 +7583,13 @@
             </div>
             <div style="font-size: 0.85em; color: #888; text-align:center;">${unitName}</div>
         </td>
-        <td class="text-center">
+        ${showFreeQtyColumn
+            ? `<td class="text-center">
             <input type="number" name="free_quantity[]" class="form-control free-quantity-input text-center" value="${editFreeQuantity || 0}" min="0" max="${adjustedBatchQuantity}" placeholder="Free" title="Free items (max: ${adjustedBatchQuantity})" step="${qtyInputStep}" data-max-stock="${adjustedBatchQuantity}" data-original-free-qty="${editFreeQuantity || 0}">
             ${freeQtyDisplayHtml}
             <small style="font-size: 0.7em; color: #666;" class="free-qty-debug">Max: ${adjustedBatchQuantity}</small>
-        </td>
+        </td>`
+            : `<td class="d-none"><input type="number" name="free_quantity[]" value="0" class="free-quantity-input"></td>`}
         <td class="text-center"><input type="number" name="discount_fixed[]" class="form-control fixed_discount text-center" value="${discountFixed.toFixed(2)}" ${(priceValidationEnabled === 1 && !canEditDiscount && !isEditing) ? 'readonly' : ''}></td>
         <td class="text-center"><input type="number" name="discount_percent[]" class="form-control percent_discount text-center" value="${priceValidationEnabled === 0 ? '' : discountPercent.toFixed(2)}" ${priceValidationEnabled === 0 ? 'readonly' : ((priceValidationEnabled === 1 && !canEditDiscount && !isEditing) ? 'readonly' : '')}></td>
         <td class="text-center">
@@ -7610,8 +7618,13 @@
                 imeiCount: imeis.length
             });
 
-            // Append the row first to ensure elements are available
-            billingBody.insertBefore(row, billingBody.firstChild);
+            // When loading existing sale products (edit mode restore), append to preserve original order
+            // When adding a new product (normal POS or new item during edit), prepend to show at top
+            if (isLoadingExisting) {
+                billingBody.appendChild(row);
+            } else {
+                billingBody.insertBefore(row, billingBody.firstChild);
+            }
 
             // Now query the elements after inserting into DOM
             const qtyDisplayCell = row.querySelector('.quantity-display');
@@ -9194,7 +9207,8 @@
                                     saleProduct.discount_type,
                                     saleProduct.discount_amount,
                                     editBatch, // Pass batch with free_qty
-                                    saleProduct.free_quantity || 0 // Pass existing free quantity for edit mode
+                                    saleProduct.free_quantity || 0, // Pass existing free quantity for edit mode
+                                    true // isLoadingExisting: append to preserve original bill order
                                 );
 
                                 console.log('Product added to billing:', saleProduct.product.product_name, {
@@ -11237,6 +11251,7 @@
                 // Reset editing mode
                 isEditing = false;
                 currentEditingSaleId = null;
+                _editModeToastShown = false;
 
                 resetToWalkingCustomer();
 

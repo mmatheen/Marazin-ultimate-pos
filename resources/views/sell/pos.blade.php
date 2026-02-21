@@ -558,7 +558,9 @@
                                                     <th class="text-center" style="width: 50px;">#</th>
                                                     <th>Product</th>
                                                     <th class="text-center">Quantity</th>
-                                                    <th class="text-center">Free Qty</th>
+                                                    @if($freeQtyEnabled && $canUseFreeQty)
+                                                    <th class="text-center" id="freeQtyTh">Free Qty</th>
+                                                    @endif
                                                     <th class="text-center">Discount (Rs)</th>
                                                     <th class="text-center">Discount (%)</th>
                                                     <th class="text-center">Unit Price</th>
@@ -1828,6 +1830,11 @@
             // When enabled (1): Enforce permissions - only users with permission can edit
             // When disabled (0): Flexible mode - all users can freely edit regardless of permissions
             const priceValidationEnabled = {!! json_encode((int)($priceValidationEnabled ?? 1)) !!};
+
+            // Free Quantity feature flags
+            const freeQtyEnabled = {!! json_encode((bool)($freeQtyEnabled ?? true)) !!};
+            const canUseFreeQty = {!! json_encode((bool)($canUseFreeQty ?? false)) !!};
+            const showFreeQtyColumn = freeQtyEnabled && canUseFreeQty;
 
             // Debug: Log permission and validation settings
             console.log('🔐 POS Price Control Settings:', {

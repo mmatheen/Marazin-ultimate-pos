@@ -15,6 +15,7 @@ class Setting extends Model
         'logo',
         'favicon',
         'enable_price_validation',
+        'enable_free_qty',
     ];
 
     // Accessor: Full URL for logo

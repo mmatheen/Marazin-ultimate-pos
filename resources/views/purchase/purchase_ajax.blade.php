@@ -1,5 +1,6 @@
 <script type="text/javascript">
     $(document).ready(function() {
+        const canUseFreeQty = {!! json_encode($canUseFreeQty ?? false) !!};
         // Add CSS for batch history styling
         if (!$('#batch-history-styles').length) {
             $('<style id="batch-history-styles">')
@@ -558,9 +559,10 @@
             <td>
                 <input type="number" class="form-control purchase-quantity" value="${prices.quantity || 1}" min="${quantityMin}" step="${quantityStep}" pattern="${quantityPattern}" data-allow-decimal="${allowDecimal}">
             </td>
-            <td>
-                <input type="number" class="form-control free-quantity" value="${prices.free_quantity || 0}" min="0" step="${quantityStep}" pattern="${quantityPattern}" data-allow-decimal="${allowDecimal}" placeholder="Free qty">
-            </td>
+            ${canUseFreeQty
+                ? `<td><input type="number" class="form-control free-quantity" value="${prices.free_quantity || 0}" min="0" step="${quantityStep}" pattern="${quantityPattern}" data-allow-decimal="${allowDecimal}" placeholder="Free qty"></td>`
+                : `<td class="d-none"><input type="number" class="free-quantity" value="${prices.free_quantity || 0}" style="display:none"></td>`
+            }
             <td>
                 <input type="number" class="form-control product-price" value="${unitCost.toFixed(2)}" min="0">
             </td>
@@ -2559,7 +2561,7 @@
                             row.append('<td>' + (product.product ? product.product.sku :
                                 'N/A') + '</td>');
                             row.append('<td>' + product.quantity + '</td>');
-                            row.append('<td>' + (product.free_quantity || 0) + '</td>');
+                            if (canUseFreeQty) { row.append('<td>' + (product.free_quantity || 0) + '</td>'); }
                             row.append('<td>' + product.unit_cost + '</td>');
                             row.append('<td>' + product.total + '</td>');
                             productsTable.append(row);
@@ -3611,8 +3613,7 @@
                                     '</td>');
                                 row.append('<td>' + product.quantity +
                                     '</td>');
-                                row.append('<td>' + (product.free_quantity || 0) +
-                                    '</td>');
+                                if (canUseFreeQty) { row.append('<td>' + (product.free_quantity || 0) + '</td>'); }
                                 row.append('<td>' + (product.unit_cost ||
                                         0) +
                                     '</td>');

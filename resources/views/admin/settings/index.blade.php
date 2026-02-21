@@ -124,6 +124,41 @@
                                 </div>
                             </div>
 
+                            {{-- Free Quantity Feature Toggle (Master Super Admin Only) --}}
+                            @if(auth()->user()->hasRole('Master Super Admin'))
+                            <div class="col-md-12">
+                                <div class="card border-success shadow-sm">
+                                    <div class="card-header bg-success text-white">
+                                        <h5 class="mb-0"><i class="fas fa-gift me-2"></i>Free Quantity Feature</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <h6 class="mb-1">Enable Free Quantity (Bonus Items)</h6>
+                                                <p class="text-muted small mb-0">
+                                                    <strong>ON:</strong> Free Qty column visible in POS for users with "use free quantity" permission<br>
+                                                    <strong>OFF:</strong> Free Qty column completely hidden for all users
+                                                </p>
+                                            </div>
+                                            <div class="form-check form-switch" style="transform: scale(1.5);">
+                                                <input class="form-check-input" type="checkbox" role="switch"
+                                                    name="enable_free_qty" id="enable_free_qty"
+                                                    {{ old('enable_free_qty', $setting->enable_free_qty ?? 1) ? 'checked' : '' }}>
+                                            </div>
+                                        </div>
+                                        <div class="alert alert-info mt-3 mb-0">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            <small>
+                                                When <strong>enabled</strong>, go to <a href="{{ route('group-role-and-permission-view') }}" class="alert-link">Role & Permissions</a>
+                                                to assign <strong>"use free quantity"</strong> to roles that should allow bonus item entry.
+                                                Free Qty is also tracked in Purchase, Purchase Return, and Sale Return.
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+
                         </div>
 
                         <div class="text-end mt-4">

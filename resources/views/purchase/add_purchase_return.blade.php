@@ -1,5 +1,8 @@
 @extends('layout.layout')
 @section('content')
+@php
+    $canUseFreeQty = (bool)(\App\Models\Setting::value('enable_free_qty') ?? 1) && auth()->user()?->can('use free quantity');
+@endphp
     <div class="content container-fluid">
         <div class="row">
             <div class="page-header">
@@ -150,7 +153,7 @@
                                             <th>Product</th>
                                             <th>Batch</th>
                                             <th>Return Quantity</th>
-                                            <th>Return Free Qty</th>
+                                            @if($canUseFreeQty)<th>Return Free Qty</th>@endif
                                             <th>Unit Price</th>
                                             <th>Subtotal</th>
                                             <th><i class="fas fa-trash"></i></th>

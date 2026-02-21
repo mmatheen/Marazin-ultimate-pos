@@ -173,7 +173,8 @@ class SaleController extends Controller
 
     public function addSale()
     {
-        return view('sell.add_sale');
+        $canUseFreeQty = (bool)(\App\Models\Setting::value('enable_free_qty') ?? 1) && auth()->user()?->can('use free quantity');
+        return view('sell.add_sale', compact('canUseFreeQty'));
     }
 
     public function pos()
@@ -206,10 +207,14 @@ class SaleController extends Controller
         // 0 = FLEXIBLE mode (free editing - all users can edit regardless of permissions)
         $priceValidationEnabled = (int)(\App\Models\Setting::value('enable_price_validation') ?? 1);
 
+        // Free Quantity feature: global setting + per-user permission
+        $freeQtyEnabled = (int)(\App\Models\Setting::value('enable_free_qty') ?? 1);
+        $canUseFreeQty = $freeQtyEnabled && $user && $user->can('use free quantity');
+
         // Pass feature flag to view
         $useModularPOS = env('USE_MODULAR_POS', false); // Default to false (old system) for safety
 
-        return view('sell.pos', compact('allowedPriceTypes', 'canEditUnitPrice', 'canEditDiscount', 'priceValidationEnabled', 'useModularPOS'));
+        return view('sell.pos', compact('allowedPriceTypes', 'canEditUnitPrice', 'canEditDiscount', 'priceValidationEnabled', 'useModularPOS', 'freeQtyEnabled', 'canUseFreeQty'));
     }
 
     public function draft()
@@ -945,7 +950,8 @@ class SaleController extends Controller
                 ]);
             }
 
-            return view('sell.add_sale', compact('sale'));
+            $canUseFreeQty = (bool)(\App\Models\Setting::value('enable_free_qty') ?? 1) && auth()->user()?->can('use free quantity');
+            return view('sell.add_sale', compact('sale', 'canUseFreeQty'));
         } catch (ModelNotFoundException $e) {
             if (request()->ajax() || request()->is('api/*')) {
                 return response()->json(['message' => 'Sale not found'], 404);

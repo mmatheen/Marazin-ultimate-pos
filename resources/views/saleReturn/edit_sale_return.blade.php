@@ -1,5 +1,8 @@
 @extends('layout.layout')
 @section('content')
+@php
+    $canUseFreeQty = (bool)(\App\Models\Setting::value('enable_free_qty') ?? 1) && auth()->user()?->can('use free quantity');
+@endphp
     <div class="container-fluid my-5">
         <div class="row">
             <div class="page-header">
@@ -184,8 +187,8 @@
                                             <th>Return Price</th>
                                             <th id="stockColumn">{{ $salesReturn->sale_id ? 'Sales Quantity' : 'Current Total Stock' }}</th>
                                             <th>Return Qty</th>
-                                            <th id="freeStockColumn">{{ $salesReturn->sale_id ? 'Sales Free Qty' : 'Current Free Stock' }}</th>
-                                            <th>Return Free Qty</th>
+                                            @if($canUseFreeQty)<th id="freeStockColumn">{{ $salesReturn->sale_id ? 'Sales Free Qty' : 'Current Free Stock' }}</th>@endif
+                                            @if($canUseFreeQty)<th>Return Free Qty</th>@endif
                                             <th>Subtotal</th>
                                             <th>Action</th>
                                         </tr>

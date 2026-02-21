@@ -1,5 +1,8 @@
 @extends('layout.layout')
 @section('content')
+@php
+    $canUseFreeQty = (bool)(\App\Models\Setting::value('enable_free_qty') ?? 1) && auth()->user()?->can('use free quantity');
+@endphp
     <div class="container-fluid my-5">
         <div class="row">
             <div class="page-header">
@@ -173,8 +176,8 @@
                                     <th>Retail Price</th>
                                     <th id="stockColumn">Sales Quantity</th>
                                     <th>Return Quantity</th>
-                                    <th id="freeStockColumn">Sales Free Qty</th>
-                                    <th>Return Free Qty</th>
+                                    @if($canUseFreeQty)<th id="freeStockColumn">Sales Free Qty</th>@endif
+                                    @if($canUseFreeQty)<th>Return Free Qty</th>@endif
                                     <th>Return Subtotal</th>
                                     <th>Action</th>
                                 </tr>
@@ -351,7 +354,7 @@
                     productSearchSection.style.display = 'none';
                     customerSelectionSection.style.display = 'none';
                     stockColumn.textContent = 'Sales Quantity';
-                    freeStockColumn.textContent = 'Sales Free Qty';
+                    if (freeStockColumn) freeStockColumn.textContent = 'Sales Free Qty';
                     setFieldState(true);
 
                     // Only use hidden input for customer_id
@@ -362,7 +365,7 @@
                     productSearchSection.style.display = 'block';
                     customerSelectionSection.style.display = 'block';
                     stockColumn.textContent = 'Current Total Stock';
-                    freeStockColumn.textContent = 'Current Free Stock';
+                    if (freeStockColumn) freeStockColumn.textContent = 'Current Free Stock';
                     setFieldState(false);
 
                     // Only use select input for customer_id

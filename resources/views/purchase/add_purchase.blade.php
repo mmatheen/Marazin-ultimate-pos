@@ -1,5 +1,8 @@
 @extends('layout.layout')
 @section('content')
+@php
+    $canUseFreeQty = (bool)(\App\Models\Setting::value('enable_free_qty') ?? 1) && auth()->user()?->can('use free quantity');
+@endphp
     <div class="content container-fluid">
         <style>
             /* Compact and Neat Table Styles */
@@ -349,7 +352,7 @@
                                                 <th>#</th>
                                                 <th>Product<br>Name</th>
                                                 <th>Purchase<br>Quantity</th>
-                                                <th>Free<br>Qty</th>
+                                                @if($canUseFreeQty)<th>Free<br>Qty</th>@endif
                                                 <th>Unit Cost<br>(Before Discount)</th>
                                                 <th>Discount<br>Percent</th>
                                                 <th>Unit<br>Cost</th>

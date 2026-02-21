@@ -191,7 +191,7 @@
                                             <tr>
                                                 <th>Product</th>
                                                 <th>Quantity</th>
-                                                <th>Free Qty</th>
+                                                @if($canUseFreeQty ?? false)<th>Free Qty</th>@endif
                                                 <th>Unit Price</th>
                                                 <th>Discount</th>
                                                 <th>Price inc.Dis</th>

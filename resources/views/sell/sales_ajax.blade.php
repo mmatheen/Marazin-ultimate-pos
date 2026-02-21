@@ -1,6 +1,7 @@
 <script>
     $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); // For CSRF token
+        const canUseFreeQty = {!! json_encode($canUseFreeQty ?? false) !!};
 
         // Check for URL parameters and auto-select filters
         const urlParams = new URLSearchParams(window.location.search);
@@ -2116,9 +2117,9 @@
             <td>
                 <input type="number" class="form-control quantity-input" value="${product.quantity}" min="1">
             </td>
-            <td>
-                <input type="number" class="form-control free-quantity-input" value="${product.free_quantity || 0}" min="0" placeholder="Free" title="Free items (promotional giveaway)">
-            </td>
+            ${canUseFreeQty
+                ? `<td><input type="number" class="form-control free-quantity-input" value="${product.free_quantity || 0}" min="0" placeholder="Free" title="Free items (promotional giveaway)"></td>`
+                : `<td class="d-none"><input type="number" class="free-quantity-input" value="0" style="display:none"></td>`}
             <td>
                 <input type="number" class="form-control price-input" value="${finalPrice.toFixed(2)}" min="0">
             </td>
