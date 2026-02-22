@@ -25,7 +25,7 @@
             if ($_p->imeis && $_p->imeis->count() > 0) {
                 $productCount += $_p->imeis->count();
             } else {
-                $_key = $_p->product_id . '-' . $_p->price;
+                $_key = $_p->product_id . '-' . ($_p->batch_id ?? 'null') . '-' . $_p->price;
                 if (!isset($_seenKeys[$_key])) {
                     $_seenKeys[$_key] = true;
                     $productCount++;
@@ -495,8 +495,9 @@
                             }
                         } else {
                             // Group non-IMEI products by product_id and batch_id
-                            // Group by product_id + price so FIFO-split batch rows merge into one clean receipt line
-                            $groupKey = $product->product_id . '-' . $product->price;
+                            // Group by product_id + batch_id + price so different batches always show as
+                            // separate lines. FIFO rows for the exact same batch still merge correctly.
+                            $groupKey = $product->product_id . '-' . ($product->batch_id ?? 'null') . '-' . $product->price;
                             if (!isset($nonImeiGroups[$groupKey])) {
                                 $nonImeiGroups[$groupKey] = [
                                     'type' => 'grouped',

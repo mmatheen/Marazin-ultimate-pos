@@ -7462,19 +7462,14 @@
                         isEditing: isEditing
                     });
 
-                    // For products that appear identical (same product, same price),
-                    // merge regardless of batch to avoid confusion
+                    // Strict matching: same product + same batch + same price must all match.
+                    // Different batches of the same product MUST stay as separate rows so each
+                    // batch gets the correct quantity deducted from its own stock.
                     return (
                         rowProductId == product.id &&
+                        rowBatchId == batchId &&
                         parseFloat(rowPrice).toFixed(2) === finalPrice.toFixed(2)
                     );
-
-                    // Original strict matching (uncomment if you want batch-specific rows):
-                    // return (
-                    //     rowProductId == product.id &&
-                    //     rowBatchId == batchId &&
-                    //     parseFloat(rowPrice).toFixed(2) === finalPrice.toFixed(2)
-                    // );
                 });
                 if (existingRow) {
                     const quantityInput = existingRow.querySelector('.quantity-input');

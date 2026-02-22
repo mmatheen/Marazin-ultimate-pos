@@ -2342,6 +2342,7 @@ class SaleController extends Controller
                             $batchRemainingPaid -= $deduction['paid_qty'];
                         }
                     }
+                    unset($deduction); // ✅ FIX: remove dangling reference to prevent last array element corruption
 
                     if ($batchRemainingPaid <= 0) continue;
 
@@ -2355,7 +2356,8 @@ class SaleController extends Controller
                     ]);
 
                     // Update batch stock
-                    $this->deductBatchStock($batch->batch_id, $locationId, 0, $stockType, $deductFromPaidForFree, 0);
+                    // Pass $deductFromPaidForFree as the $quantity argument so StockHistory records the correct amount
+                    $this->deductBatchStock($batch->batch_id, $locationId, $deductFromPaidForFree, $stockType, $deductFromPaidForFree, 0);
 
                     // Update or add to batch deductions
                     $existingIndex = array_search($batch->batch_id, array_column($batchDeductions, 'batch_id'));
