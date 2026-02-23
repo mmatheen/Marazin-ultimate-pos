@@ -40,24 +40,9 @@ class UnifiedLedgerService
      */
     public function recordSale($sale, $createdBy = null, $customTransactionDate = null, $forceCreate = false)
     {
-        // � DEBUG: Log all recordSale calls
-        Log::info('🔍 RecordSale called', [
-            'sale_id' => $sale->id ?? 'N/A',
-            'invoice_no' => $sale->invoice_no ?? 'N/A',
-            'status' => $sale->status ?? 'N/A',
-            'customer_id' => $sale->customer_id ?? 'N/A',
-            'final_total' => $sale->final_total ?? 'N/A',
-            'forceCreate' => $forceCreate ? 'YES' : 'NO',
-            'transaction_type' => $sale->transaction_type ?? 'N/A'
-        ]);
 
-        // 🔒 CRITICAL: Prevent ledger creation for Sale Orders, Drafts, and Quotations
         if (isset($sale->transaction_type) && $sale->transaction_type === 'sale_order') {
-            Log::warning('Attempted to create ledger entry for Sale Order - skipping', [
-                'sale_id' => $sale->id ?? 'N/A',
-                'order_number' => $sale->order_number ?? 'N/A',
-                'transaction_type' => $sale->transaction_type
-            ]);
+
             return null; // Don't create ledger entry
         }
 
@@ -194,10 +179,12 @@ class UnifiedLedgerService
             $referenceNo = $baseReferenceNo . '-PAY' . $payment->id;
         }
 
-        // Use the actual creation time converted to Asia/Colombo timezone
-        $transactionDate = $payment->created_at ?
-            Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo') :
-            Carbon::now('Asia/Colombo');
+        // Use the user-entered payment_date (not system created_at).
+        // payment_date is cast as 'date' — a plain Y-m-d already in Asia/Colombo time.
+        // Use Carbon::parse($date, $tz) to INTERPRET (no shift), NOT ->setTimezone() which CONVERTS from UTC.
+        $transactionDate = $payment->payment_date
+            ? Carbon::parse($payment->payment_date, 'Asia/Colombo')
+            : Carbon::now('Asia/Colombo');
 
         // ✅ SPECIAL HANDLING: Discount payment method should be recorded as 'discount_given', not 'payments'
         // This allows proper reporting and audit trail while still being a CREDIT entry (reduces customer debt)
@@ -250,10 +237,12 @@ class UnifiedLedgerService
             $referenceNo = $baseReferenceNo . '-PAY' . $payment->id;
         }
 
-        // Use the actual creation time converted to Asia/Colombo timezone
-        $transactionDate = $payment->created_at ?
-            Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo') :
-            Carbon::now('Asia/Colombo');
+        // Use the user-entered payment_date (not system created_at).
+        // payment_date is cast as 'date' — a plain Y-m-d already in Asia/Colombo time.
+        // Use Carbon::parse($date, $tz) to INTERPRET (no shift), NOT ->setTimezone() which CONVERTS from UTC.
+        $transactionDate = $payment->payment_date
+            ? Carbon::parse($payment->payment_date, 'Asia/Colombo')
+            : Carbon::now('Asia/Colombo');
 
         return Ledger::createEntry([
             'contact_id' => $payment->supplier_id,
@@ -322,10 +311,10 @@ class UnifiedLedgerService
      */
     public function recordReturnPayment($payment, $contactType)
     {
-        // Use the actual creation time converted to Asia/Colombo timezone
-        $transactionDate = $payment->created_at ?
-            Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo') :
-            Carbon::now('Asia/Colombo');
+        // Use the user-entered payment_date (cast as 'date', already Asia/Colombo — interpret not convert)
+        $transactionDate = $payment->payment_date
+            ? Carbon::parse($payment->payment_date, 'Asia/Colombo')
+            : Carbon::now('Asia/Colombo');
 
         return Ledger::createEntry([
             'contact_id' => $contactType === 'customer' ? $payment->customer_id : $payment->supplier_id,
@@ -343,9 +332,10 @@ class UnifiedLedgerService
      */
     public function recordReturnCreditApplication($payment, $contactType)
     {
-        $transactionDate = $payment->created_at ?
-            Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo') :
-            Carbon::now('Asia/Colombo');
+        // Use the user-entered payment_date (cast as 'date', already Asia/Colombo — interpret not convert)
+        $transactionDate = $payment->payment_date
+            ? Carbon::parse($payment->payment_date, 'Asia/Colombo')
+            : Carbon::now('Asia/Colombo');
 
         return Ledger::createEntry([
             'contact_id' => $contactType === 'customer' ? $payment->customer_id : $payment->supplier_id,
@@ -363,9 +353,10 @@ class UnifiedLedgerService
      */
     public function recordReturnRefund($payment, $contactType)
     {
-        $transactionDate = $payment->created_at ?
-            Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo') :
-            Carbon::now('Asia/Colombo');
+        // Use the user-entered payment_date (cast as 'date', already Asia/Colombo — interpret not convert)
+        $transactionDate = $payment->payment_date
+            ? Carbon::parse($payment->payment_date, 'Asia/Colombo')
+            : Carbon::now('Asia/Colombo');
 
         return Ledger::createEntry([
             'contact_id' => $contactType === 'customer' ? $payment->customer_id : $payment->supplier_id,
@@ -383,7 +374,8 @@ class UnifiedLedgerService
      */
     public function recordChequeBounce($payment, $bounceDate, $bounceReason, $createdBy = null)
     {
-        $transactionDate = Carbon::parse($bounceDate)->setTimezone('Asia/Colombo');
+        // $bounceDate is user-entered — already Asia/Colombo. Interpret not convert.
+        $transactionDate = Carbon::parse($bounceDate, 'Asia/Colombo');
 
         return Ledger::createEntry([
             'contact_id' => $payment->customer_id ?? $payment->supplier_id,
@@ -402,9 +394,10 @@ class UnifiedLedgerService
      */
     public function recordAdvancePayment($payment, $contactType = 'customer', $createdBy = null)
     {
-        $transactionDate = $payment->created_at ?
-            Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo') :
-            Carbon::now('Asia/Colombo');
+        // Use the user-entered payment_date (cast as 'date', already Asia/Colombo — interpret not convert)
+        $transactionDate = $payment->payment_date
+            ? Carbon::parse($payment->payment_date, 'Asia/Colombo')
+            : Carbon::now('Asia/Colombo');
 
         $contactId = $contactType === 'customer' ? $payment->customer_id : $payment->supplier_id;
 
@@ -426,9 +419,10 @@ class UnifiedLedgerService
      */
     public function recordAdvanceCreditUsage($payment, $contactType = 'customer', $createdBy = null)
     {
-        $transactionDate = $payment->created_at ?
-            Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo') :
-            Carbon::now('Asia/Colombo');
+        // Use the user-entered payment_date (cast as 'date', already Asia/Colombo — interpret not convert)
+        $transactionDate = $payment->payment_date
+            ? Carbon::parse($payment->payment_date, 'Asia/Colombo')
+            : Carbon::now('Asia/Colombo');
 
         $contactId = $contactType === 'customer' ? $payment->customer_id : $payment->supplier_id;
 
@@ -1856,7 +1850,16 @@ class UnifiedLedgerService
         }
 
         // ✅ FIX: Force creation even if converting from draft/quotation to final
-        $result = $this->recordSale($sale, null, Carbon::now('Asia/Colombo'), true);
+        // Use the original sale date as the ledger transaction_date (not today's date).
+        // NOTE: sales_date is stored as a plain Y-m-d H:i:s string already in Asia/Colombo time
+        // (set by SaleSaveService via Carbon::now('Asia/Colombo')->format(...)).
+        // We must use Carbon::parse($date, $tz) NOT ->setTimezone($tz):
+        //   - Carbon::parse($date)->setTimezone('Asia/Colombo') → CONVERTS from UTC → shifts +5:30 (WRONG)
+        //   - Carbon::parse($date, 'Asia/Colombo')              → INTERPRETS as Asia/Colombo → no shift (CORRECT)
+        $saleTransactionDate = $sale->sales_date
+            ? Carbon::parse($sale->sales_date, 'Asia/Colombo')
+            : Carbon::now('Asia/Colombo');
+        $result = $this->recordSale($sale, null, $saleTransactionDate, true);
 
         if (!$result) {
             Log::error('🚨 RecordNewSaleEntry: recordSale returned NULL', [

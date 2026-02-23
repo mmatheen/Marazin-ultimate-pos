@@ -58,7 +58,9 @@ class SaleSaveService
         $sale->fill([
             'customer_id'            => $request->customer_id,
             'location_id'            => $request->location_id,
-            'sales_date'             => Carbon::now('Asia/Colombo')->format('Y-m-d H:i:s'),
+            'sales_date'             => $isUpdate
+                                          ? $sale->getOriginal('sales_date')   // Preserve original sale date on edit
+                                          : Carbon::now('Asia/Colombo')->format('Y-m-d H:i:s'),
             'status'                 => $newStatus,
             'invoice_no'             => $numberData['invoice_no'],
             'reference_no'           => $referenceNo,

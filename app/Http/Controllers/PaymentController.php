@@ -183,7 +183,7 @@ class PaymentController extends Controller
 
             // Create a payment record for the advance application
             $payment = Payment::create([
-                'payment_date' => now()->format('Y-m-d H:i:s'),
+                'payment_date' => now()->format('Y-m-d'),
                 'amount' => $appliedAmount,
                 'payment_method' => 'advance_adjustment',
                 'payment_type' => 'sale',
@@ -516,7 +516,7 @@ class PaymentController extends Controller
 
             // Create payment record
             $payment = Payment::create([
-                'payment_date' => now()->format('Y-m-d H:i:s'),
+                'payment_date' => now()->format('Y-m-d'),
                 'amount' => $appliedAmount,
                 'payment_method' => 'advance_adjustment',
                 'payment_type' => 'purchase',
@@ -589,16 +589,13 @@ class PaymentController extends Controller
 
     private function preparePaymentData(Request $request)
     {
-        // If only date is provided, use current time. If datetime is provided, use as-is.
-        $paymentDate = $request->payment_date;
-        if (strlen($paymentDate) <= 10) { // Only date provided (Y-m-d format)
-            $paymentDate = Carbon::parse($paymentDate)->setTimeFromTimeString(Carbon::now()->format('H:i:s'));
-        } else {
-            $paymentDate = Carbon::parse($paymentDate);
-        }
+        // Store payment_date as plain date (Y-m-d) — time is captured in created_at (UTC)
+        $paymentDate = $request->payment_date
+            ? Carbon::parse($request->payment_date)->format('Y-m-d')
+            : now()->format('Y-m-d');
 
         return [
-            'payment_date' => $paymentDate->format('Y-m-d H:i:s'),
+            'payment_date' => $paymentDate,
             'amount' => $request->amount,
             'payment_method' => $request->payment_method,
             'reference_no' => $request->reference_no,
@@ -1372,8 +1369,10 @@ class PaymentController extends Controller
         $entityType = $entity instanceof Customer ? 'customer' : 'supplier';
         $referenceNo = 'OB-PAYMENT-' . $entity->id . '-' . time();
 
-        // Use the request payment_date or current time if not provided
-        $paymentDate = ($request && $request->payment_date) ? $this->parseFlexibleDate($request->payment_date) . ' ' . Carbon::now()->format('H:i:s') : Carbon::now()->format('Y-m-d H:i:s');
+        // Store payment_date as plain date (Y-m-d) — time is captured in created_at (UTC)
+        $paymentDate = ($request && $request->payment_date)
+            ? $this->parseFlexibleDate($request->payment_date)
+            : Carbon::now()->format('Y-m-d');
 
         $paymentData = [
             'payment_date' => $paymentDate,
@@ -1487,8 +1486,10 @@ class PaymentController extends Controller
 
     private function createBulkPayment($reference, $amount, $paymentMethod, $entityType, $entityId, $notes, $request)
     {
-        // Use the request payment_date or current time if not provided
-        $paymentDate = $request->payment_date ? $this->parseFlexibleDate($request->payment_date) . ' ' . Carbon::now()->format('H:i:s') : Carbon::now()->format('Y-m-d H:i:s');
+        // Store payment_date as plain date (Y-m-d) — time is captured in created_at (UTC)
+        $paymentDate = $request->payment_date
+            ? $this->parseFlexibleDate($request->payment_date)
+            : Carbon::now()->format('Y-m-d');
 
         $paymentData = [
             'payment_date' => $paymentDate,
@@ -1786,20 +1787,9 @@ class PaymentController extends Controller
                              ->orderBy('created_at', 'desc')
                              ->get();
 
-            // Debug: Log the query and results
-            Log::info('Bulk payments query', [
-                'entity_type' => $entityType,
-                'customer_id' => $request->customer_id,
-                'supplier_id' => $request->supplier_id,
-                'start_date' => $startDate,
-                'end_date' => $endDate,
-                'status_filter' => 'active',
-                'amount_filter' => '> 0',
-                'sql' => $query->toSql(),
-                'count' => $payments->count()
-            ]);
 
-            // Add related entity information
+            // Add related entity information + Carbon-computed display fields (Asia/Colombo)
+            $todayColombo = Carbon::now('Asia/Colombo')->toDateString();
             foreach ($payments as $payment) {
                 switch ($payment->payment_type) {
                     case 'sale':
@@ -1809,18 +1799,30 @@ class PaymentController extends Controller
                         $payment->purchase = Purchase::find($payment->reference_id);
                         break;
                     case 'purchase_return':
-                        // Try to find purchase return record
                         $payment->purchase_return = \App\Models\PurchaseReturn::find($payment->reference_id);
                         break;
                     case 'sale_return':
-                        // Try to find sale return record
                         $payment->sale_return = \App\Models\SalesReturn::find($payment->reference_id);
                         break;
                     case 'opening_balance':
-                        // Opening balance payments might not have reference entities
-                        // but contact information is already loaded via relationships
                         break;
                 }
+
+                // Pre-compute display values in Asia/Colombo timezone
+                // Date from payment_date (plain date), time from created_at (full UTC timestamp)
+                $payment->display_date = $payment->payment_date
+                    ? Carbon::parse($payment->payment_date)->format('d/m/Y')
+                    : '-';
+                $payment->display_time = $payment->created_at
+                    ? Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo')->format('h:i A')
+                    : '';
+                $payment->is_today = ($payment->payment_date
+                    ? Carbon::parse($payment->payment_date)->toDateString()
+                    : null) === $todayColombo;
+                // For datetime-local input in edit modal
+                $payment->display_datetime_input = $payment->created_at
+                    ? Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo')->format('Y-m-d\TH:i')
+                    : '';
             }
 
             return response()->json([
@@ -1867,6 +1869,15 @@ class PaymentController extends Controller
                 $entity = Purchase::find($payment->reference_id);
                 $contact = Supplier::find($payment->supplier_id);
             }
+
+            // Pre-compute display values in Asia/Colombo timezone for edit modal
+            $todayColombo = Carbon::now('Asia/Colombo')->toDateString();
+            $payment->is_today = ($payment->payment_date
+                ? Carbon::parse($payment->payment_date)->toDateString()
+                : null) === $todayColombo;
+            $payment->display_datetime_input = $payment->created_at
+                ? Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo')->format('Y-m-d\TH:i')
+                : '';
 
             return response()->json([
                 'status' => 200,

@@ -26,6 +26,25 @@ class SaleEditDataBuilder
 {
     // ----- Field lists (single source of truth) -----
 
+    private const WITH_RELATIONS = [
+        'products.product.unit',
+        'products.product.batches.locationBatches.location',
+        'products.batch',
+        'products.imeis',
+        'customer',
+        'location',
+    ];
+
+    /**
+     * Load a Sale with all relations required by the POS edit view.
+     *
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     */
+    public function findWithRelations(int $id): \App\Models\Sale
+    {
+        return \App\Models\Sale::with(self::WITH_RELATIONS)->findOrFail($id);
+    }
+
     private const SALE_FIELDS = [
         'id', 'customer_id', 'location_id', 'sales_date', 'sale_type',
         'status', 'invoice_no', 'subtotal', 'discount_type', 'discount_amount',

@@ -500,45 +500,8 @@ $(document).ready(function() {
         loadPayments();
     });
 
-    // Helper function to convert datetime to Asia/Colombo timezone
-    function convertToColombeDatetime(dateString) {
-        if (!dateString) return '';
-
-        try {
-            // Create date object from the string
-            let date = new Date(dateString);
-
-            // Check if date is valid
-            if (isNaN(date.getTime())) {
-                console.warn('Invalid date:', dateString);
-                return '';
-            }
-
-            // Convert to Asia/Colombo timezone (UTC+5:30)
-            // Method 1: Using toLocaleString with timezone
-            let colomboDate = new Date(date.toLocaleString("en-US", {timeZone: "Asia/Colombo"}));
-
-            // Format for datetime-local input
-            let year = colomboDate.getFullYear();
-            let month = String(colomboDate.getMonth() + 1).padStart(2, '0');
-            let day = String(colomboDate.getDate()).padStart(2, '0');
-            let hours = String(colomboDate.getHours()).padStart(2, '0');
-            let minutes = String(colomboDate.getMinutes()).padStart(2, '0');
-
-            return `${year}-${month}-${day}T${hours}:${minutes}`;
-        } catch (error) {
-            console.error('Error converting date:', error);
-            // Fallback: simple format without timezone conversion
-            let date = new Date(dateString);
-            let year = date.getFullYear();
-            let month = String(date.getMonth() + 1).padStart(2, '0');
-            let day = String(date.getDate()).padStart(2, '0');
-            let hours = String(date.getHours()).padStart(2, '0');
-            let minutes = String(date.getMinutes()).padStart(2, '0');
-
-            return `${year}-${month}-${day}T${hours}:${minutes}`;
-        }
-    }
+    // No client-side timezone conversion needed.
+    // Backend sends ready-to-display: display_date, display_time, is_today, display_datetime_input
 
     // Show payment type information
     function showPaymentTypeInfo(type) {
@@ -692,10 +655,8 @@ $(document).ready(function() {
                 billRef = payment.reference_no;
             }
 
-            // Check if payment is from today
-            const paymentDate = new Date(payment.payment_date);
-            const today = new Date();
-            const isToday = paymentDate.toDateString() === today.toDateString();
+            // Use backend-computed display fields (Carbon/Asia/Colombo)
+            const isToday = payment.is_today;
 
             // Format payment method
             let methodBadge = '';
@@ -740,7 +701,7 @@ $(document).ready(function() {
             }
 
             const rowData = [
-                '<div style="line-height: 1.3;"><strong>' + paymentDate.toLocaleDateString('en-IN') + '</strong><br><span class="text-muted" style="font-size: 0.75rem;">' + paymentDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) + '</span></div>',
+                '<div style="line-height: 1.3;"><strong>' + (payment.display_date || '-') + '</strong><br><span class="text-muted" style="font-size: 0.75rem;">' + (payment.display_time || '') + '</span></div>',
                 '<code style="font-size: 0.8rem;">' + (payment.reference_no || '-') + '</code>',
                 contactName, // This column will be hidden and used for grouping
                 '<strong>' + billRef + '</strong>',
@@ -771,10 +732,8 @@ $(document).ready(function() {
                 if (response.status === 200) {
                     const payment = response.payment;
 
-                    // Double-check that payment is from today before allowing edit
-                    const paymentDate = new Date(payment.payment_date);
-                    const today = new Date();
-                    const isToday = paymentDate.toDateString() === today.toDateString();
+                    // Use backend is_today (Carbon/Asia/Colombo) — no JS timezone logic needed
+                    const isToday = payment.is_today;
 
                     if (!isToday) {
                         toastr.error('Cannot edit past payments. Only TODAY\'s payments can be edited to maintain ledger integrity.', 'Edit Restricted');
@@ -799,8 +758,8 @@ $(document).ready(function() {
         $('#edit_payment_id').val(payment.id);
         $('#edit_amount').val(payment.amount);
 
-        // Use the helper function to convert datetime to Asia/Colombo timezone
-        let paymentDateTime = convertToColombeDatetime(payment.payment_date);
+        // Use the backend-provided datetime in Asia/Colombo (Carbon formatted)
+        let paymentDateTime = payment.display_datetime_input || '';
         $('#edit_payment_date').val(paymentDateTime);
 
         $('#edit_payment_method').val(payment.payment_method);
@@ -1030,10 +989,8 @@ $(document).ready(function() {
                 if (response.status === 200) {
                     const payment = response.payment;
 
-                    // Check if payment is from today
-                    const paymentDate = new Date(payment.payment_date);
-                    const today = new Date();
-                    const isToday = paymentDate.toDateString() === today.toDateString();
+                    // Use backend is_today (Carbon/Asia/Colombo) — no JS timezone logic needed
+                    const isToday = payment.is_today;
 
                     if (!isToday) {
                         toastr.error('Cannot delete past payments. Only TODAY\'s payments can be deleted to maintain ledger integrity.', 'Delete Restricted');

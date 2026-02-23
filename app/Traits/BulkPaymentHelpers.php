@@ -50,7 +50,7 @@ trait BulkPaymentHelpers
             ? ($paymentType === 'opening_balance' ? 'SOB' : 'S')
             : ($paymentType === 'opening_balance' ? 'POB' : 'P');
 
-        $last = Payment::where('reference_no', 'LIKE', "BLK-{$category}%")
+        $last = Payment::whereRaw("reference_no REGEXP '^BLK-{$category}[0-9]{4}'")
             ->orderBy('id', 'desc')
             ->first();
 

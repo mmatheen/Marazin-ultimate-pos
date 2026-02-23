@@ -131,7 +131,7 @@ class PaymentService
             // ✅ STEP 1: Mark original payment as deleted (soft delete for audit trail)
             $payment->update([
                 'status' => 'deleted',
-                'notes' => ($payment->notes ?? '') . ' | [DELETED: Payment edited on ' . now()->format('Y-m-d H:i:s') . ']'
+                'notes' => ($payment->notes ?? '') . ' | [DELETED: Payment edited on ' . Carbon::now('Asia/Colombo')->format('Y-m-d H:i:s') . ']'
             ]);
 
             // ✅ STEP 2: Create ledger reversal entry for old payment (Skip Walk-In customers)
@@ -148,14 +148,14 @@ class PaymentService
                 if ($originalLedgerEntry) {
                     $originalLedgerEntry->update([
                         'status' => 'reversed',
-                        'notes' => $originalLedgerEntry->notes . ' [REVERSED: Payment edited on ' . now()->format('Y-m-d H:i:s') . ']'
+                        'notes' => $originalLedgerEntry->notes . ' [REVERSED: Payment edited on ' . Carbon::now('Asia/Colombo')->format('Y-m-d H:i:s') . ']'
                     ]);
 
                     // Create reversal entry
                     Ledger::createEntry([
                         'contact_id' => $payment->customer_id,
                         'contact_type' => 'customer',
-                        'transaction_date' => now(),
+                        'transaction_date' => Carbon::now('Asia/Colombo'),
                         'reference_no' => $payment->reference_no . '-EDIT-REV-' . time(),
                         'transaction_type' => 'payment_adjustment',
                         'amount' => $oldAmount, // Positive creates DEBIT to reverse CREDIT
@@ -247,14 +247,14 @@ class PaymentService
                 if ($originalLedgerEntry) {
                     $originalLedgerEntry->update([
                         'status' => 'reversed',
-                        'notes' => $originalLedgerEntry->notes . ' | [REVERSED: ' . $reason . ' on ' . now()->format('Y-m-d H:i:s') . ']'
+                        'notes' => $originalLedgerEntry->notes . ' | [REVERSED: ' . $reason . ' on ' . Carbon::now('Asia/Colombo')->format('Y-m-d H:i:s') . ']'
                     ]);
 
                     // Create reversal entry using payment_adjustment (DEBIT to cancel the CREDIT from payment)
                     Ledger::createEntry([
                         'contact_id' => $payment->customer_id,
                         'contact_type' => 'customer',
-                        'transaction_date' => now(),
+                        'transaction_date' => Carbon::now('Asia/Colombo'),
                         'reference_no' => $payment->reference_no . '-DEL-REV-' . time(),
                         'transaction_type' => 'payment_adjustment',
                         'amount' => $payment->amount, // Positive amount creates DEBIT to reverse payment CREDIT

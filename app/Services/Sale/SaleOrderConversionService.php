@@ -14,11 +14,19 @@ use Illuminate\Support\Facades\Log;
  * Handles all Sale-Order ⇄ Invoice conversion logic extracted from the Sale model.
  *
  * Public API:
- *   convert(Sale $sale): Sale   – convert a confirmed sale order into an invoice
- *   revert(Sale $sale): bool    – revert a converted invoice back to a sale order
+ *   convert(Sale $sale): Sale          – convert a confirmed sale order into an invoice
+ *   revert(Sale $sale): bool           – revert a converted invoice back to a sale order
+ *   cancelOrder(Sale, array): Sale     – cancel a sale order and restore its stock
  */
 class SaleOrderConversionService
 {
+    protected SaleProductProcessor $saleProductProcessor;
+
+    public function __construct(SaleProductProcessor $saleProductProcessor)
+    {
+        $this->saleProductProcessor = $saleProductProcessor;
+    }
+
     // -------------------------------------------------------------------------
     // PUBLIC API
     // -------------------------------------------------------------------------
@@ -119,6 +127,45 @@ class SaleOrderConversionService
             $sale->refresh();
             return $sale;
         });
+    }
+
+    /**
+     * Cancel a Sale Order: restore its stock and mark it as cancelled.
+     *
+     * @param Sale  $saleOrder The sale order to cancel.
+     * @param array $data      Optional overrides: order_notes, expected_delivery_date.
+     *
+     * @throws \Exception if the sale is not a sale order.
+     */
+    public function cancelOrder(Sale $saleOrder, array $data): Sale
+    {
+        if ($saleOrder->transaction_type !== 'sale_order') {
+            throw new \Exception('This is not a Sale Order');
+        }
+
+        DB::transaction(function () use ($saleOrder, $data) {
+            foreach ($saleOrder->products as $product) {
+                $this->saleProductProcessor->restoreStock(
+                    $product,
+                    StockHistory::STOCK_TYPE_SALE_ORDER_REVERSAL
+                );
+            }
+
+            $saleOrder->order_status = 'cancelled';
+            $saleOrder->status       = 'cancelled';
+
+            if (isset($data['order_notes'])) {
+                $saleOrder->order_notes = $data['order_notes'];
+            }
+
+            if (isset($data['expected_delivery_date'])) {
+                $saleOrder->expected_delivery_date = $data['expected_delivery_date'];
+            }
+
+            $saleOrder->save();
+        });
+
+        return $saleOrder->fresh();
     }
 
     /**
