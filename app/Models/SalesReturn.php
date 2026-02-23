@@ -109,9 +109,10 @@ class SalesReturn extends Model
     /**
      * Generate invoice number.
      */
-    public static function generateInvoiceNumber()
+    public static function generateInvoiceNumber(): string
     {
-        $latest = self::latest()->first();
+        // lockForUpdate prevents duplicate invoice numbers under concurrent requests
+        $latest = self::lockForUpdate()->latest('id')->first();
         $number = $latest ? intval(substr($latest->invoice_number, -4)) + 1 : 1;
         return 'SR-' . str_pad($number, 4, '0', STR_PAD_LEFT);
     }

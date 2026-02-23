@@ -49,6 +49,13 @@ class SaleReturnController extends Controller
      */
     public function storeOrUpdate(Request $request, $id = null)
     {
+        // Pre-load all product units in ONE query to avoid N+1 inside validator closures
+        $productIds   = collect($request->input('products', []))->pluck('product_id')->filter()->unique()->values();
+        $productCache = \App\Models\Product::whereIn('id', $productIds)
+            ->with('unit:id,allow_decimal')
+            ->get()
+            ->keyBy('id');
+
         // Validate the request data
         $validator = Validator::make($request->all(), [
             'sale_id' => 'nullable|exists:sales,id',
@@ -63,13 +70,12 @@ class SaleReturnController extends Controller
                 'required',
                 'numeric',
                 'min:0.0001',
-                function ($attribute, $value, $fail) use ($request) {
-                    // Extract the index from the attribute, e.g., products.0.quantity => 0
+                function ($attribute, $value, $fail) use ($request, $productCache) {
                     if (preg_match('/products\.(\d+)\.quantity/', $attribute, $matches)) {
-                        $index = $matches[1];
+                        $index       = $matches[1];
                         $productData = $request->input("products.$index");
                         if ($productData && isset($productData['product_id'])) {
-                            $product = \App\Models\Product::find($productData['product_id']);
+                            $product = $productCache->get($productData['product_id']);
                             if ($product && $product->unit && !$product->unit->allow_decimal && floor($value) != $value) {
                                 $fail("The quantity must be an integer for this unit.");
                             }
@@ -81,15 +87,13 @@ class SaleReturnController extends Controller
                 'nullable',
                 'numeric',
                 'min:0',
-                function ($attribute, $value, $fail) use ($request) {
+                function ($attribute, $value, $fail) use ($request, $productCache) {
                     if ($value !== null && $value > 0) {
-                        // Extract the index from the attribute
                         if (preg_match('/products\.(\d+)\.free_quantity/', $attribute, $matches)) {
-                            $index = $matches[1];
+                            $index       = $matches[1];
                             $productData = $request->input("products.$index");
                             if ($productData && isset($productData['product_id'])) {
-                                $product = \App\Models\Product::find($productData['product_id']);
-                                // Validate unit type (integer vs decimal)
+                                $product = $productCache->get($productData['product_id']);
                                 if ($product && $product->unit && !$product->unit->allow_decimal && floor($value) != $value) {
                                     $fail("The free quantity must be an integer for this unit.");
                                 }
@@ -133,40 +137,42 @@ class SaleReturnController extends Controller
             }
         }
 
-        // Check if the return quantity is greater than the sale quantity (paid + free)
-        $sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->find($request->sale_id);
+        // Eager-load products WITH product names in ONE query — prevents N+1 in the loop below
+        $sale = $request->sale_id
+            ? Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
+                ->with('products.product:id,product_name')
+                ->find($request->sale_id)
+            : null;
+
         $errors = [];
         if ($sale) {
             foreach ($request->products as $productData) {
                 // Match by both product_id AND batch_id to handle same product with different batches
-                $soldProduct = $sale->products->first(function($item) use ($productData) {
-                    return $item->product_id == $productData['product_id']
-                        && $item->batch_id == $productData['batch_id'];
-                });
+                $soldProduct = $sale->products->first(fn ($item) =>
+                    $item->product_id == $productData['product_id'] &&
+                    $item->batch_id   == $productData['batch_id']
+                );
 
                 if ($soldProduct) {
-                    $returnQty = floatval($productData['quantity'] ?? 0);
+                    $returnQty     = floatval($productData['quantity']      ?? 0);
                     $returnFreeQty = floatval($productData['free_quantity'] ?? 0);
-                    $soldQty = floatval($soldProduct->quantity ?? 0);
-                    $soldFreeQty = floatval($soldProduct->free_quantity ?? 0);
+                    $soldQty       = floatval($soldProduct->quantity        ?? 0);
+                    $soldFreeQty   = floatval($soldProduct->free_quantity   ?? 0);
+                    $productName   = $soldProduct->product->product_name ?? "Product ID {$productData['product_id']}";
+                    $batchInfo     = $productData['batch_id'] ? " (Batch ID: {$productData['batch_id']})" : '';
 
-                    // Validate that return quantities don't exceed sold quantities
                     if ($returnQty > $soldQty) {
-                        $productName = optional($soldProduct->product)->product_name ?? "Product ID {$productData['product_id']}";
-                        $batchInfo = $productData['batch_id'] ? " (Batch ID: {$productData['batch_id']})" : "";
                         $errors[] = "Return paid quantity for {$productName}{$batchInfo} exceeds sold quantity. Sold: {$soldQty}, Attempted return: {$returnQty}";
                     }
 
                     if ($returnFreeQty > $soldFreeQty) {
-                        $productName = optional($soldProduct->product)->product_name ?? "Product ID {$productData['product_id']}";
-                        $batchInfo = $productData['batch_id'] ? " (Batch ID: {$productData['batch_id']})" : "";
                         $errors[] = "Return free quantity for {$productName}{$batchInfo} exceeds sold free quantity. Sold free: {$soldFreeQty}, Attempted return: {$returnFreeQty}";
                     }
-                } elseif (!$soldProduct && $request->sale_id) {
-                    // Product/batch combination not found in the sale
-                    $productName = \App\Models\Product::find($productData['product_id'])->product_name ?? "Product ID {$productData['product_id']}";
-                    $batchInfo = $productData['batch_id'] ? " with Batch ID {$productData['batch_id']}" : "";
-                    $errors[] = "{$productName}{$batchInfo} was not found in the original sale.";
+                } elseif ($request->sale_id) {
+                    // Use the already-preloaded $productCache instead of a fresh DB query
+                    $productName = $productCache->get($productData['product_id'])->product_name ?? "Product ID {$productData['product_id']}";
+                    $batchInfo   = $productData['batch_id'] ? " with Batch ID {$productData['batch_id']}" : '';
+                    $errors[]    = "{$productName}{$batchInfo} was not found in the original sale.";
                 }
             }
         }
@@ -180,19 +186,21 @@ class SaleReturnController extends Controller
         $salesReturnId = null;
 
         // Use transaction to ensure atomicity
-        DB::transaction(function () use ($request, $id, &$salesReturnId) {
-            $stockType = $request->sale_id ? 'with_bill' : 'without_bill';
+        DB::transaction(function () use ($request, $id, $sale, &$salesReturnId) {
+            $stockType       = $request->sale_id ? 'with_bill' : 'without_bill';
             $transactionType = $request->sale_id ? 'sale_return_with_bill' : 'sale_return_without_bill';
 
-            // Get the authenticated user ID
             $userId = auth()->id();
+
+            // Resolve customer_id: explicit request value → from $sale (already fetched) → null
+            $customerId = $request->customer_id ?? $sale?->customer_id;
 
             // Create or update the sales return
             $salesReturn = SalesReturn::updateOrCreate(
                 ['id' => $id],
                 [
-                    'sale_id' => $request->sale_id,
-                    'customer_id' => $request->customer_id ?? ($request->sale_id ? optional(Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->find($request->sale_id))->customer_id : null),
+                    'sale_id'     => $request->sale_id,
+                    'customer_id' => $customerId,
                     'location_id' => $request->location_id,
                     // Set return_date as created_at in Asia/Colombo timezone
                     'return_date' => Carbon::now('Asia/Colombo')->format('Y-m-d H:i:s'),
@@ -227,8 +235,8 @@ class SaleReturnController extends Controller
                 $this->processProductReturn($productData, $salesReturn->id, $request->location_id, $stockType);
             }
 
-            // Update total due
-            $salesReturn->updateTotalDue();
+            // No updateTotalDue() here — the saving hook already set total_due = return_total - 0
+            // on create. The real recalculation happens below after payments are recorded.
 
             // Use unified ledger service to record or update the sale return
             if ($id) {

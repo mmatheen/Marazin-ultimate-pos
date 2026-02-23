@@ -167,7 +167,8 @@ class LocationController extends Controller
                 'string',
                 'unique:locations,location_id',
                 'regex:/^LOC\d{4}$/',
-            ]
+            ],
+            'invoice_prefix' => 'nullable|string|max:10',
         ];
 
         if ($isSubLocation) {
@@ -279,6 +280,7 @@ class LocationController extends Controller
                     'logo_image' => $logoImagePath, // Use uploaded logo or null
                     'invoice_layout_pos' => $request->invoice_layout_pos ?? '80mm',
                     'footer_note' => $request->footer_note,
+                    'invoice_prefix' => strtoupper($request->invoice_prefix ?? $parentLocation->invoice_prefix ?? ''),
                 ];
             } else {
                 // For main locations - use provided details
@@ -293,6 +295,7 @@ class LocationController extends Controller
                     'logo_image' => $logoImagePath,
                     'invoice_layout_pos' => $request->invoice_layout_pos ?? '80mm',
                     'footer_note' => $request->footer_note,
+                    'invoice_prefix' => strtoupper($request->invoice_prefix ?? ''),
                 ];
             }
 
@@ -571,6 +574,7 @@ class LocationController extends Controller
                         'logo_image' => $logoImagePath, // Use uploaded logo or keep existing
                         'invoice_layout_pos' => $request->invoice_layout_pos ?? '80mm',
                         'footer_note' => $request->footer_note,
+                        'invoice_prefix' => strtoupper($request->invoice_prefix ?? $parentLocation->invoice_prefix ?? ''),
                     ];
                 } else {
                     // For main locations - use provided details
@@ -587,6 +591,7 @@ class LocationController extends Controller
                         'vehicle_type' => null,
                         'invoice_layout_pos' => $request->invoice_layout_pos ?? '80mm',
                         'footer_note' => $request->footer_note,
+                        'invoice_prefix' => strtoupper($request->invoice_prefix ?? ''),
                     ];
                 }
 
@@ -605,6 +610,7 @@ class LocationController extends Controller
                     ];
 
                     // Update all child sublocations with parent's contact details
+                    // NOTE: invoice_prefix is NOT cascaded — each location has its own individual prefix
                     $location->children()->update($contactDetails);
 
                     Log::info('Main location contact details cascaded to sublocations', [

@@ -69,18 +69,18 @@ class Location extends Model
 
     public function getInvoicePrefixAttribute()
     {
-        $name = trim($this->name);
-
-        // Special case for "ARB Fashion"
-        if (strcasecmp($name, 'ARB Fashion') === 0) {
-            return 'AF';
+        // Always use the stored database value
+        if (!empty($this->attributes['invoice_prefix'])) {
+            return strtoupper($this->attributes['invoice_prefix']);
         }
+
+        // Fallback: auto-generate from this location's own name
+        $name = trim($this->name);
 
         if (empty($name)) {
             return 'LOC';
         }
 
-        // Remove special characters and extra spaces, keep only letters and numbers
         $cleanName = preg_replace('/[^a-zA-Z0-9\s]/', '', $name);
         $words = preg_split('/\s+/', trim($cleanName));
         $prefix = '';

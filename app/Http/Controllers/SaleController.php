@@ -28,6 +28,7 @@ use App\Services\Sale\CustomerPriceHistoryService;
 use App\Services\Sale\SaleDataTableService;
 use App\Services\Sale\SaleEditDataBuilder;
 use App\Services\Sale\SaleReceiptService;
+use App\Services\Sale\SaleOrderConversionService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
@@ -54,6 +55,7 @@ class SaleController extends Controller
     protected $saleDataTableService;
     protected $saleReceiptService;
     protected $customerPriceHistoryService;
+    protected $saleOrderConversionService;
 
     function __construct(
         UnifiedLedgerService    $unifiedLedgerService,
@@ -69,7 +71,8 @@ class SaleController extends Controller
         SaleEditDataBuilder     $saleEditDataBuilder,
         SaleDataTableService    $saleDataTableService,
         SaleReceiptService      $saleReceiptService,
-        CustomerPriceHistoryService $customerPriceHistoryService
+        CustomerPriceHistoryService $customerPriceHistoryService,
+        SaleOrderConversionService $saleOrderConversionService
         ) {
         $this->unifiedLedgerService    = $unifiedLedgerService;
         $this->paymentService          = $paymentService;
@@ -84,7 +87,8 @@ class SaleController extends Controller
         $this->saleEditDataBuilder     = $saleEditDataBuilder;
         $this->saleDataTableService    = $saleDataTableService;
         $this->saleReceiptService      = $saleReceiptService;
-        $this->customerPriceHistoryService = $customerPriceHistoryService;
+        $this->customerPriceHistoryService  = $customerPriceHistoryService;
+        $this->saleOrderConversionService    = $saleOrderConversionService;
 
         $this->middleware('permission:view all sales|view own sales', ['only' => ['listSale', 'index', 'show', 'getDataTableSales', 'salesDetails']]);
         $this->middleware('permission:create sale', ['only' => ['addSale', 'storeOrUpdate']]);
@@ -192,8 +196,8 @@ class SaleController extends Controller
                 ], 400);
             }
 
-            // Convert using model method
-            $invoice = $saleOrder->convertToInvoice();
+            // Convert using SaleOrderConversionService
+            $invoice = $this->saleOrderConversionService->convert($saleOrder);
 
             // Create ledger entry for the invoice (skip for Walk-In customers)
             if ($invoice->customer_id != 1) {
@@ -321,9 +325,8 @@ class SaleController extends Controller
                 ], 400);
             }
 
-            // ✅ SIMPLE: Just revert THIS invoice back to sale order
-            // No need to find original sale order - it's the same record!
-            $invoice->revertToSaleOrder();
+            // Revert via SaleOrderConversionService
+            $this->saleOrderConversionService->revert($invoice);
 
             return response()->json([
                 'status' => 200,

@@ -290,6 +290,7 @@ class RolesAndPermissionsSeeder extends Seeder
             // 10. Location Management
             '28. location-management' => [
                 'create location',
+                'create sublocation',
                 'edit location',
                 'view location',
                 'delete location',

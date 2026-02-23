@@ -368,4 +368,65 @@ class SalePaymentProcessor
 
         return Carbon::now();
     }
+
+    /**
+     * Recalculate payment totals for a Sale, accounting for cheque statuses.
+     * Sets total_paid, total_due, and payment_status, then saves the model.
+     *
+     * Extracted from Sale::recalculatePaymentTotals().
+     */
+    public function recalculatePaymentTotals(Sale $sale): array
+    {
+        $totalReceived = $sale->payments()->sum('amount');
+
+        $actualPaid = $sale->payments()
+            ->where(function ($query) {
+                $query->where('payment_method', '!=', 'cheque')
+                      ->orWhere(fn ($q) => $q->where('payment_method', 'cheque')
+                                             ->where('cheque_status', 'cleared'));
+            })
+            ->sum('amount');
+
+        $pendingCheques = $sale->payments()
+            ->where('payment_method', 'cheque')
+            ->whereIn('cheque_status', ['pending', 'deposited'])
+            ->sum('amount');
+
+        $bouncedCheques = $sale->payments()
+            ->where('payment_method', 'cheque')
+            ->where('cheque_status', 'bounced')
+            ->sum('amount');
+
+        $newTotalPaid = $totalReceived - $bouncedCheques;
+
+        Log::info("Sale {$sale->id} payment recalculation:", [
+            'total_received' => $totalReceived,
+            'bounced_cheques' => $bouncedCheques,
+            'old_total_paid'  => $sale->total_paid,
+            'new_total_paid'  => $newTotalPaid,
+            'final_total'     => $sale->final_total,
+        ]);
+
+        $sale->total_paid = $newTotalPaid;
+        $sale->total_due  = $sale->final_total - $newTotalPaid;
+
+        if ($sale->total_due <= 0) {
+            $sale->payment_status = 'Paid';
+        } elseif ($sale->total_paid > 0) {
+            $sale->payment_status = 'Partial';
+        } else {
+            $sale->payment_status = 'Due';
+        }
+
+        $sale->save();
+
+        return [
+            'total_received'  => $totalReceived,
+            'actual_paid'     => $actualPaid,
+            'pending_cheques' => $pendingCheques,
+            'bounced_cheques' => $bouncedCheques,
+            'total_due'       => $sale->total_due,
+            'at_risk_amount'  => $pendingCheques,
+        ];
+    }
 }

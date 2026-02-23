@@ -358,29 +358,19 @@ class SaleValidationService
         $productId     = $productData['product_id'];
         $batchId       = $productData['batch_id'];
 
-        // Determine original quantities already sold (paid + free)
-        $originalQuantity     = 0;
-        $originalFreeQuantity = 0;
-
-        if (isset($originalProducts[$productId])) {
-            if ($batchId === 'all') {
-                foreach ($originalProducts[$productId] as $batchData) {
-                    $originalQuantity     += $batchData['quantity']      ?? 0;
-                    $originalFreeQuantity += $batchData['free_quantity'] ?? 0;
-                }
-            } else {
-                $batchData            = $originalProducts[$productId][$batchId] ?? [];
-                $originalQuantity     = $batchData['quantity']      ?? 0;
-                $originalFreeQuantity = $batchData['free_quantity'] ?? 0;
-            }
-        }
-
-        $originalTotalQuantity = $originalQuantity + $originalFreeQuantity;
+        // Note: $originalProducts is kept for signature compatibility but is no longer
+        // used in the stock check.  The restoreStock() call in SaleProductProcessor
+        // already returns original quantities to location_batches BEFORE this method
+        // runs (when oldStatus = final/suspend), so the DB reflects the correct
+        // available amount without any manual addback.
 
         if (!empty($batchId) && $batchId !== 'all') {
             // Specific batch
-            $currentStock   = Sale::getAvailableStock($batchId, $locationId);
-            $availableStock = $currentStock + $originalTotalQuantity;
+            // Note: restoreStock() has already run before this validation (when oldStatus=final/suspend),
+            // so $currentStock already reflects the restored original quantities.
+            // For draft→final edits, stock was never deducted, so $currentStock is simply
+            // the true available amount. In both cases no addback is needed.
+            $availableStock = self::getAvailableStock($batchId, $locationId);
 
             if ($totalQuantity > $availableStock) {
                 throw new \Exception(
@@ -391,13 +381,11 @@ class SaleValidationService
             }
         } else {
             // All batches — check total stock for this product at this location
-            $currentTotalStock = DB::table('location_batches')
+            $availableStock = DB::table('location_batches')
                 ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
                 ->where('batches.product_id', $productId)
                 ->where('location_batches.location_id', $locationId)
                 ->sum('location_batches.qty');
-
-            $availableStock = $currentTotalStock + $originalTotalQuantity;
 
             if ($totalQuantity > $availableStock) {
                 throw new \Exception(
@@ -407,5 +395,18 @@ class SaleValidationService
                 );
             }
         }
+    }
+
+    /**
+     * Get the qty available for a specific batch at a specific location.
+     * Moved here from Sale::getAvailableStock().
+     */
+    public static function getAvailableStock(int|string $batchId, int $locationId): float
+    {
+        $locationBatch = \App\Models\LocationBatch::where('batch_id', $batchId)
+            ->where('location_id', $locationId)
+            ->first();
+
+        return $locationBatch ? (float) $locationBatch->qty : 0.0;
     }
 }

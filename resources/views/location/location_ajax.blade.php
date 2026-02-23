@@ -1,4 +1,7 @@
 <script type="text/javascript">
+    // Server-side permission flag — controls parent location UI
+    const canManageLocation = {{ Auth::user()->can('create sublocation') ? 'true' : 'false' }};
+
     // Check if jQuery is loaded
     if (typeof jQuery === 'undefined') {
         console.error('jQuery is not loaded! Make sure jquery-3.6.0.min.js is loaded before this script.');
@@ -17,11 +20,15 @@
     function initLocationScript() {
     $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
+        let counter = 0;
         showFetchData();
-        populateLocationDropdown();
+        if (canManageLocation) {
+            populateLocationDropdown();
+        }
 
         // Function to toggle vehicle details and contact details visibility
         function toggleVehicleDetails() {
+            if (!canManageLocation) return; // no parent UI for restricted users
             const parentId = $('#edit_parent_id').val();
             const vehicleSection = $('#vehicleDetailsSection');
             const parentDetailsSection = $('#parentLocationDetails');
@@ -45,9 +52,7 @@
                 $('#address_required, #province_required, #district_required, #city_required, #email_required, #mobile_required')
                     .hide();
 
-                // Clear contact field values and errors (they'll be inherited from parent)
-                $('#edit_address, #edit_province, #edit_district, #edit_city, #edit_email, #edit_mobile, #edit_telephone_no')
-                    .val('');
+                // Only clear errors — do NOT wipe field values so they restore if user switches back to No Parent
                 $('#address_error, #province_error, #district_error, #city_error, #email_error, #mobile_error, #telephone_no_error')
                     .text('');
 
@@ -272,6 +277,7 @@
             // Reset logo and receipt layout fields
             $('#edit_logo_image').val('');
             $('#logo_preview').html('');
+            $('#edit_invoice_prefix').val('');
             $('#edit_invoice_layout_pos').val('80mm');
             $('#edit_footer_note').val('');
 
@@ -326,9 +332,9 @@
             $('#addAndEditLocationModal').modal('show');
         });
 
-        let counter = 0;
-
         function showFetchData() {
+            counter = 0; // Reset on every refresh so row numbers always start from 1
+
             if ($.fn.DataTable.isDataTable('#location')) {
                 $('#location').DataTable().destroy();
             }
@@ -343,6 +349,9 @@
                         return res.status ? res.data : [];
                     }
                 },
+                columnDefs: canManageLocation ? [] : [
+                    { targets: [3, 4, 5], visible: false }
+                ],
                 columns: [{
                         data: null,
                         render: () => ++counter
@@ -351,7 +360,7 @@
                         data: 'name'
                     },
                     {
-                        data: 'location_id'
+                        data: 'invoice_prefix',
                     },
                     {
                         data: 'parent',
@@ -462,6 +471,8 @@
                         $('#edit_telephone_no').val(d.telephone_no);
                         $('#edit_vehicle_number').val(d.vehicle_number || '');
                         $('#edit_vehicle_type').val(d.vehicle_type || '');
+                        // Fall back to parent's prefix when sublocation has no own prefix set
+                        $('#edit_invoice_prefix').val(d.invoice_prefix || '');
                         $('#edit_invoice_layout_pos').val(d.invoice_layout_pos || '80mm');
                         $('#edit_footer_note').val(d.footer_note || '');
 
@@ -581,7 +592,7 @@
                         showFetchData();
 
                         // Refresh parent dropdown if a new main location was created
-                        if (!isSubLocation) {
+                        if (!isSubLocation && canManageLocation) {
                             populateLocationDropdown();
                         }
 
@@ -686,7 +697,7 @@
                     } else {
                         $('#deleteModal').modal('hide');
                         showFetchData();
-                        populateLocationDropdown();
+                        if (canManageLocation) { populateLocationDropdown(); }
                         document.getElementsByClassName('successSound')[0]
                             .play(); //for sound
                         toastr.options = {
