@@ -366,8 +366,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/sales/{invoiceNo}', [SaleController::class, 'getSaleByInvoiceNo']);
 
         // Sales Reports - These need to come before the generic routes
-        Route::get('/sales-report', [SaleController::class, 'saleDailyReport'])->name('sales-report');
-        Route::get('/daily-sales-report', [SaleController::class, 'dailyReport']);
+        Route::get('/sales-report', [ReportController::class, 'saleDailyReport'])->name('sales-report');
+        Route::get('/daily-sales-report', [ReportController::class, 'dailyReport']);
 
         // Print Sales - These need to come before the generic routes
         Route::get('/sales/print-recent-transaction/{id}', [SaleController::class, 'printRecentTransaction']);

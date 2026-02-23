@@ -22,17 +22,27 @@ use Illuminate\Support\Facades\Validator;
 use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use App\Services\Payment\FlexibleBulkSalePaymentService;
+use App\Services\Payment\FlexibleBulkPurchasePaymentService;
 use Carbon\Carbon;
 
 class PaymentController extends Controller
 {
     protected $paymentService;
     protected $unifiedLedgerService;
+    protected $flexibleBulkSalePaymentService;
+    protected $flexibleBulkPurchasePaymentService;
 
-    function __construct(PaymentService $paymentService, UnifiedLedgerService $unifiedLedgerService)
-    {
+    function __construct(
+        PaymentService $paymentService,
+        UnifiedLedgerService $unifiedLedgerService,
+        FlexibleBulkSalePaymentService $flexibleBulkSalePaymentService,
+        FlexibleBulkPurchasePaymentService $flexibleBulkPurchasePaymentService
+    ) {
         $this->paymentService = $paymentService;
         $this->unifiedLedgerService = $unifiedLedgerService;
+        $this->flexibleBulkSalePaymentService = $flexibleBulkSalePaymentService;
+        $this->flexibleBulkPurchasePaymentService = $flexibleBulkPurchasePaymentService;
 
         // Standard payment permissions
         $this->middleware('permission:view payments', ['only' => ['index', 'show']]);
@@ -1044,89 +1054,32 @@ class PaymentController extends Controller
         }
     }
 
-    /**
-     * Validate customer/supplier payment amounts don't exceed balances
-     * Extracted to avoid code duplication
-     */
-    private function validatePaymentAmounts($contactType, $contactId, $paymentType, $totalOBPayment, $totalRefPayment)
-    {
-        // Get entity (customer or supplier)
-        $entity = $contactType === 'customer'
-            ? Customer::findOrFail($contactId)
-            : Supplier::findOrFail($contactId);
-
-        // Validate opening balance payment portion
-        if ($totalOBPayment > 0) {
-            // For opening_balance type, should not exceed (current_balance - reference_dues)
-            // For both type, should not exceed current_balance
-            if ($paymentType === 'opening_balance') {
-                $refDue = $contactType === 'customer'
-                    ? Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->where('customer_id', $contactId)->where('total_due', '>', 0)->sum('total_due')
-                    : Purchase::where('supplier_id', $contactId)->where('total_due', '>', 0)->sum('total_due');
-
-                $maxOBPayment = max(0, $entity->current_balance - $refDue);
-
-                if ($totalOBPayment > $maxOBPayment) {
-                    throw new \Exception(
-                        "Opening balance payment amount Rs." . number_format($totalOBPayment, 2) .
-                        " exceeds available opening balance Rs." . number_format($maxOBPayment, 2)
-                    );
-                }
-            } else {
-                if ($totalOBPayment > $entity->current_balance) {
-                    throw new \Exception(
-                        "Opening balance payment amount Rs." . number_format($totalOBPayment, 2) .
-                        " exceeds " . $contactType . "'s current balance Rs." . number_format($entity->current_balance, 2)
-                    );
-                }
-            }
-        }
-
-        // For "both" or "sale_dues/purchase_dues" type, validate reference payment portion
-        if ($totalRefPayment > 0 && ($paymentType === 'both' || $paymentType === 'sale_dues' || $paymentType === 'purchase_dues')) {
-            $totalRefDue = $contactType === 'customer'
-                ? Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->where('customer_id', $contactId)->where('total_due', '>', 0)->sum('total_due')
-                : Purchase::where('supplier_id', $contactId)->where('total_due', '>', 0)->sum('total_due');
-
-            if ($totalRefPayment > $totalRefDue) {
-                $refType = $contactType === 'customer' ? 'Sale' : 'Purchase';
-                throw new \Exception(
-                    "{$refType} payment amount Rs." . number_format($totalRefPayment, 2) .
-                    " exceeds total {$refType} due Rs." . number_format($totalRefDue, 2)
-                );
-            }
-        }
-    }
-
     public function submitFlexibleBulkPayment(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'customer_id' => 'required|exists:customers,id',
-            'payment_date' => 'required|date',
-            'payment_type' => 'required|in:opening_balance,sale_dues,both,all',
-            'payment_groups' => 'required|array|min:1',
-            'payment_groups.*.method' => 'required|in:cash,cheque,card,bank_transfer,discount,advance_credit',
-            'payment_groups.*.bills' => 'required_unless:payment_type,opening_balance|array|min:1',
-            'payment_groups.*.bills.*.sale_id' => 'required_unless:payment_type,opening_balance|exists:sales,id',
-            'payment_groups.*.bills.*.amount' => 'required_unless:payment_type,opening_balance|numeric|min:0.01',
-            'payment_groups.*.totalAmount' => 'required_if:payment_type,opening_balance|numeric|min:0.01',
-            'payment_groups.*.advance_amount' => 'nullable|numeric|min:0',
-            // Return bills validation
-            'selected_returns' => 'nullable|array',
-            'selected_returns.*.return_id' => 'required|exists:sales_returns,id',
-            'selected_returns.*.amount' => 'required|numeric|min:0.01',
-            'selected_returns.*.action' => 'required|in:apply_to_sales,cash_refund',
-            // Advance credit validation
-            'advance_credit_applied' => 'nullable|numeric|min:0',
-            // Cheque specific validation
-            'payment_groups.*.cheque_number' => 'required_if:payment_groups.*.method,cheque',
-            'payment_groups.*.cheque_bank_branch' => 'required_if:payment_groups.*.method,cheque',
-            'payment_groups.*.cheque_valid_date' => 'required_if:payment_groups.*.method,cheque|date',
-            'payment_groups.*.cheque_given_by' => 'nullable|string',
-            'payment_groups.*.card_number' => 'required_if:payment_groups.*.method,card',
-            'payment_groups.*.card_holder' => 'nullable|string',
+            'customer_id'                          => 'required|exists:customers,id',
+            'payment_date'                         => 'required|date',
+            'payment_type'                         => 'required|in:opening_balance,sale_dues,both,all',
+            'payment_groups'                       => 'required|array|min:1',
+            'payment_groups.*.method'              => 'required|in:cash,cheque,card,bank_transfer,discount,advance_credit',
+            'payment_groups.*.bills'               => 'required_unless:payment_type,opening_balance|array|min:1',
+            'payment_groups.*.bills.*.sale_id'     => 'required_unless:payment_type,opening_balance|exists:sales,id',
+            'payment_groups.*.bills.*.amount'      => 'required_unless:payment_type,opening_balance|numeric|min:0.01',
+            'payment_groups.*.totalAmount'         => 'required_if:payment_type,opening_balance|numeric|min:0.01',
+            'payment_groups.*.advance_amount'      => 'nullable|numeric|min:0',
+            'selected_returns'                     => 'nullable|array',
+            'selected_returns.*.return_id'         => 'required|exists:sales_returns,id',
+            'selected_returns.*.amount'            => 'required|numeric|min:0.01',
+            'selected_returns.*.action'            => 'required|in:apply_to_sales,cash_refund',
+            'advance_credit_applied'               => 'nullable|numeric|min:0',
+            'payment_groups.*.cheque_number'       => 'required_if:payment_groups.*.method,cheque',
+            'payment_groups.*.cheque_bank_branch'  => 'required_if:payment_groups.*.method,cheque',
+            'payment_groups.*.cheque_valid_date'   => 'required_if:payment_groups.*.method,cheque|date',
+            'payment_groups.*.cheque_given_by'     => 'nullable|string',
+            'payment_groups.*.card_number'         => 'required_if:payment_groups.*.method,card',
+            'payment_groups.*.card_holder'         => 'nullable|string',
             'payment_groups.*.bank_account_number' => 'required_if:payment_groups.*.method,bank_transfer',
-            'notes' => 'nullable|string'
+            'notes'                                => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -1134,489 +1087,21 @@ class PaymentController extends Controller
         }
 
         try {
-            $bulkReference = null;
-            $totalAmount = 0;
-
-            DB::transaction(function () use ($request, &$bulkReference, &$totalAmount) {
-                // Generate meaningful bulk reference based on payment content
-                $bulkReference = $this->generateMeaningfulBulkReference($request);
-                $totalAmount = 0;
-                $processedGroups = [];
-
-                // Calculate total OB and Sale payments
-                $totalOBPayment = 0;
-                $totalSalePayment = 0;
-
-                // Calculate total payment amount from all groups
-                $totalPaymentAmount = 0;
-                foreach ($request->payment_groups as $paymentGroup) {
-                    if (isset($paymentGroup['bills']) && is_array($paymentGroup['bills'])) {
-                        foreach ($paymentGroup['bills'] as $bill) {
-                            $totalPaymentAmount += $bill['amount'];
-                        }
-                    }
-                    // For "both" type, add OB amount if present
-                    if ($request->payment_type === 'both' && isset($paymentGroup['ob_amount'])) {
-                        $totalOBPayment += floatval($paymentGroup['ob_amount']);
-                    }
-                }
-
-                // For "both" payment type: OB already calculated above, sales from bills
-                if ($request->payment_type === 'both') {
-                    $totalSalePayment = $totalPaymentAmount;
-                }
-
-                // Use shared validation method
-                $this->validatePaymentAmounts('customer', $request->customer_id, $request->payment_type, $totalOBPayment, $totalSalePayment);
-
-                // For "both" payment type: create OB payment first if needed
-                $obAlreadyAllocated = 0;
-                if ($request->payment_type === 'both' && $totalOBPayment > 0) {
-                    // ✅ CHECK: Prevent duplicate opening balance payments
-                    $existingOBPayment = Payment::where('customer_id', $request->customer_id)
-                        ->where('payment_type', 'opening_balance')
-                        ->where('status', 'active')
-                        ->exists();
-
-                    if ($existingOBPayment) {
-                        throw new \Exception('Opening balance payment already exists for this customer. Cannot create duplicate opening balance payments.');
-                    }
-
-                    // Create OB payment for each payment method that has ob_amount
-                    foreach ($request->payment_groups as $paymentGroup) {
-                        $obAmount = isset($paymentGroup['ob_amount']) ? floatval($paymentGroup['ob_amount']) : 0;
-
-                        if ($obAmount > 0) {
-                            $paymentData = [
-                                'payment_date' => $request->payment_date,
-                                'amount' => $obAmount,
-                                'payment_method' => $paymentGroup['method'],
-                                'payment_type' => 'opening_balance',
-                                'reference_id' => null,
-                                'reference_no' => $bulkReference,
-                                'customer_id' => $request->customer_id,
-                                'notes' => $request->notes ?? null,
-                            ];
-
-                            $this->addMethodSpecificFields($paymentData, $paymentGroup);
-                            $payment = Payment::create($paymentData);
-                            $this->unifiedLedgerService->recordOpeningBalancePayment($payment, 'customer');
-                            $obAlreadyAllocated += $obAmount;
-                            $totalAmount += $obAmount;
-                        }
-                    }
-                }
-
-                // Track sales affected by return credits or direct payments
-                $affectedSaleIds = [];
-
-                // Process return credits (apply to sales or cash refund)
-                if ($request->has('selected_returns') && is_array($request->selected_returns)) {
-                    foreach ($request->selected_returns as $returnData) {
-                        $salesReturn = SalesReturn::findOrFail($returnData['return_id']);
-
-                        // Validate return belongs to customer
-                        if ($salesReturn->customer_id != $request->customer_id) {
-                            throw new \Exception("Return {$salesReturn->invoice_number} does not belong to this customer");
-                        }
-
-                        // ✅ CRITICAL VALIDATION: Check if return is already fully applied/paid
-                        if ($salesReturn->total_due <= 0 || $salesReturn->payment_status === 'Paid') {
-                            throw new \Exception("Return {$salesReturn->invoice_number} has already been fully applied or paid. Remaining due: Rs.{$salesReturn->total_due}");
-                        }
-
-                        // Validate amount doesn't exceed pending refund
-                        if ($returnData['amount'] > $salesReturn->total_due) {
-                            throw new \Exception("Return {$salesReturn->invoice_number} refund amount Rs.{$returnData['amount']} exceeds pending refund Rs.{$salesReturn->total_due}");
-                        }
-
-                        if ($returnData['action'] === 'apply_to_sales') {
-                            // ✅ CLEANEST APPROACH: Don't create payment for return credit!
-                            // Return is a deduction, not a payment
-                            // Just mark the return as "applied" and update the sale
-
-                            // Update sales return - mark it as applied (not paid out)
-                            // Use direct assignment instead of increment to mark as dirty
-                            $salesReturn->total_paid = $salesReturn->total_paid + $returnData['amount'];
-                            $salesReturn->save(); // This will trigger saving event which respects dirty total_paid and auto-calculates payment_status
-
-                            // ✅ Force refresh to ensure generated columns and payment_status are updated
-                            $salesReturn->refresh();
-
-                            // ✅ Log the return application for audit
-                            Log::info('Return credit applied to sales', [
-                                'return_id' => $salesReturn->id,
-                                'invoice_number' => $salesReturn->invoice_number,
-                                'amount_applied' => $returnData['amount'],
-                                'new_total_paid' => $salesReturn->total_paid,
-                                'new_total_due' => $salesReturn->total_due,
-                                'new_payment_status' => $salesReturn->payment_status
-                            ]);
-
-                            // ✅ NO payment record created - keeps payment table clean!
-                            // ✅ NO ledger entry needed - ledger was already created when return was made
-
-                            // Track the original sale if this return is linked to one
-                            if ($salesReturn->sale_id) {
-                                $affectedSaleIds[$salesReturn->sale_id] = true;
-                            }
-
-                        } elseif ($returnData['action'] === 'cash_refund') {
-                            // Cash refund - money going out
-                            $returnPayment = Payment::create([
-                                'payment_date' => $request->payment_date,
-                                'amount' => $returnData['amount'],
-                                'payment_method' => 'cash', // Default to cash for refunds
-                                'payment_type' => $salesReturn->sale_id ? 'sale_return_with_bill' : 'sale_return_without_bill',
-                                'reference_id' => $salesReturn->id,
-                                'reference_no' => $bulkReference,
-                                'customer_id' => $request->customer_id,
-                                'notes' => 'Cash refund for return: ' . $salesReturn->invoice_number,
-                            ]);
-
-                            // Update sales return total_paid
-                            $salesReturn->increment('total_paid', $returnData['amount']);
-                            $salesReturn->refresh(); // Reload the model
-                            $salesReturn->save(); // Trigger boot() saving event to recalculate total_due and payment_status
-
-                            // Record in ledger
-                            $this->unifiedLedgerService->recordReturnRefund($returnPayment, 'customer');
-                        }
-                    }
-                }
-
-                // Process advance credit application if provided
-                if ($request->has('advance_credit_applied') && $request->advance_credit_applied > 0) {
-                    $advanceCreditAmount = floatval($request->advance_credit_applied);
-
-                    // Validate customer has sufficient advance credit
-                    $customerBalance = BalanceHelper::getCustomerBalance($request->customer_id);
-                    if ($customerBalance >= 0) {
-                        throw new \Exception("Customer does not have any advance credit available.");
-                    }
-
-                    $availableAdvanceCredit = abs($customerBalance);
-                    if ($advanceCreditAmount > $availableAdvanceCredit) {
-                        throw new \Exception("Advance credit amount Rs.{$advanceCreditAmount} exceeds available advance credit Rs.{$availableAdvanceCredit}");
-                    }
-
-                    // Create a virtual payment entry to apply advance credit
-                    $advancePayment = Payment::create([
-                        'payment_date' => $request->payment_date,
-                        'amount' => $advanceCreditAmount,
-                        'payment_method' => 'advance_credit', // Special method for advance credit usage
-                        'payment_type' => 'advance_credit_usage',
-                        'reference_id' => null,
-                        'reference_no' => $bulkReference,
-                        'customer_id' => $request->customer_id,
-                        'notes' => 'Advance credit applied to bills (from previous overpayments)',
-                    ]);
-
-                    // Record ledger entry - this reduces the negative balance (advance)
-                    $this->unifiedLedgerService->recordAdvanceCreditUsage($advancePayment, 'customer', auth()->id());
-
-                    Log::info('Advance credit applied to bills', [
-                        'customer_id' => $request->customer_id,
-                        'amount_applied' => $advanceCreditAmount,
-                        'payment_id' => $advancePayment->id
-                    ]);
-                }
-
-                // Process payment groups FIRST (before applying return credits to sales)
-                // This ensures validation happens against current sale dues
-                foreach ($request->payment_groups as $groupIndex => $paymentGroup) {
-                    $groupTotal = 0;
-                    $groupPayments = [];
-
-                    // Handle opening balance payments differently
-                    if ($request->payment_type === 'opening_balance') {
-                        // ✅ CHECK: Prevent duplicate opening balance payments
-                        $existingOBPayment = Payment::where('customer_id', $request->customer_id)
-                            ->where('payment_type', 'opening_balance')
-                            ->where('status', 'active')
-                            ->exists();
-
-                        if ($existingOBPayment) {
-                            throw new \Exception('Opening balance payment already exists for this customer. Cannot create duplicate opening balance payments.');
-                        }
-
-                        // Opening balance payment - no bills involved
-                        $paymentData = [
-                            'payment_date' => $request->payment_date,
-                            'amount' => $paymentGroup['totalAmount'],
-                            'payment_method' => $paymentGroup['method'],
-                            'payment_type' => 'opening_balance',
-                            'reference_id' => null,
-                            'reference_no' => $bulkReference,
-                            'customer_id' => $request->customer_id,
-                            'notes' => $request->notes ?? null,
-                        ];
-
-                        // Add method-specific fields
-                        $this->addMethodSpecificFields($paymentData, $paymentGroup);
-
-                        $payment = Payment::create($paymentData);
-
-                        // Record in unified ledger
-                        $this->unifiedLedgerService->recordOpeningBalancePayment($payment, 'customer');
-
-                        $groupTotal = $paymentGroup['totalAmount'];
-                        $groupPayments[] = [
-                            'payment_id' => $payment->id,
-                            'type' => 'opening_balance',
-                            'amount' => $paymentGroup['totalAmount']
-                        ];
-                    } else {
-                        // Sale payments - process bills
-                        foreach ($paymentGroup['bills'] as $bill) {
-                            // Validate sale belongs to customer and amount
-                            // ✅ Bypass LocationScope: payments should work across all locations for the customer
-                            $sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
-                                      ->where('id', $bill['sale_id'])
-                                      ->where('customer_id', $request->customer_id)
-                                      ->first();
-
-                            if (!$sale) {
-                                throw new \Exception("Sale {$bill['sale_id']} not found for customer");
-                            }
-
-                            // ✅ RELAXED VALIDATION: When return credits are involved, frontend handles
-                            // the allocation calculation correctly. We just validate basic sanity.
-                            // Frontend logic: payment = (current_due - return_credit)
-                            // Backend will update sale table with: total_paid += (payment + return_credit)
-
-                            // Get return credit allocated to this bill (if any)
-                            $returnCreditForBill = 0;
-                            if ($request->has('bill_return_allocations') && isset($request->bill_return_allocations[$bill['sale_id']])) {
-                                $returnCreditForBill = floatval($request->bill_return_allocations[$bill['sale_id']]);
-                            }
-
-                            // Basic sanity check: payment should be positive and reasonable
-                            // Don't do strict validation against sale.total_due because:
-                            // 1. Frontend might have fresher data
-                            // 2. Return credits affect the calculation
-                            // 3. Multiple simultaneous allocations can cause race conditions
-                            if ($bill['amount'] < 0) {
-                                throw new \Exception("Invalid payment amount Rs.{$bill['amount']} for invoice {$sale->invoice_no}");
-                            }
-
-                            // Skip if payment amount is zero (fully covered by return credit)
-                            if ($bill['amount'] <= 0) {
-                                continue; // No payment needed, return credit covers it
-                            }
-
-                            // Create individual payment record
-                            $paymentData = [
-                                'payment_date' => $request->payment_date,
-                                'amount' => $bill['amount'],
-                                'payment_method' => $paymentGroup['method'],
-                                'payment_type' => 'sale',
-                                'reference_id' => $bill['sale_id'],
-                                'reference_no' => $bulkReference,
-                                'customer_id' => $request->customer_id,
-                                'notes' => $request->notes ?? null,
-                            ];
-
-                            // Add method-specific fields
-                            $this->addMethodSpecificFields($paymentData, $paymentGroup);
-
-                            $payment = Payment::create($paymentData);
-
-                            Log::info('💰 Payment record created', [
-                                'payment_id' => $payment->id,
-                                'sale_id' => $bill['sale_id'],
-                                'invoice_no' => $sale->invoice_no,
-                                'amount' => $payment->amount,
-                                'method' => $payment->payment_method
-                            ]);
-
-                            // Record in unified ledger
-                            $this->unifiedLedgerService->recordSalePayment($payment);
-
-                            // Get return credit allocated to this bill (if any) from current transaction
-                            $returnCreditForThisBill = 0;
-                            if ($request->has('bill_return_allocations') && isset($request->bill_return_allocations[$bill['sale_id']])) {
-                                $returnCreditForThisBill = floatval($request->bill_return_allocations[$bill['sale_id']]);
-                            }
-
-                            // Update sale table with return credit info
-                            $this->updateSaleTable($bill['sale_id'], $returnCreditForThisBill);
-
-                            // Track affected sale
-                            $affectedSaleIds[$bill['sale_id']] = true;
-
-                            $groupTotal += $bill['amount'];
-                            $groupPayments[] = [
-                                'payment_id' => $payment->id,
-                                'sale_id' => $bill['sale_id'],
-                                'invoice_no' => $sale->invoice_no,
-                                'amount' => $bill['amount']
-                            ];
-                        }
-
-                        // Handle advance payment for this group (excess amount)
-                        $advanceAmount = isset($paymentGroup['advance_amount']) ? floatval($paymentGroup['advance_amount']) : 0;
-                        if ($advanceAmount > 0.01) {
-                            $advancePaymentData = [
-                                'payment_date' => $request->payment_date,
-                                'amount' => $advanceAmount,
-                                'payment_method' => $paymentGroup['method'],
-                                'payment_type' => 'advance',
-                                'reference_id' => null,
-                                'reference_no' => $bulkReference,
-                                'customer_id' => $request->customer_id,
-                                'notes' => ($request->notes ?? '') . ' [Advance Payment]'
-                            ];
-
-                            $this->addMethodSpecificFields($advancePaymentData, $paymentGroup);
-                            $advancePayment = Payment::create($advancePaymentData);
-
-                            // Record in unified ledger as customer credit
-                            $this->unifiedLedgerService->recordAdvancePayment($advancePayment, 'customer');
-
-                            $groupTotal += $advanceAmount;
-                            $groupPayments[] = [
-                                'payment_id' => $advancePayment->id,
-                                'type' => 'advance',
-                                'amount' => $advanceAmount
-                            ];
-                        }
-                    }
-
-                    $processedGroups[] = [
-                        'method' => $paymentGroup['method'],
-                        'total_amount' => $groupTotal,
-                        'payments_count' => count($groupPayments),
-                        'payments' => $groupPayments,
-                        'cheque_number' => $paymentGroup['cheque_number'] ?? null
-                    ];
-
-                    Log::info('📊 Adding group total to totalAmount', [
-                        'payment_method' => $paymentGroup['method'],
-                        'groupTotal' => $groupTotal,
-                        'totalAmount_before' => $totalAmount,
-                        'totalAmount_after' => $totalAmount + $groupTotal,
-                        'return_allocations' => $request->bill_return_allocations ?? []
-                    ]);
-
-                    $totalAmount += $groupTotal;
-                }
-
-                // ✅ NOW apply return credits to sales AFTER all payments are processed
-                // This ensures validation happened against original sale dues
-                if ($request->has('bill_return_allocations') && !empty($request->bill_return_allocations)) {
-                    foreach ($request->bill_return_allocations as $saleId => $creditAmount) {
-                        if ($creditAmount > 0) {
-                            // Validate sale belongs to customer
-                            // ✅ Bypass LocationScope: return allocations should work across all locations
-                            $sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
-                                      ->where('id', $saleId)
-                                      ->where('customer_id', $request->customer_id)
-                                      ->first();
-
-                            if (!$sale) {
-                                throw new \Exception("Sale {$saleId} not found for customer");
-                            }
-
-                            // ✅ NO NEED to call updateSaleTable() here!
-                            // It was already called after creating payment (line 1370)
-                            // The updateSaleTable() function automatically includes ALL applied return credits
-                            // by summing sales_returns.total_paid for this sale
-
-                            // Just track affected sale for reference
-                            $affectedSaleIds[$saleId] = true;
-                        }
-                    }
-                }
-
-                // For "both" payment type: Check if there's advance amount (payment > total due)
-                if ($request->payment_type === 'both') {
-                    // Calculate total amount entered across all payment methods
-                    $totalEntered = 0;
-                    foreach ($request->payment_groups as $pg) {
-                        $totalEntered += isset($pg['totalAmount']) ? floatval($pg['totalAmount']) : 0;
-                    }
-
-                    // Calculate total allocated (OB + Sales)
-                    $totalAllocated = $totalOBPayment + $totalSalePayment;
-
-                    // If there's excess, create advance payment
-                    $advanceAmount = $totalEntered - $totalAllocated;
-
-                    if ($advanceAmount > 0.01) {
-                        // Distribute advance proportionally across payment methods
-                        foreach ($request->payment_groups as $paymentGroup) {
-                            $groupTotal = isset($paymentGroup['totalAmount']) ? floatval($paymentGroup['totalAmount']) : 0;
-
-                            if ($groupTotal > 0 && $totalEntered > 0) {
-                                $groupProportion = $groupTotal / $totalEntered;
-                                $advanceForThisMethod = $advanceAmount * $groupProportion;
-
-                                if ($advanceForThisMethod > 0.01) {
-                                    // Create advance payment record
-                                    $advancePaymentData = [
-                                        'payment_date' => $request->payment_date,
-                                        'amount' => $advanceForThisMethod,
-                                        'payment_method' => $paymentGroup['method'],
-                                        'payment_type' => 'advance',
-                                        'reference_id' => null,
-                                        'reference_no' => $bulkReference,
-                                        'customer_id' => $request->customer_id,
-                                        'notes' => ($request->notes ?? '') . ' [Advance Payment]',
-                                    ];
-
-                                    $this->addMethodSpecificFields($advancePaymentData, $paymentGroup);
-                                    $advancePayment = Payment::create($advancePaymentData);
-
-                                    // Record in unified ledger as customer credit
-                                    $this->unifiedLedgerService->recordAdvancePayment($advancePayment, 'customer');
-
-                                    $totalAmount += $advanceForThisMethod;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Update customer balance
-                $this->updateCustomerBalance($request->customer_id);
-
-                // ✅ NO NEED to recalculate affected sales here!
-                // They were already updated correctly in the payment loop above (line 1373)
-                // with the proper return credit amounts passed as parameters
-                // Calling updateSaleTable() again here would OVERWRITE those values!
-
-                // Note: Individual payments are already logged in the payments table
-                // Bulk reference is stored in each payment's reference_no field
-            });
-
-            Log::info('🎯 FINAL TOTAL AMOUNT FOR RESPONSE', [
-                'total_amount' => $totalAmount,
-                'bulk_reference' => $bulkReference,
-                'selected_returns' => $request->selected_returns ?? [],
-                'bill_return_allocations' => $request->bill_return_allocations ?? []
-            ]);
-
+            $result = $this->flexibleBulkSalePaymentService->process($request);
             return response()->json([
-                'status' => 200,
-                'message' => 'Multi-method bulk payment processed successfully!',
-                'bulk_reference' => $bulkReference,
-                'total_amount' => $totalAmount
+                'status'         => 200,
+                'message'        => 'Multi-method bulk payment processed successfully!',
+                'bulk_reference' => $result['bulk_reference'],
+                'total_amount'   => $result['total_amount'],
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
-                'status' => 500,
-                'message' => 'Multi-method payment failed: ' . $e->getMessage()
+                'status'  => 500,
+                'message' => 'Multi-method payment failed: ' . $e->getMessage(),
             ]);
         }
     }
 
-    /**
-     * Handle selective cheque bounce - Tamil scenario
-     * Only specific cheques bounce, others remain valid
-     * Tamil: குறிப்பிட்ட காசோலை மட்டும் bounce - மற்ற payments பாதிப்பில்லை
-     */
     public function handleSelectiveChequeBounce(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -1745,27 +1230,27 @@ class PaymentController extends Controller
      * Submit flexible multi-method purchase payment
      * Similar to sales but for supplier purchases
      */
+
     public function submitFlexibleBulkPurchasePayment(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'supplier_id' => 'required|exists:suppliers,id',
-            'payment_date' => 'required|date',
-            'payment_type' => 'required|in:opening_balance,purchase_dues,both',
-            'payment_groups' => 'required|array|min:1',
-            'payment_groups.*.method' => 'required|in:cash,cheque,card,bank_transfer,discount',
-            'payment_groups.*.bills' => 'required_unless:payment_type,opening_balance|array|min:1',
+            'supplier_id'                          => 'required|exists:suppliers,id',
+            'payment_date'                         => 'required|date',
+            'payment_type'                         => 'required|in:opening_balance,purchase_dues,both',
+            'payment_groups'                       => 'required|array|min:1',
+            'payment_groups.*.method'              => 'required|in:cash,cheque,card,bank_transfer,discount',
+            'payment_groups.*.bills'               => 'required_unless:payment_type,opening_balance|array|min:1',
             'payment_groups.*.bills.*.purchase_id' => 'required_unless:payment_type,opening_balance|exists:purchases,id',
-            'payment_groups.*.bills.*.amount' => 'required_unless:payment_type,opening_balance|numeric|min:0.01',
-            'payment_groups.*.totalAmount' => 'required_if:payment_type,opening_balance|numeric|min:0.01',
-            // Cheque specific validation
-            'payment_groups.*.cheque_number' => 'required_if:payment_groups.*.method,cheque',
-            'payment_groups.*.cheque_bank_branch' => 'required_if:payment_groups.*.method,cheque',
-            'payment_groups.*.cheque_valid_date' => 'required_if:payment_groups.*.method,cheque|date',
-            'payment_groups.*.cheque_given_by' => 'nullable|string',
-            'payment_groups.*.card_number' => 'required_if:payment_groups.*.method,card',
-            'payment_groups.*.card_holder' => 'nullable|string',
+            'payment_groups.*.bills.*.amount'      => 'required_unless:payment_type,opening_balance|numeric|min:0.01',
+            'payment_groups.*.totalAmount'         => 'required_if:payment_type,opening_balance|numeric|min:0.01',
+            'payment_groups.*.cheque_number'       => 'required_if:payment_groups.*.method,cheque',
+            'payment_groups.*.cheque_bank_branch'  => 'required_if:payment_groups.*.method,cheque',
+            'payment_groups.*.cheque_valid_date'   => 'required_if:payment_groups.*.method,cheque|date',
+            'payment_groups.*.cheque_given_by'     => 'nullable|string',
+            'payment_groups.*.card_number'         => 'required_if:payment_groups.*.method,card',
+            'payment_groups.*.card_holder'         => 'nullable|string',
             'payment_groups.*.bank_account_number' => 'required_if:payment_groups.*.method,bank_transfer',
-            'notes' => 'nullable|string'
+            'notes'                                => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -1773,211 +1258,17 @@ class PaymentController extends Controller
         }
 
         try {
-            $bulkReference = null;
-            $totalAmount = 0;
-
-            DB::transaction(function () use ($request, &$bulkReference, &$totalAmount) {
-                $bulkReference = $this->generateMeaningfulBulkReference($request);
-                $totalAmount = 0;
-                $processedGroups = [];
-
-                // Calculate total OB and Purchase payments
-                $totalOBPayment = 0;
-                $totalPurchasePayment = 0;
-
-                foreach ($request->payment_groups as $paymentGroup) {
-                    // For opening_balance type, check totalAmount
-                    if ($request->payment_type === 'opening_balance' && isset($paymentGroup['totalAmount'])) {
-                        $totalOBPayment += $paymentGroup['totalAmount'];
-                    }
-
-                    // For both type, use ob_amount from breakdown (sent from frontend)
-                    if ($request->payment_type === 'both') {
-                        // OB portion comes from ob_amount in payment group
-                        if (isset($paymentGroup['ob_amount'])) {
-                            $totalOBPayment += floatval($paymentGroup['ob_amount']);
-                        }
-                        // Purchase payments from bills
-                        if (isset($paymentGroup['bills']) && is_array($paymentGroup['bills'])) {
-                            foreach ($paymentGroup['bills'] as $bill) {
-                                $totalPurchasePayment += $bill['amount'];
-                            }
-                        }
-                    }
-
-                    // For purchase_dues type
-                    if ($request->payment_type === 'purchase_dues' && isset($paymentGroup['bills'])) {
-                        foreach ($paymentGroup['bills'] as $bill) {
-                            $totalPurchasePayment += $bill['amount'];
-                        }
-                    }
-                }
-
-                // Use shared validation method
-                $this->validatePaymentAmounts('supplier', $request->supplier_id, $request->payment_type, $totalOBPayment, $totalPurchasePayment);
-
-                foreach ($request->payment_groups as $groupIndex => $paymentGroup) {
-                    $groupTotal = 0;
-                    $groupPayments = [];
-
-                    // Handle opening balance payment (for opening_balance type OR both type with ob_amount)
-                    if ($request->payment_type === 'opening_balance' ||
-                        ($request->payment_type === 'both' && isset($paymentGroup['ob_amount']) && $paymentGroup['ob_amount'] > 0)) {
-
-                        $obAmount = $request->payment_type === 'opening_balance'
-                            ? $paymentGroup['totalAmount']
-                            : $paymentGroup['ob_amount'];
-
-                        // Opening balance payment
-                        $paymentData = [
-                            'payment_date' => $request->payment_date,
-                            'amount' => $obAmount,
-                            'payment_method' => $paymentGroup['method'],
-                            'payment_type' => 'opening_balance',
-                            'reference_id' => null,
-                            'reference_no' => $bulkReference,
-                            'supplier_id' => $request->supplier_id,
-                            'notes' => $request->notes ?? null,
-                        ];
-
-                        // Add method-specific fields
-                        $this->addMethodSpecificFields($paymentData, $paymentGroup);
-
-                        $payment = Payment::create($paymentData);
-
-                        // Record in unified ledger
-                        $this->unifiedLedgerService->recordOpeningBalancePayment($payment, 'supplier');
-
-                        $groupTotal += $obAmount;
-                        $groupPayments[] = [
-                            'payment_id' => $payment->id,
-                            'type' => 'opening_balance',
-                            'amount' => $obAmount
-                        ];
-                    }
-
-                    // Handle purchase payments (for purchase_dues type OR both type with bills)
-                    if (($request->payment_type === 'purchase_dues' || $request->payment_type === 'both') &&
-                        isset($paymentGroup['bills']) && !empty($paymentGroup['bills'])) {
-
-                        // Purchase payments - process bills
-                        foreach ($paymentGroup['bills'] as $bill) {
-                            // Validate purchase belongs to supplier and amount
-                            $purchase = Purchase::where('id', $bill['purchase_id'])
-                                      ->where('supplier_id', $request->supplier_id)
-                                      ->first();
-
-                            if (!$purchase) {
-                                throw new \Exception("Purchase {$bill['purchase_id']} not found for supplier");
-                            }
-
-                            if ($bill['amount'] > $purchase->total_due) {
-                                throw new \Exception("Payment amount Rs.{$bill['amount']} exceeds due Rs.{$purchase->total_due} for invoice {$purchase->invoice_no}");
-                            }
-
-                            // Create individual payment record
-                            $paymentData = [
-                                'payment_date' => $request->payment_date,
-                                'amount' => $bill['amount'],
-                                'payment_method' => $paymentGroup['method'],
-                                'payment_type' => 'purchase',
-                                'reference_id' => $bill['purchase_id'],
-                                'reference_no' => $bulkReference,
-                                'supplier_id' => $request->supplier_id,
-                                'notes' => $request->notes ?? null,
-                            ];
-
-                            // Add method-specific fields
-                            $this->addMethodSpecificFields($paymentData, $paymentGroup);
-
-                            $payment = Payment::create($paymentData);
-
-                            // Record in unified ledger
-                            $this->unifiedLedgerService->recordPurchasePayment($payment);
-
-                            // Update purchase table
-                            $this->updatePurchaseTable($bill['purchase_id']);
-
-                            $groupTotal += $bill['amount'];
-                            $groupPayments[] = [
-                                'payment_id' => $payment->id,
-                                'purchase_id' => $bill['purchase_id'],
-                                'invoice_no' => $purchase->invoice_no,
-                                'amount' => $bill['amount']
-                            ];
-                        }
-                    }
-
-                    $processedGroups[] = [
-                        'method' => $paymentGroup['method'],
-                        'total_amount' => $groupTotal,
-                        'payments_count' => count($groupPayments),
-                        'payments' => $groupPayments,
-                        'cheque_number' => $paymentGroup['cheque_number'] ?? null
-                    ];
-
-                    $totalAmount += $groupTotal;
-                }
-
-                // For "both" payment type: Check if there's advance amount (overpayment)
-                if ($request->payment_type === 'both') {
-                    $totalEntered = 0;
-                    foreach ($request->payment_groups as $pg) {
-                        $totalEntered += isset($pg['totalAmount']) ? floatval($pg['totalAmount']) : 0;
-                    }
-
-                    $totalAllocated = $totalOBPayment + $totalPurchasePayment;
-                    $advanceAmount = $totalEntered - $totalAllocated;
-
-                    if ($advanceAmount > 0.01) {
-                        // Create advance payment records proportionally across payment methods
-                        foreach ($request->payment_groups as $groupIndex => $paymentGroup) {
-                            $groupTotal = floatval($paymentGroup['totalAmount']);
-                            $groupProportion = $groupTotal / $totalEntered;
-                            $advanceForThisMethod = $advanceAmount * $groupProportion;
-
-                            if ($advanceForThisMethod > 0.01) {
-                                $advancePaymentData = [
-                                    'payment_date' => $request->payment_date,
-                                    'amount' => $advanceForThisMethod,
-                                    'payment_method' => $paymentGroup['method'],
-                                    'payment_type' => 'advance',
-                                    'reference_id' => null,
-                                    'reference_no' => $bulkReference,
-                                    'supplier_id' => $request->supplier_id,
-                                    'notes' => '[Advance Payment]',
-                                ];
-
-                                // Add method-specific fields
-                                $this->addMethodSpecificFields($advancePaymentData, $paymentGroup);
-
-                                $advancePayment = Payment::create($advancePaymentData);
-
-                                // Record advance payment in ledger
-                                $this->unifiedLedgerService->recordAdvancePayment($advancePayment, 'supplier');
-                            }
-                        }
-                    }
-                }
-
-                // Update supplier balance
-                $this->updateSupplierBalance($request->supplier_id);
-
-                // Note: Individual payments are already logged in the payments table
-                // Bulk reference is stored in each payment's reference_no field
-            });
-
+            $result = $this->flexibleBulkPurchasePaymentService->process($request);
             return response()->json([
-                'status' => 200,
-                'message' => 'Multi-method bulk purchase payment processed successfully!',
-                'bulk_reference' => $bulkReference,
-                'total_amount' => $totalAmount
+                'status'         => 200,
+                'message'        => 'Multi-method bulk purchase payment processed successfully!',
+                'bulk_reference' => $result['bulk_reference'],
+                'total_amount'   => $result['total_amount'],
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
-                'status' => 500,
-                'message' => 'Multi-method purchase payment failed: ' . $e->getMessage()
+                'status'  => 500,
+                'message' => 'Multi-method purchase payment failed: ' . $e->getMessage(),
             ]);
         }
     }
@@ -3588,65 +2879,4 @@ class PaymentController extends Controller
         }
     }
 
-    /**
-     * Add method-specific fields to payment data
-     */
-    private function addMethodSpecificFields(&$paymentData, $paymentGroup)
-    {
-        if ($paymentGroup['method'] === 'cheque') {
-            $paymentData = array_merge($paymentData, [
-                'cheque_number' => $paymentGroup['cheque_number'] ?? null,
-                'cheque_bank_branch' => $paymentGroup['cheque_bank_branch'] ?? null,
-                'cheque_valid_date' => $paymentGroup['cheque_valid_date'] ?? null,
-                'cheque_received_date' => $paymentData['payment_date'],
-                'cheque_status' => 'pending',
-                'cheque_given_by' => $paymentGroup['cheque_given_by'] ?? null,
-            ]);
-        } elseif ($paymentGroup['method'] === 'card') {
-            $paymentData = array_merge($paymentData, [
-                'card_number' => $paymentGroup['card_number'] ?? null,
-                'card_holder_name' => $paymentGroup['card_holder'] ?? null,
-            ]);
-        } elseif ($paymentGroup['method'] === 'bank_transfer') {
-            $paymentData['bank_account_number'] = $paymentGroup['bank_account_number'] ?? null;
-        }
-    }
-
-    /**
-     * Generate meaningful bulk reference based on payment content
-     * Instead of confusing FLEX-20251124-115653-9EC4, generate readable references
-     */
-    private function generateMeaningfulBulkReference($request)
-    {
-        $paymentType = $request->payment_type;
-
-        // Determine payment category with shorter codes
-        if (isset($request->customer_id)) {
-            // Sales/Customer payments
-            $category = $paymentType === 'opening_balance' ? 'SOB' : 'S';
-        } else {
-            // Purchase/Supplier payments
-            $category = $paymentType === 'opening_balance' ? 'POB' : 'P';
-        }
-
-        // Get the last reference number for this category
-        $lastPayment = \App\Models\Payment::where('reference_no', 'LIKE', "BLK-{$category}%")
-            ->orderBy('id', 'desc')
-            ->first();
-
-        // Extract the sequence number and increment
-        $sequenceNumber = 1;
-        if ($lastPayment && $lastPayment->reference_no) {
-            // Extract last 4 digits from reference like "BLK-S0001"
-            preg_match('/-' . $category . '(\d{4})$/', $lastPayment->reference_no, $matches);
-            if (!empty($matches[1])) {
-                $sequenceNumber = intval($matches[1]) + 1;
-            }
-        }
-
-        // Format sequence with leading zeros (4 digits)
-        $formattedSequence = str_pad($sequenceNumber, 4, '0', STR_PAD_LEFT);
-
-        return "BLK-{$category}{$formattedSequence}";
-    }
 }

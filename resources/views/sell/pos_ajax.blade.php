@@ -226,10 +226,15 @@
         let currentEditingSaleId = null; // Track the sale ID being edited
         let isEditingFinalizedSale = false; // Track if editing a finalized sale with invoice
 
-        // ✅ Navigate to POS create page without full page refresh
+        // ✅ Navigate to POS create page
         function navigateToPosCreate() {
-            console.log('🔄 Navigating to POS create (no page refresh)');
-            // Update URL without page refresh
+            console.log('🔄 Navigating to POS create page');
+            // Hard redirect when coming from an edit URL — avoids scope/state issues
+            if (window.location.pathname.includes('/edit/') || window.location.pathname.includes('/sales/')) {
+                window.location.href = '/pos-create';
+                return;
+            }
+            // Update URL without page refresh (already on /pos-create flow)
             window.history.pushState({ page: 'pos-create' }, 'POS', '/pos-create');
             // Reset editing state
             isEditing = false;
@@ -9667,6 +9672,16 @@
                                     if (onComplete) onComplete();
                                     return; // Exit early to prevent form reset
                                 }
+
+                                // 🔄 Full redirect after Suspend in edit mode — sale is done, start fresh
+                                if (saleId && window.location.pathname.includes('/edit/') &&
+                                    saleData.status === 'suspend') {
+                                    setTimeout(() => {
+                                        window.location.href = '/pos-create';
+                                    }, 1200);
+                                    if (onComplete) onComplete();
+                                    return;
+                                }
                             }
 
                             // Store current customer before reset
@@ -9793,6 +9808,10 @@
                                             if (!printWindow) {
                                                 toastr.error('Print window was blocked. Please allow pop-ups.');
                                             }
+                                        }
+                                        // Navigate away from edit URL even when print fallback is used
+                                        if (saleId && window.location.pathname.includes('/edit/')) {
+                                            setTimeout(() => { window.location.href = '/pos-create'; }, 1200);
                                         }
                                     }
                                 } catch (err) {
