@@ -2423,10 +2423,21 @@ class ProductController extends Controller
             }
         ])
         // Only show active products in POS/autocomplete
-        ->where('is_active', true);
-
-        // Don't filter by location - show all products but display location-specific stock
-        // This allows products to be added to purchases even if they have zero stock at the location
+        ->where('is_active', true)
+        // Filter by location: show only products with stock > 0 at the selected location,
+        // OR unlimited-stock products (stock_alert = 0). This prevents 0-stock products
+        // from other locations appearing in the POS search results.
+        ->when($locationId, function ($query) use ($locationId) {
+            return $query->where(function ($q) use ($locationId) {
+                // Unlimited stock products are always visible regardless of location
+                $q->where('stock_alert', 0)
+                  // OR products that have qty > 0 at the selected location
+                  ->orWhereHas('batches.locationBatches', function ($inner) use ($locationId) {
+                      $inner->where('location_id', $locationId)
+                            ->where('qty', '>', 0);
+                  });
+            });
+        });
 
         if ($search) {
             // Enhanced search to include partial word matching
