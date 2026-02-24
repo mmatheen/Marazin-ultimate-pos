@@ -50,8 +50,12 @@ class SaleQueryService
      */
     public function getDetails(int $id): Sale
     {
-        return Sale::with('products.product', 'customer', 'location', 'payments')
-            ->findOrFail($id);
+        return Sale::with([
+            'products.product',
+            'customer' => fn ($q) => $q->withoutGlobalScopes(),
+            'location',
+            'payments',
+        ])->findOrFail($id);
     }
 
     /**
@@ -141,7 +145,10 @@ class SaleQueryService
     public function getSuspended(): \Illuminate\Support\Collection
     {
         return Sale::where('status', 'suspend')
-            ->with(['customer', 'products.product'])
+            ->with([
+                'customer' => fn ($q) => $q->withoutGlobalScopes(),
+                'products.product',
+            ])
             ->get()
             ->map(fn ($sale) => [
                 'id'          => $sale->id,
