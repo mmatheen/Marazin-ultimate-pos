@@ -1836,6 +1836,13 @@
             const canUseFreeQty = {!! json_encode((bool)($canUseFreeQty ?? false)) !!};
             const showFreeQtyColumn = freeQtyEnabled && canUseFreeQty;
 
+            // User identity and action permissions
+            const userId           = {!! json_encode(auth()->user()->id ?? null) !!};
+            const canEditSale      = {!! json_encode(auth()->check() && auth()->user()->can('edit sale')) !!};
+            const canDeleteSale    = {!! json_encode(auth()->check() && auth()->user()->can('delete sale')) !!};
+            const canEditProduct   = {!! json_encode(auth()->check() && auth()->user()->can('edit product')) !!};
+            const canDeleteProduct = {!! json_encode(auth()->check() && auth()->user()->can('delete product')) !!};
+
             // Debug: Log permission and validation settings
             console.log('🔐 POS Price Control Settings:', {
                 canEditUnitPrice: canEditUnitPrice,

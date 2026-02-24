@@ -1,4 +1,27 @@
+{{-- ============================================================
+     VENDOR LIBRARIES — correct load order:
+     jQuery → Bootstrap → Select2 → Moment → DataTables
+             → Toastr → jQuery-UI → Cleave → Validate → InputMask
+     ============================================================ --}}
 <script src="{{ asset('assets/js/jquery-3.6.0.min.js') }}"></script>
+<script src="{{ asset('assets/plugins/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ asset('assets/js/feather.min.js') }}"></script>
+<script src="{{ asset('assets/plugins/slimscroll/jquery.slimscroll.min.js') }}"></script>
+<script src="{{ asset('assets/plugins/summernote/summernote-bs4.min.js') }}"></script>
+<script src="{{ asset('assets/plugins/select2/js/select2.min.js') }}"></script>
+<script src="{{ asset('assets/plugins/moment/moment.min.js') }}"></script>
+<script src="{{ asset('assets/js/bootstrap-datetimepicker.min.js') }}"></script>
+<script src="{{ asset('assets/plugins/apexchart/apexcharts.min.js') }}"></script>
+<script src="{{ asset('assets/plugins/apexchart/chart-data.js') }}"></script>
+<script src="{{ asset('assets/plugins/datatables/jquery.dataTables.min.js') }}"></script>
+<script src="{{ asset('assets/plugins/datatables/datatables.min.js') }}"></script>
+<script src="{{ asset('assets/plugins/toastr/toastr.min.js') }}"></script>
+<script src="{{ asset('assets/js/jquery-ui.min.js') }}"></script>
+<script src="{{ asset('assets/plugins/bootstrap-tagsinput/js/bootstrap-tagsinput.js') }}"></script>
+<script src="{{ asset('assets/js/script.js') }}"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cleave.js/1.6.0/cleave.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.6/jquery.inputmask.min.js"></script>
 
 <script>
 
@@ -18,11 +41,12 @@
     };
 
     // Pass user permissions to JavaScript
+    // Values are defined in pos.blade.php config block — no @@json calls needed here
     const userPermissions = {
-        canEditSale: @json(auth()->check() && auth()->user()->can('edit sale')),
-        canDeleteSale: @json(auth()->check() && auth()->user()->can('delete sale')),
-        canEditProduct: @json(auth()->check() && auth()->user()->can('edit product')),
-        canDeleteProduct: @json(auth()->check() && auth()->user()->can('delete product'))
+        canEditSale:      canEditSale,
+        canDeleteSale:    canDeleteSale,
+        canEditProduct:   canEditProduct,
+        canDeleteProduct: canDeleteProduct,
     };
 
     // Global shipping data - available throughout the script
@@ -1132,7 +1156,7 @@
 
             // Early restoration to prevent display flicker on page refresh
             const storedSelection = getSalesRepSelection();
-            const currentUserId = @json(auth()->user()->id);
+            const currentUserId = userId; // defined in pos.blade.php config block
 
             // Check if stored selection belongs to a different user
             if (storedSelection && storedSelection.userId && storedSelection.userId !== currentUserId) {
@@ -1417,7 +1441,7 @@
 
             // Check if this is a different sales rep than the stored one
             const storedSelection = getSalesRepSelection();
-            const currentUserId = @json(auth()->user()->id);
+            const currentUserId = userId; // defined in pos.blade.php config block
 
             if (storedSelection && storedSelection.userId && storedSelection.userId !== currentUserId) {
                 console.log('🔄 Different sales rep detected, clearing previous customer data');
@@ -2317,7 +2341,7 @@
                 // Add current user ID to selection to track which sales rep it belongs to
                 const selectionWithUser = {
                     ...selection,
-                    userId: @json(auth()->user()->id),
+                    userId: userId, // defined in pos.blade.php config block
                     timestamp: Date.now()
                 };
                 const selectionJson = JSON.stringify(selectionWithUser);
@@ -11720,12 +11744,6 @@
 </script>
 
 
-{{-- For jQuery --}}
-<script src="{{ asset('assets/js/jquery-3.6.0.min.js') }}"></script>
-
-<script type="text/javascript">
-    $(document).ready(function() {
-        let currentRowIndex = 0;
 
         function focusQuantityInput() {
             const quantityInputs = document.querySelectorAll('.quantity-input');
@@ -11809,35 +11827,10 @@
     });
 </script>
 
-
-<!-- Include cleave.js -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/cleave.js/1.6.0/cleave.min.js"></script>
-{{-- For sound --}}
+{{-- Audio feedback --}}
 <audio class="successSound" src="{{ asset('assets/sounds/success.mp3') }}"></audio>
 <audio class="errorSound" src="{{ asset('assets/sounds/error.mp3') }}"></audio>
 <audio class="warningSound" src="{{ asset('assets/sounds/warning.mp3') }}"></audio>
-
-
-<script src="{{ asset('assets/plugins/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
-<script src="{{ asset('assets/js/feather.min.js') }}"></script>
-<script src="{{ asset('assets/plugins/slimscroll/jquery.slimscroll.min.js') }}"></script>
-<script src="{{ asset('assets/plugins/summernote/summernote-bs4.min.js') }}"></script>
-<script src="{{ asset('assets/plugins/select2/js/select2.min.js') }}"></script>
-<script src="{{ asset('assets/plugins/moment/moment.min.js') }}"></script>
-<script src="{{ asset('assets/js/bootstrap-datetimepicker.min.js') }}"></script>
-<script src="{{ asset('assets/plugins/apexchart/apexcharts.min.js') }}"></script>
-<script src="{{ asset('assets/plugins/apexchart/chart-data.js') }}"></script>
-<script src="{{ asset('assets/plugins/datatables/jquery.dataTables.min.js') }}"></script>
-<script src="{{ asset('assets/plugins/datatables/datatables.min.js') }}"></script>
-<script src="{{ asset('assets/plugins/toastr/toastr.min.js') }}"></script>
-<script src="{{ asset('assets/plugins/toastr/toastr.js') }}"></script>
-<script src="{{ asset('assets/js/jquery-ui.min.js') }}"></script>
-<script src="{{ asset('assets/plugins/bootstrap-tagsinput/js/bootstrap-tagsinput.js') }}"></script>
-<script src="{{ asset('assets/js/script.js') }}"></script>
-
-<!-- jQuery Validation Plugin -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.6/jquery.inputmask.min.js"></script>
 
 <script>
     $(function() {

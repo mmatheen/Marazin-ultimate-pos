@@ -235,28 +235,31 @@ class Sale extends Model
         return DB::transaction(function () use ($locationId) {
             $location = Location::findOrFail($locationId);
             $prefix = !empty($location->invoice_prefix) ? strtoupper($location->invoice_prefix) : 'SO';
+            $pattern = "{$prefix}-SO-";
 
-            // Get last order number for this location
-            $lastOrder = self::where('location_id', $locationId)
-                ->where('transaction_type', 'sale_order')
-                ->whereNotNull('order_number')
+            // Find the highest numeric suffix already used for this prefix
+            // (order by the extracted integer — not by id or string — so it's always accurate
+            //  even when the location prefix changed mid-use or records were deleted)
+            $lastNumber = self::where('order_number', 'like', $pattern . '%')
                 ->lockForUpdate()
-                ->orderByDesc('id')
-                ->first();
+                ->get(['order_number'])
+                ->map(function ($row) use ($pattern) {
+                    if (preg_match('/^' . preg_quote($pattern, '/') . '(\d+)$/', $row->order_number, $m)) {
+                        return (int) $m[1];
+                    }
+                    return 0;
+                })
+                ->max() ?? 0;
 
-            $nextNumber = 1;
-            if ($lastOrder && preg_match("/{$prefix}-SO-(\d+)/", $lastOrder->order_number, $matches)) {
-                $nextNumber = (int)$matches[1] + 1;
-            }
+            $nextNumber  = $lastNumber + 1;
+            $orderNumber = $pattern . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
 
-            $orderNumber = "{$prefix}-SO-" . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
-
-            // Ensure uniqueness — guard with max attempts to prevent infinite loop
+            // Final uniqueness guard (handles edge cases under heavy concurrency)
             $attempts    = 0;
             $maxAttempts = 50;
             while (self::where('order_number', $orderNumber)->exists() && $attempts < $maxAttempts) {
                 $nextNumber++;
-                $orderNumber = "{$prefix}-SO-" . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+                $orderNumber = $pattern . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
                 $attempts++;
             }
 
