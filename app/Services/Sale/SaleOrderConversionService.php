@@ -5,6 +5,7 @@ namespace App\Services\Sale;
 use App\Models\LocationBatch;
 use App\Models\Sale;
 use App\Models\StockHistory;
+use App\Services\UnifiedLedgerService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -21,10 +22,14 @@ use Illuminate\Support\Facades\Log;
 class SaleOrderConversionService
 {
     protected SaleProductProcessor $saleProductProcessor;
+    protected UnifiedLedgerService $unifiedLedgerService;
 
-    public function __construct(SaleProductProcessor $saleProductProcessor)
-    {
+    public function __construct(
+        SaleProductProcessor $saleProductProcessor,
+        UnifiedLedgerService $unifiedLedgerService
+    ) {
         $this->saleProductProcessor = $saleProductProcessor;
+        $this->unifiedLedgerService = $unifiedLedgerService;
     }
 
     // -------------------------------------------------------------------------
@@ -125,6 +130,12 @@ class SaleOrderConversionService
             ]);
 
             $sale->refresh();
+
+            // Record ledger entry for the new invoice (skip Walk-In customer)
+            if ($sale->customer_id && $sale->customer_id != 1) {
+                $this->unifiedLedgerService->recordSale($sale);
+            }
+
             return $sale;
         });
     }
@@ -164,6 +175,34 @@ class SaleOrderConversionService
 
             $saleOrder->save();
         });
+
+        return $saleOrder->fresh();
+    }
+
+    /**
+     * Update editable fields on an existing Sale Order.
+     * Handles both plain field updates and full cancellation.
+     *
+     * @throws \Exception if the sale is not a sale order
+     */
+    public function updateOrder(Sale $saleOrder, array $data): Sale
+    {
+        if ($saleOrder->transaction_type !== 'sale_order') {
+            throw new \Exception('This is not a Sale Order');
+        }
+
+        $isCancellation = isset($data['order_status'])
+            && $data['order_status'] === 'cancelled'
+            && $saleOrder->order_status !== 'cancelled';
+
+        if ($isCancellation) {
+            return $this->cancelOrder($saleOrder, $data);
+        }
+
+        if (isset($data['order_status']))           $saleOrder->order_status          = $data['order_status'];
+        if (isset($data['order_notes']))            $saleOrder->order_notes           = $data['order_notes'];
+        if (isset($data['expected_delivery_date'])) $saleOrder->expected_delivery_date = $data['expected_delivery_date'];
+        $saleOrder->save();
 
         return $saleOrder->fresh();
     }

@@ -6,9 +6,8 @@ use App\Models\Customer;
 use App\Models\Location;
 use App\Models\Sale;
 use App\Models\Setting;
-use App\Models\StockHistory;
-use App\Services\UnifiedLedgerService;
 use App\Services\Sale\SaleValidationService;
+use App\Services\Sale\SaleDeleteService;
 use App\Services\Sale\SaleInvoiceNumberService;
 use App\Services\Sale\SaleAmountCalculator;
 use App\Services\Sale\SaleLedgerManager;
@@ -33,8 +32,8 @@ use App\Models\User;
 
 class SaleController extends Controller
 {
-    protected $unifiedLedgerService;
     protected $saleValidationService;
+    protected $saleDeleteService;
     protected $saleInvoiceNumberService;
     protected $saleAmountCalculator;
     protected $saleLedgerManager;
@@ -54,8 +53,8 @@ class SaleController extends Controller
     // -------------------------------------------------------------------------
 
     public function __construct(
-        UnifiedLedgerService        $unifiedLedgerService,
         SaleValidationService       $saleValidationService,
+        SaleDeleteService           $saleDeleteService,
         SaleInvoiceNumberService    $saleInvoiceNumberService,
         SaleAmountCalculator        $saleAmountCalculator,
         SaleLedgerManager           $saleLedgerManager,
@@ -70,8 +69,8 @@ class SaleController extends Controller
         SaleOrderConversionService  $saleOrderConversionService,
         SaleQueryService            $saleQueryService
     ) {
-        $this->unifiedLedgerService        = $unifiedLedgerService;
         $this->saleValidationService       = $saleValidationService;
+        $this->saleDeleteService           = $saleDeleteService;
         $this->saleInvoiceNumberService    = $saleInvoiceNumberService;
         $this->saleAmountCalculator        = $saleAmountCalculator;
         $this->saleLedgerManager           = $saleLedgerManager;
@@ -208,7 +207,7 @@ class SaleController extends Controller
 
                 $isUpdate        = $id !== null;
                 $sale            = $isUpdate ? Sale::with(['products'])->findOrFail($id) : new Sale();
-                $referenceNo     = $isUpdate ? ($sale->reference_no ?? '') : $this->generateReferenceNo();
+                $referenceNo     = $isUpdate ? ($sale->reference_no ?? '') : $this->saleInvoiceNumberService->generateReferenceNo();
                 $oldStatus       = $isUpdate ? $sale->getOriginal('status') : null;
                 $newStatus       = $request->status;
                 $transactionType = $request->transaction_type ?? 'invoice';
@@ -369,10 +368,6 @@ class SaleController extends Controller
             $saleOrder = Sale::findOrFail($id);
             $invoice   = $this->saleOrderConversionService->convert($saleOrder);
 
-            if ($invoice->customer_id != 1) {
-                $this->unifiedLedgerService->recordSale($invoice);
-            }
-
             return response()->json([
                 'status'    => 200,
                 'message'   => 'Sale Order converted to Invoice successfully! Invoice created with proper stock allocation.',
@@ -394,38 +389,24 @@ class SaleController extends Controller
     public function updateSaleOrder(Request $request, $id)
     {
         try {
-            $saleOrder = Sale::findOrFail($id);
-
-            if ($saleOrder->transaction_type !== 'sale_order') {
-                return response()->json(['status' => 400, 'message' => 'This is not a Sale Order'], 400);
-            }
-
+            $saleOrder      = Sale::findOrFail($id);
             $originalStatus = $saleOrder->order_status;
             $data           = $request->all();
-            $isCancellation = isset($data['order_status'])
+
+            $updatedOrder = $this->saleOrderConversionService->updateOrder($saleOrder, $data);
+
+            $wasCancelled = isset($data['order_status'])
                 && $data['order_status'] === 'cancelled'
                 && $originalStatus !== 'cancelled';
 
-            if ($isCancellation) {
-                $updatedOrder = $this->saleOrderConversionService->cancelOrder($saleOrder, $data);
-
-                return response()->json([
-                    'status'     => 200,
-                    'message'    => 'Sale Order cancelled successfully and stock restored!',
-                    'sale_order' => $updatedOrder,
-                ], 200);
-            }
-
-            // Normal field update
-            if (isset($data['order_status']))            $saleOrder->order_status           = $data['order_status'];
-            if (isset($data['order_notes']))             $saleOrder->order_notes            = $data['order_notes'];
-            if (isset($data['expected_delivery_date']))  $saleOrder->expected_delivery_date = $data['expected_delivery_date'];
-            $saleOrder->save();
+            $message = $wasCancelled
+                ? 'Sale Order cancelled successfully and stock restored!'
+                : 'Sale Order updated successfully!';
 
             return response()->json([
                 'status'     => 200,
-                'message'    => 'Sale Order updated successfully!',
-                'sale_order' => $saleOrder,
+                'message'    => $message,
+                'sale_order' => $updatedOrder,
             ], 200);
 
         } catch (\Exception $e) {
@@ -465,7 +446,7 @@ class SaleController extends Controller
             $sale         = Sale::findOrFail($id);
             $restoreStock = !in_array($sale->status, ['draft', 'quotation']);
 
-            $this->performSaleDelete($sale, $restoreStock);
+            $this->saleDeleteService->delete($sale, $restoreStock);
 
             $message = $restoreStock
                 ? 'Sale deleted, stock restored, and customer balance updated successfully.'
@@ -489,7 +470,7 @@ class SaleController extends Controller
                 return response()->json(['message' => 'Sale is not suspended.'], 400);
             }
 
-            $this->performSaleDelete($sale, restoreStock: true);
+            $this->saleDeleteService->delete($sale, true);
 
             return response()->json(['message' => 'Suspended sale deleted, stock restored, and customer balance updated successfully.'], 200);
 
@@ -563,6 +544,8 @@ class SaleController extends Controller
                 'location_id'   => 'required|integer',
             ]);
 
+            Log::warning('Pricing error reported by client', $validated);
+
             return response()->json(['status' => 200, 'message' => 'Pricing error logged successfully']);
 
         } catch (\Exception $e) {
@@ -577,11 +560,6 @@ class SaleController extends Controller
     // -------------------------------------------------------------------------
     // PRIVATE HELPERS
     // -------------------------------------------------------------------------
-
-    private function generateReferenceNo(): string
-    {
-        return 'SALE-' . now()->format('Ymd');
-    }
 
     private function resolvePosPermissions(?User $user): array
     {
@@ -603,21 +581,5 @@ class SaleController extends Controller
         ];
     }
 
-    private function performSaleDelete(Sale $sale, bool $restoreStock): void
-    {
-        DB::transaction(function () use ($sale, $restoreStock) {
-            foreach ($sale->products as $product) {
-                if ($restoreStock) {
-                    $this->saleProductProcessor->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
-                }
-                $product->delete();
-            }
-
-            if ($restoreStock && $sale->customer_id && $sale->customer_id != 1) {
-                $this->unifiedLedgerService->deleteSaleLedger($sale);
-            }
-
-            $sale->delete();
-        });
-    }
 }
+

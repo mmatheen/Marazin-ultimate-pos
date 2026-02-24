@@ -8,6 +8,15 @@ use Illuminate\Support\Facades\Log;
 class SaleInvoiceNumberService
 {
     /**
+     * Generate a unique sale reference number (used before any invoice number is assigned).
+     * Format: SALE-YYYYMMDD
+     */
+    public function generateReferenceNo(): string
+    {
+        return 'SALE-' . now()->format('Ymd');
+    }
+
+    /**
      * Resolve the correct invoice_no, order_number, and order_status for a sale.
      *
      * Returns an array with three keys:
