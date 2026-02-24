@@ -479,9 +479,9 @@
                                 ];
                             }
                         } else {
-                            // Group by product_id + batch_id + price so different batches always show as
-                            // separate lines. FIFO rows for the exact same batch still merge correctly.
-                            $groupKey = $product->product_id . '-' . ($product->batch_id ?? 'null') . '-' . $product->price;
+                            // Group by product_id + batch_id + price + custom_name so different batches
+                            // (and differently-named cash items at same price) always show as separate lines.
+                            $groupKey = $product->product_id . '-' . ($product->batch_id ?? 'null') . '-' . $product->price . '-' . ($product->custom_name ?? '');
                             if (!isset($nonImeiGroups[$groupKey])) {
                                 $nonImeiGroups[$groupKey] = [
                                     'type' => 'grouped',
@@ -504,7 +504,7 @@
                     <tr class="product-name-row">
                         <td>{{ $loop->iteration }}</td>
                         <td colspan="4" class="product-name">
-                            {{ $item['product']->product->product_name }}
+                            {{ $item['product']->custom_name ?? $item['product']->product->product_name }}
                             @if ($showImei && $item['type'] == 'imei')
                                 <span style="font-size: {{ $fontSizeBase - 1 }}px;">({{ $item['imei'] }})</span>
                             @endif

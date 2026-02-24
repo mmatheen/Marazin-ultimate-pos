@@ -273,6 +273,7 @@ class SaleProductProcessor
             $saleProduct = SalesProduct::create([
                 'sale_id' => $saleId,
                 'product_id' => $productData['product_id'],
+                'custom_name' => $productData['custom_name'] ?? null,
                 'quantity' => $paidQtyForBatch,
                 'free_quantity' => $proportionalFreeQty,
                 'price' => $productData['unit_price'], // price column stores unit price
@@ -390,6 +391,7 @@ class SaleProductProcessor
         SalesProduct::create([
             'sale_id' => $saleId,
             'product_id' => $productData['product_id'],
+            'custom_name' => $productData['custom_name'] ?? null,
             'quantity' => $productData['quantity'],
             'price' => $productData['unit_price'], // price column stores unit price
             'batch_id' => null,
@@ -481,6 +483,7 @@ class SaleProductProcessor
             SalesProduct::create([
                 'sale_id' => $saleId,
                 'product_id' => $productData['product_id'],
+                'custom_name' => $productData['custom_name'] ?? null,
                 'quantity' => $deduction['quantity'],
                 'price' => $productData['unit_price'],
                 'batch_id' => $deduction['batch_id'],

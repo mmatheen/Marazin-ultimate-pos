@@ -423,6 +423,99 @@
         initAutocomplete();
         initDOMElements();
 
+        // ⚡ CASH REGISTER QUICK ENTRY — type price + qty, press Enter, row added instantly
+        let cashItemCounter = 0; // Increments per entry: "Cash Item 1", "Cash Item 2", etc.
+
+        function addCashItem(price, qty) {
+            if (!miscItemProductId || miscItemProductId === 0) {
+                toastr.error('Cash Item product not configured. Create a product and set MISC_ITEM_PRODUCT_ID in .env', 'Setup Required');
+                return;
+            }
+            cashItemCounter++;
+            const label = 'Cash Item ' + cashItemCounter;
+
+            const product = {
+                id: miscItemProductId,
+                product_name: label,
+                sku: 'CASH-ITEM',
+                stock_alert: 0,
+                retail_price: price,
+                whole_sale_price: price,
+                special_price: price,
+                max_retail_price: price,
+                original_price: price
+            };
+            const stockEntry = {
+                product: product,
+                total_stock: 999999,
+                batches: [],    // stock_alert=0: no batch tracking needed
+                discounts: [],
+                imei_numbers: []
+            };
+            addProductToBillingBody(product, stockEntry, price, 'all', 999999, 'retail', qty);
+            document.getElementById('cashPriceInput').value = '';
+            document.getElementById('cashQtyInput').value = '1';
+            document.getElementById('cashPriceInput').focus();
+            // Keep bar open and highlighted after adding
+            const bar = document.getElementById('cashEntryBar');
+            const tog = document.getElementById('cashEntryToggle');
+            if (bar && !bar.classList.contains('show')) {
+                bar.classList.add('show');
+                if (tog) { tog.classList.remove('btn-outline-secondary'); tog.classList.add('btn-warning'); }
+            }
+        }
+
+        const cashPriceInput = document.getElementById('cashPriceInput');
+        const cashQtyInput   = document.getElementById('cashQtyInput');
+
+        if (cashPriceInput) {
+            cashPriceInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const price = parseFloat(this.value);
+                    const qty   = parseFloat(cashQtyInput.value) || 1;
+                    if (price > 0) addCashItem(price, qty);
+                    else toastr.warning('Enter a price first', 'Quick Add');
+                }
+            });
+        }
+
+        if (cashQtyInput) {
+            cashQtyInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const price = parseFloat(cashPriceInput.value);
+                    const qty   = parseFloat(this.value) || 1;
+                    if (price > 0) addCashItem(price, qty);
+                    else if (cashPriceInput) cashPriceInput.focus();
+                }
+            });
+        }
+
+        // ⚡ Toggle button — show/hide quick entry bar
+        const cashEntryToggle = document.getElementById('cashEntryToggle');
+        const cashEntryBar    = document.getElementById('cashEntryBar');
+        const cashEntryClose  = document.getElementById('cashEntryClose');
+
+        function openCashEntry() {
+            if (cashEntryBar) cashEntryBar.classList.add('show');
+            if (cashEntryToggle) { cashEntryToggle.classList.remove('btn-outline-secondary'); cashEntryToggle.classList.add('btn-warning'); }
+            setTimeout(() => cashPriceInput && cashPriceInput.focus(), 50);
+        }
+        function closeCashEntry() {
+            if (cashEntryBar) cashEntryBar.classList.remove('show');
+            if (cashEntryToggle) { cashEntryToggle.classList.remove('btn-warning'); cashEntryToggle.classList.add('btn-outline-secondary'); }
+        }
+
+        if (cashEntryToggle) {
+            cashEntryToggle.addEventListener('click', function () {
+                cashEntryBar && cashEntryBar.classList.contains('show') ? closeCashEntry() : openCashEntry();
+            });
+        }
+        if (cashEntryClose) {
+            cashEntryClose.addEventListener('click', closeCashEntry);
+        }
+
         // Check image health after page loads and refresh if needed
         setTimeout(() => {
             checkImageHealth();
@@ -7468,15 +7561,15 @@
             // IMEI products always get separate rows
             if (imeis.length === 0) {
                 const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
-                    const productIdElement = row.querySelector('.product-id');
+                    // Use data-product-id on <tr> (fastest, no child lookup) and fall back to .product-id td
+                    const rowProductId = row.getAttribute('data-product-id') ?? row.querySelector('.product-id')?.textContent?.trim();
                     const batchIdElement = row.querySelector('.batch-id');
                     const priceInputElement = row.querySelector('.price-input');
 
-                    if (!productIdElement || !batchIdElement || !priceInputElement) {
+                    if (!rowProductId || !batchIdElement || !priceInputElement) {
                         return false;
                     }
 
-                    const rowProductId = productIdElement.textContent.trim();
                     const rowBatchId = batchIdElement.textContent.trim();
                     const rowPrice = priceInputElement.value.trim();
 
@@ -7494,6 +7587,11 @@
                     // Strict matching: same product + same batch + same price must all match.
                     // Different batches of the same product MUST stay as separate rows so each
                     // batch gets the correct quantity deducted from its own stock.
+                    // Cash Items (miscItemProductId) are NEVER merged — each Quick entry is a
+                    // separate line on the bill.
+                    if (miscItemProductId && rowProductId == String(miscItemProductId)) {
+                        return false;
+                    }
                     return (
                         rowProductId == product.id &&
                         rowBatchId == batchId &&
@@ -7567,6 +7665,16 @@
             // Store max quantity for edit mode validation
             row.setAttribute('data-max-quantity', adjustedBatchQuantity);
 
+            // For cash/misc items: editable text input so cashier can label the item (e.g. "Paan", "Curry")
+            const isCashItem = miscItemProductId && product.id == miscItemProductId;
+            const nameDisplayHtml = isCashItem
+                ? '<input type="text" class="custom-name-input border-0 fw-bold p-0"'
+                  + ' value="' + String(product.product_name).replace(/"/g, '&quot;') + '"'
+                  + ' placeholder="Item name"'
+                  + ' title="Tap to rename this item"'
+                  + ' style="background:transparent;max-width:170px;font-size:inherit;color:inherit;">'
+                : product.product_name;
+
             row.innerHTML = `
         <td class="text-center counter-cell" style="vertical-align: middle; font-weight: bold; color: #000;"></td>
         <td>
@@ -7581,7 +7689,7 @@
                  onerror="this.onerror=null; this.src='/assets/images/No Product Image Available.png'; console.log('Image fallback applied for billing row: ${product.product_name}');"/>
             <div class="product-info" style="min-width: 0; flex: 1;">
             <div class="font-weight-bold product-name" style="word-break: break-word; max-width: 260px; line-height: 1.2;" title="Unit Cost: ${batch ? (batch.unit_cost || batch.purchase_price || 'N/A') : (product.unit_cost || product.purchase_price || 'N/A')} | Original Price: ${product.original_price || product.purchase_price || 'N/A'}">
-            ${product.product_name}
+            ${nameDisplayHtml}
             <span class="badge bg-info ms-1">MRP: ${batch && batch.max_retail_price ? batch.max_retail_price : product.max_retail_price}</span>
 
             </div>
@@ -8076,13 +8184,16 @@
                 updateTotals();
             });
 
-            // Event listener for product image click
+            // Event listener for product image click (skip for cash items — no batch to show)
             productImage.addEventListener('click', () => {
+                if (miscItemProductId && product.id == miscItemProductId) return;
                 showProductModal(product, stockEntry, row);
             });
 
             // Event listener for product name click
-            productName.addEventListener('click', () => {
+            // Skip modal for cash items — their name cell contains an editable input
+            productName.addEventListener('click', (e) => {
+                if (e.target.classList.contains('custom-name-input')) return;
                 showProductModal(product, stockEntry, row);
             });
 
@@ -8756,6 +8867,19 @@
         }
 
         function validatePriceInput(row, priceInput) {
+            // Cash Item rows: skip ALL price validation — cashier can type any price freely
+            // Use data-product-id attribute on <tr> (set at row creation) — more reliable than DOM traversal
+            const rowProductId = row.getAttribute('data-product-id');
+            if (miscItemProductId && rowProductId == String(miscItemProductId)) {
+                // Just update MRP data-attr to match the new price so future checks don't block
+                const newPrice = parseFloat(priceInput.value) || 0;
+                priceInput.setAttribute('data-max-retail-price', newPrice);
+                priceInput.setAttribute('data-retail-price', newPrice);
+                disableConflictingDiscounts(row);
+                updateTotals();
+                return;
+            }
+
             const retailPrice = parseFloat(priceInput.getAttribute('data-retail-price')) || 0;
             const wholesalePrice = parseFloat(priceInput.getAttribute('data-wholesale-price')) || 0;
             const specialPrice = parseFloat(priceInput.getAttribute('data-special-price')) || 0;
@@ -9492,6 +9616,8 @@
                     const parsedSubtotal = parseFormattedAmount(rawSubtotalText);
                     const unitPrice = parseFormattedAmount(productRow.find('.price-input').val().trim());
                     const expectedSubtotal = quantity * unitPrice;
+                    const customNameEl = productRow.find('.custom-name-input');
+                    const customName = customNameEl.length > 0 ? (customNameEl.val()?.trim() || null) : null;
 
                     // 🔍 DEBUG: Log subtotal calculation
                     console.log('📊 Product Subtotal Debug:', {
@@ -9516,6 +9642,7 @@
                         discount_type: discountType,
                         tax: 0,
                         batch_id: processedBatchId,
+                        custom_name: customName,
                     };
 
                     // Only add IMEI numbers if they exist (reduce payload size)
@@ -11743,7 +11870,10 @@
 });
 </script>
 
+<script>
 
+    document.addEventListener("DOMContentLoaded", function() {
+        let currentRowIndex = 0;
 
         function focusQuantityInput() {
             const quantityInputs = document.querySelectorAll('.quantity-input');

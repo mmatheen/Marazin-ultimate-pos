@@ -467,7 +467,7 @@
                             // Group non-IMEI products by product_id + batch_id + price.
                             // Including batch_id ensures different batches of the same product always show
                             // as separate lines. FIFO rows for the exact same batch still merge correctly.
-                            $groupKey = $product->product_id . '-' . ($product->batch_id ?? 'null') . '-' . $product->price;
+                            $groupKey = $product->product_id . '-' . ($product->batch_id ?? 'null') . '-' . $product->price . '-' . ($product->custom_name ?? '');
                             if (!isset($nonImeiGroups[$groupKey])) {
                                 $nonImeiGroups[$groupKey] = [
                                     'type' => 'grouped',
@@ -497,7 +497,7 @@
                     <tr>
                         <td>{{ $index++ }}</td>
                         <td>
-                            {{($item['product']->product->product_name) }}
+                            {{ $item['product']->custom_name ?? $item['product']->product->product_name }}
                             @if ($item['type'] == 'imei')
                                 <span style="font-size: 10px;">({{ $item['imei'] }})</span>
                             @elseif($item['product']->product->product_variation ?? false)

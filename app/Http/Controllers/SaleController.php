@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Location;
 use App\Models\Sale;
 use App\Models\Setting;
+use App\Http\Controllers\Web\ProductController as ProductManager;
 use App\Services\Sale\SaleValidationService;
 use App\Services\Sale\SaleDeleteService;
 use App\Services\Sale\SaleInvoiceNumberService;
@@ -578,6 +579,7 @@ class SaleController extends Controller
             'priceValidationEnabled' => (int) (Setting::value('enable_price_validation') ?? 1),
             'freeQtyEnabled'         => $freeQtyEnabled,
             'canUseFreeQty'          => (bool) ($freeQtyEnabled && $user?->can('use free quantity')),
+            'miscItemProductId'      => ProductManager::resolveCashItemProductId(),
         ];
     }
 

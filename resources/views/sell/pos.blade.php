@@ -541,9 +541,37 @@
                                     </div>
                                 </div>
                                 <div class="col-md-7 ps-2">
-                                    <input type="text" class="form-control" id="productSearchInput"
-                                        placeholder="Enter Product name / SKU / Scan bar code"
-                                        style="height: 38px; font-size: 14px;">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="productSearchInput"
+                                            placeholder="Enter Product name / SKU / Scan bar code"
+                                            style="height: 38px; font-size: 14px;">
+                                        <button id="cashEntryToggle" type="button"
+                                            class="btn btn-outline-secondary"
+                                            title="Quick price entry"
+                                            style="padding:0 12px; line-height:1;">
+                                            <i class="fas fa-tag"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Quick Price Entry bar — shown/hidden via the tag button in billing header -->
+                            <div id="cashEntryBar" class="collapse mt-1">
+                                <div class="d-flex align-items-center gap-2 px-2 py-1 rounded"
+                                     style="background:#fffbea; border:1px dashed #f5c842;">
+                                    <i class="fas fa-tag text-warning"></i>
+                                    <input type="number" id="cashPriceInput" class="form-control form-control-sm"
+                                        placeholder="Price" step="0.01" min="0.01"
+                                        style="width:110px;" autocomplete="off">
+                                    <input type="number" id="cashQtyInput" class="form-control form-control-sm"
+                                        placeholder="Qty" value="1" min="0.01" step="0.01"
+                                        style="width:70px;" autocomplete="off">
+                                    <span class="text-muted small">↵ Enter to add</span>
+                                    <button id="cashEntryClose" type="button"
+                                        class="btn btn-sm btn-outline-secondary ms-auto"
+                                        title="Hide quick entry" style="padding:1px 7px;">
+                                        <i class="fas fa-times"></i>
+                                    </button>
                                 </div>
                             </div>
 
@@ -1842,6 +1870,9 @@
             const canDeleteSale    = {!! json_encode(auth()->check() && auth()->user()->can('delete sale')) !!};
             const canEditProduct   = {!! json_encode(auth()->check() && auth()->user()->can('edit product')) !!};
             const canDeleteProduct = {!! json_encode(auth()->check() && auth()->user()->can('delete product')) !!};
+
+            // Cash register quick-entry: pre-created "Cash Item" product ID
+            const miscItemProductId = {{ $miscItemProductId ?? 0 }};
 
             // Debug: Log permission and validation settings
             console.log('🔐 POS Price Control Settings:', {

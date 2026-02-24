@@ -828,6 +828,50 @@ class ProductController extends Controller
         }
     }
 
+    /**
+     * Find or auto-create the "Cash Item" placeholder product used for
+     * instant cash-register price entry on the POS page.
+     * Uses withoutGlobalScopes() to bypass LocationScope on Unit/Brand/MainCategory.
+     * Result is cached for 24 hours — DB is only queried once per day.
+     */
+    public static function resolveCashItemProductId(): int
+    {
+        return Cache::remember('misc_item_product_id', 86400, function () {
+            $unit     = Unit::withoutGlobalScopes()->firstOrCreate(
+                ['name' => 'Pieces'],
+                ['short_name' => 'PCS', 'allow_decimal' => 0]
+            );
+            $brand    = Brand::withoutGlobalScopes()->firstOrCreate(
+                ['name' => 'General'],
+                ['description' => 'Auto-created']
+            );
+            $category = MainCategory::withoutGlobalScopes()->firstOrCreate(
+                ['mainCategoryName' => 'General'],
+                ['description' => 'Auto-created']
+            );
+
+            $product = Product::firstOrCreate(
+                ['sku' => 'CASH-ITEM'],
+                [
+                    'product_name'     => 'Cash Item',
+                    'unit_id'          => $unit->id,
+                    'brand_id'         => $brand->id,
+                    'main_category_id' => $category->id,
+                    'stock_alert'      => 0,
+                    'is_for_selling'   => 1,
+                    'is_active'        => 1,
+                    'retail_price'     => 1,
+                    'whole_sale_price' => 1,
+                    'special_price'    => 1,
+                    'original_price'   => 1,
+                    'max_retail_price' => 1,
+                ]
+            );
+
+            return (int) $product->id;
+        });
+    }
+
     public function showOpeningStock($productId)
     {
         $product = Product::with(['locations', 'unit:id,name,short_name,allow_decimal'])->findOrFail($productId);
