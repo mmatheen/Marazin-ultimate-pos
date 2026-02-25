@@ -7532,15 +7532,22 @@
             }
 
             // If allowDecimal, use step="any" and allow decimal input, else step="1"
-            const qtyInputStep = allowDecimal ? 'any' : '1';
-            const qtyInputPattern = allowDecimal ? '[0-9]+([.][0-9]{1,2})?' : '[0-9]*';
+            // In edit mode (isLoadingExisting), always use step="any" to preserve decimal DB values like 6.5
+            const loadedQtyHasDecimal = isLoadingExisting && saleQuantity !== undefined && !Number.isInteger(parseFloat(saleQuantity));
+            const qtyInputStep = (allowDecimal || loadedQtyHasDecimal) ? 'any' : '1';
+            const qtyInputPattern = (allowDecimal || loadedQtyHasDecimal) ? '[0-9]+([.][0-9]{1,2})?' : '[0-9]*';
 
             // Determine initial quantity value for input
             let initialQuantityValue;
             if (saleQuantity !== undefined && saleQuantity > 0 && imeis.length === 0) {
                 // Use provided saleQuantity (from mobile modal or edit mode) - but not for IMEI products
-                initialQuantityValue = allowDecimal ? parseFloat(saleQuantity).toFixed(2).replace(/\.?0+$/,
-                    '') : parseInt(saleQuantity, 10);
+                // In edit mode (isLoadingExisting), always preserve the exact DB value with parseFloat
+                // so decimal quantities like 6.5 are not truncated to 6 by parseInt.
+                if (isLoadingExisting || allowDecimal) {
+                    initialQuantityValue = parseFloat(saleQuantity);
+                } else {
+                    initialQuantityValue = parseInt(saleQuantity, 10);
+                }
             } else if (imeis.length > 0) {
                 // *** FIX: For IMEI products, each row should always have quantity = 1 ***
                 // Since we now create separate rows for each IMEI, each row gets exactly 1 IMEI
@@ -9342,15 +9349,24 @@
                                     console.log('🔄 Edit Mode - Non-IMEI product, using FIFO method: "all"');
                                 }
 
+                                // Merge saleProduct.unit into the product object so that
+                                // attachRowEventListeners can read allow_decimal correctly.
+                                // Without this, product.unit is undefined in edit mode and
+                                // allowDecimal = false, blocking decimal qty input (e.g. 8.5).
+                                const productForBilling = {
+                                    ...saleProduct.product,
+                                    unit: saleProduct.unit || saleProduct.product?.unit || null,
+                                    batches: saleProduct.product?.batches || []
+                                };
+
                                 addProductToBillingBody(
-                                    saleProduct.product,
+                                    productForBilling,
                                     normalizedStockEntry,
                                     price,
                                     editModeBatchId, // Use FIFO for non-IMEI, original batch for IMEI
                                     maxAvailableStock, // Batch quantity (max available)
                                     saleProduct.price_type,
-                                    saleProduct
-                                    .quantity, // Sale quantity (current quantity in sale)
+                                    saleProduct.quantity, // Sale quantity (current quantity in sale)
                                     saleProduct.imei_numbers || [],
                                     saleProduct.discount_type,
                                     saleProduct.discount_amount,
@@ -9917,36 +9933,32 @@
                                                 iframe.contentWindow.focus();
                                                 iframe.contentWindow.print();
 
-                                                // 🎯 Listen for afterprint event to focus search input
+                                                // 🎯 After print dialog closes: navigate (edit mode) or focus search (new sale).
+                                                // IMPORTANT: Do NOT navigate inside a setTimeout — that caused the page to
+                                                // redirect 1 second after the print dialog opened, before the user could see
+                                                // the receipt. onafterprint fires only after the dialog is dismissed.
                                                 iframe.contentWindow.onafterprint = function() {
                                                     setTimeout(() => {
-                                                        const searchInput = document.getElementById('productSearchInput');
-                                                        if (searchInput) {
-                                                            searchInput.focus();
-                                                            searchInput.select();
-                                                            console.log('✅ Product search input focused after desktop print');
-                                                        }
-                                                    }, 200);
-                                                };
-
-                                                // Clean up iframe after print
-                                                setTimeout(() => {
-                                                    if (document.body.contains(iframe)) document.body.removeChild(iframe);
-                                                    // Navigate for edit page
-                                                    if (saleId && window.location.pathname.includes('/edit/')) {
-                                                        navigateToPosCreate();
-                                                    } else {
-                                                        // 🎯 Fallback: Focus search input after cleanup
-                                                        setTimeout(() => {
+                                                        if (document.body.contains(iframe)) document.body.removeChild(iframe);
+                                                        if (saleId && window.location.pathname.includes('/edit/')) {
+                                                            navigateToPosCreate();
+                                                        } else {
                                                             const searchInput = document.getElementById('productSearchInput');
                                                             if (searchInput) {
                                                                 searchInput.focus();
                                                                 searchInput.select();
-                                                                console.log('✅ Product search input focused after desktop print cleanup');
+                                                                console.log('✅ Product search input focused after desktop print');
                                                             }
-                                                        }, 100);
-                                                    }
-                                                }, 1000);
+                                                        }
+                                                    }, 200);
+                                                };
+
+                                                // Fallback cleanup only — do NOT navigate here.
+                                                // This fires after 60s just to remove the invisible iframe in case
+                                                // onafterprint never fires (e.g. user cancelled via keyboard shortcut).
+                                                setTimeout(() => {
+                                                    if (document.body.contains(iframe)) document.body.removeChild(iframe);
+                                                }, 60000);
                                             };
                                         }
                                     } else {

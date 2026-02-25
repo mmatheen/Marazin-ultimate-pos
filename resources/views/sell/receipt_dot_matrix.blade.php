@@ -118,17 +118,13 @@
         }
 
         .header-section {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 0.06in;
-            margin-top: 0.03in;
-            padding: 0;
+            display: block;
+            margin-bottom: 0.04in;
+            margin-top: 0.02in;
         }
 
         .company-info {
-            flex: 1;
-            padding-right: 0.12in;
+            display: none;
         }
 
         .company-email {
@@ -139,25 +135,26 @@
 
         .company-logo {
             font-family: Arial, sans-serif;
-            font-size: 22px;
+            font-size: 28px;
             font-weight: bold;
             letter-spacing: 1px;
-            margin-bottom: 3px;
+            margin-bottom: 4px;
             text-transform: uppercase;
             text-align: center;
         }
 
         .company-address {
-            font-size: 11px;
-            line-height: 1.35;
+            font-size: 13px;
+            line-height: 1.5;
+            text-align: center;
+            margin-bottom: 0.05in;
         }
 
         .customer-box {
-            margin: 0;
-            border: 1px dashed #333;
-            padding: 4px 7px;
-            width: 3.5in;
-            flex-shrink: 0;
+            flex: 1;
+            min-width: 0;
+            border: none;
+            padding: 0;
             background-color: white;
         }
 
@@ -178,20 +175,25 @@
         }
 
         .customer-line {
-            display: flex;
-            font-size: 10px;
-            margin: 1px 0;
+            display: inline;
+            font-size: 13px;
         }
 
         .customer-line label {
-            min-width: 0.75in;
-            width: 0.75in;
-            flex-shrink: 0;
+            display: inline;
+            font-weight: bold;
+            white-space: nowrap;
         }
 
         .customer-line span {
-            flex: 1;
-            word-break: break-word;
+            display: inline;
+            white-space: nowrap;
+        }
+
+        .customer-sep {
+            display: inline;
+            margin: 0 8px;
+            color: #666;
         }
 
         .type-credit {
@@ -212,10 +214,20 @@
         }
 
         .invoice-title {
-            text-align: center;
             font-size: 16px;
             font-weight: bold;
-            margin: 3px 0 4px 0;
+            white-space: nowrap;
+            flex-shrink: 0;
+            padding-left: 0.15in;
+            align-self: center;
+        }
+
+        .customer-invoice-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 0.04in 0 0.06in 0;
+            flex-wrap: nowrap;
         }
 
         .items-table {
@@ -251,23 +263,27 @@
             width: 0.85in;
         }
 
-        .items-table th:nth-child(5),
+        .items-table th:nth-child(5) {
+            text-align: right;
+            width: 0.45in;
+        }
+
         .items-table th:nth-child(6),
         .items-table th:nth-child(7),
         .items-table th:nth-child(8),
-        .items-table th:nth-child(9) {
+        .items-table th:nth-child(9),
+        .items-table th:nth-child(10) {
             text-align: right;
-            width: 0.7in;
-            /* Reduced width */
+            width: 0.65in;
         }
 
         .items-table td {
-            padding: 2px 3px;
-            font-size: 11px;
+            padding: 3px 3px;
+            font-size: 12px;
         }
 
         .items-table tbody tr {
-            border-bottom: 0.5px solid #ddd;
+            border-bottom: none;
         }
 
         .items-table td:first-child {
@@ -285,13 +301,18 @@
             width: 0.85in;
         }
 
-        .items-table td:nth-child(5),
+        .items-table td:nth-child(5) {
+            text-align: right;
+            width: 0.45in;
+        }
+
         .items-table td:nth-child(6),
         .items-table td:nth-child(7),
         .items-table td:nth-child(8),
-        .items-table td:nth-child(9) {
+        .items-table td:nth-child(9),
+        .items-table td:nth-child(10) {
             text-align: right;
-            width: 0.7in;
+            width: 0.65in;
         }
 
         .summary-section {
@@ -301,7 +322,7 @@
             border-bottom: 1px solid #aaa;
             padding: 4px 0;
             margin-top: 4px;
-            font-size: 10px;
+            font-size: 12px;
             break-inside: avoid;
             page-break-inside: avoid;
         }
@@ -393,55 +414,38 @@
 
         <div class="company-logo">{{ strtoupper($location->name ?? '') }}</div>
 
-        <div class="header-section">
-            <div class="company-info">
-                <div class="company-address">
-                    @if ($location && $location->address)
-                        {{ strtoupper($location->address) }}<br>
-                    @endif
-                    @if ($location && $location->mobile)
-                        Mobile: {{ $location->mobile }}<br>
-                    @endif
-                    @if ($location && $location->email)
-                        Email: {{ $location->email }}<br>
-                    @endif
-                    @if ($location && $location->mobile)
-                        Phone: {{ $location->mobile }}
-                    @endif
-                </div>
-            </div>
-
-            <div class="customer-box">
-                <div class="customer-line">
-                    <label>Customer</label>
-                    <span>: <strong class="customer-name-bold">{{ strtoupper($customer->first_name . ' ' . $customer->last_name) }}</strong></span>
-                </div>
-                <div class="customer-line">
-                    <label>Phone</label>
-                    <span>: {{ $customer->mobile_no ?? 'N/A' }}</span>
-                </div>
-                <div class="customer-line">
-                    <label>Date</label>
-                    <span>: {{ \Carbon\Carbon::parse($sale->sales_date)->format('Y-m-d h:i:s A') }}</span>
-                </div>
-            </div>
+        <div class="company-address">
+            @php
+                $addrParts = [];
+                if ($location && $location->address) $addrParts[] = strtoupper($location->address);
+                if ($location && $location->mobile)  $addrParts[] = 'Mobile: ' . $location->mobile . '/  ' .($location->telephone_no ?? '');
+                if ($location && $location->email)   $addrParts[] = 'Email: ' . $location->email;
+            @endphp
+            {{ implode(' | ', $addrParts) }}
         </div>
 
-        @if ($sale->total_due <= 0)
-            {{-- <div class="delivered-badge">Delivered</div> --}}
-        @endif
-
-        <div class="invoice-title">
-            @if ($sale->status === 'quotation')
-                QUOTATION
-            @elseif ($sale->status === 'draft')
-                DRAFT
-            @elseif (isset($sale->transaction_type) && $sale->transaction_type === 'sale_order')
-                SALE ORDER
-            @else
-                INVOICE
-            @endif
-            &nbsp;-&nbsp;{{ $sale->invoice_no }}@if ($sale->total_due > 0) &nbsp;<span class="type-credit" style="font-size:12px;">TYPE: CREDIT</span>@endif
+        <div class="customer-invoice-row">
+            <div class="customer-box">
+                <div style="font-size:13px; line-height:1.8; white-space:nowrap;">
+                    <span class="customer-line"><label>Customer</label>: <strong class="customer-name-bold">{{ strtoupper($customer->first_name . ' ' . $customer->last_name) }}</strong></span>
+                    <span class="customer-sep">|</span>
+                    <span class="customer-line"><label>Phone</label>: {{ $customer->mobile_no ?? 'N/A' }}</span>
+                    <span class="customer-sep">|</span>
+                    <span class="customer-line"><label>Date</label>: {{ \Carbon\Carbon::parse($sale->sales_date)->format('Y-m-d h:i A') }}</span>
+                </div>
+            </div>
+            <div class="invoice-title">
+                @if ($sale->status === 'quotation')
+                    QUOTATION
+                @elseif ($sale->status === 'draft')
+                    DRAFT
+                @elseif (isset($sale->transaction_type) && $sale->transaction_type === 'sale_order')
+                    SALE ORDER
+                @else
+                    INVOICE
+                @endif
+                &nbsp;-&nbsp;{{ $sale->invoice_no }}@if ($sale->total_due > 0) &nbsp;<span class="type-credit" style="font-size:12px;">CREDIT</span>@endif
+            </div>
         </div>
 
         <table class="items-table">
@@ -452,6 +456,7 @@
                     <th>Batch No</th>
                     <th>Expiry</th>
                     <th>Qty</th>
+                    <th>Free</th>
                     <th>Unit Price</th>
                     <th>Discount</th>
                     <th>Net Price</th>
@@ -545,8 +550,12 @@
                         <td>
                             @php $fmtQty = fn($v) => rtrim(rtrim(number_format((float)$v, 4, '.', ''), '0'), '.'); @endphp
                             {{ $fmtQty($item['quantity']) }}
+                        </td>
+                        <td>
                             @if(isset($item['free_quantity']) && $item['free_quantity'] > 0)
-                                +{{ $fmtQty($item['free_quantity']) }}F
+                                {{ $fmtQty($item['free_quantity']) }}
+                            @else
+                                -
                             @endif
                         </td>
                         <td>{{ number_format($item['unitPrice'], 2) }}</td>
@@ -556,7 +565,7 @@
                     </tr>
                     @empty
                         <tr>
-                    <td colspan="9" style="text-align: center;">NO PRODUCTS FOUND</td>
+                    <td colspan="10" style="text-align: center;">NO PRODUCTS FOUND</td>
                         </tr>
                     @endforelse
                 </tbody>

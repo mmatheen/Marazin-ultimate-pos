@@ -136,7 +136,7 @@ class SaleProductProcessor
                 ->where('location_id', $locationId)
                 ->firstOrFail();
 
-            // Check both paid and free stock separately
+            // Check paid stock for the paid portion
             $availablePaidStock = $locationBatch->qty ?? 0;
             $availableFreeStock = $locationBatch->free_qty ?? 0;
 
@@ -144,8 +144,11 @@ class SaleProductProcessor
                 throw new \Exception("Batch ID {$productData['batch_id']} does not have enough paid stock. Available: {$availablePaidStock}, Requested: {$productData['quantity']}");
             }
 
-            if ($availableFreeStock < $freeQuantity) {
-                throw new \Exception("Batch ID {$productData['batch_id']} does not have enough free stock. Available: {$availableFreeStock}, Requested: {$freeQuantity}");
+            // Sale-time free qty: deducted from purchase-free pool first, then falls back to paid stock.
+            // So total available stock must cover paid + free given.
+            $totalAvailable = $availablePaidStock + $availableFreeStock;
+            if ($totalAvailable < $totalQuantity) {
+                throw new \Exception("Batch ID {$productData['batch_id']} does not have enough total stock for sale (paid + free). Available: {$totalAvailable}, Requested: {$totalQuantity}");
             }
 
             $this->deductBatchStock($productData['batch_id'], $locationId, $totalQuantity, $stockType, $productData['quantity'], $freeQuantity);
@@ -222,17 +225,20 @@ class SaleProductProcessor
 
                     $this->deductBatchStock($batch->batch_id, $locationId, $deductFromPaidForFree, $stockType, $deductFromPaidForFree, 0);
 
-                    // Update or add to batch deductions
+                    // Update or add to batch deductions.
+                    // IMPORTANT: paid_qty must NOT be incremented here — this stock is used to
+                    // COVER a free item, so the invoice must still show it as free_qty.
+                    // Only free_qty and total quantity are updated.
                     $existingIndex = array_search($batch->batch_id, array_column($batchDeductions, 'batch_id'));
                     if ($existingIndex !== false) {
-                        $batchDeductions[$existingIndex]['paid_qty'] += $deductFromPaidForFree;
+                        $batchDeductions[$existingIndex]['free_qty'] += $deductFromPaidForFree;
                         $batchDeductions[$existingIndex]['quantity'] += $deductFromPaidForFree;
                     } else {
                         $batchDeductions[] = [
                             'batch_id' => $batch->batch_id,
                             'quantity' => $deductFromPaidForFree,
-                            'paid_qty' => $deductFromPaidForFree,
-                            'free_qty' => 0
+                            'paid_qty' => 0,
+                            'free_qty' => $deductFromPaidForFree
                         ];
                     }
 
@@ -342,29 +348,28 @@ class SaleProductProcessor
         $requestedPaidQty = round((float) $paidQty, 4);
         $requestedFreeQty = round((float) $freeQty, 4);
 
+        // Sale-time free qty: use purchase-free pool first, fall back to paid stock if pool is empty.
+        // This allows giving customer free items even when location_batches.free_qty = 0.
+        $freeFromFreePool = min($currentFreeStock, $requestedFreeQty);
+        $freeFromPaidPool = round($requestedFreeQty - $freeFromFreePool, 4);
+        $totalFromQtyCol  = round($requestedPaidQty + $freeFromPaidPool, 4);
+
         // Float tolerance of 0.0001 guards against rounding drift
-        if (($currentPaidStock + 0.0001) < $requestedPaidQty) {
+        if (($currentPaidStock + 0.0001) < $totalFromQtyCol) {
             Log::error('Insufficient paid stock', [
                 'batch_id' => $batchId, 'location_id' => $locationId,
-                'available' => $currentPaidStock, 'requested' => $requestedPaidQty,
+                'available' => $currentPaidStock, 'requested_paid' => $requestedPaidQty,
+                'free_from_paid_pool' => $freeFromPaidPool, 'total_from_qty' => $totalFromQtyCol,
             ]);
-            throw new \Exception("Insufficient paid stock in batch ID $batchId at location $locationId. Available: $currentPaidStock, Requested: $requestedPaidQty");
-        }
-
-        if (($currentFreeStock + 0.0001) < $requestedFreeQty) {
-            Log::error('Insufficient free stock', [
-                'batch_id' => $batchId, 'location_id' => $locationId,
-                'available' => $currentFreeStock, 'requested' => $requestedFreeQty,
-            ]);
-            throw new \Exception("Insufficient free stock in batch ID $batchId at location $locationId. Available: $currentFreeStock, Requested: $requestedFreeQty");
+            throw new \Exception("Insufficient paid stock in batch ID $batchId at location $locationId. Available: $currentPaidStock, Total Required from paid stock: $totalFromQtyCol");
         }
 
         $affected = DB::table('location_batches')
             ->where('batch_id', $batchId)
             ->where('location_id', $locationId)
             ->update([
-                'qty'      => DB::raw("qty - $requestedPaidQty"),
-                'free_qty' => DB::raw("free_qty - $requestedFreeQty"),
+                'qty'      => DB::raw("qty - $totalFromQtyCol"),
+                'free_qty' => DB::raw("free_qty - $freeFromFreePool"),
             ]);
 
         if ($affected === 0) {
@@ -507,13 +512,15 @@ class SaleProductProcessor
             return;
         }
 
-        // FIX: Restore paid and free quantities separately
+        // Restore paid quantity back to qty.
+        // Sale-time free qty was deducted from qty (paid pool) when purchase-free pool was empty,
+        // so restore all (paid + free) back to qty to avoid negative free_qty drift.
+        $totalToRestore = $paidQuantity + $freeQuantity;
         $affected = DB::table('location_batches')
             ->where('batch_id', $product->batch_id)
             ->where('location_id', $product->location_id)
             ->update([
-                'qty' => DB::raw("qty + {$paidQuantity}"),
-                'free_qty' => DB::raw("free_qty + {$freeQuantity}")
+                'qty' => DB::raw("qty + {$totalToRestore}"),
             ]);
 
         if ($affected > 0) {
