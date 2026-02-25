@@ -389,6 +389,13 @@
             page-break-inside: avoid;
         }
 
+        .sale-notes {
+            font-size: 10px;
+            line-height: 1.4;
+        }
+
+
+
         .footer-line {
             border-top: 1px solid #666;
             margin-top: auto;
@@ -702,6 +709,12 @@
                 </div>
             @endif
 
+            {{-- Sale Notes Section --}}
+            @if (isset($sale->sale_notes) && $sale->sale_notes)
+                <div class="sale-notes">
+                    <div>{{ $sale->sale_notes }}</div>
+                </div>
+            @endif
 
             <div class="footer-line">
                 <div>Prepared By: {{ strtoupper($user->user_name ?? ($user->name ?? 'CASHIER')) }}</div>
