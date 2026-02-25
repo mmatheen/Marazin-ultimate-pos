@@ -348,7 +348,7 @@
 
         .summary-row.bold {
             font-weight: bold;
-            font-size: 10px;
+            font-size: 13px;
             margin-top: 2px;
         }
 
@@ -444,7 +444,7 @@
                 @else
                     INVOICE
                 @endif
-                &nbsp;-&nbsp;{{ $sale->invoice_no }}@if ($sale->total_due > 0) &nbsp;<span class="type-credit" style="font-size:12px;">CREDIT</span>@endif
+                &nbsp;-&nbsp;{{ $sale->invoice_no }}
             </div>
         </div>
 
@@ -458,7 +458,7 @@
                     <th>Qty</th>
                     <th>Free</th>
                     <th>Unit Price</th>
-                    <th>Discount</th>
+                    <th>Disc</th>
                     <th>Net Price</th>
                     <th>Amount</th>
                 </tr>
