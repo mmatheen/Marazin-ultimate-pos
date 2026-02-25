@@ -433,13 +433,30 @@
 
         <div class="customer-invoice-row">
             <div class="customer-box">
-                <div style="font-size:13px; line-height:1.8; white-space:nowrap;">
-                    <span class="customer-line"><label>Customer</label>: <strong class="customer-name-bold">{{ strtoupper($customer->first_name . ' ' . $customer->last_name) }}</strong></span>
-                    <span class="customer-sep">|</span>
-                    <span class="customer-line"><label>Phone</label>: {{ $customer->mobile_no ?? 'N/A' }}</span>
-                    <span class="customer-sep">|</span>
-                    <span class="customer-line"><label>Date</label>: {{ \Carbon\Carbon::parse($sale->sales_date)->format('Y-m-d h:i A') }}</span>
-                </div>
+                @php
+                    $customerFullName = strtoupper($customer->first_name . ' ' . $customer->last_name);
+                    $isLongName = strlen($customerFullName) > 18;
+                @endphp
+                @if($isLongName)
+                    {{-- Long name: Customer name on first line, Phone + Date on second line --}}
+                    <div style="font-size:13px; line-height:1.8;">
+                        <div><label style="font-weight:bold;">Customer</label>: <strong class="customer-name-bold">{{ $customerFullName }}</strong></div>
+                        <div>
+                            <span class="customer-line"><label>Phone</label>: {{ $customer->mobile_no ?? 'N/A' }}</span>
+                            <span class="customer-sep">|</span>
+                            <span class="customer-line"><label>Date</label>: {{ \Carbon\Carbon::parse($sale->sales_date)->format('Y-m-d h:i A') }}</span>
+                        </div>
+                    </div>
+                @else
+                    {{-- Short name: all on one line --}}
+                    <div style="font-size:13px; line-height:1.8; white-space:nowrap;">
+                        <span class="customer-line"><label>Customer</label>: <strong class="customer-name-bold">{{ $customerFullName }}</strong></span>
+                        <span class="customer-sep">|</span>
+                        <span class="customer-line"><label>Phone</label>: {{ $customer->mobile_no ?? 'N/A' }}</span>
+                        <span class="customer-sep">|</span>
+                        <span class="customer-line"><label>Date</label>: {{ \Carbon\Carbon::parse($sale->sales_date)->format('Y-m-d h:i A') }}</span>
+                    </div>
+                @endif
             </div>
             <div class="invoice-title">
                 @if ($sale->status === 'quotation')
@@ -672,10 +689,12 @@
                             : 0;
                     @endphp
                     <div style="font-size:10px; margin-top:3px;">
+                    @if (round($previous_outstanding) > 0)
                         <div class="summary-row">
                             <span>Prev. Balance:</span>
                             <span>{{ number_format($previous_outstanding, 2) }}</span>
                         </div>
+                        @endif
                         @if ($unpaidReturnAmount > 0)
                             <div class="summary-row">
                                 <span>Return:</span>

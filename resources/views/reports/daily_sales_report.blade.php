@@ -633,7 +633,32 @@
                         {
                             extend: 'print',
                             text: '<i class="fa fa-print"></i> Print',
-                            title: 'ARB Fashion Daily Sales Report',
+                            title: function() {
+                                const locationSelect = document.getElementById('locationFilter');
+                                const selectedOption = locationSelect && locationSelect.selectedIndex >= 0
+                                    ? locationSelect.options[locationSelect.selectedIndex]
+                                    : null;
+
+                                // If a specific location is selected in the filter, use that
+                                if (selectedOption && selectedOption.value) {
+                                    return selectedOption.text + ' - Daily Sales Report';
+                                }
+
+                                // Otherwise, collect unique location names directly from allSales JSON data
+                                const locationSet = new Set();
+                                allSales.forEach(function(sale) {
+                                    if (sale.location && sale.location.name) {
+                                        locationSet.add(sale.location.name.trim());
+                                    }
+                                });
+                                const locations = Array.from(locationSet);
+                                if (locations.length === 1) {
+                                    return locations[0] + ' - Daily Sales Report';
+                                } else if (locations.length > 1) {
+                                    return locations.join(', ') + ' - Daily Sales Report';
+                                }
+                                return 'Daily Sales Report';
+                            },
                             exportOptions: {
                                 columns: ':visible',
                                 format: {
@@ -653,9 +678,17 @@
                                 const footer = $('#salesTable tfoot').clone();
                                 $(win.document.body).find('table').append(footer);
 
+                                // Style the h1 title (dynamically set by `title` function above) instead of removing it
+                                $(win.document.body).find('h1').css({
+                                    'text-align': 'center',
+                                    'font-size': '20px',
+                                    'font-weight': 'bold',
+                                    'margin-bottom': '16px',
+                                    'letter-spacing': '0.5px'
+                                });
+
                                 // Styling adjustments for the main table
                                 $(win.document.body).find('table').addClass('table table-bordered');
-                                $(win.document.body).find('h1').remove();
 
                                 // Collect summary rows from both summary cards (.summary-row divs)
                                 const paymentRows = [];
@@ -725,11 +758,6 @@
                                 $(win.document.body).find('th').css({
                                     'font-weight': 'bold',
                                     'text-align': 'center'
-                                });
-                                $(win.document.body).find('h1').css({
-                                    'text-align': 'center',
-                                    'font-size': '24px',
-                                    'margin-bottom': '20px'
                                 });
 
                                 // Additional styling for the summary table

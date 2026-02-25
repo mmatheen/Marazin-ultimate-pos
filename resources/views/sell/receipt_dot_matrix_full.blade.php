@@ -590,13 +590,16 @@
                                     : 0;
                             @endphp --}}
                             <div class="outstanding-box">
+                                @if (round($previous_outstanding) > 0)
                                 <div class="summary-row" style="font-size: 12px; margin: 0 0 3px 0;">
                                     <span>Previous Balance:</span>
                                     <span>{{ number_format($previous_outstanding, 2) }}</span>
                                 </div>
+                                @endif
                                 @if ($sale->total_due > 0)
                                     <div class="summary-row" style="font-size: 12px; margin: 0 0 6px 0; padding-bottom: 5px; border-bottom: 1px solid #999;">
                                         <span>*Current Credit:</span>
+
                                         <span>{{ number_format($sale->total_due, 2) }}</span>
                                     </div>
                                 @endif
