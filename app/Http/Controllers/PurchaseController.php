@@ -70,7 +70,8 @@ class PurchaseController extends Controller
             'products.*.quantity' => [
                 'required',
                 'numeric',
-                'min:0.0001',
+                // Standalone claims record a promise only — quantity can be 0
+                $request->input('purchase_type') === 'free_claim_standalone' ? 'min:0' : 'min:0.0001',
                 function ($attribute, $value, $fail) use ($request) {
                     // Extract the index from the attribute, e.g., products.0.quantity => 0
                     if (preg_match('/products\.(\d+)\.quantity/', $attribute, $matches)) {
@@ -112,6 +113,26 @@ class PurchaseController extends Controller
                             if ($value > 0 && isset($productData['quantity'])) {
                                 if ($value > ($productData['quantity'] * 2)) {
                                     $fail("Free quantity ({$value}) seems unusually high compared to purchase quantity ({$productData['quantity']}). Please verify.");
+                                }
+                            }
+                        }
+                    }
+                },
+            ],
+            'products.*.claim_free_quantity' => [
+                'nullable',
+                'numeric',
+                'min:0',
+                function ($attribute, $value, $fail) use ($request) {
+                    if (preg_match('/products\.(\d+)\.claim_free_quantity/', $attribute, $matches)) {
+                        $index = $matches[1];
+                        $productData = $request->input("products.$index");
+                        if ($productData && isset($productData['product_id'])) {
+                            $product = \App\Models\Product::find($productData['product_id']);
+                            if ($product && $product->unit && !$product->unit->allow_decimal) {
+                                $hasDecimals = (float)$value != (int)$value;
+                                if ($hasDecimals) {
+                                    $fail('The claim free quantity must be a whole number for this unit type.');
                                 }
                             }
                         }
@@ -174,6 +195,17 @@ class PurchaseController extends Controller
                 $oldPurchase = Purchase::find($purchaseId);
             }
 
+            $purchaseType = $request->input('purchase_type', 'regular');
+            $claimReferenceId = $request->input('claim_reference_id');
+
+            // For free_claim receipts, force totals to zero
+            $finalTotal = in_array($purchaseType, ['free_claim', 'free_claim_standalone'])
+                ? 0
+                : $request->final_total;
+            $total = in_array($purchaseType, ['free_claim', 'free_claim_standalone'])
+                ? 0
+                : $request->total;
+
             $purchase = Purchase::updateOrCreate(
                 ['id' => $purchaseId],
                 [
@@ -186,19 +218,51 @@ class PurchaseController extends Controller
                     'pay_term' => $request->pay_term,
                     'pay_term_type' => $request->pay_term_type,
                     'attached_document' => $attachedDocument,
-                    'total' => $request->total,
+                    'total' => $total,
                     'discount_type' => $request->discount_type,
                     'discount_amount' => $request->discount_amount,
-                    'final_total' => $request->final_total,
+                    'final_total' => $finalTotal,
+                    'purchase_type' => $purchaseType,
+                    'claim_reference_id' => $claimReferenceId ?: null,
                 ]
             );
 
             // Process products
             $this->processProducts($request, $purchase);
 
+            // --- Sync claim_status on this purchase ---
+            // If any product has a claim_free_quantity, mark this purchase as a claim origin
+            if ($purchaseType === 'regular' || $purchaseType === 'free_claim_standalone') {
+                $totalClaimed = $purchase->purchaseProducts()->sum('claim_free_quantity');
+                if ($totalClaimed > 0) {
+                    // Calculate how much has already been received via linked free_claim receipts
+                    $totalReceived = \App\Models\PurchaseProduct::whereIn(
+                        'purchase_id',
+                        $purchase->claimReceipts()->pluck('id')
+                    )->sum('quantity');
+
+                    if ($totalReceived <= 0) {
+                        $purchase->update(['claim_status' => 'pending']);
+                    } elseif ($totalReceived < $totalClaimed) {
+                        $purchase->update(['claim_status' => 'partial']);
+                    } else {
+                        $purchase->update(['claim_status' => 'fulfilled']);
+                    }
+                } else {
+                    $purchase->update(['claim_status' => null]);
+                }
+            }
+
+            // If this is a free_claim receipt, update the original purchase's claim_status
+            if ($purchaseType === 'free_claim' && $claimReferenceId) {
+                $this->syncClaimStatus($claimReferenceId);
+            }
+
             // --- Server-side authoritative total calculation ---
             // Calculate sum of product totals stored on the purchase (prevent client manipulation)
+            // Skip this for free claim receipts - their total is always 0
             try {
+                if (!in_array($purchaseType, ['free_claim', 'free_claim_standalone'])) {
                 $calculatedTotal = (float) $purchase->purchaseProducts()->sum(DB::raw('COALESCE(total,0)'));
 
                 // Compute discount amount based on discount_type (if provided)
@@ -243,6 +307,7 @@ class PurchaseController extends Controller
                     'discount_amount' => $discountValue,
                     'final_total' => $serverFinalTotal,
                 ]);
+                } // end if not free_claim
             } catch (\Exception $e) {
                 Log::error('Error calculating server-side purchase totals: ' . $e->getMessage());
                 // If calculation fails, fall back to client provided totals (already saved earlier)
@@ -252,7 +317,10 @@ class PurchaseController extends Controller
             static $processedPurchases = [];
             $purchaseKey = 'purchase_' . $purchase->id;
 
-            if (!isset($processedPurchases[$purchaseKey])) {
+            // Free claim receipts have zero value — skip ledger and payment entirely
+            $isFreeClaim = in_array($purchaseType, ['free_claim', 'free_claim_standalone']);
+
+            if (!$isFreeClaim && !isset($processedPurchases[$purchaseKey])) {
                 // Handle ledger recording/updating
                 if ($isUpdate) {
                     // For updates, use updatePurchase method to handle cleanup and recreation
@@ -265,8 +333,8 @@ class PurchaseController extends Controller
                 $processedPurchases[$purchaseKey] = true;
             }
 
-            // Handle payment if paid_amount is provided
-            if ($request->paid_amount > 0) {
+            // Handle payment if paid_amount is provided (skip for free claim receipts)
+            if (!$isFreeClaim && $request->paid_amount > 0) {
                 // ✅ CLEAN: Use PaymentService to handle all payment logic
                 $paymentData = $this->preparePaymentData($request);
                 $this->paymentService->handlePurchasePayment($paymentData, $purchase);
@@ -419,6 +487,44 @@ class PurchaseController extends Controller
                 $this->removeProductFromPurchase($productToRemove, $request->location_id);
             }
         });
+    }
+
+    /**
+     * Recompute and persist the claim_status on a purchase that has claim_free_quantity products.
+     * Called after a free_claim receipt is created/updated to keep the status in sync.
+     */
+    private function syncClaimStatus(int $originalPurchaseId): void
+    {
+        $originalPurchase = Purchase::with('purchaseProducts', 'claimReceipts')->find($originalPurchaseId);
+        if (!$originalPurchase) {
+            return;
+        }
+
+        $totalClaimed = $originalPurchase->purchaseProducts->sum('claim_free_quantity');
+        if ($totalClaimed <= 0) {
+            return;
+        }
+
+        $receiptPurchaseIds = $originalPurchase->claimReceipts()->pluck('id');
+        $totalReceived = \App\Models\PurchaseProduct::whereIn('purchase_id', $receiptPurchaseIds)
+            ->sum('quantity');
+
+        if ($totalReceived <= 0) {
+            $status = 'pending';
+        } elseif ((float)$totalReceived < (float)$totalClaimed) {
+            $status = 'partial';
+        } else {
+            $status = 'fulfilled';
+        }
+
+        $originalPurchase->update(['claim_status' => $status]);
+
+        Log::info('Claim status synced', [
+            'original_purchase_id' => $originalPurchaseId,
+            'total_claimed' => $totalClaimed,
+            'total_received' => $totalReceived,
+            'new_status' => $status,
+        ]);
     }
 
     private function generateReferenceNo()
@@ -602,6 +708,7 @@ class PurchaseController extends Controller
             [
                 'quantity' => $productData['quantity'],
                 'free_quantity' => $freeQuantity,
+                'claim_free_quantity' => $productData['claim_free_quantity'] ?? 0,
                 'price' => $productData['price'] ?? $productData['unit_cost'],
                 'discount_percent' => $productData['discount_percent'] ?? 0,
                 'unit_cost' => $productData['unit_cost'],
@@ -775,13 +882,19 @@ class PurchaseController extends Controller
                         'p.payment_status',
                         'p.final_total',
                         'p.total_due',
+                        'p.claim_status',
                         DB::raw("CONCAT(COALESCE(s.first_name, ''), ' ', COALESCE(s.last_name, '')) as supplier_name"),
                         'l.name as location_name',
                         'u.user_name'
                     ])
                     ->leftJoin('suppliers as s', 'p.supplier_id', '=', 's.id')
                     ->leftJoin('locations as l', 'p.location_id', '=', 'l.id')
-                    ->leftJoin('users as u', 'p.user_id', '=', 'u.id');
+                    ->leftJoin('users as u', 'p.user_id', '=', 'u.id')
+                    // Exclude claim receipt records — they belong in the Supplier Claims module only
+                    ->where(function ($q) {
+                        $q->where('p.purchase_type', 'regular')
+                          ->orWhereNull('p.purchase_type');
+                    });
 
                 // Apply filters
                 if ($request->filled('supplier_id')) {
@@ -821,6 +934,7 @@ class PurchaseController extends Controller
                     'payment_status' => $purchase->payment_status,
                     'final_total' => $purchase->final_total,
                     'total_due' => $purchase->total_due,
+                    'claim_status' => $purchase->claim_status,
                     'supplier' => [
                         'first_name' => explode(' ', $purchase->supplier_name)[0] ?? '',
                         'last_name' => explode(' ', $purchase->supplier_name, 2)[1] ?? ''

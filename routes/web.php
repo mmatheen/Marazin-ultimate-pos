@@ -43,7 +43,8 @@ use App\Http\Controllers\{
     DiscountController,
     ReportController,
     SettingController,
-    ReceiptSettingsController
+    ReceiptSettingsController,
+    SupplierFreeClaimController
 };
 use App\Http\Controllers\Web\{
     SalesRepController,
@@ -312,6 +313,13 @@ Route::middleware(['auth'])->group(function () {
          // -------------------- PurchaseController Routes --------------------
         Route::get('/list-purchase', [PurchaseController::class, 'listPurchase'])->name('list-purchase');
         Route::get('/add-purchase', [PurchaseController::class, 'addPurchase'])->name('add-purchase');
+        // -------------------- Supplier Free Claim Routes --------------------
+        Route::get('/supplier-claims', [SupplierFreeClaimController::class, 'index'])->name('supplier-claims.index');
+        Route::get('/supplier-claims/standalone', [SupplierFreeClaimController::class, 'standalone'])->name('supplier-claims.standalone');
+        Route::post('/supplier-claims/standalone', [SupplierFreeClaimController::class, 'storeStandalone'])->name('supplier-claims.store-standalone');
+        Route::get('/supplier-claims/{id}/receive', [SupplierFreeClaimController::class, 'create'])->name('supplier-claims.create');
+        Route::post('/supplier-claims/{id}/receive', [SupplierFreeClaimController::class, 'store'])->name('supplier-claims.store');
+        // -------------------- end Supplier Free Claim Routes --------------------
         Route::post('/purchases/store', [PurchaseController::class, 'storeOrUpdate']);
         Route::post('/purchases/update/{id}', [PurchaseController::class, 'storeOrUpdate']);
         Route::get('/get-all-purchases', [PurchaseController::class, 'getAllPurchase']);

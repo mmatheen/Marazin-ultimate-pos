@@ -137,8 +137,8 @@
                     </li>
                 @endcanany
 
-                @canany(['view purchase', 'create purchase', 'view purchase-return'])
-                    <li class="submenu {{ set_active(['list-purchase', 'add-purchase', 'purchase-return', 'add-purchase-return']) }}">
+                @canany(['view purchase', 'create purchase', 'view purchase-return', 'view supplier claims', 'create supplier claims', 'receive supplier claims'])
+                    <li class="submenu {{ set_active(['list-purchase', 'add-purchase', 'purchase-return', 'add-purchase-return', 'supplier-claims']) }}">
                         <a href="#">
                             <i class="fas fa-shopping-bag"></i>
                             <span class="sidebar-text">Purchases</span>
@@ -151,6 +151,28 @@
 
                             @can('create purchase')
                                 <li><a href="{{ route('add-purchase') }}" class="{{ set_active(['add-purchase']) }}">Add Purchase</a></li>
+                            @endcan
+
+                            @canany(['view supplier claims', 'create supplier claims', 'receive supplier claims'])
+                                <li class="submenu-item">
+                                    <span class="menu-category">Free Claims</span>
+                                </li>
+                            @endcanany
+
+                            @can('view supplier claims')
+                                <li>
+                                    <a href="{{ route('supplier-claims.index') }}" class="{{ set_active(['supplier-claims']) }}">
+                                        <i class="fas fa-gift me-1"></i> Supplier Claims
+                                    </a>
+                                </li>
+                            @endcan
+
+                            @can('create supplier claims')
+                                <li>
+                                    <a href="{{ route('supplier-claims.standalone') }}" class="{{ set_active(['supplier-claims/standalone']) }}">
+                                        New Standalone Claim
+                                    </a>
+                                </li>
                             @endcan
 
                             @canany(['view purchase-return', 'create purchase-return'])

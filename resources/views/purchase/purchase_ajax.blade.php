@@ -564,6 +564,10 @@
                 ? `<td><input type="number" class="form-control free-quantity" value="${prices.free_quantity || 0}" min="0" step="${quantityStep}" pattern="${quantityPattern}" data-allow-decimal="${allowDecimal}" placeholder="Free qty"></td>`
                 : `<td class="d-none"><input type="number" class="free-quantity" value="${prices.free_quantity || 0}" style="display:none"></td>`
             }
+            ${canUseFreeQty
+                ? `<td><input type="number" class="form-control claim-free-quantity" value="${prices.claim_free_quantity || 0}" min="0" step="${quantityStep}" pattern="${quantityPattern}" data-allow-decimal="${allowDecimal}" placeholder="Claim qty"></td>`
+                : `<td class="d-none"><input type="number" class="claim-free-quantity" value="${prices.claim_free_quantity || 0}" style="display:none"></td>`
+            }
             <td>
                 <input type="number" class="form-control product-price" value="${unitCost.toFixed(2)}" min="0">
             </td>
@@ -591,14 +595,14 @@
 
                 // Handle quantity, discount, and price changes
                 $newRow.find(
-                    ".purchase-quantity, .free-quantity, .discount-percent, .product-price, .unit-cost"
+                    ".purchase-quantity, .free-quantity, .claim-free-quantity, .discount-percent, .product-price, .unit-cost"
                 ).on("input", function() {
                     updateRow($newRow);
                     updateFooter();
                 });
 
                 // ✅ ADD: Custom validation for quantity based on unit type
-                $newRow.find(".purchase-quantity, .free-quantity").on("blur", function() {
+                $newRow.find(".purchase-quantity, .free-quantity, .claim-free-quantity").on("blur", function() {
                     const allowDecimal = $(this).data('allow-decimal');
                     const value = parseFloat($(this).val());
 
@@ -1116,7 +1120,8 @@
                         max_retail_price: product.batch ? product.batch.max_retail_price : product
                             .max_retail_price,
                         quantity: product.quantity,
-                        free_quantity: product.free_quantity || 0
+                        free_quantity: product.free_quantity || 0,
+                        claim_free_quantity: product.claim_free_quantity || 0
                     };
 
                     addProductToTable(productData, true, batchPrices);
@@ -1656,6 +1661,8 @@
                 formData.append(`products[${index}][product_id]`, productId);
                 formData.append(`products[${index}][quantity]`, quantity);
                 formData.append(`products[${index}][free_quantity]`, freeQuantity);
+                const claimFreeQuantity = $(row).find('.claim-free-quantity').val() || 0;
+                formData.append(`products[${index}][claim_free_quantity]`, claimFreeQuantity);
                 formData.append(`products[${index}][price]`, price);
                 formData.append(`products[${index}][discount_percent]`, discountPercent);
                 formData.append(`products[${index}][unit_cost]`, unitCost);
@@ -2563,6 +2570,7 @@
                                 'N/A') + '</td>');
                             row.append('<td>' + product.quantity + '</td>');
                             if (canUseFreeQty) { row.append('<td>' + (product.free_quantity || 0) + '</td>'); }
+                            if (canUseFreeQty) { row.append('<td>' + (product.claim_free_quantity || 0) + '</td>'); }
                             row.append('<td>' + product.unit_cost + '</td>');
                             row.append('<td>' + product.total + '</td>');
                             productsTable.append(row);
@@ -2994,6 +3002,12 @@
                                 orderable: false,
                                 searchable: false,
                                 render: function(data, type, row) {
+                                    var claimLink = '';
+                                    if (row.claim_status && row.claim_status !== 'fulfilled') {
+                                        claimLink = '<a class="dropdown-item text-warning" href="/supplier-claims/' + row.id + '/receive"><i class="fas fa-gift me-1"></i>&nbsp;&nbsp;Receive Free Claim</a>';
+                                    } else if (row.claim_status === 'fulfilled') {
+                                        claimLink = '<a class="dropdown-item text-success" href="/supplier-claims/' + row.id + '/receive"><i class="fas fa-gift me-1"></i>&nbsp;&nbsp;View Claim</a>';
+                                    }
                                     return '<a href="#" class="action-icon dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">' +
                                         '<button type="button" class="btn btn-outline-info">Actions</button>' +
                                         '</a>' +
@@ -3006,11 +3020,25 @@
                                         '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-trash"></i>&nbsp;&nbsp;Delete</a>' +
                                         '<a class="dropdown-item" href="#" onclick="openPaymentModal(event, ' + row.id + ')"><i class="fas fa-money-bill-alt"></i>&nbsp;&nbsp;Add payments</a>' +
                                         '<a class="dropdown-item" href="#" onclick="openViewPaymentModal(event, ' + row.id + ')"><i class="fas fa-money-bill-alt"></i>&nbsp;&nbsp;View payments</a>' +
+                                        (claimLink ? '<div class="dropdown-divider"></div>' + claimLink : '') +
                                         '</div>';
                                 }
                             },
                             { data: 'purchase_date' },
-                            { data: 'reference_no' },
+                            {
+                                data: 'reference_no',
+                                render: function(data, type, row) {
+                                    var html = data;
+                                    if (row.claim_status === 'pending') {
+                                        html += ' <span class="badge bg-warning text-dark" title="Free Qty Claim Pending">Claim</span>';
+                                    } else if (row.claim_status === 'partial') {
+                                        html += ' <span class="badge" style="background:#fd7e14;color:#fff" title="Free Qty Claim Partially Received">Claim</span>';
+                                    } else if (row.claim_status === 'fulfilled') {
+                                        html += ' <span class="badge bg-success" title="Free Qty Claim Fulfilled">Claim ✓</span>';
+                                    }
+                                    return html;
+                                }
+                            },
                             {
                                 data: 'location',
                                 render: function(data, type, row) {
@@ -3615,6 +3643,7 @@
                                 row.append('<td>' + product.quantity +
                                     '</td>');
                                 if (canUseFreeQty) { row.append('<td>' + (product.free_quantity || 0) + '</td>'); }
+                                if (canUseFreeQty) { row.append('<td>' + (product.claim_free_quantity || 0) + '</td>'); }
                                 row.append('<td>' + (product.unit_cost ||
                                         0) +
                                     '</td>');

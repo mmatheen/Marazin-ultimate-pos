@@ -203,7 +203,11 @@ class RolesAndPermissionsSeeder extends Seeder
                 'edit purchase',
                 'delete purchase',
                 'print purchase order',
-                'email purchase order'
+                'email purchase order',
+                // Supplier Free Claim permissions
+                'view supplier claims',
+                'create supplier claims',
+                'receive supplier claims',
             ],
 
             '19. purchase-return-management' => [

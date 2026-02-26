@@ -353,6 +353,7 @@
                                                 <th>Product<br>Name</th>
                                                 <th>Purchase<br>Quantity</th>
                                                 @if($canUseFreeQty)<th>Free<br>Qty</th>@endif
+                                                @if($canUseFreeQty)<th>Claim<br>Free Qty</th>@endif
                                                 <th>Unit Cost<br>(Before Discount)</th>
                                                 <th>Discount<br>Percent</th>
                                                 <th>Unit<br>Cost</th>

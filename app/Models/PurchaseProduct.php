@@ -15,7 +15,8 @@ class PurchaseProduct extends Model
         'batch_id',
         'location_id',
         'quantity',
-        'free_quantity',      // Free/bonus items received from supplier
+        'free_quantity',      // Free/bonus items received from supplier AT purchase time
+        'claim_free_quantity', // Qty supplier PROMISED but will deliver LATER (claim)
         'price',              // Original price before discount
         'discount_percent',   // Product-level discount percentage
         'unit_cost',          // Final unit cost after discount
