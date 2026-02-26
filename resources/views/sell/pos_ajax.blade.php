@@ -7308,7 +7308,7 @@
         }
 
         async function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType,
-            saleQuantity = 1, imeis = [], discountType = null, discountAmount = null, selectedBatch = null, editFreeQuantity = 0, isLoadingExisting = false) {
+            saleQuantity = 1, imeis = [], discountType = null, discountAmount = null, selectedBatch = null, editFreeQuantity = 0, isLoadingExisting = false, customName = null) {
 
             console.log('===== addProductToBillingBody DEBUG =====');
             console.log('saleQuantity received:', saleQuantity, 'Type:', typeof saleQuantity);
@@ -7674,9 +7674,11 @@
 
             // For cash/misc items: editable text input so cashier can label the item (e.g. "Paan", "Curry")
             const isCashItem = miscItemProductId && product.id == miscItemProductId;
+            // In edit mode, restore the saved custom_name; otherwise use product_name as default
+            const displayNameForInput = (customName && customName.trim()) ? customName.trim() : String(product.product_name);
             const nameDisplayHtml = isCashItem
                 ? '<input type="text" class="custom-name-input border-0 fw-bold p-0"'
-                  + ' value="' + String(product.product_name).replace(/"/g, '&quot;') + '"'
+                  + ' value="' + displayNameForInput.replace(/"/g, '&quot;') + '"'
                   + ' placeholder="Item name"'
                   + ' title="Tap to rename this item"'
                   + ' style="background:transparent;max-width:170px;font-size:inherit;color:inherit;">'
@@ -9372,7 +9374,8 @@
                                     saleProduct.discount_amount,
                                     editBatch, // Pass batch with free_qty
                                     saleProduct.free_quantity || 0, // Pass existing free quantity for edit mode
-                                    true // isLoadingExisting: append to preserve original bill order
+                                    true, // isLoadingExisting: append to preserve original bill order
+                                    saleProduct.custom_name || null // Restore saved custom name in edit mode
                                 );
 
                                 console.log('Product added to billing:', saleProduct.product.product_name, {

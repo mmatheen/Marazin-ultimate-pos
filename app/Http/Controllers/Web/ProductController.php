@@ -2437,6 +2437,7 @@ class ProductController extends Controller
         $locationId = $request->input('location_id');
         $search = $request->input('search');
         $perPage = $request->input('per_page', 100); // Increased to 100 for better autocomplete results
+        $context = $request->input('context', 'pos'); // 'purchase' skips the qty>0 filter
 
         $query = Product::with([
             'locations:id,name',
@@ -2468,10 +2469,9 @@ class ProductController extends Controller
         ])
         // Only show active products in POS/autocomplete
         ->where('is_active', true)
-        // Filter by location: show only products with stock > 0 at the selected location,
-        // OR unlimited-stock products (stock_alert = 0). This prevents 0-stock products
-        // from other locations appearing in the POS search results.
-        ->when($locationId, function ($query) use ($locationId) {
+        // For POS: filter by location and show only products with stock > 0.
+        // For purchase context: skip the qty>0 filter so all products (including 0 stock) are searchable.
+        ->when($locationId && $context !== 'purchase', function ($query) use ($locationId) {
             return $query->where(function ($q) use ($locationId) {
                 // Unlimited stock products are always visible regardless of location
                 $q->where('stock_alert', 0)

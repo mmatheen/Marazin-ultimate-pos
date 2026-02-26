@@ -316,6 +316,7 @@ class SaleEditDataBuilder
             'location_id'     => $p->location_id,
             'quantity'        => $p->quantity,
             'free_quantity'   => $p->free_quantity ?? 0,
+            'custom_name'     => $p->custom_name ?? null,
             'price_type'      => $p->price_type,
             'price'           => $p->price,
             'discount_type'   => $p->discount_type,

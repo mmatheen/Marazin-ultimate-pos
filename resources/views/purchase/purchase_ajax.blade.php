@@ -312,7 +312,8 @@
                             search: searchTermRaw,
                             location_id: locationId,
                             per_page: 50, // fetch more for better filtering
-                            page: 1
+                            page: 1,
+                            context: 'purchase' // Show all products (including 0 stock) on purchase page
                         },
                         dataType: 'json',
                         success: function(data) {
