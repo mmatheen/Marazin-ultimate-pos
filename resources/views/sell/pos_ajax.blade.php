@@ -7564,9 +7564,12 @@
                 initialQuantityValue = 1;
             }
 
-            // If not IMEI, try to merge row (works in both normal and edit mode)
-            // IMEI products always get separate rows
-            if (imeis.length === 0) {
+            // If not IMEI, try to merge row (normal mode only).
+            // In edit/load mode (isLoadingExisting=true) ALWAYS create a new row so that
+            // the same product sold from two different batches gets two separate rows —
+            // exactly matching the original sale structure.
+            // IMEI products always get separate rows.
+            if (imeis.length === 0 && !isLoadingExisting) {
                 const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
                     // Use data-product-id on <tr> (fastest, no child lookup) and fall back to .product-id td
                     const rowProductId = row.getAttribute('data-product-id') ?? row.querySelector('.product-id')?.textContent?.trim();
@@ -9335,9 +9338,12 @@
                                     freeQtyValue: saleProduct.free_quantity || 0
                                 });
 
-                                // For edit mode, use FIFO method except for IMEI products
-                                // IMEI products must keep their specific batch IDs
-                                let editModeBatchId = "all"; // Default to FIFO
+                                // For edit mode, preserve the original batch_id per sale row.
+                                // This ensures that the same product sold from two different batches
+                                // loads as two separate rows each with their own batch_id, so the
+                                // correct stock is tracked when the edit is saved.
+                                // IMEI products also keep their exact batch.
+                                let editModeBatchId = saleProduct.batch_id || "all";
                                 let editBatch = null;
 
                                 if (saleProduct.imei_numbers && saleProduct.imei_numbers.length > 0) {
@@ -9346,9 +9352,9 @@
                                     editBatch = normalizedStockEntry.batches?.find(b => b.id === parseInt(saleProduct.batch_id));
                                     console.log('🔄 Edit Mode - IMEI product, keeping original batch_id:', saleProduct.batch_id);
                                 } else {
-                                    // For FIFO method, use the first/latest batch
+                                    // Use the original batch_id from the sale line so each row keeps its own batch
                                     editBatch = normalizedStockEntry.batches && normalizedStockEntry.batches.length > 0 ? normalizedStockEntry.batches[0] : null;
-                                    console.log('🔄 Edit Mode - Non-IMEI product, using FIFO method: "all"');
+                                    console.log('🔄 Edit Mode - Non-IMEI product, preserving original batch_id:', editModeBatchId);
                                 }
 
                                 // Merge saleProduct.unit into the product object so that
