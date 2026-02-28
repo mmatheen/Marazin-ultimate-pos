@@ -177,6 +177,8 @@ public function fetchActivityLog(Request $request)
             'report_type' => $reportType
         ]);
 
+        $canUseFreeQty = auth()->user()?->can('use free quantity') ?? false;
+
         return view('reports.profit_loss_report', compact(
             'reportData',
             'locations',
@@ -184,7 +186,8 @@ public function fetchActivityLog(Request $request)
             'startDate',
             'endDate',
             'locationIds',
-            'reportType'
+            'reportType',
+            'canUseFreeQty'
         ));
     }
 

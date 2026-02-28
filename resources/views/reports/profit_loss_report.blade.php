@@ -264,7 +264,7 @@
                 <div class="col-lg-4 col-md-6 col-sm-6 col-12">
                     <div class="card h-100">
                         <div class="card-body">
-                            <h6 class="card-title">Paid Quantity</h6>
+                            <h6 class="card-title">{{ $canUseFreeQty ? 'Paid Quantity' : 'Total Quantity' }}</h6>
                             <h4 class="text-dark">
                                 <span id="totalPaidQty">0</span> <span class="units-text">units</span>
                             </h4>
@@ -273,6 +273,7 @@
                     </div>
                 </div>
 
+                @if($canUseFreeQty)
                 <div class="col-lg-4 col-md-6 col-sm-6 col-12">
                     <div class="card h-100">
                         <div class="card-body">
@@ -296,6 +297,7 @@
                         </div>
                     </div>
                 </div>
+                @endif
             </div>
         </div>
     </div>
@@ -435,20 +437,21 @@ console.log('generateReport function defined:', typeof generateReport);
 
 // Update summary cards
 function updateSummaryCards(summary) {
+    const canUseFreeQty = {!! json_encode($canUseFreeQty ?? false) !!};
     const elements = {
         totalSales: document.getElementById('totalSales'),
         totalCost: document.getElementById('totalCost'),
         grossProfit: document.getElementById('grossProfit'),
         profitMargin: document.getElementById('profitMargin'),
         totalPaidQty: document.getElementById('totalPaidQty'),
-        totalFreeQty: document.getElementById('totalFreeQty'),
-        totalQuantity: document.getElementById('totalQuantity'),
+        totalFreeQty: canUseFreeQty ? document.getElementById('totalFreeQty') : null,
+        totalQuantity: canUseFreeQty ? document.getElementById('totalQuantity') : null,
         summaryCards: document.getElementById('summaryCards')
     };
 
     // Check if all elements exist
     for (const [key, element] of Object.entries(elements)) {
-        if (!element) {
+        if (!element && key !== 'totalFreeQty' && key !== 'totalQuantity') {
             console.error(`Element ${key} not found`);
             return;
         }
@@ -460,9 +463,11 @@ function updateSummaryCards(summary) {
     elements.profitMargin.textContent = `${(summary.profit_margin || 0).toFixed(2)}%`;
 
     // Update quantity breakdown
-    elements.totalPaidQty.textContent = formatQuantity(summary.total_paid_quantity || 0);
-    elements.totalFreeQty.textContent = formatQuantity(summary.total_free_quantity || 0);
-    elements.totalQuantity.textContent = formatQuantity(summary.total_quantity || 0);
+    elements.totalPaidQty.textContent = formatQuantity(canUseFreeQty
+        ? (summary.total_paid_quantity || 0)
+        : (summary.total_quantity || 0));
+    if (elements.totalFreeQty)  elements.totalFreeQty.textContent  = formatQuantity(summary.total_free_quantity || 0);
+    if (elements.totalQuantity) elements.totalQuantity.textContent = formatQuantity(summary.total_quantity || 0);
 
     elements.summaryCards.style.display = 'block';
 }
@@ -511,33 +516,60 @@ function updateReportTable(data) {
 
     switch(reportType) {
         case 'product':
-            headers = ['Product Name', 'SKU', 'Paid Qty', 'Free Qty', 'Total Qty', 'Total Sales', 'Total Cost', 'Gross Profit', 'Profit Margin'];
-            columns = [
-                {data: 'product_name', defaultContent: 'N/A'},
-                {data: 'sku', defaultContent: 'N/A'},
-                {data: 'paid_quantity', render: (data, type, row) => `<strong>${formatQuantity(data, row.allow_decimal)}</strong>`, defaultContent: '<strong>0</strong>'},
-                {data: 'free_quantity', render: (data, type, row) => `<span class="text-success">${formatQuantity(data, row.allow_decimal)}</span>`, defaultContent: '<span class="text-success">0</span>'},
-                {data: 'total_quantity', render: (data, type, row) => `<span class="text-primary fw-bold">${formatQuantity(data, row.allow_decimal)}</span>`, defaultContent: '<span class="text-primary fw-bold">0</span>'},
-                {data: 'total_sales', render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'},
-                {data: 'total_cost', render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'},
-                {data: 'gross_profit', render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'},
-                {data: 'profit_margin', render: data => `${(data || 0).toFixed(2)}%`, defaultContent: '0.00%'}
-            ];
+            if ({!! json_encode($canUseFreeQty ?? false) !!}) {
+                headers  = ['Product Name', 'SKU', 'Paid Qty', 'Free Qty', 'Total Qty', 'Total Sales', 'Total Cost', 'Gross Profit', 'Profit Margin'];
+                columns  = [
+                    {data: 'product_name', defaultContent: 'N/A'},
+                    {data: 'sku', defaultContent: 'N/A'},
+                    {data: 'paid_quantity',  render: (data, type, row) => `<strong>${formatQuantity(data, row.allow_decimal)}</strong>`,               defaultContent: '<strong>0</strong>'},
+                    {data: 'free_quantity',  render: (data, type, row) => `<span class="text-success">${formatQuantity(data, row.allow_decimal)}</span>`, defaultContent: '<span class="text-success">0</span>'},
+                    {data: 'total_quantity', render: (data, type, row) => `<span class="text-primary fw-bold">${formatQuantity(data, row.allow_decimal)}</span>`, defaultContent: '<span class="text-primary fw-bold">0</span>'},
+                    {data: 'total_sales',   render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'},
+                    {data: 'total_cost',    render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'},
+                    {data: 'gross_profit',  render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'},
+                    {data: 'profit_margin', render: data => `${(data || 0).toFixed(2)}%`,    defaultContent: '0.00%'}
+                ];
+            } else {
+                headers  = ['Product Name', 'SKU', 'Total Qty', 'Total Sales', 'Total Cost', 'Gross Profit', 'Profit Margin'];
+                columns  = [
+                    {data: 'product_name', defaultContent: 'N/A'},
+                    {data: 'sku', defaultContent: 'N/A'},
+                    {data: 'total_quantity', render: (data, type, row) => `<span class="text-primary fw-bold">${formatQuantity(data, row.allow_decimal)}</span>`, defaultContent: '<span class="text-primary fw-bold">0</span>'},
+                    {data: 'total_sales',   render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'},
+                    {data: 'total_cost',    render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'},
+                    {data: 'gross_profit',  render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'},
+                    {data: 'profit_margin', render: data => `${(data || 0).toFixed(2)}%`,    defaultContent: '0.00%'}
+                ];
+            }
             break;
         case 'batch':
-            headers = ['Batch Number', 'Product Name', 'Expiry Date', 'Paid Qty', 'Free Qty', 'Total Qty', 'Total Sales', 'Total Cost', 'Gross Profit', 'Profit Margin'];
-            columns = [
-                {data: 'batch_number', defaultContent: 'N/A'},
-                {data: 'product_name', defaultContent: 'N/A'},
-                {data: 'expiry_date', defaultContent: 'N/A'},
-                {data: 'paid_quantity', render: (data, type, row) => `<strong>${formatQuantity(data, row.allow_decimal)}</strong>`, defaultContent: '<strong>0</strong>'},
-                {data: 'free_quantity', render: (data, type, row) => `<span class="text-success">${formatQuantity(data, row.allow_decimal)}</span>`, defaultContent: '<span class="text-success">0</span>'},
-                {data: 'total_quantity', render: (data, type, row) => `<span class="text-primary fw-bold">${formatQuantity(data, row.allow_decimal)}</span>`, defaultContent: '<span class="text-primary fw-bold">0</span>'},
-                {data: 'total_sales', render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'},
-                {data: 'total_cost', render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'},
-                {data: 'gross_profit', render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'},
-                {data: 'profit_margin', render: data => `${(data || 0).toFixed(2)}%`, defaultContent: '0.00%'}
-            ];
+            if ({!! json_encode($canUseFreeQty ?? false) !!}) {
+                headers  = ['Batch Number', 'Product Name', 'Expiry Date', 'Paid Qty', 'Free Qty', 'Total Qty', 'Total Sales', 'Total Cost', 'Gross Profit', 'Profit Margin'];
+                columns  = [
+                    {data: 'batch_number',  defaultContent: 'N/A'},
+                    {data: 'product_name',  defaultContent: 'N/A'},
+                    {data: 'expiry_date',   defaultContent: 'N/A'},
+                    {data: 'paid_quantity',  render: (data, type, row) => `<strong>${formatQuantity(data, row.allow_decimal)}</strong>`,               defaultContent: '<strong>0</strong>'},
+                    {data: 'free_quantity',  render: (data, type, row) => `<span class="text-success">${formatQuantity(data, row.allow_decimal)}</span>`, defaultContent: '<span class="text-success">0</span>'},
+                    {data: 'total_quantity', render: (data, type, row) => `<span class="text-primary fw-bold">${formatQuantity(data, row.allow_decimal)}</span>`, defaultContent: '<span class="text-primary fw-bold">0</span>'},
+                    {data: 'total_sales',   render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'},
+                    {data: 'total_cost',    render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'},
+                    {data: 'gross_profit',  render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'},
+                    {data: 'profit_margin', render: data => `${(data || 0).toFixed(2)}%`,    defaultContent: '0.00%'}
+                ];
+            } else {
+                headers  = ['Batch Number', 'Product Name', 'Expiry Date', 'Total Qty', 'Total Sales', 'Total Cost', 'Gross Profit', 'Profit Margin'];
+                columns  = [
+                    {data: 'batch_number',  defaultContent: 'N/A'},
+                    {data: 'product_name',  defaultContent: 'N/A'},
+                    {data: 'expiry_date',   defaultContent: 'N/A'},
+                    {data: 'total_quantity', render: (data, type, row) => `<span class="text-primary fw-bold">${formatQuantity(data, row.allow_decimal)}</span>`, defaultContent: '<span class="text-primary fw-bold">0</span>'},
+                    {data: 'total_sales',   render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'},
+                    {data: 'total_cost',    render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'},
+                    {data: 'gross_profit',  render: data => `Rs.${formatNumber(data || 0)}`, defaultContent: 'Rs.0.00'},
+                    {data: 'profit_margin', render: data => `${(data || 0).toFixed(2)}%`,    defaultContent: '0.00%'}
+                ];
+            }
             break;
         case 'brand':
             headers = ['Brand Name', 'Qty Sold', 'Total Sales', 'Total Cost', 'Gross Profit', 'Profit Margin'];
