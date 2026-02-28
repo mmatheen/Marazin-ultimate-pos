@@ -621,18 +621,6 @@ class PurchaseController extends Controller
                 'reference_type' => 'purchase_edit'
             ]);
 
-            Log::info('Stock updated successfully with paid and free quantities separately', [
-                'product_id' => $existingProduct->product_id,
-                'batch_id' => $batch->id,
-                'paid_quantity_difference' => $quantityDifference,
-                'free_quantity_difference' => $freeQuantityDifference,
-                'location_paid_stock_before' => $locationBatch->qty - $quantityDifference,
-                'location_paid_stock_after' => $locationBatch->qty,
-                'location_free_stock_before' => ($locationBatch->free_qty ?? 0) - $freeQuantityDifference,
-                'location_free_stock_after' => $locationBatch->free_qty,
-                'batch_stock_before' => $originalBatchQty,
-                'batch_stock_after' => $batch->qty
-            ]);
         });
     }
 

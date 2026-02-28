@@ -90,7 +90,7 @@
                     <!-- Mobile View: Single Row -->
                     <div class="d-md-none">
                         <div class="d-flex justify-content-between align-items-center gap-2">
-                            <select id="locationSelect" class="form-select" style="flex: 1;">
+                            <select id="locationSelect" class="form-select selectBox" style="flex: 1;">
                                 <option value="" selected disabled>Select Location</option>
                             </select>
                             <button class="btn btn-primary" type="button" data-bs-toggle="modal"
@@ -108,7 +108,7 @@
                         <!-- Location and Date Section -->
                         <div class="col-md-6 d-flex align-items-center" style="padding: 0 6px;">
                             <div class="d-flex flex-row align-items-center" style="gap: 6px;">
-                                <select id="locationSelectDesktop" class="form-select location-select-sync"
+                                <select id="locationSelectDesktop" class="form-select selectBox location-select-sync"
                                     style="min-width: 180px; max-width: 220px;">
                                     <option value="" selected disabled>Select Location</option>
                                 </select>
