@@ -579,6 +579,7 @@ class SaleController extends Controller
             'priceValidationEnabled' => (int) (Setting::value('enable_price_validation') ?? 1),
             'freeQtyEnabled'         => $freeQtyEnabled,
             'canUseFreeQty'          => (bool) ($freeQtyEnabled && $user?->can('use free quantity')),
+            'canUseQuickPriceEntry'  => (bool) ($user?->can('quick price entry')),
             'miscItemProductId'      => ProductManager::resolveCashItemProductId(),
         ];
     }

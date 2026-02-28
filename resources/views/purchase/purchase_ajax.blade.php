@@ -3086,8 +3086,13 @@
                         });
                     },
                     error: function(xhr, status, error) {
-                        console.error('Error loading purchases:', error);
-                        $('#purchase-list tbody').html('<tr><td colspan="10" class="text-center text-danger">Error loading purchases. Please refresh.</td></tr>');
+                        console.error('Error loading purchases — HTTP ' + xhr.status + ':', error);
+                        console.error('Response:', xhr.responseText ? xhr.responseText.substring(0, 500) : 'empty');
+                        var msg = 'Error loading purchases (HTTP ' + xhr.status + '). Please refresh.';
+                        if (xhr.status === 403) msg = 'Access denied. You do not have permission to view purchases.';
+                        if (xhr.status === 401) msg = 'Session expired. Please <a href="/login">log in</a> again.';
+                        if (xhr.status === 500) msg = 'Server error loading purchases. Please refresh.';
+                        $('#purchase-list tbody').html('<tr><td colspan="10" class="text-center text-danger">' + msg + '</td></tr>');
                     }
                 });
             }

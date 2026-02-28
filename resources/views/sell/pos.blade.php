@@ -545,17 +545,20 @@
                                         <input type="text" class="form-control" id="productSearchInput"
                                             placeholder="Enter Product name / SKU / Scan bar code"
                                             style="height: 38px; font-size: 14px;">
+                                        @if($canUseQuickPriceEntry)
                                         <button id="cashEntryToggle" type="button"
                                             class="btn btn-outline-secondary"
                                             title="Quick price entry"
                                             style="padding:0 12px; line-height:1;">
                                             <i class="fas fa-tag"></i>
                                         </button>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Quick Price Entry bar — shown/hidden via the tag button in billing header -->
+                            @if($canUseQuickPriceEntry)
                             <div id="cashEntryBar" class="collapse mt-1">
                                 <div class="d-flex align-items-center gap-2 px-2 py-1 rounded"
                                      style="background:#fffbea; border:1px dashed #f5c842;">
@@ -574,6 +577,7 @@
                                     </button>
                                 </div>
                             </div>
+                            @endif
 
                             <!-- Spacer for better separation -->
                             <div class="row mt-1" style="flex: 1; overflow: hidden;">

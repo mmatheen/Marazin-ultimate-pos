@@ -29,7 +29,7 @@ class PurchaseController extends Controller
     {
         $this->unifiedLedgerService = $unifiedLedgerService;
         $this->paymentService = $paymentService;
-        $this->middleware('permission:view purchase', ['only' => ['listPurchase', 'index', 'show']]);
+        $this->middleware('permission:view purchase', ['only' => ['listPurchase', 'index', 'show', 'getAllPurchase', 'getAllPurchasesProduct', 'getPurchase', 'getPurchaseProductsBySupplier', 'getPurchaseImeiProducts']]);
         $this->middleware('permission:create purchase', ['only' => ['AddPurchase', 'store', 'storeOrUpdate']]);
         $this->middleware('permission:edit purchase', ['only' => ['editPurchase', 'update', 'storeOrUpdate']]);
         $this->middleware('permission:delete purchase', ['only' => ['destroy']]);
