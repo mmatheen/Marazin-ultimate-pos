@@ -419,8 +419,6 @@
                 <tr>
                     <th>SN</th>
                     <th>Item</th>
-                    <th>Batch No</th>
-                    <th>Expiry</th>
                     <th>Qty</th>
                     <th>Unit Price</th>
                     <th>Discount</th>
@@ -504,14 +502,6 @@
                                 ({{ substr($item['product']->product->product_variation, 0, 8) }})
                             @endif
                         </td>
-                        <td>{{ $item['batch_no'] ?? '-' }}</td>
-                        <td>
-                            @if(!empty($item['expiry_date']))
-                                {{ \Carbon\Carbon::parse($item['expiry_date'])->format('d/m/y') }}
-                            @else
-                                -
-                            @endif
-                        </td>
                         <td>
                             @php $fmtQty = fn($v) => rtrim(rtrim(number_format((float)$v, 4, '.', ''), '0'), '.'); @endphp
                             {{ $fmtQty($item['quantity']) }}
@@ -526,7 +516,7 @@
                     </tr>
                     @empty
                         <tr>
-                    <td colspan="9" style="text-align: center;">NO PRODUCTS FOUND</td>
+                    <td colspan="7" style="text-align: center;">NO PRODUCTS FOUND</td>
                         </tr>
                     @endforelse
                 </tbody>
