@@ -1,6 +1,8 @@
 <script type="text/javascript">
     $(document).ready(function() {
-        const canUseFreeQty = {!! json_encode($canUseFreeQty ?? false) !!};
+        const canUseFreeQty              = {!! json_encode($canUseFreeQty ?? false) !!};
+        const canReceiveSupplierClaims   = {!! json_encode($canReceiveSupplierClaims ?? false) !!};
+        const canCreateSupplierClaims    = {!! json_encode($canCreateSupplierClaims ?? false) !!};
         // Add CSS for batch history styling
         if (!$('#batch-history-styles').length) {
             $('<style id="batch-history-styles">')
@@ -3003,9 +3005,9 @@
                                 searchable: false,
                                 render: function(data, type, row) {
                                     var claimLink = '';
-                                    if (row.claim_status && row.claim_status !== 'fulfilled') {
+                                    if (canUseFreeQty && canReceiveSupplierClaims && row.claim_status && row.claim_status !== 'fulfilled') {
                                         claimLink = '<a class="dropdown-item text-warning" href="/supplier-claims/' + row.id + '/receive"><i class="fas fa-gift me-1"></i>&nbsp;&nbsp;Receive Free Claim</a>';
-                                    } else if (row.claim_status === 'fulfilled') {
+                                    } else if (canUseFreeQty && canReceiveSupplierClaims && row.claim_status === 'fulfilled') {
                                         claimLink = '<a class="dropdown-item text-success" href="/supplier-claims/' + row.id + '/receive"><i class="fas fa-gift me-1"></i>&nbsp;&nbsp;View Claim</a>';
                                     }
                                     return '<a href="#" class="action-icon dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">' +

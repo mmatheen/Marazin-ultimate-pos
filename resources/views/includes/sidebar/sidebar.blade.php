@@ -153,26 +153,28 @@
                                 <li><a href="{{ route('add-purchase') }}" class="{{ set_active(['add-purchase']) }}">Add Purchase</a></li>
                             @endcan
 
-                            @canany(['view supplier claims', 'create supplier claims', 'receive supplier claims'])
-                                <li class="submenu-item">
-                                    <span class="menu-category">Free Claims</span>
-                                </li>
-                            @endcanany
+                            @can('use free quantity')
+                                @canany(['view supplier claims', 'create supplier claims', 'receive supplier claims'])
+                                    <li class="submenu-item">
+                                        <span class="menu-category">Free Claims</span>
+                                    </li>
+                                @endcanany
 
-                            @can('view supplier claims')
-                                <li>
-                                    <a href="{{ route('supplier-claims.index') }}" class="{{ set_active(['supplier-claims']) }}">
-                                        <i class="fas fa-gift me-1"></i> Supplier Claims
-                                    </a>
-                                </li>
-                            @endcan
+                                @can('view supplier claims')
+                                    <li>
+                                        <a href="{{ route('supplier-claims.index') }}" class="{{ set_active(['supplier-claims']) }}">
+                                            <i class="fas fa-gift me-1"></i> Supplier Claims
+                                        </a>
+                                    </li>
+                                @endcan
 
-                            @can('create supplier claims')
-                                <li>
-                                    <a href="{{ route('supplier-claims.standalone') }}" class="{{ set_active(['supplier-claims/standalone']) }}">
-                                        New Standalone Claim
-                                    </a>
-                                </li>
+                                @can('create supplier claims')
+                                    <li>
+                                        <a href="{{ route('supplier-claims.standalone') }}" class="{{ set_active(['supplier-claims/standalone']) }}">
+                                            New Standalone Claim
+                                        </a>
+                                    </li>
+                                @endcan
                             @endcan
 
                             @canany(['view purchase-return', 'create purchase-return'])

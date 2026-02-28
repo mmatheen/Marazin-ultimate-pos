@@ -37,10 +37,13 @@ class PurchaseController extends Controller
 
     public function listPurchase()
     {
-        $locations = \App\Models\Location::all();
-        $suppliers = \App\Models\Supplier::orderBy('first_name')->get();
+        $locations                = \App\Models\Location::all();
+        $suppliers                = \App\Models\Supplier::orderBy('first_name')->get();
+        $canUseFreeQty            = auth()->user()?->can('use free quantity') ?? false;
+        $canReceiveSupplierClaims = $canUseFreeQty && (auth()->user()?->can('receive supplier claims') ?? false);
+        $canCreateSupplierClaims  = $canUseFreeQty && (auth()->user()?->can('create supplier claims') ?? false);
 
-        return view('purchase.list_purchase', compact('locations', 'suppliers'));
+        return view('purchase.list_purchase', compact('locations', 'suppliers', 'canUseFreeQty', 'canReceiveSupplierClaims', 'canCreateSupplierClaims'));
     }
 
     public function AddPurchase()

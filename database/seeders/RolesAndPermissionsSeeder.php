@@ -540,6 +540,8 @@ class RolesAndPermissionsSeeder extends Seeder
                 ['key' => $roleKey]
             );
 
+            $isNewRole = $role->wasRecentlyCreated;
+
             // Update key if it doesn't exist
             if (!$role->key) {
                 $role->update(['key' => $roleKey]);
@@ -553,6 +555,9 @@ class RolesAndPermissionsSeeder extends Seeder
                     'is_master_role' => true,
                     'bypass_location_scope' => true
                 ]);
+                // Master Super Admin ALWAYS gets ALL permissions - never customisable
+                $role->syncPermissions($rolePermissions);
+                continue;
             }
 
             // Set flags for regular Super Admin (can be restricted per location)
@@ -565,13 +570,58 @@ class RolesAndPermissionsSeeder extends Seeder
                 ]);
             }
 
-            $role->syncPermissions($rolePermissions);
+            if ($isNewRole) {
+                // First-time creation: set the full default permission set
+                $role->syncPermissions($rolePermissions);
+                $this->command->info("Role '{$roleName}' created with default permissions.");
+            } else {
+                // Role already exists: DO NOT sync (would wipe manual customisations).
+                // New permissions will be added by assignNewPermissionsToExistingRoles() below.
+                $this->command->info("Role '{$roleName}' already exists - preserving custom permissions.");
+            }
         }
 
         // Smart assignment of new permissions to existing roles
         $this->assignNewPermissionsToExistingRoles();
 
+        // Safety net: guarantee Master Super Admin always has ALL permissions
+        $this->ensureMasterSuperAdminHasAllPermissions();
+
         $this->command->info('Roles and Permissions Seeder completed successfully!');
+    }
+
+    /**
+     * Safety net: ensure Master Super Admin has every permission in the system.
+     * Runs after syncPermissions to catch any edge-case misses (e.g. cache issues,
+     * permissions added to the DB outside this seeder, etc.).
+     */
+    private function ensureMasterSuperAdminHasAllPermissions()
+    {
+        $this->command->info('Verifying Master Super Admin has ALL permissions...');
+
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+        $masterRole = Role::where('name', 'Master Super Admin')->first();
+        if (!$masterRole) {
+            $this->command->warn('Master Super Admin role not found. Skipping safety-net check.');
+            return;
+        }
+
+        $allPermissions    = Permission::all();
+        $currentPermIds    = $masterRole->permissions->pluck('id')->toArray();
+        $missingPermissions = $allPermissions->filter(fn($p) => !in_array($p->id, $currentPermIds));
+
+        if ($missingPermissions->isEmpty()) {
+            $this->command->info('Master Super Admin already has all permissions. ✓');
+            return;
+        }
+
+        foreach ($missingPermissions as $permission) {
+            $masterRole->givePermissionTo($permission);
+            $this->command->warn("Added missing permission to Master Super Admin: '{$permission->name}'");
+        }
+
+        $this->command->info("Safety net added {$missingPermissions->count()} missing permission(s) to Master Super Admin.");
     }
 
     /**
@@ -590,14 +640,24 @@ class RolesAndPermissionsSeeder extends Seeder
             'view cheque' => ['cheque payment', 'view payments'],
             'approve cheque' => ['cheque payment', 'edit payment'],
             'reject cheque' => ['cheque payment', 'edit payment'],
-            'view cheque-management' => ['cheque payment', 'view payments']
+            'view cheque-management' => ['cheque payment', 'view payments'],
+
+            // Supplier Free Claim (Bonus Free Qty) permissions
+            // Any role that can view/create purchases or supplier management gets claim access
+            'view supplier claims'    => ['view purchase', 'create purchase', 'view supplier'],
+            'create supplier claims'  => ['create purchase', 'edit purchase'],
+            'receive supplier claims' => ['create purchase', 'edit purchase', 'view purchase'],
+
+            // Free quantity usage in POS
+            'use free quantity' => ['access pos', 'create sale'],
         ];
 
         // Get all roles
         $allRoles = Role::with('permissions')->get();
 
         foreach ($allRoles as $role) {
-            // Skip Master Super Admin and Super Admin (they get all permissions anyway)
+            // Skip Master Super Admin (always gets ALL permissions via syncPermissions above)
+            // Skip Super Admin (Master Admin will manually decide which new permissions to grant)
             if (in_array($role->name, ['Master Super Admin', 'Super Admin'])) {
                 continue;
             }

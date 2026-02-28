@@ -280,23 +280,23 @@ class Ledger extends Model
             throw new \Exception("Invalid contact_id: must be a positive number. Received: " . $data['contact_id']);
         }
 
-        // ✅ CRITICAL FIX: Prevent duplicate ledger entries (REFINED FOR PAYMENTS)
-        // Check if an active entry with the same criteria already exists
+        // Prevent duplicate ledger entries.
+        // For payments: reference_no includes -PAY{id} (unique per payment), so check
+        // only by reference_no within 5 seconds — no amount check (amount check caused
+        // false positives when two payments in a bulk operation had the same amount).
+        // For other transactions: check within 30 seconds (prevents double-click submissions).
         $duplicateQuery = self::where('contact_id', $data['contact_id'])
             ->where('contact_type', $data['contact_type'])
             ->where('reference_no', $data['reference_no'])
             ->where('transaction_type', $data['transaction_type'])
             ->where('status', 'active');
 
-        // For payment transactions, check EXACT DUPLICATE only (same amount + same reference + very recent)
-        // This allows multiple legitimate payments to the same supplier/customer
-        // NOTE: Bulk payments now have unique reference_no (includes payment ID), so they won't be flagged as duplicates
+        // For payment transactions, check by reference_no + time window ONLY (no amount check).
+        // Bulk payment reference_no already includes -PAY{id} making each reference unique,
+        // so amount-based checking is NOT needed and caused false positives when two payments
+        // had the same amount submitted within the same bulk operation.
         if (in_array($data['transaction_type'], ['payment', 'payments', 'sale_payment', 'purchase_payment'])) {
-            $duplicateQuery->where(function($query) use ($data) {
-                $query->where('debit', abs($data['amount']))
-                      ->orWhere('credit', abs($data['amount']));
-            })
-            ->where('created_at', '>=', Carbon::now()->subSeconds(5)); // Only within 5 seconds (prevents double-click only)
+            $duplicateQuery->where('created_at', '>=', Carbon::now()->subSeconds(5)); // Only within 5 seconds (prevents double-click only)
         } else {
             // For non-payment transactions (sales, purchases, etc.), check for exact duplicates
             // within a very short window to prevent double-click submissions

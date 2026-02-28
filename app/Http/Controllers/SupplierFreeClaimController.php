@@ -15,6 +15,10 @@ class SupplierFreeClaimController extends Controller
 {
     public function __construct()
     {
+        // Master gate: user must have 'use free quantity' to access ANY claim feature
+        $this->middleware('permission:use free quantity');
+
+        // Granular gates on top of the master gate
         $this->middleware('permission:view supplier claims',   ['only' => ['index']]);
         $this->middleware('permission:create supplier claims', ['only' => ['standalone', 'storeStandalone']]);
         $this->middleware('permission:receive supplier claims',['only' => ['create', 'store']]);
