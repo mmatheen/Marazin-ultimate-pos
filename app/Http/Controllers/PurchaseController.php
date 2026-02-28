@@ -863,16 +863,16 @@ class PurchaseController extends Controller
         try {
             // Build cache key based on filters
             $cacheKey = 'purchases_all_' . md5(json_encode([
-                'supplier_id' => $request->supplier_id,
-                'location_id' => $request->location_id,
+                'supplier_id'       => $request->supplier_id,
+                'location_id'       => $request->location_id,
                 'purchasing_status' => $request->purchasing_status,
-                'payment_status' => $request->payment_status,
-                'start_date' => $request->start_date,
-                'end_date' => $request->end_date,
+                'payment_status'    => $request->payment_status,
+                'start_date'        => $request->start_date,
+                'end_date'          => $request->end_date,
             ]));
 
-            // Cache ALL purchases for 5 minutes (fast loading + instant pagination)
-            $purchases = Cache::remember($cacheKey, 300, function() use ($request) {
+            // Build the base query (shared between cache-hit and cache-miss paths)
+            $buildQuery = function() use ($request) {
                 $query = DB::table('purchases as p')
                     ->select([
                         'p.id',
@@ -893,71 +893,62 @@ class PurchaseController extends Controller
                     ->leftJoin('suppliers as s', 'p.supplier_id', '=', 's.id')
                     ->leftJoin('locations as l', 'p.location_id', '=', 'l.id')
                     ->leftJoin('users as u', 'p.user_id', '=', 'u.id')
-                    // Exclude claim receipt records — they belong in the Supplier Claims module only
                     ->where(function ($q) {
                         $q->where('p.purchase_type', 'regular')
                           ->orWhereNull('p.purchase_type');
                     });
 
-                // Apply filters
-                if ($request->filled('supplier_id')) {
-                    $query->where('p.supplier_id', $request->supplier_id);
-                }
-                if ($request->filled('location_id')) {
-                    $query->where('p.location_id', $request->location_id);
-                }
-                if ($request->filled('purchasing_status')) {
-                    $query->where('p.purchasing_status', $request->purchasing_status);
-                }
-                if ($request->filled('payment_status')) {
-                    $query->where('p.payment_status', $request->payment_status);
-                }
-                if ($request->filled('start_date')) {
-                    $query->whereDate('p.purchase_date', '>=', $request->start_date);
-                }
-                if ($request->filled('end_date')) {
-                    $query->whereDate('p.purchase_date', '<=', $request->end_date);
-                }
+                if ($request->filled('supplier_id'))      $query->where('p.supplier_id', $request->supplier_id);
+                if ($request->filled('location_id'))       $query->where('p.location_id', $request->location_id);
+                if ($request->filled('purchasing_status')) $query->where('p.purchasing_status', $request->purchasing_status);
+                if ($request->filled('payment_status'))    $query->where('p.payment_status', $request->payment_status);
+                if ($request->filled('start_date'))        $query->whereDate('p.purchase_date', '>=', $request->start_date);
+                if ($request->filled('end_date'))          $query->whereDate('p.purchase_date', '<=', $request->end_date);
 
                 $query->orderBy('p.id', 'desc');
-
                 return $query->get();
-            });
+            };
+
+            // Try the cache; if deserialization fails, fall back to a fresh query
+            try {
+                $purchases = Cache::remember($cacheKey, 300, $buildQuery);
+            } catch (\Throwable $cacheEx) {
+                Log::warning('Purchase cache read failed (' . $cacheEx->getMessage() . '), falling back to direct query.');
+                Cache::forget($cacheKey);
+                $purchases = $buildQuery();
+            }
 
             // Format data
             $formattedPurchases = $purchases->map(function($purchase) {
                 return [
-                    'id' => $purchase->id,
-                    'supplier_id' => $purchase->supplier_id,
-                    'location_id' => $purchase->location_id,
-                    'user_id' => $purchase->user_id,
-                    'reference_no' => $purchase->reference_no,
-                    'purchase_date' => $purchase->purchase_date,
+                    'id'                => $purchase->id,
+                    'supplier_id'       => $purchase->supplier_id,
+                    'location_id'       => $purchase->location_id,
+                    'user_id'           => $purchase->user_id,
+                    'reference_no'      => $purchase->reference_no,
+                    'purchase_date'     => $purchase->purchase_date,
                     'purchasing_status' => $purchase->purchasing_status,
-                    'payment_status' => $purchase->payment_status,
-                    'final_total' => $purchase->final_total,
-                    'total_due' => $purchase->total_due,
-                    'claim_status' => $purchase->claim_status,
+                    'payment_status'    => $purchase->payment_status,
+                    'final_total'       => $purchase->final_total,
+                    'total_due'         => $purchase->total_due,
+                    'claim_status'      => $purchase->claim_status,
                     'supplier' => [
                         'first_name' => explode(' ', $purchase->supplier_name)[0] ?? '',
-                        'last_name' => explode(' ', $purchase->supplier_name, 2)[1] ?? ''
+                        'last_name'  => explode(' ', $purchase->supplier_name, 2)[1] ?? ''
                     ],
-                    'location' => [
-                        'name' => $purchase->location_name
-                    ],
-                    'user' => [
-                        'user_name' => $purchase->user_name
-                    ]
+                    'location' => ['name' => $purchase->location_name],
+                    'user'     => ['user_name' => $purchase->user_name]
                 ];
             });
 
-            return response()->json([
-                'purchases' => $formattedPurchases
-            ], 200);
+            return response()->json(['purchases' => $formattedPurchases], 200);
 
-        } catch (\Exception $e) {
-            Log::error('Error fetching purchases: ' . $e->getMessage());
-            return response()->json(['message' => 'An error occurred while fetching purchases. Please try again later.'], 500);
+        } catch (\Throwable $e) {
+            Log::error('getAllPurchase error: ' . $e->getMessage() . ' | ' . $e->getFile() . ':' . $e->getLine() . "\n" . $e->getTraceAsString());
+            return response()->json([
+                'message' => 'An error occurred while fetching purchases. Please try again later.',
+                'debug'   => ['error' => $e->getMessage(), 'file' => basename($e->getFile()), 'line' => $e->getLine()],
+            ], 500);
         }
     }
 

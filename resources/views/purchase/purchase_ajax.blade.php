@@ -3087,11 +3087,13 @@
                     },
                     error: function(xhr, status, error) {
                         console.error('Error loading purchases — HTTP ' + xhr.status + ':', error);
-                        console.error('Response:', xhr.responseText ? xhr.responseText.substring(0, 500) : 'empty');
+                        var resp = {};
+                        try { resp = JSON.parse(xhr.responseText); } catch(e) {}
+                        console.error('Server detail:', resp.debug || xhr.responseText.substring(0, 300));
                         var msg = 'Error loading purchases (HTTP ' + xhr.status + '). Please refresh.';
                         if (xhr.status === 403) msg = 'Access denied. You do not have permission to view purchases.';
                         if (xhr.status === 401) msg = 'Session expired. Please <a href="/login">log in</a> again.';
-                        if (xhr.status === 500) msg = 'Server error loading purchases. Please refresh.';
+                        if (xhr.status === 500 && resp.debug) msg = 'Server error: ' + resp.debug.error + ' (' + resp.debug.file + ':' + resp.debug.line + ')';
                         $('#purchase-list tbody').html('<tr><td colspan="10" class="text-center text-danger">' + msg + '</td></tr>');
                     }
                 });
