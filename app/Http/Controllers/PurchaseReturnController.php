@@ -652,6 +652,40 @@ class PurchaseReturnController extends Controller
         return response()->json(['purchases_Return' => $purchasesReturn], 200);
     }
 
+    /**
+     * Get purchase returns for a specific supplier (for bulk payment page)
+     */
+    public function getSupplierReturns($supplierId)
+    {
+        try {
+            $returns = PurchaseReturn::where('supplier_id', $supplierId)
+                ->where(function($query) {
+                    $query->where('payment_status', '!=', 'Paid')
+                          ->orWhere('total_due', '>', 0);
+                })
+                ->with(['payments'])
+                ->orderBy('return_date', 'desc')
+                ->get();
+
+            return response()->json([
+                'status' => 200,
+                'returns' => $returns,
+                'count' => $returns->count()
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching supplier returns', [
+                'supplier_id' => $supplierId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'status' => 500,
+                'error' => 'Failed to fetch supplier returns',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function getPurchaseReturns($id)
     {
         $purchaseReturn = PurchaseReturn::with(['supplier', 'location', 'purchaseReturnProducts.product','payments'])->findOrFail($id);

@@ -344,6 +344,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/purchase-return/store', [PurchaseReturnController::class, 'storeOrUpdate']);
         Route::get('/purchase-returns/get-All', [PurchaseReturnController::class, 'getAllPurchaseReturns']);
         Route::get('/purchase-returns/get-Details/{id}', [PurchaseReturnController::class, 'getPurchaseReturns']);
+        Route::get('/supplier-returns/{supplierId}', [PurchaseReturnController::class, 'getSupplierReturns']);
         Route::get('/purchase-return/edit/{id}', [PurchaseReturnController::class, 'edit']);
         Route::get('/purchase-returns/get-product-details/{supplierId}', [PurchaseReturnController::class, 'getProductDetails']);
         Route::get('/purchase-returns/products-with-stock', [PurchaseReturnController::class, 'getAllProductsWithStock']);

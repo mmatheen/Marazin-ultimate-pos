@@ -640,7 +640,7 @@ $(document).ready(function() {
             if (payment.customer) {
                 contactName = payment.customer.first_name + ' ' + payment.customer.last_name + ' (Customer)';
             } else if (payment.supplier) {
-                contactName = payment.supplier.name + ' (Supplier)';
+                contactName = (payment.supplier.first_name || '') + (payment.supplier.last_name ? ' ' + payment.supplier.last_name : '') + ' (Supplier)';
             } else {
                 contactName = 'Unknown Contact';
             }

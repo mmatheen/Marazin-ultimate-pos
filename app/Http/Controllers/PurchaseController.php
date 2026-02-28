@@ -15,7 +15,6 @@ use App\Models\Payment;
 use App\Models\StockHistory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Cache;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -849,62 +848,41 @@ class PurchaseController extends Controller
     public function getAllPurchase(Request $request)
     {
         try {
-            // Build cache key based on filters
-            $cacheKey = 'purchases_all_' . md5(json_encode([
-                'supplier_id'       => $request->supplier_id,
-                'location_id'       => $request->location_id,
-                'purchasing_status' => $request->purchasing_status,
-                'payment_status'    => $request->payment_status,
-                'start_date'        => $request->start_date,
-                'end_date'          => $request->end_date,
-            ]));
+            // Build the base query - always query fresh (payment updates must reflect immediately)
+            $query = DB::table('purchases as p')
+                ->select([
+                    'p.id',
+                    'p.supplier_id',
+                    'p.location_id',
+                    'p.user_id',
+                    'p.reference_no',
+                    'p.purchase_date',
+                    'p.purchasing_status',
+                    'p.payment_status',
+                    'p.final_total',
+                    'p.total_due',
+                    'p.claim_status',
+                    DB::raw("CONCAT(COALESCE(s.first_name, ''), ' ', COALESCE(s.last_name, '')) as supplier_name"),
+                    'l.name as location_name',
+                    'u.user_name'
+                ])
+                ->leftJoin('suppliers as s', 'p.supplier_id', '=', 's.id')
+                ->leftJoin('locations as l', 'p.location_id', '=', 'l.id')
+                ->leftJoin('users as u', 'p.user_id', '=', 'u.id')
+                ->where(function ($q) {
+                    $q->where('p.purchase_type', 'regular')
+                      ->orWhereNull('p.purchase_type');
+                });
 
-            // Build the base query (shared between cache-hit and cache-miss paths)
-            $buildQuery = function() use ($request) {
-                $query = DB::table('purchases as p')
-                    ->select([
-                        'p.id',
-                        'p.supplier_id',
-                        'p.location_id',
-                        'p.user_id',
-                        'p.reference_no',
-                        'p.purchase_date',
-                        'p.purchasing_status',
-                        'p.payment_status',
-                        'p.final_total',
-                        'p.total_due',
-                        'p.claim_status',
-                        DB::raw("CONCAT(COALESCE(s.first_name, ''), ' ', COALESCE(s.last_name, '')) as supplier_name"),
-                        'l.name as location_name',
-                        'u.user_name'
-                    ])
-                    ->leftJoin('suppliers as s', 'p.supplier_id', '=', 's.id')
-                    ->leftJoin('locations as l', 'p.location_id', '=', 'l.id')
-                    ->leftJoin('users as u', 'p.user_id', '=', 'u.id')
-                    ->where(function ($q) {
-                        $q->where('p.purchase_type', 'regular')
-                          ->orWhereNull('p.purchase_type');
-                    });
+            if ($request->filled('supplier_id'))      $query->where('p.supplier_id', $request->supplier_id);
+            if ($request->filled('location_id'))       $query->where('p.location_id', $request->location_id);
+            if ($request->filled('purchasing_status')) $query->where('p.purchasing_status', $request->purchasing_status);
+            if ($request->filled('payment_status'))    $query->where('p.payment_status', $request->payment_status);
+            if ($request->filled('start_date'))        $query->whereDate('p.purchase_date', '>=', $request->start_date);
+            if ($request->filled('end_date'))          $query->whereDate('p.purchase_date', '<=', $request->end_date);
 
-                if ($request->filled('supplier_id'))      $query->where('p.supplier_id', $request->supplier_id);
-                if ($request->filled('location_id'))       $query->where('p.location_id', $request->location_id);
-                if ($request->filled('purchasing_status')) $query->where('p.purchasing_status', $request->purchasing_status);
-                if ($request->filled('payment_status'))    $query->where('p.payment_status', $request->payment_status);
-                if ($request->filled('start_date'))        $query->whereDate('p.purchase_date', '>=', $request->start_date);
-                if ($request->filled('end_date'))          $query->whereDate('p.purchase_date', '<=', $request->end_date);
-
-                $query->orderBy('p.id', 'desc');
-                return $query->get();
-            };
-
-            // Try the cache; if deserialization fails, fall back to a fresh query
-            try {
-                $purchases = Cache::remember($cacheKey, 300, $buildQuery);
-            } catch (\Throwable $cacheEx) {
-                Log::warning('Purchase cache read failed (' . $cacheEx->getMessage() . '), falling back to direct query.');
-                Cache::forget($cacheKey);
-                $purchases = $buildQuery();
-            }
+            $query->orderBy('p.id', 'desc');
+            $purchases = $query->get();
 
             // Format data
             $formattedPurchases = $purchases->map(function($purchase) {

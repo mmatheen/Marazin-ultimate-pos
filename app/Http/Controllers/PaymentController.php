@@ -936,7 +936,7 @@ class PaymentController extends Controller
             if ($paymentType === 'opening_balance') {
                 // Only settle opening balance
                 $this->reduceEntityOpeningBalance($entity, $remainingAmount, $paymentMethod, $request);
-            } elseif ($paymentType === 'sale_dues') {
+            } elseif ($paymentType === 'sale_dues' || $paymentType === 'purchase_dues') {
                 // Only pay against sales/purchases
                 $this->applyGlobalAmountToReferences($entity, $remainingAmount, $data, $request);
                 $this->handleIndividualPayments($entity, $data, $request);
@@ -1256,6 +1256,10 @@ class PaymentController extends Controller
 
         try {
             $result = $this->flexibleBulkPurchasePaymentService->process($request);
+
+            // Clear any stale purchase list cache so the list reflects updated payment status
+            \Illuminate\Support\Facades\Cache::flush();
+
             return response()->json([
                 'status'         => 200,
                 'message'        => 'Multi-method bulk purchase payment processed successfully!',
@@ -1277,7 +1281,7 @@ class PaymentController extends Controller
             'entity_id' => 'required',
             'payment_method' => 'required|string',
             'payment_date' => 'nullable|date',
-            'payment_type' => 'nullable|in:opening_balance,sale_dues,both',
+            'payment_type' => 'nullable|in:opening_balance,sale_dues,purchase_dues,both',
             'global_amount' => 'nullable|numeric|min:0',
             'payments' => 'nullable|array',
             'payments.*.reference_id' => [
@@ -1332,7 +1336,7 @@ class PaymentController extends Controller
 
         return match ($paymentType) {
             'opening_balance' => max(0, $currentBalance - $totalDueFromReferences), // Only remaining OB (current - sales due)
-            'sale_dues' => $totalDueFromReferences, // Only sale/purchase dues
+            'sale_dues', 'purchase_dues' => $totalDueFromReferences, // Only sale/purchase dues
             'both' => max(0, $currentBalance), // Total current balance (includes OB + sales due)
             default => max(0, $currentBalance), // Default to current balance
         };
