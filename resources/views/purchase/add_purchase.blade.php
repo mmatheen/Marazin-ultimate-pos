@@ -1,7 +1,10 @@
 @extends('layout.layout')
 @section('content')
 @php
-    $canUseFreeQty = (bool)(\App\Models\Setting::value('enable_free_qty') ?? 1) && auth()->user()?->can('use free quantity');
+    // Use values passed by controller; fall back to own computation if accessed directly.
+    $canUseFreeQty            = $canUseFreeQty ?? ((bool)(\App\Models\Setting::value('enable_free_qty') ?? 1) && (auth()->user()?->can('create supplier claims') ?? false));
+    $canReceiveSupplierClaims = $canReceiveSupplierClaims ?? ($canUseFreeQty && (auth()->user()?->can('receive supplier claims') ?? false));
+    $canCreateSupplierClaims  = $canCreateSupplierClaims ?? $canUseFreeQty;
 @endphp
     <div class="content container-fluid">
         <style>

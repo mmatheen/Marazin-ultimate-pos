@@ -3,6 +3,9 @@
         const canUseFreeQty              = {!! json_encode($canUseFreeQty ?? false) !!};
         const canReceiveSupplierClaims   = {!! json_encode($canReceiveSupplierClaims ?? false) !!};
         const canCreateSupplierClaims    = {!! json_encode($canCreateSupplierClaims ?? false) !!};
+        // Expose on window so product_ajax.blade.php can read them
+        window.purchaseCanUseFreeQty           = canUseFreeQty;
+        window.purchaseCanCreateSupplierClaims = canCreateSupplierClaims;
         // Add CSS for batch history styling
         if (!$('#batch-history-styles').length) {
             $('<style id="batch-history-styles">')
@@ -564,11 +567,11 @@
             </td>
             ${canUseFreeQty
                 ? `<td><input type="number" class="form-control free-quantity" value="${prices.free_quantity || 0}" min="0" step="${quantityStep}" pattern="${quantityPattern}" data-allow-decimal="${allowDecimal}" placeholder="Free qty"></td>`
-                : `<td class="d-none"><input type="number" class="free-quantity" value="${prices.free_quantity || 0}" style="display:none"></td>`
+                : ``
             }
             ${canUseFreeQty
                 ? `<td><input type="number" class="form-control claim-free-quantity" value="${prices.claim_free_quantity || 0}" min="0" step="${quantityStep}" pattern="${quantityPattern}" data-allow-decimal="${allowDecimal}" placeholder="Claim qty"></td>`
-                : `<td class="d-none"><input type="number" class="claim-free-quantity" value="${prices.claim_free_quantity || 0}" style="display:none"></td>`
+                : ``
             }
             <td>
                 <input type="number" class="form-control product-price" value="${unitCost.toFixed(2)}" min="0">

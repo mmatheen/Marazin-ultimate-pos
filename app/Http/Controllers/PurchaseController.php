@@ -38,16 +38,20 @@ class PurchaseController extends Controller
     {
         $locations                = \App\Models\Location::all();
         $suppliers                = \App\Models\Supplier::orderBy('first_name')->get();
-        $canUseFreeQty            = auth()->user()?->can('use free quantity') ?? false;
+        $canUseFreeQty            = (bool)(\App\Models\Setting::value('enable_free_qty') ?? 1) && (auth()->user()?->can('create supplier claims') ?? false);
         $canReceiveSupplierClaims = $canUseFreeQty && (auth()->user()?->can('receive supplier claims') ?? false);
-        $canCreateSupplierClaims  = $canUseFreeQty && (auth()->user()?->can('create supplier claims') ?? false);
+        $canCreateSupplierClaims  = $canUseFreeQty;
 
         return view('purchase.list_purchase', compact('locations', 'suppliers', 'canUseFreeQty', 'canReceiveSupplierClaims', 'canCreateSupplierClaims'));
     }
 
     public function AddPurchase()
     {
-        return view('purchase.add_purchase');
+        $canUseFreeQty            = (bool)(\App\Models\Setting::value('enable_free_qty') ?? 1) && (auth()->user()?->can('create supplier claims') ?? false);
+        $canReceiveSupplierClaims = $canUseFreeQty && (auth()->user()?->can('receive supplier claims') ?? false);
+        $canCreateSupplierClaims  = $canUseFreeQty;
+
+        return view('purchase.add_purchase', compact('canUseFreeQty', 'canReceiveSupplierClaims', 'canCreateSupplierClaims'));
     }
 
 
@@ -1038,7 +1042,11 @@ class PurchaseController extends Controller
             return response()->json(['status' => 200, 'purchase' => $purchase], 200);
         }
 
-        return view('purchase.add_purchase', ['purchase' => $purchase]);
+        $canUseFreeQty            = (bool)(\App\Models\Setting::value('enable_free_qty') ?? 1) && (auth()->user()?->can('create supplier claims') ?? false);
+        $canReceiveSupplierClaims = $canUseFreeQty && (auth()->user()?->can('receive supplier claims') ?? false);
+        $canCreateSupplierClaims  = $canUseFreeQty;
+
+        return view('purchase.add_purchase', compact('purchase', 'canUseFreeQty', 'canReceiveSupplierClaims', 'canCreateSupplierClaims'));
     }
 
     /**

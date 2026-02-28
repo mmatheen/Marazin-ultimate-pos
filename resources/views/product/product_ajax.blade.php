@@ -2549,6 +2549,9 @@
             const retailPrice = parseFloat(prices.retail_price || product.retail_price) || 0;
             const unitCost = parseFloat(prices.unit_cost || product.original_price) || 0;
 
+            // Read purchase-page permission flags set by purchase_ajax.blade.php
+            const _canUseFreeQty = window.purchaseCanUseFreeQty || false;
+
             const newRow = `
             <tr data-id="${product.id}" data-imei-enabled="${product.is_imei_or_serial_no || 0}">
                 <td>${product.id}</td>
@@ -2556,9 +2559,8 @@
                 <td>
                     <input type="number" class="form-control purchase-quantity" value="${prices.quantity || 1}" min="${quantityMin}" step="${quantityStep}" pattern="${quantityPattern}" ${allowDecimal ? '' : 'oninput="this.value = this.value.replace(/[^0-9]/g, \'\')"'}>
                 </td>
-                <td>
-                    <input type="number" class="form-control free-quantity" value="${prices.free_quantity || 0}" min="0" step="${quantityStep}" pattern="${quantityPattern}" ${allowDecimal ? '' : 'oninput="this.value = this.value.replace(/[^0-9]/g, \'\')"'}>
-                </td>
+                ${_canUseFreeQty ? `<td><input type="number" class="form-control free-quantity" value="${prices.free_quantity || 0}" min="0" step="${quantityStep}" pattern="${quantityPattern}" placeholder="Free qty"></td>` : ''}
+                ${_canUseFreeQty ? `<td><input type="number" class="form-control claim-free-quantity" value="${prices.claim_free_quantity || 0}" min="0" step="${quantityStep}" pattern="${quantityPattern}" placeholder="Claim qty"></td>` : ''}
                 <td>
                     <input type="number" class="form-control product-price" value="${unitCost.toFixed(2)}" min="0">
                 </td>

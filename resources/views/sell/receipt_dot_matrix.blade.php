@@ -18,23 +18,41 @@
         $fontFamilyCss = "'" . $fontFamily . "', Arial, 'Courier New', monospace";
 
         // ── Dynamic page height ──────────────────────────────────────────
-        // Count unique display items (same logic used in the table below)
+        // Estimate total VISUAL rows (accounts for long names wrapping).
+        // Name column is ~1.3in wide; at 12px Arial ≈ 11 chars per line.
+        $CHARS_PER_LINE = 11;
+        // Header + customer row + table header + summary + footer ≈ 14 fixed visual lines
+        $FIXED_LINES = 14;
+        // Each visual line ≈ 0.19in at default font/spacing
+        $LINE_HEIGHT_IN = 0.19;
+        // Half-page usable height before we must switch to full page
+        $HALF_PAGE_IN = 5.5;
+        $HALF_PAGE_AVAIL_LINES = (int)(($HALF_PAGE_IN - ($FIXED_LINES * $LINE_HEIGHT_IN)) / $LINE_HEIGHT_IN);
+
+        $totalVisualLines = 0;
         $productCount = 0;
         $_seenKeys = [];
         foreach (($products ?? []) as $_p) {
+            $name = $_p->custom_name ?? ($_p->product->product_name ?? '');
+            $nameLines = max(1, (int)ceil(mb_strlen($name) / $CHARS_PER_LINE));
             if ($_p->imeis && $_p->imeis->count() > 0) {
                 $productCount += $_p->imeis->count();
+                // each IMEI row: name lines + 1 extra for IMEI number sub-line
+                $totalVisualLines += $_p->imeis->count() * ($nameLines + 1);
             } else {
-                $_key = $_p->product_id . '-' . ($_p->batch_id ?? 'null') . '-' . $_p->price;
+                $_key = $_p->product_id . '-' . ($_p->batch_id ?? 'null') . '-' . $_p->price . '-' . ($_p->custom_name ?? '');
                 if (!isset($_seenKeys[$_key])) {
                     $_seenKeys[$_key] = true;
                     $productCount++;
+                    $totalVisualLines += $nameLines;
                 }
             }
         }
-        // ≤7 → half page (5.5in)  |  ≥8 → full page (11in)
-        $pageHeight    = $productCount >= 8 ? '11in'  : '5.5in';
-        $minHeight     = $productCount >= 8 ? '10.8in': '5.3in';
+
+        // Switch to full page if visual rows won't fit in half page
+        $needFullPage  = $totalVisualLines > $HALF_PAGE_AVAIL_LINES;
+        $pageHeight    = $needFullPage ? '11in'  : '5.5in';
+        $minHeight     = $needFullPage ? '10.8in': '5.3in';
     @endphp
     <style>
         * {
