@@ -4212,6 +4212,8 @@
             success: function(response) {
                 if (response.status === 200) {
                     populateBatchPricesModal(response.product, response.batches);
+                    // ✅ FIX: Store productId on modal so the save handler can broadcast it
+                    $('#batchPricesModal').data('product-id', productId);
                     $('#batchPricesModal').modal('show');
                 } else {
                     toastr.error('Failed to load batch data', 'Error');
@@ -4453,11 +4455,16 @@
                     console.log('✅ Batch prices updated successfully!');
                     toastr.success(response.message, 'Success');
 
-                    // AGGRESSIVE CACHE CLEARING - Notify all browser tabs
+                    // ✅ FIX: Include productId in the broadcast so POS can do targeted cache invalidation
+                    const updatedProductId = $('#batchPricesModal').data('product-id') || null;
                     const cacheInvalidateKey = 'product_cache_invalidate_' + (response.timestamp || Date.now());
                     localStorage.setItem('product_cache_invalidate', cacheInvalidateKey);
                     localStorage.setItem('force_product_refresh', Date.now());
-                    localStorage.setItem('batch_prices_updated', Date.now());
+                    // Broadcast product-specific price update so POS can refresh just that product
+                    localStorage.setItem('batch_prices_updated', JSON.stringify({
+                        productId: updatedProductId,
+                        timestamp: Date.now()
+                    }));
 
                     // Broadcast to all tabs
                     setTimeout(() => {

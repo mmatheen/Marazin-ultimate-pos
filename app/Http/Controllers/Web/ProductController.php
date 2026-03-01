@@ -2463,7 +2463,8 @@ class ProductController extends Controller
                 if ($locationId) {
                     $q->where('location_id', $locationId);
                 }
-                $q->select(['id', 'batch_id', 'location_id', 'qty'])
+                // ✅ FIX: Include free_qty so total sellable qty can be computed
+                $q->select(['id', 'batch_id', 'location_id', 'qty', 'free_qty'])
                     ->with('location:id,name');
             }
         ])
@@ -2475,10 +2476,15 @@ class ProductController extends Controller
             return $query->where(function ($q) use ($locationId) {
                 // Unlimited stock products are always visible regardless of location
                 $q->where('stock_alert', 0)
-                  // OR products that have qty > 0 at the selected location
+                  // OR products that have paid qty > 0 at the selected location
                   ->orWhereHas('batches.locationBatches', function ($inner) use ($locationId) {
                       $inner->where('location_id', $locationId)
                             ->where('qty', '>', 0);
+                  })
+                  // ✅ FIX: OR products that have free qty > 0 at the selected location
+                  ->orWhereHas('batches.locationBatches', function ($inner) use ($locationId) {
+                      $inner->where('location_id', $locationId)
+                            ->where('free_qty', '>', 0);
                   });
             });
         });
@@ -2556,10 +2562,21 @@ class ProductController extends Controller
                 })
                 ->sum('location_batches.qty');
 
+            // ✅ FIX: Also calculate free stock so dropdown can show correct total
+            $totalFreeStock = DB::table('location_batches')
+                ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                ->where('batches.product_id', $product->id)
+                ->when($locationId, function ($q) use ($locationId) {
+                    return $q->where('location_batches.location_id', $locationId);
+                })
+                ->sum('location_batches.free_qty');
+
             if ($allowDecimal) {
                 $totalStock = round($totalStock, 2);
+                $totalFreeStock = round($totalFreeStock, 2);
             } else {
                 $totalStock = (int)$totalStock;
+                $totalFreeStock = (int)$totalFreeStock;
             }
 
             // Map active discounts
@@ -2622,6 +2639,8 @@ class ProductController extends Controller
                     'max_retail_price' => $product->max_retail_price,
                 ],
                 'total_stock' => $product->stock_alert == 0 ? 'Unlimited' : $totalStock,
+                // ✅ FIX: Expose free stock so JS dropdown and billing can compute total sellable qty
+                'total_free_stock' => $product->stock_alert == 0 ? 0 : $totalFreeStock,
                 'batches' => $filteredBatches->map(function ($batch) use ($allowDecimal, $locationId) {
                     // Filter location batches based on location filter
                     $locationBatches = $locationId
@@ -2665,7 +2684,9 @@ class ProductController extends Controller
                                 'batch_id' => $lb->batch_id,
                                 'location_id' => $lb->location_id,
                                 'location_name' => optional($lb->location)->name ?? 'N/A',
-                                'quantity' => $allowDecimal ? round((float)$lb->qty, 2) : (int)$lb->qty
+                                'quantity' => $allowDecimal ? round((float)$lb->qty, 2) : (int)$lb->qty,
+                                // ✅ FIX: Include free_qty so JS can compute total sellable qty per batch
+                                'free_quantity' => $allowDecimal ? round((float)($lb->free_qty ?? 0), 2) : (int)($lb->free_qty ?? 0)
                             ];
                         })
                     ];

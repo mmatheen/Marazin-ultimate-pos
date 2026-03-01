@@ -1666,8 +1666,10 @@
                 formData.append(`products[${index}][product_id]`, productId);
                 formData.append(`products[${index}][quantity]`, quantity);
                 formData.append(`products[${index}][free_quantity]`, freeQuantity);
-                const claimFreeQuantity = $(row).find('.claim-free-quantity').val() || 0;
-                formData.append(`products[${index}][claim_free_quantity]`, claimFreeQuantity);
+                const claimFreeQuantity = canUseFreeQty ? ($(row).find('.claim-free-quantity').val() || 0) : null;
+                if (claimFreeQuantity !== null) {
+                    formData.append(`products[${index}][claim_free_quantity]`, claimFreeQuantity);
+                }
                 formData.append(`products[${index}][price]`, price);
                 formData.append(`products[${index}][discount_percent]`, discountPercent);
                 formData.append(`products[${index}][unit_cost]`, unitCost);

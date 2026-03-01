@@ -129,6 +129,9 @@
             // Clear image failure cache
             failedImages.clear();
             imageAttempts.clear();
+            // ✅ FIX: Clear in-memory stock/price data so next search always gets fresh prices
+            stockData.length = 0;
+            allProducts.length = 0;
             console.log('🗑️ All caches cleared due to data update');
         }
 
@@ -140,6 +143,33 @@
                 if (selectedLocationId) {
                     console.log('🔄 Refreshing products due to cache invalidation');
                     fetchPaginatedProducts(true);
+                }
+            }
+
+            // ✅ FIX: Handle targeted price update — remove only the specific product from stockData
+            // so the next search always fetches fresh prices for it
+            if (e.key === 'batch_prices_updated' && e.newValue) {
+                try {
+                    const payload = JSON.parse(e.newValue);
+                    const updatedProductId = payload && payload.productId;
+                    if (updatedProductId) {
+                        // Remove stale entry for this specific product
+                        const idx = stockData.findIndex(s => String(s.product.id) === String(updatedProductId));
+                        if (idx !== -1) {
+                            stockData.splice(idx, 1);
+                            console.log('🔄 Removed stale stockData for product', updatedProductId, '— will re-fetch on next search');
+                        }
+                        const apIdx = allProducts.findIndex(s => String(s.product && s.product.id) === String(updatedProductId));
+                        if (apIdx !== -1) allProducts.splice(apIdx, 1);
+                    } else {
+                        // No productId — clear everything
+                        clearAllCaches();
+                        if (selectedLocationId) fetchPaginatedProducts(true);
+                    }
+                } catch (err) {
+                    // Old format (plain timestamp) — full clear
+                    clearAllCaches();
+                    if (selectedLocationId) fetchPaginatedProducts(true);
                 }
             }
         });
@@ -4121,7 +4151,15 @@
 
         function createProductLabel(stock, imeiMatch, imeiNumber) {
             const product = stock.product;
-            const stockDisplay = product.stock_alert == 0 ? 'Unlimited' : stock.total_stock;
+            // ✅ FIX: Show total sellable stock (paid + free) in dropdown
+            let stockDisplay;
+            if (product.stock_alert == 0) {
+                stockDisplay = 'Unlimited';
+            } else {
+                const paid = parseFloat(stock.total_stock) || 0;
+                const free = parseFloat(stock.total_free_stock) || 0;
+                stockDisplay = paid + free;
+            }
             return `${product.product_name} (${product.sku || ''})${imeiMatch} [Stock: ${stockDisplay}]`;
         }
 
@@ -5288,9 +5326,17 @@
 
             let stockEntry = stockData.find(stock => stock.product.id === item.product.id);
 
-            if (!stockEntry && item.stockData) {
-                stockData.push(item.stockData);
-                allProducts.push(item.stockData);
+            // ✅ FIX: Always refresh stockData with the latest data from the search response.
+            // This guarantees prices are up-to-date after a batch price edit — no hard refresh needed.
+            if (item.stockData) {
+                const idx = stockData.findIndex(s => s.product.id === item.product.id);
+                if (idx !== -1) {
+                    stockData[idx] = item.stockData; // overwrite stale entry
+                    console.log('🔄 Refreshed stale stockData prices for:', item.product.product_name);
+                } else {
+                    stockData.push(item.stockData);
+                    allProducts.push(item.stockData);
+                }
                 stockEntry = item.stockData;
             }
 
@@ -5313,9 +5359,16 @@
             safeFetchJson(url)
                 .then(data => {
                     if (data.status === 200 && Array.isArray(data.data) && data.data.length > 0) {
-                        stockData.push(data.data[0]);
-                        allProducts.push(data.data[0]);
-                        addProductToTable(data.data[0].product, searchTerm, matchType);
+                        // ✅ FIX: Replace existing entry if present so prices are always fresh
+                        const freshEntry = data.data[0];
+                        const existingIdx = stockData.findIndex(s => s.product.id === freshEntry.product.id);
+                        if (existingIdx !== -1) {
+                            stockData[existingIdx] = freshEntry;
+                        } else {
+                            stockData.push(freshEntry);
+                            allProducts.push(freshEntry);
+                        }
+                        addProductToTable(freshEntry.product, searchTerm, matchType);
 
                         // Auto-focus for next scan after successful add
                         setTimeout(() => {
@@ -5632,7 +5685,8 @@
                 return;
             }
 
-            const totalQuantity = stockEntry.total_stock;
+            // ✅ FIX: Include free stock in total sellable quantity check
+            const totalQuantity = (parseFloat(stockEntry.total_stock) || 0) + (parseFloat(stockEntry.total_free_stock) || 0);
 
             // Get current customer information for pricing
             const currentCustomer = getCurrentCustomer();
@@ -5742,12 +5796,12 @@
             // Ensure batches is always an array using helper function
             let batchesArray = normalizeBatches(stockEntry);
 
-            // Filter batches by selected location and available quantity
+            // Filter batches by selected location and available quantity (paid OR free > 0)
             batchesArray = batchesArray.filter(batch =>
                 Array.isArray(batch.location_batches) &&
                 batch.location_batches.some(lb =>
                     String(lb.location_id) == String(selectedLocationId) &&
-                    parseFloat(lb.quantity) > 0
+                    ((parseFloat(lb.quantity) || 0) + (parseFloat(lb.free_quantity) || 0)) > 0
                 )
             );
 
@@ -5774,12 +5828,12 @@
             // If there's only one price or all batches have the same price, add the latest batch
             if (uniquePrices.length <= 1) {
                 // Default: select "All" batch (not a real batch, but for all available)
-                // Calculate total quantity for all batches in this location
+                // ✅ FIX: Calculate total quantity including free stock (paid + free)
                 let totalQty = 0;
                 batchesArray.forEach(batch => {
                     batch.location_batches.forEach(lb => {
                         if (String(lb.location_id) == String(selectedLocationId)) {
-                            totalQty += parseFloat(lb.quantity);
+                            totalQty += (parseFloat(lb.quantity) || 0) + (parseFloat(lb.free_quantity) || 0);
                         }
                     });
                 });
@@ -6920,13 +6974,14 @@
                 .filter(batch => (batch.batch_quantity + batch.batch_free_quantity) > 0);
 
             // Calculate total quantity for all batches in the selected location
+            // ✅ FIX: Include free stock (paid + free)
             let totalQuantity = 0;
             if (batchesArray.length > 0) {
                 totalQuantity = batchesArray.reduce((sum, batch) => {
                     if (Array.isArray(batch.location_batches)) {
                         return sum + batch.location_batches
                             .filter(lb => String(lb.location_id) == String(selectedLocationId))
-                            .reduce((s, lb) => s + (parseFloat(lb.quantity) || 0), 0);
+                            .reduce((s, lb) => s + (parseFloat(lb.quantity) || 0) + (parseFloat(lb.free_quantity) || 0), 0);
                     }
                     return sum;
                 }, 0);
@@ -7492,11 +7547,13 @@
 
             let adjustedBatchQuantity = batchQuantity;
             if (batchId === "all") {
-                adjustedBatchQuantity = stockEntry.total_stock;
+                // ✅ FIX: Include free stock in total sellable quantity (paid + free)
+                adjustedBatchQuantity = (parseFloat(stockEntry.total_stock) || 0) + (parseFloat(stockEntry.total_free_stock) || 0);
             } else if (batch && batch.location_batches) {
                 const locationBatch = batch.location_batches.find(lb => lb.location_id === locationId);
                 if (locationBatch) {
-                    adjustedBatchQuantity = parseFloat(locationBatch.quantity);
+                    // ✅ FIX: Include free stock from location batch (paid + free)
+                    adjustedBatchQuantity = (parseFloat(locationBatch.quantity) || 0) + (parseFloat(locationBatch.free_quantity) || 0);
                 }
             }
 

@@ -403,6 +403,9 @@ class PurchaseController extends Controller
                         throw new \Exception("Invalid quantity for product ID {$productId}");
                     }
 
+                    $purchaseType = $purchase->purchase_type ?? 'regular';
+                    $isFreeClaim = in_array($purchaseType, ['free_claim', 'free_claim_standalone']);
+
                     if ($existingProducts->has($productId)) {
                         // Update existing product - CRITICAL FIX for double stock addition
                         $existingProduct = $existingProducts->get($productId);
@@ -410,8 +413,15 @@ class PurchaseController extends Controller
                         $oldFreeQuantity = $existingProduct->free_quantity ?? 0;
                         $newQuantity = $productData['quantity'];
                         $newFreeQuantity = $productData['free_quantity'] ?? 0;
-                        $quantityDifference = $newQuantity - $oldQuantity;
-                        $freeQuantityDifference = $newFreeQuantity - $oldFreeQuantity;
+
+                        // For free_claim receipts, received qty belongs to free stock, not paid stock
+                        if ($isFreeClaim) {
+                            $quantityDifference     = 0;
+                            $freeQuantityDifference = $newQuantity - $oldQuantity;
+                        } else {
+                            $quantityDifference     = $newQuantity - $oldQuantity;
+                            $freeQuantityDifference = $newFreeQuantity - $oldFreeQuantity;
+                        }
 
                         Log::info('Purchase edit: Updating existing product stock', [
                             'product_id' => $productId,
@@ -430,9 +440,18 @@ class PurchaseController extends Controller
                         }
 
                         // Update purchase product record with all new data
+                        // Preserve claim_free_quantity: never overwrite a positive existing value
+                        // with 0 (happens when user edits without the free-qty permission).
+                        $incomingClaimFreeQty = $productData['claim_free_quantity'] ?? 0;
+                        $storedClaimFreeQty   = $existingProduct->claim_free_quantity ?? 0;
+                        $claimFreeQtyToSave   = ($incomingClaimFreeQty > 0)
+                            ? $incomingClaimFreeQty
+                            : $storedClaimFreeQty;
+
                         $existingProduct->update([
                             'quantity' => $newQuantity,
                             'free_quantity' => $newFreeQuantity,
+                            'claim_free_quantity' => $claimFreeQtyToSave,
                             'price' => $productData['price'] ?? $productData['unit_cost'],
                             'discount_percent' => $productData['discount_percent'] ?? 0,
                             'unit_cost' => $productData['unit_cost'],
@@ -474,7 +493,7 @@ class PurchaseController extends Controller
                             'purchase_id' => $purchase->id
                         ]);
 
-                        $this->addNewProductToPurchase($purchase, $productData, $request->location_id);
+                        $this->addNewProductToPurchase($purchase, $productData, $request->location_id, $purchaseType);
                     }
                 }
             });
@@ -627,12 +646,16 @@ class PurchaseController extends Controller
         });
     }
 
-    private function addNewProductToPurchase($purchase, $productData, $locationId)
+    private function addNewProductToPurchase($purchase, $productData, $locationId, $purchaseType = 'regular')
     {
         // First check if batch already exists with same batch_no and product_id
         $batchNo = $productData['batch_no'] ?? Batch::generateNextBatchNo();
-        $freeQuantity = $productData['free_quantity'] ?? 0;
-        $totalQuantity = $productData['quantity'] + $freeQuantity;
+        $isFreeClaim = in_array($purchaseType, ['free_claim', 'free_claim_standalone']);
+
+        // For free_claim receipts, received qty belongs in free stock, not paid stock
+        $paidQuantity = $isFreeClaim ? 0 : ($productData['quantity'] ?? 0);
+        $freeQuantity = $isFreeClaim ? ($productData['quantity'] ?? 0) : ($productData['free_quantity'] ?? 0);
+        $totalQuantity = $paidQuantity + $freeQuantity;
 
         $batch = Batch::where([
             'batch_no' => $batchNo,
@@ -648,14 +671,14 @@ class PurchaseController extends Controller
                 'max_retail_price' => $productData['max_retail_price'],
                 // Note: Don't update unit_cost and expiry_date as they should remain from original batch
             ]);
-            $batch->increment('qty', $productData['quantity']); // Paid quantity only
+            $batch->increment('qty', $paidQuantity); // Paid quantity only
             $batch->increment('free_qty', $freeQuantity); // Free quantity separately
 
             Log::info('Updated existing batch with new prices and quantities (paid + free separately)', [
                 'batch_id' => $batch->id,
                 'batch_no' => $batchNo,
                 'product_id' => $productData['product_id'],
-                'added_paid_quantity' => $productData['quantity'],
+                'added_paid_quantity' => $paidQuantity,
                 'added_free_quantity' => $freeQuantity,
                 'new_paid_qty' => $batch->qty,
                 'new_free_qty' => $batch->free_qty,
@@ -668,7 +691,7 @@ class PurchaseController extends Controller
                 'product_id' => $productData['product_id'],
                 'unit_cost' => $productData['unit_cost'],
                 'expiry_date' => $productData['expiry_date'],
-                'qty' => $productData['quantity'], // Paid quantity only
+                'qty' => $paidQuantity, // Paid quantity only (0 for free_claim receipts)
                 'free_qty' => $freeQuantity, // Free quantity separately
                 'wholesale_price' => $productData['wholesale_price'],
                 'special_price' => $productData['special_price'],
@@ -680,7 +703,7 @@ class PurchaseController extends Controller
                 'batch_id' => $batch->id,
                 'batch_no' => $batchNo,
                 'product_id' => $productData['product_id'],
-                'paid_quantity' => $productData['quantity'],
+                'paid_quantity' => $paidQuantity,
                 'free_quantity' => $freeQuantity,
                 'unit_cost' => $productData['unit_cost'],
                 'retail_price' => $productData['retail_price'],
@@ -693,14 +716,14 @@ class PurchaseController extends Controller
             ['batch_id' => $batch->id, 'location_id' => $locationId],
             ['qty' => 0, 'free_qty' => 0]
         );
-        $locationBatch->increment('qty', $productData['quantity']); // Paid quantity
+        $locationBatch->increment('qty', $paidQuantity); // Paid quantity
         $locationBatch->increment('free_qty', $freeQuantity); // Free quantity
 
         // Create purchase product record with both quantities tracked
         $purchase->purchaseProducts()->updateOrCreate(
             ['product_id' => $productData['product_id'], 'batch_id' => $batch->id, 'purchase_id' => $purchase->id],
             [
-                'quantity' => $productData['quantity'],
+                'quantity' => $productData['quantity'], // Keep original quantity for record-keeping
                 'free_quantity' => $freeQuantity,
                 'claim_free_quantity' => $productData['claim_free_quantity'] ?? 0,
                 'price' => $productData['price'] ?? $productData['unit_cost'],

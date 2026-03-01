@@ -1804,6 +1804,14 @@ class ProductController extends Controller
                         'is_active' => $product->is_active,
                     ],
                     'total_stock' => $totalStock,
+                    // ✅ FIX: Include free stock so POS knows total sellable quantity
+                    'total_free_stock' => $locationId
+                        ? $filteredBatches->sum(fn($batch) => $allowDecimal
+                            ? round((float)($batch->locationBatches->where('location_id', $locationId)->sum('free_qty')), 2)
+                            : (int)$batch->locationBatches->where('location_id', $locationId)->sum('free_qty'))
+                        : $filteredBatches->sum(fn($batch) => $allowDecimal
+                            ? round((float)$batch->locationBatches->sum('free_qty'), 2)
+                            : (int)$batch->locationBatches->sum('free_qty')),
                     'batches' => $filteredBatches->map(function ($batch) use ($allowDecimal, $locationId) {
                         // Filter location batches based on location filter
                         $locationBatches = $locationId
@@ -1822,12 +1830,18 @@ class ProductController extends Controller
                             'total_batch_quantity' => $allowDecimal
                                 ? round($locationBatches->sum(fn($lb) => (float)$lb->qty), 2)
                                 : (int)$locationBatches->sum(fn($lb) => (int)$lb->qty),
+                            // ✅ FIX: Include free qty per batch
+                            'total_batch_free_quantity' => $allowDecimal
+                                ? round($locationBatches->sum(fn($lb) => (float)($lb->free_qty ?? 0)), 2)
+                                : (int)$locationBatches->sum(fn($lb) => (int)($lb->free_qty ?? 0)),
                             'location_batches' => $locationBatches->map(function ($lb) use ($allowDecimal) {
                                 return [
                                     'batch_id' => $lb->batch_id,
                                     'location_id' => $lb->location_id,
                                     'location_name' => optional($lb->location)->name ?? 'N/A',
-                                    'quantity' => $allowDecimal ? round((float)$lb->qty, 2) : (int)$lb->qty
+                                    'quantity' => $allowDecimal ? round((float)$lb->qty, 2) : (int)$lb->qty,
+                                    // ✅ FIX: Include free_qty so JS can compute total sellable qty
+                                    'free_quantity' => $allowDecimal ? round((float)($lb->free_qty ?? 0), 2) : (int)($lb->free_qty ?? 0)
                                 ];
                             })
                         ];
