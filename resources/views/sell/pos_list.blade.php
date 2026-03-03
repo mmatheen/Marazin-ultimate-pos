@@ -275,5 +275,19 @@
             });
     </script>
 
+    @vite('resources/js/pos/pos-utils.js')
+    @vite('resources/js/pos/pos-cache.js')
+    @vite('resources/js/pos/pos-ui.js')
+    @vite('resources/js/pos/pos-customer.js')
+    @vite('resources/js/pos/pos-salesrep.js')
+    @vite('resources/js/pos/pos-location.js')
+    @vite('resources/js/pos/pos-product-grid.js')
+    @vite('resources/js/pos/pos-autocomplete.js')
+    @vite('resources/js/pos/pos-cart.js')
+    @vite('resources/js/pos/pos-product-display.js')
+    @vite('resources/js/pos/pos-sales-list.js')
+    @vite('resources/js/pos/pos-salesrep-display.js')
+    @vite('resources/js/pos/pos-receipt.js')
+    @include('sell.partials.pos-config')
     @include('sell.pos_ajax')
 @endsection
