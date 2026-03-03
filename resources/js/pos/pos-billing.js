@@ -17,7 +17,214 @@
  *   pos-utils.js          — formatAmountWithSeparators
  *   pos-cart.js            — attachRowEventListeners, disableConflictingDiscounts, updateTotals
  *   pos_ajax (block 5)    — showPriceHistoryModal
+ *
+ * Public API:
+ *   window.addProductToBillingBody              (legacy)
+ *   window.Pos.Billing.addProductToBillingBody  (preferred for new code)
  */
+
+'use strict';
+
+/**
+ * POS Billing Body — Phase 17
+ *
+ * Extracted from pos_ajax.blade.php.
+ * Responsible for adding product rows to the billing table,
+ * including discount logic, IMEI handling, price-history icon,
+ * merge-vs-new-row logic, and edit-mode preservation.
+ *
+ * Dependencies (all on window):
+ *   pos-config.blade.php  — miscItemProductId, showFreeQtyColumn,
+ *                            priceValidationEnabled, canEditDiscount, canEditUnitPrice
+ *   pos-customer.js       — getCurrentCustomer, logPricingError, getCustomerTypePrice
+ *   pos-product-select.js — normalizeBatches, getCustomerPreviousPrice
+ *   pos-ui.js             — getSafeImageUrl
+ *   pos-utils.js          — formatAmountWithSeparators
+ *   pos-cart.js            — attachRowEventListeners, disableConflictingDiscounts, updateTotals
+ *   pos_ajax (block 5)    — showPriceHistoryModal
+ *
+ * Public API:
+ *   window.addProductToBillingBody              (legacy)
+ *   window.Pos.Billing.addProductToBillingBody  (preferred for new code)
+ */
+
+// POS namespace (safe to call multiple times)
+window.Pos = window.Pos || {};
+window.Pos.Billing = window.Pos.Billing || {};
+
+// Local aliases for namespaced modules
+const _posCustomer = window.Pos.Customer || {};
+const _posCart     = window.Pos.Cart || {};
+
+const getCurrentCustomer   = _posCustomer.getCurrentCustomer;
+const logPricingError      = _posCustomer.logPricingError;
+const getCustomerTypePrice = _posCustomer.getCustomerTypePrice;
+const updateTotals         = _posCart.updateTotals || function () {};
+
+// ── Helper: compute final price & discounts ─────────────────
+function computeFinalPriceAndDiscount({
+    product,
+    batch,
+    price,
+    discountType,
+    discountAmount,
+    activeDiscount,
+    isEditing,
+    currentEditingSaleId
+}) {
+    let finalPrice      = parseFloat(price);
+    let discountFixed   = 0;
+    let discountPercent = 0;
+
+    let effectiveMRP = (batch && batch.max_retail_price)
+        ? parseFloat(batch.max_retail_price)
+        : parseFloat(product.max_retail_price);
+
+    if (!isFinite(effectiveMRP) || isNaN(effectiveMRP)) {
+        effectiveMRP = finalPrice;
+    }
+
+    const defaultFixedDiscount = effectiveMRP - finalPrice;
+
+    if (isEditing && currentEditingSaleId && (discountType && discountAmount !== null)) {
+        if (discountType === 'fixed') {
+            discountFixed = parseFloat(discountAmount);
+            finalPrice    = finalPrice;
+        } else if (discountType === 'percentage') {
+            discountPercent = parseFloat(discountAmount) || 0;
+            finalPrice      = finalPrice;
+        }
+    } else {
+        if (discountType && discountAmount !== null) {
+            if (discountType === 'fixed') {
+                discountFixed = parseFloat(discountAmount);
+                finalPrice    = effectiveMRP - discountFixed;
+                if (finalPrice < 0) finalPrice = 0;
+            } else if (discountType === 'percentage') {
+                discountPercent = parseFloat(discountAmount) || 0;
+                finalPrice      = effectiveMRP * (1 - (discountPercent || 0) / 100);
+            }
+        } else if (activeDiscount) {
+            if (activeDiscount.type === 'percentage') {
+                discountPercent = activeDiscount.amount || 0;
+                finalPrice      = effectiveMRP * (1 - (discountPercent || 0) / 100);
+            } else if (activeDiscount.type === 'fixed') {
+                discountFixed = activeDiscount.amount;
+                finalPrice    = effectiveMRP - discountFixed;
+                if (finalPrice < 0) finalPrice = 0;
+            }
+        } else {
+            discountFixed   = defaultFixedDiscount;
+            discountPercent = (effectiveMRP !== 0)
+                ? (discountFixed / effectiveMRP) * 100
+                : 0;
+            finalPrice      = finalPrice;
+        }
+    }
+
+    if (!isFinite(finalPrice) || isNaN(finalPrice)) {
+        finalPrice = 0;
+    }
+    if (!isFinite(discountFixed) || isNaN(discountFixed)) {
+        discountFixed = 0;
+    }
+    if (!isFinite(discountPercent) || isNaN(discountPercent)) {
+        discountPercent = 0;
+    }
+
+    return { finalPrice, discountFixed, discountPercent };
+}
+
+// ── Helper: build FREE qty display HTML ─────────────────────
+function buildFreeQtyDisplay(batch) {
+    if (batch && batch.free_qty && parseFloat(batch.free_qty) > 0) {
+        const freeQtyValue = parseFloat(batch.free_qty);
+        const displayValue = freeQtyValue % 1 === 0
+            ? Math.floor(freeQtyValue)
+            : freeQtyValue.toFixed(2).replace(/\.?0+$/, '');
+        return `<div style="font-size: 0.75em; color: #28a745; font-weight: 600; margin-top: 2px;">FREE: ${displayValue}</div>`;
+    }
+
+    return `<div style="font-size: 0.75em; color: #888; margin-top: 2px;">Free</div>`;
+}
+
+// ── Helper: try merge with existing row (non-IMEI) ──────────
+function mergeExistingRowIfPossible({
+    billingBody,
+    product,
+    batchId,
+    finalPrice,
+    saleQuantity,
+    allowDecimal,
+    adjustedBatchQuantity,
+    isEditing
+}) {
+    const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
+        const rowProductId = row.getAttribute('data-product-id')
+            ?? row.querySelector('.product-id')?.textContent?.trim();
+        const batchIdElement     = row.querySelector('.batch-id');
+        const priceInputElement  = row.querySelector('.price-input');
+
+        if (!rowProductId || !batchIdElement || !priceInputElement) return false;
+
+        const rowBatchId = batchIdElement.textContent.trim();
+        const rowPrice   = priceInputElement.value.trim();
+
+        // Cash Items never merge
+        if (miscItemProductId && rowProductId == String(miscItemProductId)) return false;
+
+        return (
+            rowProductId == product.id &&
+            rowBatchId == batchId &&
+            parseFloat(rowPrice).toFixed(2) === finalPrice.toFixed(2)
+        );
+    });
+
+    if (!existingRow) return false;
+
+    const quantityInput = existingRow.querySelector('.quantity-input');
+    let currentQty = allowDecimal
+        ? parseFloat(quantityInput.value)
+        : parseInt(quantityInput.value, 10);
+
+    let newQuantity;
+    const isMobileUpdate = saleQuantity > 1 && currentQty > 0;
+    if (isMobileUpdate) {
+        newQuantity = saleQuantity;
+    } else {
+        newQuantity = currentQty + saleQuantity;
+    }
+
+    let maxAllowed = adjustedBatchQuantity;
+    if (isEditing) {
+        const rowMaxQty = existingRow.getAttribute('data-max-quantity');
+        if (rowMaxQty) {
+            maxAllowed = allowDecimal ? parseFloat(rowMaxQty) : parseInt(rowMaxQty, 10);
+        }
+    }
+
+    if (newQuantity > maxAllowed && product.stock_alert !== 0) {
+        toastr.error(`You cannot add more than ${maxAllowed} units of this product.`, 'Warning');
+        return true;
+    }
+
+    quantityInput.value = allowDecimal
+        ? newQuantity.toFixed(4).replace(/\.?0+$/, '')
+        : newQuantity;
+
+    const subtotalElement = existingRow.querySelector('.subtotal');
+    const updatedSubtotal = newQuantity * finalPrice;
+    subtotalElement.textContent = formatAmountWithSeparators(updatedSubtotal.toFixed(2));
+
+    billingBody.insertBefore(existingRow, billingBody.firstChild);
+
+    existingRow.style.transition = 'background-color 0.3s ease';
+    existingRow.style.backgroundColor = '#fff3cd';
+    setTimeout(() => { existingRow.style.backgroundColor = ''; }, 800);
+
+    updateTotals();
+    return true;
+}
 
 // ── price-history CSS (injected once) ───────────────────────
 let priceHistoryStylesInjected = false;
@@ -106,51 +313,20 @@ async function addProductToBillingBody(
 
     const activeDiscount = stockEntry.discounts?.find(d => d.is_active && !d.is_expired) || null;
 
-    let finalPrice = price;
-    let discountFixed = 0;
-    let discountPercent = 0;
-
-    // Use batch MRP for discount calculations, fallback to product MRP
-    const effectiveMRP = (batch && batch.max_retail_price)
-        ? parseFloat(batch.max_retail_price)
-        : parseFloat(product.max_retail_price);
-
-    const defaultFixedDiscount = effectiveMRP - price;
-
-    // *** EDIT MODE FIX: Preserve original discount structure ***
-    if (isEditing && currentEditingSaleId && (discountType && discountAmount !== null)) {
-        if (discountType === 'fixed') {
-            discountFixed = parseFloat(discountAmount);
-            finalPrice = price;
-        } else if (discountType === 'percentage') {
-            discountPercent = parseFloat(discountAmount) || 0;
-            finalPrice = price;
-        }
-    } else {
-        if (discountType && discountAmount !== null) {
-            if (discountType === 'fixed') {
-                discountFixed = parseFloat(discountAmount);
-                finalPrice = effectiveMRP - discountFixed;
-                if (finalPrice < 0) finalPrice = 0;
-            } else if (discountType === 'percentage') {
-                discountPercent = parseFloat(discountAmount) || 0;
-                finalPrice = effectiveMRP * (1 - (discountPercent || 0) / 100);
-            }
-        } else if (activeDiscount) {
-            if (activeDiscount.type === 'percentage') {
-                discountPercent = activeDiscount.amount || 0;
-                finalPrice = effectiveMRP * (1 - (discountPercent || 0) / 100);
-            } else if (activeDiscount.type === 'fixed') {
-                discountFixed = activeDiscount.amount;
-                finalPrice = effectiveMRP - discountFixed;
-                if (finalPrice < 0) finalPrice = 0;
-            }
-        } else {
-            discountFixed = defaultFixedDiscount;
-            discountPercent = (discountFixed / effectiveMRP) * 100;
-            finalPrice = price;
-        }
-    }
+    const {
+        finalPrice,
+        discountFixed,
+        discountPercent
+    } = computeFinalPriceAndDiscount({
+        product,
+        batch,
+        price,
+        discountType,
+        discountAmount,
+        activeDiscount,
+        isEditing,
+        currentEditingSaleId
+    });
 
     let adjustedBatchQuantity = batchQuantity;
     if (batchId === "all") {
@@ -164,17 +340,19 @@ async function addProductToBillingBody(
         }
     }
 
-    // Free qty display text
-    let freeQtyDisplayHtml = '';
-    if (batch && batch.free_qty && parseFloat(batch.free_qty) > 0) {
-        const freeQtyValue = parseFloat(batch.free_qty);
-        const displayValue = freeQtyValue % 1 === 0
-            ? Math.floor(freeQtyValue)
-            : freeQtyValue.toFixed(2).replace(/\.?0+$/, '');
-        freeQtyDisplayHtml = `<div style="font-size: 0.75em; color: #28a745; font-weight: 600; margin-top: 2px;">FREE: ${displayValue}</div>`;
-    } else {
-        freeQtyDisplayHtml = `<div style="font-size: 0.75em; color: #888; margin-top: 2px;">Free</div>`;
+    // Normalise numeric values to avoid Infinity / NaN in inputs
+    if (!isFinite(finalPrice) || isNaN(finalPrice)) {
+        finalPrice = 0;
     }
+    if (!isFinite(discountFixed) || isNaN(discountFixed)) {
+        discountFixed = 0;
+    }
+    if (!isFinite(discountPercent) || isNaN(discountPercent)) {
+        discountPercent = 0;
+    }
+
+    // Free qty display text
+    let freeQtyDisplayHtml = buildFreeQtyDisplay(batch);
 
     // In edit mode, trust the backend calculation
     if (isEditing) {
@@ -221,70 +399,17 @@ async function addProductToBillingBody(
 
     // ── Merge-or-new-row logic (non-IMEI, non-edit only) ────
     if (imeis.length === 0 && !isLoadingExisting) {
-        const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
-            const rowProductId = row.getAttribute('data-product-id')
-                ?? row.querySelector('.product-id')?.textContent?.trim();
-            const batchIdElement     = row.querySelector('.batch-id');
-            const priceInputElement  = row.querySelector('.price-input');
-
-            if (!rowProductId || !batchIdElement || !priceInputElement) return false;
-
-            const rowBatchId = batchIdElement.textContent.trim();
-            const rowPrice   = priceInputElement.value.trim();
-
-            // Cash Items never merge
-            if (miscItemProductId && rowProductId == String(miscItemProductId)) return false;
-
-            return (
-                rowProductId == product.id &&
-                rowBatchId == batchId &&
-                parseFloat(rowPrice).toFixed(2) === finalPrice.toFixed(2)
-            );
+        const merged = mergeExistingRowIfPossible({
+            billingBody,
+            product,
+            batchId,
+            finalPrice,
+            saleQuantity,
+            allowDecimal,
+            adjustedBatchQuantity,
+            isEditing
         });
-
-        if (existingRow) {
-            const quantityInput = existingRow.querySelector('.quantity-input');
-            let currentQty = allowDecimal
-                ? parseFloat(quantityInput.value)
-                : parseInt(quantityInput.value, 10);
-
-            let newQuantity;
-            const isMobileUpdate = saleQuantity > 1 && currentQty > 0;
-            if (isMobileUpdate) {
-                newQuantity = saleQuantity;
-            } else {
-                newQuantity = currentQty + saleQuantity;
-            }
-
-            let maxAllowed = adjustedBatchQuantity;
-            if (isEditing) {
-                const rowMaxQty = existingRow.getAttribute('data-max-quantity');
-                if (rowMaxQty) {
-                    maxAllowed = allowDecimal ? parseFloat(rowMaxQty) : parseInt(rowMaxQty, 10);
-                }
-            }
-
-            if (newQuantity > maxAllowed && product.stock_alert !== 0) {
-                toastr.error(`You cannot add more than ${maxAllowed} units of this product.`, 'Warning');
-                return;
-            }
-
-            quantityInput.value = allowDecimal
-                ? newQuantity.toFixed(4).replace(/\.?0+$/, '')
-                : newQuantity;
-            const subtotalElement = existingRow.querySelector('.subtotal');
-            const updatedSubtotal = newQuantity * finalPrice;
-            subtotalElement.textContent = formatAmountWithSeparators(updatedSubtotal.toFixed(2));
-
-            billingBody.insertBefore(existingRow, billingBody.firstChild);
-
-            existingRow.style.transition = 'background-color 0.3s ease';
-            existingRow.style.backgroundColor = '#fff3cd';
-            setTimeout(() => { existingRow.style.backgroundColor = ''; }, 800);
-
-            updateTotals();
-            return;
-        }
+        if (merged) return;
     }
 
     // ── Build new row ───────────────────────────────────────
@@ -502,4 +627,5 @@ async function addProductToBillingBody(
 }
 
 // ── Expose ──────────────────────────────────────────────────
-window.addProductToBillingBody = addProductToBillingBody;
+// Namespaced API
+window.Pos.Billing.addProductToBillingBody = addProductToBillingBody;

@@ -39,6 +39,7 @@
         // Hardcoded URLs currently scattered inline in pos_ajax.blade.php.
         // Every future JS module reads from here instead of embedding strings.
         routes: {
+            // Same as stock adjustment, sale return, purchase, etc. (Web ProductController)
             productAutocomplete:   '/products/stocks/autocomplete',
             productDetails:        '/initial-product-details',
             productStocks:         '/products/stocks',

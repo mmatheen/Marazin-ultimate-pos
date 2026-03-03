@@ -10,14 +10,14 @@
  *   window.PosConfig.permissions.allowedPriceTypes
  *   window.showFreeQtyColumn, window.userPermissions
  *   window.customerPriceCache                       (pos-cache.js)
- *   window.getCurrentCustomer()                     (pos-customer.js)
- *   window.getCustomerTypePrice()                   (pos-customer.js)
- *   window.updateTotals()                           (pos-cart.js)
+ *   window.Pos.Customer.getCurrentCustomer()        (pos-customer.js)
+ *   window.Pos.Customer.getCustomerTypePrice()      (pos-customer.js)
+ *   window.Pos.Cart.updateTotals()                  (pos-cart.js)
  *   window.fetchPaginatedProducts()                 (pos-product-display.js)
- *   window.getSafeImageUrl()                        (pos-ui.js)
- *   window.formatAmountWithSeparators()             (pos-utils.js)
+ *   window.Pos.UI.getSafeImageUrl()                 (pos-ui.js)
+ *   window.Pos.Utils.formatAmountWithSeparators()   (pos-utils.js)
  *   window.cleanupModalBackdrop()                   (pos-ui.js)
- *   window.addProductToBillingBody()                (pos_ajax — bridge)
+ *   window.Pos.Billing.addProductToBillingBody()    (billing module)
  *
  * Exports to window:
  *   window.addProductToTable, window.normalizeBatches,
@@ -63,7 +63,7 @@ function addProductToTable(product, searchTermOrQty = '', matchType = '') {
     const totalQuantity = (parseFloat(stockEntry.total_stock) || 0) + (parseFloat(stockEntry.total_free_stock) || 0);
 
     // Get current customer information for pricing
-    const currentCustomer = window.getCurrentCustomer();
+    const currentCustomer = window.Pos.Customer.getCurrentCustomer();
 
     const selectedLocationId = window.selectedLocationId;
 
@@ -76,7 +76,7 @@ function addProductToTable(product, searchTermOrQty = '', matchType = '') {
         const latestBatch = batchesArray.length > 0 ? batchesArray[0] : null;
 
         // Get customer-type-based price
-        const priceResult = window.getCustomerTypePrice(latestBatch, product, currentCustomer.customer_type);
+        const priceResult = window.Pos.Customer.getCustomerTypePrice(latestBatch, product, currentCustomer.customer_type);
 
         if (priceResult.hasError) {
             toastr.error(
@@ -86,7 +86,7 @@ function addProductToTable(product, searchTermOrQty = '', matchType = '') {
         }
 
         window.locationId = selectedLocationId;
-        window.addProductToBillingBody(
+        window.Pos.Billing.addProductToBillingBody(
             product,
             stockEntry,
             priceResult.price,
@@ -140,7 +140,7 @@ function addProductToTable(product, searchTermOrQty = '', matchType = '') {
         // Check if there are multiple batches with different prices
         const uniquePrices = [];
         for (const batch of batchesArray) {
-            const priceResult = window.getCustomerTypePrice(batch, product, currentCustomer.customer_type);
+            const priceResult = window.Pos.Customer.getCustomerTypePrice(batch, product, currentCustomer.customer_type);
             if (!priceResult.hasError) {
                 uniquePrices.push(priceResult.price);
             }
@@ -187,7 +187,7 @@ function addProductToTable(product, searchTermOrQty = '', matchType = '') {
     // Get unique prices for the current customer type across batches in this location
     const customerTypePrices = [];
     for (const batch of batchesArray) {
-        const priceResult = window.getCustomerTypePrice(batch, product, currentCustomer.customer_type);
+        const priceResult = window.Pos.Customer.getCustomerTypePrice(batch, product, currentCustomer.customer_type);
         if (!priceResult.hasError) {
             customerTypePrices.push(priceResult.price);
         }
@@ -211,7 +211,7 @@ function addProductToTable(product, searchTermOrQty = '', matchType = '') {
 
         // Use latest batch for pricing
         const latestBatch = batchesArray[0];
-        const priceResult = window.getCustomerTypePrice(latestBatch, product, currentCustomer.customer_type);
+        const priceResult = window.Pos.Customer.getCustomerTypePrice(latestBatch, product, currentCustomer.customer_type);
 
         if (priceResult.hasError) {
             toastr.error(
@@ -221,7 +221,7 @@ function addProductToTable(product, searchTermOrQty = '', matchType = '') {
         }
 
         window.locationId = selectedLocationId;
-        window.addProductToBillingBody(
+        window.Pos.Billing.addProductToBillingBody(
             product,
             stockEntry,
             priceResult.price,
@@ -272,7 +272,7 @@ function showBatchPriceSelectionModal(product, stockEntry, batches, currentCusto
 
     // Get current customer if not provided
     if (!currentCustomer) {
-        currentCustomer = window.getCurrentCustomer();
+        currentCustomer = window.Pos.Customer.getCurrentCustomer();
     }
 
     // Prevent opening modal again for same product
@@ -333,7 +333,7 @@ function showBatchPriceSelectionModal(product, stockEntry, batches, currentCusto
         }
 
         // Get customer-type-based price for this batch
-        const priceResult = window.getCustomerTypePrice(batch, product, currentCustomer.customer_type);
+        const priceResult = window.Pos.Customer.getCustomerTypePrice(batch, product, currentCustomer.customer_type);
 
         let buttonContent = '';
 
@@ -386,7 +386,7 @@ function showBatchPriceSelectionModal(product, stockEntry, batches, currentCusto
             const qty = locationBatch?.quantity || 0;
 
             // Get customer-type-based price for the selected batch
-            const priceResult = window.getCustomerTypePrice(selectedBatch, product, currentCustomer
+            const priceResult = window.Pos.Customer.getCustomerTypePrice(selectedBatch, product, currentCustomer
                 .customer_type);
 
             if (priceResult.hasError) {
@@ -423,7 +423,7 @@ function showBatchPriceSelectionModal(product, stockEntry, batches, currentCusto
             } else {
                 // Add non-IMEI product to billing with quantity 1
 
-                window.addProductToBillingBody(
+                window.Pos.Billing.addProductToBillingBody(
                     productWithBatchPrices,
                     stockEntry,
                     customerPrice,
@@ -503,7 +503,8 @@ function showImeiSelectionModal(product, stockEntry, imeis, searchTerm = '', mat
 
     // Force refresh stock data for IMEI products to get latest status
     if (!isEditing) {
-        fetch(`/api/products/stocks/autocomplete?search=${encodeURIComponent(product.product_name)}&location_id=${selectedLocationId}`, {
+        const autocompleteUrl = (window.PosConfig && window.PosConfig.routes && window.PosConfig.routes.productAutocomplete) || '/products/stocks/autocomplete';
+        fetch(`${autocompleteUrl}?search=${encodeURIComponent(product.product_name)}&location_id=${selectedLocationId}`, {
                 cache: 'no-store', // ✅ Prevent browser caching - always fetch fresh IMEI data
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
@@ -924,15 +925,15 @@ function setupConfirmHandler(modal, product, stockEntry, selectedBatch, tbody, i
             // Use the stored batch information from the product modal
             batchId = window.modalSelectedBatch.batchId;
             price = window.modalSelectedBatch.price;
-            currentCustomer = window.getCurrentCustomer();
+            currentCustomer = window.Pos.Customer.getCurrentCustomer();
 
             // Clear the stored information
             delete window.modalSelectedBatch;
         } else {
             // Use the default logic - set to "all" for FIFO method when no specific batch
             batchId = selectedBatch ? selectedBatch.id : "all";
-            currentCustomer = window.getCurrentCustomer();
-            const priceResult = window.getCustomerTypePrice(selectedBatch, product, currentCustomer
+            currentCustomer = window.Pos.Customer.getCurrentCustomer();
+            const priceResult = window.Pos.Customer.getCustomerTypePrice(selectedBatch, product, currentCustomer
                 .customer_type);
 
             if (priceResult.hasError) {
@@ -1014,14 +1015,14 @@ function updateBilling(imeis, product, stockEntry, price, batchId) {
     existingRows.forEach(row => row.remove());
 
     // Get current customer and determine appropriate price
-    const currentCustomer = window.getCurrentCustomer();
+    const currentCustomer = window.Pos.Customer.getCurrentCustomer();
 
     // Ensure batches is always an array using helper function
     const batchesArray = normalizeBatches(stockEntry);
     const selectedBatch = batchesArray.find(b => b.id === parseInt(batchId));
 
     // Get customer-type-based price
-    const priceResult = window.getCustomerTypePrice(selectedBatch, product, currentCustomer.customer_type);
+    const priceResult = window.Pos.Customer.getCustomerTypePrice(selectedBatch, product, currentCustomer.customer_type);
 
     if (priceResult.hasError) {
         toastr.error(
@@ -1044,7 +1045,7 @@ function updateBilling(imeis, product, stockEntry, price, batchId) {
             batchesArray[0]; // Fallback to first batch
 
         // Get customer-type-based price for this specific batch
-        const batchPriceResult = window.getCustomerTypePrice(batchForPricing, product, currentCustomer
+        const batchPriceResult = window.Pos.Customer.getCustomerTypePrice(batchForPricing, product, currentCustomer
             .customer_type);
 
         let finalPrice;
@@ -1056,7 +1057,7 @@ function updateBilling(imeis, product, stockEntry, price, batchId) {
         }
 
         // Add individual billing row for this single IMEI with quantity = 1
-        window.addProductToBillingBody(
+        window.Pos.Billing.addProductToBillingBody(
             product,
             stockEntry,
             finalPrice,
@@ -1074,7 +1075,9 @@ function updateBilling(imeis, product, stockEntry, price, batchId) {
     // Reset lastAddedProduct to allow adding more products
     window.lastAddedProduct = null;
 
-    window.updateTotals();
+    if (window.Pos && window.Pos.Cart && typeof window.Pos.Cart.updateTotals === 'function') {
+        window.Pos.Cart.updateTotals();
+    }
     window.fetchPaginatedProducts(true);
 }
 
@@ -1241,7 +1244,7 @@ function showProductModal(product, stockEntry, row) {
     currentImeiStockEntry = stockEntry;
 
     // Get current customer for default selection
-    const currentCustomer = window.getCurrentCustomer();
+    const currentCustomer = window.Pos.Customer.getCurrentCustomer();
 
     const allowedPriceTypes  = window.PosConfig.permissions.allowedPriceTypes;
     const selectedLocationId = window.selectedLocationId;
@@ -1427,7 +1430,7 @@ function showProductModal(product, stockEntry, row) {
         // Determine which price types to show based on BOTH availability AND permissions
         // IMPORTANT: If customer is wholesaler, always show wholesale even if user doesn't have permission
         // This ensures correct pricing for customer type
-        const currentCust = window.getCurrentCustomer();
+        const currentCust = window.Pos.Customer.getCurrentCustomer();
         const isWholesalerCustomer = currentCust && currentCust.customer_type === 'wholesaler';
 
         // Show retail if user has permission OR if it's the only available option
@@ -1592,8 +1595,57 @@ function showProductModal(product, stockEntry, row) {
     }
 
     selectedRow = row;
-    const modal = new bootstrap.Modal(document.getElementById('productModal'));
+    const productModalEl = document.getElementById('productModal');
+    const modal = new bootstrap.Modal(productModalEl);
     modal.show();
+
+    // Helper: get currently selected price type (retail / wholesale / special / max_retail)
+    function getSelectedPriceType() {
+        const checked = document.querySelector('input[name="modal-price-type"]:checked');
+        return checked ? checked.value : 'retail';
+    }
+
+    // Helper: compute price for current selection (without mutating billing row)
+    function getPriceSelectionFromBatchDropdown() {
+        const batchDropdownEl = document.getElementById('modalBatchDropdown');
+        if (!batchDropdownEl) return null;
+
+        const opt = batchDropdownEl.selectedOptions[0];
+        if (!opt) return null;
+
+        const priceType = getSelectedPriceType();
+        let dataKey;
+        switch (priceType) {
+            case 'wholesale':
+                dataKey = 'wholesalePrice';
+                break;
+            case 'special':
+                dataKey = 'specialPrice';
+                break;
+            case 'max_retail':
+                dataKey = 'maxRetailPrice';
+                break;
+            case 'retail':
+            default:
+                dataKey = 'retailPrice';
+                break;
+        }
+
+        const rawPrice = opt.dataset[dataKey];
+        const newPrice = rawPrice ? parseFloat(rawPrice) : 0;
+        const mrp      = opt.dataset.maxRetailPrice ? parseFloat(opt.dataset.maxRetailPrice) : newPrice;
+
+        const maxQty   = parseFloat(opt.getAttribute('data-quantity'));
+        const batchId  = opt.value;
+
+        return {
+            priceType,
+            price: !isNaN(newPrice) ? newPrice : 0,
+            mrp:   !isNaN(mrp) ? mrp : 0,
+            maxQty: !isNaN(maxQty) ? maxQty : null,
+            batchId
+        };
+    }
 
     const radioButtons = document.querySelectorAll('input[name="modal-price-type"]');
     radioButtons.forEach(radio => {
@@ -1629,24 +1681,70 @@ function showProductModal(product, stockEntry, row) {
                 selectedBtn.classList.remove('btn-outline-warning');
                 selectedBtn.classList.add('btn-warning');
             }
+
+            // When price type changes, just update selection state.
+            // Actual row price update happens only on "Save changes".
         });
     });
 
-    // Attach change handler on dropdown to update max quantity
+    // Attach change handler on dropdown to update max quantity + price
     const batchDropdown = document.getElementById('modalBatchDropdown');
     if (batchDropdown) {
         batchDropdown.addEventListener('change', () => {
             const selectedOption = batchDropdown.selectedOptions[0];
-            if (!selectedOption) return;
+            if (!selectedOption || !selectedRow) return;
 
             const maxQty = parseFloat(selectedOption.getAttribute('data-quantity'));
-            const qtyInput = selectedRow?.querySelector('.quantity-input');
+            const qtyInput = selectedRow.querySelector('.quantity-input');
 
-            if (qtyInput) {
+            if (qtyInput && !isNaN(maxQty)) {
                 qtyInput.setAttribute('max', maxQty);
                 qtyInput.setAttribute('title', `Available: ${maxQty}`);
             }
+
+            // Do NOT change price immediately; apply only on Save.
         });
+    }
+
+    // Wire up "Save changes" button to apply current selection and close modal
+    const saveBtn = document.getElementById('saveProductChanges');
+    if (saveBtn) {
+        saveBtn.onclick = function () {
+            if (!selectedRow) {
+                modal.hide();
+                return;
+            }
+
+            const selection = getPriceSelectionFromBatchDropdown();
+            if (selection && selection.price > 0) {
+                const priceInput = selectedRow.querySelector('.price-input.unit-price');
+                if (priceInput) {
+                    priceInput.value = selection.price.toFixed(2);
+                    priceInput.setAttribute('data-price', selection.price);
+                    priceInput.setAttribute('data-max-retail-price', selection.mrp || selection.price);
+                }
+
+                // update batch id cell/attribute if needed
+                if (selection.batchId) {
+                    const batchCell = selectedRow.querySelector('.batch-id');
+                    if (batchCell) batchCell.textContent = selection.batchId;
+                    selectedRow.setAttribute('data-batch-id', selection.batchId);
+                }
+
+                // Let cart module recalc discounts/totals
+                if (window.Pos && window.Pos.Cart) {
+                    if (typeof window.Pos.Cart.recalculateDiscountsFromPrice === 'function') {
+                        window.Pos.Cart.recalculateDiscountsFromPrice(selectedRow);
+                    } else if (typeof window.Pos.Cart.updateTotals === 'function') {
+                        window.Pos.Cart.updateTotals();
+                    }
+                } else if (typeof window.updateTotals === 'function') {
+                    window.updateTotals();
+                }
+            }
+
+            modal.hide();
+        };
     }
 }
 

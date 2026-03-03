@@ -1853,6 +1853,15 @@
     @include('sell.partials.pos-notifications')
     @include('sell.partials.pos-config')
 
+    {{-- 
+        POS JavaScript load order (do not change lightly):
+        1) Vendor scripts      → @include('sell.partials.pos-vendor-scripts')
+        2) Notifications       → @include('sell.partials.pos-notifications')
+        3) Config bridge       → @include('sell.partials.pos-config') exposes window.PosConfig + globals
+        4) POS modules (Vite)  → @vite('resources/js/pos/*.js') – all page logic lives here
+        5) Customer includes   → contact.* partials (AJAX + modals)
+    --}}
+
     <!-- POS JS Modules -->
     @vite('resources/js/pos/pos-utils.js')
     @vite('resources/js/pos/pos-cache.js')

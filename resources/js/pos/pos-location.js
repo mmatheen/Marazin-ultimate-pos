@@ -12,7 +12,16 @@
  *
  * Depends on: jQuery ($)
  * Must load BEFORE pos_ajax.blade.php.
+ *
+ * Public API:
+ *   window.Pos.Location.fetchAllLocations,
+ *   window.Pos.Location.populateLocationDropdown,
+ *   window.LOCATION_CACHE_DURATION
  */
+
+// POS namespace for location helpers
+window.Pos = window.Pos || {};
+window.Pos.Location = window.Pos.Location || {};
 
 const LOCATION_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
@@ -112,10 +121,9 @@ function populateLocationDropdown(locations) {
 
 }
 
-// ---- Expose as globals ----
-window.fetchAllLocations       = fetchAllLocations;
-window.populateLocationDropdown = populateLocationDropdown;
-window.LOCATION_CACHE_DURATION  = LOCATION_CACHE_DURATION;
+// ---- Expose via namespace + TTL constant ----
+window.Pos.Location.fetchAllLocations        = fetchAllLocations;
+window.Pos.Location.populateLocationDropdown = populateLocationDropdown;
 
 // Initialise window state so pos_ajax closure vars are in sync from the start
 if (typeof window.cachedLocations   === 'undefined') window.cachedLocations   = null;

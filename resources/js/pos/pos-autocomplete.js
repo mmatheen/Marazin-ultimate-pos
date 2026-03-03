@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file pos-autocomplete.js
  * @module POS.Autocomplete
  * @description
@@ -59,8 +59,8 @@
    1  CONSTANTS & CONFIGURATION
     */
 
-/** Maximum results per autocomplete AJAX call. Smaller = faster response. */
-const AUTOCOMPLETE_PER_PAGE = 20;
+/** Maximum results per autocomplete AJAX call. Smaller = faster response; use 10 if store search is slow. */
+const AUTOCOMPLETE_PER_PAGE = 15;
 
 /** How long (ms) a cached result is considered fresh. */
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -381,7 +381,7 @@ function createProductLabel(stock, imeiMatch) {
  */
 function createProductSearchRequest(term, response) {
     currentAjaxRequest = $.ajax({
-        url:     '/products/stocks/autocomplete',
+        url:     window.PosConfig?.routes?.productAutocomplete || '/products/stocks/autocomplete',
         data: {
             location_id: window.selectedLocationId,
             search:      term,
@@ -415,7 +415,7 @@ function searchForExactMatch(searchTerm) {
     showSearchIndicator(' Scanner searching...', '#17a2b8');
 
     $.ajax({
-        url:     '/products/stocks/autocomplete',
+        url:     window.PosConfig?.routes?.productAutocomplete || '/products/stocks/autocomplete',
         data: {
             location_id: window.selectedLocationId,
             search:      searchTerm,

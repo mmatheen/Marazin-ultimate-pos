@@ -240,7 +240,9 @@ class Sale extends Model
             // Find the highest numeric suffix already used for this prefix
             // (order by the extracted integer — not by id or string — so it's always accurate
             //  even when the location prefix changed mid-use or records were deleted)
-            $lastNumber = self::where('order_number', 'like', $pattern . '%')
+            // IMPORTANT: withoutGlobalScopes() ensures we check ALL locations,
+            // not just the current user's location (LocationScope would hide other locations' orders).
+            $lastNumber = self::withoutGlobalScopes()->where('order_number', 'like', $pattern . '%')
                 ->lockForUpdate()
                 ->get(['order_number'])
                 ->map(function ($row) use ($pattern) {
@@ -255,9 +257,10 @@ class Sale extends Model
             $orderNumber = $pattern . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
 
             // Final uniqueness guard (handles edge cases under heavy concurrency)
+            // IMPORTANT: withoutGlobalScopes() to check ALL locations for uniqueness.
             $attempts    = 0;
             $maxAttempts = 50;
-            while (self::where('order_number', $orderNumber)->exists() && $attempts < $maxAttempts) {
+            while (self::withoutGlobalScopes()->where('order_number', $orderNumber)->exists() && $attempts < $maxAttempts) {
                 $nextNumber++;
                 $orderNumber = $pattern . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
                 $attempts++;
@@ -307,10 +310,12 @@ class Sale extends Model
             $invoiceNo = "{$prefix}-" . str_pad($counter->next_invoice_number, 3, '0', STR_PAD_LEFT);
 
             // Check if this invoice number already exists (safety check)
+            // IMPORTANT: withoutGlobalScopes() bypasses LocationScope so we check
+            // ALL locations — prevents duplicate invoice numbers across locations.
             $attempts    = 0;
             $maxAttempts = 50;
 
-            while (self::where('invoice_no', $invoiceNo)->exists() && $attempts < $maxAttempts) {
+            while (self::withoutGlobalScopes()->where('invoice_no', $invoiceNo)->exists() && $attempts < $maxAttempts) {
                 $counter->next_invoice_number++;
                 $invoiceNo = "{$prefix}-" . str_pad($counter->next_invoice_number, 3, '0', STR_PAD_LEFT);
                 $attempts++;

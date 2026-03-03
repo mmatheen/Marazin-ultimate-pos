@@ -161,7 +161,9 @@ class SaleInvoiceNumberService
         $prefix = 'J/';
         $year   = now()->format('Y');
 
-        $last   = Sale::whereYear('created_at', now())
+        // IMPORTANT: withoutGlobalScopes() bypasses LocationScope so we check
+        // ALL locations — prevents duplicate job ticket numbers across locations.
+        $last   = Sale::withoutGlobalScopes()->whereYear('created_at', now())
             ->where('invoice_no', 'like', "{$prefix}{$year}/%")
             ->latest()
             ->first();
@@ -186,7 +188,9 @@ class SaleInvoiceNumberService
             $prefix = $newStatus === 'quotation' ? 'Q/' : 'D/';
             $year   = now()->format('Y');
 
-            $last   = Sale::whereYear('created_at', now())
+            // IMPORTANT: withoutGlobalScopes() bypasses LocationScope so we check
+            // ALL locations — prevents duplicate draft/quotation numbers across locations.
+            $last   = Sale::withoutGlobalScopes()->whereYear('created_at', now())
                 ->where('invoice_no', 'like', "{$prefix}{$year}/%")
                 ->latest()
                 ->first();

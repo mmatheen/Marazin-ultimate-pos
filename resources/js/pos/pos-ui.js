@@ -12,7 +12,20 @@
  * NOTE: showLoader, hideLoader, showLoaderSmall, initDOMElements are still in
  * pos_ajax.blade.php — they depend on the local `posProduct` var which will
  * be extracted in a later phase.
+ *
+ * Public API:
+ *   window.Pos.UI.getSafeImageUrl,
+ *   window.Pos.UI.createSafeImage,
+ *   window.Pos.UI.checkImageHealth,
+ *   window.Pos.UI.refreshProductImages,
+ *   window.Pos.UI.safeFetchJson,
+ *   window.Pos.UI.batchDOMUpdates,
+ *   window.cleanupModalBackdrop   (global helper)
  */
+
+// POS namespace for UI helpers
+window.Pos = window.Pos || {};
+window.Pos.UI = window.Pos.UI || {};
 
 // ---- Image failure tracking ----
 let failedImages  = new Set();
@@ -180,12 +193,22 @@ window.cleanupModalBackdrop = function() {
     document.body.style.paddingRight = '';
 };
 
-// ---- Expose all as globals ----
-window.failedImages          = failedImages;
-window.imageAttempts         = imageAttempts;
-window.getSafeImageUrl       = getSafeImageUrl;
-window.createSafeImage       = createSafeImage;
-window.checkImageHealth      = checkImageHealth;
-window.refreshProductImages  = refreshProductImages;
-window.safeFetchJson         = safeFetchJson;
-window.batchDOMUpdates       = batchDOMUpdates;
+// ---- Expose all as namespaced helpers + legacy globals ----
+window.Pos.UI.failedImages          = failedImages;
+window.Pos.UI.imageAttempts         = imageAttempts;
+window.Pos.UI.getSafeImageUrl       = getSafeImageUrl;
+window.Pos.UI.createSafeImage       = createSafeImage;
+window.Pos.UI.checkImageHealth      = checkImageHealth;
+window.Pos.UI.refreshProductImages  = refreshProductImages;
+window.Pos.UI.safeFetchJson         = safeFetchJson;
+window.Pos.UI.batchDOMUpdates       = batchDOMUpdates;
+
+// Backwards-compatible globals used by older modules
+window.failedImages         = failedImages;
+window.imageAttempts        = imageAttempts;
+window.getSafeImageUrl      = getSafeImageUrl;
+window.createSafeImage      = createSafeImage;
+window.checkImageHealth     = checkImageHealth;
+window.refreshProductImages = refreshProductImages;
+window.safeFetchJson        = safeFetchJson;
+window.batchDOMUpdates      = batchDOMUpdates;

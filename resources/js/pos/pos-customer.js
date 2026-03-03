@@ -15,7 +15,26 @@
  * NOTE: updateAllBillingRowsPricing stays in pos_ajax.blade.php for now —
  * it depends on isEditing and _editModeToastShown which are still closure-scoped
  * primitives there. Will be extracted in a later phase.
+ *
+ * Public API:
+ *   window.Pos.Customer.getCurrentCustomer,
+ *   window.Pos.Customer.fetchCustomerTypeAsync,
+ *   window.Pos.Customer.getCustomerTypePrice,
+ *   window.Pos.Customer.logPricingError,
+ *   window.Pos.Customer.getProductDataById,
+ *   window.Pos.Customer.getBatchDataById,
+ *   window.Pos.Customer.updateBillingRowPrice
  */
+
+// POS namespace for customer helpers
+window.Pos = window.Pos || {};
+window.Pos.Customer = window.Pos.Customer || {};
+
+// Local aliases to utility helpers
+const _posUtils = window.Pos.Utils || {};
+const safeParseFloat = _posUtils.safeParseFloat;
+const safePercentage = _posUtils.safePercentage;
+const formatAmountWithSeparators = _posUtils.formatAmountWithSeparators;
 
 // ---- Customer Resolution ----
 
@@ -331,11 +350,11 @@ function updateBillingRowPrice(row, newPrice, priceSource) {
     row.setAttribute('data-price-source', priceSource);
 }
 
-// ---- Expose all as globals ----
-window.getCurrentCustomer     = getCurrentCustomer;
-window.fetchCustomerTypeAsync = fetchCustomerTypeAsync;
-window.getCustomerTypePrice   = getCustomerTypePrice;
-window.logPricingError        = logPricingError;
-window.getProductDataById     = getProductDataById;
-window.getBatchDataById       = getBatchDataById;
-window.updateBillingRowPrice  = updateBillingRowPrice;
+// ---- Expose all via namespace ----
+window.Pos.Customer.getCurrentCustomer     = getCurrentCustomer;
+window.Pos.Customer.fetchCustomerTypeAsync = fetchCustomerTypeAsync;
+window.Pos.Customer.getCustomerTypePrice   = getCustomerTypePrice;
+window.Pos.Customer.logPricingError        = logPricingError;
+window.Pos.Customer.getProductDataById     = getProductDataById;
+window.Pos.Customer.getBatchDataById       = getBatchDataById;
+window.Pos.Customer.updateBillingRowPrice  = updateBillingRowPrice;

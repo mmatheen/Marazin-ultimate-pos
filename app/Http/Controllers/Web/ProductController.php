@@ -2521,16 +2521,17 @@ class ProductController extends Controller
 
         $products = $query->take($perPage)->get();
 
-        // Get product IDs for IMEI filtering
-        $productIds = $products->pluck('id');
-        $imeisQuery = ImeiNumber::whereIn('product_id', $productIds)
-            ->with(['location:id,name']);
-
-        if ($locationId) {
-            $imeisQuery->where('location_id', $locationId);
+        // Only fetch IMEIs for IMEI products (reduces payload and DB load for non-IMEI items)
+        $imeiProductIds = $products->where('is_imei_or_serial_no', true)->pluck('id');
+        $imeis = collect();
+        if ($imeiProductIds->isNotEmpty()) {
+            $imeisQuery = ImeiNumber::whereIn('product_id', $imeiProductIds)
+                ->with(['location:id,name']);
+            if ($locationId) {
+                $imeisQuery->where('location_id', $locationId);
+            }
+            $imeis = $imeisQuery->get()->groupBy('product_id');
         }
-
-        $imeis = $imeisQuery->get()->groupBy('product_id');
 
         $results = $products->map(function ($product) use ($locationId, $imeis) {
             $productBatches = $product->batches;
@@ -2595,49 +2596,50 @@ class ProductController extends Controller
                 ];
             });
 
-            // Map IMEIs
-            $productImeis = $imeis->get($product->id, collect())->map(function ($imei) use ($productBatches) {
-                $batch = $productBatches->firstWhere('id', $imei->batch_id);
-                return [
-                    'id' => $imei->id,
-                    'imei_number' => $imei->imei_number,
-                    'location_id' => $imei->location_id,
-                    'location_name' => optional($imei->location)->name ?? 'N/A',
-                    'batch_id' => $imei->batch_id,
-                    'batch_no' => optional($batch)->batch_no ?? 'N/A',
-                    'status' => $imei->status ?? 'available'
-                ];
-            });
+            // POS autocomplete: minimal product fields (no brand_id, category ids, description)
+            $productPayload = [
+                'id' => $product->id,
+                'product_name' => $product->product_name,
+                'sku' => $product->sku,
+                'unit_id' => $product->unit_id,
+                'unit' => $product->unit ? [
+                    'id' => $product->unit->id,
+                    'name' => $product->unit->name,
+                    'short_name' => $product->unit->short_name,
+                    'allow_decimal' => (bool) $product->unit->allow_decimal,
+                ] : null,
+                'stock_alert' => $product->stock_alert,
+                'alert_quantity' => $product->alert_quantity,
+                'product_image' => $product->product_image,
+                'is_imei_or_serial_no' => $product->is_imei_or_serial_no,
+                'is_for_selling' => $product->is_for_selling,
+                'product_type' => $product->product_type,
+                'pax' => $product->pax,
+                'original_price' => $product->original_price,
+                'retail_price' => $product->retail_price,
+                'whole_sale_price' => $product->whole_sale_price,
+                'special_price' => $product->special_price,
+                'max_retail_price' => $product->max_retail_price,
+            ];
+
+            // IMEI products only: include imei_numbers; others get empty array (smaller payload)
+            $productImeis = $product->is_imei_or_serial_no
+                ? $imeis->get($product->id, collect())->map(function ($imei) use ($productBatches) {
+                    $batch = $productBatches->firstWhere('id', $imei->batch_id);
+                    return [
+                        'id' => $imei->id,
+                        'imei_number' => $imei->imei_number,
+                        'location_id' => $imei->location_id,
+                        'location_name' => optional($imei->location)->name ?? 'N/A',
+                        'batch_id' => $imei->batch_id,
+                        'batch_no' => optional($batch)->batch_no ?? 'N/A',
+                        'status' => $imei->status ?? 'available'
+                    ];
+                })->values()->all()
+                : [];
 
             return [
-                'product' => [
-                    'id' => $product->id,
-                    'product_name' => $product->product_name,
-                    'sku' => $product->sku,
-                    'unit_id' => $product->unit_id,
-                    'unit' => $product->unit ? [
-                        'id' => $product->unit->id,
-                        'name' => $product->unit->name,
-                        'short_name' => $product->unit->short_name,
-                        'allow_decimal' => (bool) $product->unit->allow_decimal,
-                    ] : null,
-                    'brand_id' => $product->brand_id,
-                    'main_category_id' => $product->main_category_id,
-                    'sub_category_id' => $product->sub_category_id,
-                    'stock_alert' => $product->stock_alert,
-                    'alert_quantity' => $product->alert_quantity,
-                    'product_image' => $product->product_image,
-                    'description' => $product->description,
-                    'is_imei_or_serial_no' => $product->is_imei_or_serial_no,
-                    'is_for_selling' => $product->is_for_selling,
-                    'product_type' => $product->product_type,
-                    'pax' => $product->pax,
-                    'original_price' => $product->original_price,
-                    'retail_price' => $product->retail_price,
-                    'whole_sale_price' => $product->whole_sale_price,
-                    'special_price' => $product->special_price,
-                    'max_retail_price' => $product->max_retail_price,
-                ],
+                'product' => $productPayload,
                 'total_stock' => $product->stock_alert == 0 ? 'Unlimited' : $totalStock,
                 // ✅ FIX: Expose free stock so JS dropdown and billing can compute total sellable qty
                 'total_free_stock' => $product->stock_alert == 0 ? 0 : $totalFreeStock,

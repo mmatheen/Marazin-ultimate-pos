@@ -1,5 +1,19 @@
 'use strict';
 
+// Local aliases for namespaced modules
+const PosCustomer = (window.Pos && window.Pos.Customer) || {};
+const PosCart     = (window.Pos && window.Pos.Cart)     || {};
+const PosLocation = (window.Pos && window.Pos.Location) || {};
+
+// Alias frequently used functions
+const getProductDataById    = PosCustomer.getProductDataById;
+const getBatchDataById      = PosCustomer.getBatchDataById;
+const getCustomerTypePrice  = PosCustomer.getCustomerTypePrice;
+const updateBillingRowPrice = PosCustomer.updateBillingRowPrice;
+const getCurrentCustomer    = PosCustomer.getCurrentCustomer;
+const updateTotals          = PosCart.updateTotals || function () {};
+const fetchAllLocations     = PosLocation.fetchAllLocations || function () {};
+
 /**
  * ============================================================
  * POS Init Module (Phase 18)
@@ -124,7 +138,7 @@ window.refreshLocationCache = function () {
     locationCacheExpiry = null;
     window.cachedLocations = null;
     window.locationCacheExpiry = null;
-    fetchAllLocations(true);
+        fetchAllLocations(true);
     toastr.info('Location cache refreshed!', 'Cache Refresh');
 };
 
@@ -339,7 +353,9 @@ document.addEventListener('DOMContentLoaded', function () {
             discounts: [],
             imei_numbers: []
         };
-        window.addProductToBillingBody(product, stockEntry, price, 'all', 999999, 'retail', qty);
+                if (window.Pos && window.Pos.Billing && typeof window.Pos.Billing.addProductToBillingBody === 'function') {
+                    window.Pos.Billing.addProductToBillingBody(product, stockEntry, price, 'all', 999999, 'retail', qty);
+                }
         document.getElementById('cashPriceInput').value = '';
         document.getElementById('cashQtyInput').value   = '1';
         document.getElementById('cashPriceInput').focus();

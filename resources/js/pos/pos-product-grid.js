@@ -23,9 +23,19 @@
  *   window.fetchPaginatedProducts(reset)           — closure AJAX function
  *
  * Must load BEFORE pos_ajax.blade.php (listed earlier in @vite chain).
+ *
+ * Public API:
+ *   window.Pos.ProductGrid.filterProductsByCategory,
+ *   window.Pos.ProductGrid.filterProductsBySubCategory,
+ *   window.Pos.ProductGrid.filterProductsByBrand,
+ *   window.Pos.ProductGrid.showAllProducts
  */
 
 'use strict';
+
+// POS namespace for product grid helpers
+window.Pos = window.Pos || {};
+window.Pos.ProductGrid = window.Pos.ProductGrid || {};
 
 /* ------------------------------------------------------------------ */
 /* filterProductsByCategory                                             */
@@ -135,8 +145,14 @@ function showAllProducts() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Expose as globals                                                    */
+/* Expose via namespace (+ minimal global shims for inline handlers)  */
 /* ------------------------------------------------------------------ */
+window.Pos.ProductGrid.filterProductsByCategory    = filterProductsByCategory;
+window.Pos.ProductGrid.filterProductsBySubCategory = filterProductsBySubCategory;
+window.Pos.ProductGrid.filterProductsByBrand       = filterProductsByBrand;
+window.Pos.ProductGrid.showAllProducts             = showAllProducts;
+
+// Global shims for existing onclick="..." handlers and legacy calls
 window.filterProductsByCategory    = filterProductsByCategory;
 window.filterProductsBySubCategory = filterProductsBySubCategory;
 window.filterProductsByBrand       = filterProductsByBrand;

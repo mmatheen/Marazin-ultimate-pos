@@ -52,6 +52,14 @@
 
 'use strict';
 
+// POS namespace (safe to call multiple times)
+window.Pos = window.Pos || {};
+window.Pos.Cart = window.Pos.Cart || {};
+
+// Local alias to formatting helper
+const _posCartUtils = window.Pos.Utils || {};
+const _fmtAmount = _posCartUtils.formatAmountWithSeparators || (v => v);
+
 /* ═══════════════════════════════════════════════════════════════════
    §1  STATE & CONFIG ACCESSORS
    ═══════════════════════════════════════════════════════════════════ */
@@ -185,10 +193,10 @@ function updatePaymentButtonsState() {
  *   5. Push all values into the DOM
  *   6. Call updatePaymentButtonsState()
  */
-function updateTotals() {
-    const billingBody = document.getElementById('billing-body');
-    if (!billingBody) return;
 
+// --- Totals helpers (internal) --------------------------------------
+
+function calculateRowTotals(billingBody) {
     let totalItems     = 0;
     let totalFreeItems = 0;
     let totalAmount    = 0;
@@ -207,37 +215,50 @@ function updateTotals() {
 
         const subtotal   = qty * price;
         const subtotalEl = row.querySelector('.subtotal');
-        if (subtotalEl) subtotalEl.textContent = window.formatAmountWithSeparators(subtotal.toFixed(2));
+        if (subtotalEl) {
+            subtotalEl.textContent = _fmtAmount(subtotal.toFixed(2));
+        }
 
         totalItems     += qty;
         totalFreeItems += freeQty;
         totalAmount    += subtotal;
     });
 
-    // ── Global discount ───────────────────────────────────────────────
-    const discountEl   = document.getElementById('global-discount');
-    const discTypeEl   = document.getElementById('discount-type');
-    const globalDisc   = (discountEl && discountEl.value.trim() !== '')
-                         ? (parseFloat(discountEl.value) || 0) : 0;
-    const discType     = discTypeEl ? discTypeEl.value : 'fixed';
+    return { totalItems, totalFreeItems, totalAmount };
+}
 
-    let totalWithDisc  = totalAmount;
+function applyGlobalDiscount(totalAmount) {
+    const discountEl = document.getElementById('global-discount');
+    const discTypeEl = document.getElementById('discount-type');
+
+    const globalDisc = (discountEl && discountEl.value.trim() !== '')
+        ? (parseFloat(discountEl.value) || 0)
+        : 0;
+    const discType = discTypeEl ? discTypeEl.value : 'fixed';
+
+    let totalWithDisc = totalAmount;
     if (globalDisc > 0) {
         totalWithDisc -= (discType === 'percentage')
             ? totalAmount * (globalDisc / 100)
             : globalDisc;
     }
-    totalWithDisc = Math.max(0, totalWithDisc);
 
-    // ── Shipping ──────────────────────────────────────────────────────
-    const state           = _state();
+    return Math.max(0, totalWithDisc);
+}
+
+function computeFinalTotal(totalWithDisc) {
+    const state = _state();
     const shippingCharges = (state.shippingData && state.shippingData.shipping_charges)
-                            ? (parseFloat(state.shippingData.shipping_charges) || 0) : 0;
-    const finalTotal      = totalWithDisc + shippingCharges;
+        ? (parseFloat(state.shippingData.shipping_charges) || 0)
+        : 0;
 
-    // ── Unit summary ──────────────────────────────────────────────────
+    return totalWithDisc + shippingCharges;
+}
+
+function buildUnitSummary(billingBody, totalItems, totalFreeItems) {
     let unitSummary     = {};
     let freeUnitSummary = {};
+
     try {
         billingBody.querySelectorAll('tr').forEach(row => {
             const productId    = row.querySelector('.product-id')?.textContent;
@@ -272,6 +293,7 @@ function updateTotals() {
     }
 
     const fmtQty = v => (v % 1 === 0) ? v : v.toFixed(4).replace(/\.?0+$/, '');
+
     let unitDisplay = '';
     if (totalFreeItems > 0) {
         unitDisplay = Object.entries(unitSummary).map(([unit, qty]) => {
@@ -287,24 +309,54 @@ function updateTotals() {
             .join(', ');
     }
 
-    // ── DOM updates ───────────────────────────────────────────────────
-    const fmt = window.formatAmountWithSeparators;
-    const setId = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    return unitDisplay;
+}
 
-    setId('items-count',        unitDisplay || totalItems.toFixed(2));
-    setId('modal-total-items',  unitDisplay || totalItems.toFixed(2));
-    setId('total-amount',       fmt(totalAmount.toFixed(2)));
+function writeTotalsToDom(billingBody, totals) {
+    const { totalItems, totalAmount, finalTotal, unitDisplay } = totals;
+
+    const fmt   = _fmtAmount;
+    const setId = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+    };
+
+    const itemDisplay = unitDisplay || totalItems.toFixed(2);
+
+    setId('items-count',       itemDisplay);
+    setId('modal-total-items', itemDisplay);
+    setId('total-amount',      fmt(totalAmount.toFixed(2)));
     setId('final-total-amount', fmt(finalTotal.toFixed(2)));
 
-    const totalEl   = document.getElementById('total');
-    const payAmtEl  = document.getElementById('payment-amount');
+    const totalEl  = document.getElementById('total');
+    const payAmtEl = document.getElementById('payment-amount');
+
     if (totalEl)  totalEl.textContent  = 'Rs ' + fmt(finalTotal.toFixed(2));
     if (payAmtEl) payAmtEl.textContent = 'Rs ' + fmt(finalTotal.toFixed(2));
 
     setId('modal-total-payable', fmt(finalTotal.toFixed(2)));
 
     const rowCountEl = document.getElementById('total-items-count');
-    if (rowCountEl) rowCountEl.textContent = billingBody.querySelectorAll('tr').length;
+    if (rowCountEl) {
+        rowCountEl.textContent = billingBody.querySelectorAll('tr').length;
+    }
+}
+
+function updateTotals() {
+    const billingBody = document.getElementById('billing-body');
+    if (!billingBody) return;
+
+    const { totalItems, totalFreeItems, totalAmount } = calculateRowTotals(billingBody);
+    const totalWithDisc = applyGlobalDiscount(totalAmount);
+    const finalTotal    = computeFinalTotal(totalWithDisc);
+    const unitDisplay   = buildUnitSummary(billingBody, totalItems, totalFreeItems);
+
+    writeTotalsToDom(billingBody, {
+        totalItems,
+        totalAmount,
+        finalTotal,
+        unitDisplay
+    });
 
     updatePaymentButtonsState();
 }
@@ -714,7 +766,7 @@ function attachRowEventListeners(row, product, stockEntry) {
                     debouncedQtyValidation(qty, freeQty, maxQty);
                     const subtotalEl = row.querySelector('.subtotal');
                     if (subtotalEl) subtotalEl.textContent =
-                        window.formatAmountWithSeparators((parseFloat(priceInput.value) * qty).toFixed(2));
+                        _fmtAmount((parseFloat(priceInput.value) * qty).toFixed(2));
                     updateTotals();
                 }
             }
@@ -892,18 +944,33 @@ function setupGlobalDiscountListeners() {
 
 /* ═══════════════════════════════════════════════════════════════════
    §9  PUBLIC API
-   Expose only what pos_ajax.blade.php and other modules need.
+   Expose via namespaced API + backward-compatible globals for legacy code.
    ═══════════════════════════════════════════════════════════════════ */
 
-window.updateTotals                 = updateTotals;
-window.attachRowEventListeners      = attachRowEventListeners;
-window.handleDiscountToggle         = handleDiscountToggle;
-window.disableConflictingDiscounts  = disableConflictingDiscounts;
-window.validatePriceInput           = validatePriceInput;
-window.validateDiscountInput        = validateDiscountInput;
-window.updatePriceEditability       = updatePriceEditability;
-window.recalculateDiscountsFromPrice= recalculateDiscountsFromPrice;
-window.showQuantityLimitError       = showQuantityLimitError;
-window.validateAllQuantities        = validateAllQuantities;
-window.updatePaymentButtonsState    = updatePaymentButtonsState;
-window.setupGlobalDiscountListeners = setupGlobalDiscountListeners;
+// Namespaced (preferred)
+window.Pos.Cart.updateTotals                  = updateTotals;
+window.Pos.Cart.attachRowEventListeners       = attachRowEventListeners;
+window.Pos.Cart.handleDiscountToggle          = handleDiscountToggle;
+window.Pos.Cart.disableConflictingDiscounts   = disableConflictingDiscounts;
+window.Pos.Cart.validatePriceInput            = validatePriceInput;
+window.Pos.Cart.validateDiscountInput         = validateDiscountInput;
+window.Pos.Cart.updatePriceEditability        = updatePriceEditability;
+window.Pos.Cart.recalculateDiscountsFromPrice = recalculateDiscountsFromPrice;
+window.Pos.Cart.showQuantityLimitError        = showQuantityLimitError;
+window.Pos.Cart.validateAllQuantities         = validateAllQuantities;
+window.Pos.Cart.updatePaymentButtonsState     = updatePaymentButtonsState;
+window.Pos.Cart.setupGlobalDiscountListeners  = setupGlobalDiscountListeners;
+
+// Legacy globals (used by older scripts / inline handlers)
+window.updateTotals                  = updateTotals;
+window.attachRowEventListeners       = attachRowEventListeners;
+window.handleDiscountToggle          = handleDiscountToggle;
+window.disableConflictingDiscounts   = disableConflictingDiscounts;
+window.validatePriceInput            = validatePriceInput;
+window.validateDiscountInput         = validateDiscountInput;
+window.updatePriceEditability        = updatePriceEditability;
+window.recalculateDiscountsFromPrice = recalculateDiscountsFromPrice;
+window.showQuantityLimitError        = showQuantityLimitError;
+window.validateAllQuantities         = validateAllQuantities;
+window.updatePaymentButtonsState     = updatePaymentButtonsState;
+window.setupGlobalDiscountListeners  = setupGlobalDiscountListeners;

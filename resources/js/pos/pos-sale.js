@@ -33,6 +33,15 @@
  */
 'use strict';
 
+// Local aliases for namespaced helpers
+const PosUtils   = (window.Pos && window.Pos.Utils)   || {};
+const PosCart    = (window.Pos && window.Pos.Cart)    || {};
+const PosBilling = (window.Pos && window.Pos.Billing) || {};
+
+const parseFormattedAmount       = PosUtils.parseFormattedAmount;
+const formatAmountWithSeparators = PosUtils.formatAmountWithSeparators;
+const formatCurrency             = PosUtils.formatCurrency;
+
 // ---- Module-local state ----
 let isProcessingAmountGiven = false;
 
@@ -222,7 +231,7 @@ function fetchEditSale(saleId) {
                             batches: saleProduct.product?.batches || []
                         };
 
-                        window.addProductToBillingBody(
+                        PosBilling.addProductToBillingBody(
                             productForBilling,
                             normalizedStockEntry,
                             price,
@@ -284,10 +293,10 @@ function fetchEditSale(saleId) {
                 }
 
                 // Update totals
-                window.updateTotals();
+                if (PosCart.updateTotals) PosCart.updateTotals();
 
                 // 🔒 Disable restricted buttons in edit mode
-                window.updatePaymentButtonsState();
+                if (PosCart.updatePaymentButtonsState) PosCart.updatePaymentButtonsState();
             } else {
                 console.error('Invalid sale data:', data);
                 toastr.error('Failed to fetch sale data.', 'Error');
@@ -1139,7 +1148,7 @@ function updateShippingData() {
         delivery_person: ($('#deliveryPerson').val() || '').trim()
     };
 
-    window.updateTotals();
+    if (PosCart.updateTotals) PosCart.updateTotals();
     updateShippingButtonState();
 
     $('#shippingModal').modal('hide');
@@ -1167,7 +1176,7 @@ function clearShippingData() {
         delivery_person: ''
     };
 
-    window.updateTotals();
+    if (PosCart.updateTotals) PosCart.updateTotals();
     updateShippingButtonState();
 }
 
@@ -1381,7 +1390,7 @@ function resetForm() {
     // Reset shipping data
     clearShippingData();
 
-    window.updateTotals();
+    if (PosCart.updateTotals) PosCart.updateTotals();
 }
 
 // ================================================================
@@ -1391,12 +1400,12 @@ $(document).ready(function() {
 
     // Add event listeners for quantity input changes
     $(document).on('input change', '.quantity-input', function() {
-        window.updatePaymentButtonsState();
+        if (PosCart.updatePaymentButtonsState) PosCart.updatePaymentButtonsState();
     });
 
     // Initial validation on page load
     $(document).ready(function() {
-        window.updatePaymentButtonsState();
+        if (PosCart.updatePaymentButtonsState) PosCart.updatePaymentButtonsState();
     });
 
     // ==================== CASH BUTTON ====================
@@ -1418,7 +1427,7 @@ $(document).ready(function() {
                 }
             }
 
-            if (!window.validateAllQuantities()) {
+            if (!PosCart.validateAllQuantities || !PosCart.validateAllQuantities()) {
                 toastr.error('Please fix the invalid quantities (red borders) before processing the payment.');
                 window.enableButton(button);
                 return;
@@ -1543,7 +1552,7 @@ $(document).ready(function() {
                 }
             }
 
-            if (!window.validateAllQuantities()) {
+            if (!PosCart.validateAllQuantities || !PosCart.validateAllQuantities()) {
                 toastr.error('Please fix the invalid quantities (red borders) before processing the payment.');
                 window.enableButton(button);
                 return;
@@ -1589,7 +1598,7 @@ $(document).ready(function() {
     $('#confirmChequePayment').on('click', function() {
         const button = this;
         window.preventDoubleClick(button, () => {
-            if (!window.validateAllQuantities()) {
+            if (!PosCart.validateAllQuantities || !PosCart.validateAllQuantities()) {
                 toastr.error('Please fix the invalid quantities (red borders) before processing the payment.');
                 window.enableButton(button);
                 return;
@@ -1627,7 +1636,7 @@ $(document).ready(function() {
     $('#creditSaleButton').on('click', function() {
         const button = this;
         window.preventDoubleClick(button, () => {
-            if (!window.validateAllQuantities()) {
+            if (!PosCart.validateAllQuantities || !PosCart.validateAllQuantities()) {
                 toastr.error('Please fix the invalid quantities (red borders) before processing the payment.');
                 window.enableButton(button);
                 return;
@@ -1748,7 +1757,7 @@ $(document).ready(function() {
 
     // ==================== FINALIZE PAYMENT (Multiple Pay) ====================
     document.getElementById('finalize_payment').addEventListener('click', function() {
-        if (!window.validateAllQuantities()) {
+        if (!PosCart.validateAllQuantities || !PosCart.validateAllQuantities()) {
             toastr.error('Please fix the invalid quantities (red borders) before processing the payment.');
             return;
         }
@@ -1782,7 +1791,7 @@ $(document).ready(function() {
     const paymentModal = document.getElementById('paymentModal');
     if (paymentModal) {
         paymentModal.addEventListener('show.bs.modal', function() {
-            window.updateTotals();
+            if (PosCart.updateTotals) PosCart.updateTotals();
         });
     }
 

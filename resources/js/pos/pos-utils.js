@@ -7,7 +7,19 @@
  *   debounce, isValidationToastActive, showValidationToast,
  *   safeParseFloat, safePercentage,
  *   formatAmountWithSeparators, parseFormattedAmount, formatCurrency
+ *
+ * Public API:
+ *   window.Pos.Utils.debounce,
+ *   window.Pos.Utils.safeParseFloat,
+ *   window.Pos.Utils.safePercentage,
+ *   window.Pos.Utils.formatAmountWithSeparators,
+ *   window.Pos.Utils.parseFormattedAmount,
+ *   window.Pos.Utils.formatCurrency
  */
+
+// POS namespace for utility helpers
+window.Pos = window.Pos || {};
+window.Pos.Utils = window.Pos.Utils || {};
 
 // ---- Debounce ----
 function debounce(func, wait) {
@@ -87,14 +99,37 @@ function formatCurrency(amount) {
     return parseFloat(amount || 0).toFixed(2);
 }
 
-// ---- Expose all utilities as globals (required for jQuery-based POS) ----
-window.debounce                  = debounce;
-window.showValidationToast       = showValidationToast;
-window.safeParseFloat            = safeParseFloat;
-window.safePercentage            = safePercentage;
-window.formatAmountWithSeparators = formatAmountWithSeparators;
-window.parseFormattedAmount      = parseFormattedAmount;
-window.formatCurrency            = formatCurrency;
+// ---- Expose all utilities via namespace (primary API) ----
+window.Pos.Utils.debounce                   = debounce;
+window.Pos.Utils.showValidationToast        = showValidationToast;
+window.Pos.Utils.safeParseFloat             = safeParseFloat;
+window.Pos.Utils.safePercentage             = safePercentage;
+window.Pos.Utils.formatAmountWithSeparators = formatAmountWithSeparators;
+window.Pos.Utils.parseFormattedAmount       = parseFormattedAmount;
+window.Pos.Utils.formatCurrency             = formatCurrency;
+
+// ---- Backwards-compatible globals used by older modules ----
+if (typeof window.debounce !== 'function') {
+    window.debounce = debounce;
+}
+if (typeof window.showValidationToast !== 'function') {
+    window.showValidationToast = showValidationToast;
+}
+if (typeof window.safeParseFloat !== 'function') {
+    window.safeParseFloat = safeParseFloat;
+}
+if (typeof window.safePercentage !== 'function') {
+    window.safePercentage = safePercentage;
+}
+if (typeof window.formatAmountWithSeparators !== 'function') {
+    window.formatAmountWithSeparators = formatAmountWithSeparators;
+}
+if (typeof window.parseFormattedAmount !== 'function') {
+    window.parseFormattedAmount = parseFormattedAmount;
+}
+if (typeof window.formatCurrency !== 'function') {
+    window.formatCurrency = formatCurrency;
+}
 
 // isValidationToastActive is shared state — expose it via a getter/setter
 // so pos_ajax.blade.php inline code can still read/write it

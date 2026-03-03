@@ -15,21 +15,33 @@
  *   - Discount type toggle (Fixed / Percentage) + product list toggle
  *   - Mobile payment & action button routing
  *   - Mobile totals periodic sync
+ *
+ * Public API:
+ *   window.Pos.Page.calcInput,
+ *   window.Pos.Page.clearCalc,
+ *   window.Pos.Page.calculateResult,
+ *   window.Pos.Page.handleKeyboardInput,
+ *   window.Pos.Page.handleGoBack,
+ *   window.Pos.Page.handleGoHome
  * ============================================================
  */
+
+// POS namespace for page-level helpers
+window.Pos = window.Pos || {};
+window.Pos.Page = window.Pos.Page || {};
 
 /* ================================================================
    1. CALCULATOR
    ================================================================ */
-window.calcInput = function (value) {
+window.Pos.Page.calcInput = function (value) {
     document.getElementById('calcDisplay').value += value;
 };
 
-window.clearCalc = function () {
+window.Pos.Page.clearCalc = function () {
     document.getElementById('calcDisplay').value = '';
 };
 
-window.calculateResult = function () {
+window.Pos.Page.calculateResult = function () {
     try {
         document.getElementById('calcDisplay').value = eval(document.getElementById('calcDisplay').value);
     } catch (e) {
@@ -44,7 +56,7 @@ window.calculateResult = function () {
     }
 })();
 
-window.handleKeyboardInput = function (event) {
+window.Pos.Page.handleKeyboardInput = function (event) {
     var allowedKeys = '0123456789+-*/.';
     if (!allowedKeys.includes(event.key) && event.key !== 'Backspace' && event.key !== 'Enter') {
         event.preventDefault();
@@ -55,7 +67,7 @@ window.handleKeyboardInput = function (event) {
 /* ================================================================
    2. GO BACK / GO HOME (dashboardUrl injected by config block)
    ================================================================ */
-window.handleGoBack = function () {
+window.Pos.Page.handleGoBack = function () {
     if (window.history.length > 1 && document.referrer) {
         window.history.back();
     } else {
@@ -63,7 +75,7 @@ window.handleGoBack = function () {
     }
 };
 
-window.handleGoHome = function () {
+window.Pos.Page.handleGoHome = function () {
     window.location.href = window.dashboardUrl || '/';
 };
 
@@ -193,7 +205,9 @@ document.addEventListener('DOMContentLoaded', function () {
             discountInput.value        = '0';
             discountInput.dispatchEvent(new Event('input',  { bubbles: true }));
             discountInput.dispatchEvent(new Event('change', { bubbles: true }));
-            if (typeof updateTotals === 'function') updateTotals();
+            if (window.Pos && window.Pos.Cart && typeof window.Pos.Cart.updateTotals === 'function') {
+                window.Pos.Cart.updateTotals();
+            }
         });
     }
 
@@ -206,7 +220,9 @@ document.addEventListener('DOMContentLoaded', function () {
             discountInput.value        = '0';
             discountInput.dispatchEvent(new Event('input',  { bubbles: true }));
             discountInput.dispatchEvent(new Event('change', { bubbles: true }));
-            if (typeof updateTotals === 'function') updateTotals();
+            if (window.Pos && window.Pos.Cart && typeof window.Pos.Cart.updateTotals === 'function') {
+                window.Pos.Cart.updateTotals();
+            }
         });
     }
 
