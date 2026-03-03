@@ -2432,15 +2432,13 @@ class ProductController extends Controller
     public function autocompleteStock(Request $request)
     {
         // ✅ CRITICAL FIX: NO CACHING - Always fetch fresh stock for POS autocomplete
-        // This prevents showing incorrect stock quantities after recent sales
-
         $locationId = $request->input('location_id');
         $search = $request->input('search');
-        $perPage = $request->input('per_page', 100); // Increased to 100 for better autocomplete results
-        $context = $request->input('context', 'pos'); // 'purchase' skips the qty>0 filter
+        $context = $request->input('context', 'pos');
+        // POS: small page for desktop-like speed; purchase/others can pass per_page
+        $perPage = (int) $request->input('per_page', $context === 'pos' ? 15 : 100);
 
         $query = Product::with([
-            'locations:id,name',
             'unit:id,name,short_name,allow_decimal',
             'discounts' => function ($query) {
                 $query->where('is_active', true);
@@ -2463,7 +2461,6 @@ class ProductController extends Controller
                 if ($locationId) {
                     $q->where('location_id', $locationId);
                 }
-                // ✅ FIX: Include free_qty so total sellable qty can be computed
                 $q->select(['id', 'batch_id', 'location_id', 'qty', 'free_qty'])
                     ->with('location:id,name');
             }
@@ -2490,11 +2487,10 @@ class ProductController extends Controller
         });
 
         if ($search) {
-            // Enhanced search to include partial word matching
+            // POS autocomplete: keep search lightweight (name + SKU only, description is heavy)
             $query->where(function ($q) use ($search) {
                 $q->where('product_name', 'like', "%{$search}%")
-                    ->orWhere('sku', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('sku', 'like', "%{$search}%");
             })->orderByRaw("
                 CASE
                     WHEN sku = ? THEN 1
@@ -2502,8 +2498,7 @@ class ProductController extends Controller
                     WHEN sku LIKE ? THEN 3
                     WHEN LOWER(product_name) LIKE LOWER(?) THEN 4
                     WHEN product_name LIKE ? THEN 5
-                    WHEN description LIKE ? THEN 6
-                    ELSE 7
+                    ELSE 6
                 END,
                 CHAR_LENGTH(product_name) ASC,
                 product_name ASC
@@ -2513,7 +2508,6 @@ class ProductController extends Controller
                 $search . '%',              // SKU starts with search term (priority 3)
                 $search . '%',              // Product name starts with search term (priority 4)
                 '%' . $search . '%',        // Product name contains search term anywhere (priority 5)
-                '%' . $search . '%'         // Description contains search term (priority 6)
             ]);
         } else {
             $query->orderBy('product_name', 'ASC');
@@ -2521,63 +2515,67 @@ class ProductController extends Controller
 
         $products = $query->take($perPage)->get();
 
+        $productIds = $products->pluck('id')->toArray();
+        $batchIds = $products->flatMap(fn ($p) => $p->batches->pluck('id'))->unique()->values()->toArray();
+
+        // One query for all product-level stock totals (avoids N+1 per-product SUMs)
+        $productTotals = collect();
+        if (!empty($productIds)) {
+            $productTotals = DB::table('location_batches')
+                ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                ->whereIn('batches.product_id', $productIds)
+                ->when($locationId, fn ($q) => $q->where('location_batches.location_id', $locationId))
+                ->groupBy('batches.product_id')
+                ->selectRaw('batches.product_id, COALESCE(SUM(location_batches.qty), 0) as total_qty, COALESCE(SUM(location_batches.free_qty), 0) as total_free_qty')
+                ->get()
+                ->keyBy('product_id');
+        }
+
+        // One query for all batch-level qty/free_qty (avoids N+1 per-batch SUMs and model calls)
+        $batchTotals = collect();
+        if (!empty($batchIds)) {
+            $batchTotals = DB::table('location_batches')
+                ->whereIn('batch_id', $batchIds)
+                ->when($locationId, fn ($q) => $q->where('location_id', $locationId))
+                ->groupBy('batch_id')
+                ->selectRaw('batch_id, COALESCE(SUM(qty), 0) as qty, COALESCE(SUM(free_qty), 0) as free_qty')
+                ->get()
+                ->keyBy('batch_id');
+        }
+
         // Only fetch IMEIs for IMEI products (reduces payload and DB load for non-IMEI items)
         $imeiProductIds = $products->where('is_imei_or_serial_no', true)->pluck('id');
         $imeis = collect();
         if ($imeiProductIds->isNotEmpty()) {
             $imeisQuery = ImeiNumber::whereIn('product_id', $imeiProductIds)
-                ->with(['location:id,name']);
-            if ($locationId) {
-                $imeisQuery->where('location_id', $locationId);
-            }
+                ->when($locationId, fn ($q) => $q->where('location_id', $locationId))
+                ->with('location:id,name');
             $imeis = $imeisQuery->get()->groupBy('product_id');
         }
 
-        $results = $products->map(function ($product) use ($locationId, $imeis) {
+        $results = $products->map(function ($product) use ($locationId, $imeis, $productTotals, $batchTotals) {
             $productBatches = $product->batches;
 
             // Filter batches with locationBatches based on location filter
             $filteredBatches = $productBatches->filter(function ($batch) use ($locationId) {
                 if ($locationId) {
-                    // If location is specified, only include batches that have location assignment
-                    // Frontend will handle actual stock quantity validation
                     return $batch->locationBatches->where('location_id', $locationId)->isNotEmpty();
-                } else {
-                    // If no location specified, include all batches with any location assignment
-                    return $batch->locationBatches->isNotEmpty();
                 }
+                return $batch->locationBatches->isNotEmpty();
             });
 
-            // Don't filter by stock quantity - frontend handles stock validation
-            // Return all products assigned to the location regardless of current stock level
-
-            // Determine if allow_decimal is true for this product's unit
             $allowDecimal = $product->unit && $product->unit->allow_decimal;
 
-            // Calculate total stock (for the location if provided) using live DB sum to avoid stale eager-loaded data
-            $totalStock = DB::table('location_batches')
-                ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
-                ->where('batches.product_id', $product->id)
-                ->when($locationId, function ($q) use ($locationId) {
-                    return $q->where('location_batches.location_id', $locationId);
-                })
-                ->sum('location_batches.qty');
-
-            // ✅ FIX: Also calculate free stock so dropdown can show correct total
-            $totalFreeStock = DB::table('location_batches')
-                ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
-                ->where('batches.product_id', $product->id)
-                ->when($locationId, function ($q) use ($locationId) {
-                    return $q->where('location_batches.location_id', $locationId);
-                })
-                ->sum('location_batches.free_qty');
-
+            // Use precomputed product totals (no per-product DB calls)
+            $pt = $productTotals->get($product->id);
+            $totalStock = $pt ? (float) $pt->total_qty : 0;
+            $totalFreeStock = $pt ? (float) $pt->total_free_qty : 0;
             if ($allowDecimal) {
                 $totalStock = round($totalStock, 2);
                 $totalFreeStock = round($totalFreeStock, 2);
             } else {
-                $totalStock = (int)$totalStock;
-                $totalFreeStock = (int)$totalFreeStock;
+                $totalStock = (int) $totalStock;
+                $totalFreeStock = (int) $totalFreeStock;
             }
 
             // Map active discounts
@@ -2643,26 +2641,15 @@ class ProductController extends Controller
                 'total_stock' => $product->stock_alert == 0 ? 'Unlimited' : $totalStock,
                 // ✅ FIX: Expose free stock so JS dropdown and billing can compute total sellable qty
                 'total_free_stock' => $product->stock_alert == 0 ? 0 : $totalFreeStock,
-                'batches' => $filteredBatches->map(function ($batch) use ($allowDecimal, $locationId) {
-                    // Filter location batches based on location filter
+                'batches' => $filteredBatches->map(function ($batch) use ($allowDecimal, $locationId, $batchTotals) {
                     $locationBatches = $locationId
                         ? $batch->locationBatches->where('location_id', $locationId)
                         : $batch->locationBatches;
 
-                    // ✅ Use live DB query for batch quantity to avoid stale data
-                    $batchQty = DB::table('location_batches')
-                        ->where('batch_id', $batch->id)
-                        ->when($locationId, fn($q) => $q->where('location_id', $locationId))
-                        ->sum('qty');
-
-                    // Calculate free quantity based on ACTUAL transactions at this location
-                    if ($locationId) {
-                        $freeQty = $batch->calculateFreeQtyForLocation($locationId);
-                    } else {
-                        // No location filter - use batch total (faster than summing per location)
-                        $freeQty = $batch->calculateFreeQty();
-                    }
-
+                    // Use precomputed batch totals (no per-batch DB or model calls)
+                    $bt = $batchTotals->get($batch->id);
+                    $batchQty = $bt ? (float) $bt->qty : 0;
+                    $freeQty = $bt ? (float) $bt->free_qty : 0;
                     $paidQty = max(0, $batchQty - $freeQty);
                     $freeQtyPercentage = $batchQty > 0 ? round(($freeQty / $batchQty) * 100, 1) : 0;
 

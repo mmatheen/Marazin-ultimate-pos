@@ -3,6 +3,18 @@
  * Sale processing: gather data, send sale, payments, shipping, suspended sales,
  * edit sale, and all related event wiring.
  *
+ * Structure (split for clarity):
+ *   Sale data: getSalesDateString, buildSaleBasePayload, validateBillingRow,
+ *              buildProductPayloadFromRow, gatherSaleData
+ *   Send sale: validateWalkInCheque, resolveSaleIdFromUrl, showCreditOrStockSwal,
+ *              handleSaleFailureResponse, handleSaleXhrError, openPrintForSale,
+ *              runAfterSaleSuccess, handleSaleSuccessResponse, sendSaleData
+ *   Payment:  gatherCashPaymentData, gatherCardPaymentData, gatherChequePaymentData,
+ *             gatherPaymentData, validateChequeFields
+ *   Shipping: openShippingModal, updateShippingData, updateShippingButtonState,
+ *             clearShippingData, getShippingDataForSale
+ *   Reset:    resetToWalkingCustomer, resetForm
+ *
  * External dependencies (on window):
  *   window.parseFormattedAmount()       — pos-utils.js (Phase 2)
  *   window.formatAmountWithSeparators() — pos-utils.js (Phase 2)
@@ -309,57 +321,35 @@ function fetchEditSale(saleId) {
 }
 
 // ================================================================
-//  gatherSaleData
+//  Sale data helpers (for gatherSaleData)
 // ================================================================
-function gatherSaleData(status) {
-    const uniqueNumber = new Date().getTime() % 10000;
-    const customerId = $('#customer-id').val();
-    // Get current date and time
+function getSalesDateString() {
     const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const seconds = String(now.getSeconds()).padStart(2, '0');
-    const salesDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const h = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    const s = String(now.getSeconds()).padStart(2, '0');
+    return `${y}-${m}-${d} ${h}:${min}:${s}`;
+}
 
+function buildSaleBasePayload(status) {
     const locationId = window.locationId;
-    if (!locationId) {
-        toastr.error('Location ID is required.');
-        return null;
-    }
-
-    // Get discount values
     const discountType = $('#discount-type').val() || 'fixed';
     const discountAmount = parseFormattedAmount($('#global-discount').val()) || 0;
-
-    // Calculate total amount and final amount
     const totalAmount = parseFormattedAmount($('#total-amount').text()) || 0;
-    let finalAmount = totalAmount;
-
-    // Apply discount
-    if (discountType === 'percentage') {
-        finalAmount -= totalAmount * (discountAmount / 100);
-    } else {
-        finalAmount -= discountAmount;
-    }
-
-    // Ensure final amount doesn't go negative
-    finalAmount = Math.max(0, finalAmount);
-
-    // 🐛 FIX: Add shipping charges to final amount
+    let finalAmount = Math.max(0, totalAmount - (discountType === 'percentage' ? totalAmount * (discountAmount / 100) : discountAmount));
     const shippingCharges = parseFloat(window.shippingData.shipping_charges) || 0;
     finalAmount += shippingCharges;
 
-
     const isEditing = window.isEditing;
-    const saleData = {
-        customer_id: customerId,
-        sales_date: salesDate,
+    return {
+        customer_id: $('#customer-id').val(),
+        sales_date: getSalesDateString(),
         location_id: locationId,
         status: status,
-        sale_type: "POS",
+        sale_type: 'POS',
         sale_notes: document.getElementById('sale-notes-textarea')?.value?.trim() || null,
         products: [],
         discount_type: discountType,
@@ -368,14 +358,74 @@ function gatherSaleData(status) {
         final_total: finalAmount,
         shipping_charges: shippingCharges,
         transaction_type: (isEditing && window.originalSaleData?.transaction_type === 'sale_order' && status === 'final')
-            ? 'invoice'
-            : (window.originalSaleData?.transaction_type || undefined),
+            ? 'invoice' : (window.originalSaleData?.transaction_type || undefined),
     };
+}
 
-    // Debug: Log sale notes value
+/** @returns {{ valid: boolean, message?: string }} */
+function validateBillingRow(productRow) {
+    const rowLocationId = productRow.find('.location-id').text().trim();
+    if (!rowLocationId) return { valid: false, message: 'Location ID is missing for a product.' };
 
-    // 🔧 Debug: Log transaction type conversion for sale orders
-    if (isEditing && window.originalSaleData?.transaction_type === 'sale_order') {
+    const qtyVal = productRow.find('.quantity-input').val().trim();
+    const freeQtyVal = productRow.find('.free-quantity-input').val().trim();
+    const isImeiProduct = productRow.find('.imei-data').text().trim() !== '';
+    const quantity = isImeiProduct ? 1 : (parseFloat(qtyVal) || 0);
+    const freeQuantity = parseFloat(freeQtyVal) || 0;
+    const totalQuantity = quantity + freeQuantity;
+    const maxStock = parseFloat(productRow.find('.quantity-input').attr('max')) || 0;
+
+    if (totalQuantity > maxStock && maxStock > 0) {
+        const productName = productRow.find('.product-name').text().trim();
+        return { valid: false, message: `Product "${productName}": Total quantity (${quantity} + ${freeQuantity} free = ${totalQuantity}) exceeds available stock (${maxStock}). Please reduce the quantity.` };
+    }
+    return { valid: true };
+}
+
+function buildProductPayloadFromRow(productRow) {
+    const batchId = productRow.find('.batch-id').text().trim();
+    const rowLocationId = productRow.find('.location-id').text().trim();
+    const discountFixed = parseFloat(productRow.find('.fixed_discount').val().trim()) || 0;
+    const discountPercent = parseFloat(productRow.find('.percent_discount').val().trim()) || 0;
+    const rowDiscountType = discountFixed > 0 ? 'fixed' : 'percentage';
+    const rowDiscountAmount = discountFixed > 0 ? discountFixed : discountPercent;
+    const imeiData = productRow.find('.imei-data').text().trim();
+    const imeis = imeiData ? imeiData.split(',').filter(Boolean) : [];
+    const isImeiProduct = imeiData !== '';
+    const qtyVal = productRow.find('.quantity-input').val().trim();
+    const freeQtyVal = productRow.find('.free-quantity-input').val().trim();
+    const quantity = isImeiProduct ? 1 : (parseFloat(qtyVal) || 0);
+    const freeQuantity = parseFloat(freeQtyVal) || 0;
+    const processedBatchId = (batchId && batchId !== 'null' && batchId !== '' && batchId !== 'all') ? String(batchId) : 'all';
+    const customNameEl = productRow.find('.custom-name-input');
+    const customName = customNameEl.length > 0 ? (customNameEl.val()?.trim() || null) : null;
+
+    const productData = {
+        product_id: parseInt(productRow.find('.product-id').text().trim(), 10),
+        location_id: parseInt(rowLocationId, 10),
+        quantity,
+        free_quantity: freeQuantity,
+        price_type: window.priceType || 'retail',
+        unit_price: parseFormattedAmount(productRow.find('.price-input').val().trim()),
+        subtotal: parseFormattedAmount(productRow.find('.subtotal').text().trim()),
+        discount_amount: rowDiscountAmount,
+        discount_type: rowDiscountType,
+        tax: 0,
+        batch_id: processedBatchId,
+        custom_name: customName,
+    };
+    if (imeis.length > 0) productData.imei_numbers = imeis;
+    return productData;
+}
+
+// ================================================================
+//  gatherSaleData
+// ================================================================
+function gatherSaleData(status) {
+    const locationId = window.locationId;
+    if (!locationId) {
+        toastr.error('Location ID is required.');
+        return null;
     }
 
     const productRows = $('#billing-body tr');
@@ -384,111 +434,22 @@ function gatherSaleData(status) {
         return null;
     }
 
-    // Flag to track validation errors
-    let hasValidationError = false;
+    const saleData = buildSaleBasePayload(status);
 
-    productRows.each(function() {
-        if (hasValidationError) return;
-
-        const productRow = $(this);
-        const batchId = productRow.find('.batch-id').text().trim();
-        const rowLocationId = productRow.find('.location-id').text().trim();
-
-
-        if (batchId && batchId !== 'all' && batchId !== '') {
-            console.warn('⚠️ Specific batch ID found in billing row:', batchId, 'This might cause stock issues if not intended');
+    for (let i = 0; i < productRows.length; i++) {
+        const productRow = $(productRows[i]);
+        const validation = validateBillingRow(productRow);
+        if (!validation.valid) {
+            toastr.error(validation.message);
+            return null;
         }
-
-        const discountFixed = parseFloat(productRow.find('.fixed_discount').val()
-            .trim()) || 0;
-        const discountPercent = parseFloat(productRow.find('.percent_discount')
-            .val().trim()) || 0;
-        const isImeiProduct = productRow.find('.imei-data').text().trim() !== '';
-
-        // Determine which discount is active
-        const rowDiscountType = discountFixed > 0 ? 'fixed' : 'percentage';
-        const rowDiscountAmount = discountFixed > 0 ? discountFixed : discountPercent;
-
-        // Get IMEI numbers if any
-        const imeiData = productRow.find('.imei-data').text().trim();
-        const imeis = imeiData ? imeiData.split(',').filter(Boolean) : [];
-
-        if (!rowLocationId) {
-            toastr.error('Location ID is missing for a product.');
-            hasValidationError = true;
-            return;
-        }
-
-        // ✨ PERFORMANCE FIX: Build optimized product data with minimal payload
-        const productId = parseInt(productRow.find('.product-id').text().trim(), 10);
-        const qtyVal = productRow.find('.quantity-input').val().trim();
-        const freeQtyVal = productRow.find('.free-quantity-input').val().trim();
-        const quantity = isImeiProduct ? 1 : (parseFloat(qtyVal) || 0);
-        const freeQuantity = parseFloat(freeQtyVal) || 0;
-
-        // ✅ VALIDATE: Check if total quantity exceeds available stock
-        const totalQuantity = quantity + freeQuantity;
-        const maxStock = parseFloat(productRow.find('.quantity-input').attr('max')) || 0;
-
-        if (totalQuantity > maxStock && maxStock > 0) {
-            const productName = productRow.find('.product-name').text().trim();
-            toastr.error(`Product "${productName}": Total quantity (${quantity} + ${freeQuantity} free = ${totalQuantity}) exceeds available stock (${maxStock}). Please reduce the quantity.`);
-            hasValidationError = true;
-            return;
-        }
-
-        // ✅ FIX: Respect user's batch selection
-        let processedBatchId = "all";
-
-        if (batchId && batchId !== "null" && batchId !== "" && batchId !== "all") {
-            processedBatchId = String(batchId);
-        } else {
-        }
-
-
-        const rawSubtotalText = productRow.find('.subtotal').text().trim();
-        const parsedSubtotal = parseFormattedAmount(rawSubtotalText);
-        const unitPrice = parseFormattedAmount(productRow.find('.price-input').val().trim());
-        const expectedSubtotal = quantity * unitPrice;
-        const customNameEl = productRow.find('.custom-name-input');
-        const customName = customNameEl.length > 0 ? (customNameEl.val()?.trim() || null) : null;
-
-        // 🔍 DEBUG: Log subtotal calculation
-
-        const productData = {
-            product_id: productId,
-            location_id: parseInt(rowLocationId, 10),
-            quantity: quantity,
-            free_quantity: freeQuantity,
-            price_type: window.priceType || 'retail',
-            unit_price: unitPrice,
-            subtotal: parsedSubtotal,
-            discount_amount: rowDiscountAmount,
-            discount_type: rowDiscountType,
-            tax: 0,
-            batch_id: processedBatchId,
-            custom_name: customName,
-        };
-
-        // Only add IMEI numbers if they exist (reduce payload size)
-        if (imeis.length > 0) {
-            productData.imei_numbers = imeis;
-        }
-
-        saleData.products.push(productData);
-    });
-
-    // Check if validation failed
-    if (hasValidationError) {
-        return null;
+        saleData.products.push(buildProductPayloadFromRow(productRow));
     }
 
-    // Add shipping data to sale
     const shippingInfo = getShippingDataForSale();
     if (shippingInfo.shipping_details || shippingInfo.shipping_address || shippingInfo.shipping_charges > 0) {
         Object.assign(saleData, shippingInfo);
     }
-
     return saleData;
 }
 
@@ -545,45 +506,211 @@ function refreshStockDataAfterSale(saleData) {
 }
 
 // ================================================================
-//  sendSaleData — LARGEST function (~470 lines)
+//  Send sale helpers (validation, resolve ID, error UI, print, post-success)
 // ================================================================
-function sendSaleData(saleData, saleId = null, onComplete = () => {}) {
-    // Check sales rep access before processing sale
-    if (!window.checkSalesAccess()) {
-        onComplete();
+function validateWalkInCheque(saleData) {
+    if (saleData.customer_id != 1 || !saleData.payments) return true;
+    for (let p of saleData.payments) {
+        if (p.payment_method === 'cheque') {
+            toastr.error('Cheque payment is not allowed for Walk-In Customer. Please choose another payment method or select a different customer.');
+            return false;
+        }
+    }
+    return true;
+}
+
+function resolveSaleIdFromUrl(saleId) {
+    if (saleId) return saleId;
+    const segs = window.location.pathname.split('/');
+    const last = segs[segs.length - 1];
+    if (!isNaN(last) && last !== 'pos' && last !== 'list-sale') return last;
+    return null;
+}
+
+function showCreditOrStockSwal(message, isCreditLimit) {
+    const formatted = (message || '').replace(/\n/g, '<br>').replace(/•/g, '&bull;');
+    swal({
+        title: isCreditLimit ? 'Credit Limit Exceeded' : '⚠️ Insufficient Stock',
+        text: formatted,
+        html: true,
+        type: isCreditLimit ? 'error' : 'warning',
+        confirmButtonText: 'OK',
+        confirmButtonColor: isCreditLimit ? '#d33' : '#f0ad4e'
+    });
+}
+
+function handleSaleFailureResponse(response, onComplete) {
+    if (response.message && response.message.includes('Credit limit exceeded')) {
+        showCreditOrStockSwal(response.message, true);
+    } else if (response.message && response.message.includes('Insufficient stock')) {
+        showCreditOrStockSwal(response.message, false);
+    } else {
+        toastr.error('Failed to record sale: ' + (response.message || ''));
+    }
+    if (onComplete) onComplete();
+}
+
+function handleSaleXhrError(xhr, onComplete) {
+    let errorMessage = 'An error occurred while processing the sale.';
+    let useToastr = true;
+    try {
+        const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : null;
+        if (msg) {
+            errorMessage = msg;
+            if (msg.includes('Credit limit exceeded')) { useToastr = false; showCreditOrStockSwal(msg, true); }
+            else if (msg.includes('Insufficient stock')) { useToastr = false; showCreditOrStockSwal(msg, false); }
+        } else if (xhr.responseText) {
+            try {
+                const parsed = JSON.parse(xhr.responseText);
+                if (parsed.message) {
+                    errorMessage = parsed.message;
+                    if (parsed.message.includes('Credit limit exceeded')) { useToastr = false; showCreditOrStockSwal(parsed.message, true); }
+                    else if (parsed.message.includes('Insufficient stock')) { useToastr = false; showCreditOrStockSwal(parsed.message, false); }
+                }
+            } catch (_) { errorMessage = xhr.responseText; }
+        }
+    } catch (e) { console.error('Error parsing response:', e); }
+    if (useToastr) toastr.error(errorMessage);
+    if (onComplete) onComplete();
+}
+
+function openPrintForSale(response, saleId) {
+    if (!response.invoice_html) {
+        const returnedSaleId = (response.sale && response.sale.id) || response.id || saleId;
+        if (typeof window.printReceipt === 'function') {
+            window.printReceipt(returnedSaleId);
+        } else {
+            const w = window.open(`/sales/print-recent-transaction/${returnedSaleId}`, '_blank');
+            if (!w) toastr.error('Print window was blocked. Please allow pop-ups.');
+        }
+        if (saleId && window.location.pathname.includes('/edit/')) {
+            setTimeout(() => { window.location.href = '/pos-create'; }, 1200);
+        }
+        return;
+    }
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const returnedSaleId = (response.sale && response.sale.id) || response.id || saleId;
+    const isEdit = saleId && window.location.pathname.includes('/edit/');
+    const focusSearch = () => {
+        const el = document.getElementById('productSearchInput');
+        if (el) { el.focus(); el.select(); }
+    };
+
+    if (isMobile) {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) { toastr.error('Print window was blocked. Please allow pop-ups.'); return; }
+        printWindow.document.open();
+        printWindow.document.write(response.invoice_html);
+        printWindow.document.close();
+        printWindow.onload = function() {
+            printWindow.print();
+            printWindow.onafterprint = function() { setTimeout(focusSearch, 300); };
+        };
+        if (isEdit) {
+            const t = setInterval(() => { if (printWindow.closed) { clearInterval(t); window.navigateToPosCreate(); } }, 100);
+            setTimeout(() => clearInterval(t), 30000);
+        } else {
+            const t = setInterval(() => { if (printWindow.closed) { clearInterval(t); setTimeout(focusSearch, 100); } }, 500);
+        }
         return;
     }
 
-    // Validate walk-in customer cheque payment restriction
-    if (saleData.customer_id == 1 && saleData.payments) {
-        for (let payment of saleData.payments) {
-            if (payment.payment_method === 'cheque') {
-                toastr.error(
-                    'Cheque payment is not allowed for Walk-In Customer. Please choose another payment method or select a different customer.'
-                );
-                onComplete();
-                return;
-            }
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:absolute;width:0;height:0;border:none;left:-9999px;visibility:hidden;';
+    document.body.appendChild(iframe);
+    const iframeDoc = iframe.contentWindow.document;
+    iframeDoc.open();
+    iframeDoc.write(response.invoice_html);
+    iframeDoc.close();
+    iframe.onload = function() {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        iframe.contentWindow.onafterprint = function() {
+            setTimeout(() => {
+                if (document.body.contains(iframe)) document.body.removeChild(iframe);
+                if (isEdit) window.navigateToPosCreate();
+                else focusSearch();
+            }, 200);
+        };
+        setTimeout(() => { if (document.body.contains(iframe)) document.body.removeChild(iframe); }, 60000);
+    };
+}
+
+function runAfterSaleSuccess(saleData, onComplete) {
+    resetForm();
+    if (window.searchCache && window.searchCache.clear) window.searchCache.clear();
+    if (onComplete) onComplete();
+    setTimeout(() => refreshStockDataAfterSale(saleData), 100);
+    setTimeout(() => { if (!window.fetchingSalesData && window.fetchSalesData) window.fetchSalesData(); }, 150);
+    setTimeout(() => {
+        window.allProducts = [];
+        window.currentProductsPage = 1;
+        window.hasMoreProducts = true;
+        if (window.fetchPaginatedProducts) window.fetchPaginatedProducts(true);
+    }, 200);
+    if (window.isSalesRep) {
+        window.salesRepCustomerResetInProgress = true;
+        window.lastCustomerResetTime = Date.now();
+        setTimeout(() => {
+            const customerSelect = $('#customer-id');
+            if (customerSelect.val() && customerSelect.val() !== '') customerSelect.val('').trigger('change');
+            setTimeout(() => { window.salesRepCustomerResetInProgress = false; }, 3000);
+        }, 500);
+    }
+    setTimeout(() => {
+        if (window.fetchPaginatedProducts) window.fetchPaginatedProducts(true);
+        fetch('/api/sales/clear-cache', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') } }).catch(() => {});
+        if (saleData && saleData.status === 'final' && window.customerFunctions && typeof window.customerFunctions.fetchCustomerData === 'function' && !window.isSalesRep) {
+            window.customerFunctions.fetchCustomerData().catch(e => console.error('Failed to refresh customer data:', e));
         }
+    }, 300);
+}
+
+function handleSaleSuccessResponse(response, saleData, saleId, onComplete) {
+    if (!response.message || (!response.invoice_html && !response.sale)) {
+        handleSaleFailureResponse(response, onComplete);
+        return;
+    }
+    try { document.getElementsByClassName('successSound')[0].play(); } catch (_) {}
+    const isEdit = saleId && window.location.pathname.includes('/edit/');
+
+    if (response.sale && response.sale.transaction_type === 'sale_order') {
+        toastr.success(response.message + ' Order Number: ' + response.sale.order_number, 'Sale Order Created', { timeOut: 5000, progressBar: true });
+        if (isEdit) { setTimeout(() => window.navigateToPosCreate(), 1500); if (onComplete) onComplete(); return; }
+        setTimeout(() => { resetForm(); if (onComplete) onComplete(); }, 50);
+        return;
+    }
+    toastr.success(response.message);
+    if (isEdit && (saleData.status === 'draft' || saleData.status === 'quotation')) {
+        setTimeout(() => window.navigateToPosCreate(), 1500);
+        if (onComplete) onComplete();
+        return;
+    }
+    if (isEdit && saleData.status === 'suspend') {
+        setTimeout(() => { window.location.href = '/pos-create'; }, 1200);
+        if (onComplete) onComplete();
+        return;
     }
 
-    // Extract saleId from the URL if not provided
-    if (!saleId) {
-        const pathSegments = window.location.pathname.split('/');
-        const possibleSaleId = pathSegments[pathSegments.length - 1];
-        if (!isNaN(possibleSaleId) && possibleSaleId !== 'pos' && possibleSaleId !==
-            'list-sale') {
-            saleId = possibleSaleId;
-        }
+    if (saleData.status !== 'suspend' && saleData.transaction_type !== 'sale_order') {
+        try { openPrintForSale(response, saleId); } catch (err) { console.warn('Error initiating print:', err); }
     }
+    setTimeout(() => runAfterSaleSuccess(saleData, onComplete), 50);
+}
 
-    // ✨ PERFORMANCE FIX: All sales use optimized storeOrUpdate method
+// ================================================================
+//  sendSaleData
+// ================================================================
+function sendSaleData(saleData, saleId = null, onComplete = () => {}) {
+    if (!window.checkSalesAccess()) { onComplete(); return; }
+    if (!validateWalkInCheque(saleData)) { onComplete(); return; }
+
+    saleId = resolveSaleIdFromUrl(saleId);
     const url = saleId ? `/sales/update/${saleId}` : '/sales/store';
-    const method = 'POST';
 
     $.ajax({
         url: url,
-        type: method,
+        type: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
@@ -591,378 +718,8 @@ function sendSaleData(saleData, saleId = null, onComplete = () => {}) {
         data: JSON.stringify(saleData),
         timeout: 30000,
         cache: false,
-        success: function(response) {
-            // Handle sale response
-            if (response.message && (response.invoice_html || response.sale)) {
-                // Immediate success feedback
-                try {
-                    document.getElementsByClassName('successSound')[0].play();
-                } catch (e) {
-                    // Ignore if sound element doesn't exist
-                }
-
-                // Show appropriate success message
-                if (response.sale && response.sale.transaction_type === 'sale_order') {
-                    toastr.success(response.message + ' Order Number: ' + response.sale.order_number, 'Sale Order Created', {
-                        timeOut: 5000,
-                        progressBar: true
-                    });
-
-                    // 🔄 Navigate to POS page after Sale Order update (edit mode)
-                    if (saleId && window.location.pathname.includes('/edit/')) {
-                        setTimeout(() => {
-                            window.navigateToPosCreate();
-                        }, 1500);
-                        if (onComplete) onComplete();
-                        return;
-                    }
-
-                    // For new sale orders (not editing), reset the form normally
-                    setTimeout(() => {
-                        resetForm();
-                        if (onComplete) onComplete();
-                    }, 50);
-                    return;
-                } else {
-                    toastr.success(response.message);
-
-                    // 🔄 Navigate to POS page after Draft/Quotation update (edit mode)
-                    if (saleId && window.location.pathname.includes('/edit/') &&
-                        (saleData.status === 'draft' || saleData.status === 'quotation')) {
-                        setTimeout(() => {
-                            window.navigateToPosCreate();
-                        }, 1500);
-                        if (onComplete) onComplete();
-                        return;
-                    }
-
-                    // 🔄 Full redirect after Suspend in edit mode
-                    if (saleId && window.location.pathname.includes('/edit/') &&
-                        saleData.status === 'suspend') {
-                        setTimeout(() => {
-                            window.location.href = '/pos-create';
-                        }, 1200);
-                        if (onComplete) onComplete();
-                        return;
-                    }
-                }
-
-                // Store current customer before reset
-                const currentCustomerId = $('#customer-id').val();
-
-                // ⚡ PRIORITY #1: OPEN PRINT WINDOW IMMEDIATELY
-                if (saleData.status !== 'suspend' && saleData.transaction_type !== 'sale_order') {
-                    const returnedSaleId = (response.sale && response.sale.id) || response.id || saleId;
-
-                    try {
-                        if (response.invoice_html) {
-
-                            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-                            if (isMobile) {
-                                const printWindow = window.open('', '_blank');
-                                if (printWindow) {
-                                    printWindow.document.open();
-                                    printWindow.document.write(response.invoice_html);
-                                    printWindow.document.close();
-                                    printWindow.onload = function() {
-                                        printWindow.print();
-
-                                        printWindow.onafterprint = function() {
-                                            setTimeout(() => {
-                                                const searchInput = document.getElementById('productSearchInput');
-                                                if (searchInput) {
-                                                    searchInput.focus();
-                                                    searchInput.select();
-                                                }
-                                            }, 300);
-                                        };
-                                    };
-
-                                    if (saleId && window.location.pathname.includes('/edit/')) {
-                                        const checkClosed = setInterval(() => {
-                                            if (printWindow.closed) {
-                                                clearInterval(checkClosed);
-                                                window.navigateToPosCreate();
-                                            }
-                                        }, 100);
-                                        setTimeout(() => clearInterval(checkClosed), 30000);
-                                    } else {
-                                        const checkClosed = setInterval(() => {
-                                            if (printWindow.closed) {
-                                                clearInterval(checkClosed);
-                                                setTimeout(() => {
-                                                    const searchInput = document.getElementById('productSearchInput');
-                                                    if (searchInput) {
-                                                        searchInput.focus();
-                                                        searchInput.select();
-                                                    }
-                                                }, 100);
-                                            }
-                                        }, 500);
-                                    }
-                                } else {
-                                    toastr.error('Print window was blocked. Please allow pop-ups.');
-                                }
-                            } else {
-                                // Desktop: Use hidden iframe for instant print
-                                const iframe = document.createElement('iframe');
-                                iframe.style.cssText = 'position:absolute;width:0;height:0;border:none;left:-9999px;visibility:hidden;';
-                                document.body.appendChild(iframe);
-                                const iframeDoc = iframe.contentWindow.document;
-                                iframeDoc.open();
-                                iframeDoc.write(response.invoice_html);
-                                iframeDoc.close();
-                                iframe.onload = function() {
-                                    iframe.contentWindow.focus();
-                                    iframe.contentWindow.print();
-
-                                    iframe.contentWindow.onafterprint = function() {
-                                        setTimeout(() => {
-                                            if (document.body.contains(iframe)) document.body.removeChild(iframe);
-                                            if (saleId && window.location.pathname.includes('/edit/')) {
-                                                window.navigateToPosCreate();
-                                            } else {
-                                                const searchInput = document.getElementById('productSearchInput');
-                                                if (searchInput) {
-                                                    searchInput.focus();
-                                                    searchInput.select();
-                                                }
-                                            }
-                                        }, 200);
-                                    };
-
-                                    // Fallback cleanup
-                                    setTimeout(() => {
-                                        if (document.body.contains(iframe)) document.body.removeChild(iframe);
-                                    }, 60000);
-                                };
-                            }
-                        } else {
-                            // Fallback: If no invoice HTML in response, use AJAX
-                            console.warn('⚠️ No invoice HTML in response, falling back to AJAX fetch');
-                            if (typeof window.printReceipt === 'function') {
-                                window.printReceipt(returnedSaleId);
-                            } else {
-                                const printWindow = window.open(`/sales/print-recent-transaction/${returnedSaleId}`, '_blank');
-                                if (!printWindow) {
-                                    toastr.error('Print window was blocked. Please allow pop-ups.');
-                                }
-                            }
-                            if (saleId && window.location.pathname.includes('/edit/')) {
-                                setTimeout(() => { window.location.href = '/pos-create'; }, 1200);
-                            }
-                        }
-                    } catch (err) {
-                        console.warn('Error while initiating print:', err);
-                    }
-                }
-
-                // ⏳ BACKGROUND OPERATIONS - Run after print window opens
-                setTimeout(() => {
-                    resetForm();
-
-                    // ✅ CLEAR SEARCH CACHE
-                    window.searchCache.clear();
-
-                    if (onComplete) onComplete();
-                }, 50);
-
-                // Background: Stock refresh for IMEI products
-                setTimeout(() => {
-                    refreshStockDataAfterSale(saleData);
-                }, 100);
-
-                // Background: Recent Transactions refresh
-                setTimeout(() => {
-                    if (!window.fetchingSalesData) {
-                        window.fetchSalesData();
-                    }
-                }, 150);
-
-                // Background: Product grid refresh
-                setTimeout(() => {
-                    window.allProducts = [];
-                    window.currentProductsPage = 1;
-                    window.hasMoreProducts = true;
-                    window.fetchPaginatedProducts(true);
-                }, 200);
-
-                // Extra safety checks for sales rep customer reset after successful billing
-                if (window.isSalesRep) {
-                    window.salesRepCustomerResetInProgress = true;
-                    window.lastCustomerResetTime = Date.now();
-
-                    setTimeout(() => {
-                        const customerSelect = $('#customer-id');
-                        if (customerSelect.val() && customerSelect.val() !== '') {
-                            customerSelect.val('').trigger('change');
-                        }
-
-                        setTimeout(() => {
-                            window.salesRepCustomerResetInProgress = false;
-                        }, 3000);
-                    }, 500);
-                }
-
-                // Background: Cache clearing and product pagination refresh
-                setTimeout(() => {
-                    Promise.all([
-                        new Promise(resolve => {
-                            window.fetchPaginatedProducts(true);
-                            resolve();
-                        }),
-                        new Promise(resolve => {
-                            fetch('/api/sales/clear-cache', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-CSRF-TOKEN': $(
-                                        'meta[name="csrf-token"]'
-                                    ).attr(
-                                        'content'
-                                    )
-                                }
-                            }).catch(error => {
-                                console.warn(
-                                    'Failed to clear sales cache:',
-                                    error);
-                            });
-                            resolve();
-                        })
-                    ]).catch(error => {
-                        console.warn(
-                            'Background refresh error:',
-                            error);
-                    });
-
-                    // Background customer data refresh
-                    if (saleData && saleData.status === 'final' &&
-                        typeof window.customerFunctions !==
-                        'undefined' &&
-                        typeof window.customerFunctions
-                        .fetchCustomerData === 'function') {
-
-                        if (!window.isSalesRep) {
-                            window.customerFunctions.fetchCustomerData()
-                                .then(function() {
-                                }).catch(function(error) {
-                                    console.error(
-                                        'Failed to refresh customer data:',
-                                        error);
-                                });
-                        } else {
-                        }
-                    }
-                }, 300);
-
-            } else {
-                // Check if this is a credit limit error
-                if (response.message && response.message.includes(
-                        'Credit limit exceeded')) {
-                    const formattedMessage = response.message.replace(/\n/g,
-                        '<br>').replace(/•/g, '&bull;');
-
-                    swal({
-                        title: "Credit Limit Exceeded",
-                        text: formattedMessage,
-                        html: true,
-                        type: "error",
-                        confirmButtonText: "OK",
-                        confirmButtonColor: "#d33"
-                    });
-                } else {
-                    toastr.error('Failed to record sale: ' + response.message);
-                }
-                if (onComplete) onComplete();
-            }
-        },
-        error: function(xhr, status, error) {
-
-            let errorMessage = 'An error occurred while processing the sale.';
-            let useToastr = true;
-
-            try {
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    errorMessage = xhr.responseJSON.message;
-
-                    if (errorMessage.includes('Credit limit exceeded')) {
-                        useToastr = false;
-                        const formattedMessage = errorMessage.replace(/\n/g,
-                            '<br>').replace(/•/g, '&bull;');
-
-                        swal({
-                            title: "Credit Limit Exceeded",
-                            text: formattedMessage,
-                            html: true,
-                            type: "error",
-                            confirmButtonText: "OK",
-                            confirmButtonColor: "#d33"
-                        });
-                    }
-                    else if (errorMessage.includes('Insufficient stock')) {
-                        useToastr = false;
-                        const formattedMessage = errorMessage.replace(/\n/g,
-                            '<br>').replace(/•/g, '&bull;');
-
-                        swal({
-                            title: "⚠️ Insufficient Stock",
-                            text: formattedMessage,
-                            html: true,
-                            type: "warning",
-                            confirmButtonText: "OK",
-                            confirmButtonColor: "#f0ad4e"
-                        });
-                    }
-                } else if (xhr.responseText) {
-                    try {
-                        const parsedResponse = JSON.parse(xhr.responseText);
-                        if (parsedResponse.message && parsedResponse.message
-                            .includes('Credit limit exceeded')) {
-                            useToastr = false;
-                            const formattedMessage = parsedResponse.message
-                                .replace(/\n/g, '<br>').replace(/•/g, '&bull;');
-
-                            swal({
-                                title: "Credit Limit Exceeded",
-                                text: formattedMessage,
-                                html: true,
-                                type: "error",
-                                confirmButtonText: "OK",
-                                confirmButtonColor: "#d33"
-                            });
-                        } else if (parsedResponse.message && parsedResponse.message
-                            .includes('Insufficient stock')) {
-                            useToastr = false;
-                            const formattedMessage = parsedResponse.message
-                                .replace(/\n/g, '<br>').replace(/•/g, '&bull;');
-
-                            swal({
-                                title: "⚠️ Insufficient Stock",
-                                text: formattedMessage,
-                                html: true,
-                                type: "warning",
-                                confirmButtonText: "OK",
-                                confirmButtonColor: "#f0ad4e"
-                            });
-                        } else {
-                            errorMessage = parsedResponse.message || xhr
-                                .responseText;
-                        }
-                    } catch (parseError) {
-                        errorMessage = xhr.responseText;
-                    }
-                }
-            } catch (e) {
-                console.error('Error parsing response:', e);
-            }
-
-            if (useToastr) {
-                toastr.error(errorMessage);
-            }
-
-            if (onComplete) onComplete();
-        }
+        success: (response) => handleSaleSuccessResponse(response, saleData, saleId, onComplete),
+        error: (xhr) => handleSaleXhrError(xhr, onComplete)
     });
 }
 
@@ -1084,6 +841,39 @@ function gatherPaymentData() {
     });
 
     return paymentData;
+}
+
+/**
+ * Adjust cash payments so that total paid does not exceed the final
+ * payable amount (used for Walk‑In and "Return Cash" flow in
+ * multiple-payment modal).
+ *
+ * @param {Array<{payment_method:string, amount:number}>} paymentData
+ * @param {number} finalTotal
+ * @returns {{ paymentData: any[], amountGiven: number, excess: number }}
+ */
+function adjustCashPaymentForExcess(paymentData, finalTotal) {
+    let amountGiven = paymentData.reduce((sum, pay) => sum + (parseFloat(pay.amount) || 0), 0);
+    let excess = amountGiven - finalTotal;
+    if (excess <= 0) {
+        return { paymentData, amountGiven, excess: 0 };
+    }
+
+    let remainingExcess = excess;
+    for (let i = paymentData.length - 1; i >= 0 && remainingExcess > 0; i--) {
+        const pay = paymentData[i];
+        if (pay.payment_method !== 'cash') continue;
+        const currentAmount = parseFloat(pay.amount) || 0;
+        if (currentAmount <= 0) continue;
+
+        const reduceBy = Math.min(currentAmount, remainingExcess);
+        const newAmount = currentAmount - reduceBy;
+        pay.amount = parseFloat(newAmount.toFixed(2));
+        remainingExcess -= reduceBy;
+    }
+
+    amountGiven = paymentData.reduce((sum, pay) => sum + (parseFloat(pay.amount) || 0), 0);
+    return { paymentData, amountGiven, excess: excess };
 }
 
 // ================================================================
@@ -1768,23 +1558,139 @@ $(document).ready(function() {
             return;
         }
 
-        const paymentData = gatherPaymentData();
-        const amountGiven = paymentData.reduce((sum, pay) => sum + (parseFloat(pay.amount) || 0), 0);
+        let paymentData = gatherPaymentData();
+        let amountGiven = paymentData.reduce((sum, pay) => sum + (parseFloat(pay.amount) || 0), 0);
         const finalTotal = parseFormattedAmount(document.getElementById('modal-total-payable').textContent);
+        const excess = amountGiven - finalTotal;
+        const customerId = $('#customer-id').val();
+        const isWalkInCustomer = customerId == 1;
 
-        let totalPaid = Math.min(amountGiven, finalTotal);
-        let balanceAmount = Math.max(0, amountGiven - finalTotal);
+        // If there is no excess, proceed as usual
+        if (excess <= 0.0001) {
+            const totalPaid = Math.min(amountGiven, finalTotal);
+            const balanceAmount = Math.max(0, finalTotal - amountGiven);
 
-        saleData.payments = paymentData;
-        saleData.amount_given = amountGiven;
-        saleData.total_paid = totalPaid;
-        saleData.balance_amount = balanceAmount;
+            saleData.payments = paymentData;
+            saleData.amount_given = amountGiven;
+            saleData.total_paid = totalPaid;
+            saleData.balance_amount = balanceAmount;
 
+            sendSaleData(saleData);
+            let modal = bootstrap.Modal.getInstance(document.getElementById("paymentModal"));
+            if (modal) modal.hide();
+            return;
+        }
 
-        sendSaleData(saleData);
+        const formattedBalance = formatAmountWithSeparators(excess.toFixed(2));
 
-        let modal = bootstrap.Modal.getInstance(document.getElementById("paymentModal"));
-        if (modal) modal.hide();
+        if (isWalkInCustomer) {
+            // For Walk‑In customer, always treat extra as change to return,
+            // and only record the actual bill amount as paid.
+            swal({
+                title: "Return Amount",
+                text: `<div style="text-align: center; font-size: 24px; font-weight: bold; color: #2ecc71; margin: 20px 0;">
+                          <div style="font-size: 18px; color: #7f8c8d; margin-bottom: 10px;">Balance amount to be returned</div>
+                          <div style="font-size: 32px; color: #e74c3c;">Rs. ${formattedBalance}</div>
+                       </div>`,
+                html: true,
+                type: "info",
+                showCancelButton: false,
+                confirmButtonText: "OK",
+                allowOutsideClick: false,
+                allowEscapeKey: true,
+                closeOnEsc: true
+            }, function() {
+                const adjusted = adjustCashPaymentForExcess(paymentData, finalTotal);
+                paymentData = adjusted.paymentData;
+                amountGiven = adjusted.amountGiven;
+
+                const totalPaid = Math.min(amountGiven, finalTotal);
+
+                saleData.payments = paymentData;
+                saleData.amount_given = totalPaid;
+                saleData.total_paid = totalPaid;
+                saleData.balance_amount = 0;
+
+                sendSaleData(saleData);
+                let modal = bootstrap.Modal.getInstance(document.getElementById("paymentModal"));
+                if (modal) modal.hide();
+            });
+        } else {
+            // Named customer: let user choose between returning cash or saving as advance
+            let userMadeChoice = false;
+
+            swal({
+                title: "Excess Payment Received",
+                text: `<div style="text-align: center; margin: 20px 0;">
+                          <div style="font-size: 18px; color: #7f8c8d; margin-bottom: 10px;">Excess Amount Received</div>
+                          <div style="font-size: 32px; color: #e74c3c; margin-bottom: 20px;">Rs. ${formattedBalance}</div>
+                          <div style="font-size: 16px; color: #34495e; margin-top: 15px; margin-bottom: 20px;">
+                              How would you like to handle this amount?
+                          </div>
+                          <div style="display: flex; gap: 12px; justify-content: center; margin-top: 20px;">
+                              <button id="btnReturnCashMultiple" type="button" style="padding: 12px 24px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; background-color: #27ae60; color: white; font-weight: bold;">
+                                  Return Cash
+                              </button>
+                              <button id="btnSaveAdvanceMultiple" type="button" style="padding: 12px 24px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; background-color: #3498db; color: white; font-weight: bold;">
+                                  Save as Advance
+                              </button>
+                          </div>
+                       </div>`,
+                html: true,
+                type: "warning",
+                showConfirmButton: false,
+                showCancelButton: false,
+                allowOutsideClick: false,
+                allowEscapeKey: true,
+                closeOnEsc: true
+            });
+
+            setTimeout(function() {
+                $('#btnReturnCashMultiple').on('click', function() {
+                    if (userMadeChoice) return;
+                    userMadeChoice = true;
+                    swal.close();
+
+                    const adjusted = adjustCashPaymentForExcess(paymentData, finalTotal);
+                    paymentData = adjusted.paymentData;
+                    amountGiven = adjusted.amountGiven;
+                    const totalPaid = Math.min(amountGiven, finalTotal);
+
+                    saleData.payments = paymentData;
+                    saleData.amount_given = totalPaid;
+                    saleData.total_paid = totalPaid;
+                    saleData.balance_amount = 0;
+                    saleData.save_excess_as_advance = false;
+
+                    toastr.info(`Rs. ${formattedBalance} will be returned to customer`, 'Return Cash');
+
+                    sendSaleData(saleData);
+                    let modal = bootstrap.Modal.getInstance(document.getElementById("paymentModal"));
+                    if (modal) modal.hide();
+                });
+
+                $('#btnSaveAdvanceMultiple').on('click', function() {
+                    if (userMadeChoice) return;
+                    userMadeChoice = true;
+                    swal.close();
+
+                    const totalPaid = Math.min(amountGiven, finalTotal);
+
+                    saleData.payments = paymentData;
+                    saleData.amount_given = amountGiven;
+                    saleData.total_paid = totalPaid;
+                    saleData.balance_amount = Math.max(0, amountGiven - finalTotal);
+                    saleData.save_excess_as_advance = true;
+                    saleData.excess_amount = Math.max(0, amountGiven - finalTotal);
+
+                    toastr.success(`Rs. ${formattedBalance} will be saved as customer advance credit`, 'Advance Credit');
+
+                    sendSaleData(saleData);
+                    let modal = bootstrap.Modal.getInstance(document.getElementById("paymentModal"));
+                    if (modal) modal.hide();
+                });
+            }, 100);
+        }
     });
 
     // Payment modal open listener

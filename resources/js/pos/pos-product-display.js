@@ -623,6 +623,8 @@ function displayProducts(products, append = false) {
 }
 
 // ---- FILTER PRODUCT GRID BY SEARCH TEXT ----
+// When user types in search, we only filter *existing* cards.
+// To show search results in the grid, autocomplete success calls displaySearchResultsInGrid().
 
 function filterProductGrid(searchText) {
     const posProduct = document.getElementById('posProduct');
@@ -644,6 +646,34 @@ function filterProductGrid(searchText) {
         card.parentElement.style.display = matches ? '' : 'none';
         if (matches) visibleCount++;
     });
+}
+
+/**
+ * Show autocomplete search results in the product grid (same data as dropdown).
+ * Called from pos-autocomplete when a search returns results so the grid is not empty.
+ * Ensures search results are in window.stockData/allProducts so card click adds to billing.
+ * @param {Array} stockData - same format as autocomplete API data.data (product, batches, total_stock, etc.)
+ */
+function displaySearchResultsInGrid(stockData) {
+    if (!Array.isArray(stockData)) return;
+    // So that product card click finds the stock entry and addProductToTable works
+    window.stockData   = stockData;
+    window.allProducts = stockData;
+    displayProducts(stockData, false);
+}
+
+/**
+ * Scroll the product grid so the latest-added product card is visible.
+ * Called after auto-add / scanner add so the display shows the product just added.
+ * @param {string|number} productId
+ */
+function scrollProductCardIntoView(productId) {
+    const posProduct = document.getElementById('posProduct');
+    if (!posProduct) return;
+    const card = posProduct.querySelector(`.product-card[data-id="${productId}"]`);
+    if (card && card.parentElement) {
+        card.parentElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    }
 }
 
 // ---- DISPLAY PRODUCTS IN MOBILE MODAL ----
@@ -977,8 +1007,10 @@ window.fetchBrands             = fetchBrands;
 window.renderBrands            = renderBrands;
 window.fetchPaginatedProducts  = fetchPaginatedProducts;
 window.setupLazyLoad           = setupLazyLoad;
-window.displayProducts         = displayProducts;
-window.filterProductGrid       = filterProductGrid;
+window.displayProducts           = displayProducts;
+window.filterProductGrid         = filterProductGrid;
+window.displaySearchResultsInGrid = displaySearchResultsInGrid;
+window.scrollProductCardIntoView   = scrollProductCardIntoView;
 window.displayMobileProducts   = displayMobileProducts;
 window.showMobileQuantityModal = showMobileQuantityModal;
 window.fetchFilteredProducts   = fetchFilteredProducts;

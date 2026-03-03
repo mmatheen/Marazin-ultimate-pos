@@ -59,8 +59,8 @@
    1  CONSTANTS & CONFIGURATION
     */
 
-/** Maximum results per autocomplete AJAX call. Smaller = faster response; use 10 if store search is slow. */
-const AUTOCOMPLETE_PER_PAGE = 15;
+/** Maximum results per autocomplete AJAX call. 10 = desktop-like speed; server returns fewer rows. */
+const AUTOCOMPLETE_PER_PAGE = 10;
 
 /** How long (ms) a cached result is considered fresh. */
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -68,8 +68,8 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 /** Maximum cache entries before LRU eviction. */
 const CACHE_MAX_SIZE = 200;
 
-/** Auto-add delay after an exact SKU/IMEI match appears in results. */
-const AUTO_ADD_DELAY_MS = 500;
+/** Auto-add delay after exact SKU/IMEI or single-result match (shorter = snappier). */
+const AUTO_ADD_DELAY_MS = 280;
 
 /**
  * Barcode scanner timing constants.
@@ -386,6 +386,7 @@ function createProductSearchRequest(term, response) {
             location_id: window.selectedLocationId,
             search:      term,
             per_page:    AUTOCOMPLETE_PER_PAGE,
+            context:     'pos',
         },
         cache:   false,
         timeout: 10000,
@@ -433,27 +434,30 @@ function searchForExactMatch(searchTerm) {
             }
 
             const results    = mapSearchResults(filterStockData(data.data), searchTerm);
-            const exactMatch = results.find(r => {
+            const exactSkuImei = results.find(r => {
                 if (!r.product) return false;
                 return (r.product.sku && r.product.sku.toLowerCase() === searchTerm.toLowerCase())
                     || r.exactImeiMatch;
             });
+            // Scanner: add on exact SKU/IMEI OR when exactly one result (unambiguous barcode)
+            const toAdd = exactSkuImei || (results.length === 1 && results[0].product ? results[0] : null);
 
-            if (exactMatch) {
-                //  Exact hit: add immediately
-                const matchType = (exactMatch.product.sku &&
-                                   exactMatch.product.sku.toLowerCase() === searchTerm.toLowerCase())
-                                  ? 'SCANNER_SKU' : 'SCANNER_IMEI';
+            if (toAdd) {
+                if (autocompleteState.autoAddTimer) {
+                    clearTimeout(autocompleteState.autoAddTimer);
+                    autocompleteState.autoAddTimer = null;
+                }
+                const matchType = exactSkuImei
+                    ? (toAdd.product.sku && toAdd.product.sku.toLowerCase() === searchTerm.toLowerCase() ? 'SCANNER_SKU' : 'SCANNER_IMEI')
+                    : 'SCANNER_SKU';
 
                 showSearchIndicator(' Adding scanned item...', '#28a745');
                 $('#productSearchInput').autocomplete('close');
 
-                // Lock adding immediately so any stale checkForAutoAdd timer
-                // from a parallel autocomplete call cannot fire a second add.
                 autocompleteState.adding = true;
 
                 setTimeout(() => {
-                    addProductFromAutocomplete(exactMatch, searchTerm, matchType);
+                    addProductFromAutocomplete(toAdd, searchTerm, matchType);
                     $('#productSearchInput').val('');
                     hideSearchIndicator();
                     autocompleteState.adding = false;
@@ -461,7 +465,7 @@ function searchForExactMatch(searchTerm) {
                 }, SCANNER.ADD_DELAY_MS);
 
             } else if (results.length > 0) {
-                //  Partial matches: show dropdown for cashier to choose
+                //  Multiple matches: show dropdown for cashier to choose
                 autocompleteState.lastResults = results.filter(r => r.product);
                 $('#productSearchInput').autocomplete('close');
                 setTimeout(() => $('#productSearchInput').autocomplete('search', searchTerm), 100);
@@ -612,12 +616,19 @@ function handleSearchSuccess(data, term, response) {
     }
 
     if (results.length === 0) {
+        if (data.data && typeof window.displaySearchResultsInGrid === 'function') {
+            window.displaySearchResultsInGrid([]);
+        }
         checkProductExistsBeforeQuickAdd(term, response, false);
         return;
     }
 
     autocompleteState.lastResults = results.filter(r => r.product);
     checkForAutoAdd(results, term);
+    // Show same results in the product grid so the display area is not empty
+    if (data.data && data.data.length > 0 && typeof window.displaySearchResultsInGrid === 'function') {
+        window.displaySearchResultsInGrid(data.data);
+    }
     response(results);
 }
 
@@ -658,20 +669,24 @@ function handleSearchError(jqXHR, textStatus, response) {
  * @param {string} term
  */
 function checkForAutoAdd(results, term) {
-    if (term.length < 3) return; // ignore very short terms
+    if (term.length < 2) return; // ignore single-char to avoid accidental add
 
-    const exactMatch = results.find(r => {
+    const exactSkuOrImei = results.find(r => {
         if (!r.product) return false;
         const skuMatch = r.product.sku &&
                          r.product.sku.toLowerCase() === term.toLowerCase();
         return skuMatch || r.exactImeiMatch;
     });
 
+    // Auto-add: exact SKU/IMEI match OR single unambiguous result (e.g. search "0100" → one product)
+    const exactMatch = exactSkuOrImei ||
+        (results.length === 1 && results[0].product ? results[0] : null);
+
     if (!exactMatch || autocompleteState.adding) return;
 
-    const matchType = (exactMatch.product.sku &&
-                       exactMatch.product.sku.toLowerCase() === term.toLowerCase())
-                      ? 'SKU' : 'IMEI';
+    const matchType = exactSkuOrImei
+        ? (exactMatch.product.sku && exactMatch.product.sku.toLowerCase() === term.toLowerCase() ? 'SKU' : 'IMEI')
+        : 'MANUAL';
 
     showSearchIndicator(' Auto-adding...', 'orange');
 
@@ -743,6 +758,10 @@ function addProductFromAutocomplete(item, searchTerm = '', matchType = '') {
     if (typeof window.addProductToTable === 'function') {
         window.addProductToTable(item.product, searchTerm, matchType);
     }
+    // Show latest-added product in the display grid (scroll card into view)
+    if (typeof window.scrollProductCardIntoView === 'function') {
+        window.scrollProductCardIntoView(item.product.id);
+    }
 
     setTimeout(() => autoFocusSearchInput(), 200);
 }
@@ -759,16 +778,22 @@ function addProductFromAutocomplete(item, searchTerm = '', matchType = '') {
 function handleManualEnter($input) {
     const focused    = $input.autocomplete('widget').find('.ui-state-focus');
     const term       = $input.val().trim();
-    const itemToAdd  = getSelectedItem(focused) || getFirstResult();
+    let itemToAdd    = getSelectedItem(focused) || getFirstResult();
 
     if (itemToAdd && itemToAdd.product && shouldAddProduct(itemToAdd)) {
         autocompleteState.lastProduct = itemToAdd.product;
         addProductFromAutocomplete(itemToAdd, term, itemToAdd.imeiMatch ? 'IMEI' : 'MANUAL_ENTER');
-    } else {
-        autoFocusSearchInput();
+        $input.autocomplete('close').val('');
+        return;
     }
-
+    // No selection but input has value (e.g. paste or scanner without Enter): run one search and add if single result
+    if (term.length >= 2) {
+        $input.autocomplete('close');
+        searchForExactMatch(term);
+        return;
+    }
     $input.autocomplete('close').val('');
+    autoFocusSearchInput();
 }
 
 /**
@@ -870,13 +895,14 @@ function initAutocomplete() {
                 return;
             }
 
-            // Tier 3  AJAX (debounced to avoid firing on every single keystroke)
+            // Tier 3  AJAX (debounced: wait for user to pause typing = fewer requests, faster feel)
+            const DEBOUNCE_MS = 120;
             autocompleteState.debounceTimer = setTimeout(() => {
                 if (!autocompleteState.isRequesting) {
                     autocompleteState.isRequesting = true;
                     createProductSearchRequest(term, response);
                 }
-            }, 50);
+            }, DEBOUNCE_MS);
         },
 
         //  select: user clicks or presses Enter on a menu item
@@ -894,6 +920,10 @@ function initAutocomplete() {
             }
             if (!ui.item.product || autocompleteState.adding) return false;
 
+            if (autocompleteState.autoAddTimer) {
+                clearTimeout(autocompleteState.autoAddTimer);
+                autocompleteState.autoAddTimer = null;
+            }
             autocompleteState.adding = true;
             $('#productSearchInput').val('');
             addProductFromAutocomplete(ui.item, autocompleteState.currentTerm,
@@ -1240,6 +1270,10 @@ function setupInputEvents() {
             if (value.length === 0) {
                 hideSearchIndicator();
                 resetAutocompleteState();
+                // Restore product grid to first page when search is cleared
+                if (typeof window.fetchPaginatedProducts === 'function') {
+                    window.fetchPaginatedProducts(true);
+                }
             }
             // autoAddTimer is already cancelled inside resetAutocompleteState(),
             // called from source() on every keystroke  no extra cancel needed here.

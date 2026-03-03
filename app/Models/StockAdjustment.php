@@ -2,12 +2,16 @@
 
 namespace App\Models;
 
+use App\Traits\CustomLogsActivity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class StockAdjustment extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity, CustomLogsActivity;
+
+    protected string $customLogName = 'stock_adjustment';
 
     protected $fillable = [
         'reference_no',

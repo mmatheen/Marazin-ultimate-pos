@@ -1,16 +1,20 @@
 <?php
 namespace App\Models;
 use App\Traits\LocationTrait;
+use App\Traits\CustomLogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Services\UnifiedLedgerService;
 use Illuminate\Support\Facades\Log;
 use App\Models\Ledger;
 use App\Helpers\BalanceHelper;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Supplier extends Model
 {
-    use HasFactory,LocationTrait;
+    use HasFactory, LocationTrait, LogsActivity, CustomLogsActivity;
+
+    protected string $customLogName = 'supplier';
     protected $table = 'suppliers';
     protected $fillable = [
         'prefix',

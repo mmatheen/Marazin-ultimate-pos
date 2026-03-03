@@ -3,16 +3,20 @@
 namespace App\Models;
 
 use App\Traits\LocationTrait;
+use App\Traits\CustomLogsActivity;
 use App\Models\Ledger;
 use Carbon\Carbon;
 use App\Helpers\BalanceHelper;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Customer extends Model
 {
-    use HasFactory,LocationTrait;
+    use HasFactory, LocationTrait, LogsActivity, CustomLogsActivity;
+
+    protected string $customLogName = 'customer';
 
 
 

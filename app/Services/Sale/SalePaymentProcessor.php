@@ -209,6 +209,21 @@ class SalePaymentProcessor
         $paymentsToCreate = collect($request->payments)
             ->filter(fn($p) => !empty($p['amount']) && $p['amount'] > 0);
 
+        // When excess is saved as advance, cap sale payment records to final_total so receipt shows bill amount only
+        $saveExcessAsAdvance = $request->boolean('save_excess_as_advance') && floatval($request->excess_amount ?? 0) > 0 && $sale->customer_id != 1;
+        $capAtFinalTotal    = $saveExcessAsAdvance ? $sale->final_total : null;
+
+        if ($capAtFinalTotal !== null) {
+            $remaining = $capAtFinalTotal;
+            $paymentsToCreate = $paymentsToCreate->map(function ($p) use (&$remaining) {
+                $amount = (float) ($p['amount'] ?? 0);
+                $capped = min($amount, max(0, $remaining));
+                $remaining -= $capped;
+                $p['amount'] = round($capped, 2);
+                return $p;
+            })->filter(fn($p) => $p['amount'] > 0);
+        }
+
         foreach ($paymentsToCreate as $paymentData) {
             $this->paymentService->recordSalePayment(
                 $this->buildServicePaymentData($paymentData, $sale),
@@ -217,8 +232,7 @@ class SalePaymentProcessor
         }
 
         // Cheque in-hand counts as received regardless of bank-clearing status.
-        // pending/cleared only tracks whether the bank has processed it.
-        $totalPaid = $paymentsToCreate->sum(fn($p) => $p['amount']);
+        $totalPaid = $paymentsToCreate->sum(fn($p) => (float) ($p['amount'] ?? 0));
 
         // Floating balance adjustment (debit from customer's credit float)
         if ($request->use_floating_balance && $request->floating_balance_amount > 0) {
@@ -226,8 +240,8 @@ class SalePaymentProcessor
             $totalPaid += $request->floating_balance_amount;
         }
 
-        // Excess payment saved as customer advance
-        if ($request->save_excess_as_advance && $request->excess_amount > 0 && $sale->customer_id != 1) {
+        // Excess payment saved as customer advance (record advance; sale payment already capped above)
+        if ($saveExcessAsAdvance) {
             $excessAmount = floatval($request->excess_amount);
 
             $this->paymentService->recordCustomerAdvancePayment([
@@ -245,11 +259,17 @@ class SalePaymentProcessor
         $totalDue      = max(0, $sale->final_total - $totalPaid);
         $paymentStatus = $totalDue <= 0 ? 'Paid' : ($totalPaid > 0 ? 'Partial' : 'Due');
 
-        $sale->update([
+        $update = [
             'total_paid'     => $totalPaid,
             'total_due'      => $totalDue,
             'payment_status' => $paymentStatus,
-        ]);
+        ];
+        // Receipt should show bill amount only when excess was saved as advance
+        if ($saveExcessAsAdvance) {
+            $update['amount_given']   = $sale->final_total;
+            $update['balance_amount'] = 0;
+        }
+        $sale->update($update);
     }
 
     /**

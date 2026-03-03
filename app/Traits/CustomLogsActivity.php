@@ -58,6 +58,12 @@ trait CustomLogsActivity
                 return $this->generatePurchaseDescription($eventName, $userName);
             case 'product':
                 return $this->generateProductDescription($eventName, $userName);
+            case 'customer':
+                return $this->generateCustomerDescription($eventName, $userName);
+            case 'supplier':
+                return $this->generateSupplierDescription($eventName, $userName);
+            case 'stock_adjustment':
+                return $this->generateStockAdjustmentDescription($eventName, $userName);
             default:
                 // Fallback to generic description
                 return "A {$modelName} has been {$eventName} by user: {$userName}";
@@ -179,6 +185,55 @@ trait CustomLogsActivity
         }
         
         return "Product '{$productName}' has been {$eventName} by user: {$userName}";
+    }
+
+    protected function generateCustomerDescription(string $eventName, string $userName): string
+    {
+        $name = $this->full_name ?? trim(($this->first_name ?? '') . ' ' . ($this->last_name ?? '')) ?: 'Customer #' . $this->id;
+        if ($eventName === 'created') {
+            return "Customer '{$name}' has been created by user: {$userName}";
+        }
+        if ($eventName === 'updated') {
+            $changed = $this->isDirty() ? ' - Changed: ' . implode(', ', array_keys($this->getDirty())) : '';
+            return "Customer '{$name}' has been updated by user: {$userName}{$changed}";
+        }
+        if ($eventName === 'deleted') {
+            return "Customer '{$name}' has been deleted by user: {$userName}";
+        }
+        return "Customer '{$name}' has been {$eventName} by user: {$userName}";
+    }
+
+    protected function generateSupplierDescription(string $eventName, string $userName): string
+    {
+        $name = $this->full_name ?? trim(($this->first_name ?? '') . ' ' . ($this->last_name ?? '')) ?: 'Supplier #' . $this->id;
+        if ($eventName === 'created') {
+            return "Supplier '{$name}' has been created by user: {$userName}";
+        }
+        if ($eventName === 'updated') {
+            $changed = $this->isDirty() ? ' - Changed: ' . implode(', ', array_keys($this->getDirty())) : '';
+            return "Supplier '{$name}' has been updated by user: {$userName}{$changed}";
+        }
+        if ($eventName === 'deleted') {
+            return "Supplier '{$name}' has been deleted by user: {$userName}";
+        }
+        return "Supplier '{$name}' has been {$eventName} by user: {$userName}";
+    }
+
+    protected function generateStockAdjustmentDescription(string $eventName, string $userName): string
+    {
+        $ref = $this->reference_no ?? '#' . $this->id;
+        $type = $this->adjustment_type ?? 'N/A';
+        if ($eventName === 'created') {
+            return "Stock adjustment {$ref} ({$type}) has been created by user: {$userName}";
+        }
+        if ($eventName === 'updated') {
+            $changed = $this->isDirty() ? ' - Changed: ' . implode(', ', array_keys($this->getDirty())) : '';
+            return "Stock adjustment {$ref} has been updated by user: {$userName}{$changed}";
+        }
+        if ($eventName === 'deleted') {
+            return "Stock adjustment {$ref} has been deleted by user: {$userName}";
+        }
+        return "Stock adjustment {$ref} has been {$eventName} by user: {$userName}";
     }
 
     protected function getCustomLogName(): string

@@ -6,6 +6,7 @@ use App\Services\ProfitLossService;
 use App\Models\Sale;
 use App\Models\SalesReturn;
 use App\Models\Product;
+use App\Models\Customer;
 use App\Models\Brand;
 use App\Models\Location;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -142,9 +143,47 @@ public function fetchActivityLog(Request $request)
         return $item;
     });
 
+    // Collect customer_ids from Sale logs (attributes + old) for full name resolution
+    $customerIds = [];
+    foreach ($logs as $item) {
+        $subjectType = $item->subject_type ?? '';
+        if ($subjectType !== 'App\Models\Sale' && $subjectType !== 'App\\Models\\Sale') {
+            continue;
+        }
+        if (! $item->properties) {
+            continue;
+        }
+        $props = $item->properties;
+        if (is_object($props) && method_exists($props, 'toArray')) {
+            $props = $props->toArray();
+        } elseif (is_string($props)) {
+            $props = json_decode($props, true) ?? [];
+        } elseif (! is_array($props)) {
+            $props = (array) $props;
+        }
+        $attrs = $props['attributes'] ?? [];
+        $old = $props['old'] ?? [];
+        if (! empty($attrs['customer_id'])) {
+            $customerIds[] = $attrs['customer_id'];
+        }
+        if (! empty($old['customer_id'])) {
+            $customerIds[] = $old['customer_id'];
+        }
+    }
+    $customerIds = array_unique(array_filter($customerIds));
+    $customerNames = [];
+    if (! empty($customerIds)) {
+        $customers = Customer::withoutGlobalScopes()->whereIn('id', $customerIds)->get();
+        foreach ($customers as $c) {
+            $fullName = trim(($c->first_name ?? '') . ' ' . ($c->last_name ?? ''));
+            $customerNames[(string) $c->id] = $fullName !== '' ? $fullName : ('Customer #' . $c->id);
+        }
+    }
+
     return response()->json([
         'success' => true,
-        'data' => $logs
+        'data' => $logs,
+        'customer_names' => $customerNames,
     ]);
 }
 

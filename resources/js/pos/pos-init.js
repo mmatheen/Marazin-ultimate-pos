@@ -22,14 +22,13 @@ const fetchAllLocations     = PosLocation.fetchAllLocations || function () {};
  *   - CSRF AJAX setup
  *   - Permission & shipping globals
  *   - Cache management (clearAllCaches, storage listeners, refresh helpers)
- *   - DOMContentLoaded: state vars, DOM element refs, INIT flow
- *   - Location change handler, customer change handler
- *   - Cash Register Quick Entry
- *   - Auto-focus, visibility & afterprint handlers
- *   - Global discount handlers
- *   - closeOffcanvas utility
- *   - Mobile product modal handlers
- *   - updateAllBillingRowsPricing
+ *   - DOMContentLoaded: calls init functions in order (see list below).
+ *   - Init functions: initGlobalErrorHandler, initPosState, initLocationDropdown,
+ *     initModals, initCategoriesBrandsAutocomplete, initCashRegister, initImageHealth,
+ *     initFocusAndPrint, initCustomerHandler, initMobileProductModal, initCloseOffcanvas,
+ *     initGlobalDiscount.
+ *   - Helpers (scope of DOMContentLoaded): initDOMElements, updateAllBillingRowsPricing,
+ *     handleLocationChange.
  * ============================================================
  */
 
@@ -166,10 +165,110 @@ var currentFilter        = { type: null, id: null };
 var isSalesRep           = false;
 var cashItemCounter      = 0;
 
-/* ── DOMContentLoaded ───────────────────────────────────────── */
-document.addEventListener('DOMContentLoaded', function () {
+/* ── Shared helpers (module level — used by multiple init functions) ─── */
 
-    /* Global error handler */
+function initDOMElements() {
+    posProduct         = getCachedElement('posProduct');
+    billingBody        = getCachedElement('billing-body');
+    discountInput      = getCachedElement('discount');
+    finalValue         = getCachedElement('total');
+    categoryBtn        = getCachedElement('category-btn');
+    allProductsBtn     = getCachedElement('allProductsBtn');
+    subcategoryBackBtn = getCachedElement('subcategoryBackBtn');
+}
+
+var _editModeToastShown = false;
+window._editModeToastShown = false;
+
+function updateAllBillingRowsPricing(newCustomerType) {
+    if (window.isEditing) {
+        if (!window._editModeToastShown) {
+            window._editModeToastShown = true;
+            toastr.info('Edit Mode: Original sale prices preserved. Customer pricing not applied.', 'Edit Mode Active');
+        }
+        return;
+    }
+    window._editModeToastShown = false;
+    var billingBodyEl = document.getElementById('billing-body');
+    var existingRows  = billingBodyEl ? billingBodyEl.querySelectorAll('tr') : [];
+    if (existingRows.length === 0) return;
+    existingRows.forEach(function (row) {
+        try {
+            var productId = row.getAttribute('data-product-id');
+            var batchId   = row.getAttribute('data-batch-id');
+            if (!productId) return;
+            var productData = null;
+            var batchData   = null;
+            var productAttr = row.getAttribute('data-product-pricing');
+            var batchAttr   = row.getAttribute('data-batch-pricing');
+            if (productAttr) { try { productData = JSON.parse(productAttr); } catch (e) { /* ignore */ } }
+            if (batchAttr) { try { batchData = JSON.parse(batchAttr); } catch (e) { /* ignore */ } }
+            if (!productData) productData = getProductDataById(productId);
+            if (!batchData && batchId) batchData = getBatchDataById(batchId);
+            if (!productData) return;
+            var pricingResult = getCustomerTypePrice(batchData, productData, newCustomerType);
+            if (pricingResult.hasError || pricingResult.price <= 0) return;
+            updateBillingRowPrice(row, pricingResult.price, pricingResult.source);
+        } catch (error) { /* skip row */ }
+    });
+    updateTotals();
+}
+
+function handleLocationChange(event) {
+    selectedLocationId = $(event.target).val();
+    window.selectedLocationId = selectedLocationId;
+    currentProductsPage = 1;
+    window.currentProductsPage = currentProductsPage;
+    hasMoreProducts = true;
+    window.hasMoreProducts = hasMoreProducts;
+    allProducts = [];
+    window.allProducts = allProducts;
+    if (!posProduct) posProduct = document.getElementById('posProduct');
+    if (posProduct) posProduct.innerHTML = '';
+    if (selectedLocationId) {
+        var productListArea = document.getElementById('productListArea');
+        var mainContent     = document.getElementById('mainContent');
+        if (productListArea && mainContent) {
+            productListArea.classList.remove('d-none');
+            productListArea.classList.add('show');
+            mainContent.classList.remove('col-md-12');
+            mainContent.classList.add('col-md-7');
+        }
+        window.fetchPaginatedProducts(true);
+    } else {
+        var productListArea2 = document.getElementById('productListArea');
+        var mainContent2     = document.getElementById('mainContent');
+        if (productListArea2 && mainContent2) {
+            productListArea2.classList.add('d-none');
+            productListArea2.classList.remove('show');
+            mainContent2.classList.remove('col-md-7');
+            mainContent2.classList.add('col-md-12');
+        }
+    }
+    billingBody.innerHTML = '';
+    updateTotals();
+    if (window.isSalesRep && selectedLocationId) window.checkAndToggleSalesRepButtons(selectedLocationId);
+    setTimeout(function () { var inp = document.getElementById('productSearchInput'); if (inp) inp.focus(); }, 300);
+}
+
+/* ── DOMContentLoaded: run all inits in order ─────────────────── */
+document.addEventListener('DOMContentLoaded', function () {
+    initGlobalErrorHandler();
+    initPosState();
+    initLocationDropdown();
+    initModals();
+    initCategoriesBrandsAutocomplete();
+    initCashRegister();
+    initImageHealth();
+    initFocusAndPrint();
+    initCustomerHandler();
+    initMobileProductModal();
+    initCloseOffcanvas();
+    initGlobalDiscount();
+});
+
+/* ── Init helpers (defined at module level, called from DOMContentLoaded above) ── */
+function initGlobalErrorHandler() {
     window.addEventListener('error', function (e) {
         if (e.message && e.message.includes('appendChild')) {
             e.preventDefault();
@@ -180,12 +279,12 @@ document.addEventListener('DOMContentLoaded', function () {
             return true;
         }
     });
+}
 
-    /* ── Window bridges for state variables ───────────────── */
+function initPosState() {
     window.isEditing = false;
     window.currentEditingSaleId = null;
     window.isEditingFinalizedSale = false;
-
     window.getPosState = function () {
         return {
             isEditing: window.isEditing,
@@ -193,8 +292,6 @@ document.addEventListener('DOMContentLoaded', function () {
             shippingData: window.shippingData
         };
     };
-
-    /* ── navigateToPosCreate ─────────────────────────────── */
     function navigateToPosCreate() {
         if (window.location.pathname.includes('/edit/') || window.location.pathname.includes('/sales/')) {
             window.location.href = '/pos-create';
@@ -219,34 +316,24 @@ document.addEventListener('DOMContentLoaded', function () {
         }, 100);
     }
     window.navigateToPosCreate = navigateToPosCreate;
-
-    /* Browser back/forward */
     window.addEventListener('popstate', function () {
         if (window.location.pathname === '/pos-create') navigateToPosCreate();
     });
-
-    /* ── Local aliases & window exposures ────────────────── */
     window.isSalesRep = false;
-    var perPage = 24;
-
     window.selectedLocationId   = selectedLocationId;
     window.allProducts          = allProducts;
     window.stockData            = stockData;
     window.isLoadingProducts    = isLoadingProducts;
     window.hasMoreProducts      = hasMoreProducts;
     window.currentProductsPage  = currentProductsPage;
-
-    var LOCATION_CACHE_DURATION   = window.LOCATION_CACHE_DURATION || (5 * 60 * 1000);
-    var CUSTOMER_FILTER_COOLDOWN  = 2000;
-
-    /* Filter state */
     window.currentFilter = currentFilter;
     window.setCurrentFilter = function (f) {
         currentFilter = f;
         window.currentFilter = f;
     };
+}
 
-    /* ── INIT ────────────────────────────────────────────── */
+function initLocationDropdown() {
     fetchAllLocations(false, function () {
 
         if (window.PosConfig.auth.isSalesRepUser) {
@@ -285,12 +372,18 @@ document.addEventListener('DOMContentLoaded', function () {
             window.fetchEditSale(saleId);
         }
     });
-
-    /* ── Location change ─────────────────────────────────── */
     $('#locationSelect').on('change', handleLocationChange);
     $('#locationSelectDesktop').on('change', handleLocationChange);
+    $('#locationSelect').on('change', function () {
+        $("#productSearchInput").val('');
+        if ($("#productSearchInput").data('ui-autocomplete')) {
+            $("#productSearchInput").autocomplete('destroy');
+        }
+        if (typeof window.initAutocomplete === 'function') window.initAutocomplete();
+    });
+}
 
-    /* ── Modal handlers ──────────────────────────────────── */
+function initModals() {
     $(document).on('show.bs.modal', '#mobileMenuModal', function () {
         if (window.isSalesRep) {
             var selection = window.getSalesRepSelection();
@@ -318,15 +411,16 @@ document.addEventListener('DOMContentLoaded', function () {
     setTimeout(function () {
         if (!window.isSalesRep) window.showAllSalesRepButtons();
     }, 1000);
+}
 
-    /* ── Category & Brand init ───────────────────────────── */
+function initCategoriesBrandsAutocomplete() {
     try { window.fetchCategories(); } catch (e) { /* ignore */ }
     try { window.fetchBrands();     } catch (e) { /* ignore */ }
-
     initAutocomplete();
     initDOMElements();
+}
 
-    /* ── Cash Register Quick Entry ───────────────────────── */
+function initCashRegister() {
     function addCashItem(price, qty) {
         if (!miscItemProductId || miscItemProductId === 0) {
             toastr.error('Cash Item product not configured. Create a product and set MISC_ITEM_PRODUCT_ID in .env', 'Setup Required');
@@ -416,14 +510,16 @@ document.addEventListener('DOMContentLoaded', function () {
     if (cashEntryClose) {
         cashEntryClose.addEventListener('click', closeCashEntry);
     }
+}
 
-    /* ── Image health check ──────────────────────────────── */
+function initImageHealth() {
     setTimeout(function () {
         checkImageHealth();
         refreshProductImages();
     }, 3000);
+}
 
-    /* ── Auto-focus product search ───────────────────────── */
+function initFocusAndPrint() {
     setTimeout(function () {
         var productSearchInput = document.getElementById('productSearchInput');
         if (productSearchInput) {
@@ -438,8 +534,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }, 2000);
         }
     }, 500);
-
-    /* ── Visibility / afterprint handlers ─────────────────── */
     document.addEventListener('visibilitychange', function () {
         if (!document.hidden) {
             setTimeout(function () {
@@ -448,128 +542,29 @@ document.addEventListener('DOMContentLoaded', function () {
             }, 200);
         }
     });
-
     window.addEventListener('afterprint', function () {
         setTimeout(function () {
             var inp = document.getElementById('productSearchInput');
             if (inp) { inp.focus(); inp.select(); }
         }, 300);
     });
+}
 
-    /* ── Customer change handler ─────────────────────────── */
+function initCustomerHandler() {
     $('#customer-id').on('change', function () {
         customerPriceCache.clear();
 
-        var billingBodyEl  = document.getElementById('billing-body');
-        var existingRows   = billingBodyEl ? billingBodyEl.querySelectorAll('tr') : [];
+        var billingBodyEl = document.getElementById('billing-body');
+        var existingRows  = billingBodyEl ? billingBodyEl.querySelectorAll('tr') : [];
 
         if (existingRows.length > 0) {
             var currentCustomer = getCurrentCustomer();
             updateAllBillingRowsPricing(currentCustomer.customer_type);
         }
     });
+}
 
-    /* ── initDOMElements ─────────────────────────────────── */
-    function initDOMElements() {
-        posProduct        = getCachedElement('posProduct');
-        billingBody       = getCachedElement('billing-body');
-        discountInput     = getCachedElement('discount');
-        finalValue        = getCachedElement('total');
-        categoryBtn       = getCachedElement('category-btn');
-        allProductsBtn    = getCachedElement('allProductsBtn');
-        subcategoryBackBtn = getCachedElement('subcategoryBackBtn');
-    }
-
-    /* ── Edit-mode toast tracking ────────────────────────── */
-    var _editModeToastShown = false;
-    window._editModeToastShown = false;
-
-    /* ── updateAllBillingRowsPricing ─────────────────────── */
-    function updateAllBillingRowsPricing(newCustomerType) {
-        if (window.isEditing) {
-            if (!window._editModeToastShown) {
-                window._editModeToastShown = true;
-                toastr.info('Edit Mode: Original sale prices preserved. Customer pricing not applied.', 'Edit Mode Active');
-            }
-            return;
-        }
-        window._editModeToastShown = false;
-
-        var billingBodyEl = document.getElementById('billing-body');
-        var existingRows  = billingBodyEl ? billingBodyEl.querySelectorAll('tr') : [];
-        if (existingRows.length === 0) return;
-
-        existingRows.forEach(function (row) {
-            try {
-                var productId = row.getAttribute('data-product-id');
-                var batchId   = row.getAttribute('data-batch-id');
-                if (!productId) return;
-
-                var productData = getProductDataById(productId);
-                var batchData   = batchId ? getBatchDataById(batchId) : null;
-                if (!productData) return;
-
-                var pricingResult = getCustomerTypePrice(batchData, productData, newCustomerType);
-                if (pricingResult.hasError || pricingResult.price <= 0) return;
-
-                updateBillingRowPrice(row, pricingResult.price, pricingResult.source);
-            } catch (error) { /* skip row */ }
-        });
-
-        updateTotals();
-    }
-
-    /* ── handleLocationChange ────────────────────────────── */
-    function handleLocationChange(event) {
-        selectedLocationId = $(event.target).val();
-        window.selectedLocationId = selectedLocationId;
-        currentProductsPage = 1;
-        window.currentProductsPage = currentProductsPage;
-        hasMoreProducts = true;
-        window.hasMoreProducts = hasMoreProducts;
-        allProducts = [];
-        window.allProducts = allProducts;
-
-        if (!posProduct) posProduct = document.getElementById('posProduct');
-        if (posProduct) {
-            posProduct.innerHTML = '';
-        }
-
-        if (selectedLocationId) {
-            var productListArea = document.getElementById('productListArea');
-            var mainContent     = document.getElementById('mainContent');
-            if (productListArea && mainContent) {
-                productListArea.classList.remove('d-none');
-                productListArea.classList.add('show');
-                mainContent.classList.remove('col-md-12');
-                mainContent.classList.add('col-md-7');
-            }
-            window.fetchPaginatedProducts(true);
-        } else {
-            var productListArea2 = document.getElementById('productListArea');
-            var mainContent2     = document.getElementById('mainContent');
-            if (productListArea2 && mainContent2) {
-                productListArea2.classList.add('d-none');
-                productListArea2.classList.remove('show');
-                mainContent2.classList.remove('col-md-7');
-                mainContent2.classList.add('col-md-12');
-            }
-        }
-
-        billingBody.innerHTML = '';
-        updateTotals();
-
-        if (window.isSalesRep && selectedLocationId) {
-            window.checkAndToggleSalesRepButtons(selectedLocationId);
-        }
-
-        setTimeout(function () {
-            var inp = document.getElementById('productSearchInput');
-            if (inp) inp.focus();
-        }, 300);
-    }
-
-    /* ── allProductsBtn ──────────────────────────────────── */
+function initMobileProductModal() {
     if (allProductsBtn) {
         allProductsBtn.onclick = function () { showAllProducts(); };
     }
@@ -638,25 +633,18 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+}
 
-    /* Reinit autocomplete on location change */
-    $('#locationSelect').on('change', function () {
-        $("#productSearchInput").val('');
-        if ($("#productSearchInput").data('ui-autocomplete')) {
-            $("#productSearchInput").autocomplete('destroy');
-        }
-        if (typeof window.initAutocomplete === 'function') window.initAutocomplete();
-    });
-
-    /* ── closeOffcanvas utility ──────────────────────────── */
+function initCloseOffcanvas() {
     function closeOffcanvas(offcanvasId) {
         var offcanvasElement = document.getElementById(offcanvasId);
         var bsOffcanvas = bootstrap.Offcanvas.getInstance(offcanvasElement);
         if (bsOffcanvas) bsOffcanvas.hide();
     }
     window.closeOffcanvas = closeOffcanvas;
+}
 
-    /* ── Global Discount Handlers ────────────────────────── */
+function initGlobalDiscount() {
     var globalDiscountInput     = document.getElementById('global-discount');
     var globalDiscountTypeInput = document.getElementById('discount-type');
 
@@ -690,5 +678,4 @@ document.addEventListener('DOMContentLoaded', function () {
             updateTotals();
         });
     }
-
-}); // end DOMContentLoaded
+}
