@@ -118,10 +118,10 @@ window.addEventListener('storage', function (e) {
 /* Console helpers for manual cache refresh */
 window.refreshPOSCache = function () {
     clearAllCaches();
-    if (typeof initAutocomplete === 'function') {
+    if (typeof window.initAutocomplete === 'function') {
         try {
             $("#productSearchInput").autocomplete('destroy');
-            initAutocomplete();
+            window.initAutocomplete();
         } catch (e) { /* ignore */ }
     }
     if (selectedLocationId) {
@@ -252,9 +252,12 @@ function handleLocationChange(event) {
 }
 
 /* ── DOMContentLoaded: run all inits in order ─────────────────── */
+/* initDOMElements runs early so posProduct/billingBody etc exist before
+   initLocationDropdown callback can trigger handleLocationChange */
 document.addEventListener('DOMContentLoaded', function () {
     initGlobalErrorHandler();
     initPosState();
+    initDOMElements();
     initLocationDropdown();
     initModals();
     initCategoriesBrandsAutocomplete();
@@ -416,7 +419,7 @@ function initModals() {
 function initCategoriesBrandsAutocomplete() {
     try { window.fetchCategories(); } catch (e) { /* ignore */ }
     try { window.fetchBrands();     } catch (e) { /* ignore */ }
-    initAutocomplete();
+    if (typeof window.initAutocomplete === 'function') window.initAutocomplete();
     initDOMElements();
 }
 

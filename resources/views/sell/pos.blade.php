@@ -74,6 +74,19 @@
         #mobileQuantityModal .modal-dialog {
             z-index: 10601 !important;
         }
+
+        /* Calculator & sale return (invoice) dropdowns above main content (no clipping/hiding) */
+        #posHeaderCard {
+            position: relative;
+            z-index: 1020;
+            overflow: visible;
+        }
+        #posHeaderCard .dropdown-menu {
+            z-index: 1030 !important;
+        }
+        #invoiceDropdown {
+            min-width: 320px;
+        }
     </style>
 </head>
 
@@ -84,21 +97,29 @@
     <div class="container-fluid p-1">
         <div class="row">
             <div class="col-md-12">
-                <div class="card bg-white p-1">
-                    <!-- Mobile View: Single Row -->
-                    <div class="d-md-none">
-                        <div class="d-flex justify-content-between align-items-center gap-2">
-                            <select id="locationSelect" class="form-select selectBox" style="flex: 1;">
-                                <option value="" selected disabled>Select Location</option>
-                            </select>
-                            <button class="btn btn-primary" type="button" data-bs-toggle="modal"
-                                data-bs-target="#mobileProductModal" title="Product List">
-                                <i class="fas fa-box-open"></i>
-                            </button>
-                            <button class="btn btn-primary" type="button" data-bs-toggle="modal"
-                                data-bs-target="#mobileMenuModal" title="Menu">
-                                <i class="fas fa-bars"></i>
-                            </button>
+                <div class="card bg-white p-1" id="posHeaderCard">
+                    <!-- Mobile View: icon + location only (no app name), time, dark grey pill buttons -->
+                    <div class="d-md-none pos-mobile-header">
+                        <div class="d-flex align-items-center w-100">
+                            <div class="pos-mobile-brand d-flex align-items-center gap-2 flex-grow-1 min-width-0">
+                                <div class="pos-mobile-brand-icon rounded-circle d-flex align-items-center justify-content-center flex-shrink-0">
+                                    <i class="fas fa-shopping-cart text-white"></i>
+                                </div>
+                                <div class="pos-mobile-brand-content min-width-0 flex-grow-1">
+                                    <select id="locationSelect" class="form-select form-select-sm selectBox pos-mobile-location-select border-0 bg-transparent p-0 text-dark fw-semibold" style="font-size: 0.8rem; max-width: 100%;">
+                                        <option value="" selected disabled>Select Location</option>
+                                    </select>
+                                    <span id="currentTimeTextMobile" class="pos-mobile-time text-muted d-block" style="font-size: 0.7rem;">{{ \Carbon\Carbon::now('Asia/Colombo')->format('H:i:s') }}</span>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                <button type="button" class="btn pos-mobile-header-btn rounded-pill p-0" id="mobileClearCartBtn" title="Clear cart" aria-label="Clear cart">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                                <button type="button" class="btn pos-mobile-header-btn rounded-pill p-0" data-bs-toggle="modal" data-bs-target="#mobileMenuModal" title="Menu" aria-label="Menu">
+                                    <i class="fas fa-bars"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <!-- Desktop View: Two Columns -->
@@ -172,8 +193,8 @@
                         </div>
 
                         <!-- Action Buttons (Desktop) -->
-                        <div class="col-md-6" style="padding: 0 6px;">
-                            <div class="d-flex justify-content-end align-items-center" style="gap: 5px;">
+                        <div class="col-md-6" style="padding: 0 10px;">
+                            <div class="d-flex justify-content-end align-items-center flex-wrap" style="gap: 10px;">
                                 <button class="btn btn-secondary btn-sm"
                                     onclick="handleGoHome()"
                                     data-bs-toggle="tooltip" title="Go home">
@@ -250,11 +271,12 @@
                                 <div class="dropdown">
                                     <button class="btn btn-danger btn-sm dropdown-toggle" type="button"
                                         id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false"
-                                        title="Enter Invoice No">
+                                        title="Enter Invoice No (Sale Return)">
                                         <i class="fas fa-redo-alt"></i>
                                     </button>
-                                    <div class="dropdown-menu p-3">
-                                        <label for="invoiceNo" class="form-label">Enter Invoice No</label>
+                                    <div class="dropdown-menu p-3" id="invoiceDropdown">
+                                        <label for="invoiceNo" class="form-label mb-0">Enter Invoice No</label>
+                                        <small class="text-muted d-block mb-2">For Sale Return</small>
                                         <input type="text" id="invoiceNo" class="form-control form-control-sm"
                                             placeholder="Invoice No">
                                         <button id="invoiceSubmitBtn"
@@ -503,14 +525,14 @@
                             </div>
                             <div class="row">
                                 <div class="col-md-5 pe-2">
-
-                                    <div class="d-flex justify-content-center customer-select2">
+                                    <div class="d-flex align-items-center customer-select2 pos-customer-row">
+                                        <span class="d-inline d-md-none me-2 text-muted" aria-hidden="true"><i class="fas fa-user"></i></span>
                                         <select class="form-control selectBox" id="customer-id" style="flex: 1;">
                                             <option selected disabled>Please Select</option>
                                         </select>
-                                        <button type="button" class="btn btn-outline-info rounded-0"
-                                            id="addCustomerButton">
-                                            <i class="fas fa-plus-circle"></i>
+                                        <button type="button" class="btn btn-outline-info rounded-0 pos-add-customer-btn" id="addCustomerButton" title="Add customer">
+                                            <i class="fas fa-plus-circle d-none d-md-inline-block"></i>
+                                            <i class="fas fa-plus d-md-none"></i>
                                         </button>
                                     </div>
                                     <!-- Customer Credit Information Row -->
@@ -539,15 +561,20 @@
                                     </div>
                                 </div>
                                 <div class="col-md-7 ps-2">
-                                    <div class="input-group">
+                                    <div class="input-group pos-search-row">
+                                        <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
                                         <input type="text" class="form-control" id="productSearchInput"
-                                            placeholder="Enter Product name / SKU / Scan bar code"
-                                            style="height: 38px; font-size: 14px;">
+                                            placeholder="Enter Product name / SKU / Scan...">
+                                        <!-- Product list button: show only on mobile + tablet (< 992px), hide on desktop -->
+                                        <button type="button" class="btn btn-outline-secondary d-lg-none pos-search-grid-btn"
+                                            data-bs-toggle="modal" data-bs-target="#mobileProductModal"
+                                            title="Product list" aria-label="Product list">
+                                            <i class="fas fa-th-large text-muted"></i>
+                                        </button>
                                         @if($canUseQuickPriceEntry)
                                         <button id="cashEntryToggle" type="button"
-                                            class="btn btn-outline-secondary"
-                                            title="Quick price entry"
-                                            style="padding:0 12px; line-height:1;">
+                                            class="btn btn-outline-secondary d-none d-md-inline-flex"
+                                            title="Quick price entry">
                                             <i class="fas fa-tag"></i>
                                         </button>
                                         @endif
@@ -606,8 +633,8 @@
                                 </div>
                             </div>
 
-                            <!-- Item Counter Section - Fixed at bottom of billing card -->
-                            <div class="row"
+                            <!-- Item Counter Section - Fixed at bottom of billing card (desktop) -->
+                            <div class="row d-none d-md-flex pos-desktop-item-counter"
                                 style="margin: 0; border-top: 2px solid #ddd; background-color: #f8f9fa;">
                                 <div class="col-md-12" style="padding: 4px 8px;">
                                     <div class="d-flex align-items-center justify-content-between">
@@ -624,8 +651,16 @@
                                 </div>
                             </div>
 
+                            <!-- Mobile Order Summary: Total Items line -->
+                            <div class="row d-md-none pos-mobile-total-items-row" style="margin: 0; padding: 10px 12px; background: #f8f9fa; border-top: 1px solid #eee;">
+                                <div class="col-12 d-flex justify-content-between align-items-center">
+                                    <span class="fw-semibold text-secondary">Total Items</span>
+                                    <span id="mobile-total-items-text" class="fw-bold">0 Items (0 pcs)</span>
+                                </div>
+                            </div>
+
                             <!-- Total, Discount, Final Total Section - Fixed at bottom -->
-                            <div class="row align-items-end"
+                            <div class="row align-items-end pos-order-summary-row"
                                 style="margin: 0; border-top: 2px solid #ddd; background-color: #fff; padding: 10px;">
                                 <div class="col-md-2">
                                     <div class="form-group mb-0">
@@ -682,10 +717,11 @@
                                     <div class="form-group mb-0">
                                         <label
                                             style="font-size: 11px; font-weight: 600; margin-bottom: 2px; display: block;">Shipping</label>
-                                        <button class="btn btn-outline-info w-100" data-bs-toggle="modal"
+                                        <button class="btn btn-outline-info w-100 pos-shipping-btn" data-bs-toggle="modal"
                                             data-bs-target="#shippingModal" id="shippingButton"
                                             style="height: 30px; font-size: 12px; font-weight: 600; padding: 4px 8px;">
-                                            <i class="fas fa-shipping-fast"></i> Shipping
+                                            <i class="fas fa-truck d-md-none"></i><i class="fas fa-shipping-fast d-none d-md-inline-block"></i>
+                                            <span class="d-md-none">Add Shipping Details</span><span class="d-none d-md-inline">Shipping</span>
                                         </button>
                                     </div>
                                 </div>
@@ -740,7 +776,7 @@
                                 </div>
                             </div>
 
-                            <div class="row g-1 overflow-auto" id="posProduct"
+                            <div class="row g-2 g-md-2 overflow-auto" id="posProduct"
                                 style="height: calc(100vh - 315px); overflow-y: auto;">
 
                             </div>
@@ -847,24 +883,22 @@
             </div>
         </div>
 
-        <!-- Mobile/Tablet Bottom Fixed Button (Shows Final Total & Opens Payment Modal) -->
+        <!-- Mobile/Tablet Bottom Bar (reference: FINAL TOTAL, white Pay Now →, footer line) -->
         <div class="mobile-bottom-fixed d-lg-none">
             <div class="mobile-bottom-container">
-                <div class="d-flex align-items-center justify-content-between">
-                    <div>
-                        <small class="text-white d-block mb-1" style="font-size: 11px; opacity: 0.9;">Final
-                            Total</small>
-                        <h5 class="text-white mb-0 fw-bold" id="mobile-final-total">Rs 0.00</h5>
-                        <small class="text-white" style="font-size: 10px; opacity: 0.8;">
-                            <span id="mobile-items-count">0</span> item(s)
+                <div class="d-flex align-items-center justify-content-between w-100">
+                    <div class="min-width-0">
+                        <div class="text-white text-uppercase fw-semibold mb-0 pos-mobile-final-label">FINAL TOTAL</div>
+                        <div class="text-white fw-bold lh-1 mt-1 pos-mobile-final-amount" id="mobile-final-total">Rs 0.00</div>
+                        <small class="text-white d-block mt-0 pos-mobile-cart-line" id="mobile-cart-summary">
+                            <span id="mobile-items-count">0</span> item(s) in cart
                         </small>
                     </div>
-                    <button class="btn btn-light fw-bold px-3 py-2" data-bs-toggle="modal"
-                        data-bs-target="#mobilePaymentModal">
-                        <i class="fas fa-credit-card me-1"></i>
-                        Pay Now
+                    <button type="button" class="btn pos-mobile-pay-btn rounded-pill px-4 py-2 fw-bold d-flex align-items-center gap-1 ms-2 flex-shrink-0" data-bs-toggle="modal" data-bs-target="#mobilePaymentModal">
+                        Pay Now <i class="fas fa-arrow-right small"></i>
                     </button>
                 </div>
+                <p class="text-white mb-0 mt-2 text-center small pos-mobile-pay-footer">Select payment method on next step</p>
             </div>
         </div>
 

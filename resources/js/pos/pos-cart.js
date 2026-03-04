@@ -340,6 +340,13 @@ function writeTotalsToDom(billingBody, totals) {
     if (rowCountEl) {
         rowCountEl.textContent = billingBody.querySelectorAll('tr').length;
     }
+
+    const mobileTotalItemsEl = document.getElementById('mobile-total-items-text');
+    if (mobileTotalItemsEl) {
+        const rowCount = billingBody.querySelectorAll('tr').length;
+        const units = unitDisplay || totalItems + ' pcs';
+        mobileTotalItemsEl.textContent = rowCount + ' Item' + (rowCount !== 1 ? 's' : '') + ' (' + units + ')';
+    }
 }
 
 function updateTotals() {

@@ -31,8 +31,50 @@ window.Pos = window.Pos || {};
 window.Pos.Page = window.Pos.Page || {};
 
 /* ================================================================
-   1. CALCULATOR
+   1. CALCULATOR (safe — no eval; only arithmetic)
    ================================================================ */
+/**
+ * Safe calculator: only digits, + - * / . and spaces. No eval, no code injection.
+ * Supports: 2+3*4, 10/2, 1.5*2. Returns null if invalid.
+ */
+function safeCalculateResult(expr) {
+    if (typeof expr !== 'string' || !expr.trim()) return null;
+    var s = expr.replace(/\s/g, '');
+    if (!/^[\d+\-*/.]+$/.test(s)) return null;
+    var tokens = s.match(/\d+\.?\d*|[\+\-\*\/]/g);
+    if (!tokens || tokens.length < 2) {
+        var single = parseFloat(s);
+        return isFinite(single) ? single : null;
+    }
+    try {
+        var i = 0;
+        function num() {
+            if (i >= tokens.length) return NaN;
+            var t = tokens[i++];
+            if (/^[\d.]+$/.test(t)) return parseFloat(t);
+            i--;
+            return NaN;
+        }
+        function term() {
+            var left = num();
+            while (i < tokens.length && (tokens[i] === '*' || tokens[i] === '/')) {
+                var op = tokens[i++];
+                var right = num();
+                left = op === '*' ? left * right : left / right;
+            }
+            return left;
+        }
+        var result = term();
+        while (i < tokens.length && (tokens[i] === '+' || tokens[i] === '-')) {
+            var op = tokens[i++];
+            result = op === '+' ? result + term() : result - term();
+        }
+        return i === tokens.length && isFinite(result) ? result : null;
+    } catch (e) {
+        return null;
+    }
+}
+
 window.Pos.Page.calcInput = function (value) {
     document.getElementById('calcDisplay').value += value;
 };
@@ -42,10 +84,13 @@ window.Pos.Page.clearCalc = function () {
 };
 
 window.Pos.Page.calculateResult = function () {
-    try {
-        document.getElementById('calcDisplay').value = eval(document.getElementById('calcDisplay').value);
-    } catch (e) {
-        document.getElementById('calcDisplay').value = 'Error';
+    var el = document.getElementById('calcDisplay');
+    if (!el) return;
+    var result = safeCalculateResult(el.value);
+    if (result === null) {
+        el.value = 'Error';
+    } else {
+        el.value = Number.isInteger(result) ? result : parseFloat(result.toFixed(10));
     }
 };
 
@@ -61,8 +106,17 @@ window.Pos.Page.handleKeyboardInput = function (event) {
     if (!allowedKeys.includes(event.key) && event.key !== 'Backspace' && event.key !== 'Enter') {
         event.preventDefault();
     }
-    if (event.key === 'Enter') window.calculateResult();
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        window.Pos.Page.calculateResult();
+    }
 };
+
+/* Global aliases for inline HTML (onkeydown/onclick in pos.blade.php) */
+window.handleKeyboardInput = window.Pos.Page.handleKeyboardInput;
+window.calculateResult   = window.Pos.Page.calculateResult;
+window.calcInput         = window.Pos.Page.calcInput;
+window.clearCalc         = window.Pos.Page.clearCalc;
 
 /* ================================================================
    2. GO BACK / GO HOME (dashboardUrl injected by config block)
@@ -170,10 +224,12 @@ document.addEventListener('DOMContentLoaded', function () {
         var timeStr = ('0' + now.getHours()).slice(-2) + ':' +
             ('0' + now.getMinutes()).slice(-2) + ':' +
             ('0' + now.getSeconds()).slice(-2);
-        var dateBtn  = document.getElementById('currentDateButton');
-        var timeText = document.getElementById('currentTimeText');
-        if (dateBtn)  dateBtn.innerText  = dateStr;
-        if (timeText) timeText.innerText = timeStr;
+        var dateBtn   = document.getElementById('currentDateButton');
+        var timeText  = document.getElementById('currentTimeText');
+        var timeMobile = document.getElementById('currentTimeTextMobile');
+        if (dateBtn)    dateBtn.innerText   = dateStr;
+        if (timeText)   timeText.innerText  = timeStr;
+        if (timeMobile) timeMobile.innerText = timeStr;
     }
     setInterval(updateDateTime, 1000);
     updateDateTime();
@@ -285,6 +341,14 @@ document.addEventListener('DOMContentLoaded', function () {
     var mobileCancelButton = document.getElementById('mobile-cancel-button');
     if (mobileCancelButton) {
         mobileCancelButton.addEventListener('click', function () {
+            var cancelBtn = document.getElementById('cancelButton');
+            if (cancelBtn) cancelBtn.click();
+        });
+    }
+
+    var mobileClearCartBtn = document.getElementById('mobileClearCartBtn');
+    if (mobileClearCartBtn) {
+        mobileClearCartBtn.addEventListener('click', function () {
             var cancelBtn = document.getElementById('cancelButton');
             if (cancelBtn) cancelBtn.click();
         });

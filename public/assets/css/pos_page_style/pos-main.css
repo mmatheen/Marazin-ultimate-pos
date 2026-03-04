@@ -331,9 +331,9 @@
             flex-shrink: 0;
         }
 
-        /* Header action buttons alignment */
+        /* Header action buttons alignment - more space between buttons */
         .col-md-6 .d-flex.justify-content-end {
-            gap: 5px !important;
+            gap: 10px !important;
             flex-wrap: nowrap !important;
         }
 
@@ -367,6 +367,74 @@
 
         .col-md-6.d-flex.align-items-center .d-flex {
             gap: 6px !important;
+        }
+
+        /* Tablet view: better alignment and spacing (768px - 1024px) */
+        @media (min-width: 768px) and (max-width: 1024px) {
+            .row.align-items-center.d-none.d-md-flex {
+                padding: 8px 12px !important;
+                min-height: 54px !important;
+                align-items: center !important;
+            }
+            .col-md-6.d-flex.align-items-center .d-flex.flex-row {
+                gap: 12px !important;
+                flex-wrap: wrap !important;
+            }
+            .col-md-6.d-flex.align-items-center .d-flex.align-items-center {
+                gap: 10px !important;
+            }
+            #currentDateButton {
+                padding: 6px 12px !important;
+                font-size: 0.9rem !important;
+            }
+            #currentTimeText {
+                padding: 0 4px;
+                font-size: 0.95rem !important;
+            }
+            .form-select.location-select-sync {
+                min-width: 160px !important;
+            }
+            .col-md-6 .d-flex.justify-content-end {
+                gap: 12px !important;
+            }
+            /* Main card: customer + search row alignment */
+            .card.bg-white.p-2 .row .col-md-5 {
+                padding-right: 10px !important;
+                display: flex !important;
+                align-items: stretch !important;
+            }
+            .card.bg-white.p-2 .row .col-md-5 .d-flex.customer-select2 {
+                width: 100% !important;
+                gap: 8px !important;
+                align-items: center !important;
+            }
+            .card.bg-white.p-2 .row .col-md-5 .form-control.selectBox {
+                min-height: 38px !important;
+            }
+            .card.bg-white.p-2 .row .col-md-7 {
+                padding-left: 10px !important;
+                display: flex !important;
+                align-items: center !important;
+            }
+            .card.bg-white.p-2 .row .col-md-7 .input-group {
+                width: 100% !important;
+                align-items: center !important;
+            }
+            .card.bg-white.p-2 .row .col-md-7 .form-control {
+                min-height: 38px !important;
+            }
+            /* Quick price entry bar – aligned row */
+            #cashEntryBar .d-flex {
+                flex-wrap: nowrap !important;
+                align-items: center !important;
+                gap: 10px !important;
+            }
+            #cashEntryBar .form-control.form-control-sm {
+                flex-shrink: 0 !important;
+            }
+            #cashEntryBar .ms-auto {
+                margin-left: auto !important;
+            }
         }
 
         /* Prevent button text wrapping */
@@ -1510,10 +1578,10 @@
                 max-width: 100%;
             }
 
-            /* Header buttons */
+            /* Header buttons - more space between */
             .col-md-6 .d-flex {
                 flex-wrap: wrap;
-                gap: 5px;
+                gap: 10px;
             }
 
             .col-md-6 .btn {
@@ -1694,6 +1762,14 @@
             border-radius: 12px;
             box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
             padding: 15px 20px;
+        }
+
+        /* Design reference: mobile bottom bar – rounded top only */
+        @media (max-width: 991px) {
+            .mobile-bottom-container {
+                border-radius: 16px 16px 0 0;
+                padding: 16px 18px 20px;
+            }
         }
 
         /* Hide mobile button on desktop */
@@ -2207,6 +2283,292 @@
             }
         }
 
+        /* Search product bar: single bar, strict alignment – icon | input | button */
+        .pos-search-row.input-group {
+            display: flex;
+            align-items: center;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #ced4da;
+            background: #fff;
+            height: 40px !important;
+            min-height: 40px;
+            margin: 0;
+            box-sizing: border-box;
+        }
+        .pos-search-row .input-group-text {
+            width: 44px;
+            min-width: 44px;
+            height: 100% !important;
+            min-height: 40px;
+            padding: 0 !important;
+            margin: 0 !important;
+            border: none !important;
+            border-right: 1px solid #ced4da !important;
+            border-radius: 10px 0 0 10px !important;
+            background: #fff !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            flex-shrink: 0;
+            box-sizing: border-box;
+        }
+        .pos-search-row .input-group-text i {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 1em;
+            height: 1em;
+            font-size: 1rem !important;
+            line-height: 1 !important;
+        }
+        .pos-search-row .form-control {
+            height: 100% !important;
+            min-height: 40px !important;
+            border: none !important;
+            border-radius: 0 !important;
+            flex: 1;
+            min-width: 0;
+            padding: 0 12px !important;
+            margin: 0 !important;
+            font-size: 14px !important;
+            line-height: 40px !important;
+            box-sizing: border-box !important;
+            vertical-align: middle;
+        }
+        .pos-search-row .form-control::placeholder {
+            line-height: 40px;
+        }
+        .pos-search-row .form-control:focus {
+            box-shadow: none !important;
+            outline: none !important;
+        }
+        .pos-search-row .pos-search-grid-btn {
+            width: 44px !important;
+            min-width: 44px !important;
+            height: 100% !important;
+            min-height: 40px !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            border: none !important;
+            border-left: 1px solid #ced4da !important;
+            border-radius: 0 10px 10px 0 !important;
+            background: #e9ecef !important;
+            color: #495057 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            flex-shrink: 0;
+            box-sizing: border-box !important;
+        }
+        .pos-search-row .pos-search-grid-btn i {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 1em;
+            height: 1em;
+            font-size: 1rem !important;
+            line-height: 1 !important;
+        }
+        /* Hide product-list grid button on desktop (≥ 992px) even if classes conflict */
+        @media (min-width: 992px) {
+            .pos-search-row .pos-search-grid-btn {
+                display: none !important;
+            }
+        }
+        .pos-search-row .pos-search-grid-btn:hover {
+            background: #dee2e6 !important;
+            color: #212529 !important;
+        }
+        .pos-search-row .btn#cashEntryToggle {
+            width: 44px !important;
+            min-width: 44px !important;
+            height: 100% !important;
+            min-height: 40px !important;
+            padding: 0 10px !important;
+            margin: 0 !important;
+            border: none !important;
+            border-left: 1px solid #ced4da !important;
+            border-radius: 0 10px 10px 0 !important;
+            background: #e9ecef !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            box-sizing: border-box !important;
+        }
+        .pos-search-row .btn#cashEntryToggle i {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 1rem !important;
+            line-height: 1 !important;
+        }
+
+        /* ═══ Design reference: mobile-only UI (image 2 – clean, modern) ═══ */
+        @media (max-width: 767px) {
+            .pos-mobile-header {
+                padding: 10px 6px 12px;
+            }
+            .pos-mobile-brand {
+                align-items: center;
+                min-width: 0;
+            }
+            .pos-mobile-brand-icon {
+                width: 42px;
+                height: 42px;
+                flex-shrink: 0;
+                background: #0d6efd;
+                font-size: 1.1rem;
+            }
+            /* Content column: location + time aligned, no overlap with icon */
+            .pos-mobile-brand-content {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: stretch !important;
+                width: 100% !important;
+                min-width: 0 !important;
+            }
+            .pos-mobile-brand-title {
+                font-size: 1rem;
+                line-height: 1.2;
+            }
+            .pos-mobile-location-select {
+                font-size: 0.75rem !important;
+                color: #6c757d !important;
+                cursor: pointer;
+                min-height: auto;
+            }
+            .pos-mobile-location-select option {
+                color: #212529;
+            }
+            /* Original select: no layout space (Select2 replaces it visually) */
+            .pos-mobile-brand-content select.select2-hidden-accessible,
+            .pos-mobile-brand-content .pos-mobile-location-select.select2-hidden-accessible {
+                position: absolute !important;
+                width: 1px !important;
+                height: 1px !important;
+                margin: -1px !important;
+                overflow: hidden !important;
+                clip: rect(0, 0, 0, 0) !important;
+            }
+            /* Select2 container for mobile location – full width so time aligns below it */
+            .pos-mobile-header .select2-container {
+                width: 100% !important;
+                min-width: 0 !important;
+                flex: 0 0 auto !important;
+            }
+            .pos-mobile-header .select2-container--default .select2-selection--single {
+                border: none !important;
+                background: transparent !important;
+                height: auto !important;
+                padding: 0 !important;
+            }
+            .pos-mobile-header .select2-container--default .select2-selection--single .select2-selection__rendered {
+                padding: 0 !important;
+                font-size: 0.8rem !important;
+                color: inherit !important;
+            }
+            .pos-mobile-header .select2-container--default .select2-selection--single .select2-selection__arrow {
+                height: 100% !important;
+            }
+            /* Time: same horizontal alignment as location text, directly below */
+            .pos-mobile-time {
+                font-size: 0.7rem !important;
+                color: #6c757d !important;
+                line-height: 1.2;
+                margin-top: 2px !important;
+                margin-left: 0 !important;
+                padding-left: 0 !important;
+                display: block !important;
+            }
+            .pos-mobile-header-btn {
+                width: 40px;
+                height: 40px;
+                background: #5c636a !important;
+                color: #fff !important;
+                border: none !important;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1rem;
+            }
+            .pos-mobile-header-btn:hover {
+                background: #495057 !important;
+                color: #fff !important;
+            }
+            .pos-mobile-header-btn:focus {
+                box-shadow: 0 0 0 2px rgba(92, 99, 106, 0.4);
+            }
+            /* Customer bar: white, rounded */
+            .pos-customer-row {
+                background: #fff;
+                border: 1px solid #e0e0e0;
+                border-radius: 10px;
+                padding: 8px 10px;
+                margin-bottom: 8px;
+            }
+            .pos-customer-row .select2-container,
+            .pos-customer-row .form-control {
+                border: none !important;
+                background: transparent !important;
+            }
+            .pos-add-customer-btn {
+                border-radius: 50% !important;
+                width: 36px;
+                height: 36px;
+                padding: 0 !important;
+                background: #0d6efd !important;
+                color: #fff !important;
+                border: none !important;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .pos-add-customer-btn:hover {
+                background: #0b5ed7 !important;
+                color: #fff !important;
+            }
+            .pos-order-summary-row .form-group label[style*="font-size: 11px"] {
+                font-size: 12px !important;
+                font-weight: 600 !important;
+            }
+            .pos-mobile-total-items-row {
+                border-top: 1px solid #e9ecef !important;
+            }
+            /* Bottom bar: white Pay Now button, blue text */
+            .pos-mobile-final-label {
+                font-size: 0.7rem;
+                opacity: 0.95;
+            }
+            .pos-mobile-final-amount {
+                font-size: 1.4rem;
+            }
+            .pos-mobile-pay-btn {
+                background: #fff !important;
+                color: #0d6efd !important;
+                border: none !important;
+            }
+            .pos-mobile-pay-btn:hover {
+                background: #f0f0f0 !important;
+                color: #0b5ed7 !important;
+            }
+            .pos-mobile-pay-footer {
+                font-size: 0.65rem;
+                opacity: 0.85;
+            }
+            /* Shipping: full blue button with truck (reference image 2) */
+            .pos-shipping-btn {
+                background: #0d6efd !important;
+                color: #fff !important;
+                border: none !important;
+                font-weight: 600;
+            }
+            .pos-shipping-btn:hover {
+                background: #0b5ed7 !important;
+                color: #fff !important;
+            }
+        }
+
         /* Mobile & Tablet Billing Table Card Styles */
         @media (max-width: 991px) {
 
@@ -2403,54 +2765,61 @@
                 display: none !important;
             }
 
-            /* Make each table row a compact card */
+            /* Product card – 2nd image: strict layout so nothing is missing */
             #billing-body tr {
-                display: block;
+                display: flex;
+                flex-wrap: wrap;
+                align-items: flex-start;
                 position: relative;
                 margin-bottom: 12px;
-                border: 1px solid #ddd;
-                border-radius: 8px;
-                padding: 10px;
-                padding-top: 35px;
+                border: 1px solid #dee2e6;
+                border-radius: 10px;
+                padding: 12px 12px 10px;
+                padding-left: 48px;
+                padding-right: 48px;
                 background: white;
-                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
             }
 
-            /* Make each cell a block */
             #billing-body tr td {
-                display: block;
                 border: none !important;
                 padding: 0 !important;
                 text-align: left !important;
             }
 
-            /* Counter Badge - Top Left (Small) */
+            /* Counter – top left, out of flex flow */
             #billing-body tr td.counter-cell {
-                position: absolute;
-                top: 8px;
-                left: 8px;
+                position: absolute !important;
+                top: 12px;
+                left: 12px;
+                width: 28px !important;
+                height: 28px !important;
+                min-width: 28px !important;
                 font-size: 12px;
                 font-weight: 600;
-                color: #ffffff;
+                color: #fff;
                 background: #6c757d;
-                padding: 3px 10px !important;
-                border-radius: 4px;
+                padding: 0 !important;
+                border-radius: 50%;
                 z-index: 10;
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
             }
 
-            /* Remove Button - Top Right (Small) */
-            #billing-body tr td:nth-child(8) {
-                position: absolute;
-                top: 8px;
-                right: 8px;
+            /* Remove – top right, out of flex flow */
+            #billing-body tr td:nth-child(9) {
+                position: absolute !important;
+                top: 12px;
+                right: 12px;
                 width: auto !important;
                 padding: 0 !important;
             }
 
-            #billing-body tr td:nth-child(8) .remove-btn {
+            #billing-body tr td:nth-child(9) .remove-btn {
                 width: 28px;
                 height: 28px;
-                border-radius: 4px;
+                border-radius: 50%;
                 font-size: 16px;
                 padding: 0;
                 display: flex;
@@ -2461,10 +2830,12 @@
                 color: white;
             }
 
-            /* Product Header: Image + Name + SKU */
+            /* Product block: full width, name then SKU • X In Stock (2nd image) */
             #billing-body tr td:nth-child(2) {
-                margin-bottom: 10px;
-                padding-bottom: 10px !important;
+                flex: 0 0 100%;
+                width: 100%;
+                margin-bottom: 8px;
+                padding-bottom: 8px !important;
                 border-bottom: 1px solid #eee !important;
             }
 
@@ -2475,9 +2846,9 @@
             }
 
             #billing-body tr td:nth-child(2) img {
-                width: 50px !important;
-                height: 50px !important;
-                border-radius: 4px !important;
+                width: 48px !important;
+                height: 48px !important;
+                border-radius: 6px !important;
                 border: 1px solid #dee2e6;
                 flex-shrink: 0;
             }
@@ -2488,8 +2859,8 @@
             }
 
             #billing-body tr td:nth-child(2) .product-name {
-                font-size: 14px;
-                font-weight: 600;
+                font-size: 15px;
+                font-weight: 700;
                 color: #212529;
                 line-height: 1.3;
                 margin-bottom: 4px;
@@ -2499,73 +2870,114 @@
             #billing-body tr td:nth-child(2) .product-sku {
                 font-size: 12px;
                 color: #6c757d;
-                display: inline-block;
-                margin-right: 10px;
+                display: inline;
+                margin-right: 6px;
             }
 
             #billing-body tr td:nth-child(2) .quantity-display {
                 font-size: 12px;
                 color: #198754;
                 font-weight: 600;
-                display: inline-block;
+                display: inline;
             }
 
-            #billing-body tr td:nth-child(2) .badge {
-                font-size: 10px;
-                padding: 2px 6px;
+            #billing-body tr td:nth-child(2) .quantity-display::after {
+                content: ' In Stock';
+                color: #198754;
+                font-weight: 600;
             }
 
-            /* Quantity Section - Compact, No Label */
+            #billing-body tr td:nth-child(2) .product-sku::after {
+                content: ' • ';
+                color: #adb5bd;
+                margin-left: 2px;
+            }
+
+            #billing-body tr td:nth-child(2) .badge.bg-info {
+                font-size: 9px;
+                padding: 2px 5px;
+            }
+
+            /* Quantity: left part of row 2 – align baseline with FREE QTY input */
             #billing-body tr td:nth-child(3) {
+                flex: 0 0 calc(58% - 4px);
+                width: calc(58% - 4px);
+                max-width: none;
                 padding: 0 !important;
                 margin-bottom: 8px;
+                margin-right: 4px;
+                display: flex !important;
+                align-items: flex-end !important;
+                min-height: 38px;
             }
 
-            /* Hide the QUANTITY label */
             #billing-body tr td:nth-child(3)::before {
-                display: none !important;
+                content: 'QUANTITY';
+                display: block !important;
+                font-size: 10px;
+                font-weight: 600;
+                color: #495057;
+                margin-bottom: 2px;
+                line-height: 1.2;
             }
 
             #billing-body tr td:nth-child(3) .d-flex {
-                justify-content: center;
-                gap: 0;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: flex-start !important;
+                gap: 0 !important;
             }
 
+            /* Same width and height for -, input, + (perfect alignment) */
+            /* Minus button: grey (reference image 2) */
             #billing-body tr td:nth-child(3) .quantity-minus {
-                width: 45px;
-                height: 40px;
+                width: 44px !important;
+                min-width: 44px !important;
+                height: 38px !important;
                 border-radius: 4px 0 0 4px !important;
-                font-size: 20px;
+                font-size: 18px;
                 font-weight: 600;
                 padding: 0 !important;
-                background: #dc3545;
-                border: none;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                background: #6c757d;
+                border: 1px solid #6c757d;
                 color: white;
+                box-sizing: border-box;
             }
 
             #billing-body tr td:nth-child(3) .quantity-plus {
-                width: 45px;
-                height: 40px;
+                width: 44px !important;
+                min-width: 44px !important;
+                height: 38px !important;
                 border-radius: 0 4px 4px 0 !important;
-                font-size: 20px;
+                font-size: 18px;
                 font-weight: 600;
                 padding: 0 !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
                 background: #198754;
-                border: none;
+                border: 1px solid #198754;
                 color: white;
+                box-sizing: border-box;
             }
 
             #billing-body tr td:nth-child(3) .quantity-input {
-                width: 70px !important;
-                height: 40px;
-                font-size: 16px;
+                width: 44px !important;
+                min-width: 44px !important;
+                height: 38px !important;
+                font-size: 14px;
                 font-weight: 600;
                 text-align: center;
                 border: 1px solid #ced4da;
                 border-left: none;
                 border-right: none;
                 border-radius: 0 !important;
-                background: #ffffff;
+                background: #fff;
+                padding: 0 2px !important;
+                box-sizing: border-box;
             }
 
             /* Hide the Pc(s) text below quantity */
@@ -2573,81 +2985,149 @@
                 display: none !important;
             }
 
-            /* All Price Fields in Single Row */
-            #billing-body tr td:nth-child(4),
-            #billing-body tr td:nth-child(5),
-            #billing-body tr td:nth-child(6) {
-                display: inline-block;
-                width: 32%;
-                margin: 0 0.5% 8px 0;
-                padding: 0 !important;
-                vertical-align: top;
+            /* Free qty (4) – right part of row 2, same baseline as quantity, no extra space */
+            #billing-body tr td:nth-child(4).d-none {
+                display: none !important;
             }
 
-            #billing-body tr td:nth-child(6) {
-                margin-right: 0;
+            #billing-body tr td:nth-child(4):not(.d-none) {
+                flex: 0 0 calc(42% - 4px);
+                width: calc(42% - 4px);
+                margin-bottom: 8px;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: stretch !important;
+                justify-content: flex-end !important;
+                min-height: 38px;
             }
 
-            #billing-body tr td:nth-child(4)::before,
-            #billing-body tr td:nth-child(5)::before,
-            #billing-body tr td:nth-child(6)::before {
+            #billing-body tr td:nth-child(4):not(.d-none)::before {
+                content: 'FREE QTY';
                 display: block;
                 font-size: 10px;
                 font-weight: 600;
                 color: #495057;
-                margin-bottom: 4px;
+                margin-bottom: 2px;
+                line-height: 1.2;
             }
 
-            #billing-body tr td:nth-child(4)::before {
-                content: 'DISCOUNT (RS)';
-            }
-
-            #billing-body tr td:nth-child(5)::before {
-                content: 'DISCOUNT (%)';
-            }
-
-            #billing-body tr td:nth-child(6)::before {
-                content: 'UNIT PRICE';
-            }
-
-            #billing-body tr td:nth-child(4) input,
-            #billing-body tr td:nth-child(5) input,
-            #billing-body tr td:nth-child(6) input {
-                width: 100%;
-                font-size: 13px;
+            #billing-body tr td:nth-child(4) .free-quantity-input {
+                width: 100% !important;
+                height: 38px !important;
+                min-height: 38px;
+                font-size: 14px;
                 font-weight: 600;
-                padding: 8px 4px;
                 text-align: center;
                 border: 1px solid #ced4da;
                 border-radius: 4px;
-                background: #ffffff;
+                margin: 0 !important;
             }
 
-            /* Subtotal - Left Label, Center Value */
+            #billing-body tr td:nth-child(4) .free-qty-debug {
+                display: block;
+                font-size: 9px;
+                color: #6c757d;
+                margin: 1px 0 0 0 !important;
+                line-height: 1.2;
+            }
+
+            /* Remove extra spacing below FREE QTY input (Free / Max: 7 text) */
+            #billing-body tr td:nth-child(4) small,
+            #billing-body tr td:nth-child(4) .small {
+                margin-top: 0 !important;
+                margin-bottom: 0 !important;
+                line-height: 1.2;
+            }
+            #billing-body tr td:nth-child(4) div[style*="margin-top"] {
+                margin-top: 1px !important;
+                margin-bottom: 0 !important;
+                font-size: 9px !important;
+                line-height: 1.2;
+            }
+
+            /* Row 3: DISC (RS), DISC (%), UNIT PRICE – equal width, one row (2nd image) */
+            #billing-body tr td:nth-child(5),
+            #billing-body tr td:nth-child(6),
             #billing-body tr td:nth-child(7) {
-                width: 100%;
-                margin: 8px 0 0 0;
-                padding: 10px 12px !important;
-                background: #198754;
-                border-radius: 4px;
-                text-align: left;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
+                flex: 0 0 calc(33.333% - 4px);
+                width: calc(33.333% - 4px);
+                margin: 0 2px 8px 0 !important;
+                padding: 0 !important;
+                box-sizing: border-box;
+            }
+
+            #billing-body tr td:nth-child(7) {
+                margin-right: 0 !important;
+            }
+
+            #billing-body tr td:nth-child(5)::before,
+            #billing-body tr td:nth-child(6)::before,
+            #billing-body tr td:nth-child(7)::before {
+                display: block;
+                font-size: 10px;
+                font-weight: 700;
+                color: #495057;
+                margin-bottom: 4px;
+            }
+
+            #billing-body tr td:nth-child(5)::before {
+                content: 'DISC (RS)';
+            }
+
+            #billing-body tr td:nth-child(6)::before {
+                content: 'DISC (%)';
             }
 
             #billing-body tr td:nth-child(7)::before {
-                content: 'SUBTOTAL';
-                color: #ffffff;
-                font-size: 11px;
-                font-weight: 600;
-                text-transform: uppercase;
+                content: 'UNIT PRICE';
             }
 
-            #billing-body tr td.subtotal {
-                font-size: 20px;
+            #billing-body tr td:nth-child(5) input,
+            #billing-body tr td:nth-child(6) input,
+            #billing-body tr td:nth-child(7) input {
+                width: 100% !important;
+                height: 36px !important;
+                font-size: 13px;
+                font-weight: 600;
+                padding: 4px 6px !important;
+                text-align: center;
+                border: 1px solid #ced4da;
+                border-radius: 4px;
+                background: #fff;
+                box-sizing: border-box;
+            }
+
+            /* Row 4: ROW SUBTOTAL – full width, light green, bold green text (2nd image) */
+            #billing-body tr td:nth-child(8) {
+                flex: 0 0 100%;
+                width: 100% !important;
+                margin: 6px 0 0 0 !important;
+                padding: 10px 12px !important;
+                background: #e8f5e9;
+                border-radius: 6px;
+                border: none;
+                display: flex !important;
+                flex-direction: row !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+                min-height: 42px;
+                box-sizing: border-box;
+            }
+
+            #billing-body tr td:nth-child(8)::before {
+                content: 'ROW SUBTOTAL';
+                color: #198754;
+                font-size: 11px;
                 font-weight: 700;
-                color: #ffffff !important;
+                text-transform: uppercase;
+                margin-right: 8px;
+            }
+
+            #billing-body tr td:nth-child(8).subtotal,
+            #billing-body tr td.subtotal {
+                font-size: 16px !important;
+                font-weight: 700;
+                color: #198754 !important;
                 text-align: right;
                 flex: 1;
             }
@@ -2657,10 +3137,10 @@
                 display: none !important;
             }
 
-            /* Billing body spacing */
+            /* Billing body spacing – compact so 10 items fit */
             #billing-body {
                 padding: 0;
-                margin-bottom: 20px !important;
+                margin-bottom: 12px !important;
                 overflow: visible !important;
             }
 
@@ -2693,12 +3173,12 @@
                 }
 
                 /* Larger remove button */
-                #billing-body tr td:nth-child(8) {
+                #billing-body tr td:nth-child(9) {
                     top: 12px;
                     right: 12px;
                 }
 
-                #billing-body tr td:nth-child(8) .remove-btn {
+                #billing-body tr td:nth-child(9) .remove-btn {
                     width: 40px;
                     height: 40px;
                     font-size: 20px;
@@ -2767,58 +3247,50 @@
                     font-weight: 700;
                 }
 
-                /* Larger discount and price fields */
-                #billing-body tr td:nth-child(4),
+                /* Discount (5)(6)(7) and subtotal (8) – tablet */
                 #billing-body tr td:nth-child(5),
-                #billing-body tr td:nth-child(6) {
-                    width: 31.5%;
-                    margin: 0 1% 16px 0;
+                #billing-body tr td:nth-child(6),
+                #billing-body tr td:nth-child(7) {
+                    width: calc((100% - 8px) / 3) !important;
+                    margin: 0 2px 12px 0 !important;
                 }
 
-                #billing-body tr td:nth-child(6) {
-                    margin-right: 0;
+                #billing-body tr td:nth-child(7) {
+                    margin-right: 0 !important;
                 }
 
-                #billing-body tr td:nth-child(4)::before,
                 #billing-body tr td:nth-child(5)::before,
-                #billing-body tr td:nth-child(6)::before {
-                    font-size: 12px;
-                    margin-bottom: 8px;
+                #billing-body tr td:nth-child(6)::before,
+                #billing-body tr td:nth-child(7)::before {
+                    font-size: 11px;
+                    margin-bottom: 6px;
                     font-weight: 700;
                 }
 
-                #billing-body tr td:nth-child(4) input,
                 #billing-body tr td:nth-child(5) input,
-                #billing-body tr td:nth-child(6) input {
-                    font-size: 16px;
-                    padding: 12px 8px;
+                #billing-body tr td:nth-child(6) input,
+                #billing-body tr td:nth-child(7) input {
+                    font-size: 14px;
+                    padding: 8px 4px;
                     border-radius: 6px;
                     border: 2px solid #ced4da;
                     font-weight: 600;
+                    height: 38px;
                 }
 
-                #billing-body tr td:nth-child(4) input:focus,
-                #billing-body tr td:nth-child(5) input:focus,
-                #billing-body tr td:nth-child(6) input:focus {
-                    border-color: #198754;
-                    box-shadow: 0 0 0 3px rgba(25, 135, 84, 0.1);
-                }
-
-                /* Larger subtotal section */
-                #billing-body tr td:nth-child(7) {
-                    margin-top: 16px;
-                    padding: 16px 20px !important;
+                #billing-body tr td:nth-child(8) {
+                    margin-top: 12px;
+                    padding: 12px 16px !important;
                     border-radius: 8px;
                 }
 
-                #billing-body tr td:nth-child(7)::before {
-                    font-size: 14px;
+                #billing-body tr td:nth-child(8)::before {
+                    font-size: 12px;
                     font-weight: 700;
-                    letter-spacing: 0.5px;
                 }
 
                 #billing-body tr td.subtotal {
-                    font-size: 26px;
+                    font-size: 20px;
                     font-weight: 800;
                 }
 
@@ -3040,12 +3512,12 @@
             }
 
             /* Remove button - larger */
-            #billing-body tr td:nth-child(8) {
+            #billing-body tr td:nth-child(9) {
                 text-align: center;
                 vertical-align: middle !important;
             }
 
-            #billing-body tr td:nth-child(8) .remove-btn {
+            #billing-body tr td:nth-child(9) .remove-btn {
                 width: 30px;
                 height: 30px;
                 font-size: 17px;
@@ -3304,5 +3776,154 @@
 
             .bottom-fixed #items-count {
                 font-size: 12px;
+            }
+        }
+
+        /* ========== POS Responsive UI/UX — tablet & mobile ========== */
+
+        /* Tablet: better product grid (2 cols, clearer cards) */
+        @media (min-width: 576px) and (max-width: 1024px) {
+            #posProduct {
+                gap: 12px !important;
+                padding: 10px 8px !important;
+                row-gap: 14px !important;
+            }
+            #posProduct .col-md-6,
+            #posProduct .col-sm-6 {
+                flex: 0 0 calc(50% - 6px) !important;
+                max-width: calc(50% - 6px) !important;
+            }
+            .product-card {
+                min-height: 168px !important;
+                padding: 12px 10px !important;
+                margin-bottom: 0 !important;
+                border-radius: 10px !important;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1) !important;
+                border: 1px solid #e5e7eb !important;
+            }
+            .product-card img {
+                width: 72px !important;
+                height: 72px !important;
+                border-radius: 6px !important;
+            }
+            .product-card h6 {
+                font-size: 13px !important;
+                min-height: 36px !important;
+                max-height: 40px !important;
+                -webkit-line-clamp: 2 !important;
+            }
+            .product-card .badge {
+                font-size: 11px !important;
+                padding: 4px 8px !important;
+            }
+        }
+
+        /* Mobile: product list single column with spacing */
+        @media (max-width: 575px) {
+            #posProduct {
+                gap: 10px !important;
+                padding: 8px 6px !important;
+            }
+            .product-card {
+                margin-bottom: 0 !important;
+                border-radius: 10px !important;
+            }
+        }
+
+        /* Billing body: clearer card + remove button (mobile & tablet) */
+        @media (max-width: 991px) {
+            #billing-body tr {
+                margin-bottom: 18px !important;
+                border-radius: 12px !important;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08) !important;
+                border: 1px solid #e0e0e0 !important;
+                overflow: hidden !important;
+            }
+            #billing-body tr td:nth-child(9) {
+                top: 10px !important;
+                right: 10px !important;
+                z-index: 5 !important;
+            }
+            #billing-body tr td:nth-child(9) .remove-btn {
+                width: 36px !important;
+                height: 36px !important;
+                font-size: 18px !important;
+                font-weight: 700 !important;
+                border-radius: 8px !important;
+                background: #dc3545 !important;
+                color: #fff !important;
+                border: none !important;
+                box-shadow: 0 2px 6px rgba(220, 53, 69, 0.4) !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                padding: 0 !important;
+                line-height: 1 !important;
+            }
+            #billing-body tr td:nth-child(9) .remove-btn:hover {
+                background: #bb2d3b !important;
+                box-shadow: 0 3px 8px rgba(220, 53, 69, 0.5) !important;
+            }
+        }
+
+        @media (min-width: 768px) and (max-width: 991px) {
+            #billing-body tr {
+                margin-bottom: 22px !important;
+                padding: 22px !important;
+                padding-top: 52px !important;
+            }
+            #billing-body tr td:nth-child(9) .remove-btn {
+                width: 42px !important;
+                height: 42px !important;
+                font-size: 20px !important;
+            }
+        }
+
+        @media (max-width: 576px) {
+            #billing-body tr {
+                margin-bottom: 14px !important;
+                padding: 12px !important;
+                padding-top: 38px !important;
+            }
+            #billing-body tr td:nth-child(9) .remove-btn {
+                width: 32px !important;
+                height: 32px !important;
+                font-size: 16px !important;
+            }
+            .table-responsive {
+                padding: 10px 8px !important;
+            }
+        }
+
+        /* Tablet: product grid container spacing */
+        @media (min-width: 768px) and (max-width: 1024px) {
+            #posProduct {
+                padding: 12px 10px !important;
+            }
+        }
+
+        /* ========== Mobile: no product grid overflow, modal only ========== */
+        @media (max-width: 991px) {
+            /* Keep product grid column hidden on mobile/tablet – use modal only */
+            #productListArea {
+                display: none !important;
+            }
+            #mainContent {
+                max-width: 100% !important;
+                flex: 0 0 100% !important;
+            }
+            /* Extra space above blue Pay Now bar so last billing card is not covered */
+            .container-fluid.p-1 {
+                padding-bottom: 100px !important;
+            }
+        }
+
+        /* Mobile product modal: prevent last product hiding under bottom */
+        #mobileProductModalBody {
+            padding-bottom: 80px !important;
+        }
+        @media (max-width: 576px) {
+            #mobileProductModalBody {
+                padding-bottom: 100px !important;
             }
         }
