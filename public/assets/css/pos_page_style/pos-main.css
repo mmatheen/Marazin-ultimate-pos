@@ -2964,6 +2964,25 @@
                 box-sizing: border-box;
             }
 
+            /* When role cannot see FREE QTY (no-free-qty rows), let QUANTITY use full width */
+            #billing-body tr.no-free-qty td:nth-child(3) {
+                flex: 0 0 100%;
+                width: 100%;
+                margin-right: 0;
+                display: flex !important;
+                justify-content: center !important;
+            }
+            /* For roles without FREE QTY, hide the QUANTITY label text */
+            #billing-body tr.no-free-qty td:nth-child(3)::before {
+                content: '' !important;
+                display: none !important;
+            }
+            /* For no-free-qty rows, center the stepper within the full-width cell */
+            #billing-body tr.no-free-qty td:nth-child(3) .d-flex {
+                justify-content: center !important;
+                margin: 0 auto;
+            }
+
             #billing-body tr td:nth-child(3) .quantity-input {
                 width: 44px !important;
                 min-width: 44px !important;

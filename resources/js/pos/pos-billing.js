@@ -419,6 +419,8 @@ async function addProductToBillingBody(
     row.setAttribute('data-unit-price', finalPrice);
     row.setAttribute('data-price-source', priceType);
     row.setAttribute('data-max-quantity', adjustedBatchQuantity);
+    // Layout helper: when free qty is disabled by role/setting, mark row so CSS can make QUANTITY full-width
+    row.classList.add(window.showFreeQtyColumn ? 'has-free-qty' : 'no-free-qty');
 
     try {
         row.setAttribute('data-product-pricing', JSON.stringify({
