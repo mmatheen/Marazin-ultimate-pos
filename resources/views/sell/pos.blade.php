@@ -883,8 +883,8 @@
             </div>
         </div>
 
-        <!-- Mobile/Tablet Bottom Bar (reference: FINAL TOTAL, white Pay Now →, footer line) -->
-        <div class="mobile-bottom-fixed d-lg-none">
+        <!-- Mobile Bottom Bar (only &lt;768px; hidden on tablet and desktop) -->
+        <div class="mobile-bottom-fixed d-md-none">
             <div class="mobile-bottom-container">
                 <div class="d-flex align-items-center justify-content-between w-100">
                     <div class="min-width-0">
@@ -1086,8 +1086,8 @@
         </div>
 
 
-        <!-- Bottom Fixed Section (Hidden on Mobile/Tablet) -->
-        <div class="bottom-fixed d-none d-lg-block">
+        <!-- Bottom Fixed Section (Hidden only on mobile <768px; shown on tablet 768+ and desktop) -->
+        <div class="bottom-fixed d-none d-md-block">
             <div class="row">
                 <!-- Left Side: Total Payable and Cancel -->
                 <div class="col-md-5 d-flex align-items-center justify-content-start gap-3">

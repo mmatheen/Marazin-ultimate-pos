@@ -55,6 +55,13 @@
             /* Space for bottom fixed */
         }
 
+        /* Extra space above bottom-fixed so it doesn't look stuck to card (tablet/desktop) */
+        @media (min-width: 768px) {
+            .container-fluid {
+                padding-bottom: 100px !important;
+            }
+        }
+
 
         /* Fix button text wrapping */
         .bottom-fixed .btn {
@@ -212,6 +219,22 @@
             z-index: 1000;
             padding: 2px 5px;
             border-top: 1px solid #ddd;
+        }
+
+        /* Ensure POS content (including Sale Notes) is always scrollable above the fixed bottom bar */
+        .container-fluid.p-1 {
+            padding-bottom: 160px !important;
+        }
+
+        /* Margin below Total Items / summary so bottom-fixed bar is clearly separate from card (tablet/desktop) */
+        @media (min-width: 768px) {
+            .card.bg-white.p-2 {
+                margin-bottom: 1rem;
+                padding-bottom: 1.25rem;
+            }
+            .row.align-items-end[style*="border-top: 2px solid #ddd"] {
+                margin-bottom: 1rem;
+            }
         }
 
         .bottom-fixed .btn {
@@ -377,8 +400,9 @@
                 align-items: center !important;
             }
             .col-md-6.d-flex.align-items-center .d-flex.flex-row {
-                gap: 12px !important;
-                flex-wrap: wrap !important;
+                /* Tablet: keep location, date, time & keyboard on a single row */
+                gap: 8px !important;
+                flex-wrap: nowrap !important;
             }
             .col-md-6.d-flex.align-items-center .d-flex.align-items-center {
                 gap: 10px !important;
@@ -1349,7 +1373,8 @@
                 align-items: center;
                 justify-content: center;
                 text-align: center;
-                white-space: nowrap;
+                /* Allow button text to wrap on tablet so all buttons fit */
+                white-space: normal;
                 overflow: hidden;
                 text-overflow: ellipsis;
                 line-height: 1.2;
@@ -1415,15 +1440,32 @@
                 margin-top: 1px !important;
             }
 
+            /* Tablet: make Sale Notes box a bit taller and more readable */
             #sale-notes-textarea {
-                min-height: 28px !important;
-                max-height: 42px !important;
-                font-size: 10px !important;
-                padding: 3px 5px !important;
+                min-height: 40px !important;
+                max-height: 70px !important;
+                font-size: 11px !important;
+                padding: 4px 6px !important;
             }
 
             .bottom-fixed .form-group {
                 margin-bottom: 3px !important;
+            }
+
+            /* Tablet: stack total row on top and buttons full width for better alignment */
+            .bottom-fixed .col-md-5,
+            .bottom-fixed .col-md-7 {
+                flex: 0 0 100% !important;
+                max-width: 100% !important;
+            }
+
+            .bottom-fixed .col-md-5 {
+                justify-content: center !important;
+                text-align: center !important;
+            }
+
+            .bottom-fixed .col-md-7 {
+                margin-top: 0.25rem !important;
             }
 
             .bottom-fixed .col-md-7 .d-flex {
@@ -1772,8 +1814,8 @@
             }
         }
 
-        /* Hide mobile button on desktop */
-        @media (min-width: 992px) {
+        /* Hide mobile bottom bar on tablet and desktop (768px+) – show desktop bottom-fixed instead */
+        @media (min-width: 768px) {
             .mobile-bottom-fixed {
                 display: none !important;
             }
@@ -1828,8 +1870,8 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
 
-        /* Mobile/Tablet adjustments */
-        @media (max-width: 991px) {
+        /* Mobile adjustments */
+        @media (max-width: 767px) {
 
             /* Hide desktop bottom-fixed section on mobile/tablet */
             .bottom-fixed {
@@ -2569,8 +2611,8 @@
             }
         }
 
-        /* Mobile & Tablet Billing Table Card Styles */
-        @media (max-width: 991px) {
+        /* Mobile Billing Table Card Styles (phones only) */
+        @media (max-width: 767px) {
 
             /* CRITICAL: Override desktop fixed viewport restrictions */
             html,
@@ -2934,6 +2976,7 @@
                 width: 44px !important;
                 min-width: 44px !important;
                 height: 38px !important;
+                line-height: 38px !important;
                 border-radius: 4px 0 0 4px !important;
                 font-size: 18px;
                 font-weight: 600;
@@ -2951,6 +2994,7 @@
                 width: 44px !important;
                 min-width: 44px !important;
                 height: 38px !important;
+                line-height: 38px !important;
                 border-radius: 0 4px 4px 0 !important;
                 font-size: 18px;
                 font-weight: 600;
@@ -2987,6 +3031,7 @@
                 width: 44px !important;
                 min-width: 44px !important;
                 height: 38px !important;
+                line-height: 38px !important;
                 font-size: 14px;
                 font-weight: 600;
                 text-align: center;
@@ -3105,7 +3150,8 @@
             #billing-body tr td:nth-child(6) input,
             #billing-body tr td:nth-child(7) input {
                 width: 100% !important;
-                height: 36px !important;
+                height: 38px !important;
+                line-height: 38px !important;
                 font-size: 13px;
                 font-weight: 600;
                 padding: 4px 6px !important;
@@ -3484,15 +3530,17 @@
 
             #billing-body tr td:nth-child(3) .quantity-minus,
             #billing-body tr td:nth-child(3) .quantity-plus {
-                width: 34px;
-                height: 34px;
+                width: 44px;
+                height: 38px;
+                line-height: 38px;
                 font-size: 17px;
                 padding: 0;
             }
 
             #billing-body tr td:nth-child(3) .quantity-input {
                 width: 60px;
-                height: 34px;
+                height: 38px;
+                line-height: 38px;
                 font-size: 15px;
                 padding: 0 5px;
                 font-weight: 600;
@@ -3515,7 +3563,8 @@
 
             /* Input fields - even larger height and font */
             #billing-body tr td input.form-control {
-                height: 34px;
+                height: 38px;
+                line-height: 38px;
                 font-size: 14px;
                 padding: 4px 7px;
                 text-align: center;
@@ -3849,8 +3898,8 @@
             }
         }
 
-        /* Billing body: clearer card + remove button (mobile & tablet) */
-        @media (max-width: 991px) {
+        /* Billing body: clearer card + remove button (mobile only) */
+        @media (max-width: 767px) {
             #billing-body tr {
                 margin-bottom: 18px !important;
                 border-radius: 12px !important;
@@ -3921,9 +3970,9 @@
             }
         }
 
-        /* ========== Mobile: no product grid overflow, modal only ========== */
+        /* ========== Mobile & Tablet: no product grid overflow, modal only ========== */
         @media (max-width: 991px) {
-            /* Keep product grid column hidden on mobile/tablet – use modal only */
+            /* Keep product grid column hidden on mobile & tablet – use modal only */
             #productListArea {
                 display: none !important;
             }
@@ -3945,4 +3994,42 @@
             #mobileProductModalBody {
                 padding-bottom: 100px !important;
             }
+        }
+
+        /* ===== Final POS row alignment override (quantity, discounts, unit price) ===== */
+        #billing-body tr td:nth-child(3) .quantity-minus,
+        #billing-body tr td:nth-child(3) .quantity-plus,
+        #billing-body tr td:nth-child(3) .quantity-input {
+            height: 38px !important;
+            line-height: 38px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        /* Ensure all discount / unit price cells align their inputs on the same top line */
+        #billing-body tr td:nth-child(5),
+        #billing-body tr td:nth-child(6),
+        #billing-body tr td:nth-child(7) {
+            vertical-align: top !important;
+        }
+
+        #billing-body tr td:nth-child(5) input.form-control,
+        #billing-body tr td:nth-child(6) input.form-control,
+        #billing-body tr td:nth-child(7) input.form-control {
+            height: 38px !important;
+            line-height: 38px !important;
+        }
+
+        /* Keep price-history icon nicely below unit price input without breaking layout */
+        #billing-body tr td:nth-child(7) .price-history-icon {
+            display: inline-block;
+            margin-top: 2px;
+        }
+
+        /* Final override: keep Sale Notes textarea comfortably tall and visible on all sizes */
+        #sale-notes-textarea {
+            min-height: 48px !important;
+            max-height: 90px !important;
+            resize: vertical;
         }
