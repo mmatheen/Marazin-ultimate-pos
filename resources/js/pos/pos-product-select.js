@@ -1486,7 +1486,7 @@ function showProductModal(product, stockEntry, row) {
                 <img src="${window.getSafeImageUrl(product)}"
                      style="width:50px; height:50px; margin-right:15px; border-radius:8px; object-fit:cover;"
                      alt="${product.product_name}"
-                     onerror="this.onerror=null; this.src='/assets/images/No Product Image Available.png'; " />
+                     onerror="this.onerror=null; this.src=(typeof getSafeImageUrl==='function'?getSafeImageUrl({}):'/assets/images/No Product Image Available.png');" />
                 <div>
                     <div class="fw-bold fs-5">${product.product_name}</div>
                     <div class="text-muted">${product.sku}</div>

@@ -463,7 +463,7 @@ async function addProductToBillingBody(
                  alt="${product.product_name}"
                  data-bs-toggle="tooltip"
                  data-bs-placement="top"
-                 onerror="this.onerror=null; this.src='/assets/images/No Product Image Available.png';"/>
+                 onerror="this.onerror=null; this.src=(typeof getSafeImageUrl==='function'?getSafeImageUrl({}):'/assets/images/No Product Image Available.png');"/>
             <div class="product-info" style="min-width: 0; flex: 1;">
             <div class="font-weight-bold product-name" style="word-break: break-word; max-width: 260px; line-height: 1.2;" title="Unit Cost: ${batch ? (batch.unit_cost || batch.purchase_price || 'N/A') : (product.unit_cost || product.purchase_price || 'N/A')} | Original Price: ${product.original_price || product.purchase_price || 'N/A'}">
             ${nameDisplayHtml}

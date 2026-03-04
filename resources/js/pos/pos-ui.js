@@ -32,35 +32,38 @@ let failedImages  = new Set();
 let imageAttempts = new Map(); // tracks retry attempts per image (was undeclared in original — bug fix)
 
 // ---- Image Helpers ----
+// Data URI placeholder: no server request, no 404 when product image file is missing
+const FALLBACK_IMAGE_DATA_URI = 'data:image/svg+xml,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect fill="#e9ecef" width="100" height="100"/><text x="50" y="55" text-anchor="middle" fill="#868e96" font-size="11" font-family="sans-serif">No image</text></svg>'
+);
+const FALLBACK_IMAGE_PATH = '/assets/images/No Product Image Available.png';
 
 /**
- * Get safe image URL with fallback
+ * Get safe image URL with fallback (data URI when image missing — avoids 404s)
  */
 function getSafeImageUrl(product) {
-    const fallbackImage = '/assets/images/No Product Image Available.png';
-
     if (!product || !product.product_image || product.product_image.trim() === '') {
-        return fallbackImage;
+        return FALLBACK_IMAGE_DATA_URI;
     }
 
     const imageName = product.product_image.trim();
 
     if (failedImages.has(imageName)) {
-        return fallbackImage;
+        return FALLBACK_IMAGE_DATA_URI;
     }
 
     if (imageName.startsWith('http') || imageName.startsWith('/')) {
         return imageName;
     }
 
+    // Single path: app stores uploads in public/assets/images
     return `/assets/images/${imageName}`;
 }
 
 /**
- * Create image element with error handling and fallback retry
+ * Create image element with error handling — one path, then data URI (no double 404s)
  */
 function createSafeImage(product, styles = '', className = '', title = '') {
-    const fallbackImage = '/assets/images/No Product Image Available.png';
     const img = document.createElement('img');
 
     img.src = getSafeImageUrl(product);
@@ -71,21 +74,13 @@ function createSafeImage(product, styles = '', className = '', title = '') {
     img.loading = 'lazy';
 
     img.onerror = function() {
-        if (this.src === fallbackImage) return;
+        if (this.src === FALLBACK_IMAGE_DATA_URI) return;
 
         const originalImage = product?.product_image?.trim();
-        if (!originalImage) {
-            this.src = fallbackImage;
-            return;
-        }
+        if (originalImage) failedImages.add(originalImage);
 
-        // Try storage path once if not already tried
-        if (!this.src.includes('/storage/products/')) {
-            this.src = `/storage/products/${originalImage}`;
-        } else {
-            failedImages.add(originalImage);
-            this.src = fallbackImage;
-        }
+        // Use data URI so no 404 for missing placeholder file
+        this.src = FALLBACK_IMAGE_DATA_URI;
     };
 
     return img;
@@ -96,8 +91,9 @@ function createSafeImage(product, styles = '', className = '', title = '') {
  */
 function checkImageHealth() {
     const images = document.querySelectorAll('img[src*="assets/images"], img[src*="storage/products"]');
+    const isPlaceholder = (src) => src.includes('No Product Image Available.png') || src.startsWith('data:image');
     const missingCount = Array.from(images).filter(img =>
-        !img.src.includes('No Product Image Available.png') &&
+        !isPlaceholder(img.src) &&
         img.naturalWidth === 0 &&
         img.complete
     ).length;

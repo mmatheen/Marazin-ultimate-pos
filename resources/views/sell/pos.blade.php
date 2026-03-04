@@ -1853,7 +1853,7 @@
     @include('sell.partials.pos-notifications')
     @include('sell.partials.pos-config')
 
-    {{-- 
+    {{--
         POS JavaScript load order (do not change lightly):
         1) Vendor scripts      → @include('sell.partials.pos-vendor-scripts')
         2) Notifications       → @include('sell.partials.pos-notifications')

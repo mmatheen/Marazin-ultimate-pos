@@ -32,8 +32,24 @@ class Product extends Model
         'special_price',
         'original_price',
         'max_retail_price',
-        'is_active',
+        'is_active'
     ];
+
+    /**
+     * Only expose product_image when the file exists (avoids 404s in POS/frontend).
+     *
+     * @param  mixed  $value
+     * @return string|null
+     */
+    public function getProductImageAttribute($value)
+    {
+        if ($value === null || $value === '' || !is_string($value)) {
+            return null;
+        }
+        $filename = basename($value);
+        $path = public_path('assets/images/' . $filename);
+        return file_exists($path) ? $filename : null;
+    }
 
     public function locations()
     {
