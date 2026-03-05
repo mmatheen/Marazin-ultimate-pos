@@ -23,8 +23,8 @@ use App\Services\Sale\SaleReceiptService;
 use App\Services\Sale\SaleOrderConversionService;
 use App\Services\Sale\SaleQueryService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -147,9 +147,23 @@ class SaleController extends Controller
 
     public function pos()
     {
-        $perms = $this->resolvePosPermissions(auth()->user());
-
-        return view('sell.pos', $perms);
+        try {
+            $perms = $this->resolvePosPermissions(auth()->user());
+            return view('sell.pos', $perms);
+        } catch (\Throwable $e) {
+            Log::error('POS page failed to load', [
+                'message' => $e->getMessage(),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+                'trace'   => $e->getTraceAsString(),
+            ]);
+            if (config('app.debug')) {
+                throw $e;
+            }
+            return response()->view('errors.pos-unavailable', [
+                'message' => 'The POS page could not be loaded. Please check the server logs (storage/logs/laravel-*.log) for details.',
+            ], 500);
+        }
     }
 
     public function draft()
@@ -572,6 +586,17 @@ class SaleController extends Controller
 
         $freeQtyEnabled = (int) (Setting::value('enable_free_qty') ?? 1);
 
+        $miscItemProductId = 0;
+        try {
+            $miscItemProductId = ProductManager::resolveCashItemProductId();
+        } catch (\Throwable $e) {
+            Log::warning('POS: Could not resolve cash item product ID. Quick price-entry cash item will be disabled.', [
+                'message' => $e->getMessage(),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+            ]);
+        }
+
         return [
             'allowedPriceTypes'      => $allowedPriceTypes,
             'canEditUnitPrice'       => (bool) ($user?->can('edit unit price in pos')),
@@ -580,7 +605,7 @@ class SaleController extends Controller
             'freeQtyEnabled'         => $freeQtyEnabled,
             'canUseFreeQty'          => (bool) ($freeQtyEnabled && $user?->can('use free quantity')),
             'canUseQuickPriceEntry'  => (bool) ($user?->can('quick price entry')),
-            'miscItemProductId'      => ProductManager::resolveCashItemProductId(),
+            'miscItemProductId'      => $miscItemProductId,
         ];
     }
 
