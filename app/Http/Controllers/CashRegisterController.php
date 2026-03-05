@@ -8,6 +8,7 @@ use App\Models\ExpenseItem;
 use App\Models\ExpensePayment;
 use App\Models\Supplier;
 use App\Services\CashRegisterService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -29,6 +30,7 @@ class CashRegisterController extends Controller
 
     /**
      * Get current open register for the authenticated user and given location.
+     * Returns a safe "no register open" response if cash_registers table does not exist (migrations not run).
      */
     public function current(Request $request): JsonResponse
     {
@@ -39,7 +41,20 @@ class CashRegisterController extends Controller
         $userId = Auth::id();
         $locationId = (int) $request->input('location_id');
 
-        $register = $this->cashRegisterService->getCurrentOpenRegister($locationId, $userId);
+        try {
+            $register = $this->cashRegisterService->getCurrentOpenRegister($locationId, $userId);
+        } catch (QueryException $e) {
+            // Table missing (e.g. migrations not run) — return safe response so POS page still loads
+            if ($e->getCode() === '42S02' || str_contains($e->getMessage(), "doesn't exist")) {
+                return response()->json([
+                    'success'  => true,
+                    'open'     => false,
+                    'register' => null,
+                    'balance'  => 0,
+                ]);
+            }
+            throw $e;
+        }
 
         if (!$register) {
             return response()->json([
