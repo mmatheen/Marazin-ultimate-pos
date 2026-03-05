@@ -30,6 +30,7 @@ export default defineConfig({
                 'resources/js/pos/pos-init.js',
                 'resources/js/pos/pos-page.js',
                 'resources/js/pos/pos-payment.js',
+                'resources/js/pos/pos-cash-register.js',
             ],
             refresh: true,
         }),
