@@ -14,13 +14,14 @@ class ExpensePayment extends Model
     
     protected $fillable = [
         'expense_id',
+        'cash_register_id',
         'payment_date',
         'payment_method',
         'amount',
         'reference_no',
         'note',
         'created_by',
-        'updated_by'
+        'updated_by',
     ];
 
     protected $casts = [

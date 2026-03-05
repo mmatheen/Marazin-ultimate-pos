@@ -422,15 +422,16 @@ function buildProductPayloadFromRow(productRow) {
 //  gatherSaleData
 // ================================================================
 function gatherSaleData(status) {
-    const locationId = window.locationId;
+    // Use locationId from dropdown (synced in pos-init) so sale works when location is selected
+    const locationId = window.locationId || window.selectedLocationId;
     if (!locationId) {
-        toastr.error('Location ID is required.');
+        toastr.error('Location ID is required. Please select a location.');
         return null;
     }
 
     const productRows = $('#billing-body tr');
     if (productRows.length === 0) {
-        toastr.error('At least one product is required.');
+        toastr.error('Please add at least one product before completing the sale.');
         return null;
     }
 
@@ -681,6 +682,7 @@ function handleSaleSuccessResponse(response, saleData, saleId, onComplete) {
         return;
     }
     toastr.success(response.message);
+    $(document).trigger('pos:register-refresh');
     if (isEdit && (saleData.status === 'draft' || saleData.status === 'quotation')) {
         setTimeout(() => window.navigateToPosCreate(), 1500);
         if (onComplete) onComplete();
@@ -1225,7 +1227,6 @@ $(document).ready(function() {
 
             const saleData = gatherSaleData('final');
             if (!saleData) {
-                toastr.error('Please add at least one product before completing the sale.');
                 window.enableButton(button);
                 return;
             }
@@ -1350,7 +1351,6 @@ $(document).ready(function() {
 
             const saleData = gatherSaleData('final');
             if (!saleData) {
-                toastr.error('Please add at least one product before completing the sale.');
                 window.enableButton(button);
                 return;
             }
@@ -1408,7 +1408,6 @@ $(document).ready(function() {
 
             const saleData = gatherSaleData('final');
             if (!saleData) {
-                toastr.error('Please add at least one product before completing the sale.');
                 window.enableButton(button);
                 return;
             }
@@ -1441,7 +1440,6 @@ $(document).ready(function() {
 
             const saleData = gatherSaleData('final');
             if (!saleData) {
-                toastr.error('Please add at least one product before completing the sale.');
                 window.enableButton(button);
                 return;
             }
@@ -1460,7 +1458,6 @@ $(document).ready(function() {
     $('#suspendModal').on('click', '#confirmSuspend', function() {
         const saleData = gatherSaleData('suspend');
         if (!saleData) {
-            toastr.error('Please add at least one product before completing the sale.');
             return;
         }
 
@@ -1523,7 +1520,6 @@ $(document).ready(function() {
     $('#submitJobTicket').on('click', function() {
         const saleData = gatherSaleData('jobticket');
         if (!saleData) {
-            toastr.error('Please add at least one product before submitting the job ticket.');
             return;
         }
 
@@ -1554,7 +1550,6 @@ $(document).ready(function() {
 
         const saleData = gatherSaleData('final');
         if (!saleData) {
-            toastr.error('Please add at least one product before completing the sale.');
             return;
         }
 

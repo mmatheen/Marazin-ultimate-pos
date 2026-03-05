@@ -7,6 +7,7 @@ use App\Models\Purchase;
 use App\Models\PurchaseReturn;
 use App\Models\Sale;
 use App\Models\Ledger;
+use App\Services\CashRegisterService;
 use App\Services\UnifiedLedgerService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -14,12 +15,10 @@ use Illuminate\Support\Facades\Log;
 
 class PaymentService
 {
-    protected $unifiedLedgerService;
-
-    public function __construct(UnifiedLedgerService $unifiedLedgerService)
-    {
-        $this->unifiedLedgerService = $unifiedLedgerService;
-    }
+    public function __construct(
+        protected UnifiedLedgerService $unifiedLedgerService,
+        protected CashRegisterService $cashRegisterService
+    ) {}
 
     /**
      * Parse flexible date formats for cheque dates
@@ -69,6 +68,12 @@ class PaymentService
                 ? Carbon::parse($paymentData['payment_date'])
                 : now();
 
+            $cashRegisterId = null;
+            if (($paymentData['payment_method'] ?? '') === 'cash' && $sale->location_id && $sale->user_id) {
+                $register = $this->cashRegisterService->getCurrentOpenRegister((int) $sale->location_id, (int) $sale->user_id);
+                $cashRegisterId = $register?->id;
+            }
+
             $payment = Payment::create([
                 'payment_date' => $paymentDate,
                 'amount' => $paymentData['amount'],
@@ -77,6 +82,7 @@ class PaymentService
                 'notes' => $paymentData['notes'] ?? null,
                 'payment_type' => 'sale',
                 'reference_id' => $sale->id,
+                'cash_register_id' => $cashRegisterId,
                 'customer_id' => $sale->customer_id,
                 'card_number' => $paymentData['card_number'] ?? null,
                 'card_holder_name' => $paymentData['card_holder_name'] ?? null,
@@ -91,6 +97,13 @@ class PaymentService
                 'cheque_status' => $paymentData['cheque_status'] ?? 'pending',
                 'payment_status' => $paymentData['payment_status'] ?? 'completed',
             ]);
+
+            if ($cashRegisterId && ($paymentData['payment_method'] ?? '') === 'cash') {
+                $register = \App\Models\CashRegister::find($cashRegisterId);
+                if ($register) {
+                    $this->cashRegisterService->recordSaleCash($register, (int) $sale->id, (float) $payment->amount, (int) $payment->id);
+                }
+            }
 
             // Record payment in ledger (Enhanced: Include all customers for proper tracking)
             // Skip only if explicitly requested or for specific statuses

@@ -241,7 +241,7 @@ $(document).ready(function() {
             addExpenseItem();
         });
 
-        // Calculate totals when any amount field changes
+        // Calculate totals when any amount field changes (advanced/internal fields)
         $(document).on('input', '#tax_amount, #discount_amount, #shipping_charges, .quantity-input, .unit-price-input', function() {
             if ($(this).hasClass('quantity-input') || $(this).hasClass('unit-price-input')) {
                 var row = $(this).closest('.item-row');
@@ -251,6 +251,11 @@ $(document).ready(function() {
                 row.find('.total-input').val(total.toFixed(2));
             }
             calculateTotals();
+        });
+
+        // Simple mode: when paid amount changes, keep a single hidden item in sync
+        $('#paid_amount').on('input', function() {
+            syncSimpleItemFromPaidAmount();
         });
 
         $(document).on('change', '#discount_type', function() {
@@ -546,7 +551,7 @@ $(document).ready(function() {
         itemCounter++;
     }
 
-    // Calculate totals
+    // Calculate totals (from item rows + additional charges)
     function calculateTotals() {
         var subtotal = 0;
         
@@ -577,7 +582,29 @@ $(document).ready(function() {
         $('#total_amount').val(total.toFixed(2));
     }
 
-    // Validate form
+    // Simple mode helper: ensure at least one hidden item row that mirrors the main amount
+    function syncSimpleItemFromPaidAmount() {
+        var amount = parseFloat($('#paid_amount').val()) || 0;
+
+        // Ensure at least one item row exists
+        if ($('.item-row').length === 0) {
+            addExpenseItem();
+        }
+
+        // Use selected category name (or generic) as item name
+        var categoryText = $('#expense_parent_category_id option:selected').text() || 'General Expense';
+
+        $('.item-row').each(function() {
+            $(this).find('input[name*="[item_name]"]').val(categoryText.trim() || 'General Expense');
+            $(this).find('.quantity-input').val(1);
+            $(this).find('.unit-price-input').val(amount.toFixed(2));
+            $(this).find('.total-input').val(amount.toFixed(2));
+        });
+
+        calculateTotals();
+    }
+
+    // Validate form (simple-mode focused)
     function validateForm() {
         var isValid = true;
         $('.text-danger').text('');
@@ -601,24 +628,10 @@ $(document).ready(function() {
             $('#payment_method_error').text('Payment method is required');
             isValid = false;
         }
-        
-        if ($('.item-row').length === 0) {
-            $('#items_error').text('At least one expense item is required');
-            isValid = false;
-        }
-        
-        $('.item-row').each(function() {
-            var itemName = $(this).find('input[name*="[item_name]"]').val();
-            var quantity = $(this).find('input[name*="[quantity]"]').val();
-            var unitPrice = $(this).find('input[name*="[unit_price]"]').val();
-            
-            if (!itemName || !quantity || !unitPrice) {
-                $('#items_error').text('All item fields are required');
-                isValid = false;
-                return false;
-            }
-        });
-        
+
+        // Simple mode: automatically prepare a single hidden expense item for backend
+        syncSimpleItemFromPaidAmount();
+
         return isValid;
     }
 

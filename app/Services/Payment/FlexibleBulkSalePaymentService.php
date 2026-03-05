@@ -5,6 +5,7 @@ namespace App\Services\Payment;
 use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\SalesReturn;
+use App\Services\CashRegisterService;
 use App\Services\UnifiedLedgerService;
 use App\Helpers\BalanceHelper;
 use App\Traits\BulkPaymentHelpers;
@@ -17,7 +18,8 @@ class FlexibleBulkSalePaymentService
     use BulkPaymentHelpers;
 
     public function __construct(
-        private readonly UnifiedLedgerService $unifiedLedgerService
+        private readonly UnifiedLedgerService $unifiedLedgerService,
+        private readonly CashRegisterService $cashRegisterService
     ) {}
 
     /**
@@ -127,6 +129,11 @@ class FlexibleBulkSalePaymentService
                         }
 
                     } elseif ($returnData['action'] === 'cash_refund') {
+                        $locationId = (int) $salesReturn->location_id;
+                        $userId = (int) Auth::id();
+                        $register = $this->cashRegisterService->getCurrentOpenRegister($locationId, $userId);
+                        $cashRegisterId = $register?->id;
+
                         $returnPayment = Payment::create([
                             'payment_date'   => $request->payment_date,
                             'amount'         => $returnData['amount'],
@@ -135,10 +142,20 @@ class FlexibleBulkSalePaymentService
                                 ? 'sale_return_with_bill'
                                 : 'sale_return_without_bill',
                             'reference_id'   => $salesReturn->id,
+                            'cash_register_id' => $cashRegisterId,
                             'reference_no'   => $bulkReference,
                             'customer_id'    => $request->customer_id,
                             'notes'          => 'Cash refund for return: ' . $salesReturn->invoice_number,
                         ]);
+
+                        if ($register) {
+                            $this->cashRegisterService->recordRefundCash(
+                                $register,
+                                (int) $salesReturn->id,
+                                abs($returnData['amount']),
+                                (int) $returnPayment->id
+                            );
+                        }
 
                         $salesReturn->increment('total_paid', $returnData['amount']);
                         $salesReturn->refresh();

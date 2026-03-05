@@ -234,6 +234,16 @@ class RolesAndPermissionsSeeder extends Seeder
                 'view cheque-management'
             ],
 
+            // 6b. Cash Register (POS drawer)
+            '20b. cash-register' => [
+                'open register',
+                'close register',
+                'pay in',
+                'pay out',
+                'add expense from pos',
+                'view cash register',
+            ],
+
             // 7. Expense Management
             '21. expense-management' => [
                 'create expense',
@@ -522,6 +532,13 @@ class RolesAndPermissionsSeeder extends Seeder
                 'view sale-order',
                 'edit sale-order',
 
+                // Cash Register (drawer)
+                'open register',
+                'close register',
+                'pay in',
+                'pay out',
+                'view cash register',
+
                 // Profile
                 'view own-profile',
                 'edit own-profile',
@@ -651,6 +668,14 @@ class RolesAndPermissionsSeeder extends Seeder
 
             // Free quantity usage in POS
             'use free quantity' => ['access pos', 'create sale'],
+
+            // Cash register (POS drawer) – grant to roles that can access POS
+            'open register'         => ['access pos'],
+            'close register'        => ['access pos'],
+            'pay in'                => ['access pos'],
+            'pay out'               => ['access pos'],
+            'add expense from pos'  => ['access pos', 'create expense'],
+            'view cash register'    => ['access pos'],
         ];
 
         // Get all roles

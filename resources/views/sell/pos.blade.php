@@ -206,6 +206,25 @@
                                     <i class="fas fa-backward"></i>
                                 </button>
 
+                                <!-- Cash Register: Drawer balance + actions -->
+                                <div class="pos-cash-drawer-wrap d-none d-md-flex align-items-center gap-2 me-2">
+                                    <span class="text-nowrap fw-semibold" style="font-size: 0.9rem;">
+                                        <i class="fas fa-cash-register me-1"></i> Drawer: <span id="posCashDrawerBalance">Rs. 0.00</span>
+                                    </span>
+                                    <div class="dropdown">
+                                        <button class="btn btn-success btn-sm dropdown-toggle" id="posCashRegisterDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Cash register">
+                                            <i class="fas fa-wallet"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#posPayInModal"><i class="fas fa-plus-circle text-success me-2"></i> Pay In</button></li>
+                                            <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#posPayOutModal"><i class="fas fa-minus-circle text-warning me-2"></i> Pay Out</button></li>
+                                            <li><button type="button" class="dropdown-item" id="posAddExpenseBtn"><i class="fas fa-receipt text-info me-2"></i> Add Expense</button></li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li><button type="button" class="dropdown-item text-danger" id="posCloseRegisterBtn"><i class="fas fa-lock me-2"></i> Close Register</button></li>
+                                        </ul>
+                                    </div>
+                                </div>
+
                                 <!-- Calculator Button with Dropdown -->
                                 <div class="dropdown">
                                     <button class="btn btn-warning btn-sm dropdown-toggle" id="calculatorButton"
@@ -794,6 +813,12 @@
                 <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
             </div>
             <div class="offcanvas-body">
+                <div class="mb-2">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" class="form-control pos-offcanvas-search" id="categorySearchInput" placeholder="Search category..." autocomplete="off">
+                    </div>
+                </div>
                 <div id="categoryContainer" class="category-container">
                     <!-- Categories will be dynamically injected here -->
                 </div>
@@ -809,6 +834,12 @@
                 <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
             </div>
             <div class="offcanvas-body">
+                <div class="mb-2">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" class="form-control pos-offcanvas-search" id="subcategorySearchInput" placeholder="Search subcategory..." autocomplete="off">
+                    </div>
+                </div>
                 <div id="subcategoryContainer" class="subcategory-container">
                     <!-- Subcategories will be dynamically injected here -->
                 </div>
@@ -877,6 +908,12 @@
                 <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
             </div>
             <div class="offcanvas-body">
+                <div class="mb-2">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" class="form-control pos-offcanvas-search" id="brandSearchInput" placeholder="Search brand..." autocomplete="off">
+                    </div>
+                </div>
                 <div id="brandContainer" class="category-container">
                     <!-- Brands will be dynamically injected here -->
                 </div>
@@ -1086,91 +1123,84 @@
         </div>
 
 
-        <!-- Bottom Fixed Section (Hidden only on mobile <768px; shown on tablet 768+ and desktop) -->
-        <div class="bottom-fixed d-none d-md-block">
-            <div class="row">
-                <!-- Left Side: Total Payable and Cancel -->
-                <div class="col-md-5 d-flex align-items-center justify-content-start gap-3">
-                    <h4 class="mb-0">Total Payable:</h4>
-                    <span id="total" class="text-success fw-bold ms-2" style="font-size: 24px;">Rs 0.00</span>
-                    <span id="items-count" class="text-secondary ms-2" style="font-size: 16px;">(0)</span>
-                    <button class="btn btn-danger ms-3 btn-sm" id="cancelButton"><i class="fas fa-times"></i>
-                        Cancel</button>
-                </div>
-
-                <!-- Right Side: Actions (Aligned to Right) -->
-                <div class="col-md-7 text-end">
-                    <div class="d-flex justify-content-end gap-1 flex-wrap">
-
-                        @can('create job-ticket')
-                            {{-- job ticket --}}
-                            <button type="button" class="btn btn-outline-secondary btn-sm" id="jobTicketButton">
-                                <i class="fas fa-ticket-alt"></i> Job Ticket
-                            </button>
-                        @endcan
-
-                        @can('create quotation')
-                            {{-- <!-- Quotation Button --> --}}
-                            <button type="button" class="btn btn-outline-warning btn-sm" id="quotationButton">
-                                <i class="fas fa-file-alt"></i> Quotation
-                            </button>
-                        @endcan
-
-                        @can('save draft')
-                            <!-- Draft Button -->
-                            <button type="button" class="btn btn-outline-info btn-sm" id="draftButton">
-                                <i class="fas fa-edit"></i> Draft
-                            </button>
-                        @endcan
-
-                        @can('create sale-order')
-                            <!-- Sale Order Button -->
-                            <button type="button" class="btn btn-outline-success btn-sm" id="saleOrderButton">
-                                <i class="fas fa-shopping-cart"></i> Sale Order
-                            </button>
-                        @endcan
-
-                        @can('suspend sale')
-                            <!-- Existing Buttons -->
-                            <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal"
-                                data-bs-target="#suspendModal">
-                                <i class="fas fa-pause"></i> Suspend
-                            </button>
-                        @endcan
-
-                        @can('credit sale')
-                            <button class="btn btn-outline-success btn-sm" id="creditSaleButton">
-                                <i class="fas fa-check"></i> Credit Sale
-                            </button>
-                        @endcan
-
-                        @can('card payment')
-                            <button class="btn btn-outline-primary btn-sm" id="cardButton">
-                                <i class="fas fa-credit-card"></i> Card
-                            </button>
-                        @endcan
-
-                        @can('cheque payment')
-                            <button class="btn btn-outline-warning btn-sm" id="chequeButton">
-                                <i class="fas fa-money-check"></i> Cheque
-                            </button>
-                        @endcan
-
-                        @can('multiple payment methods')
-                            <button class="btn btn-outline-dark btn-sm" data-bs-toggle="modal"
-                                data-bs-target="#paymentModal">
-                                <i class="fas fa-list"></i> Multiple Pay
-                            </button>
-                        @endcan
-                        @can('cash payment')
-                            <button class="btn btn-outline-secondary btn-sm" id="cashButton">
-                                <i class="fas fa-cash-register"></i> Cash
-                            </button>
-                        @endcan
-
+        <!-- Modern POS Footer: 3 zones (Left: More | Center: Total + Primary Pay | Right: Multiple Pay + Cancel) -->
+        <div class="pos-footer-modern bottom-fixed d-none d-md-block">
+            <div class="pos-footer-inner">
+                <!-- Left: More / Actions dropdown -->
+                <div class="pos-footer-left">
+                    <div class="dropdown dropup pos-footer-more-dropdown">
+                        <button class="btn pos-footer-more-btn dropdown-toggle" type="button" id="posFooterMoreDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">
+                            <i class="fas fa-ellipsis-v"></i> More
+                        </button>
+                        <ul class="dropdown-menu pos-footer-more-menu" aria-labelledby="posFooterMoreDropdown">
+                            @can('create job-ticket')
+                                <li><button type="button" class="dropdown-item pos-footer-trigger-item" data-trigger-id="jobTicketButton"><i class="fas fa-ticket-alt me-2"></i>Job Ticket</button></li>
+                            @endcan
+                            @can('create quotation')
+                                <li><button type="button" class="dropdown-item pos-footer-trigger-item" data-trigger-id="quotationButton"><i class="fas fa-file-alt me-2"></i>Quotation</button></li>
+                            @endcan
+                            @can('save draft')
+                                <li><button type="button" class="dropdown-item pos-footer-trigger-item" data-trigger-id="draftButton"><i class="fas fa-edit me-2"></i>Draft</button></li>
+                            @endcan
+                            @can('create sale-order')
+                                <li><button type="button" class="dropdown-item pos-footer-trigger-item" data-trigger-id="saleOrderButton"><i class="fas fa-shopping-cart me-2"></i>Sale Order</button></li>
+                            @endcan
+                            @can('suspend sale')
+                                <li><button type="button" class="dropdown-item pos-footer-trigger-item" data-trigger-id="suspendTriggerBtn"><i class="fas fa-pause me-2"></i>Suspend</button></li>
+                            @endcan
+                            @can('cheque payment')
+                                <li><button type="button" class="dropdown-item pos-footer-trigger-item" data-trigger-id="chequeButton"><i class="fas fa-money-check me-2"></i>Cheque</button></li>
+                            @endcan
+                        </ul>
+                    </div>
+                    <!-- Hidden triggers for JS (same IDs as before) -->
+                    <div class="d-none pos-footer-hidden-triggers">
+                        @can('create job-ticket') <button type="button" id="jobTicketButton"></button> @endcan
+                        @can('create quotation') <button type="button" id="quotationButton"></button> @endcan
+                        @can('save draft') <button type="button" id="draftButton"></button> @endcan
+                        @can('create sale-order') <button type="button" id="saleOrderButton"></button> @endcan
+                        @can('suspend sale') <button type="button" id="suspendTriggerBtn" data-bs-toggle="modal" data-bs-target="#suspendModal"></button> @endcan
+                        @can('cheque payment') <button type="button" id="chequeButton"></button> @endcan
                     </div>
                 </div>
 
+                <!-- Center: Total + Primary payment buttons -->
+                <div class="pos-footer-center">
+                    <div class="pos-footer-total-wrap">
+                        <span class="pos-footer-total-label">Total Payable</span>
+                        <span id="total" class="pos-footer-total-amount">Rs 0.00</span>
+                        <span id="items-count" class="pos-footer-items-count">(0)</span>
+                    </div>
+                    <div class="pos-footer-primary-btns">
+                        @can('cash payment')
+                        <button type="button" class="btn pos-footer-btn pos-footer-btn-cash" id="cashButton">
+                            <i class="fas fa-cash-register"></i> Cash
+                        </button>
+                        @endcan
+                        @can('card payment')
+                        <button type="button" class="btn pos-footer-btn pos-footer-btn-card" id="cardButton">
+                            <i class="fas fa-credit-card"></i> Card
+                        </button>
+                        @endcan
+                        @can('credit sale')
+                        <button type="button" class="btn pos-footer-btn pos-footer-btn-credit" id="creditSaleButton">
+                            <i class="fas fa-check-circle"></i> Credit Sale
+                        </button>
+                        @endcan
+                        @can('multiple payment methods')
+                        <button type="button" class="btn pos-footer-btn pos-footer-btn-multiple" data-bs-toggle="modal" data-bs-target="#paymentModal">
+                            <i class="fas fa-list"></i> Multiple Pay
+                        </button>
+                        @endcan
+                    </div>
+                </div>
+
+                <!-- Right: Cancel only -->
+                <div class="pos-footer-right">
+                    <button type="button" class="btn pos-footer-btn pos-footer-btn-cancel" id="cancelButton">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -1881,6 +1911,111 @@
         </div>
     </div>
 
+    <!-- Cash Register Modals -->
+    <div class="modal fade" id="posOpenRegisterModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Open Register</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <p class="text-muted small">Enter the opening cash amount in the drawer.</p>
+                    <label class="form-label">Opening amount (Rs.)</label>
+                    <input type="number" step="0.01" min="0" class="form-control" id="posOpeningAmount" placeholder="0.00">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="posOpenRegisterBtn">Open Register</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="posPayInModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Pay In</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <label class="form-label">Amount (Rs.)</label>
+                    <input type="number" step="0.01" min="0.01" class="form-control mb-2" id="posPayInAmount" placeholder="0.00">
+                    <label class="form-label">Notes (optional)</label>
+                    <input type="text" class="form-control" id="posPayInNotes" placeholder="e.g. Change fund">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" id="posPayInConfirmBtn">Record Pay In</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="posPayOutModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Pay Out</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <label class="form-label">Amount (Rs.)</label>
+                    <input type="number" step="0.01" min="0.01" class="form-control mb-2" id="posPayOutAmount" placeholder="0.00">
+                    <label class="form-label">Notes (optional)</label>
+                    <input type="text" class="form-control" id="posPayOutNotes" placeholder="e.g. Bank deposit">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-warning" id="posPayOutConfirmBtn">Record Pay Out</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="posCloseRegisterModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Close Register</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <p class="mb-2">Expected balance (system): <strong id="posCloseExpectedBalance">Rs. 0.00</strong></p>
+                    <label class="form-label">Counted cash in drawer (Rs.)</label>
+                    <input type="number" step="0.01" min="0" class="form-control mb-2" id="posClosingAmount" placeholder="0.00">
+                    <label class="form-label">Notes (optional)</label>
+                    <input type="text" class="form-control" id="posCloseNotes" placeholder="e.g. Over/short reason">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="posCloseRegisterConfirmBtn">Close Register</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="posExpenseModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Add Expense (from drawer)</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <input type="hidden" id="posExpenseRegisterId">
+                    <input type="hidden" id="posExpenseLocationId">
+                    <div class="mb-2">
+                        <label class="form-label">Category</label>
+                        <select class="form-select" id="posExpenseParentCategory"><option value="">Select category</option></select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Subcategory (optional)</label>
+                        <select class="form-select" id="posExpenseSubCategory"><option value="">Select subcategory</option></select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Amount (Rs.) *</label>
+                        <input type="number" step="0.01" min="0.01" class="form-control" id="posExpenseAmount" placeholder="0.00">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Paid to (optional)</label>
+                        <input type="text" class="form-control" id="posExpensePaidTo" placeholder="Name or description">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Note (optional)</label>
+                        <input type="text" class="form-control" id="posExpenseNote" placeholder="Note">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="posExpenseSubmitBtn">Add Expense</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- POS Configuration (Blade-to-JS bridge) is in @include('sell.partials.pos-config') below -->
 
     @include('sell.partials.pos-vendor-scripts')
@@ -1903,6 +2038,7 @@
     @vite('resources/js/pos/pos-customer.js')
     @vite('resources/js/pos/pos-salesrep.js')
     @vite('resources/js/pos/pos-location.js')
+    @vite('resources/js/pos/pos-cash-register.js')
     @vite('resources/js/pos/pos-product-grid.js')
     @vite('resources/js/pos/pos-autocomplete.js')
     @vite('resources/js/pos/pos-cart.js')
@@ -1922,6 +2058,19 @@
     @include('contact.customer.cities_ajax')
     @include('contact.customer.add_customer_modal')
     @include('contact.customer.city_modal')
+
+    <!-- Modern footer: dropdown items trigger hidden buttons (keep existing JS bindings) -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelector('.pos-footer-modern')?.addEventListener('click', function (e) {
+            var item = e.target.closest('.pos-footer-trigger-item');
+            if (item) {
+                var id = item.getAttribute('data-trigger-id');
+                if (id) { var el = document.getElementById(id); if (el) el.click(); }
+            }
+        });
+    });
+    </script>
 
 </body>
 

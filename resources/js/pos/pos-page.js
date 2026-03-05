@@ -133,8 +133,13 @@ window.Pos.Page.handleGoHome = function () {
     window.location.href = window.dashboardUrl || '/';
 };
 
-// Global shims so inline onclick="handleGoHome()" continues to work
+// Global shims so inline onclick="handleGoBack()" / "handleGoHome()" continue to work
 // while main implementation lives on window.Pos.Page.*
+window.handleGoBack = function () {
+    if (window.Pos && window.Pos.Page && typeof window.Pos.Page.handleGoBack === 'function') {
+        window.Pos.Page.handleGoBack();
+    }
+};
 window.handleGoHome = function () {
     if (window.Pos && window.Pos.Page && typeof window.Pos.Page.handleGoHome === 'function') {
         window.Pos.Page.handleGoHome();

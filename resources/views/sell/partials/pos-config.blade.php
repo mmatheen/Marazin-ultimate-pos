@@ -54,6 +54,18 @@
             subcategories:         '/subcategories/',      // append category ID
             brands:                '/brands',
             locations:             '/locations',
+            cashRegister:          {
+                current:    '/cash-register/current',
+                open:       '/cash-register/open',
+                close:      '/cash-register/close',
+                closeScreen: '/cash-register/close-screen',
+                payIn:      '/cash-register/pay-in',
+                payOut:     '/cash-register/pay-out',
+                balance:    '/cash-register/balance',
+                expense:    '/cash-register/expense',
+            },
+            expenseParentCategories: '/expense-parent-catergory-get-all',
+            expenseSubCategories:    '/expense-sub-categories/', // append parent category ID
             customerById:          '/customer-get-by-id/', // append customer ID
             customerCreditInfo:    '/customer/credit-info/', // append customer ID
             customerPreviousPrice: '/customer-previous-price',

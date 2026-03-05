@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\View;
 use App\Http\Controllers\{
+    CashRegisterController,
     SaleController,
     UnitController,
     UserController,
@@ -381,6 +382,16 @@ Route::middleware(['auth'])->group(function () {
         // Print Sales - These need to come before the generic routes
         Route::get('/sales/print-recent-transaction/{id}', [SaleController::class, 'printRecentTransaction']);
         Route::post('/pos/log-pricing-error', [SaleController::class, 'logPricingError']);
+
+        // -------------------- Cash Register Routes --------------------
+        Route::get('/cash-register/current', [CashRegisterController::class, 'current'])->name('cash-register.current');
+        Route::post('/cash-register/open', [CashRegisterController::class, 'open'])->name('cash-register.open');
+        Route::post('/cash-register/close', [CashRegisterController::class, 'close'])->name('cash-register.close');
+        Route::get('/cash-register/close-screen', [CashRegisterController::class, 'closeScreen'])->name('cash-register.close-screen');
+        Route::post('/cash-register/pay-in', [CashRegisterController::class, 'payIn'])->name('cash-register.pay-in');
+        Route::post('/cash-register/pay-out', [CashRegisterController::class, 'payOut'])->name('cash-register.pay-out');
+        Route::get('/cash-register/balance', [CashRegisterController::class, 'balance'])->name('cash-register.balance');
+        Route::post('/cash-register/expense', [CashRegisterController::class, 'addExpenseFromPos'])->name('cash-register.expense');
 
         // Customer Previous Price History
         Route::get('/customer-previous-price', [SaleController::class, 'getCustomerPreviousPrice']);

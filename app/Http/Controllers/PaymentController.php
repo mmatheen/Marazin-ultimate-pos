@@ -14,6 +14,7 @@ use App\Models\Location;
 use App\Models\BulkPaymentLog;
 use App\Helpers\BalanceHelper;
 use Illuminate\Support\Facades\Log;
+use App\Services\CashRegisterService;
 use App\Services\PaymentService;
 use App\Services\UnifiedLedgerService;
 use App\Services\ChequeService;
@@ -30,17 +31,20 @@ class PaymentController extends Controller
 {
     protected $paymentService;
     protected $unifiedLedgerService;
+    protected $cashRegisterService;
     protected $flexibleBulkSalePaymentService;
     protected $flexibleBulkPurchasePaymentService;
 
     function __construct(
         PaymentService $paymentService,
         UnifiedLedgerService $unifiedLedgerService,
+        CashRegisterService $cashRegisterService,
         FlexibleBulkSalePaymentService $flexibleBulkSalePaymentService,
         FlexibleBulkPurchasePaymentService $flexibleBulkPurchasePaymentService
     ) {
         $this->paymentService = $paymentService;
         $this->unifiedLedgerService = $unifiedLedgerService;
+        $this->cashRegisterService = $cashRegisterService;
         $this->flexibleBulkSalePaymentService = $flexibleBulkSalePaymentService;
         $this->flexibleBulkPurchasePaymentService = $flexibleBulkPurchasePaymentService;
 
@@ -992,6 +996,11 @@ class PaymentController extends Controller
                 ]);
 
             } elseif ($action === 'cash_refund') {
+                $locationId = (int) $salesReturn->location_id;
+                $userId = (int) Auth::id();
+                $register = $this->cashRegisterService->getCurrentOpenRegister($locationId, $userId);
+                $cashRegisterId = $register?->id;
+
                 // Issue cash refund
                 $payment = new Payment();
                 $payment->payment_date = $request->input('paid_on', now());
@@ -1002,6 +1011,7 @@ class PaymentController extends Controller
                     : 'sale_return_without_bill';
                 $payment->reference_id = $salesReturn->id;
                 $payment->reference_no = $salesReturn->invoice_number;
+                $payment->cash_register_id = $cashRegisterId;
                 $payment->customer_id = $entity->id;
                 $payment->notes = 'Cash refund for return (Bulk Payment)';
                 $payment->created_by = Auth::id();
@@ -1010,6 +1020,15 @@ class PaymentController extends Controller
                 $this->copyPaymentMethodFields($payment, $request);
 
                 $payment->save();
+
+                if ($register) {
+                    $this->cashRegisterService->recordRefundCash(
+                        $register,
+                        (int) $salesReturn->id,
+                        $returnAmount,
+                        (int) $payment->id
+                    );
+                }
 
                 // Update return payment status
                 $salesReturn->total_paid = ($salesReturn->total_paid ?? 0) + $returnAmount;

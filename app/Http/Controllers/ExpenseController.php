@@ -10,6 +10,7 @@ use App\Models\ExpenseSubCategory;
 use App\Models\Location;
 use App\Models\Supplier;
 use App\Models\SupplierBalanceLog;
+use App\Services\CashRegisterService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -19,8 +20,9 @@ use Carbon\Carbon;
 
 class ExpenseController extends Controller
 {
-    function __construct()
-    {
+    public function __construct(
+        protected CashRegisterService $cashRegisterService
+    ) {
         $this->middleware('permission:view expense', ['only' => ['index', 'show', 'expenseList']]);
         $this->middleware('permission:create expense', ['only' => ['create', 'store']]);
         $this->middleware('permission:edit expense', ['only' => ['edit', 'update']]);
@@ -228,8 +230,14 @@ class ExpenseController extends Controller
 
             // Create payment record if amount paid
             if ($paidAmount > 0) {
-                ExpensePayment::create([
+                $cashRegisterId = null;
+                if (($request->payment_method ?? '') === 'cash' && $expense->location_id) {
+                    $register = $this->cashRegisterService->getCurrentOpenRegister((int) $expense->location_id, (int) auth()->id());
+                    $cashRegisterId = $register?->id;
+                }
+                $expensePayment = ExpensePayment::create([
                     'expense_id' => $expense->id,
+                    'cash_register_id' => $cashRegisterId,
                     'payment_date' => $request->date,
                     'payment_method' => $request->payment_method,
                     'amount' => $paidAmount,
@@ -237,6 +245,14 @@ class ExpenseController extends Controller
                     'note' => 'Initial payment',
                     'created_by' => auth()->id()
                 ]);
+                if ($cashRegisterId) {
+                    $this->cashRegisterService->recordExpenseFromDrawer(
+                        (int) $cashRegisterId,
+                        (int) $expense->id,
+                        (float) $paidAmount,
+                        'Initial payment'
+                    );
+                }
             }
 
             // Handle overpayment - add to supplier balance
@@ -447,8 +463,14 @@ class ExpenseController extends Controller
 
                 // Create new payment record if amount paid
                 if ($paidAmount > 0) {
-                    ExpensePayment::create([
+                    $cashRegisterId = null;
+                    if (($request->payment_method ?? '') === 'cash' && $expense->location_id) {
+                        $register = $this->cashRegisterService->getCurrentOpenRegister((int) $expense->location_id, (int) auth()->id());
+                        $cashRegisterId = $register?->id;
+                    }
+                    $expensePayment = ExpensePayment::create([
                         'expense_id' => $expense->id,
+                        'cash_register_id' => $cashRegisterId,
                         'payment_date' => $request->date,
                         'payment_method' => $request->payment_method,
                         'amount' => $paidAmount,
@@ -456,6 +478,14 @@ class ExpenseController extends Controller
                         'note' => 'Updated payment',
                         'created_by' => auth()->id()
                     ]);
+                    if ($cashRegisterId) {
+                        $this->cashRegisterService->recordExpenseFromDrawer(
+                            (int) $cashRegisterId,
+                            (int) $expense->id,
+                            (float) $paidAmount,
+                            'Updated payment'
+                        );
+                    }
                 }
             }
 
@@ -704,9 +734,15 @@ class ExpenseController extends Controller
                 $paymentStatus = 'pending';
             }
 
+            $cashRegisterId = null;
+            if (($request->payment_method ?? '') === 'cash' && $expense->location_id) {
+                $register = $this->cashRegisterService->getCurrentOpenRegister((int) $expense->location_id, (int) auth()->id());
+                $cashRegisterId = $register?->id;
+            }
             // Create payment record for the actual payment amount
             $payment = ExpensePayment::create([
                 'expense_id' => $expense->id,
+                'cash_register_id' => $cashRegisterId,
                 'payment_date' => $request->payment_date,
                 'payment_method' => $request->payment_method,
                 'amount' => $actualPaymentAmount,
@@ -714,6 +750,14 @@ class ExpenseController extends Controller
                 'note' => $request->payment_note ?? 'Additional payment',
                 'created_by' => auth()->id()
             ]);
+            if ($cashRegisterId) {
+                $this->cashRegisterService->recordExpenseFromDrawer(
+                    (int) $cashRegisterId,
+                    (int) $expense->id,
+                    (float) $actualPaymentAmount,
+                    $request->payment_note ?? 'Additional payment'
+                );
+            }
 
             // Update expense payment status
             $expense->update([

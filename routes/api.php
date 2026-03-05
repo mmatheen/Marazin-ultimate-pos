@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\{
   BrandController,
+  CashRegisterController,
   CartController,
   CustomerGroupController,
   ExpenseController,
@@ -293,6 +294,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);
     Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
     Route::post('/sales/clear-cache', [SaleController::class, 'clearSalesCache']);
+
+    // Cash Register (POS drawer)
+    Route::get('/cash-register/current', [CashRegisterController::class, 'current']);
+    Route::post('/cash-register/open', [CashRegisterController::class, 'open']);
+    Route::post('/cash-register/close', [CashRegisterController::class, 'close']);
+    Route::get('/cash-register/close-screen', [CashRegisterController::class, 'closeScreen']);
+    Route::post('/cash-register/pay-in', [CashRegisterController::class, 'payIn']);
+    Route::post('/cash-register/pay-out', [CashRegisterController::class, 'payOut']);
+    Route::get('/cash-register/balance', [CashRegisterController::class, 'balance']);
+    Route::post('/cash-register/expense', [CashRegisterController::class, 'addExpenseFromPos']);
     Route::get('/sales/{invoiceNo}', [SaleController::class, 'getSaleByInvoiceNo']);
     Route::get('/search/sales', [SaleController::class, 'searchSales']);
     Route::get('sales_details/{id}', [SaleController::class, 'salesDetails']);

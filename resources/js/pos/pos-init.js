@@ -217,6 +217,7 @@ function updateAllBillingRowsPricing(newCustomerType) {
 function handleLocationChange(event) {
     selectedLocationId = $(event.target).val();
     window.selectedLocationId = selectedLocationId;
+    window.locationId = selectedLocationId || null;
     currentProductsPage = 1;
     window.currentProductsPage = currentProductsPage;
     hasMoreProducts = true;
@@ -249,6 +250,7 @@ function handleLocationChange(event) {
     updateTotals();
     if (window.isSalesRep && selectedLocationId) window.checkAndToggleSalesRepButtons(selectedLocationId);
     setTimeout(function () { var inp = document.getElementById('productSearchInput'); if (inp) inp.focus(); }, 300);
+    $(document).trigger('pos:location-changed');
 }
 
 /* ── DOMContentLoaded: run all inits in order ─────────────────── */

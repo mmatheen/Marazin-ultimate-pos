@@ -21,6 +21,7 @@ class Payment extends Model
         'notes',
         'payment_type',
         'reference_id',
+        'cash_register_id',
         'supplier_id',
         'customer_id',
         'card_number',

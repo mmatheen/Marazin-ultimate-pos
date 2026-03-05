@@ -86,6 +86,7 @@ function showLoaderSmall() {
 function fetchCategories() {
     const cachedCategories = getCachedStaticData('categories');
     if (cachedCategories) {
+        window._allCategories = cachedCategories;
         renderCategories(cachedCategories);
         return;
     }
@@ -94,6 +95,7 @@ function fetchCategories() {
         .then(response => response.json())
         .then(data => {
             const categories = data.message;
+            window._allCategories = categories;
             setCachedStaticData('categories', categories);
             renderCategories(categories);
         })
@@ -161,52 +163,64 @@ function renderCategories(categories) {
     }
 }
 
+function renderSubcategories(subcategories, options) {
+    const opts = options || {};
+    const switchCanvas = opts.switchCanvas !== false;
+
+    const subcategoryContainer = document.getElementById('subcategoryContainer');
+    if (!subcategoryContainer) return;
+    subcategoryContainer.innerHTML = '';
+
+    if (Array.isArray(subcategories)) {
+        subcategories.forEach(subcategory => {
+            const card = document.createElement('div');
+            card.classList.add('card', 'subcategory-card', 'mb-3');
+            card.setAttribute('data-id', subcategory.id);
+
+            const cardBody = document.createElement('div');
+            cardBody.classList.add('card-body');
+
+            const cardTitle = document.createElement('h6');
+            cardTitle.classList.add('card-title');
+            cardTitle.textContent = subcategory.subCategoryname;
+            cardBody.appendChild(cardTitle);
+
+            card.appendChild(cardBody);
+
+            card.addEventListener('click', () => {
+                if (typeof window.filterProductsBySubCategory === 'function') {
+                    window.filterProductsBySubCategory(subcategory.id);
+                }
+                if (typeof window.closeOffcanvas === 'function') {
+                    window.closeOffcanvas('offcanvasSubcategory');
+                }
+            });
+
+            subcategoryContainer.appendChild(card);
+        });
+    }
+
+    if (switchCanvas) {
+        const subcategoryOffcanvas = new bootstrap.Offcanvas(
+            document.getElementById('offcanvasSubcategory'));
+        subcategoryOffcanvas.show();
+
+        const categoryOffcanvas = bootstrap.Offcanvas.getInstance(
+            document.getElementById('offcanvasCategory'));
+        if (categoryOffcanvas) categoryOffcanvas.hide();
+    }
+}
+
 function fetchSubcategories(categoryId) {
+    const subcategorySearchInput = document.getElementById('subcategorySearchInput');
+    if (subcategorySearchInput) subcategorySearchInput.value = '';
+
     fetch(`/sub_category-details-get-by-main-category-id/${categoryId}`)
         .then(response => response.json())
         .then(data => {
-            const subcategories = data.message;
-            const subcategoryContainer = document.getElementById('subcategoryContainer');
-            subcategoryContainer.innerHTML = '';
-
-            if (Array.isArray(subcategories)) {
-                subcategories.forEach(subcategory => {
-                    const card = document.createElement('div');
-                    card.classList.add('card', 'subcategory-card', 'mb-3');
-                    card.setAttribute('data-id', subcategory.id);
-
-                    const cardBody = document.createElement('div');
-                    cardBody.classList.add('card-body');
-
-                    const cardTitle = document.createElement('h6');
-                    cardTitle.classList.add('card-title');
-                    cardTitle.textContent = subcategory.subCategoryname;
-                    cardBody.appendChild(cardTitle);
-
-                    card.appendChild(cardBody);
-
-                    card.addEventListener('click', () => {
-                        if (typeof window.filterProductsBySubCategory === 'function') {
-                            window.filterProductsBySubCategory(subcategory.id);
-                        }
-                        if (typeof window.closeOffcanvas === 'function') {
-                            window.closeOffcanvas('offcanvasSubcategory');
-                        }
-                    });
-
-                    subcategoryContainer.appendChild(card);
-                });
-            } else {
-                console.error('Subcategories not found:', subcategories);
-            }
-
-            const subcategoryOffcanvas = new bootstrap.Offcanvas(
-                document.getElementById('offcanvasSubcategory'));
-            subcategoryOffcanvas.show();
-
-            const categoryOffcanvas = bootstrap.Offcanvas.getInstance(
-                document.getElementById('offcanvasCategory'));
-            if (categoryOffcanvas) categoryOffcanvas.hide();
+            const subcategories = data.message || [];
+            window._allSubcategories = Array.isArray(subcategories) ? subcategories : [];
+            renderSubcategories(window._allSubcategories);
         })
         .catch(error => console.error('Error fetching subcategories:', error));
 }
@@ -214,6 +228,7 @@ function fetchSubcategories(categoryId) {
 function fetchBrands() {
     const cachedBrands = getCachedStaticData('brands');
     if (cachedBrands) {
+        window._allBrands = cachedBrands;
         renderBrands(cachedBrands);
         return;
     }
@@ -222,6 +237,7 @@ function fetchBrands() {
         .then(response => response.json())
         .then(data => {
             const brands = data.message;
+            window._allBrands = brands;
             setCachedStaticData('brands', brands);
             renderBrands(brands);
         })
@@ -1003,6 +1019,7 @@ window.showLoaderSmall         = showLoaderSmall;
 window.fetchCategories         = fetchCategories;
 window.renderCategories        = renderCategories;
 window.fetchSubcategories      = fetchSubcategories;
+window.renderSubcategories     = renderSubcategories;
 window.fetchBrands             = fetchBrands;
 window.renderBrands            = renderBrands;
 window.fetchPaginatedProducts  = fetchPaginatedProducts;
@@ -1015,10 +1032,58 @@ window.displayMobileProducts   = displayMobileProducts;
 window.showMobileQuantityModal = showMobileQuantityModal;
 window.fetchFilteredProducts   = fetchFilteredProducts;
 
+// ---- Offcanvas search filter (category, brand, subcategory) ----
+function setupOffcanvasSearchFilters() {
+    const categorySearchInput = document.getElementById('categorySearchInput');
+    if (categorySearchInput) {
+        categorySearchInput.addEventListener('input', function () {
+            const q = (this.value || '').trim().toLowerCase();
+            const list = window._allCategories || [];
+            const filtered = q ? list.filter(function (c) {
+                return (c.mainCategoryName || '').toLowerCase().indexOf(q) !== -1;
+            }) : list;
+            if (typeof window.renderCategories === 'function') {
+                window.renderCategories(filtered);
+            }
+        });
+    }
+
+    const brandSearchInput = document.getElementById('brandSearchInput');
+    if (brandSearchInput) {
+        brandSearchInput.addEventListener('input', function () {
+            const q = (this.value || '').trim().toLowerCase();
+            const list = window._allBrands || [];
+            const filtered = q ? list.filter(function (b) {
+                return (b.name || '').toLowerCase().indexOf(q) !== -1;
+            }) : list;
+            if (typeof window.renderBrands === 'function') {
+                window.renderBrands(filtered);
+            }
+        });
+    }
+
+    const subcategorySearchInput = document.getElementById('subcategorySearchInput');
+    if (subcategorySearchInput) {
+        subcategorySearchInput.addEventListener('input', function () {
+            const q = (this.value || '').trim().toLowerCase();
+            const list = window._allSubcategories || [];
+            const filtered = q ? list.filter(function (s) {
+                return (s.subCategoryname || '').toLowerCase().indexOf(q) !== -1;
+            }) : list;
+            if (typeof window.renderSubcategories === 'function') {
+                window.renderSubcategories(filtered, { switchCanvas: false });
+            }
+        });
+    }
+}
+
 // ---- One-time DOM setup (runs after DOM is ready) ----
 document.addEventListener('DOMContentLoaded', function () {
     // Infinite scroll for desktop product grid
     setupLazyLoad();
+
+    // Offcanvas search filters (category, brand, subcategory)
+    setupOffcanvasSearchFilters();
 
     // "Back to categories" button in subcategory offcanvas
     const subcategoryBackBtn = document.getElementById('subcategoryBackBtn');

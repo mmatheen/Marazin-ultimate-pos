@@ -157,8 +157,8 @@
                                 </div>
                             </div>
 
-                            <!-- Expense Items -->
-                            <div class="row mb-4">
+                            <!-- Expense Items (hidden in simple mode, kept for backend compatibility) -->
+                            <div class="row mb-4 d-none">
                                 <div class="col-md-12">
                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                         <h5>Expense Items</h5>
@@ -174,8 +174,8 @@
                                 </div>
                             </div>
 
-                            <!-- Additional Charges -->
-                            <div class="row mb-4">
+                            <!-- Additional Charges (hidden in simple mode) -->
+                            <div class="row mb-4 d-none">
                                 <div class="col-md-12">
                                     <h5 class="mb-3">Additional Charges</h5>
                                 </div>
