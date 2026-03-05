@@ -172,6 +172,8 @@
                                     <div class='row'>
                                         <div class='col-6'><strong>Operation</strong></div>
                                         <div class='col-6'><strong>Keyboard Shortcut</strong></div>
+                                        <div class='col-6'>Quick entry (Price)</div>
+                                        <div class='col-6'>Ctrl+Q</div>
                                         <div class='col-6'>Go to next product quantity</div>
                                         <div class='col-6'>F2</div>
                                         <div class='col-6'>Add/Search new product</div>

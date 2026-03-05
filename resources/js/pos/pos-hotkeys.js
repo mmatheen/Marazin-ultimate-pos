@@ -4,8 +4,8 @@
  * ============================================================
  * POS Hotkeys Module (Phase 18)
  * ============================================================
- * Keyboard shortcuts: F2 (qty), F4 (search), F5 (refresh),
- * F6 (cash), F7 (amount), F8 (cancel), F9 (customer select2)
+ * Keyboard shortcuts: Ctrl+Q (quick entry), F2 (qty), F4 (search),
+ * F5 (refresh), F6 (cash), F7 (amount), F8 (cancel), F9 (customer select2)
  * ============================================================
  */
 
@@ -22,6 +22,23 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     document.addEventListener('keydown', function (event) {
+        // Ctrl+Q: open quick entry bar and focus Price field
+        if (event.ctrlKey && (event.key === 'q' || event.key === 'Q')) {
+            event.preventDefault();
+            var bar = document.getElementById('cashEntryBar');
+            var toggle = document.getElementById('cashEntryToggle');
+            var priceInput = document.getElementById('cashPriceInput');
+            if (bar && priceInput) {
+                bar.classList.add('show');
+                if (toggle) {
+                    toggle.classList.remove('btn-outline-secondary');
+                    toggle.classList.add('btn-warning');
+                }
+                priceInput.focus();
+                priceInput.select();
+            }
+            return;
+        }
         if (event.ctrlKey || event.altKey || event.shiftKey) return;
 
         switch (event.key) {
