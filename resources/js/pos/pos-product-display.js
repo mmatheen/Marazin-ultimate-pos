@@ -30,14 +30,22 @@ const _pdBaseDelay  = 1000; // 1 s
 function showLoader() {
     const posProduct = document.getElementById('posProduct');
     if (!posProduct) return;
+    const productListArea = document.getElementById('productListArea');
+    const mainContent = document.getElementById('mainContent');
+    if (productListArea) {
+        productListArea.classList.remove('d-none');
+        productListArea.classList.add('show');
+    }
+    if (mainContent) {
+        mainContent.classList.remove('col-md-12');
+        mainContent.classList.add('col-md-7');
+    }
     posProduct.innerHTML = `
-    <div class="loader-container">
-        <div class="loader">
-            <div class="circle"></div>
-            <div class="circle"></div>
-            <div class="circle"></div>
-            <div class="circle"></div>
+    <div class="product-grid-loader-wrap">
+        <div class="loader loader-more" role="status" aria-hidden="false">
+            <span class="visually-hidden">Loading products...</span>
         </div>
+        <small class="text-muted d-block mt-2">Loading products...</small>
     </div>`;
 }
 
@@ -45,15 +53,15 @@ function hideLoader() {
     const posProduct = document.getElementById('posProduct');
     if (!posProduct) return;
 
-    const mainLoader  = posProduct.querySelector('.loader-container');
-    const smallLoader = posProduct.querySelector('.small-loader');
+    const mainLoader   = posProduct.querySelector('.loader-container');
+    const productWrap  = posProduct.querySelector('.product-grid-loader-wrap');
+    const smallLoader  = posProduct.querySelector('.small-loader');
 
-    if (mainLoader)  mainLoader.remove();
-    if (smallLoader) smallLoader.remove();
+    if (mainLoader)    mainLoader.remove();
+    if (productWrap)   productWrap.remove();
+    if (smallLoader)   smallLoader.remove();
 
-    // Only clear innerHTML if it contains only a loader (no product cards)
-    if (posProduct.innerHTML.includes('loader-container') &&
-        !posProduct.innerHTML.includes('product-card')) {
+    if (!posProduct.querySelector('.product-card')) {
         posProduct.innerHTML = '';
     }
 }
@@ -69,7 +77,7 @@ function showLoaderSmall() {
             const smallLoader = document.createElement('div');
             smallLoader.className = 'small-loader text-center p-3';
             smallLoader.innerHTML = `
-                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                <div class="loader loader-more" role="status" aria-hidden="false">
                     <span class="visually-hidden">Loading more...</span>
                 </div>
                 <small class="text-muted d-block mt-1">Loading more products...</small>
@@ -523,6 +531,17 @@ function setupLazyLoad() {
 
 // ---- DISPLAY PRODUCTS ----
 
+function escapeHtml(str) {
+    if (str == null) return '';
+    const s = String(str);
+    return s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function displayProducts(products, append = false) {
     let posProduct = document.getElementById('posProduct');
     if (!posProduct) {
@@ -559,6 +578,10 @@ function displayProducts(products, append = false) {
         return;
     }
 
+    const fmtAmount = (typeof window.formatAmountWithSeparators === 'function')
+        ? window.formatAmountWithSeparators
+        : (v) => (v == null || v === '') ? '' : String(parseFloat(v));
+
     filteredProducts.forEach(stock => {
         const product = stock.product;
 
@@ -568,30 +591,42 @@ function displayProducts(products, append = false) {
         }
 
         const unitName = product.unit && product.unit.name ? product.unit.name : 'Pc(s)';
-        let quantityDisplay;
+        const totalStockNum = (parseFloat(stock.total_stock) || 0) + (parseFloat(stock.total_free_stock) || 0);
+        let stockBadgeText;
+        let stockBadgeClass;
 
         if (product.stock_alert === 0) {
-            quantityDisplay = `Unlimited`;
+            stockBadgeText = 'Unlimited';
+            stockBadgeClass = 'product-card-stock-badge product-card-stock-info';
         } else {
-            const paidStock  = stock.total_stock       || 0;
-            const freeStock  = stock.total_free_stock  || 0;
-
             if (product.unit && (product.unit.allow_decimal === true || product.unit.allow_decimal === 1)) {
-                const paidDisplay = parseFloat(paidStock).toFixed(4).replace(/\.?0+$/, '');
-                const freeDisplay = parseFloat(freeStock).toFixed(4).replace(/\.?0+$/, '');
-                if (showFreeQtyColumn && freeStock > 0) {
-                    quantityDisplay = `<span style="font-size: 0.85em">Paid: ${paidDisplay}</span><br><span style="font-size: 0.85em">Free: ${freeDisplay}</span>`;
-                } else {
-                    quantityDisplay = `<span style="font-size: 0.85em">${paidDisplay} ${unitName} in stock</span>`;
-                }
+                const displayQty = parseFloat(totalStockNum).toFixed(4).replace(/\.?0+$/, '');
+                stockBadgeText = `${displayQty} IN STOCK`;
             } else {
-                if (showFreeQtyColumn && freeStock > 0) {
-                    quantityDisplay = `<span style="font-size: 0.85em">Paid: ${parseInt(paidStock, 10)}</span><br><span style="font-size: 0.85em">Free: ${parseInt(freeStock, 10)}</span>`;
-                } else {
-                    quantityDisplay = `<span style="font-size: 0.85em">${parseInt(paidStock, 10)} ${unitName} in stock</span>`;
-                }
+                stockBadgeText = `${parseInt(totalStockNum, 10)} IN STOCK`;
+            }
+            stockBadgeClass = totalStockNum <= 2
+                ? 'product-card-stock-badge product-card-stock-low'
+                : 'product-card-stock-badge product-card-stock-ok';
+        }
+
+        // Display price: customer-type price or product fallback
+        let displayPrice = '';
+        const batches = (typeof window.normalizeBatches === 'function') ? window.normalizeBatches(stock) : (stock.batches || []);
+        const firstBatch = Array.isArray(batches) && batches.length ? batches[0] : null;
+        const customer = (window.Pos && window.Pos.Customer && typeof window.Pos.Customer.getCurrentCustomer === 'function')
+            ? window.Pos.Customer.getCurrentCustomer()
+            : { customer_type: 'retailer' };
+        if (window.Pos && window.Pos.Customer && typeof window.Pos.Customer.getCustomerTypePrice === 'function') {
+            const priceResult = window.Pos.Customer.getCustomerTypePrice(firstBatch, product, customer.customer_type);
+            if (!priceResult.hasError && priceResult.price > 0) {
+                displayPrice = 'Rs ' + fmtAmount(priceResult.price.toFixed(2));
             }
         }
+        if (!displayPrice && product.max_retail_price && parseFloat(product.max_retail_price) > 0) {
+            displayPrice = 'Rs ' + fmtAmount(parseFloat(product.max_retail_price).toFixed(2));
+        }
+        if (!displayPrice) displayPrice = '—';
 
         const cardDiv = document.createElement('div');
         cardDiv.className = 'col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-6 col-12';
@@ -600,24 +635,45 @@ function displayProducts(products, append = false) {
         productCard.className = 'product-card';
         productCard.setAttribute('data-id', product.id);
 
-        const img = createSafeImage(product, 'width: 100%; height: auto; object-fit: cover;');
+        // Image block with overlay stock badge
+        const imageWrap = document.createElement('div');
+        imageWrap.className = 'product-card-image';
+        const img = createSafeImage(product, 'width: 100%; height: 100%; object-fit: cover;');
+        if (product.product_image && product.product_image.trim()) {
+            img.dataset.productImage = product.product_image.trim();
+        }
+        const stockBadge = document.createElement('span');
+        stockBadge.className = stockBadgeClass;
+        stockBadge.textContent = stockBadgeText;
+        imageWrap.appendChild(img);
+        imageWrap.appendChild(stockBadge);
 
         const cardBody = document.createElement('div');
         cardBody.className = 'product-card-body';
         cardBody.innerHTML = `
-            <h6>${product.product_name} <br>
-                <span class="badge text-dark">SKU: ${product.sku || 'N/A'}</span>
-            </h6>
-            <h6>
-                <span class="badge ${product.stock_alert === 0 ? 'bg-info' : (stock.total_stock + (stock.total_free_stock || 0)) > 0 ? 'bg-success' : 'bg-warning'}">
-                ${quantityDisplay}
-                </span>
-            </h6>
+            <h6 class="product-card-name">${escapeHtml(product.product_name)}</h6>
+            <div class="product-card-sku">SKU: ${escapeHtml(product.sku || 'N/A')}</div>
+            <div class="product-card-price">${displayPrice}</div>
+            <button type="button" class="product-card-add-btn" aria-label="Add to cart" title="Add to cart">
+                <span aria-hidden="true">+</span>
+            </button>
         `;
 
-        productCard.appendChild(img);
+        productCard.appendChild(imageWrap);
         productCard.appendChild(cardBody);
         cardDiv.appendChild(productCard);
+
+        const addBtn = cardBody.querySelector('.product-card-add-btn');
+        if (addBtn) {
+            addBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const productStock = window.allProducts.find(s => String(s.product.id) === String(product.id));
+                if (productStock && typeof window.addProductToTable === 'function') {
+                    window.addProductToTable(productStock.product);
+                }
+            });
+        }
 
         // Re-fetch posProduct in case it was re-created
         posProduct = document.getElementById('posProduct');
@@ -626,10 +682,11 @@ function displayProducts(products, append = false) {
         newlyAddedCards.push(productCard);
     });
 
-    // Attach click events to newly added cards
+    // Attach click events to card (clicking card body/image adds to cart)
     newlyAddedCards.forEach(card => {
-        card.addEventListener('click', () => {
-            const productId   = card.getAttribute('data-id');
+        card.addEventListener('click', (e) => {
+            if (e.target.closest('.product-card-add-btn')) return;
+            const productId = card.getAttribute('data-id');
             const productStock = window.allProducts.find(s => String(s.product.id) === productId);
             if (productStock && typeof window.addProductToTable === 'function') {
                 window.addProductToTable(productStock.product);
@@ -713,83 +770,97 @@ function displayMobileProducts(products, append = false) {
     const filteredProducts = products.filter(stock => {
         const product = stock.product;
         if (product.stock_alert === 0) return true;
-        const hasDecimal = product.unit && (product.unit.allow_decimal === true || product.unit.allow_decimal === 1);
-        const stockLevel = hasDecimal ? parseFloat(stock.total_stock) : parseInt(stock.total_stock);
+        const stockLevel = parseFloat(stock.total_stock) || 0;
         return stockLevel > 0;
     });
 
+    const fmtAmount = (typeof window.formatAmountWithSeparators === 'function')
+        ? window.formatAmountWithSeparators
+        : (v) => (v == null || v === '') ? '' : String(parseFloat(v));
+
     filteredProducts.forEach(stock => {
         const product = stock.product;
-        let locationQty = 0;
-
-        const batches = (typeof window.normalizeBatches === 'function')
-            ? window.normalizeBatches(stock)
-            : (Array.isArray(stock.batches) ? stock.batches : []);
-
-        batches.forEach(batch => {
-            if (batch.location_batches) {
-                batch.location_batches.forEach(lb => {
-                    if (lb.location_id == selectedLocationId) locationQty += parseFloat(lb.quantity);
-                });
-            }
-        });
-        stock.total_stock = product.stock_alert === 0 ? 0 : locationQty;
-
-        const unitName = product.unit && product.unit.name ? product.unit.name : 'Pc(s)';
-        let quantityDisplay;
+        const totalStockNum = (parseFloat(stock.total_stock) || 0) + (parseFloat(stock.total_free_stock) || 0);
+        let stockBadgeText;
+        let stockBadgeClass;
 
         if (product.stock_alert === 0) {
-            quantityDisplay = `Unlimited`;
+            stockBadgeText = 'Unlimited';
+            stockBadgeClass = 'product-card-stock-badge product-card-stock-info';
         } else {
-            const paidStock = stock.total_stock      || 0;
-            const freeStock = stock.total_free_stock || 0;
-
             if (product.unit && (product.unit.allow_decimal === true || product.unit.allow_decimal === 1)) {
-                const paidDisplay = parseFloat(paidStock).toFixed(4).replace(/\.?0+$/, '');
-                const freeDisplay = parseFloat(freeStock).toFixed(4).replace(/\.?0+$/, '');
-                if (showFreeQtyColumn && freeStock > 0) {
-                    quantityDisplay = `Paid: ${paidDisplay}<br>Free: ${freeDisplay}`;
-                } else {
-                    quantityDisplay = `${paidDisplay} ${unitName} in stock`;
-                }
+                const displayQty = parseFloat(totalStockNum).toFixed(4).replace(/\.?0+$/, '');
+                stockBadgeText = `${displayQty} IN STOCK`;
             } else {
-                if (showFreeQtyColumn && freeStock > 0) {
-                    quantityDisplay = `Paid: ${parseInt(paidStock, 10)}<br>Free: ${parseInt(freeStock, 10)}`;
-                } else {
-                    quantityDisplay = `${parseInt(paidStock, 10)} ${unitName} in stock`;
-                }
+                stockBadgeText = `${parseInt(totalStockNum, 10)} IN STOCK`;
             }
+            stockBadgeClass = totalStockNum <= 2
+                ? 'product-card-stock-badge product-card-stock-low'
+                : 'product-card-stock-badge product-card-stock-ok';
         }
 
+        let displayPrice = '';
+        const batches = (typeof window.normalizeBatches === 'function') ? window.normalizeBatches(stock) : (stock.batches || []);
+        const firstBatch = Array.isArray(batches) && batches.length ? batches[0] : null;
+        const customer = (window.Pos && window.Pos.Customer && typeof window.Pos.Customer.getCurrentCustomer === 'function')
+            ? window.Pos.Customer.getCurrentCustomer()
+            : { customer_type: 'retailer' };
+        if (window.Pos && window.Pos.Customer && typeof window.Pos.Customer.getCustomerTypePrice === 'function') {
+            const priceResult = window.Pos.Customer.getCustomerTypePrice(firstBatch, product, customer.customer_type);
+            if (!priceResult.hasError && priceResult.price > 0) {
+                displayPrice = 'Rs ' + fmtAmount(priceResult.price.toFixed(2));
+            }
+        }
+        if (!displayPrice && product.max_retail_price && parseFloat(product.max_retail_price) > 0) {
+            displayPrice = 'Rs ' + fmtAmount(parseFloat(product.max_retail_price).toFixed(2));
+        }
+        if (!displayPrice) displayPrice = '—';
+
         const cardDiv = document.createElement('div');
-        cardDiv.className = 'col-4';
+        cardDiv.className = 'col-6';
 
         const productCard = document.createElement('div');
-        productCard.className = 'card h-100 border';
-        productCard.style.cursor = 'pointer';
+        productCard.className = 'product-card product-card-mobile';
         productCard.setAttribute('data-id', product.id);
 
-        const img = createSafeImage(product, 'width: 100%; height: 80px; object-fit: cover;');
+        const imageWrap = document.createElement('div');
+        imageWrap.className = 'product-card-image';
+        const img = createSafeImage(product, 'width: 100%; height: 100%; object-fit: cover;');
+        if (product.product_image && product.product_image.trim()) {
+            img.dataset.productImage = product.product_image.trim();
+        }
+        const stockBadge = document.createElement('span');
+        stockBadge.className = stockBadgeClass;
+        stockBadge.textContent = stockBadgeText;
+        imageWrap.appendChild(img);
+        imageWrap.appendChild(stockBadge);
 
         const cardBody = document.createElement('div');
-        cardBody.className = 'card-body p-2';
+        cardBody.className = 'product-card-body';
         cardBody.innerHTML = `
-            <h6 class="mb-1" style="font-size: 11px; line-height: 1.2;">${product.product_name}</h6>
-            <small class="text-muted d-block mb-1" style="font-size: 9px;">SKU: ${product.sku || 'N/A'}</small>
-            <span class="badge ${product.stock_alert === 0 ? 'bg-info' : ((stock.total_stock || 0) + (stock.total_free_stock || 0)) > 0 ? 'bg-success' : 'bg-warning'}" style="font-size: 9px;">
-                ${quantityDisplay}
-            </span>
+            <h6 class="product-card-name">${escapeHtml(product.product_name)}</h6>
+            <div class="product-card-sku">SKU: ${escapeHtml(product.sku || 'N/A')}</div>
+            <div class="product-card-price">${displayPrice}</div>
+            <button type="button" class="product-card-add-btn" aria-label="Add to cart" title="Add to cart">
+                <span aria-hidden="true">+</span>
+            </button>
         `;
 
-        productCard.appendChild(img);
+        productCard.appendChild(imageWrap);
         productCard.appendChild(cardBody);
         cardDiv.appendChild(productCard);
         mobileProductGrid.appendChild(cardDiv);
 
-        productCard.addEventListener('click', () => {
-            const productId    = productCard.getAttribute('data-id');
-            const productStock = window.allProducts.find(s => String(s.product.id) === productId);
+        const addBtn = cardBody.querySelector('.product-card-add-btn');
+        const handleAdd = (e) => {
+            if (e && e.stopPropagation) e.stopPropagation();
+            const productStock = window.allProducts.find(s => String(s.product.id) === String(product.id));
             if (productStock) showMobileQuantityModal(productStock);
+        };
+        if (addBtn) addBtn.addEventListener('click', handleAdd);
+        productCard.addEventListener('click', (e) => {
+            if (e.target.closest('.product-card-add-btn')) return;
+            handleAdd();
         });
     });
 }

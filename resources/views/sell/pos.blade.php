@@ -858,7 +858,7 @@
                         </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                    <div class="modal-body p-2" id="mobileProductModalBody" style="overflow-y: auto; height: calc(100vh - 120px);">
+                    <div class="modal-body p-2" id="mobileProductModalBody" style="overflow-y: auto; max-height: calc(100vh - 120px); min-height: 0;">
                         <!-- Filter Buttons -->
                         <div class="mb-3 d-flex gap-2 flex-wrap sticky-top bg-white pb-2" style="z-index: 1;">
                             <button type="button" class="btn btn-primary btn-sm" id="mobileAllProductsBtn">
@@ -1125,14 +1125,14 @@
         </div>
 
 
-        <!-- Modern POS Footer: 3 zones (Left: More | Center: Total + Primary Pay | Right: Multiple Pay + Cancel) -->
+        <!-- Modern POS Footer: Left (More | Cancel) | Center (Total Payable) | Right (Cash, Card, Credit, Multiple) -->
         <div class="pos-footer-modern bottom-fixed d-none d-md-block">
             <div class="pos-footer-inner">
-                <!-- Left: More / Actions dropdown -->
+                <!-- Left: More + separator + Cancel -->
                 <div class="pos-footer-left">
                     <div class="dropdown dropup pos-footer-more-dropdown">
                         <button class="btn pos-footer-more-btn dropdown-toggle" type="button" id="posFooterMoreDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">
-                            <i class="fas fa-ellipsis-v"></i> More
+                            <i class="fas fa-ellipsis-h"></i> More
                         </button>
                         <ul class="dropdown-menu pos-footer-more-menu" aria-labelledby="posFooterMoreDropdown">
                             @can('create job-ticket')
@@ -1155,7 +1155,10 @@
                             @endcan
                         </ul>
                     </div>
-                    <!-- Hidden triggers for JS (same IDs as before) -->
+                    <span class="pos-footer-sep" aria-hidden="true"></span>
+                    <button type="button" class="btn pos-footer-btn pos-footer-btn-cancel" id="cancelButton">
+                        <i class="fas fa-times"></i> <span>CANCEL</span>
+                    </button>
                     <div class="d-none pos-footer-hidden-triggers">
                         @can('create job-ticket') <button type="button" id="jobTicketButton"></button> @endcan
                         @can('create quotation') <button type="button" id="quotationButton"></button> @endcan
@@ -1166,42 +1169,37 @@
                     </div>
                 </div>
 
-                <!-- Center: Total + Primary payment buttons -->
+                <!-- Center: Total Payable + amount -->
                 <div class="pos-footer-center">
                     <div class="pos-footer-total-wrap">
-                        <span class="pos-footer-total-label">Total Payable</span>
-                        <span id="total" class="pos-footer-total-amount">Rs 0.00</span>
+                        <span class="pos-footer-total-label">TOTAL PAYABLE</span>
+                        <span id="total" class="pos-footer-total-amount"><span class="pos-footer-currency">Rs</span> <span class="pos-footer-amount-value">0.00</span></span>
                         <span id="items-count" class="pos-footer-items-count">(0)</span>
-                    </div>
-                    <div class="pos-footer-primary-btns">
-                        @can('cash payment')
-                        <button type="button" class="btn pos-footer-btn pos-footer-btn-cash" id="cashButton">
-                            <i class="fas fa-cash-register"></i> Cash
-                        </button>
-                        @endcan
-                        @can('card payment')
-                        <button type="button" class="btn pos-footer-btn pos-footer-btn-card" id="cardButton">
-                            <i class="fas fa-credit-card"></i> Card
-                        </button>
-                        @endcan
-                        @can('credit sale')
-                        <button type="button" class="btn pos-footer-btn pos-footer-btn-credit" id="creditSaleButton">
-                            <i class="fas fa-check-circle"></i> Credit Sale
-                        </button>
-                        @endcan
-                        @can('multiple payment methods')
-                        <button type="button" class="btn pos-footer-btn pos-footer-btn-multiple" data-bs-toggle="modal" data-bs-target="#paymentModal">
-                            <i class="fas fa-list"></i> Multiple Pay
-                        </button>
-                        @endcan
                     </div>
                 </div>
 
-                <!-- Right: Cancel only -->
+                <!-- Right: Payment method buttons -->
                 <div class="pos-footer-right">
-                    <button type="button" class="btn pos-footer-btn pos-footer-btn-cancel" id="cancelButton">
-                        <i class="fas fa-times"></i> Cancel
+                    @can('cash payment')
+                    <button type="button" class="btn pos-footer-btn pos-footer-btn-cash" id="cashButton">
+                        <i class="fas fa-money-bill-wave"></i> <span>CASH</span>
                     </button>
+                    @endcan
+                    @can('card payment')
+                    <button type="button" class="btn pos-footer-btn pos-footer-btn-card" id="cardButton">
+                        <i class="fas fa-credit-card"></i> <span>CARD</span>
+                    </button>
+                    @endcan
+                    @can('credit sale')
+                    <button type="button" class="btn pos-footer-btn pos-footer-btn-credit" id="creditSaleButton">
+                        <i class="fas fa-check-circle"></i> <span>CREDIT</span>
+                    </button>
+                    @endcan
+                    @can('multiple payment methods')
+                    <button type="button" class="btn pos-footer-btn pos-footer-btn-multiple" data-bs-toggle="modal" data-bs-target="#paymentModal">
+                        <i class="fas fa-list"></i> <span>MULTIPLE</span>
+                    </button>
+                    @endcan
                 </div>
             </div>
         </div>

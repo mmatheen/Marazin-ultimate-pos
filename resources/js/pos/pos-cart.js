@@ -331,7 +331,11 @@ function writeTotalsToDom(billingBody, totals) {
     const totalEl  = document.getElementById('total');
     const payAmtEl = document.getElementById('payment-amount');
 
-    if (totalEl)  totalEl.textContent  = 'Rs ' + fmt(finalTotal.toFixed(2));
+    if (totalEl) {
+        const amountVal = totalEl.querySelector('.pos-footer-amount-value');
+        if (amountVal) amountVal.textContent = fmt(finalTotal.toFixed(2));
+        else totalEl.textContent = 'Rs ' + fmt(finalTotal.toFixed(2));
+    }
     if (payAmtEl) payAmtEl.textContent = 'Rs ' + fmt(finalTotal.toFixed(2));
 
     setId('modal-total-payable', fmt(finalTotal.toFixed(2)));
