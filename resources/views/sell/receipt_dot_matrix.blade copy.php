@@ -16,11 +16,6 @@
         $lineSpacingFactor = $lineSpacing / 5;
         $finalLineHeight = round(1.2 * $spacingMultiplier * $lineSpacingFactor, 2);
         $fontFamilyCss = "'" . $fontFamily . "', Arial, 'Courier New', monospace";
-
-        // Page: 8.5in × 11in portrait (use full available width)
-        $pageWidth  = '8.5in';
-        $pageHeight = '11in';
-        $minHeight  = '10.8in';
     @endphp
     <style>
         * {
@@ -35,38 +30,88 @@
         }
 
         /* =========================
-       PRINT SETTINGS
+       PRINT - Dot matrix (Epson LQ-310): Paper 9.5in wide. Content fills full width.
+       Margins = None in print dialog. Printer Left/Right margin = 0.5in (tractor).
        ========================= */
         @media print {
             @page {
-                size: {{ $pageWidth }} {{ $pageHeight }} portrait;
-                margin: 0.2in 0.25in 0.12in 0.12in;
+                size: 9.5in 11in portrait;
+                margin: 0;
+                orientation: portrait;
+            }
+
+            html {
+                margin: 0 !important;
+                padding: 0 !important;
+                -webkit-print-color-adjust: exact;
             }
 
             html,
             body {
-                width: {{ $pageWidth }};
-                max-width: {{ $pageWidth }};
+                width: 9.5in !important;
+                max-width: 9.5in !important;
+                min-width: 9.5in;
                 background: white !important;
                 -webkit-print-color-adjust: exact;
                 color-adjust: exact;
-                margin: 0;
-                padding: 0;
+                margin: 0 !important;
+                padding: 0 !important;
                 font-family: Arial, sans-serif;
                 font-size: {{ $fontSizeBase }}px;
                 line-height: {{ $finalLineHeight }};
+                overflow: hidden;
+                box-sizing: border-box;
             }
 
             .invoice-page {
-                width: 100%;
-                max-width: {{ $pageWidth }};
-                min-height: {{ $minHeight }};
-                margin: 0;
-                padding: 0.18in 0.25in 0.1in 0.12in;
+                width: 9.5in !important;
+                max-width: 9.5in !important;
+                margin: 0 !important;
+                padding: 0.18in 0.5in 0.1in 0.5in;
                 background: white !important;
                 box-shadow: none;
                 display: flex;
                 flex-direction: column;
+                overflow: hidden;
+                box-sizing: border-box;
+                page-break-inside: avoid;
+            }
+
+            .invoice-page .items-table,
+            .invoice-page .summary-section,
+            .invoice-page .footer-line {
+                max-width: 100%;
+            }
+
+            .invoice-page .company-logo {
+                margin-top: 0 !important;
+                margin-bottom: 2px !important;
+            }
+
+            .invoice-page .company-address {
+                margin-bottom: 0.04in !important;
+            }
+
+            .invoice-page .header-section {
+                margin-top: 0 !important;
+            }
+
+            .invoice-page .customer-invoice-row {
+                margin-top: 0.04in !important;
+            }
+
+            .items-table {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box;
+            }
+
+            body > *:first-child {
+                margin-top: 0 !important;
+            }
+
+            .receipt-print-tip {
+                display: none !important;
             }
         }
 
@@ -77,19 +122,19 @@
             font-family: Arial, sans-serif;
             background-color: white;
             width: 100%;
+            max-width: 8.5in;
             padding: 0;
             margin: 0;
             text-transform: uppercase;
         }
 
         .invoice-page {
-            width: {{ $pageWidth }};
-            max-width: {{ $pageWidth }};
-            min-height: {{ $minHeight }};
+            max-width: 8.5in;
+            width: 8.5in;
             margin: 0 auto;
             background-color: white;
             position: relative;
-            padding: 0.18in 0.25in 0.1in 0.12in;
+            padding: 0.1in 0.2in 0.08in 0.2in;
             display: flex;
             flex-direction: column;
         }
@@ -101,7 +146,7 @@
 
         .reg-no {
             position: absolute;
-            right: 0.25in;
+            right: 0.05in;
             top: 0.25in;
             font-size: 10px;
         }
@@ -221,6 +266,8 @@
 
         .items-table {
             width: 100%;
+            max-width: 100%;
+            table-layout: fixed;
             border-collapse: collapse;
             margin: 0 0 0.06in 0;
         }
@@ -229,82 +276,58 @@
             background-color: white;
         }
 
-        .items-table th {
-            padding: 3px 3px;
+        .items-table th,
+        .items-table td {
+            padding: 2px 4px;
             font-size: 11px;
+            line-height: 1.25;
+            vertical-align: top;
+        }
+
+        .items-table th {
             font-weight: bold;
             border-bottom: 1px solid #aaa;
         }
 
-        .items-table th:first-child {
-            text-align: center;
-            width: 0.3in;
-            /* Reduced width */
-        }
-
-        .items-table th:nth-child(2) {
-            text-align: left;
-        }
-
-        .items-table th:nth-child(3),
-        .items-table th:nth-child(4) {
-            text-align: left;
-            width: 0.85in;
-        }
-
-        .items-table th:nth-child(5) {
-            text-align: right;
-            width: 0.45in;
-        }
-
-        .items-table th:nth-child(6),
-        .items-table th:nth-child(7),
-        .items-table th:nth-child(8),
-        .items-table th:nth-child(9),
-        .items-table th:nth-child(10) {
-            text-align: right;
-            width: 0.65in;
-            padding-right: 4px;
-        }
-
         .items-table td {
-            padding: 3px 3px;
-            font-size: 12px;
+            overflow: hidden;
         }
 
         .items-table tbody tr {
             border-bottom: none;
         }
 
-        .items-table td:first-child {
-            text-align: center;
-            width: 0.3in;
-        }
-
-        .items-table td:nth-child(2) {
-            text-align: left;
-        }
-
-        .items-table td:nth-child(3),
-        .items-table td:nth-child(4) {
-            text-align: left;
-            width: 0.85in;
-        }
-
-        .items-table td:nth-child(5) {
-            text-align: right;
-            width: 0.45in;
-        }
-
-        .items-table td:nth-child(6),
-        .items-table td:nth-child(7),
-        .items-table td:nth-child(8),
-        .items-table td:nth-child(9),
-        .items-table td:nth-child(10) {
-            text-align: right;
-            width: 0.65in;
-            padding-right: 4px;
-        }
+        /* Column 1: SN - center */
+        .items-table th:nth-child(1),
+        .items-table td:nth-child(1) { width: 4%; text-align: center; }
+        /* Column 2: Item - left */
+        .items-table th:nth-child(2),
+        .items-table td:nth-child(2) { width: 28%; text-align: left; overflow: hidden; }
+        .items-table td:nth-child(2) { white-space: normal; word-break: break-word; }
+        /* Column 3: Batch No */
+        .items-table th:nth-child(3),
+        .items-table td:nth-child(3) { width: 9%; text-align: left; }
+        /* Column 4: Expiry - center */
+        .items-table th:nth-child(4),
+        .items-table td:nth-child(4) { width: 7%; text-align: center; }
+        /* Column 5: Qty - right */
+        .items-table th:nth-child(5),
+        .items-table td:nth-child(5) { width: 5%; text-align: right; white-space: nowrap; }
+        /* Column 6: Free - center */
+        .items-table th:nth-child(6),
+        .items-table td:nth-child(6) { width: 5%; text-align: center; white-space: nowrap; }
+        /* Column 7: Unit Price - right */
+        .items-table th:nth-child(7),
+        .items-table td:nth-child(7) { width: 9%; text-align: right; white-space: nowrap; }
+        /* Column 8: Disc - right */
+        .items-table th:nth-child(8),
+        .items-table td:nth-child(8) { width: 8%; text-align: right; white-space: nowrap; }
+        /* Column 9: Net Price - right */
+        .items-table th:nth-child(9),
+        .items-table td:nth-child(9) { width: 10%; text-align: right; white-space: nowrap; }
+        /* Column 10: Amount - right */
+        .items-table th:nth-child(10),
+        .items-table td:nth-child(10) { width: 13%; text-align: right; white-space: nowrap; }
 
         .summary-section {
             display: flex;
@@ -316,12 +339,31 @@
             font-size: 12px;
             break-inside: avoid;
             page-break-inside: avoid;
+            max-width: 100%;
         }
 
         .summary-column {
             display: flex;
             flex-direction: column;
-            min-width: 2in;
+            min-width: 0;
+            max-width: 50%;
+        }
+
+        .summary-column-left {
+            justify-content: flex-start;
+        }
+
+        .summary-row-left {
+            justify-content: flex-start;
+        }
+
+        .summary-row-left span:last-child {
+            text-align: left;
+        }
+
+        .summary-column-right {
+            margin-left: auto;
+            text-align: right;
         }
 
         .summary-row {
@@ -389,7 +431,7 @@
 
         .footer-line {
             border-top: 1px solid #666;
-            margin-top: 0.12in;
+            margin-top: auto;
             padding: 0.06in 0 0 0;
             display: flex;
             justify-content: space-between;
@@ -403,10 +445,21 @@
             font-size: 8px;
             margin-top: 0.04in;
         }
+
+        .receipt-print-tip {
+            font-size: 11px;
+            color: #333;
+            background: #fff8e6;
+            border: 1px solid #e6c200;
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
     </style>
 </head>
 
 <body>
+    <div class="receipt-print-tip"><strong>அச்சு சரியாக வர:</strong> Print கிளிக் பண்ணி <strong>More settings</strong> விரித்து <strong>Margins = None</strong> தேர்ந்தெடுங்கள் (Default வைத்தால் இடது/வலது வெற்றிடம் வரும்). <strong>Paper size = Dotmatrix 9.5*11</strong>, <strong>Layout = Portrait</strong>. அச்சில் இடது/வலது gap வந்தால்: Epson LQ-310 → Printing preferences → User Defined Paper → Left &amp; Right margin = <strong>0.5in</strong> மட்டும் வைக்கவும்.</div>
     <div class="invoice-page">
         <div class="perforation-top"></div>
 
@@ -463,7 +516,10 @@
             </div>
         </div>
 
-        <table class="items-table">
+        <table class="items-table" cellspacing="0" cellpadding="0">
+            <colgroup>
+                <col style="width:4%"><col style="width:28%"><col style="width:9%"><col style="width:7%"><col style="width:5%"><col style="width:5%"><col style="width:9%"><col style="width:8%"><col style="width:10%"><col style="width:13%">
+            </colgroup>
             <thead>
                 <tr>
                     <th>SN</th>
