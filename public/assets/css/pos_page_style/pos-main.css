@@ -13,12 +13,14 @@
             opacity: 1 !important;
         }
 
-        /* General Styles - COMPACT UI */
+        /* General Styles - COMPACT UI (match 2nd image: light grey + dotted grid) */
         body {
             font-family: 'Roboto', sans-serif;
             font-size: 13px;
             line-height: 1.4;
-            background-color: #dedede;
+            background-color: #F8F9FA;
+            background-image: radial-gradient(circle, #dee2e6 1.2px, transparent 1.2px);
+            background-size: 14px 14px;
             overflow-x: hidden;
             min-height: 100vh;
         }
@@ -2292,36 +2294,132 @@
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03) !important;
         } */
 
-        /* Mobile Bottom Fixed Button Styles */
+        /* Mobile Bottom Fixed – always fixed to viewport bottom (no transform so it never scrolls) */
         .mobile-bottom-fixed {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            z-index: 1050;
-            animation: slideUpFade 0.3s ease-out;
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            width: 100% !important;
+            z-index: 9999;
             display: none;
-            padding: 0 15px 15px 15px;
+            padding: 0;
+            background: #217FFD !important;
+            overflow: hidden;
         }
 
         .mobile-bottom-container {
-            background-color: #0d6efd;
-            border-radius: 12px;
-            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
-            padding: 15px 20px;
+            background: #217FFD;
+            border-radius: 12px 12px 0 0;
+            box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.1);
+            padding: 10px 16px 12px;
         }
 
-        /* Design reference: mobile bottom bar – rounded top only */
         @media (max-width: 991px) {
             .mobile-bottom-container {
-                border-radius: 16px 16px 0 0;
-                padding: 16px 18px 20px;
+                border-radius: 12px 12px 0 0;
+                padding: 10px 14px 12px;
+            }
+            .pos-mobile-cart-badge {
+                width: 36px;
+                height: 36px;
+                min-width: 36px;
+                background: rgba(255, 255, 255, 0.95);
+                color: #217FFD;
+                font-weight: 700;
+                font-size: 0.95rem;
+                border-radius: 50%;
+            }
+            .pos-mobile-final-label {
+                color: rgba(255, 255, 255, 0.9);
+                font-size: 0.6rem;
+                font-weight: 600;
+                letter-spacing: 0.03em;
+            }
+            .pos-mobile-final-amount {
+                color: #fff;
+                font-size: 1.15rem;
+                font-weight: 700;
+            }
+            .pos-mobile-pay-full-btn {
+                background: transparent !important;
+                border: none !important;
+                color: inherit;
+                padding: 8px 12px !important;
+                min-height: 0 !important;
+            }
+            .pos-mobile-pay-full-btn:hover {
+                background: rgba(255, 255, 255, 0.1) !important;
+                border-radius: 10px;
+            }
+            .pos-mobile-pay-btn {
+                background: #fff !important;
+                color: #217FFD !important;
+                border: none !important;
+                font-weight: 700;
+                padding: 12px 20px !important;
+                border-radius: 12px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            }
+            .pos-mobile-pay-btn:hover {
+                background: #f0f4ff !important;
+                color: #1d6ef0 !important;
+            }
+            .pos-mobile-pay-btn i {
+                font-size: 1.1rem;
+            }
+            .pos-mobile-pay-footer {
+                display: none;
             }
         }
 
-        /* Hide mobile bottom bar on tablet and desktop (768px+) – show desktop bottom-fixed instead */
-        @media (min-width: 768px) {
+        /* Hide mobile bottom bar on desktop (992px+) – show desktop bottom-fixed instead */
+        @media (min-width: 992px) {
             .mobile-bottom-fixed {
+                display: none !important;
+            }
+        }
+
+        /* Below 992px: fix bottom bar + only scroll wrapper scrolls */
+        @media (max-width: 991px) {
+            /* Show PAY TOTAL bar on tablet + mobile (< 992px) */
+            .mobile-bottom-fixed {
+                display: block !important;
+            }
+
+            html,
+            body {
+                height: 100% !important;
+                min-height: 100vh !important;
+                overflow: hidden !important;
+                overflow-x: hidden !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                display: flex !important;
+                flex-direction: column !important;
+            }
+            .pos-mobile-scroll-wrapper {
+                flex: 1 1 auto;
+                min-height: 0;
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                -webkit-overflow-scrolling: touch;
+                padding-bottom: 24px !important;
+            }
+            /* Order summary fixed above PAY TOTAL bar – never scrolls (bar is compact ~56px) */
+            .pos-mobile-order-summary-fixed {
+                flex: 0 0 auto;
+                width: 100%;
+                padding: 8px 12px 0;
+                /* give a bit more room on tablets so Final Total is never tight */
+                padding-bottom: calc(10px + 74px);
+                background: #F8F9FA;
+                border-top: 1px solid #e9ecef;
+            }
+            .card.bg-white.p-2 .pos-order-summary-row,
+            .card.bg-white.p-2 .pos-desktop-sale-notes-row,
+            .pos-order-summary-row,
+            .pos-desktop-sale-notes-row {
                 display: none !important;
             }
         }
@@ -2338,41 +2436,92 @@
             }
         }
 
-        /* Payment Modal Styles */
+        /* Payment Modal Styles (mobile-first, compact) */
+        #mobilePaymentModal .modal-content {
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid #e9ecef;
+        }
+
+        #mobilePaymentModal .modal-header {
+            padding: 12px 14px;
+        }
+
+        #mobilePaymentModal .modal-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+        }
+
+        #mobilePaymentModal #modal-final-total {
+            font-size: 0.95rem;
+            font-weight: 800;
+        }
+
         #mobilePaymentModal .payment-icon {
-            width: 50px;
-            height: 50px;
-            display: flex;
+            width: 38px;
+            height: 38px;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
+            font-size: 16px;
+            flex: 0 0 auto;
         }
 
         #mobilePaymentModal .list-group-item {
             border: none;
             border-bottom: 1px solid #f0f0f0;
-            transition: all 0.2s ease;
+            padding: 10px 14px !important;
+            transition: background-color 0.15s ease;
         }
 
         #mobilePaymentModal .list-group-item:hover {
             background-color: #f8f9fa;
-            transform: translateX(5px);
         }
 
         #mobilePaymentModal .list-group-item:active {
-            background-color: #e9ecef;
+            background-color: #eef2f7;
+        }
+
+        #mobilePaymentModal .list-group-item h6 {
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        #mobilePaymentModal .list-group-item small {
+            font-size: 0.75rem;
+        }
+
+        /* OR divider + action grid spacing */
+        #mobilePaymentModal .modal-body .mt-3 {
+            margin-top: 0.5rem !important;
+        }
+        #mobilePaymentModal .modal-body .px-3.py-2 {
+            padding-top: 8px !important;
+            padding-bottom: 8px !important;
+        }
+        #mobilePaymentModal .modal-body .d-flex.align-items-center.mb-3 {
+            margin-bottom: 10px !important;
         }
 
         #mobilePaymentModal .mobile-action-btn {
-            padding: 15px 10px;
-            font-size: 13px;
-            border-radius: 8px;
-            transition: all 0.2s ease;
+            padding: 10px 10px !important;
+            font-size: 12px;
+            border-radius: 12px;
+            transition: background-color 0.15s ease, box-shadow 0.15s ease;
         }
 
         #mobilePaymentModal .mobile-action-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transform: none;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        #mobilePaymentModal .mobile-action-btn i {
+            font-size: 1.05rem !important;
+        }
+
+        #mobilePaymentModal #mobile-cancel-button {
+            padding: 10px 14px !important;
+            border-radius: 12px !important;
         }
 
         /* Mobile adjustments */
@@ -2388,36 +2537,57 @@
                 display: block !important;
             }
 
-            /* CRITICAL: Override desktop restrictions - Allow full scrolling */
+            /* CRITICAL: Only the scroll wrapper scrolls; body and bar stay fixed so bar never scrolls */
             html,
             body {
-                height: auto !important;
+                height: 100% !important;
                 min-height: 100vh !important;
-                overflow: auto !important;
+                overflow: hidden !important;
                 overflow-x: hidden !important;
-                padding-bottom: 100px !important;
                 margin: 0 !important;
+                padding: 0 !important;
+                display: flex !important;
+                flex-direction: column !important;
+            }
+            .pos-mobile-scroll-wrapper {
+                flex: 1 1 auto;
+                min-height: 0;
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                -webkit-overflow-scrolling: touch;
+                padding-bottom: 24px !important;
             }
 
-            /* Override container fixed height */
+            /* Light grey background with subtle dot pattern – match 2nd image */
+            body {
+                background-color: #F8F9FA !important;
+                background-image: radial-gradient(circle, #dee2e6 1.2px, transparent 1.2px) !important;
+                background-size: 14px 14px !important;
+            }
+
+            /* Override container fixed height – no extra bottom space */
             .container-fluid {
                 height: auto !important;
-                min-height: 100vh !important;
+                min-height: auto !important;
                 max-width: 100vw !important;
                 overflow: visible !important;
                 overflow-x: hidden !important;
                 padding-left: 10px !important;
                 padding-right: 10px !important;
-                padding-bottom: 20px !important;
+                padding-bottom: 12px !important;
+                background: transparent !important;
             }
 
-            /* Remove ALL height restrictions on billing card */
+            /* Remove ALL height restrictions on billing card; transparent so dotted background shows */
             .card.bg-white.p-2 {
                 height: auto !important;
                 min-height: auto !important;
                 max-height: none !important;
                 overflow: visible !important;
                 display: block !important;
+                background: transparent !important;
+                box-shadow: none !important;
+                padding: 8px 0 !important;
             }
 
             /* Make billing body fully scrollable */
@@ -2433,13 +2603,24 @@
             /* Ensure table body is fully visible */
             #billing-body {
                 overflow: visible !important;
-                margin-bottom: 20px !important;
+                margin-bottom: 12px !important;
             }
 
-            /* Ensure Total Items section is visible */
-            .row[style*="border-top: 2px solid #ddd"] {
+            /* Billing area: do NOT grow when empty – remove extra space (no flex: 1) */
+            .card.bg-white.p-2 .row.mt-1[style*="flex: 1"],
+            .card.bg-white.p-2 .row[style*="flex: 1"][style*="overflow: hidden"] {
+                flex: 0 1 auto !important;
+                min-height: 0 !important;
+            }
+            .card.bg-white.p-2 .table-responsive[style*="flex: 1"] {
+                flex: 0 1 auto !important;
+                min-height: 0 !important;
+            }
+
+            /* Ensure Total Items section is visible (exclude order summary row – that one is hidden on mobile) */
+            .row[style*="border-top: 2px solid #ddd"]:not(.pos-order-summary-row) {
                 overflow: visible !important;
-                margin-bottom: 15px !important;
+                margin-bottom: 10px !important;
                 display: flex !important;
             }
 
@@ -2454,10 +2635,10 @@
                 display: block !important;
             }
 
-            /* Add extra padding to last section for full visibility */
+            /* No extra padding below card – prevents scroll below fixed bar */
             .card.bg-white.p-2>.row:last-child {
-                margin-bottom: 60px !important;
-                padding-bottom: 40px !important;
+                margin-bottom: 12px !important;
+                padding-bottom: 8px !important;
             }
         }
 
@@ -2893,10 +3074,29 @@
         }
         .pos-search-row .form-control::placeholder {
             line-height: 40px;
+            color: #6c757d;
         }
         .pos-search-row .form-control:focus {
             box-shadow: none !important;
             outline: none !important;
+        }
+        /* Quick price entry bar – match 2nd image: dotted orange border when focused */
+        #cashEntryBar {
+            background: #fff !important;
+            border: 1px dashed #e9ecef;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        #cashEntryBar:focus-within,
+        #cashEntryBar.show {
+            border: 2px dashed #fd7e14 !important;
+            outline: none;
+            box-shadow: 0 0 0 1px rgba(253, 126, 20, 0.2);
+        }
+        #cashPriceInput:focus,
+        #cashQtyInput:focus {
+            border-color: #fd7e14 !important;
+            box-shadow: 0 0 0 1px rgba(253, 126, 20, 0.25);
         }
         .pos-search-row .pos-search-grid-btn {
             width: 44px !important;
@@ -2959,8 +3159,39 @@
             line-height: 1 !important;
         }
 
-        /* ═══ Design reference: mobile-only UI (image 2 – clean, modern) ═══ */
-        @media (max-width: 767px) {
+        /* ═══ Mobile/Tablet header bar (below 992px) – match 2nd image: light grey bar, blue cart, dark grey square buttons ═══ */
+        @media (max-width: 991px) {
+            #posHeaderCard .pos-mobile-header {
+                background: #f3f4f6;
+                border-radius: 0 0 12px 12px;
+                padding: 10px 12px 12px;
+                border-bottom: 1px solid #e5e7eb;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            }
+            .pos-mobile-brand-icon {
+                width: 42px;
+                height: 42px;
+                flex-shrink: 0;
+                background: #217FFD !important;
+                color: #fff !important;
+                font-size: 1.1rem;
+                border-radius: 10px;
+            }
+            .pos-mobile-header-btn {
+                width: 40px;
+                height: 40px;
+                border-radius: 10px !important;
+                background: #5c636a !important;
+                color: #fff !important;
+                border: none !important;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1rem;
+            }
+        }
+        /* ═══ Design reference: mobile/tablet UI below 992px (clean, modern) ═══ */
+        @media (max-width: 991px) {
             .pos-mobile-header {
                 padding: 10px 6px 12px;
             }
@@ -2972,7 +3203,7 @@
                 width: 42px;
                 height: 42px;
                 flex-shrink: 0;
-                background: #0d6efd;
+                background: #0d6efd !important;
                 font-size: 1.1rem;
             }
             /* Content column: location + time aligned, no overlap with icon */
@@ -3036,17 +3267,6 @@
                 padding-left: 0 !important;
                 display: block !important;
             }
-            .pos-mobile-header-btn {
-                width: 40px;
-                height: 40px;
-                background: #5c636a !important;
-                color: #fff !important;
-                border: none !important;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 1rem;
-            }
             .pos-mobile-header-btn:hover {
                 background: #495057 !important;
                 color: #fff !important;
@@ -3054,13 +3274,14 @@
             .pos-mobile-header-btn:focus {
                 box-shadow: 0 0 0 2px rgba(92, 99, 106, 0.4);
             }
-            /* Customer bar: white, rounded */
+            /* Customer bar: white card, rounded (match 2nd image) */
             .pos-customer-row {
                 background: #fff;
-                border: 1px solid #e0e0e0;
+                border: 1px solid #e5e7eb;
                 border-radius: 10px;
-                padding: 8px 10px;
+                padding: 8px 12px;
                 margin-bottom: 8px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.06);
             }
             .pos-customer-row .select2-container,
             .pos-customer-row .form-control {
@@ -3072,15 +3293,16 @@
                 width: 36px;
                 height: 36px;
                 padding: 0 !important;
-                background: #0d6efd !important;
+                background: #217FFD !important;
                 color: #fff !important;
                 border: none !important;
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
+                flex-shrink: 0;
             }
             .pos-add-customer-btn:hover {
-                background: #0b5ed7 !important;
+                background: #1d6ef0 !important;
                 color: #fff !important;
             }
             .pos-order-summary-row .form-group label[style*="font-size: 11px"] {
@@ -3111,7 +3333,159 @@
                 font-size: 0.65rem;
                 opacity: 0.85;
             }
-            /* Shipping: full blue button with truck (reference image 2) */
+            /* Mobile bottom bar: circular badge with item count (target design) */
+            .pos-mobile-cart-badge {
+                width: 40px;
+                height: 40px;
+                min-width: 40px;
+                background: rgba(255, 255, 255, 0.25);
+                color: #fff;
+                font-weight: 700;
+                font-size: 1rem;
+            }
+            /* Mobile: top section (customer + search) as white card – match 2nd image */
+            @media (max-width: 767px) {
+                .card.bg-white.p-2 {
+                    border-radius: 12px;
+                    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+                    border: 1px solid #e9ecef;
+                    overflow: hidden;
+                }
+                .card.bg-white.p-2 .pos-mobile-top-section {
+                    background: #fff;
+                    border-radius: 12px;
+                    padding: 10px 12px !important;
+                    margin-bottom: 10px;
+                    box-shadow: none;
+                }
+            }
+            /* Mobile Order Summary card – compact spacing, no extra gaps */
+            .pos-mobile-order-summary-card {
+                background: #fff !important;
+                border-radius: 12px !important;
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08) !important;
+            }
+            .pos-mobile-order-summary-card .card-body,
+            .pos-mobile-order-summary-card .pos-mobile-summary-body {
+                padding: 0.65rem 1rem !important;
+            }
+            .pos-mobile-summary-body .pos-mobile-summary-tabs,
+            .pos-mobile-order-summary-card .pos-mobile-summary-tabs {
+                margin-bottom: 0.5rem !important;
+                padding-bottom: 0.45rem !important;
+            }
+            .pos-mobile-summary-body .pos-mobile-summary-row,
+            .pos-mobile-order-summary-card .pos-mobile-summary-row {
+                margin-bottom: 0.5rem !important;
+            }
+            .pos-mobile-summary-body .d-flex.mb-3,
+            .pos-mobile-order-summary-card .d-flex.mb-3 {
+                margin-bottom: 0.5rem !important;
+            }
+            .pos-mobile-summary-body .pt-2.border-top,
+            .pos-mobile-order-summary-card .pt-2.border-top,
+            .pos-mobile-order-summary-card .pos-mobile-final-row {
+                padding-top: 0.5rem !important;
+            }
+            .pos-mobile-order-summary-card {
+                border-bottom: none !important;
+            }
+            .pos-mobile-discount-row .text-muted {
+                font-size: 0.75rem;
+                white-space: nowrap;
+            }
+            .pos-mobile-summary-tabs {
+                border-bottom: 1px solid #e9ecef;
+                padding-bottom: 0.45rem !important;
+            }
+            .pos-mobile-tab {
+                font-size: 0.8rem;
+                font-weight: 600;
+                color: #6c757d;
+                cursor: pointer;
+            }
+            .pos-mobile-tab-active {
+                color: #217FFD !important;
+            }
+            .pos-mobile-discount-toggle .btn {
+                border-radius: 6px;
+                font-weight: 600;
+            }
+            .pos-mobile-discount-toggle .btn.active,
+            .pos-mobile-discount-toggle .btn-primary {
+                background: #217FFD !important;
+                border-color: #217FFD !important;
+                color: #fff !important;
+            }
+            .pos-mobile-discount-toggle .btn:not(.active) {
+                background: #f3f4f6 !important;
+                border-color: #dee2e6 !important;
+                color: #6c757d !important;
+            }
+            .pos-mobile-summary-row .text-muted {
+                font-size: 0.75rem;
+            }
+            .pos-mobile-order-summary-card #mobile-total-discount-text {
+                color: #dc3545 !important;
+                font-weight: 600;
+            }
+            .pos-mobile-order-summary-card #mobile-final-total-inline {
+                font-size: 1.1rem !important;
+                font-weight: 700 !important;
+                color: #217FFD !important;
+            }
+            /* Final Total row: clearer + more breathing room above blue bar */
+            .pos-mobile-order-summary-card .pos-mobile-final-row {
+                background: #fff;
+                padding-top: 0.6rem !important;
+                padding-bottom: 0.6rem !important;
+            }
+            .pos-mobile-order-summary-card .pos-mobile-final-row span:first-child {
+                font-weight: 800;
+                color: #111827;
+            }
+            .pos-mobile-order-summary-card #mobile-final-total-inline {
+                font-size: 1.2rem !important;
+                font-weight: 800 !important;
+                letter-spacing: 0.01em;
+            }
+            .pos-mobile-add-shipping-btn {
+                background: #fff !important;
+                color: #217FFD !important;
+                border: 2px solid #217FFD !important;
+                border-radius: 8px;
+                font-weight: 600;
+                font-size: 0.9rem;
+                padding: 10px 12px;
+            }
+            .pos-mobile-add-shipping-btn:hover {
+                background: #f0f4ff !important;
+                color: #1d6ef0 !important;
+                border-color: #1d6ef0 !important;
+            }
+            .pos-mobile-shipping-edit-btn {
+                background: #fff !important;
+                color: #217FFD !important;
+                border: 2px solid #217FFD !important;
+                border-radius: 8px;
+                width: 44px;
+                height: 44px;
+                padding: 0;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .pos-mobile-shipping-edit-btn:hover {
+                background: #f0f4ff !important;
+                color: #1d6ef0 !important;
+                border-color: #1d6ef0 !important;
+            }
+            .pos-mobile-order-summary-card .accordion-button:not(.collapsed) {
+                background: #f8f9fa;
+            }
+            .pos-mobile-order-summary-card .accordion-button:focus {
+                box-shadow: none;
+            }
             .pos-shipping-btn {
                 background: #0d6efd !important;
                 color: #fff !important;
@@ -3127,23 +3501,15 @@
         /* Mobile Billing Table Card Styles (phones only) */
         @media (max-width: 767px) {
 
-            /* CRITICAL: Override desktop fixed viewport restrictions */
-            html,
-            body {
-                overflow: auto !important;
-                overflow-x: hidden !important;
-                height: auto !important;
-                min-height: 100vh !important;
-                padding-bottom: 120px !important;
-                margin: 0 !important;
-            }
+            /* Do NOT override scroll fix: body overflow/height are set in the earlier 767px block; no extra padding here */
+            /* (Scroll fix: html/body overflow hidden + flex; only .pos-mobile-scroll-wrapper scrolls) */
 
             /* Override container fixed height */
             .container-fluid {
                 height: auto !important;
-                min-height: 100vh !important;
+                min-height: auto !important;
                 overflow: visible !important;
-                padding-bottom: 20px !important;
+                padding-bottom: 12px !important;
             }
 
             /* Hide bottom-fixed on mobile/tablet - show inline instead */
@@ -3151,13 +3517,13 @@
                 display: none !important;
             }
 
-            /* Make billing card fully scrollable with NO height restrictions */
+            /* Make billing card fully scrollable with NO height restrictions; no extra bottom space */
             .card.bg-white.p-2 {
                 height: auto !important;
                 min-height: auto !important;
                 max-height: none !important;
                 overflow: visible !important;
-                margin-bottom: 50px !important;
+                margin-bottom: 12px !important;
                 display: block !important;
             }
 
@@ -3193,8 +3559,8 @@
                 margin: 0 !important;
             }
 
-            /* Total/Discount/Final Total Section - Mobile/Tablet Stacked Layout */
-            .row.align-items-end[style*="border-top: 2px solid #ddd"] {
+            /* Total/Discount/Final Total Section - Stacked only when NOT the desktop order summary row (hidden on mobile) */
+            .row.align-items-end[style*="border-top: 2px solid #ddd"]:not(.pos-order-summary-row) {
                 display: flex !important;
                 flex-direction: column !important;
                 padding: 15px 12px !important;
@@ -3295,6 +3661,11 @@
                 min-width: 50px !important;
             }
 
+            /* No duplicate on mobile: hide desktop Total/Discount/Shipping row; only Order Summary card shows */
+            .pos-order-summary-row {
+                display: none !important;
+            }
+
             /* CRITICAL: Ensure table container is fully scrollable without height restrictions */
             .table-responsive {
                 height: auto !important;
@@ -3320,20 +3691,30 @@
                 display: none !important;
             }
 
-            /* Product card – 2nd image: strict layout so nothing is missing */
+            /* Billing list area – muted background so white cards stand out; no extra empty space */
+            .card.bg-white.p-2 .table-responsive {
+                background: #e8e9ed !important;
+                padding: 12px !important;
+                border-radius: 12px;
+                min-height: 0;
+            }
+
+            /* Product card – EXTRA compact so multiple items fit on screen */
             #billing-body tr {
                 display: flex;
                 flex-wrap: wrap;
                 align-items: flex-start;
                 position: relative;
-                margin-bottom: 12px;
-                border: 1px solid #dee2e6;
+                margin-bottom: 6px;
+                border: 1px solid #e5e7eb;
                 border-radius: 10px;
-                padding: 12px 12px 10px;
-                padding-left: 48px;
-                padding-right: 48px;
-                background: white;
-                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+                padding: 8px 34px 8px 8px;
+                padding-right: 36px;
+                background: #fff;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+            }
+            #billing-body tr td.counter-cell {
+                display: none !important;
             }
 
             #billing-body tr td {
@@ -3342,70 +3723,76 @@
                 text-align: left !important;
             }
 
-            /* Counter – top left, out of flex flow */
-            #billing-body tr td.counter-cell {
-                position: absolute !important;
-                top: 12px;
-                left: 12px;
-                width: 28px !important;
-                height: 28px !important;
-                min-width: 28px !important;
-                font-size: 12px;
-                font-weight: 600;
-                color: #fff;
-                background: #6c757d;
-                padding: 0 !important;
-                border-radius: 50%;
-                z-index: 10;
-                display: flex !important;
-                align-items: center;
-                justify-content: center;
-            }
-
-            /* Remove – top right, out of flex flow */
+            /* Delete – icon only, small light grey trash */
             #billing-body tr td:nth-child(9) {
                 position: absolute !important;
-                top: 12px;
-                right: 12px;
+                top: 8px;
+                right: 8px;
                 width: auto !important;
                 padding: 0 !important;
             }
 
-            #billing-body tr td:nth-child(9) .remove-btn {
-                width: 28px;
-                height: 28px;
-                border-radius: 50%;
-                font-size: 16px;
+            #billing-body tr td:nth-child(9) .remove-btn,
+            #billing-body tr td:nth-child(9) .remove-btn.btn-danger {
+                width: 26px;
+                height: 26px;
+                border-radius: 0;
+                font-size: 14px;
                 padding: 0;
-                display: flex;
+                display: inline-flex;
                 align-items: center;
                 justify-content: center;
-                background: #dc3545;
-                border: none;
-                color: white;
+                background: transparent !important;
+                color: #9ca3af !important;
+                border: none !important;
+                box-shadow: none !important;
+                min-width: 26px;
+            }
+            #billing-body tr td:nth-child(9) .remove-btn:hover,
+            #billing-body tr td:nth-child(9) .remove-btn.btn-danger:hover {
+                color: #6b7280 !important;
+                background: transparent !important;
+            }
+            #billing-body tr td:nth-child(9) .remove-btn:active {
+                color: #dc2626 !important;
+            }
+            #billing-body tr td:nth-child(9) .remove-btn i {
+                font-size: 1rem;
             }
 
-            /* Product block: full width, name then SKU • X In Stock (2nd image) */
+            /* Product block – compact */
             #billing-body tr td:nth-child(2) {
                 flex: 0 0 100%;
                 width: 100%;
-                margin-bottom: 8px;
-                padding-bottom: 8px !important;
+                margin-bottom: 4px;
+                padding-bottom: 4px !important;
                 border-bottom: 1px solid #eee !important;
             }
 
             #billing-body tr td:nth-child(2) .d-flex {
                 flex-direction: row !important;
-                gap: 10px;
+                gap: 8px;
                 align-items: flex-start;
+            }
+            #billing-body tr td:nth-child(2) .product-name {
+                font-size: 0.8rem !important;
+                line-height: 1.15 !important;
+                margin-bottom: 2px !important;
+            }
+            #billing-body tr td:nth-child(2) .product-sku,
+            #billing-body tr td:nth-child(2) .quantity-display {
+                font-size: 0.7rem !important;
+                line-height: 1.1 !important;
             }
 
             #billing-body tr td:nth-child(2) img {
-                width: 48px !important;
-                height: 48px !important;
+                width: 38px !important;
+                height: 38px !important;
                 border-radius: 6px !important;
-                border: 1px solid #dee2e6;
+                border: none;
                 flex-shrink: 0;
+                object-fit: cover;
+                background: linear-gradient(135deg, #d4edda 0%, #87ceeb 100%);
             }
 
             #billing-body tr td:nth-child(2) .product-info {
@@ -3414,19 +3801,20 @@
             }
 
             #billing-body tr td:nth-child(2) .product-name {
-                font-size: 15px;
+                font-size: 13px;
                 font-weight: 700;
-                color: #212529;
-                line-height: 1.3;
-                margin-bottom: 4px;
+                color: #0f172a;
+                line-height: 1.25;
+                margin-bottom: 0;
                 display: block;
             }
 
             #billing-body tr td:nth-child(2) .product-sku {
-                font-size: 12px;
-                color: #6c757d;
-                display: inline;
-                margin-right: 6px;
+                font-size: 10px;
+                color: #64748b;
+                display: block;
+                margin-right: 0;
+                font-family: ui-monospace, monospace;
             }
 
             #billing-body tr td:nth-child(2) .quantity-display {
@@ -3436,10 +3824,55 @@
                 display: inline;
             }
 
+            /* Stock: green/orange dot + "In Stock (X)" or "Low Stock (X)" (reference) */
+            #billing-body tr td:nth-child(2) .quantity-display {
+                font-size: 0 !important;
+                line-height: 0;
+                color: transparent;
+                overflow: visible;
+                display: inline-flex !important;
+                align-items: center;
+                gap: 4px;
+            }
+            #billing-body tr td:nth-child(2) .quantity-display::before {
+                content: '';
+                display: inline-block;
+                width: 5px;
+                height: 5px;
+                border-radius: 50%;
+                background: #16a34a;
+                flex-shrink: 0;
+            }
             #billing-body tr td:nth-child(2) .quantity-display::after {
-                content: ' In Stock';
-                color: #198754;
+                content: 'In Stock (' attr(data-stock-quantity) ')';
+                font-size: 11px;
+                color: #16a34a;
                 font-weight: 600;
+                line-height: 1.2;
+            }
+            #billing-body tr.low-stock td:nth-child(2) .quantity-display {
+                display: inline-flex !important;
+                align-items: center;
+                gap: 5px;
+                font-size: 11px;
+                font-weight: 600;
+                color: #f97316;
+            }
+            #billing-body tr.low-stock td:nth-child(2) .quantity-display::before {
+                content: '';
+                display: inline-block;
+                width: 5px;
+                height: 5px;
+                border-radius: 50%;
+                background: #f97316;
+                flex-shrink: 0;
+            }
+            #billing-body tr.low-stock td:nth-child(2) .quantity-display::after {
+                content: 'Low Stock (' attr(data-stock-quantity) ')';
+            }
+            /* Hide MRP badge on mobile for cleaner card (target design) */
+            #billing-body tr td:nth-child(2) .badge.bg-info {
+                display: none !important;
             }
 
             #billing-body tr td:nth-child(2) .product-sku::after {
@@ -3453,111 +3886,133 @@
                 padding: 2px 5px;
             }
 
-            /* Quantity: left part of row 2 – align baseline with FREE QTY input */
+            /* Quantity row – compact */
             #billing-body tr td:nth-child(3) {
-                flex: 0 0 calc(58% - 4px);
-                width: calc(58% - 4px);
+                flex: 0 0 100%;
+                width: 100% !important;
                 max-width: none;
-                padding: 0 !important;
-                margin-bottom: 8px;
-                margin-right: 4px;
+                margin-top: 6px;
+                margin-bottom: 6px;
+                margin-right: 0;
+                padding: 4px 0 !important;
                 display: flex !important;
-                align-items: flex-end !important;
-                min-height: 38px;
+                align-items: center !important;
+                justify-content: space-between !important;
+                background: transparent !important;
+                border-radius: 0;
+                min-height: 32px;
+                box-sizing: border-box;
             }
 
             #billing-body tr td:nth-child(3)::before {
-                content: 'QUANTITY';
+                content: 'Qty';
                 display: block !important;
-                font-size: 10px;
+                font-size: 12px;
                 font-weight: 600;
-                color: #495057;
-                margin-bottom: 2px;
+                color: #374151;
+                margin: 0 10px 0 0 !important;
                 line-height: 1.2;
             }
 
+            /* One combined control: minus (rounded left) | input | plus (rounded right) – strict alignment */
             #billing-body tr td:nth-child(3) .d-flex {
                 display: flex !important;
-                align-items: center !important;
-                justify-content: flex-start !important;
+                align-items: stretch !important;
+                justify-content: flex-end !important;
                 gap: 0 !important;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                overflow: hidden;
+                background: #fff;
+                min-height: 32px;
             }
 
-            /* Same width and height for -, input, + (perfect alignment) */
-            /* Minus button: grey (reference image 2) */
-            #billing-body tr td:nth-child(3) .quantity-minus {
-                width: 44px !important;
-                min-width: 44px !important;
-                height: 38px !important;
-                line-height: 38px !important;
-                border-radius: 4px 0 0 4px !important;
-                font-size: 18px;
-                font-weight: 600;
+            /* Minus: left segment, rounded left only */
+            #billing-body tr td:nth-child(3) .quantity-minus,
+            #billing-body tr td:nth-child(3) .quantity-minus.btn,
+            #billing-body tr td:nth-child(3) .quantity-minus.btn-danger {
+                width: 32px !important;
+                min-width: 32px !important;
+                height: 32px !important;
+                min-height: 32px !important;
+                line-height: 1 !important;
+                border-radius: 7px 0 0 7px !important;
+                border: none !important;
+                border-right: 1px solid #e5e7eb !important;
+                font-size: 16px;
+                font-weight: 700;
                 padding: 0 !important;
                 display: inline-flex !important;
                 align-items: center !important;
                 justify-content: center !important;
-                background: #6c757d;
-                border: 1px solid #6c757d;
-                color: white;
+                flex-shrink: 0;
+                background: #f3f4f6 !important;
+                color: #374151 !important;
+                box-shadow: none !important;
                 box-sizing: border-box;
             }
 
-            #billing-body tr td:nth-child(3) .quantity-plus {
-                width: 44px !important;
-                min-width: 44px !important;
-                height: 38px !important;
-                line-height: 38px !important;
-                border-radius: 0 4px 4px 0 !important;
-                font-size: 18px;
-                font-weight: 600;
+            /* Plus: right segment, rounded right only */
+            #billing-body tr td:nth-child(3) .quantity-plus,
+            #billing-body tr td:nth-child(3) .quantity-plus.btn,
+            #billing-body tr td:nth-child(3) .quantity-plus.btn-success {
+                width: 32px !important;
+                min-width: 32px !important;
+                height: 32px !important;
+                min-height: 32px !important;
+                line-height: 1 !important;
+                border-radius: 0 7px 7px 0 !important;
+                font-size: 16px;
+                font-weight: 700;
                 padding: 0 !important;
                 display: inline-flex !important;
                 align-items: center !important;
                 justify-content: center !important;
-                background: #198754;
-                border: 1px solid #198754;
-                color: white;
+                flex-shrink: 0;
+                background: #217FFD !important;
+                border: none !important;
+                border-left: 1px solid rgba(255,255,255,0.3) !important;
+                color: #fff !important;
+                box-shadow: none !important;
                 box-sizing: border-box;
             }
 
-            /* When role cannot see FREE QTY (no-free-qty rows), let QUANTITY use full width */
             #billing-body tr.no-free-qty td:nth-child(3) {
                 flex: 0 0 100%;
-                width: 100%;
-                margin-right: 0;
+                width: 100% !important;
                 display: flex !important;
-                justify-content: center !important;
+                justify-content: space-between !important;
             }
-            /* For roles without FREE QTY, hide the QUANTITY label text */
             #billing-body tr.no-free-qty td:nth-child(3)::before {
-                content: '' !important;
-                display: none !important;
+                content: 'Qty' !important;
+                display: block !important;
             }
-            /* For no-free-qty rows, center the stepper within the full-width cell */
             #billing-body tr.no-free-qty td:nth-child(3) .d-flex {
-                justify-content: center !important;
-                margin: 0 auto;
+                justify-content: flex-end !important;
+                margin: 0;
             }
 
             #billing-body tr td:nth-child(3) .quantity-input {
-                width: 44px !important;
-                min-width: 44px !important;
-                height: 38px !important;
-                line-height: 38px !important;
+                width: 40px !important;
+                min-width: 40px !important;
+                height: 32px !important;
+                min-height: 32px !important;
+                line-height: 1 !important;
                 font-size: 14px;
-                font-weight: 600;
+                font-weight: 700;
                 text-align: center;
-                border: 1px solid #ced4da;
-                border-left: none;
-                border-right: none;
+                border: none !important;
+                border-left: 1px solid #e5e7eb !important;
+                border-right: 1px solid #e5e7eb !important;
                 border-radius: 0 !important;
-                background: #fff;
-                padding: 0 2px !important;
+                background: #fff !important;
+                padding: 0 4px !important;
                 box-sizing: border-box;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
             }
 
-            /* Hide the Pc(s) text below quantity */
             #billing-body tr td:nth-child(3)>div:last-child {
                 display: none !important;
             }
@@ -3567,147 +4022,191 @@
                 display: none !important;
             }
 
+            /* FREE column – compact */
             #billing-body tr td:nth-child(4):not(.d-none) {
-                flex: 0 0 calc(42% - 4px);
-                width: calc(42% - 4px);
-                margin-bottom: 8px;
+                flex: 1 1 0;
+                min-width: 0;
+                margin: 0 !important;
+                padding: 4px 3px 0 0 !important;
                 display: flex !important;
                 flex-direction: column !important;
                 align-items: stretch !important;
-                justify-content: flex-end !important;
-                min-height: 38px;
+                justify-content: flex-start !important;
+                min-height: 0;
+                border-top: 1px solid #e2e8f0;
+                box-sizing: border-box;
             }
 
             #billing-body tr td:nth-child(4):not(.d-none)::before {
-                content: 'FREE QTY';
+                content: 'FREE';
                 display: block;
-                font-size: 10px;
-                font-weight: 600;
-                color: #495057;
+                font-size: 9px;
+                font-weight: 700;
+                color: #6b7280;
+                letter-spacing: 0.02em;
                 margin-bottom: 2px;
                 line-height: 1.2;
             }
 
+            #billing-body tr.no-free-qty td:nth-child(5),
+            #billing-body tr.no-free-qty td:nth-child(6),
+            #billing-body tr.no-free-qty td:nth-child(7) {
+                flex: 1 1 0 !important;
+                min-width: 0 !important;
+            }
+            #billing-body tr.no-free-qty td:nth-child(5) {
+                border-left: none !important;
+                padding-left: 4px !important;
+            }
+
+            /* FREE input – compact, same as other row inputs */
             #billing-body tr td:nth-child(4) .free-quantity-input {
                 width: 100% !important;
-                height: 38px !important;
-                min-height: 38px;
-                font-size: 14px;
+                height: 28px !important;
+                min-height: 28px !important;
+                max-height: 28px !important;
+                line-height: 28px !important;
+                font-size: 11px;
                 font-weight: 600;
                 text-align: center;
-                border: 1px solid #ced4da;
+                border: 1px solid #e2e8f0;
                 border-radius: 4px;
                 margin: 0 !important;
+                padding: 0 4px !important;
+                box-sizing: border-box !important;
             }
 
-            #billing-body tr td:nth-child(4) .free-qty-debug {
-                display: block;
-                font-size: 9px;
-                color: #6c757d;
-                margin: 1px 0 0 0 !important;
-                line-height: 1.2;
-            }
-
-            /* Remove extra spacing below FREE QTY input (Free / Max: 7 text) */
+            /* Hide "Free Max: X" / "Max: X" on mobile (match reference card) */
+            #billing-body tr td:nth-child(4) .free-qty-debug,
             #billing-body tr td:nth-child(4) small,
             #billing-body tr td:nth-child(4) .small {
-                margin-top: 0 !important;
-                margin-bottom: 0 !important;
-                line-height: 1.2;
+                display: none !important;
             }
             #billing-body tr td:nth-child(4) div[style*="margin-top"] {
-                margin-top: 1px !important;
-                margin-bottom: 0 !important;
-                font-size: 9px !important;
-                line-height: 1.2;
+                display: none !important;
             }
 
-            /* Row 3: DISC (RS), DISC (%), UNIT PRICE – equal width, one row (2nd image) */
+            /* Pricing row – compact padding */
+            #billing-body tr td:nth-child(4):not(.d-none),
             #billing-body tr td:nth-child(5),
             #billing-body tr td:nth-child(6),
             #billing-body tr td:nth-child(7) {
-                flex: 0 0 calc(33.333% - 4px);
-                width: calc(33.333% - 4px);
-                margin: 0 2px 8px 0 !important;
-                padding: 0 !important;
+                flex: 1 1 0;
+                min-width: 0;
+                margin: 0 !important;
+                padding: 4px 3px 0 3px !important;
                 box-sizing: border-box;
+                border-top: 1px solid #e2e8f0;
+                border-left: 1px solid #e5e7eb;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: stretch !important;
+                justify-content: flex-start !important;
             }
 
-            #billing-body tr td:nth-child(7) {
-                margin-right: 0 !important;
+            #billing-body tr td:nth-child(4):not(.d-none) {
+                border-left: none !important;
+                padding-left: 0 !important;
+            }
+
+            #billing-body tr td:nth-child(5) {
+                border-left: 1px solid #e5e7eb !important;
+                padding-left: 4px !important;
             }
 
             #billing-body tr td:nth-child(5)::before,
             #billing-body tr td:nth-child(6)::before,
             #billing-body tr td:nth-child(7)::before {
                 display: block;
-                font-size: 10px;
+                font-size: 9px;
                 font-weight: 700;
-                color: #495057;
-                margin-bottom: 4px;
+                color: #6b7280;
+                letter-spacing: 0.02em;
+                margin-bottom: 2px;
+                line-height: 1.2;
             }
 
             #billing-body tr td:nth-child(5)::before {
-                content: 'DISC (RS)';
+                content: 'DISC';
             }
 
             #billing-body tr td:nth-child(6)::before {
-                content: 'DISC (%)';
+                content: '%';
             }
 
             #billing-body tr td:nth-child(7)::before {
-                content: 'UNIT PRICE';
+                content: 'PRICE';
             }
 
+            /* Align all pricing columns left (match reference grid) */
+            #billing-body tr td:nth-child(4):not(.d-none),
+            #billing-body tr td:nth-child(5),
+            #billing-body tr td:nth-child(6),
+            #billing-body tr td:nth-child(7) {
+                text-align: left !important;
+            }
+
+            #billing-body tr td:nth-child(7) .form-control,
+            #billing-body tr td:nth-child(7) input {
+                font-weight: 700 !important;
+            }
+
+            /* All pricing row inputs – compact, uniform height */
+            #billing-body tr td:nth-child(4) input,
             #billing-body tr td:nth-child(5) input,
             #billing-body tr td:nth-child(6) input,
             #billing-body tr td:nth-child(7) input {
                 width: 100% !important;
-                height: 38px !important;
-                line-height: 38px !important;
-                font-size: 13px;
-                font-weight: 600;
-                padding: 4px 6px !important;
-                text-align: center;
-                border: 1px solid #ced4da;
+                min-width: 0 !important;
+                height: 28px !important;
+                min-height: 28px !important;
+                max-height: 28px !important;
+                line-height: 28px !important;
+                font-size: 11px;
+                font-weight: 500;
+                padding: 0 4px !important;
+                text-align: left;
+                border: 1px solid #e2e8f0;
                 border-radius: 4px;
                 background: #fff;
-                box-sizing: border-box;
+                box-sizing: border-box !important;
+            }
+            #billing-body tr td:nth-child(7) input {
+                font-weight: 700 !important;
             }
 
-            /* Row 4: ROW SUBTOTAL – full width, light green, bold green text (2nd image) */
+            /* Subtotal row – compact */
             #billing-body tr td:nth-child(8) {
                 flex: 0 0 100%;
                 width: 100% !important;
-                margin: 6px 0 0 0 !important;
-                padding: 10px 12px !important;
-                background: #e8f5e9;
-                border-radius: 6px;
+                margin: 2px 0 0 0 !important;
+                padding: 2px 0 0 0 !important;
+                background: transparent !important;
                 border: none;
+                border-radius: 0;
                 display: flex !important;
                 flex-direction: row !important;
-                justify-content: space-between !important;
+                justify-content: flex-end !important;
                 align-items: center !important;
-                min-height: 42px;
+                min-height: 0;
                 box-sizing: border-box;
             }
 
             #billing-body tr td:nth-child(8)::before {
-                content: 'ROW SUBTOTAL';
-                color: #198754;
-                font-size: 11px;
-                font-weight: 700;
-                text-transform: uppercase;
+                content: 'Sub:';
+                color: #6b7280;
+                font-size: 12px;
+                font-weight: 500;
                 margin-right: 8px;
             }
 
             #billing-body tr td:nth-child(8).subtotal,
             #billing-body tr td.subtotal {
-                font-size: 16px !important;
+                font-size: 13px !important;
                 font-weight: 700;
-                color: #198754 !important;
+                color: #16a34a !important;
                 text-align: right;
-                flex: 1;
+                flex: 0 0 auto;
             }
 
             /* Hide hidden cells */
@@ -4553,15 +5052,18 @@
             row-gap: 12px;
         }
 
-        /* ===== Final POS row alignment override (quantity, discounts, unit price) ===== */
-        #billing-body tr td:nth-child(3) .quantity-minus,
-        #billing-body tr td:nth-child(3) .quantity-plus,
-        #billing-body tr td:nth-child(3) .quantity-input {
-            height: 38px !important;
-            line-height: 38px !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
+        /* ===== Final POS row alignment override (quantity, discounts, unit price) – desktop table only ===== */
+        @media (min-width: 992px) {
+            #billing-body tr td:nth-child(3) .quantity-minus,
+            #billing-body tr td:nth-child(3) .quantity-plus,
+            #billing-body tr td:nth-child(3) .quantity-input {
+                height: 38px !important;
+                min-height: 38px !important;
+                line-height: 1 !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+            }
         }
 
         /* Ensure all discount / unit price cells align their inputs on the same top line */

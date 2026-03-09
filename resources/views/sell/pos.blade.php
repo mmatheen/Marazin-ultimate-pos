@@ -91,6 +91,7 @@
 </head>
 
 <body>
+    <div class="pos-mobile-scroll-wrapper">
     <!-- Include Sales Rep Vehicle/Route Selection Modal -->
     @include('components.sales-rep-modal')
 
@@ -98,8 +99,8 @@
         <div class="row">
             <div class="col-md-12">
                 <div class="card bg-white p-1" id="posHeaderCard">
-                    <!-- Mobile View: icon + location only (no app name), time, dark grey pill buttons -->
-                    <div class="d-md-none pos-mobile-header">
+                    <!-- Mobile/Tablet View: blue cart icon, location, time, trash & menu (full mobile UI below 992px) -->
+                    <div class="d-lg-none pos-mobile-header">
                         <div class="d-flex align-items-center w-100">
                             <div class="pos-mobile-brand d-flex align-items-center gap-2 flex-grow-1 min-width-0">
                                 <div class="pos-mobile-brand-icon rounded-circle d-flex align-items-center justify-content-center flex-shrink-0">
@@ -122,8 +123,8 @@
                             </div>
                         </div>
                     </div>
-                    <!-- Desktop View: Two Columns -->
-                    <div class="row align-items-center d-none d-md-flex" style="margin: 0; padding: 4px 6px;">
+                    <!-- Desktop View: Two Columns (992px and up) -->
+                    <div class="row align-items-center d-none d-lg-flex" style="margin: 0; padding: 4px 6px;">
                         <!-- Location and Date Section -->
                         <div class="col-md-6 d-flex align-items-center" style="padding: 0 6px;">
                             <div class="d-flex flex-row align-items-center" style="gap: 6px;">
@@ -544,7 +545,7 @@
                                     <p id="sale-invoice-no" class="text-info fw-bold mb-1"></p>
                                 </div>
                             </div>
-                            <div class="row">
+                            <div class="row pos-mobile-top-section">
                                 <div class="col-md-5 pe-2">
                                     <div class="d-flex align-items-center customer-select2 pos-customer-row">
                                         <span class="d-inline d-md-none me-2 text-muted" aria-hidden="true"><i class="fas fa-user"></i></span>
@@ -672,16 +673,8 @@
                                 </div>
                             </div>
 
-                            <!-- Mobile Order Summary: Total Items line -->
-                            <div class="row d-md-none pos-mobile-total-items-row" style="margin: 0; padding: 10px 12px; background: #f8f9fa; border-top: 1px solid #eee;">
-                                <div class="col-12 d-flex justify-content-between align-items-center">
-                                    <span class="fw-semibold text-secondary">Total Items</span>
-                                    <span id="mobile-total-items-text" class="fw-bold">0 Items (0 pcs)</span>
-                                </div>
-                            </div>
-
-                            <!-- Total, Discount, Final Total Section - Fixed at bottom -->
-                            <div class="row align-items-end pos-order-summary-row"
+                            <!-- Total, Discount, Final Total Section - Desktop only (hidden below 992px; use Order Summary card on mobile/tablet) -->
+                            <div class="row align-items-end pos-order-summary-row d-none d-lg-flex"
                                 style="margin: 0; border-top: 2px solid #ddd; background-color: #fff; padding: 10px;">
                                 <div class="col-md-2">
                                     <div class="form-group mb-0">
@@ -758,8 +751,8 @@
                                 </div>
                             </div>
 
-                            <!-- Sale Notes Section -->
-                            <div class="row mt-1" style="margin: 0; background-color: #fff; padding: 4px 8px;">
+                            <!-- Sale Notes Section (desktop only; on mobile/tablet use Internal Notes in Order Summary card) -->
+                            <div class="row mt-1 pos-desktop-sale-notes-row d-none d-lg-flex" style="margin: 0; background-color: #fff; padding: 4px 8px;">
                                 <div class="col-md-12">
                                     <div class="form-group mb-0">
                                         <label for="sale-notes-textarea"
@@ -922,25 +915,6 @@
             </div>
         </div>
 
-        <!-- Mobile Bottom Bar (only &lt;768px; hidden on tablet and desktop) -->
-        <div class="mobile-bottom-fixed d-md-none">
-            <div class="mobile-bottom-container">
-                <div class="d-flex align-items-center justify-content-between w-100">
-                    <div class="min-width-0">
-                        <div class="text-white text-uppercase fw-semibold mb-0 pos-mobile-final-label">FINAL TOTAL</div>
-                        <div class="text-white fw-bold lh-1 mt-1 pos-mobile-final-amount" id="mobile-final-total">Rs 0.00</div>
-                        <small class="text-white d-block mt-0 pos-mobile-cart-line" id="mobile-cart-summary">
-                            <span id="mobile-items-count">0</span> item(s) in cart
-                        </small>
-                    </div>
-                    <button type="button" class="btn pos-mobile-pay-btn rounded-pill px-4 py-2 fw-bold d-flex align-items-center gap-1 ms-2 flex-shrink-0" data-bs-toggle="modal" data-bs-target="#mobilePaymentModal">
-                        Pay Now <i class="fas fa-arrow-right small"></i>
-                    </button>
-                </div>
-                <p class="text-white mb-0 mt-2 text-center small pos-mobile-pay-footer">Select payment method on next step</p>
-            </div>
-        </div>
-
         <!-- Mobile Payment Methods Modal -->
         <div class="modal fade" id="mobilePaymentModal" tabindex="-1" aria-labelledby="mobilePaymentModalLabel">
             <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
@@ -1055,8 +1029,8 @@
                                         <div class="col-6" id="mobileDraftBtnCol">
                                             <button type="button" class="btn btn-light border w-100 mobile-action-btn shadow-sm"
                                                 data-action="draft" data-bs-dismiss="modal"
-                                                style="border-radius: 12px; padding: 12px 8px;">
-                                                <i class="fas fa-edit text-info d-block mb-1" style="font-size: 1.25rem;"></i>
+                                                style="border-radius: 12px;">
+                                                <i class="fas fa-edit text-info d-block mb-1"></i>
                                                 <small class="fw-semibold text-dark">Draft</small>
                                             </button>
                                         </div>
@@ -1066,8 +1040,8 @@
                                         <div class="col-12" id="mobileSaleOrderBtnCol">
                                             <button type="button" class="btn btn-success w-100 mobile-action-btn shadow-sm"
                                                 data-action="sale-order" data-bs-dismiss="modal"
-                                                style="border-radius: 12px; padding: 14px 16px;">
-                                                <i class="fas fa-shopping-cart me-2" style="font-size: 1.1rem;"></i>
+                                                style="border-radius: 12px;">
+                                                <i class="fas fa-shopping-cart me-2"></i>
                                                 <span class="fw-semibold">Create Sale Order</span>
                                             </button>
                                         </div>
@@ -1077,8 +1051,8 @@
                                         <div class="col-6" id="mobileQuotationBtnCol">
                                             <button type="button" class="btn btn-light border w-100 mobile-action-btn shadow-sm"
                                                 data-action="quotation" data-bs-dismiss="modal"
-                                                style="border-radius: 12px; padding: 12px 8px;">
-                                                <i class="fas fa-file-alt text-warning d-block mb-1" style="font-size: 1.25rem;"></i>
+                                                style="border-radius: 12px;">
+                                                <i class="fas fa-file-alt text-warning d-block mb-1"></i>
                                                 <small class="fw-semibold text-dark">Quotation</small>
                                             </button>
                                         </div>
@@ -1089,8 +1063,8 @@
                                             <button type="button"
                                                 class="btn btn-light border w-100 mobile-action-btn shadow-sm"
                                                 data-action="job-ticket" data-bs-dismiss="modal"
-                                                style="border-radius: 12px; padding: 12px 8px;">
-                                                <i class="fas fa-ticket-alt text-secondary d-block mb-1" style="font-size: 1.25rem;"></i>
+                                                style="border-radius: 12px;">
+                                                <i class="fas fa-ticket-alt text-secondary d-block mb-1"></i>
                                                 <small class="fw-semibold text-dark">Job Ticket</small>
                                             </button>
                                         </div>
@@ -1101,8 +1075,8 @@
                                             <button type="button" class="btn btn-light border w-100 mobile-action-btn shadow-sm"
                                                 data-action="suspend" data-bs-dismiss="modal" data-bs-toggle="modal"
                                                 data-bs-target="#suspendModal"
-                                                style="border-radius: 12px; padding: 12px 8px;">
-                                                <i class="fas fa-pause text-danger d-block mb-1" style="font-size: 1.25rem;"></i>
+                                                style="border-radius: 12px;">
+                                                <i class="fas fa-pause text-danger d-block mb-1"></i>
                                                 <small class="fw-semibold text-dark">Suspend</small>
                                             </button>
                                         </div>
@@ -1125,8 +1099,8 @@
         </div>
 
 
-        <!-- Modern POS Footer: Left (More | Cancel) | Center (Total Payable) | Right (Cash, Card, Credit, Multiple) -->
-        <div class="pos-footer-modern bottom-fixed d-none d-md-block">
+        <!-- Modern POS Footer: desktop only (992px and up) -->
+        <div class="pos-footer-modern bottom-fixed d-none d-lg-block">
             <div class="pos-footer-inner">
                 <!-- Left: More + separator + Cancel -->
                 <div class="pos-footer-left">
@@ -2071,6 +2045,99 @@
         });
     });
     </script>
+
+    </div><!-- /.pos-mobile-scroll-wrapper -->
+
+    <!-- Mobile/Tablet Order Summary – fixed above PAY TOTAL bar (outside scroll so "X Items" / totals always visible) -->
+    <div class="d-lg-none pos-mobile-order-summary-fixed">
+        <div class="pos-mobile-order-summary-card card border-0 shadow-sm mb-0" style="border-radius: 12px; overflow: hidden;">
+            <div class="card-body p-3 pos-mobile-summary-body">
+                <!-- Top row: X Items | Details tabs + Fixed | Percent toggle -->
+                <div class="d-flex align-items-center justify-content-between mb-3 pos-mobile-summary-tabs">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="pos-mobile-tab pos-mobile-tab-active">
+                            <i class="fas fa-circle text-primary me-1" style="font-size: 0.4rem; vertical-align: middle;"></i>
+                            <span id="mobile-summary-items-count">0</span> Items
+                        </span>
+                        <span class="pos-mobile-tab" data-bs-toggle="collapse" data-bs-target="#posMobileDetailsCollapse" aria-expanded="false">
+                            <i class="fas fa-info-circle text-muted me-1"></i>Details
+                        </span>
+                    </div>
+                    <div class="btn-group btn-group-sm pos-mobile-discount-toggle" role="group">
+                        <button type="button" class="btn btn-primary btn-sm active" id="mobile-fixed-discount-btn" style="font-size: 10px; padding: 4px 10px;">Fixed</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="mobile-percentage-discount-btn" style="font-size: 10px; padding: 4px 10px;">Percent (%)</button>
+                    </div>
+                </div>
+                <!-- Total Subtotal | Discount same row -->
+                <div class="row g-2 mb-2 pos-mobile-summary-row">
+                    <div class="col-6">
+                        <div class="text-muted small">Total Subtotal</div>
+                        <div id="mobile-total-amount-text" class="fw-bold text-dark" style="font-size: 1.1rem;">Rs. 0.00</div>
+                    </div>
+                    <div class="col-6 text-end">
+                        <div class="text-muted small">Discount</div>
+                        <div id="mobile-total-discount-text" class="fw-semibold text-danger" style="font-size: 1rem;">Rs. 0.00</div>
+                    </div>
+                </div>
+                <!-- Global discount: label + input inline (no detached floating field) -->
+                <div class="d-flex align-items-center gap-2 mb-2 pos-mobile-discount-row">
+                    <span class="text-muted small">Discount amount</span>
+                    <input type="text" id="mobile-global-discount" class="form-control form-control-sm" placeholder="0" value="0" style="max-width: 72px; height: 30px; font-weight: 600;">
+                </div>
+                <!-- Add Shipping: white button blue border + edit -->
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <button type="button" class="btn pos-mobile-add-shipping-btn flex-grow-1" data-bs-toggle="modal" data-bs-target="#shippingModal" id="shippingButtonMobile" title="Add shipping">
+                        <i class="fas fa-truck me-1"></i>Add Shipping
+                    </button>
+                    <button type="button" class="btn pos-mobile-shipping-edit-btn" data-bs-toggle="modal" data-bs-target="#shippingModal" title="Edit shipping"><i class="fas fa-edit"></i></button>
+                </div>
+                <!-- Final Total -->
+                <div class="d-flex justify-content-between align-items-center pt-2 border-top pos-mobile-final-row">
+                    <span class="fw-bold">Final Total</span>
+                    <span id="mobile-final-total-inline" class="fw-bold text-primary" style="font-size: 1.1rem;">Rs. 0.00</span>
+                </div>
+                <!-- Details collapse: Total Items + Internal Notes only (Add Shipping is single button above) -->
+                <div class="collapse mt-2" id="posMobileDetailsCollapse">
+                    <div class="small text-muted mb-2"><span class="fw-semibold">Total Items:</span> <span id="mobile-total-items-text">0 (0 units)</span></div>
+                    <div class="accordion accordion-flush" id="posMobileAccordion">
+                        <div class="accordion-item border-0 border-top">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed py-2 bg-white" type="button" data-bs-toggle="collapse" data-bs-target="#collapseNotesMobile" aria-expanded="false" style="font-size: 0.85rem;">
+                                    <i class="fas fa-sticky-note me-2 text-muted"></i>Internal Notes
+                                </button>
+                            </h2>
+                            <div id="collapseNotesMobile" class="accordion-collapse collapse" data-bs-parent="#posMobileAccordion">
+                                <div class="accordion-body py-2">
+                                    <textarea id="sale-notes-textarea-mobile" class="form-control form-control-sm" placeholder="Add notes..." rows="2" style="font-size: 12px;"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile/Tablet Bottom Bar – fixed to viewport bottom (outside scrollable content) -->
+    <div class="mobile-bottom-fixed d-lg-none">
+        <div class="mobile-bottom-container">
+            <button type="button" class="btn pos-mobile-pay-full-btn w-100 d-flex align-items-center justify-content-between px-2 py-2" data-bs-toggle="modal" data-bs-target="#mobilePaymentModal">
+                <div class="d-flex align-items-center gap-2 text-start">
+                    <span class="pos-mobile-cart-badge rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" id="mobile-cart-badge">
+                        <span id="mobile-items-count">0</span>
+                    </span>
+                    <div class="min-width-0">
+                        <div class="text-white text-uppercase fw-semibold mb-0 pos-mobile-final-label">PAY TOTAL</div>
+                        <div class="text-white fw-bold lh-1 mt-0 pos-mobile-final-amount" id="mobile-final-total">Rs. 0.00</div>
+                    </div>
+                </div>
+                <span class="text-white fw-semibold d-flex align-items-center gap-1" style="font-size: 0.9rem;">
+                    Proceed <i class="fas fa-chevron-right"></i>
+                </span>
+            </button>
+            <p class="text-white mb-0 text-center small pos-mobile-pay-footer">Select payment method on next step</p>
+        </div>
+    </div>
 
 </body>
 

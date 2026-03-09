@@ -421,6 +421,9 @@ async function addProductToBillingBody(
     row.setAttribute('data-max-quantity', adjustedBatchQuantity);
     // Layout helper: when free qty is disabled by role/setting, mark row so CSS can make QUANTITY full-width
     row.classList.add(window.showFreeQtyColumn ? 'has-free-qty' : 'no-free-qty');
+    // Low-stock indicator for mobile (target: "• Low Stock (3 units)" in orange)
+    const stockNum = parseFloat(adjustedBatchQuantity);
+    if (!isNaN(stockNum) && stockNum <= 5) row.classList.add('low-stock');
 
     try {
         row.setAttribute('data-product-pricing', JSON.stringify({
@@ -476,7 +479,7 @@ async function addProductToBillingBody(
             <span class="text-muted product-sku" style="font-size: 0.95em; word-break: break-all;">
             SKU: ${product.sku}
             </span>
-            <span class="quantity-display ms-2" style="font-size: 0.95em;">
+            <span class="quantity-display ms-2" style="font-size: 0.95em;" data-stock-quantity="${adjustedBatchQuantity}">
              ${adjustedBatchQuantity} ${unitName}
             </span>
             ${product.is_imei_or_serial_no === 1 ? `<span class="badge bg-info ms-2">IMEI</span>
@@ -514,7 +517,7 @@ async function addProductToBillingBody(
                 min="0" ${(priceValidationEnabled === 1 && !canEditUnitPrice && !isEditing) ? 'readonly' : ''}>
         </td>
         <td class="subtotal total-price text-center" data-total="${(parseFloat(initialQuantityValue) * finalPrice).toFixed(2)}">${formatAmountWithSeparators((parseFloat(initialQuantityValue) * finalPrice).toFixed(2))}</td>
-        <td class="text-center"><button class="btn btn-danger btn-sm remove-btn">×</button></td>
+        <td class="text-center"><button class="btn btn-danger btn-sm remove-btn" type="button" aria-label="Remove item"><i class="fas fa-trash-alt"></i></button></td>
         <td class="product-id d-none">${product.id}</td>
         <td class="location-id d-none">${locationId}</td>
         <td class="batch-id d-none">${batchId || 'all'}</td>

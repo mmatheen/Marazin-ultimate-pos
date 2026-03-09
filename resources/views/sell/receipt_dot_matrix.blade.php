@@ -324,6 +324,11 @@
             min-width: 2in;
         }
 
+        .summary-column-right {
+            margin-left: auto;
+            min-width: 3.1in;
+        }
+
         .summary-row {
             display: flex;
             justify-content: space-between;
@@ -332,9 +337,15 @@
             gap: 0.15in;
         }
 
+        .summary-row span:first-child {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
         .summary-row span:last-child {
             text-align: right;
             white-space: nowrap;
+            min-width: 1.35in;
         }
 
         .summary-row.bold {

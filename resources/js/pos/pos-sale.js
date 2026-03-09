@@ -298,11 +298,12 @@ function fetchEditSale(saleId) {
                     discountTypeElement.value = saleDetails.sale.discount_type || 'fixed';
                 }
 
-                // ✅ Populate sale notes textarea
+                // ✅ Populate sale notes textarea (desktop and mobile)
                 const saleNotesTextarea = document.getElementById('sale-notes-textarea');
-                if (saleNotesTextarea && saleDetails.sale) {
-                    saleNotesTextarea.value = saleDetails.sale.sale_notes || '';
-                }
+                const saleNotesMobile = document.getElementById('sale-notes-textarea-mobile');
+                const notesVal = (saleDetails.sale && saleDetails.sale.sale_notes) ? saleDetails.sale.sale_notes : '';
+                if (saleNotesTextarea) saleNotesTextarea.value = notesVal;
+                if (saleNotesMobile) saleNotesMobile.value = notesVal;
 
                 // Update totals
                 if (PosCart.updateTotals) PosCart.updateTotals();
@@ -350,7 +351,7 @@ function buildSaleBasePayload(status) {
         location_id: locationId,
         status: status,
         sale_type: 'POS',
-        sale_notes: document.getElementById('sale-notes-textarea')?.value?.trim() || null,
+        sale_notes: (document.getElementById('sale-notes-textarea')?.value?.trim() || document.getElementById('sale-notes-textarea-mobile')?.value?.trim()) || null,
         products: [],
         discount_type: discountType,
         discount_amount: discountAmount,

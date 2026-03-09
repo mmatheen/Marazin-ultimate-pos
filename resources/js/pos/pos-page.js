@@ -311,21 +311,94 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    /* ── Mobile Payment & Action Button Routing ──────────── */
+    /* ── Mobile Payment & Action Button Routing ────────────
+     * Footer total is updated by writeTotalsToDom (single source). This only syncs
+     * modal and item count as backup when DOM might not have been updated yet. */
     function updateMobileTotals() {
         var finalTotal = (document.getElementById('final-total-amount') || {}).textContent || '0.00';
         var itemsCount = (document.getElementById('total-items-count') || {}).textContent || '0';
-
-        var mobileFinalTotalEl = document.getElementById('mobile-final-total');
-        if (mobileFinalTotalEl) mobileFinalTotalEl.textContent = 'Rs ' + finalTotal;
 
         var modalFinalTotalEl = document.getElementById('modal-final-total');
         if (modalFinalTotalEl) modalFinalTotalEl.textContent = 'Rs ' + finalTotal;
 
         var mobileItemsCountEl = document.getElementById('mobile-items-count');
         if (mobileItemsCountEl) mobileItemsCountEl.textContent = itemsCount;
+        var mobileSummaryItemsEl = document.getElementById('mobile-summary-items-count');
+        if (mobileSummaryItemsEl) mobileSummaryItemsEl.textContent = itemsCount;
+
+        var mobileFooterTotalEl = document.getElementById('mobile-final-total');
+        if (mobileFooterTotalEl && !mobileFooterTotalEl.textContent) mobileFooterTotalEl.textContent = 'Rs. ' + finalTotal;
     }
-    setInterval(updateMobileTotals, 500);
+    setInterval(updateMobileTotals, 800);
+
+    /* ── Mobile Order Summary: sync discount type and global discount with main inputs ───────── */
+    var mobileFixedBtn = document.getElementById('mobile-fixed-discount-btn');
+    var mobilePctBtn = document.getElementById('mobile-percentage-discount-btn');
+    var mobileDiscountInput = document.getElementById('mobile-global-discount');
+    if (mobileFixedBtn && mobilePctBtn && discountTypeInput) {
+        function syncMainDiscountFromMobile() {
+            discountInput.value = (mobileDiscountInput && mobileDiscountInput.value) ? mobileDiscountInput.value : (discountInput && discountInput.value) || '0';
+            if (discountInput) {
+                discountInput.dispatchEvent(new Event('input', { bubbles: true }));
+                discountInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            if (window.Pos && window.Pos.Cart && typeof window.Pos.Cart.updateTotals === 'function') {
+                window.Pos.Cart.updateTotals();
+            }
+        }
+        function setMobileDiscountType(isFixed) {
+            if (isFixed) {
+                mobileFixedBtn.classList.add('active');
+                mobilePctBtn.classList.remove('active');
+                discountTypeInput.value = 'fixed';
+                if (fixedDiscountBtn) { fixedDiscountBtn.classList.add('active'); if (percentageDiscountBtn) percentageDiscountBtn.classList.remove('active'); }
+                if (discountIcon) discountIcon.textContent = 'Rs';
+            } else {
+                mobilePctBtn.classList.add('active');
+                mobileFixedBtn.classList.remove('active');
+                discountTypeInput.value = 'percentage';
+                if (percentageDiscountBtn) { percentageDiscountBtn.classList.add('active'); if (fixedDiscountBtn) fixedDiscountBtn.classList.remove('active'); }
+                if (discountIcon) discountIcon.textContent = '%';
+            }
+            syncMainDiscountFromMobile();
+        }
+        mobileFixedBtn.addEventListener('click', function () { setMobileDiscountType(true); });
+        mobilePctBtn.addEventListener('click', function () { setMobileDiscountType(false); });
+        if (mobileDiscountInput) {
+            mobileDiscountInput.addEventListener('input', function () {
+                if (discountInput) discountInput.value = mobileDiscountInput.value;
+                syncMainDiscountFromMobile();
+            });
+            mobileDiscountInput.addEventListener('change', syncMainDiscountFromMobile);
+        }
+        /* Sync from main to mobile on load and keep in sync when main changes */
+        function syncMobileDiscountFromMain() {
+            var dt = (discountTypeInput && discountTypeInput.value) || 'fixed';
+            if (dt === 'percentage') {
+                mobilePctBtn.classList.add('active');
+                mobileFixedBtn.classList.remove('active');
+            } else {
+                mobileFixedBtn.classList.add('active');
+                mobilePctBtn.classList.remove('active');
+            }
+            if (discountInput && mobileDiscountInput) mobileDiscountInput.value = discountInput.value || '0';
+        }
+        syncMobileDiscountFromMain();
+        if (discountInput) {
+            discountInput.addEventListener('input', syncMobileDiscountFromMain);
+            discountInput.addEventListener('change', syncMobileDiscountFromMain);
+        }
+    }
+
+    /* Sync sale notes: desktop and mobile textareas stay in sync */
+    var saleNotesDesktop = document.getElementById('sale-notes-textarea');
+    var saleNotesMobile = document.getElementById('sale-notes-textarea-mobile');
+    if (saleNotesDesktop && saleNotesMobile) {
+        function syncNotesToMobile() { saleNotesMobile.value = saleNotesDesktop.value; }
+        function syncNotesToDesktop() { saleNotesDesktop.value = saleNotesMobile.value; }
+        saleNotesDesktop.addEventListener('input', syncNotesToMobile);
+        saleNotesMobile.addEventListener('input', syncNotesToDesktop);
+    }
 
     document.querySelectorAll('.mobile-payment-btn').forEach(function (button) {
         button.addEventListener('click', function () {

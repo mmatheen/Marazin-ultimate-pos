@@ -217,6 +217,7 @@ function calculateRowTotals(billingBody) {
         const subtotalEl = row.querySelector('.subtotal');
         if (subtotalEl) {
             subtotalEl.textContent = _fmtAmount(subtotal.toFixed(2));
+            subtotalEl.setAttribute('data-total', subtotal.toFixed(2));
         }
 
         totalItems     += qty;
@@ -313,7 +314,7 @@ function buildUnitSummary(billingBody, totalItems, totalFreeItems) {
 }
 
 function writeTotalsToDom(billingBody, totals) {
-    const { totalItems, totalAmount, finalTotal, unitDisplay } = totals;
+    const { totalItems, totalFreeItems = 0, totalAmount, finalTotal, unitDisplay, totalDiscount = 0 } = totals;
 
     const fmt   = _fmtAmount;
     const setId = (id, val) => {
@@ -346,11 +347,28 @@ function writeTotalsToDom(billingBody, totals) {
     }
 
     const mobileTotalItemsEl = document.getElementById('mobile-total-items-text');
+    const rowCount = billingBody.querySelectorAll('tr').length;
     if (mobileTotalItemsEl) {
-        const rowCount = billingBody.querySelectorAll('tr').length;
-        const units = unitDisplay || totalItems + ' pcs';
-        mobileTotalItemsEl.textContent = rowCount + ' Item' + (rowCount !== 1 ? 's' : '') + ' (' + units + ')';
+        const totalUnits = totalItems + (totals.totalFreeItems || 0);
+        const unitStr = totalUnits % 1 === 0 ? totalUnits : totalUnits.toFixed(2);
+        mobileTotalItemsEl.textContent = rowCount + ' (' + unitStr + ' units)';
     }
+    const mobileSummaryItemsEl = document.getElementById('mobile-summary-items-count');
+    if (mobileSummaryItemsEl) mobileSummaryItemsEl.textContent = rowCount;
+
+    /* Mobile Order Summary card (target design) */
+    const mobileTotalAmountEl = document.getElementById('mobile-total-amount-text');
+    if (mobileTotalAmountEl) mobileTotalAmountEl.textContent = 'Rs. ' + fmt(totalAmount.toFixed(2));
+    const mobileTotalDiscountEl = document.getElementById('mobile-total-discount-text');
+    if (mobileTotalDiscountEl) {
+        mobileTotalDiscountEl.textContent = totalDiscount > 0 ? '-Rs. ' + fmt(totalDiscount.toFixed(2)) : 'Rs. 0.00';
+        mobileTotalDiscountEl.classList.toggle('text-danger', totalDiscount > 0);
+    }
+    const mobileFinalInlineEl = document.getElementById('mobile-final-total-inline');
+    if (mobileFinalInlineEl) mobileFinalInlineEl.textContent = 'Rs. ' + fmt(finalTotal.toFixed(2));
+    /* Single source: also update mobile footer so it matches order summary (no separate setInterval overwrite) */
+    const mobileFooterTotalEl = document.getElementById('mobile-final-total');
+    if (mobileFooterTotalEl) mobileFooterTotalEl.textContent = 'Rs. ' + fmt(finalTotal.toFixed(2));
 }
 
 function updateTotals() {
@@ -361,12 +379,15 @@ function updateTotals() {
     const totalWithDisc = applyGlobalDiscount(totalAmount);
     const finalTotal    = computeFinalTotal(totalWithDisc);
     const unitDisplay   = buildUnitSummary(billingBody, totalItems, totalFreeItems);
+    const totalDiscount = Math.max(0, totalAmount - totalWithDisc);
 
     writeTotalsToDom(billingBody, {
         totalItems,
+        totalFreeItems,
         totalAmount,
         finalTotal,
-        unitDisplay
+        unitDisplay,
+        totalDiscount
     });
 
     updatePaymentButtonsState();
