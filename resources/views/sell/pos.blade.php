@@ -608,7 +608,7 @@
                             @if($canUseQuickPriceEntry)
                             <div id="cashEntryBar" class="collapse mt-1">
                                 <div class="d-flex align-items-center gap-2 px-2 py-1 rounded"
-                                     style="background:#fffbea; border:1px dashed #f5c842;">
+                                     style="background:#fffbea;">
                                     <i class="fas fa-tag text-warning"></i>
                                     <input type="number" id="cashPriceInput" class="form-control form-control-sm"
                                         placeholder="Price" step="0.01" min="0.01"
@@ -640,8 +640,7 @@
                                                     @if($freeQtyEnabled && $canUseFreeQty)
                                                     <th class="text-center" id="freeQtyTh">Free Qty</th>
                                                     @endif
-                                                    <th class="text-center">Discount (Rs)</th>
-                                                    <th class="text-center">Discount (%)</th>
+                                                    <th class="text-center" colspan="2">Discount</th>
                                                     <th class="text-center">Unit Price</th>
                                                     <th class="text-center">Subtotal</th>
                                                     <th class="text-center" style="color: red;">X</th>

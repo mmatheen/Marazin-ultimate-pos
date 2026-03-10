@@ -5161,3 +5161,192 @@
                 line-height: 30px !important;
             }
         }
+
+        /* ===== POS desktop compact cart layout – more items per screen ===== */
+        @media (min-width: 1024px) {
+
+            /* 1. Cart row – reduce vertical spacing */
+            #billing-body tr td {
+                padding-top: 2px !important;
+                padding-bottom: 2px !important;
+                font-size: 13px !important;
+            }
+
+            /* Product image – smaller thumbnail */
+            #billing-body tr td:nth-child(2) img {
+                width: 30px !important;
+                height: 30px !important;
+                object-fit: cover;
+            }
+
+            #billing-body tr td:nth-child(2) .product-name {
+                font-size: 13px !important;
+                margin-bottom: 1px !important;
+            }
+
+            #billing-body tr td:nth-child(2) .product-sku,
+            #billing-body tr td:nth-child(2) .quantity-display {
+                font-size: 11px !important;
+            }
+
+            /* 2. Quantity controls – compact "- 1 +" */
+            #billing-body tr td:nth-child(3) .quantity-minus,
+            #billing-body tr td:nth-child(3) .quantity-plus,
+            #billing-body tr td:nth-child(3) .quantity-input {
+                height: 28px !important;
+                min-height: 28px !important;
+                line-height: 1 !important;
+            }
+
+            #billing-body tr td:nth-child(3) .quantity-minus,
+            #billing-body tr td:nth-child(3) .quantity-plus {
+                width: 28px !important;
+                min-width: 28px !important;
+                padding: 0 !important;
+                font-size: 14px !important;
+            }
+
+            #billing-body tr td:nth-child(3) .quantity-input {
+                width: 40px !important;
+                min-width: 40px !important;
+                padding: 0 4px !important;
+                text-align: center;
+                font-size: 13px !important;
+            }
+
+            /* 3. Subtotal – compact + right aligned */
+            #billing-body tr td:nth-child(8) {
+                padding-top: 0 !important;
+                padding-bottom: 3px !important;
+                text-align: right !important;
+                font-weight: 600;
+            }
+        }
+
+        /* ===== Ultra-compact cart rows for large desktops (target 9–10 items visible) ===== */
+        @media (min-width: 1360px) {
+
+            #billing-body tr td {
+                padding-top: 1px !important;
+                padding-bottom: 1px !important;
+                font-size: 12px !important;
+            }
+
+            #billing-body tr td:nth-child(2) img {
+                width: 24px !important;
+                height: 24px !important;
+            }
+
+            #billing-body tr td:nth-child(2) .product-name {
+                font-size: 12px !important;
+            }
+
+            #billing-body tr td:nth-child(2) .product-sku,
+            #billing-body tr td:nth-child(2) .quantity-display {
+                font-size: 10px !important;
+            }
+
+            #billing-body tr td:nth-child(3) .quantity-minus,
+            #billing-body tr td:nth-child(3) .quantity-plus,
+            #billing-body tr td:nth-child(3) .quantity-input {
+                height: 24px !important;
+                min-height: 24px !important;
+            }
+
+            #billing-body tr td:nth-child(3) .quantity-minus,
+            #billing-body tr td:nth-child(3) .quantity-plus {
+                width: 24px !important;
+                min-width: 24px !important;
+            }
+
+            #billing-body tr td:nth-child(3) .quantity-input {
+                width: 36px !important;
+                min-width: 36px !important;
+                font-size: 12px !important;
+            }
+
+            #billing-body tr td:nth-child(8) {
+                padding-bottom: 2px !important;
+                font-size: 13px !important;
+            }
+        }
+
+        /* POS discount group – compact side‑by‑side Rs / % */
+        @media (min-width: 1024px) {
+            .pos-discount-group {
+                gap: 4px;
+            }
+
+            .pos-discount-group .pos-discount-input {
+                width: 80px;
+                max-width: 90px;
+                height: 28px !important;
+                padding: 2px 4px !important;
+                font-size: 12px !important;
+            }
+
+            .pos-discount-group small {
+                line-height: 1.1;
+            }
+        }
+
+        /* POS cart delete button – smaller icon (override all previous sizes) */
+        @media (min-width: 1024px) {
+            #billing-body tr td:nth-child(9) .remove-btn {
+                width: 20px !important;
+                height: 20px !important;
+                min-width: 20px !important;
+                font-size: 11px !important;
+                padding: 0 !important;
+                border-radius: 3px !important;
+                box-shadow: none !important;
+            }
+
+            #billing-body tr td:nth-child(9) .remove-btn i {
+                font-size: 0.8rem !important;
+            }
+        }
+
+        /* POS desktop item counter – compact row */
+        @media (min-width: 1024px) {
+            .pos-desktop-item-counter .col-md-12 {
+                padding-top: 2px !important;
+                padding-bottom: 2px !important;
+            }
+
+            .pos-desktop-item-counter span,
+            .pos-desktop-item-counter small {
+                font-size: 11px !important;
+            }
+        }
+
+        /* POS billing header – compact */
+        @media (min-width: 1024px) {
+            .table.table-bordered thead.thead-light th {
+                padding-top: 4px !important;
+                padding-bottom: 4px !important;
+                padding-left: 6px !important;
+                padding-right: 6px !important;
+                font-size: 11px !important;
+                white-space: nowrap;
+            }
+        }
+
+        /* POS billing summary panel – extra compact */
+        @media (min-width: 1024px) {
+            .card.bg-white.mt-3.p-2 .row > [class*="col-"] {
+                margin-bottom: 2px !important;
+            }
+
+            .card.bg-white.mt-3.p-2 .form-control,
+            .card.bg-white.mt-3.p-2 .form-select {
+                height: 26px !important;
+                padding: 2px 4px !important;
+                font-size: 11px !important;
+            }
+
+            .card.bg-white.mt-3.p-2 label {
+                font-size: 10px !important;
+                margin-bottom: 0 !important;
+            }
+        }

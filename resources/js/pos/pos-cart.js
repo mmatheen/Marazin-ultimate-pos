@@ -637,6 +637,31 @@ function validatePriceInput(row, priceInput) {
  * @param {HTMLInputElement} discountInput
  * @param {'fixed'|'percent'} discountType
  */
+// Throttled toastr for discount validation to avoid spam
+let lastDiscountErrorAt = 0;
+function showDiscountValidationError(message) {
+    const now = Date.now();
+    // Suppress duplicate errors fired within 800ms
+    if (now - lastDiscountErrorAt < 800) return;
+    lastDiscountErrorAt = now;
+
+    // Remove any existing toasts so only one error is visible
+    if (typeof toastr.clear === 'function') {
+        toastr.clear();
+    }
+
+    // Show a single auto-hiding error toast
+    const originalTimeout       = toastr.options.timeOut;
+    const originalExtendedTime  = toastr.options.extendedTimeOut;
+    toastr.options.timeOut      = 4000;
+    toastr.options.extendedTimeOut = 1000;
+
+    toastr.error(message, 'Discount Validation Error');
+
+    toastr.options.timeOut         = originalTimeout;
+    toastr.options.extendedTimeOut = originalExtendedTime;
+}
+
 function validateDiscountInput(row, discountInput, discountType) {
     if (_cfg().priceValidationEnabled === 0) return;
 
@@ -670,14 +695,12 @@ function validateDiscountInput(row, discountInput, discountType) {
 
     if (finalPrice < minimumPrice) {
         if (discountType === 'fixed') {
-            toastr.error(
-                `Fixed discount cannot exceed Rs. ${maxAllowed.toFixed(2)}. This would make selling price (Rs. ${finalPrice.toFixed(2)}) below ${priceTypeName} (Rs. ${minimumPrice.toFixed(2)}).`,
-                'Discount Validation Error'
+            showDiscountValidationError(
+                `Fixed discount cannot exceed Rs. ${maxAllowed.toFixed(2)}. This would make selling price (Rs. ${finalPrice.toFixed(2)}) below ${priceTypeName} (Rs. ${minimumPrice.toFixed(2)}).`
             );
         } else {
-            toastr.error(
-                `Percentage discount cannot exceed ${maxAllowed.toFixed(2)}%. This would make selling price (Rs. ${finalPrice.toFixed(2)}) below ${priceTypeName} (Rs. ${minimumPrice.toFixed(2)}).`,
-                'Discount Validation Error'
+            showDiscountValidationError(
+                `Percentage discount cannot exceed ${maxAllowed.toFixed(2)}%. This would make selling price (Rs. ${finalPrice.toFixed(2)}) below ${priceTypeName} (Rs. ${minimumPrice.toFixed(2)}).`
             );
         }
         discountInput.value = maxAllowed.toFixed(2);

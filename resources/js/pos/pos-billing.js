@@ -504,8 +504,28 @@ async function addProductToBillingBody(
             <small style="font-size: 0.7em; color: #666;" class="free-qty-debug">Max: ${adjustedBatchQuantity}</small>
         </td>`
             : `<td class="d-none"><input type="number" name="free_quantity[]" value="0" class="free-quantity-input"></td>`}
-        <td class="text-center"><input type="number" name="discount_fixed[]" class="form-control fixed_discount text-center" value="${discountFixed.toFixed(2)}" ${(priceValidationEnabled === 1 && !canEditDiscount && !isEditing) ? 'readonly' : ''}></td>
-        <td class="text-center"><input type="number" name="discount_percent[]" class="form-control percent_discount text-center" value="${priceValidationEnabled === 0 ? '' : discountPercent.toFixed(2)}" ${priceValidationEnabled === 0 ? 'readonly' : ((priceValidationEnabled === 1 && !canEditDiscount && !isEditing) ? 'readonly' : '')}></td>
+        <td class="text-center" colspan="2">
+            <div class="d-flex justify-content-center align-items-center gap-1 pos-discount-group">
+                <div class="d-flex flex-column align-items-center">
+                    <input
+                        type="number"
+                        name="discount_fixed[]"
+                        class="form-control fixed_discount text-center pos-discount-input"
+                        value="${discountFixed.toFixed(2)}"
+                        ${(priceValidationEnabled === 1 && !canEditDiscount && !isEditing) ? 'readonly' : ''}>
+                    <small class="text-muted" style="font-size: 0.7rem;">Rs</small>
+                </div>
+                <div class="d-flex flex-column align-items-center">
+                    <input
+                        type="number"
+                        name="discount_percent[]"
+                        class="form-control percent_discount text-center pos-discount-input"
+                        value="${priceValidationEnabled === 0 ? '' : discountPercent.toFixed(2)}"
+                        ${priceValidationEnabled === 0 ? 'readonly' : ((priceValidationEnabled === 1 && !canEditDiscount && !isEditing) ? 'readonly' : '')}>
+                    <small class="text-muted" style="font-size: 0.7rem;">%</small>
+                </div>
+            </div>
+        </td>
         <td class="text-center">
             <input type="number" value="${finalPrice.toFixed(2)}" class="form-control price-input unit-price text-center"
                 data-price="${finalPrice}"
