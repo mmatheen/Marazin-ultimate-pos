@@ -39,8 +39,8 @@
 
     <div class="row">
         <div class="col-md-12">
-            <div class="card shadow-lg rounded-4 border-0">
-                <div class="card-body p-4">
+            <div class="card shadow-sm rounded-4 border-0">
+                <div class="card-body p-4 bg-white">
                     <form id="settingsForm" enctype="multipart/form-data">
                         @csrf
                         <div class="row g-4">
@@ -94,12 +94,12 @@
 
                             <!-- Price Validation Toggle -->
                             <div class="col-md-12">
-                                <div class="card border-primary shadow-sm">
-                                    <div class="card-header bg-primary text-white">
-                                        <h5 class="mb-0"><i class="fas fa-shield-alt me-2"></i>POS Price & Discount Controls</h5>
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-header bg-light">
+                                        <h5 class="mb-0 text-dark">POS Price & Discount Controls</h5>
                                     </div>
                                     <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-center">
+                                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                                             <div>
                                                 <h6 class="mb-1">Enable Price Validation</h6>
                                                 <p class="text-muted small mb-0">
@@ -113,7 +113,7 @@
                                                     {{ old('enable_price_validation', $setting->enable_price_validation ?? 1) ? 'checked' : '' }}>
                                             </div>
                                         </div>
-                                        <div class="alert alert-info mt-3 mb-0">
+                                        <div class="alert alert-info mt-3 mb-0 small">
                                             <i class="fas fa-info-circle me-2"></i>
                                             <small>
                                                 When <strong>enabled</strong>, go to <a href="{{ route('group-role-and-permission-view') }}" class="alert-link">Role & Permissions</a>
@@ -127,12 +127,12 @@
                             {{-- Free Quantity Feature Toggle (Master Super Admin Only) --}}
                             @if(auth()->user()->hasRole('Master Super Admin'))
                             <div class="col-md-12">
-                                <div class="card border-success shadow-sm">
-                                    <div class="card-header bg-success text-white">
-                                        <h5 class="mb-0"><i class="fas fa-gift me-2"></i>Free Quantity Feature</h5>
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-header bg-light">
+                                        <h5 class="mb-0 text-dark">Free Quantity Feature</h5>
                                     </div>
                                     <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-center">
+                                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                                             <div>
                                                 <h6 class="mb-1">Enable Free Quantity (Bonus Items)</h6>
                                                 <p class="text-muted small mb-0">
@@ -146,7 +146,7 @@
                                                     {{ old('enable_free_qty', $setting->enable_free_qty ?? 1) ? 'checked' : '' }}>
                                             </div>
                                         </div>
-                                        <div class="alert alert-info mt-3 mb-0">
+                                        <div class="alert alert-info mt-3 mb-0 small">
                                             <i class="fas fa-info-circle me-2"></i>
                                             <small>
                                                 When <strong>enabled</strong>, go to <a href="{{ route('group-role-and-permission-view') }}" class="alert-link">Role & Permissions</a>
@@ -159,10 +159,30 @@
                             </div>
                             @endif
 
-                        </div>
+                            <!-- Manual Database Backup -->
+                            <div class="col-md-12">
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-header bg-light">
+                                        <h5 class="mb-0 text-dark">Database Backup</h5>
+                                    </div>
+                                    <div class="card-body d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+                                        <div class="text-muted small">
+                                            <p class="mb-1">Create an on-demand backup of the current database.</p>
+                                            <p class="mb-0">The backup will be password protected and downloaded as a zip file.</p>
+                                        </div>
+                                        <button type="button" id="backupNowButton" class="btn btn-outline-secondary">
+                                            Backup Now (Database)
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div> <!-- /.row -->
 
                         <div class="text-end mt-4">
-                            <button type="submit" class="btn btn-lg btn-primary shadow-sm px-4">💾 Update Settings</button>
+                            <button type="submit" class="btn btn-primary px-4">
+                                Update Settings
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -171,7 +191,11 @@
     </div>
 </div>
 
-{{-- Image Preview Script --}}
+<form id="backupForm" action="{{ route('settings.backup-now') }}" method="POST" class="d-none">
+    @csrf
+</form>
+
+{{-- Image Preview Script + Settings / Backup handlers --}}
 <script>
 function previewImage(input, previewId, removeBtnId) {
     const file = input.files[0];
@@ -240,6 +264,11 @@ $(document).ready(function () {
             }
         });
     });
+});
+
+// Manual DB backup button submits separate form (no AJAX)
+document.getElementById('backupNowButton').addEventListener('click', function () {
+    document.getElementById('backupForm').submit();
 });
 </script>
 @endsection

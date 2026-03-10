@@ -75,7 +75,7 @@ if (!function_exists('set_active')) {
 // -------------------- Dashboard Route --------------------
 Route::get('/dashboard', function () {
     return view('includes.dashboards.dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+})->middleware(['auth', 'verified', 'daily.backup'])->name('dashboard');
 
 // -------------------- Auth Routes --------------------
 require __DIR__ . '/auth.php';
@@ -607,6 +607,7 @@ Route::middleware(['auth'])->group(function () {
         // -------------------- Site Setting Routes --------------------
         Route::get('/site-settings', [SettingController::class, 'index'])->name('settings.index');
         Route::post('/site-settings/update', [SettingController::class, 'update'])->name('settings.update');
+        Route::post('/site-settings/backup-now', [SettingController::class, 'backupNow'])->name('settings.backup-now');
 
         //Salesrep routes
 

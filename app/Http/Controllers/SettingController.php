@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Artisan;
+use Carbon\Carbon;
 
 class SettingController extends Controller
 {
@@ -78,5 +80,32 @@ class SettingController extends Controller
             'message' => 'Settings updated successfully.',
             'data' => $setting
         ]);
+    }
+
+    /**
+     * Manual database backup download
+     */
+    public function backupNow()
+    {
+        // Run database-only backup using Spatie
+        Artisan::call('backup:run', ['--only-db' => true]);
+
+        // Find latest DB backup on local disk (laravel-pos folder)
+        $disk = Storage::disk('local');
+
+        $files = collect($disk->files('laravel-pos'))
+            ->filter(fn ($path) => str_ends_with($path, '.zip'))
+            ->sortByDesc(fn ($path) => $disk->lastModified($path));
+
+        $latest = $files->first();
+
+        if (! $latest) {
+            return back()->with('error', 'No backup file found.');
+        }
+
+        $fullPath = storage_path('app/' . $latest);
+        $downloadName = 'db-backup-' . Carbon::now()->format('Y-m-d-H-i-s') . '.zip';
+
+        return response()->download($fullPath, $downloadName);
     }
 }

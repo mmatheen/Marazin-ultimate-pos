@@ -79,6 +79,8 @@ class Kernel extends HttpKernel
         'role.security' => \App\Http\Middleware\RoleSecurityMiddleware::class,
         'location.access' => \App\Http\Middleware\ValidateLocationAccess::class,
 
+        'daily.backup' => \App\Http\Middleware\EnsureDailyBackup::class,
+
 
     ];
 }
