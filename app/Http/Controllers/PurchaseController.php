@@ -60,6 +60,24 @@ class PurchaseController extends Controller
 
         $validator = Validator::make($request->all(), [
             'supplier_id' => 'required|integer|exists:suppliers,id',
+            'reference_no' => [
+                'nullable',
+                'string',
+                'max:255',
+                function ($attribute, $value, $fail) use ($request, $purchaseId) {
+                    $value = trim((string) $value);
+                    if ($value === '') {
+                        return;
+                    }
+                    $query = Purchase::where('reference_no', $value);
+                    if ($purchaseId) {
+                        $query->where('id', '!=', $purchaseId);
+                    }
+                    if ($query->exists()) {
+                        $fail('This reference number is already in use.');
+                    }
+                },
+            ],
             'purchase_date' => 'required|string', // Allow string format, we'll parse it
             'purchasing_status' => 'required|in:Received,Pending,Ordered',
             'location_id' => 'required|integer|exists:locations,id',
@@ -204,6 +222,14 @@ class PurchaseController extends Controller
             $purchaseType = $request->input('purchase_type', 'regular');
             $claimReferenceId = $request->input('claim_reference_id');
 
+            // Use manual reference_no from request when provided; otherwise auto-generate or keep existing
+            $requestRefNo = trim((string) $request->input('reference_no'));
+            if ($isUpdate) {
+                $resolvedReferenceNo = $requestRefNo !== '' ? $requestRefNo : $oldPurchase->reference_no;
+            } else {
+                $resolvedReferenceNo = $requestRefNo !== '' ? $requestRefNo : $this->generateReferenceNo();
+            }
+
             // For free_claim receipts, force totals to zero
             $finalTotal = in_array($purchaseType, ['free_claim', 'free_claim_standalone'])
                 ? 0
@@ -217,7 +243,7 @@ class PurchaseController extends Controller
                 [
                     'supplier_id' => $request->supplier_id,
                     'user_id' => auth()->id(),
-                    'reference_no' => $purchaseId ? Purchase::find($purchaseId)->reference_no : $this->generateReferenceNo(),
+                    'reference_no' => $resolvedReferenceNo,
                     'purchase_date' => $request->purchase_date ? Carbon::parse($request->purchase_date)->format('Y-m-d') : now()->format('Y-m-d'),
                     'purchasing_status' => $request->purchasing_status,
                     'location_id' => $request->location_id,
@@ -329,8 +355,11 @@ class PurchaseController extends Controller
             if (!$isFreeClaim && !isset($processedPurchases[$purchaseKey])) {
                 // Handle ledger recording/updating
                 if ($isUpdate) {
-                    // For updates, use updatePurchase method to handle cleanup and recreation
-                    $this->unifiedLedgerService->updatePurchase($purchase);
+                    // When reference_no was changed, pass old value so ledger reverses by old ref and recreates with new
+                    $oldRefForLedger = ($requestRefNo !== '' && $requestRefNo !== $oldPurchase->reference_no)
+                        ? $oldPurchase->reference_no
+                        : null;
+                    $this->unifiedLedgerService->updatePurchase($purchase, $oldRefForLedger);
                 } else {
                     // Record purchase in ledger for new purchases
                     $this->unifiedLedgerService->recordPurchase($purchase);
@@ -554,14 +583,22 @@ class PurchaseController extends Controller
 
     private function generateReferenceNo()
     {
-        // Fetch the last reference number from the database
-        $lastReference = Purchase::orderBy('id', 'desc')->first();
-        $lastReferenceNo = $lastReference ? intval(substr($lastReference->reference_no, 3)) : 0;
+        // Only consider references that match PUR + digits (e.g. PUR001, PUR143). Ignore custom refs like "test1234".
+        $refs = Purchase::whereNotNull('reference_no')
+            ->where('reference_no', 'like', 'PUR%')
+            ->pluck('reference_no');
 
-        // Increment the reference number
-        $newReferenceNo = $lastReferenceNo + 1;
+        $maxNumber = 0;
+        foreach ($refs as $ref) {
+            if (preg_match('/^PUR(\d+)$/i', $ref, $m)) {
+                $num = (int) $m[1];
+                if ($num > $maxNumber) {
+                    $maxNumber = $num;
+                }
+            }
+        }
 
-        // Format the new reference number to 3 digits
+        $newReferenceNo = $maxNumber + 1;
         $formattedNumber = str_pad($newReferenceNo, 3, '0', STR_PAD_LEFT);
 
         return 'PUR' . $formattedNumber;
