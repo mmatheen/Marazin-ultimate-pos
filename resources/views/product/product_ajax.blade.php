@@ -2586,6 +2586,8 @@
                 if (isDataTable) {
                     // Add to DataTable
                     const addedRow = table.row.add($newRow).draw();
+                    // Last added = first row (like POS): move new row to top
+                    $(addedRow.node()).prependTo('#purchase_product tbody');
 
                     // Get the actual DOM node after DataTables processes it
                     const $actualRow = $(addedRow.node());
@@ -2609,8 +2611,8 @@
                     $actualRow.find('.purchase-quantity').trigger('input');
                     $actualRow.find('.free-quantity').trigger('input');
                 } else {
-                    // Add to regular table
-                    $('#purchase_product tbody').append($newRow);
+                    // Add to regular table — last added = first row (like POS)
+                    $('#purchase_product tbody').prepend($newRow);
 
                     // Attach event listeners for regular table
                     $newRow.find('.purchase-quantity, .free-quantity, .discount-percent, .product-price, .unit-cost').on('input', function() {

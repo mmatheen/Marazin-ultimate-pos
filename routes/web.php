@@ -607,6 +607,8 @@ Route::middleware(['auth'])->group(function () {
         // -------------------- Site Setting Routes --------------------
         Route::get('/site-settings', [SettingController::class, 'index'])->name('settings.index');
         Route::post('/site-settings/update', [SettingController::class, 'update'])->name('settings.update');
+        Route::post('/site-settings/update-price-validation', [SettingController::class, 'updatePriceValidation'])->name('settings.update-price-validation');
+        Route::post('/site-settings/update-free-qty', [SettingController::class, 'updateFreeQty'])->name('settings.update-free-qty');
         Route::post('/site-settings/backup-now', [SettingController::class, 'backupNow'])->name('settings.backup-now');
 
         //Salesrep routes

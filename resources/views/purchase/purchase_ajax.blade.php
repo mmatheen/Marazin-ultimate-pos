@@ -593,7 +593,9 @@
         `;
 
                 const $newRow = $(newRow);
-                table.row.add($newRow).draw();
+                const addedRow = table.row.add($newRow).draw();
+                // Last added = first row (like POS): move new row to top
+                $(addedRow.node()).prependTo('#purchase_product tbody');
                 updateRow($newRow);
                 calculateProfitMargin($newRow); // Initial profit margin calculation
                 updateFooter();
@@ -1110,13 +1112,14 @@
                         price: product.unit_cost,
                         wholesale_price: product.wholesale_price,
                         special_price: product.special_price,
+                        retail_price: product.retail_price,
                         max_retail_price: product.max_retail_price,
                         expiry_date: product.batch ? product.batch.expiry_date : '',
                         batch_no: product.batch ? product.batch.batch_no : ''
                     };
 
                     const batchPrices = {
-                        price: product.batch ? product.batch.retail_price : product.price,
+                        price: product.batch ? product.batch.retail_price : product.retail_price,
                         unit_cost: product.batch ? product.batch.unit_cost : product.unit_cost,
                         wholesale_price: product.batch ? product.batch.wholesale_price : product
                             .wholesale_price,
@@ -1124,6 +1127,7 @@
                             .special_price,
                         max_retail_price: product.batch ? product.batch.max_retail_price : product
                             .max_retail_price,
+                        retail_price: product.retail_price != null ? product.retail_price : (product.batch ? product.batch.retail_price : null),
                         quantity: product.quantity,
                         free_quantity: product.free_quantity || 0,
                         claim_free_quantity: product.claim_free_quantity || 0
@@ -2583,8 +2587,9 @@
                             productsTable.append(row);
                         });
                     } else {
+                        const colCount = 6 + (canUseFreeQty ? 3 : 0); // #, Name, SKU, Qty, [Free, Claim], Price, Total
                         productsTable.append(
-                            '<tr><td colspan="7" class="text-center">No products found</td></tr>'
+                            '<tr><td colspan="' + colCount + '" class="text-center">No products found</td></tr>'
                         );
                     }
 

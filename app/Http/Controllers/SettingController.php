@@ -14,7 +14,7 @@ class SettingController extends Controller
     function __construct()
     {
         $this->middleware('permission:view settings', ['only' => ['index']]);
-        $this->middleware('permission:edit business-settings', ['only' => ['update']]);
+        $this->middleware('permission:edit business-settings', ['only' => ['update', 'updatePriceValidation', 'updateFreeQty']]);
     }
 
     /**
@@ -42,15 +42,7 @@ class SettingController extends Controller
             'secondary_color' => 'nullable|string|max:7',
         ]);
 
-        // Handle price validation checkbox
-        // 1 (checked) = STRICT mode - enforce permissions (only users with permission can edit prices/discounts)
-        // 0 (unchecked) = FLEXIBLE mode - free editing (all users can edit prices/discounts regardless of permissions)
-        $validated['enable_price_validation'] = $request->has('enable_price_validation') ? 1 : 0;
-
-        // Handle free quantity feature toggle (super admin only setting)
-        // 1 = Free Qty column visible and usable by users with 'use free quantity' permission
-        // 0 = Free Qty column completely hidden for all users
-        $validated['enable_free_qty'] = $request->has('enable_free_qty') ? 1 : 0;
+        // General form only updates app name, logo, favicon (toggles are saved via their own endpoints)
 
         // Handle logo upload
         if ($request->hasFile('logo')) {
@@ -79,6 +71,44 @@ class SettingController extends Controller
             'status' => true,
             'message' => 'Settings updated successfully.',
             'data' => $setting
+        ]);
+    }
+
+    /**
+     * Update only Price Validation toggle (individual card save)
+     * 1 = Strict (only users with permission can edit prices/discounts), 0 = Flexible
+     */
+    public function updatePriceValidation(Request $request)
+    {
+        $validated = $request->validate([
+            'enable_price_validation' => 'required|in:0,1',
+        ]);
+        $setting = Setting::first();
+        $setting->update($validated);
+        Cache::forget('active_setting');
+        return response()->json([
+            'status' => true,
+            'message' => 'Price validation setting updated.',
+            'data' => ['enable_price_validation' => (int) $validated['enable_price_validation']],
+        ]);
+    }
+
+    /**
+     * Update only Free Qty toggle (individual card save)
+     * 1 = Free Qty visible for permitted users, 0 = Hidden for all
+     */
+    public function updateFreeQty(Request $request)
+    {
+        $validated = $request->validate([
+            'enable_free_qty' => 'required|in:0,1',
+        ]);
+        $setting = Setting::first();
+        $setting->update($validated);
+        Cache::forget('active_setting');
+        return response()->json([
+            'status' => true,
+            'message' => 'Free quantity setting updated.',
+            'data' => ['enable_free_qty' => (int) $validated['enable_free_qty']],
         ]);
     }
 

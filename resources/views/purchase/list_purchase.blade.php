@@ -286,6 +286,7 @@
                                                 <th>SKU</th>
                                                 <th>Quantity</th>
                                                 @if($canUseFreeQty)<th>Free Qty</th>@endif
+                                                @if($canUseFreeQty)<th>Claim Qty</th>@endif
                                                 <th>Price</th>
                                                 <th>Total</th>
                                             </tr>

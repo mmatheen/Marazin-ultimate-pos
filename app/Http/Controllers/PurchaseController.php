@@ -984,7 +984,14 @@ class PurchaseController extends Controller
 
     public function getAllPurchasesProduct($id)
     {
-        $purchase = Purchase::with(['supplier', 'location', 'purchaseProducts.product', 'payments'])->find($id);
+        $purchase = Purchase::with([
+            'supplier',
+            'location',
+            'purchaseProducts' => function ($q) {
+                $q->orderBy('created_at', 'desc')->with(['product', 'batch']);
+            },
+            'payments',
+        ])->find($id);
 
         if (!$purchase) {
             return response()->json(['message' => 'No purchase product found.'], 404);
