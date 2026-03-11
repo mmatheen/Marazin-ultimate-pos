@@ -3023,6 +3023,7 @@ function submitMultiMethodPayment() {
     // Collect flexible payment groups
     const paymentGroups = [];
     let hasValidPayments = false;
+    let validationFailed = false;
     let groupIndex = 0;
 
     // Initialize bill return allocations BEFORE collecting payment groups
@@ -3081,16 +3082,19 @@ function submitMultiMethodPayment() {
                 if (!chequeNumber || chequeNumber.trim() === '') {
                     toastr.error(`Payment ${groupIndex}: Cheque Number is required`);
                     $('#submitBulkPayment').prop('disabled', false).html('<i class="fas fa-paper-plane"></i> Submit Payment');
+                    validationFailed = true;
                     return false;
                 }
                 if (!chequeBank || chequeBank.trim() === '') {
                     toastr.error(`Payment ${groupIndex}: Bank & Branch is required for cheque payments`);
                     $('#submitBulkPayment').prop('disabled', false).html('<i class="fas fa-paper-plane"></i> Submit Payment');
+                    validationFailed = true;
                     return false;
                 }
                 if (!chequeDate || chequeDate.trim() === '') {
                     toastr.error(`Payment ${groupIndex}: Cheque Date is required`);
                     $('#submitBulkPayment').prop('disabled', false).html('<i class="fas fa-paper-plane"></i> Submit Payment');
+                    validationFailed = true;
                     return false;
                 }
 
@@ -3161,6 +3165,10 @@ function submitMultiMethodPayment() {
             hasValidPayments = true;
         }
     });
+
+    if (validationFailed) {
+        return false;
+    }
 
     if (!hasValidPayments) {
         toastr.error('Please add at least one payment method with bill allocations');
