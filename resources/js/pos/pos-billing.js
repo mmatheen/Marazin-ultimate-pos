@@ -416,6 +416,8 @@ async function addProductToBillingBody(
     const row = document.createElement('tr');
     row.setAttribute('data-product-id', product.id);
     row.setAttribute('data-batch-id', batchId);
+    // Track whether cashier explicitly chose a batch (vs auto/restored in edit mode)
+    row.setAttribute('data-user-selected-batch', '0');
     row.setAttribute('data-unit-price', finalPrice);
     row.setAttribute('data-price-source', priceType);
     row.setAttribute('data-max-quantity', adjustedBatchQuantity);

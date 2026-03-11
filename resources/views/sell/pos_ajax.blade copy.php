@@ -7727,6 +7727,8 @@
             // Add data attributes for price updating functionality
             row.setAttribute('data-product-id', product.id);
             row.setAttribute('data-batch-id', batchId);
+            // Track whether cashier explicitly chose a batch (vs auto/restored in edit mode)
+            row.setAttribute('data-user-selected-batch', '0');
             row.setAttribute('data-unit-price', finalPrice);
             row.setAttribute('data-price-source', priceType);
             // Store max quantity for edit mode validation
@@ -8415,6 +8417,8 @@
 
                 // Update batch ID and store selected price type
                 selectedRow.querySelector('.batch-id').textContent = batchId;
+                // Mark that user explicitly selected a batch in the modal
+                selectedRow.setAttribute('data-user-selected-batch', '1');
 
                 // Store the selected price type for future modal opens
                 let priceTypeElement = selectedRow.querySelector('.selected-price-type');
@@ -9679,7 +9683,8 @@
                     let processedBatchId = "all"; // Default to FIFO if no batch selected
 
                     // If user selected a specific batch, respect their selection
-                    if (batchId && batchId !== "null" && batchId !== "" && batchId !== "all") {
+                    const userSelectedBatch = (productRow.attr('data-user-selected-batch') || productRow.get(0)?.getAttribute?.('data-user-selected-batch') || '0') === '1';
+                    if (userSelectedBatch && batchId && batchId !== "null" && batchId !== "" && batchId !== "all") {
                         processedBatchId = String(batchId); // Use the selected batch
                         console.log('✅ Using user-selected batch_id:', processedBatchId);
                     } else {

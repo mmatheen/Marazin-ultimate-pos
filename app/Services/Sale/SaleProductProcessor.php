@@ -141,14 +141,26 @@ class SaleProductProcessor
             $availableFreeStock = $locationBatch->free_qty ?? 0;
 
             if ($availablePaidStock < $productData['quantity']) {
-                throw new \Exception("Batch ID {$productData['batch_id']} does not have enough paid stock. Available: {$availablePaidStock}, Requested: {$productData['quantity']}");
+                $product = \App\Models\Product::select(['id', 'product_name', 'sku'])->find($productData['product_id']);
+                $productLabel = $product
+                    ? trim(($product->product_name ?? 'Unknown Product') . ($product->sku ? " (SKU: {$product->sku})" : ''))
+                    : "Product ID {$productData['product_id']}";
+                $batchLabel = trim(($batch->batch_no ? "Batch: {$batch->batch_no}" : 'Batch') . " (ID: {$productData['batch_id']})");
+
+                throw new \Exception("{$productLabel} — {$batchLabel} does not have enough paid stock. Available: {$availablePaidStock}, Requested: {$productData['quantity']}");
             }
 
             // Sale-time free qty: deducted from purchase-free pool first, then falls back to paid stock.
             // So total available stock must cover paid + free given.
             $totalAvailable = $availablePaidStock + $availableFreeStock;
             if ($totalAvailable < $totalQuantity) {
-                throw new \Exception("Batch ID {$productData['batch_id']} does not have enough total stock for sale (paid + free). Available: {$totalAvailable}, Requested: {$totalQuantity}");
+                $product = \App\Models\Product::select(['id', 'product_name', 'sku'])->find($productData['product_id']);
+                $productLabel = $product
+                    ? trim(($product->product_name ?? 'Unknown Product') . ($product->sku ? " (SKU: {$product->sku})" : ''))
+                    : "Product ID {$productData['product_id']}";
+                $batchLabel = trim(($batch->batch_no ? "Batch: {$batch->batch_no}" : 'Batch') . " (ID: {$productData['batch_id']})");
+
+                throw new \Exception("{$productLabel} — {$batchLabel} does not have enough total stock for sale (paid + free). Available: {$totalAvailable}, Requested: {$totalQuantity}");
             }
 
             $this->deductBatchStock($productData['batch_id'], $locationId, $totalQuantity, $stockType, $productData['quantity'], $freeQuantity);
@@ -340,7 +352,20 @@ class SaleProductProcessor
             ->first();
 
         if (!$locationBatch) {
-            throw new \Exception("Batch ID $batchId not found at location $locationId");
+            $batch = \App\Models\Batch::select(['id', 'batch_no', 'product_id'])->find($batchId);
+            $product = $batch
+                ? \App\Models\Product::select(['id', 'product_name', 'sku'])->find($batch->product_id)
+                : null;
+
+            $productLabel = $product
+                ? trim(($product->product_name ?? 'Unknown Product') . ($product->sku ? " (SKU: {$product->sku})" : ''))
+                : ($batch ? "Product ID {$batch->product_id}" : 'Unknown Product');
+
+            $batchLabel = $batch
+                ? trim(($batch->batch_no ? "Batch: {$batch->batch_no}" : 'Batch') . " (ID: {$batchId})")
+                : "Batch ID {$batchId}";
+
+            throw new \Exception("{$productLabel} — {$batchLabel} not found at location {$locationId}");
         }
 
         $currentPaidStock = round((float) $locationBatch->qty, 4);

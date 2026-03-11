@@ -95,8 +95,11 @@ function fetchEditSale(saleId) {
                     order_number: saleDetails.sale.order_number
                 };
 
-                // 🔒 Check if this is a finalized sale (has invoice number)
-                window.isEditingFinalizedSale = !!(saleDetails.sale.invoice_no && saleDetails.sale.invoice_no !== 'null' && saleDetails.sale.invoice_no.trim() !== '');
+                // 🔒 Check if this is a finalized sale.
+                // IMPORTANT: Drafts also have numbers like "D/2026/0003", so invoice_no alone is NOT a safe signal.
+                // Treat as finalized only when status is "final".
+                const saleStatus = (saleDetails.sale.status || '').toString().toLowerCase();
+                window.isEditingFinalizedSale = saleStatus === 'final';
 
                 // Update invoice number
                 const saleInvoiceElement = document.getElementById('sale-invoice-no');
@@ -397,7 +400,48 @@ function buildProductPayloadFromRow(productRow) {
     const freeQtyVal = productRow.find('.free-quantity-input').val().trim();
     const quantity = isImeiProduct ? 1 : (parseFloat(qtyVal) || 0);
     const freeQuantity = parseFloat(freeQtyVal) || 0;
-    const processedBatchId = (batchId && batchId !== 'null' && batchId !== '' && batchId !== 'all') ? String(batchId) : 'all';
+    // Batch selection rules:
+    // - If cashier explicitly selected a batch in the modal → always respect it.
+    // - Else, in EDIT DRAFT mode: keep original batch only if it still has enough stock at this location.
+    // - Otherwise fallback to FIFO ("all") so the backend can pick an available batch.
+    const userSelectedBatch = String(productRow.attr('data-user-selected-batch') || '0') === '1';
+    const isEditing = !!window.isEditing;
+    const isEditingFinalizedSale = !!window.isEditingFinalizedSale;
+    const totalQuantity = (parseFloat(quantity) || 0) + (parseFloat(freeQuantity) || 0);
+
+    let processedBatchId = 'all';
+    const hasSpecificBatch = batchId && batchId !== 'null' && batchId !== '' && batchId !== 'all';
+
+    if (userSelectedBatch && hasSpecificBatch) {
+        processedBatchId = String(batchId);
+    } else if (isEditing && !isEditingFinalizedSale && hasSpecificBatch) {
+        // Draft edit: validate original batch still has stock
+        const batchFetcher = window.Pos?.Customer?.getBatchDataById;
+        const batch = typeof batchFetcher === 'function' ? batchFetcher(batchId) : null;
+
+        let available = null;
+        if (batch && Array.isArray(batch.location_batches)) {
+            const lb = batch.location_batches.find(x => String(x.location_id) === String(rowLocationId));
+            if (lb) {
+                const paid = parseFloat(lb.qty ?? lb.quantity ?? 0) || 0;
+                const free = parseFloat(lb.free_qty ?? lb.free_quantity ?? 0) || 0;
+                available = paid + free;
+            }
+        }
+
+        if (available === null) {
+            // If we can't reliably read stock for this batch from the frontend cache,
+            // keep the original batch to avoid switching everything to FIFO.
+            processedBatchId = String(batchId);
+        } else if (totalQuantity > 0 && totalQuantity <= available) {
+            processedBatchId = String(batchId); // keep original batch
+        } else {
+            processedBatchId = 'all'; // fallback to FIFO ONLY when we know original batch is insufficient
+        }
+    } else if (hasSpecificBatch) {
+        // Finalized sale edit (or any non-draft edit): preserve batch id if present
+        processedBatchId = String(batchId);
+    }
     const customNameEl = productRow.find('.custom-name-input');
     const customName = customNameEl.length > 0 ? (customNameEl.val()?.trim() || null) : null;
 

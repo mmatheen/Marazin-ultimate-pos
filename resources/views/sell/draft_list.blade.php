@@ -380,6 +380,15 @@
                 // Show modal or handle view logic
             });
 
+            // Event listener for Edit — redirect to POS page with draft loaded for editing
+            $('#draftSalesTable tbody').on('click', '.edit_btn', function(e) {
+                e.preventDefault();
+                var draftId = $(this).val();
+                if (draftId) {
+                    window.location.href = "{{ url('sales/edit') }}/" + draftId;
+                }
+            });
+
             // Event listener for delete button
             $(document).on('click', '.delete_btn', function(event) {
                 event.preventDefault();

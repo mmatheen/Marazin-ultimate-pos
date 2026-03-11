@@ -373,8 +373,19 @@ class SaleValidationService
             $availableStock = self::getAvailableStock($batchId, $locationId);
 
             if ($totalQuantity > $availableStock) {
+                $product = \App\Models\Product::select(['id', 'product_name', 'sku'])->find($productId);
+                $batch   = \App\Models\Batch::select(['id', 'batch_no'])->find($batchId);
+
+                $productLabel = $product
+                    ? trim(($product->product_name ?? 'Unknown Product') . ($product->sku ? " (SKU: {$product->sku})" : ''))
+                    : "Product ID {$productId}";
+
+                $batchLabel = $batch
+                    ? trim(($batch->batch_no ? "Batch: {$batch->batch_no}" : 'Batch') . " (ID: {$batchId})")
+                    : "Batch ID {$batchId}";
+
                 throw new \Exception(
-                    "Batch ID {$batchId} does not have enough stock. " .
+                    "{$productLabel} — {$batchLabel} does not have enough stock. " .
                     "Available: {$availableStock}, Requested: {$totalQuantity} " .
                     "(paid: {$productData['quantity']} + free: {$freeQuantity})"
                 );
@@ -388,8 +399,19 @@ class SaleValidationService
                 ->sum('location_batches.qty');
 
             if ($totalQuantity > $availableStock) {
+                $product = \App\Models\Product::select(['id', 'product_name', 'sku'])->find($productId);
+                $location = \App\Models\Location::select(['id', 'name'])->find($locationId);
+
+                $productLabel = $product
+                    ? trim(($product->product_name ?? 'Unknown Product') . ($product->sku ? " (SKU: {$product->sku})" : ''))
+                    : "Product ID {$productId}";
+
+                $locationLabel = $location
+                    ? trim("Location: {$location->name} (ID: {$locationId})")
+                    : "Location ID {$locationId}";
+
                 throw new \Exception(
-                    "Not enough stock available. " .
+                    "{$productLabel} — Not enough stock available ({$locationLabel}). " .
                     "Available: {$availableStock}, Requested: {$totalQuantity} " .
                     "(paid: {$productData['quantity']} + free: {$freeQuantity})"
                 );

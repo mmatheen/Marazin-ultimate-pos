@@ -1729,6 +1729,8 @@ function showProductModal(product, stockEntry, row) {
                     const batchCell = selectedRow.querySelector('.batch-id');
                     if (batchCell) batchCell.textContent = selection.batchId;
                     selectedRow.setAttribute('data-batch-id', selection.batchId);
+                    // Mark that user explicitly selected a batch in the modal
+                    selectedRow.setAttribute('data-user-selected-batch', '1');
                 }
 
                 // Let cart module recalc discounts/totals
