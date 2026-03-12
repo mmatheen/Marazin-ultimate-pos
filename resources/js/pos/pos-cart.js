@@ -74,11 +74,35 @@ function _state() {
 }
 
 /**
- * Return the POS configuration object set by pos-config.blade.php.
- * @returns {{ priceValidationEnabled:number, miscItemProductId:number, [key:string]:* }}
+ * Lightweight accessor for POS config values used in this module.
+ *
+ * NOTE:
+ *   pos-config.blade.php now nests most flags under `window.PosConfig.permissions`.
+ *   Older code (and some comments) still expect flat properties on `window.PosConfig`.
+ *   This helper normalises both shapes so callers can reliably read:
+ *     • cfg.priceValidationEnabled
+ *     • cfg.miscItemProductId
+ *
+ * @returns {{ priceValidationEnabled:number, miscItemProductId:number }}
  */
 function _cfg() {
-    return window.PosConfig || {};
+    const root  = window.PosConfig || {};
+    const perms = root.permissions || {};
+
+    const priceValidationEnabled =
+        typeof perms.priceValidationEnabled !== 'undefined'
+            ? parseInt(perms.priceValidationEnabled, 10)
+            : parseInt(root.priceValidationEnabled ?? 1, 10);
+
+    const miscItemProductId =
+        typeof root.miscItemProductId !== 'undefined'
+            ? parseInt(root.miscItemProductId, 10)
+            : parseInt(root.miscItemId ?? 0, 10);
+
+    return {
+        priceValidationEnabled: isNaN(priceValidationEnabled) ? 1 : priceValidationEnabled,
+        miscItemProductId: isNaN(miscItemProductId) ? 0 : miscItemProductId
+    };
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -473,8 +497,15 @@ function handleDiscountToggle(input) {
 }
 
 /**
- * Lock the price input as read-only when either discount field has a value
- * (strict mode only; flexible mode always allows editing).
+ * Control price input UX based on configuration.
+ *
+ * Business requirement (2026‑03‑12):
+ *   • Cashiers must be able to edit unit price even when line‑level discounts are present.
+ *   • When price changes, discounts should auto‑recalculate from MRP.
+ *   • When discounts change, price should continue to auto‑recalculate as before.
+ *
+ * Therefore we no longer hard‑lock the price field in strict mode; we only
+ * adjust explanatory tooltips and visual hints.
  * @param {HTMLElement} row
  */
 function updatePriceEditability(row) {
@@ -483,6 +514,7 @@ function updatePriceEditability(row) {
     const percentInput = row.querySelector('.percent_discount');
     if (!priceInput || !fixedInput || !percentInput) return;
 
+    // Flexible mode — already fully editable, keep explicit hint.
     if (_cfg().priceValidationEnabled === 0) {
         priceInput.removeAttribute('readonly');
         priceInput.style.backgroundColor = '#fff';
@@ -491,20 +523,12 @@ function updatePriceEditability(row) {
         return;
     }
 
-    const hasFixed   = (parseFloat(fixedInput.value)   || 0) > 0;
-    const hasPercent = (parseFloat(percentInput.value) || 0) > 0;
-
-    if (!hasFixed && !hasPercent) {
-        priceInput.removeAttribute('readonly');
-        priceInput.style.backgroundColor = '#fff';
-        priceInput.style.cursor          = 'text';
-        priceInput.title                 = 'Price is editable when no discounts are applied';
-    } else {
-        priceInput.setAttribute('readonly', true);
-        priceInput.style.backgroundColor = '#f8f9fa';
-        priceInput.style.cursor          = 'not-allowed';
-        priceInput.title                 = 'Remove discounts to edit price manually';
-    }
+    // Strict mode — always allow editing; validation logic in validatePriceInput
+    // will enforce floors/ceilings and recalculate discounts from MRP.
+    priceInput.removeAttribute('readonly');
+    priceInput.style.backgroundColor = '#fff';
+    priceInput.style.cursor          = 'text';
+    priceInput.title                 = 'Editing unit price will auto-update discounts based on MRP.';
 }
 
 /**
