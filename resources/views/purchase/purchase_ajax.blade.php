@@ -120,10 +120,33 @@
 
         // Initialization will happen in consolidated $(document).ready() below
 
-        // Function to print modal
-        function printModal() {
-            window.print();
-        }
+        // Expose printModal globally so onclick="printModal()" in modals can find it
+        window.printModal = function() {
+            var $modal = $('.modal.show');
+            if (!$modal.length) {
+                if (typeof toastr !== 'undefined') {
+                    toastr.warning('No modal to print.', 'Print');
+                }
+                return;
+            }
+            var $content = $modal.find('.modal-content').first().clone();
+            // Remove footer buttons from print copy (optional; keeps print clean)
+            $content.find('.modal-footer').remove();
+            var printWindow = window.open('', '_blank');
+            var doc = printWindow.document;
+            doc.open();
+            doc.write('<!DOCTYPE html><html><head><title>Print - Purchase Details</title><meta charset="utf-8">');
+            doc.write('<style>body{font-family:inherit;padding:16px;margin:0;} .modal-header{border-bottom:1px solid #dee2e6;padding:12px 0;margin-bottom:12px;} .modal-title{font-size:1.25rem;margin:0;} table{width:100%;border-collapse:collapse;margin-bottom:16px;} th,td{border:1px solid #ddd;padding:8px;text-align:left;} th{background:#f5f5f5;} .table{margin-bottom:16px;} h5{margin-top:16px;margin-bottom:8px;}</style>');
+            doc.write('</head><body>');
+            doc.write($content[0].innerHTML);
+            doc.write('</body></html>');
+            doc.close();
+            printWindow.focus();
+            setTimeout(function() {
+                printWindow.print();
+                printWindow.close();
+            }, 300);
+        };
 
         const validationMessages = {
             supplier_id: {
@@ -3550,22 +3573,28 @@
             }
 
             function deletePayment(paymentId) {
-                // Implement the delete payment functionality here
                 if (confirm('Are you sure you want to delete this payment?')) {
                     $.ajax({
-                        url: '/delete-payment/' + paymentId,
+                        url: '/payments/' + paymentId,
                         type: 'DELETE',
+                        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
                         success: function(response) {
-                            alert('Payment deleted successfully.');
+                            if (typeof toastr !== 'undefined') {
+                                toastr.success(response.message || 'Payment deleted successfully.', 'Deleted');
+                            } else {
+                                alert('Payment deleted successfully.');
+                            }
                             $('#viewPaymentModal').modal('hide');
-                            fetchPurchases();
+                            if (typeof fetchPurchases === 'function') fetchPurchases();
                         },
                         error: function(xhr) {
-                            console.log(xhr.responseJSON.message);
+                            var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Failed to delete payment.';
+                            if (typeof toastr !== 'undefined') toastr.error(msg, 'Error'); else console.log(msg);
                         }
                     });
                 }
             }
+            window.deletePayment = deletePayment;
 
             // Reset the payment form when the modal is closed
             $('#paymentModal').on('hidden.bs.modal', function() {
@@ -3710,10 +3739,7 @@
             });
         }); // End of $(document).ready for purchase list page
 
-        function deletePayment(paymentId) {
-            // Implement the delete payment functionality here
-            console.log('Delete payment:', paymentId);
-        }
+        // deletePayment is exposed on window inside document.ready above
 
         // IMEI Management Functions
         let currentPurchaseId = null;

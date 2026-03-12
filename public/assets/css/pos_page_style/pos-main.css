@@ -1,5 +1,4 @@
 
-        /* Sales Rep Display - Hidden by default until confirmed as sales rep */
         #salesRepDisplay {
             display: none !important;
             visibility: hidden !important;
@@ -13,7 +12,17 @@
             opacity: 1 !important;
         }
 
-        /* General Styles - COMPACT UI (match 2nd image: light grey + dotted grid) */
+        /* ========== 1. BASE / GLOBAL ========== */
+        * {
+            box-sizing: border-box;
+        }
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden !important;
+        }
         body {
             font-family: 'Roboto', sans-serif;
             font-size: 13px;
@@ -24,7 +33,6 @@
             overflow-x: hidden;
             min-height: 100vh;
         }
-
         .container-fluid {
             padding-left: 12px;
             padding-right: 12px;
@@ -33,28 +41,9 @@
             width: 100%;
             max-width: 100vw;
             overflow-x: hidden;
-        }
-
-        /* Prevent horizontal scroll on all elements */
-        * {
-            box-sizing: border-box;
-        }
-
-        /* Prevent page scrolling - single view only */
-        html,
-        body {
-            overflow: hidden !important;
-            height: 100vh;
-            margin: 0;
-            padding: 0;
-        }
-
-        /* Container should fit viewport exactly */
-        .container-fluid {
             height: 100vh;
             overflow: hidden;
             padding-bottom: 60px !important;
-            /* Space for bottom fixed */
         }
 
         /* Extra space above bottom-fixed so it doesn't look stuck to card (tablet/desktop) */
@@ -170,6 +159,32 @@
             border-radius: 5px !important;
         }
 
+        /* POS billing: keep remove (trash) button compact and icon‑only */
+        #billing-body .remove-btn {
+            padding: 0 !important;
+            width: 28px;
+            height: 28px;
+            min-width: 28px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            background: transparent !important;
+            color: #ef4444 !important; /* red icon, no big red block */
+            border: none !important;
+            box-shadow: none !important;
+        }
+
+        #billing-body .remove-btn:hover {
+            color: #b91c1c !important;
+            background: transparent !important;
+        }
+
+        #billing-body .remove-btn i {
+            font-size: 14px !important;
+            line-height: 1;
+        }
+
         /* Sale Notes Specific Overrides */
         #sale-notes-textarea {
             min-height: 32px !important;
@@ -185,6 +200,9 @@
         }
 
         .bottom-fixed .row {
+            margin: 0;
+            align-items: center;
+            padding: 2px 0;
             margin-bottom: 4px !important;
         }
 
@@ -247,13 +265,6 @@
             margin: 1px;
         }
 
-        .bottom-fixed .row {
-            margin: 0;
-            align-items: center;
-            padding: 2px 0;
-        }
-
-        .bottom-fixed .col-md-5,
         .bottom-fixed .col-md-5,
         .bottom-fixed .col-md-7 {
             padding: 0 8px;
@@ -545,6 +556,7 @@
             overflow: hidden;
         }
 
+        /* ========== 2. SALES REP, HEADER, LOCATION, DATE/TIME ========== */
         /* Header card styling */
         .card.bg-white.p-1 {
             margin-bottom: 0 !important;
@@ -639,9 +651,11 @@
             min-width: 36px;
         }
 
-        /* Ensure all header buttons same height */
+        /* Header buttons: same height, no wrap */
         .row.align-items-center.d-none.d-md-flex .btn {
             height: 36px !important;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         /* Left section alignment */
@@ -723,18 +737,13 @@
             }
         }
 
-        /* Prevent button text wrapping */
-        .row.align-items-center.d-none.d-md-flex .btn {
-            white-space: nowrap;
-            flex-shrink: 0;
-        }
-
         /* Ensure columns don't wrap */
         .col-md-6 {
             flex-shrink: 0;
         }
 
 
+        /* ========== 3. PRODUCT GRID, OFFCANVAS, CATEGORIES/BRANDS/SUBCATEGORIES ========== */
         /* Product card: image on top, then name, SKU, price, add button */
         .product-card {
             border: 1px solid #e5e7eb;
@@ -951,7 +960,7 @@
         .offcanvas {
             background-color: white;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 40%
+            width: 40%;
         }
 
         .offcanvas-body {
@@ -960,11 +969,8 @@
 
         .offcanvas-body button {
             background-color: transparent;
-            /* Remove the background color */
             color: #007bff;
-            /* Set the text color to blue */
             border: 2px solid #007bff;
-            /* Add a blue outline border */
             padding: 8px 16px;
             margin-bottom: 10px;
             width: 100%;
@@ -975,9 +981,7 @@
 
         .offcanvas-body button:hover {
             background-color: #007bff;
-            /* Add blue background on hover */
             color: #fff;
-            /* Change text color to white on hover */
         }
 
         /* Offcanvas search filter (Categories, Brands, Subcategories) – same height & alignment */
@@ -1016,16 +1020,23 @@
             justify-content: center;
         }
 
+        /* Shared base styles for category / brand / subcategory tiles */
+        .category-card,
+        .brand-card,
+        .subcategory-card {
+            border: 1px solid #ddd;
+            background-color: #fff;
+            box-shadow: rgba(50, 50, 105, 0.12) 0px 1px 3px 0px,
+                        rgba(0, 0, 0, 0.05) 0px 1px 1px 0px;
+            transition: transform 0.2s ease-in-out;
+        }
+
         /* Main category cards – normal size */
         .category-card {
             width: calc(33.33% - 10px);
-            border: 1px solid #ddd;
             border-radius: 8px;
             text-align: center;
             padding: 10px 12px;
-            background-color: #fff;
-            transition: transform 0.2s ease-in-out;
-            box-shadow: rgba(50, 50, 105, 0.12) 0px 1px 3px 0px, rgba(0, 0, 0, 0.05) 0px 1px 1px 0px;
             min-height: 92px;
             display: flex;
             flex-direction: column;
@@ -1036,13 +1047,9 @@
         .brand-card,
         .subcategory-card {
             width: calc(33.33% - 10px);
-            border: 1px solid #ddd;
             border-radius: 6px;
             text-align: center;
             padding: 6px 8px;
-            background-color: #fff;
-            transition: transform 0.2s ease-in-out;
-            box-shadow: rgba(50, 50, 105, 0.12) 0px 1px 3px 0px, rgba(0, 0, 0, 0.05) 0px 1px 1px 0px;
             min-height: 48px;
             display: flex;
             flex-direction: column;
@@ -1304,7 +1311,8 @@
             }
         }
 
-        /* Updated Loader Styles */
+        /* ========== 4. LOADERS, AUTOCOMPLETE (.ui-autocomplete, .ui-menu) ========== */
+        /* Full-page and product grid loaders */
         .loader-container {
             display: flex;
             justify-content: center;
@@ -1418,23 +1426,25 @@
             }
         }
 
-        /* Style for the dropdown container */
+        /* Style for the dropdown container (unified base) */
         .ui-autocomplete {
             position: absolute;
             top: 100%;
             left: 0;
             z-index: 1000;
-            float: left;
             display: none;
             min-width: 160px;
-            padding: 4px 0;
             margin: 2px 0 0 0;
+            padding: 0;
             list-style: none;
             background-color: #ffffff;
-            border: 1px solid #ccc;
-            border: 1px solid rgba(0, 0, 0, .15);
-            border-radius: 4px;
-            box-shadow: 0 6px 12px rgba(0, 0, 0, .175);
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            max-height: 300px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            font-size: 14px;
         }
 
         /* Style for each dropdown item */
@@ -1544,18 +1554,7 @@
             margin-left: 5px;
         }
 
-        .ui-autocomplete {
-            max-height: 300px;
-            overflow-y: auto;
-            overflow-x: hidden;
-            background: #fff;
-            border: 1px solid #ddd;
-            padding: 0;
-            font-size: 14px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            border-radius: 6px;
-            z-index: 1000;
-        }
+        /* (styles for .ui-autocomplete are defined in the unified base above) */
 
         /* Scrollbar styling for autocomplete */
         .ui-autocomplete::-webkit-scrollbar {
@@ -1571,10 +1570,11 @@
             background-color: #f5f5f5;
         }
 
-        /* Menu item styling */
+        /* Menu item styling – single base (hover/focus for keyboard nav) */
         .ui-menu .ui-menu-item {
             border-bottom: 1px solid #f5f5f5;
-            padding: 0;
+            padding: 8px 12px;
+            cursor: pointer;
         }
 
         .ui-menu .ui-menu-item:last-child {
@@ -1593,11 +1593,17 @@
             word-wrap: break-word;
         }
 
+        .ui-menu .ui-menu-item a {
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
         .ui-menu .ui-menu-item:hover,
         .ui-menu .ui-menu-item.ui-state-focus,
         .ui-menu .ui-menu-item.ui-state-active {
-            background-color: #f0f7ff;
-            border-color: #f5f5f5;
+            background-color: #007bff !important;
+            color: #fff !important;
+            border-radius: 4px;
         }
 
         .ui-autocomplete .ui-menu-item-wrapper small,
@@ -1699,33 +1705,8 @@
             }
         }
 
-        /* Ensure autocomplete items are properly styled */
-        .ui-menu .ui-menu-item {
-            padding: 8px 12px;
-            cursor: pointer;
-        }
-
-        .ui-menu .ui-menu-item a {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            display: block;
-        }
-
-        /* Ensure hover and keyboard focus both show highlight */
-        .ui-menu .ui-menu-item:hover,
-        .ui-menu .ui-menu-item.ui-state-focus,
-        .ui-menu .ui-menu-item.ui-state-active {
-            /* Fix for keyboard navigation */
-            background-color: #007bff !important;
-            /* Highlight color */
-            color: #fff !important;
-            /* Text color */
-            border-radius: 4px;
-        }
-
-
-        /* //new styles */
-        /* --- Product Info, Name, and Badge --- */
+        /* ========== 5. PRODUCT INFO, BILLING TABLE (DESKTOP) ========== */
+        /* Product info row, name, and badge (billing table col 2) */
         .product-info {
             display: flex !important;
             flex-direction: row !important;
@@ -1754,7 +1735,8 @@
 
 
 
-        /* Laptop/Tablet fixes (768px-1199px) */
+        /* ========== 7. TABLET @media (768px+) – BILLING, FOOTER ========== */
+        /* Laptop/Tablet fixes (768px–1199px) */
         @media (max-width: 1199px) and (min-width: 768px) {
 
             .category-card {
@@ -1801,12 +1783,7 @@
                 z-index: 1000;
             }
 
-            .bottom-fixed .row {
-                align-items: center;
-                margin: 0;
-            }
-
-            /* Total Payable Section - Better spacing */
+            /* Total Payable Section - Better spacing (base .bottom-fixed .row already has align-items/margin) */
             .bottom-fixed .col-md-5 {
                 padding: 0 10px;
                 display: flex;
@@ -2524,7 +2501,7 @@
             border-radius: 12px !important;
         }
 
-        /* Mobile adjustments */
+        /* ========== 6. MOBILE/TABLET @media (max-width: 767px) – BILLING CARDS, LAYOUT ========== */
         @media (max-width: 767px) {
 
             /* Hide desktop bottom-fixed section on mobile/tablet */
@@ -2891,11 +2868,6 @@
             .bottom-fixed h4 {
                 font-size: 1.1rem;
             }
-
-            .bottom-fixed .row {
-                align-items: center;
-                margin: 0;
-            }
         }
 
         /* Header Mobile Styles */
@@ -2924,6 +2896,7 @@
             }
         }
 
+        /* ========== 9. MISC (sales rep badges, vehicle/route, overrides) ========== */
         /* Vehicle/Route badges responsive */
         #salesRepDisplay .badge {
             font-size: 12px;
@@ -3699,19 +3672,18 @@
                 min-height: 0;
             }
 
-            /* Product card – EXTRA compact so multiple items fit on screen */
+            /* Mobile billing product card – stacked layout (image + name/sku/stock, Qty, Free Qty|Disc|Price, Sub Total) */
             #billing-body tr {
                 display: flex;
                 flex-wrap: wrap;
                 align-items: flex-start;
                 position: relative;
-                margin-bottom: 6px;
+                margin-bottom: 10px;
                 border: 1px solid #e5e7eb;
-                border-radius: 10px;
-                padding: 8px 34px 8px 8px;
-                padding-right: 36px;
+                border-radius: 12px;
+                padding: 10px 44px 10px 10px;
                 background: #fff;
-                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
             }
             #billing-body tr td.counter-cell {
                 display: none !important;
@@ -3723,49 +3695,32 @@
                 text-align: left !important;
             }
 
-            /* Delete – icon only, small light grey trash */
-            #billing-body tr td:nth-child(9) {
+            /* Delete button – top-right of card (col 8 in DOM: counter, product, qty, free, disc, price, subtotal, remove) */
+            #billing-body tr td:nth-child(8) {
                 position: absolute !important;
-                top: 8px;
-                right: 8px;
+                top: 10px !important;
+                right: 10px !important;
                 width: auto !important;
                 padding: 0 !important;
+                text-align: center !important;
+                z-index: 5 !important;
+            }
+            #billing-body tr td:nth-child(8) .remove-btn {
+                width: 36px !important;
+                height: 36px !important;
+                min-width: 36px !important;
+                min-height: 36px !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
             }
 
-            #billing-body tr td:nth-child(9) .remove-btn,
-            #billing-body tr td:nth-child(9) .remove-btn.btn-danger {
-                width: 26px;
-                height: 26px;
-                border-radius: 0;
-                font-size: 14px;
-                padding: 0;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                background: transparent !important;
-                color: #9ca3af !important;
-                border: none !important;
-                box-shadow: none !important;
-                min-width: 26px;
-            }
-            #billing-body tr td:nth-child(9) .remove-btn:hover,
-            #billing-body tr td:nth-child(9) .remove-btn.btn-danger:hover {
-                color: #6b7280 !important;
-                background: transparent !important;
-            }
-            #billing-body tr td:nth-child(9) .remove-btn:active {
-                color: #dc2626 !important;
-            }
-            #billing-body tr td:nth-child(9) .remove-btn i {
-                font-size: 1rem;
-            }
-
-            /* Product block – compact */
+            /* Product block – image left, name/sku/stock right (match reference) */
             #billing-body tr td:nth-child(2) {
                 flex: 0 0 100%;
                 width: 100%;
-                margin-bottom: 4px;
-                padding-bottom: 4px !important;
+                margin-bottom: 6px;
+                padding-bottom: 8px !important;
                 border-bottom: 1px solid #eee !important;
             }
 
@@ -3858,17 +3813,24 @@
                 font-weight: 600;
                 color: #f97316;
             }
+            /* Low stock: orange circle + "Low Stock (X)" (🟠 style) */
             #billing-body tr.low-stock td:nth-child(2) .quantity-display::before {
                 content: '';
                 display: inline-block;
-                width: 5px;
-                height: 5px;
+                width: 8px;
+                height: 8px;
                 border-radius: 50%;
-                background: #f97316;
+                background: #ea580c;
                 flex-shrink: 0;
+                margin-right: 4px;
+                vertical-align: middle;
             }
             #billing-body tr.low-stock td:nth-child(2) .quantity-display::after {
                 content: 'Low Stock (' attr(data-stock-quantity) ')';
+                font-size: 11px;
+                color: #ea580c;
+                font-weight: 600;
+                line-height: 1.2;
             }
             /* Hide MRP badge on mobile for cleaner card (target design) */
             #billing-body tr td:nth-child(2) .badge.bg-info {
@@ -3886,13 +3848,13 @@
                 padding: 2px 5px;
             }
 
-            /* Quantity row – compact */
+            /* Quantity row – label left, minus/input/plus right (match reference) */
             #billing-body tr td:nth-child(3) {
                 flex: 0 0 100%;
                 width: 100% !important;
                 max-width: none;
-                margin-top: 6px;
-                margin-bottom: 6px;
+                margin-top: 4px;
+                margin-bottom: 8px;
                 margin-right: 0;
                 padding: 4px 0 !important;
                 display: flex !important;
@@ -4038,7 +4000,7 @@
             }
 
             #billing-body tr td:nth-child(4):not(.d-none)::before {
-                content: 'FREE';
+                content: 'Free Qty';
                 display: block;
                 font-size: 9px;
                 font-weight: 700;
@@ -4049,8 +4011,7 @@
             }
 
             #billing-body tr.no-free-qty td:nth-child(5),
-            #billing-body tr.no-free-qty td:nth-child(6),
-            #billing-body tr.no-free-qty td:nth-child(7) {
+            #billing-body tr.no-free-qty td:nth-child(6) {
                 flex: 1 1 0 !important;
                 min-width: 0 !important;
             }
@@ -4086,15 +4047,12 @@
                 display: none !important;
             }
 
-            /* Pricing row – compact padding */
+            /* Pricing row: Free Qty compact; Disc & Price equal width */
             #billing-body tr td:nth-child(4):not(.d-none),
             #billing-body tr td:nth-child(5),
-            #billing-body tr td:nth-child(6),
-            #billing-body tr td:nth-child(7) {
-                flex: 1 1 0;
-                min-width: 0;
+            #billing-body tr td:nth-child(6) {
                 margin: 0 !important;
-                padding: 4px 3px 0 3px !important;
+                padding: 6px 4px 0 4px !important;
                 box-sizing: border-box;
                 border-top: 1px solid #e2e8f0;
                 border-left: 1px solid #e5e7eb;
@@ -4103,20 +4061,45 @@
                 align-items: stretch !important;
                 justify-content: flex-start !important;
             }
-
+            /* Free Qty – small fixed width, no need to match others */
             #billing-body tr td:nth-child(4):not(.d-none) {
+                flex: 0 0 52px !important;
+                min-width: 52px !important;
+                max-width: 52px !important;
                 border-left: none !important;
                 padding-left: 0 !important;
+            }
+            /* Disc & Price – equal width (share remaining space) */
+            #billing-body tr td:nth-child(5),
+            #billing-body tr td:nth-child(6) {
+                flex: 1 1 0 !important;
+                min-width: 0 !important;
             }
 
             #billing-body tr td:nth-child(5) {
                 border-left: 1px solid #e5e7eb !important;
                 padding-left: 4px !important;
             }
+            /* Disc cell: Rs and % inputs side by side, equal width */
+            #billing-body tr td:nth-child(5) .pos-discount-group {
+                display: flex !important;
+                gap: 6px !important;
+                width: 100% !important;
+                min-width: 0 !important;
+            }
+            #billing-body tr td:nth-child(5) .pos-discount-group > div {
+                flex: 1 1 0 !important;
+                min-width: 0 !important;
+            }
+            #billing-body tr td:nth-child(5) .pos-discount-group input,
+            #billing-body tr td:nth-child(5) .pos-discount-group .form-control {
+                width: 100% !important;
+                min-width: 0 !important;
+                box-sizing: border-box !important;
+            }
 
             #billing-body tr td:nth-child(5)::before,
-            #billing-body tr td:nth-child(6)::before,
-            #billing-body tr td:nth-child(7)::before {
+            #billing-body tr td:nth-child(6)::before {
                 display: block;
                 font-size: 9px;
                 font-weight: 700;
@@ -4126,36 +4109,32 @@
                 line-height: 1.2;
             }
 
+            /* Col 5 = discount (one cell with Rs + % inputs), col 6 = price, col 7 = subtotal */
             #billing-body tr td:nth-child(5)::before {
-                content: 'DISC';
+                content: 'Disc';
             }
 
             #billing-body tr td:nth-child(6)::before {
-                content: '%';
+                content: 'Price';
             }
 
-            #billing-body tr td:nth-child(7)::before {
-                content: 'PRICE';
-            }
-
-            /* Align all pricing columns left (match reference grid) */
-            #billing-body tr td:nth-child(4):not(.d-none),
-            #billing-body tr td:nth-child(5),
-            #billing-body tr td:nth-child(6),
-            #billing-body tr td:nth-child(7) {
-                text-align: left !important;
-            }
-
-            #billing-body tr td:nth-child(7) .form-control,
-            #billing-body tr td:nth-child(7) input {
-                font-weight: 700 !important;
-            }
-
-            /* All pricing row inputs – compact, uniform height */
+            /* Numbers right-aligned (professional POS) */
             #billing-body tr td:nth-child(4) input,
             #billing-body tr td:nth-child(5) input,
             #billing-body tr td:nth-child(6) input,
             #billing-body tr td:nth-child(7) input {
+                text-align: right !important;
+            }
+
+            #billing-body tr td:nth-child(6) .form-control,
+            #billing-body tr td:nth-child(6) input {
+                font-weight: 700 !important;
+            }
+
+            /* All pricing row inputs – equal width, same height, right-aligned (cols 4,5,6) */
+            #billing-body tr td:nth-child(4) input,
+            #billing-body tr td:nth-child(5) input,
+            #billing-body tr td:nth-child(6) input {
                 width: 100% !important;
                 min-width: 0 !important;
                 height: 28px !important;
@@ -4164,25 +4143,25 @@
                 line-height: 28px !important;
                 font-size: 11px;
                 font-weight: 500;
-                padding: 0 4px !important;
-                text-align: left;
+                padding: 0 6px !important;
+                text-align: right !important;
                 border: 1px solid #e2e8f0;
                 border-radius: 4px;
                 background: #fff;
                 box-sizing: border-box !important;
             }
-            #billing-body tr td:nth-child(7) input {
+            #billing-body tr td:nth-child(6) input {
                 font-weight: 700 !important;
             }
 
-            /* Subtotal row – compact */
-            #billing-body tr td:nth-child(8) {
+            /* Subtotal row – col 7, bottom right, bold green (Sub Total : 675.00) */
+            #billing-body tr td:nth-child(7) {
                 flex: 0 0 100%;
                 width: 100% !important;
-                margin: 2px 0 0 0 !important;
-                padding: 2px 0 0 0 !important;
+                margin: 8px 0 0 0 !important;
+                padding: 6px 0 0 0 !important;
+                border-top: 1px solid #e2e8f0;
                 background: transparent !important;
-                border: none;
                 border-radius: 0;
                 display: flex !important;
                 flex-direction: row !important;
@@ -4192,20 +4171,20 @@
                 box-sizing: border-box;
             }
 
-            #billing-body tr td:nth-child(8)::before {
-                content: 'Sub:';
-                color: #6b7280;
+            #billing-body tr td:nth-child(7)::before {
+                content: 'Sub Total : ';
+                color: #374151;
                 font-size: 12px;
-                font-weight: 500;
-                margin-right: 8px;
+                font-weight: 600;
+                margin-right: 4px;
             }
 
-            #billing-body tr td:nth-child(8).subtotal,
+            #billing-body tr td:nth-child(7).subtotal,
             #billing-body tr td.subtotal {
-                font-size: 13px !important;
-                font-weight: 700;
+                font-size: 15px !important;
+                font-weight: 600 !important;
                 color: #16a34a !important;
-                text-align: right;
+                text-align: right !important;
                 flex: 0 0 auto;
             }
 
@@ -4249,17 +4228,10 @@
                     border-radius: 6px;
                 }
 
-                /* Larger remove button */
-                #billing-body tr td:nth-child(9) {
+                /* Larger remove button (col 8) */
+                #billing-body tr td:nth-child(8) {
                     top: 12px;
                     right: 12px;
-                }
-
-                #billing-body tr td:nth-child(9) .remove-btn {
-                    width: 40px;
-                    height: 40px;
-                    font-size: 20px;
-                    border-radius: 6px;
                 }
 
                 /* Product section with more space */
@@ -4324,29 +4296,26 @@
                     font-weight: 700;
                 }
 
-                /* Discount (5)(6)(7) and subtotal (8) – tablet */
+                /* Discount (5), Price (6), Subtotal (7), Remove (8) – tablet */
                 #billing-body tr td:nth-child(5),
-                #billing-body tr td:nth-child(6),
-                #billing-body tr td:nth-child(7) {
-                    width: calc((100% - 8px) / 3) !important;
+                #billing-body tr td:nth-child(6) {
+                    width: calc((100% - 8px) / 2) !important;
                     margin: 0 2px 12px 0 !important;
                 }
 
-                #billing-body tr td:nth-child(7) {
+                #billing-body tr td:nth-child(6) {
                     margin-right: 0 !important;
                 }
 
                 #billing-body tr td:nth-child(5)::before,
-                #billing-body tr td:nth-child(6)::before,
-                #billing-body tr td:nth-child(7)::before {
+                #billing-body tr td:nth-child(6)::before {
                     font-size: 11px;
                     margin-bottom: 6px;
                     font-weight: 700;
                 }
 
                 #billing-body tr td:nth-child(5) input,
-                #billing-body tr td:nth-child(6) input,
-                #billing-body tr td:nth-child(7) input {
+                #billing-body tr td:nth-child(6) input {
                     font-size: 14px;
                     padding: 8px 4px;
                     border-radius: 6px;
@@ -4355,13 +4324,13 @@
                     height: 38px;
                 }
 
-                #billing-body tr td:nth-child(8) {
+                #billing-body tr td:nth-child(7) {
                     margin-top: 12px;
                     padding: 12px 16px !important;
                     border-radius: 8px;
                 }
 
-                #billing-body tr td:nth-child(8)::before {
+                #billing-body tr td:nth-child(7)::before {
                     font-size: 12px;
                     font-weight: 700;
                 }
@@ -4379,11 +4348,8 @@
             }
         }
 
-        /* ============================================
-           OPTIMIZED BILLING TABLE STYLES FOR DESKTOP
-           ============================================ */
-
-        /* Desktop: Perfect alignment for Global Discount section */
+        /* ========== 8. DESKTOP @media (992px+) – BILLING, ORDER SUMMARY ========== */
+        /* Desktop: Global Discount section + billing table alignment */
         @media (min-width: 992px) {
 
             /* Global Discount Type - Button Group */
@@ -4591,13 +4557,13 @@
                 vertical-align: middle !important;
             }
 
-            /* Remove button - larger */
-            #billing-body tr td:nth-child(9) {
+            /* Remove button - larger (col 8) */
+            #billing-body tr td:nth-child(8) {
                 text-align: center;
                 vertical-align: middle !important;
             }
 
-            #billing-body tr td:nth-child(9) .remove-btn {
+            #billing-body tr td:nth-child(8) .remove-btn {
                 width: 30px;
                 height: 30px;
                 font-size: 17px;
@@ -4859,8 +4825,7 @@
             }
         }
 
-        /* ========== POS Responsive UI/UX — tablet & mobile ========== */
-
+        /* Sub: POS responsive UI/UX — tablet & mobile (product grid 2 cols, modal) */
         /* Tablet: better product grid (2 cols, clearer cards) */
         @media (min-width: 576px) and (max-width: 1024px) {
             #posProduct {
@@ -4917,12 +4882,12 @@
                 border: 1px solid #e0e0e0 !important;
                 overflow: hidden !important;
             }
-            #billing-body tr td:nth-child(9) {
+            #billing-body tr td:nth-child(8) {
                 top: 10px !important;
                 right: 10px !important;
                 z-index: 5 !important;
             }
-            #billing-body tr td:nth-child(9) .remove-btn {
+            #billing-body tr td:nth-child(8) .remove-btn {
                 width: 36px !important;
                 height: 36px !important;
                 font-size: 18px !important;
@@ -4938,7 +4903,7 @@
                 padding: 0 !important;
                 line-height: 1 !important;
             }
-            #billing-body tr td:nth-child(9) .remove-btn:hover {
+            #billing-body tr td:nth-child(8) .remove-btn:hover {
                 background: #bb2d3b !important;
                 box-shadow: 0 3px 8px rgba(220, 53, 69, 0.5) !important;
             }
@@ -4950,7 +4915,7 @@
                 padding: 22px !important;
                 padding-top: 52px !important;
             }
-            #billing-body tr td:nth-child(9) .remove-btn {
+            #billing-body tr td:nth-child(8) .remove-btn {
                 width: 42px !important;
                 height: 42px !important;
                 font-size: 20px !important;
@@ -4963,7 +4928,7 @@
                 padding: 12px !important;
                 padding-top: 38px !important;
             }
-            #billing-body tr td:nth-child(9) .remove-btn {
+            #billing-body tr td:nth-child(8) .remove-btn {
                 width: 32px !important;
                 height: 32px !important;
                 font-size: 16px !important;
@@ -4980,7 +4945,7 @@
             }
         }
 
-        /* ========== Mobile & Tablet: no product grid overflow, modal only ========== */
+        /* Sub: Mobile & tablet – product grid hidden, modal only */
         @media (max-width: 991px) {
             /* Keep product grid column hidden on mobile & tablet – use modal only */
             #productListArea {
@@ -5075,15 +5040,18 @@
 
         #billing-body tr td:nth-child(5) input.form-control,
         #billing-body tr td:nth-child(6) input.form-control,
+        /* Ensure Unit Price input matches other compact field heights */
         #billing-body tr td:nth-child(7) input.form-control {
-            height: 38px !important;
-            line-height: 38px !important;
+            height: 28px !important;
+            line-height: 28px !important;
         }
 
-        /* Keep price-history icon nicely below unit price input without breaking layout */
+        /* Show price-history icon below Unit Price, without affecting row height */
         #billing-body tr td:nth-child(7) .price-history-icon {
             display: inline-block;
             margin-top: 2px;
+            margin-left: 0;
+            vertical-align: top;
         }
 
         /* Final override: keep Sale Notes textarea comfortably tall and visible on all sizes */
@@ -5214,8 +5182,8 @@
                 font-size: 13px !important;
             }
 
-            /* 3. Subtotal – compact + right aligned */
-            #billing-body tr td:nth-child(8) {
+            /* 3. Subtotal – compact + right aligned (col 7) */
+            #billing-body tr td:nth-child(7) {
                 padding-top: 0 !important;
                 padding-bottom: 3px !important;
                 text-align: right !important;
@@ -5265,34 +5233,35 @@
                 font-size: 12px !important;
             }
 
-            #billing-body tr td:nth-child(8) {
+            #billing-body tr td:nth-child(7) {
                 padding-bottom: 2px !important;
                 font-size: 13px !important;
             }
         }
 
-        /* POS discount group – compact side‑by‑side Rs / % */
+        /* POS discount group – compact side‑by‑side Rs / % (desktop) */
         @media (min-width: 1024px) {
             .pos-discount-group {
                 gap: 4px;
             }
 
             .pos-discount-group .pos-discount-input {
-                width: 80px;
-                max-width: 90px;
+                width: 72px;
+                max-width: 80px;
                 height: 28px !important;
                 padding: 2px 4px !important;
                 font-size: 12px !important;
             }
 
+            /* Hide Rs / % helper labels under discount inputs on desktop for flat alignment */
             .pos-discount-group small {
-                line-height: 1.1;
+                display: none !important;
             }
         }
 
         /* POS cart delete button – smaller icon (override all previous sizes) */
         @media (min-width: 1024px) {
-            #billing-body tr td:nth-child(9) .remove-btn {
+            #billing-body tr td:nth-child(8) .remove-btn {
                 width: 20px !important;
                 height: 20px !important;
                 min-width: 20px !important;
@@ -5302,8 +5271,89 @@
                 box-shadow: none !important;
             }
 
-            #billing-body tr td:nth-child(9) .remove-btn i {
+            #billing-body tr td:nth-child(8) .remove-btn i {
                 font-size: 0.8rem !important;
+            }
+        }
+
+        /* POS desktop billing row – compact, aligned layout */
+        @media (min-width: 1024px) {
+            /* Even vertical alignment + compact row padding (let height auto-fit content) */
+            #billing-body tr td {
+                vertical-align: middle !important;
+                padding-top: 4px !important;
+                padding-bottom: 4px !important;
+            }
+
+            /* Shared compact sizing for all numeric inputs in row */
+            #billing-body .quantity-input,
+            #billing-body .free-quantity-input,
+            #billing-body .pos-discount-input,
+            #billing-body .price-input.unit-price {
+                height: 28px !important;
+                min-height: 28px !important;
+                padding: 2px 4px !important;
+                font-size: 12px !important;
+            }
+
+            /* Quantity control: compact but tappable */
+            #billing-body tr td:nth-child(3) .quantity-minus,
+            #billing-body tr td:nth-child(3) .quantity-plus {
+                width: 30px !important;
+                min-width: 30px !important;
+            }
+
+            #billing-body tr td:nth-child(3) .quantity-input {
+                width: 52px !important;
+                max-width: 56px !important;
+            }
+
+            /* Free qty and discount columns: consistent widths */
+            #billing-body tr td:nth-child(4) .free-quantity-input {
+                width: 70px !important;
+                max-width: 70px !important;
+            }
+
+            .pos-discount-group .pos-discount-input {
+                width: 72px !important;
+            }
+
+            /* Unit price + subtotal aligned to the right with fixed column width */
+            #billing-body .price-input.unit-price {
+                width: 80px !important;
+                max-width: 86px !important;
+            }
+
+            #billing-body tr td.subtotal,
+            #billing-body tr td:nth-child(7).subtotal {
+                min-width: 80px;
+                text-align: right !important;
+                font-weight: 700;
+                vertical-align: middle !important; /* vertical center */
+                padding-left: 0 !important;
+                padding-right: 8px !important;  /* slight inset from border */
+            }
+
+            /* Delete column: keep narrow and centered (col 8) */
+            #billing-body tr td:nth-child(8) {
+                width: 40px !important;
+                max-width: 40px !important;
+                padding-left: 0 !important;
+                padding-right: 8px !important; /* keep away from scrollbar / edge */
+                text-align: center !important;
+                overflow: visible !important;
+            }
+
+            /* Hide helper labels under quantity / free qty to align controls horizontally */
+            #billing-body tr td:nth-child(3) > div:last-child {
+                display: none !important; /* hides "pcs" text on desktop */
+            }
+
+            #billing-body tr td:nth-child(4) .free-qty-debug,
+            #billing-body tr td:nth-child(4) small,
+            #billing-body tr td:nth-child(4) .small,
+            #billing-body tr td:nth-child(4) div[style*="margin-top"] {
+                display: none !important; /* hides "Free / Max" helper lines on desktop */
             }
         }
 

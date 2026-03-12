@@ -2813,6 +2813,19 @@
             initializeDateTimePicker(); // Re-initialize datetime picker for new rows
         });
 
+        // Remove row button handler for opening stock (newly added rows)
+        $(document).on('click', '.removeRowBtn', function() {
+            const $row = $(this).closest('tr');
+            const $tbody = $('#locationRows');
+            if ($tbody.find('tr').length > 1) {
+                $row.remove();
+            } else {
+                if (typeof toastr !== 'undefined') {
+                    toastr.warning('At least one row is required.', 'Cannot remove');
+                }
+            }
+        });
+
         $('#submitOpeningStock').click(function(e) {
             e.preventDefault();
 

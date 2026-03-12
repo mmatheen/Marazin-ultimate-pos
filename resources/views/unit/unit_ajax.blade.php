@@ -118,7 +118,7 @@
             $('#edit_id').val(id);
 
             $.ajax({
-                url: 'unit-edit/' + id,
+                url: '/unit-edit/' + id,
                 type: 'get',
                 success: function(response) {
                     if (response.status == 404) {
@@ -154,7 +154,7 @@
 
             let formData = new FormData(this);
             let id = $('#edit_id').val(); // for edit
-            let url = id ? 'unit-update/' + id : 'unit-store';
+            let url = id ? '/unit-update/' + id : '/unit-store';
             let type = id ? 'post' : 'post';
 
             $.ajax({
@@ -206,7 +206,7 @@
         $(document).on('click', '.confirm_delete_btn', function() {
             var id = $('#deleting_id').val();
             $.ajax({
-                url: 'unit-delete/' + id,
+                url: '/unit-delete/' + id,
                 type: 'delete',
                 headers: {
                     'X-CSRF-TOKEN': csrfToken
