@@ -486,7 +486,6 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/expense-delete/{id}', [ExpenseController::class, 'destroy']);
         Route::get('/expense-sub-categories/{parentId}', [ExpenseController::class, 'getSubCategories']);
         Route::get('/expense-locations', [ExpenseController::class, 'getLocationsForExpense']);
-        Route::get('/expense-suppliers', [ExpenseController::class, 'getSuppliersForExpense']);
         Route::get('/expense-supplier-balance/{supplierId}', [ExpenseController::class, 'getSupplierBalanceHistory']);
         Route::post('/expense-add-payment/{id}', [ExpenseController::class, 'addPayment']);
         Route::get('/expense-payment-history/{id}', [ExpenseController::class, 'getPaymentHistory']);

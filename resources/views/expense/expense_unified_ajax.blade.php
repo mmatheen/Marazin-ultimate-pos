@@ -5,18 +5,39 @@ $(document).ready(function() {
     var isEditMode = false;
     var expenseId = null;
     var expenseTable = null;
-    
+
+    function initializeSelectBox(selector, placeholder) {
+        if (typeof $.fn.select2 === 'undefined') {
+            return;
+        }
+
+        var $el = $(selector);
+        if (!$el.length) {
+            return;
+        }
+
+        if ($el.hasClass('select2-hidden-accessible')) {
+            $el.select2('destroy');
+        }
+
+        $el.select2({
+            placeholder: placeholder,
+            allowClear: true,
+            width: '100%'
+        });
+    }
+
     // Date formatting helper function
     function formatDate(dateString) {
         if (!dateString) return '';
-        
+
         var date = new Date(dateString);
         if (isNaN(date.getTime())) return dateString; // Return original if invalid
-        
+
         var day = String(date.getDate()).padStart(2, '0');
         var month = String(date.getMonth() + 1).padStart(2, '0');
         var year = date.getFullYear();
-        
+
         return day + '-' + month + '-' + year;
     }
 
@@ -25,17 +46,23 @@ $(document).ready(function() {
         // We're on the list page
         initializeExpenseList();
     }
-    
+
     if ($('#expenseForm').length > 0) {
         // We're on the create/edit page
         initializeExpenseForm();
         loadLocations(); // Load locations for dropdown
-        loadSuppliers(); // Load suppliers for dropdown
+        initializeSelectBox('#location_id', 'Select Location');
+        initializeSelectBox('#expense_parent_category_id', 'Select Category');
+        initializeSelectBox('#expense_sub_category_id', 'Select Sub Category');
     }
 
     // ==================== EXPENSE LIST FUNCTIONS ====================
-    
+
     function initializeExpenseList() {
+        initializeSelectBox('#categoryFilter', 'All Categories');
+        initializeSelectBox('#subCategoryFilter', 'All Sub Categories');
+        initializeSelectBox('#paymentStatusFilter', 'All Statuses');
+
         // Initialize DataTable
         expenseTable = $('#expenseTable').DataTable({
             responsive: true,
@@ -62,6 +89,15 @@ $(document).ready(function() {
         });
 
         $('#filterBtn').click(function() {
+            loadExpenses();
+        });
+
+        $('#resetFilterBtn').click(function() {
+            $('#categoryFilter').val('').trigger('change');
+            $('#subCategoryFilter').html('<option value="">All Sub Categories</option>').val('').trigger('change');
+            $('#paymentStatusFilter').val('').trigger('change');
+            $('#startDate').val('');
+            $('#endDate').val('');
             loadExpenses();
         });
 
@@ -110,7 +146,7 @@ $(document).ready(function() {
             },
             success: function(response) {
                 expenseTable.clear().draw();
-                
+
                 if (response.status == 200 && response.data) {
                     var totalExpenses = 0;
                     var totalAmount = 0;
@@ -128,58 +164,51 @@ $(document).ready(function() {
                         var formattedDue = 'Rs.' + parseFloat(expense.due_amount || 0).toFixed(2);
 
                         var statusBadge = getStatusBadge(expense.payment_status);
-                        
+
                         var actions = `
                         <div class="btn-group">
                             <button type="button" class="btn btn-outline-info btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="feather-menu"></i> Actions
                             </button>
                             <ul class="dropdown-menu">`;
-                        
+
                         @can('view expense')
                         actions += '<li><button type="button" value="' + expense.id + '" class="view_btn dropdown-item"><i class="feather-eye text-info me-2"></i> View Details</button></li>';
                         @endcan
-                        
+
                         @can('edit expense')
                         actions += '<li><button type="button" value="' + expense.id + '" class="edit_btn dropdown-item"><i class="feather-edit text-primary me-2"></i> Edit Expense</button></li>';
                         @endcan
-                        
+
                         // Add payment button for expenses with due amount
                         if (expense.payment_status !== 'paid' && parseFloat(expense.due_amount || 0) > 0) {
                             @can('edit expense')
                             actions += '<li><button type="button" value="' + expense.id + '" class="payment_btn dropdown-item"><i class="feather-credit-card text-success me-2"></i> Add Payment</button></li>';
                             @endcan
                         }
-                        
+
                         // Add payment history button
                         actions += '<li><button type="button" value="' + expense.id + '" class="payment_history_btn dropdown-item"><i class="feather-list text-warning me-2"></i> Payment History</button></li>';
-                        
+
                         // Add separator before delete
                         actions += '<li><hr class="dropdown-divider"></li>';
-                        
+
                         @can('delete expense')
                         actions += '<li><button type="button" value="' + expense.id + '" class="delete_btn dropdown-item"><i class="feather-trash-2 text-danger me-2"></i> Delete Expense</button></li>';
                         @endcan
-                        
+
                         actions += `
                             </ul>
                         </div>`;
 
-                        // Format supplier information safely
-                        var supplierInfo = 'N/A';
-                        if (expense.supplier && expense.supplier.first_name) {
-                            supplierInfo = expense.supplier.first_name + ' ' + (expense.supplier.last_name || '') + 
-                                         ' (' + (expense.supplier.mobile_no || 'N/A') + ')';
-                        } else if (expense.paid_to) {
-                            supplierInfo = expense.paid_to;
-                        }
+                        var paidToInfo = expense.paid_to || 'N/A';
 
                         var row = [
                             expense.expense_no || '',
                             expense.formatted_date || formatDate(expense.date) || '',
                             expense.expense_parent_category ? expense.expense_parent_category.expenseParentCatergoryName : 'N/A',
                             expense.expense_sub_category ? expense.expense_sub_category.subExpenseCategoryname : 'N/A',
-                            supplierInfo,
+                            paidToInfo,
                             expense.location ? expense.location.name : 'N/A',
                             formattedTotal,
                             formattedPaid,
@@ -212,7 +241,7 @@ $(document).ready(function() {
     }
 
     // ==================== EXPENSE FORM FUNCTIONS ====================
-    
+
     function initializeExpenseForm() {
         // Check if we're in edit mode
         const urlParams = new URLSearchParams(window.location.search);
@@ -229,7 +258,7 @@ $(document).ready(function() {
             loadParentCategories();
             addExpenseItem(); // Add first item by default
         }
-        
+
         // Category change event
         $('#expense_parent_category_id').change(function() {
             var categoryId = $(this).val();
@@ -275,7 +304,7 @@ $(document).ready(function() {
         // Form submission
         $('#expenseForm').submit(function(e) {
             e.preventDefault();
-            
+
             if (!validateForm()) {
                 return false;
             }
@@ -283,7 +312,7 @@ $(document).ready(function() {
             var formData = new FormData(this);
             var url = isEditMode ? '/expense-update/' + expenseId : '/expense-store';
             var method = 'POST';
-            
+
             $('#submitBtn').prop('disabled', true).html('<i class="spinner-border spinner-border-sm"></i> ' + (isEditMode ? 'Updating...' : 'Saving...'));
 
             $.ajax({
@@ -336,7 +365,7 @@ $(document).ready(function() {
             success: function(response) {
                 if (response.status == 200 && response.data) {
                     var expense = response.data;
-                    
+
                     // Populate form fields
                     $('#expense_no').val(expense.expense_no);
                     // Format date for input field (needs Y-m-d format)
@@ -356,14 +385,14 @@ $(document).ready(function() {
                     $('#shipping_charges').val(expense.shipping_charges);
                     $('#paid_amount').val(expense.paid_amount);
                     $('#note').val(expense.note);
-                    
+
                     // Load categories and subcategories
                     loadParentCategories(expense.expense_parent_category_id);
                     loadLocations(expense.location_id);
                     if (expense.expense_parent_category_id) {
                         loadSubCategories(expense.expense_parent_category_id, '#expense_sub_category_id', expense.expense_sub_category_id);
                     }
-                    
+
                     // Load expense items
                     $('#itemsContainer').empty();
                     itemCounter = 0;
@@ -374,7 +403,7 @@ $(document).ready(function() {
                     } else {
                         addExpenseItem(); // Add one empty item
                     }
-                    
+
                     calculateTotals();
                 } else {
                     toastr.error('Expense not found', 'Error');
@@ -393,7 +422,7 @@ $(document).ready(function() {
     // Load parent categories
     function loadParentCategories(selectedId = null) {
         var categorySelect = $('#expense_parent_category_id');
-        
+
         $.ajax({
             url: '/expense-parent-categories-dropdown',
             type: 'GET',
@@ -405,6 +434,7 @@ $(document).ready(function() {
                         var selected = selectedId && selectedId == category.id ? 'selected' : '';
                         categorySelect.append('<option value="' + category.id + '" ' + selected + '>' + category.expenseParentCatergoryName + '</option>');
                     });
+                    initializeSelectBox('#expense_parent_category_id', 'Select Category');
                 }
             },
             error: function() {
@@ -430,6 +460,7 @@ $(document).ready(function() {
                             var selected = selectedId && selectedId == subCategory.id ? 'selected' : '';
                             subCategorySelect.append('<option value="' + subCategory.id + '" ' + selected + '>' + subCategory.subExpenseCategoryname + '</option>');
                         });
+                        initializeSelectBox(selector, selector === '#subCategoryFilter' ? 'All Sub Categories' : 'Select Sub Category');
                     }
                 },
                 error: function() {
@@ -443,7 +474,7 @@ $(document).ready(function() {
     function loadLocations(selectedId = null) {
         var locationSelect = $('#location_id');
         console.log('Loading locations...');
-        
+
         $.ajax({
             url: '/expense-locations',
             type: 'GET',
@@ -457,6 +488,7 @@ $(document).ready(function() {
                         var selected = selectedId && selectedId == location.id ? 'selected' : '';
                         locationSelect.append('<option value="' + location.id + '" ' + selected + '>' + location.name + '</option>');
                     });
+                    initializeSelectBox('#location_id', 'Select Location');
                     console.log('Locations loaded successfully');
                 } else {
                     console.error('Invalid response format for locations:', response);
@@ -465,37 +497,6 @@ $(document).ready(function() {
             error: function(xhr, status, error) {
                 console.error('Error loading locations:', error);
                 toastr.error('Failed to load locations');
-            }
-        });
-    }
-
-    // Load suppliers
-    function loadSuppliers(selectedId = null) {
-        var supplierSelect = $('#supplier_id');
-        console.log('Loading suppliers...');
-        
-        $.ajax({
-            url: '/expense-suppliers',
-            type: 'GET',
-            dataType: 'json',
-            success: function(response) {
-                console.log('Supplier API response:', response);
-                if (response.status === true && response.data) {
-                    supplierSelect.html('<option value="">Select Supplier</option>');
-                    console.log('Processing ' + response.data.length + ' suppliers');
-                    response.data.forEach(function(supplier) {
-                        var selected = selectedId && selectedId == supplier.id ? 'selected' : '';
-                        var optionText = supplier.name + ' (' + supplier.mobile + ') - Balance: ' + supplier.balance;
-                        supplierSelect.append('<option value="' + supplier.id + '" ' + selected + ' data-balance="' + supplier.balance + '">' + optionText + '</option>');
-                    });
-                    console.log('Suppliers loaded successfully');
-                } else {
-                    console.error('Invalid response format for suppliers:', response);
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error loading suppliers:', error);
-                toastr.error('Failed to load suppliers');
             }
         });
     }
@@ -546,7 +547,7 @@ $(document).ready(function() {
                 </div>
             </div>
         `;
-        
+
         $('#itemsContainer').append(itemHtml);
         itemCounter++;
     }
@@ -554,7 +555,7 @@ $(document).ready(function() {
     // Calculate totals (from item rows + additional charges)
     function calculateTotals() {
         var subtotal = 0;
-        
+
         $('.item-row').each(function() {
             var total = parseFloat($(this).find('.total-input').val()) || 0;
             subtotal += total;
@@ -608,22 +609,17 @@ $(document).ready(function() {
     function validateForm() {
         var isValid = true;
         $('.text-danger').text('');
-        
+
         if (!$('#expense_parent_category_id').val()) {
             $('#expense_parent_category_id_error').text('Expense category is required');
             isValid = false;
         }
 
-        if (!$('#supplier_id').val()) {
-            $('#supplier_id_error').text('Supplier is required');
-            isValid = false;
-        }
-        
         if (!$('#location_id').val()) {
             $('#location_id_error').text('Location is required');
             isValid = false;
         }
-        
+
         if (!$('#payment_method').val()) {
             $('#payment_method_error').text('Payment method is required');
             isValid = false;
@@ -699,7 +695,7 @@ $(document).ready(function() {
     // Build expense details HTML
     function buildExpenseDetailsHtml(expense) {
         var html = '<div class="expense-details">';
-        
+
         html += '<div class="row mb-3">';
         html += '<div class="col-md-6">';
         html += '<h6><strong>Expense Information</strong></h6>';
@@ -708,7 +704,7 @@ $(document).ready(function() {
         html += '<p><strong>Reference No:</strong> ' + (expense.reference_no || 'N/A') + '</p>';
         html += '<p><strong>Status:</strong> ' + getStatusBadge(expense.payment_status) + '</p>';
         html += '</div>';
-        
+
         html += '<div class="col-md-6">';
         html += '<h6><strong>Category Information</strong></h6>';
         html += '<p><strong>Category:</strong> ' + (expense.expense_parent_category ? expense.expense_parent_category.expenseParentCatergoryName : 'N/A') + '</p>';
@@ -738,7 +734,7 @@ $(document).ready(function() {
             html += '<table class="table table-sm">';
             html += '<thead><tr><th>Item</th><th>Description</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead>';
             html += '<tbody>';
-            
+
             expense.expense_items.forEach(function(item) {
                 html += '<tr>';
                 html += '<td>' + (item.item_name || 'N/A') + '</td>';
@@ -748,7 +744,7 @@ $(document).ready(function() {
                 html += '<td>Rs.' + parseFloat(item.total || 0).toFixed(2) + '</td>';
                 html += '</tr>';
             });
-            
+
             html += '</tbody></table>';
             html += '</div>';
             html += '</div>';
@@ -772,7 +768,7 @@ $(document).ready(function() {
     $(document).on('click', '.payment_btn', function (e) {
         e.preventDefault();
         var expense_id = $(this).val();
-        
+
         // Fetch expense details for payment
         $.ajax({
             url: '/expense-show/' + expense_id,
@@ -795,7 +791,7 @@ $(document).ready(function() {
     $(document).on('click', '.payment_history_btn', function (e) {
         e.preventDefault();
         var expense_id = $(this).val();
-        
+
         $.ajax({
             url: '/expense-payment-history/' + expense_id,
             method: 'GET',
@@ -832,7 +828,7 @@ $(document).ready(function() {
     function showPaymentHistory(data) {
         var expense = data.expense;
         var payments = data.payments;
-        
+
         $('#historyExpenseNo').text(expense.expense_no);
         $('#historyTotalAmount').text('Rs.' + parseFloat(expense.total_amount).toFixed(2));
         $('#historyPaidAmount').text('Rs.' + parseFloat(expense.paid_amount).toFixed(2));
@@ -840,7 +836,7 @@ $(document).ready(function() {
         $('#historyPaymentStatus').html('<span class="badge bg-' + getStatusColor(expense.payment_status) + '">' + expense.payment_status.toUpperCase() + '</span>');
         $('#historyLocationName').text(expense.location_name || 'N/A');
         $('#historyLocationName').text(expense.location_name || 'N/A');
-        
+
         var paymentHtml = '';
         if (payments.length > 0) {
             payments.forEach(function(payment) {
@@ -861,7 +857,7 @@ $(document).ready(function() {
         } else {
             paymentHtml = '<tr><td colspan="8" class="text-center">No payments found</td></tr>';
         }
-        
+
         $('#paymentHistoryTable tbody').html(paymentHtml);
         $('#paymentHistoryModal').modal('show');
     }
@@ -869,7 +865,7 @@ $(document).ready(function() {
     // Submit payment form
     $('#paymentForm').on('submit', function(e) {
         e.preventDefault();
-        
+
         var expense_id = $('#payment_expense_id').val();
         var formData = {
             payment_amount: $('#payment_amount').val(),
@@ -879,7 +875,7 @@ $(document).ready(function() {
             payment_note: $('#payment_note').val(),
             _token: '{{ csrf_token() }}'
         };
-        
+
         $.ajax({
             url: '/expense-add-payment/' + expense_id,
             method: 'POST',
@@ -923,7 +919,7 @@ $(document).ready(function() {
     $(document).on('click', '.edit_payment_btn', function (e) {
         e.preventDefault();
         var payment_id = $(this).data('payment-id');
-        
+
         $.ajax({
             url: '/expense-payment/' + payment_id,
             method: 'GET',
@@ -945,7 +941,7 @@ $(document).ready(function() {
     $(document).on('click', '.delete_payment_btn', function (e) {
         e.preventDefault();
         var payment_id = $(this).data('payment-id');
-        
+
         swal({
             title: "Are you sure?",
             text: "Do you want to delete this payment? This action cannot be undone!",
@@ -1005,7 +1001,7 @@ $(document).ready(function() {
     // Submit edit payment form
     $('#editPaymentForm').on('submit', function(e) {
         e.preventDefault();
-        
+
         var payment_id = $('#edit_payment_id').val();
         var formData = {
             payment_amount: $('#edit_payment_amount').val(),
@@ -1016,7 +1012,7 @@ $(document).ready(function() {
             _token: '{{ csrf_token() }}',
             _method: 'PUT'
         };
-        
+
         $.ajax({
             url: '/expense-payment/' + payment_id,
             method: 'POST',
@@ -1027,7 +1023,7 @@ $(document).ready(function() {
                     $('#editPaymentModal').modal('hide');
                     // Get the expense ID from the response or form
                     var expense_id = response.data.expense_id;
-                    
+
                     // Refresh both payment history and expense list
                     setTimeout(function() {
                         loadPaymentHistory(expense_id);
@@ -1068,7 +1064,7 @@ $(document).ready(function() {
             }
         });
     }
-    
+
     // Function to refresh expense list data
     function refreshExpenseData() {
         if (typeof loadExpenses === 'function') {

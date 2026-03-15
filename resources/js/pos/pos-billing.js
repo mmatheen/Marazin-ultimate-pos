@@ -313,7 +313,7 @@ async function addProductToBillingBody(
 
     const activeDiscount = stockEntry.discounts?.find(d => d.is_active && !d.is_expired) || null;
 
-    const {
+    let {
         finalPrice,
         discountFixed,
         discountPercent

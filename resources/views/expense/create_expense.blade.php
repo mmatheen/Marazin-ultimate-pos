@@ -45,14 +45,14 @@
                     <div class="card-body expense-form">
                         <form id="expenseForm" enctype="multipart/form-data">
                             @csrf
-                            <input type="hidden" name="expense_id" id="expense_id" value="">`
-                            
+                            <input type="hidden" name="expense_id" id="expense_id" value="">
+
                             <!-- Basic Information -->
                             <div class="row mb-4">
                                 <div class="col-md-12">
                                     <h5 class="mb-3">Basic Information</h5>
                                 </div>
-                                
+
                                 <div class="col-md-3">
                                     <div class="form-group">
                                         <label>Expense No. <span class="text-danger">*</span></label>
@@ -60,7 +60,7 @@
                                         <span class="text-danger" id="expense_no_error"></span>
                                     </div>
                                 </div>
-                                
+
                                 <div class="col-md-3">
                                     <div class="form-group">
                                         <label>Date <span class="text-danger">*</span></label>
@@ -69,7 +69,7 @@
                                         <span class="text-danger" id="date_error"></span>
                                     </div>
                                 </div>
-                                
+
                                 <div class="col-md-3">
                                     <div class="form-group">
                                         <label>Reference No.</label>
@@ -77,17 +77,17 @@
                                         <span class="text-danger" id="reference_no_error"></span>
                                     </div>
                                 </div>
-                                
+
                                 <div class="col-md-3">
                                     <div class="form-group">
                                         <label>Location <span class="text-danger">*</span></label>
-                                        <select class="form-control select2" name="location_id" id="location_id" required>
+                                        <select class="form-control select2 selectBox" name="location_id" id="location_id" required>
                                             <option value="">Select Location</option>
                                         </select>
                                         <span class="text-danger" id="location_id_error"></span>
                                     </div>
                                 </div>
-                                
+
                                 <div class="col-md-3">
                                     <div class="form-group">
                                         <label>Attachment</label>
@@ -101,13 +101,13 @@
                             <!-- Category Information -->
                             <div class="row mb-4">
                                 <div class="col-md-12">
-                                    <h5 class="mb-3">Category & Supplier Information</h5>
+                                    <h5 class="mb-3">Category Information</h5>
                                 </div>
-                                
+
                                 <div class="col-md-3">
                                     <div class="form-group">
                                         <label>Expense Category <span class="text-danger">*</span></label>
-                                        <select class="form-control select2" name="expense_parent_category_id" id="expense_parent_category_id" required>
+                                        <select class="form-control select2 selectBox" name="expense_parent_category_id" id="expense_parent_category_id" required>
                                             <option value="">Select Category</option>
                                             @if(isset($expenseParentCategories))
                                                 @foreach($expenseParentCategories as $category)
@@ -118,40 +118,22 @@
                                         <span class="text-danger" id="expense_parent_category_id_error"></span>
                                     </div>
                                 </div>
-                                
+
                                 <div class="col-md-3">
                                     <div class="form-group">
                                         <label>Sub Category</label>
-                                        <select class="form-control select2" name="expense_sub_category_id" id="expense_sub_category_id">
+                                        <select class="form-control select2 selectBox" name="expense_sub_category_id" id="expense_sub_category_id">
                                             <option value="">Select Sub Category</option>
                                         </select>
                                         <span class="text-danger" id="expense_sub_category_id_error"></span>
                                     </div>
                                 </div>
-                                
-                                <div class="col-md-3">
+
+                                <div class="col-md-6">
                                     <div class="form-group">
-                                        <label>Supplier <span class="text-danger">*</span></label>
-                                        <select class="form-control select2" name="supplier_id" id="supplier_id" required>
-                                            <option value="">Select Supplier</option>
-                                            @if(isset($suppliers))
-                                                @foreach($suppliers as $supplier)
-                                                    <option value="{{ $supplier->id }}" data-balance="{{ $supplier->formatted_expense_balance ?? 'Rs.0.00' }}">
-                                                        {{ $supplier->full_name }} ({{ $supplier->mobile_no }})
-                                                    </option>
-                                                @endforeach
-                                            @endif
-                                        </select>
-                                        <small class="text-muted">Select the supplier for this expense</small>
-                                        <span class="text-danger" id="supplier_id_error"></span>
-                                    </div>
-                                </div>
-                                
-                                <div class="col-md-3">
-                                    <div class="form-group">
-                                        <label>Paid To <small class="text-muted">(Additional Info)</small></label>
-                                        <input type="text" class="form-control" name="paid_to" id="paid_to" placeholder="Enter additional details">
-                                        <small class="text-muted">Optional: Additional person/company info</small>
+                                        <label>Paid To <small class="text-muted">(Optional)</small></label>
+                                        <input type="text" class="form-control" name="paid_to" id="paid_to" placeholder="Enter person/company name">
+                                        <small class="text-muted">For rent, EB bill, salary, transport, internet, cleaning, repair, etc.</small>
                                         <span class="text-danger" id="paid_to_error"></span>
                                     </div>
                                 </div>
@@ -166,7 +148,7 @@
                                             <i class="feather-plus"></i> Add Item
                                         </button>
                                     </div>
-                                    
+
                                     <div id="itemsContainer">
                                         <!-- Items will be added here -->
                                     </div>
@@ -179,7 +161,7 @@
                                 <div class="col-md-12">
                                     <h5 class="mb-3">Additional Charges</h5>
                                 </div>
-                                
+
                                 <div class="col-md-3">
                                     <div class="form-group">
                                         <label>Tax Amount</label>
@@ -187,7 +169,7 @@
                                         <span class="text-danger" id="tax_amount_error"></span>
                                     </div>
                                 </div>
-                                
+
                                 <div class="col-md-3">
                                     <div class="form-group">
                                         <label>Discount Type</label>
@@ -197,7 +179,7 @@
                                         </select>
                                     </div>
                                 </div>
-                                
+
                                 <div class="col-md-3">
                                     <div class="form-group">
                                         <label>Discount Amount</label>
@@ -205,7 +187,7 @@
                                         <span class="text-danger" id="discount_amount_error"></span>
                                     </div>
                                 </div>
-                                
+
                                 <div class="col-md-3">
                                     <div class="form-group">
                                         <label>Shipping Charges</label>
@@ -222,7 +204,7 @@
                                         <div class="row">
                                             <div class="col-md-6">
                                                 <h5>Payment Information</h5>
-                                                
+
                                                 <div class="form-group mb-3">
                                                     <label>Payment Method <span class="text-danger">*</span></label>
                                                     <select class="form-control" name="payment_method" id="payment_method" required>
@@ -235,14 +217,14 @@
                                                     </select>
                                                     <span class="text-danger" id="payment_method_error"></span>
                                                 </div>
-                                                
+
                                                 <div class="form-group">
                                                     <label>Paid Amount <span class="text-danger">*</span></label>
                                                     <input type="number" class="form-control" name="paid_amount" id="paid_amount" value="0" step="0.01" min="0" required>
                                                     <span class="text-danger" id="paid_amount_error"></span>
                                                 </div>
                                             </div>
-                                            
+
                                             <div class="col-md-6">
                                                 <h5>Total Calculation</h5>
                                                 <table class="table table-sm">
@@ -267,7 +249,7 @@
                                                         <td class="text-end"><strong id="totalDisplay">Rs.0.00</strong></td>
                                                     </tr>
                                                 </table>
-                                                
+
                                                 <input type="hidden" name="total_amount" id="total_amount" value="0">
                                             </div>
                                         </div>

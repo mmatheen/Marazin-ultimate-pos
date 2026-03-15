@@ -10,7 +10,7 @@
         .amount-display {
             font-weight: 600;
         }
-        
+
         /* Payment button styles */
         .payment_btn {
             border-color: #28a745 !important;
@@ -27,6 +27,20 @@
         .payment_history_btn:hover {
             background-color: #ffc107 !important;
             color: black !important;
+        }
+
+        .filter-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #6c757d;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .filter-help {
+            font-size: 0.75rem;
+            color: #6c757d;
+            margin-top: 8px;
         }
     </style>
 
@@ -117,8 +131,9 @@
             <div class="col-sm-12">
                 <div class="card">
                     <div class="card-body">
-                        <div class="row">
+                        <div class="row g-3 align-items-end">
                             <div class="col-md-2">
+                                <label class="filter-label" for="categoryFilter">Category</label>
                                 <select class="form-control" id="categoryFilter">
                                     <option value="">All Categories</option>
                                     @foreach($expenseParentCategories as $category)
@@ -127,11 +142,13 @@
                                 </select>
                             </div>
                             <div class="col-md-2">
+                                <label class="filter-label" for="subCategoryFilter">Sub Category</label>
                                 <select class="form-control" id="subCategoryFilter">
                                     <option value="">All Sub Categories</option>
                                 </select>
                             </div>
                             <div class="col-md-2">
+                                <label class="filter-label" for="paymentStatusFilter">Payment Status</label>
                                 <select class="form-control" id="paymentStatusFilter">
                                     <option value="">All Statuses</option>
                                     <option value="pending">Pending</option>
@@ -140,15 +157,24 @@
                                 </select>
                             </div>
                             <div class="col-md-2">
-                                <input type="date" class="form-control" id="startDate" placeholder="Start Date">
+                                <label class="filter-label" for="startDate">From Date</label>
+                                <input type="date" class="form-control" id="startDate" aria-label="From date">
                             </div>
                             <div class="col-md-2">
-                                <input type="date" class="form-control" id="endDate" placeholder="End Date">
+                                <label class="filter-label" for="endDate">To Date</label>
+                                <input type="date" class="form-control" id="endDate" aria-label="To date">
                             </div>
                             <div class="col-md-2">
-                                <button type="button" class="btn btn-outline-primary" id="filterBtn">
+                                <label class="filter-label d-block">Action</label>
+                                <button type="button" class="btn btn-outline-primary me-2" id="filterBtn">
                                     <i class="feather-search"></i> Filter
                                 </button>
+                                <button type="button" class="btn btn-outline-secondary" id="resetFilterBtn">
+                                    <i class="feather-refresh-cw"></i>
+                                </button>
+                            </div>
+                            <div class="col-12">
+                                <div class="filter-help">Tip: Choose category/status first, then set date range for better results.</div>
                             </div>
                         </div>
                     </div>
@@ -187,7 +213,7 @@
                                         <th>Date</th>
                                         <th>Category</th>
                                         <th>Sub Category</th>
-                                        <th>Supplier</th>
+                                        <th>Paid To</th>
                                         <th>Location</th>
                                         <th>Total Amount</th>
                                         <th>Paid Amount</th>
@@ -258,7 +284,7 @@
             <form id="paymentForm">
                 <div class="modal-body">
                     <input type="hidden" id="payment_expense_id">
-                    
+
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <p><strong>Expense No:</strong> <span id="paymentExpenseNo"></span></p>
@@ -267,7 +293,7 @@
                             <p><strong>Total Amount:</strong> <span id="paymentTotalAmount"></span></p>
                         </div>
                     </div>
-                    
+
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <p><strong>Paid Amount:</strong> <span id="paymentPaidAmount"></span></p>
@@ -276,7 +302,7 @@
                             <p><strong>Due Amount:</strong> <span id="paymentDueAmount" class="text-danger"></span></p>
                         </div>
                     </div>
-                    
+
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
@@ -298,7 +324,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
@@ -313,7 +339,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Payment Note</label>
                         <textarea class="form-control" id="payment_note" rows="2" placeholder="Enter payment note"></textarea>
@@ -351,7 +377,7 @@
                         <p><strong>Due:</strong> <span id="historyDueAmount" class="text-danger"></span></p>
                     </div>
                 </div>
-                
+
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <p><strong>Status:</strong> <span id="historyPaymentStatus"></span></p>
@@ -360,7 +386,7 @@
                         <p><strong>Location:</strong> <span id="historyLocationName"></span></p>
                     </div>
                 </div>
-                
+
                 <div class="table-responsive">
                     <table class="table table-bordered" id="paymentHistoryTable">
                         <thead>
@@ -399,7 +425,7 @@
                 <div class="modal-body">
                     <input type="hidden" id="edit_payment_id">
                     <input type="hidden" id="edit_expense_id">
-                    
+
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <p><strong>Expense No:</strong> <span id="editPaymentExpenseNo"></span></p>
@@ -408,7 +434,7 @@
                             <p><strong>Total Amount:</strong> <span id="editPaymentTotalAmount"></span></p>
                         </div>
                     </div>
-                    
+
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
@@ -430,7 +456,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
@@ -445,7 +471,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Payment Note</label>
                         <textarea class="form-control" id="edit_payment_note" rows="2" placeholder="Enter payment note"></textarea>

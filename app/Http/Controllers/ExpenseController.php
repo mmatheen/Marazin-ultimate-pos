@@ -55,10 +55,7 @@ class ExpenseController extends Controller
         // Get all locations for now (can be filtered by user access later)
         $locations = Location::all();
 
-        // Get all suppliers
-        $suppliers = Supplier::orderBy('first_name')->get();
-
-        return view('expense.create_expense', compact('expenseNo', 'locations', 'suppliers'));
+        return view('expense.create_expense', compact('expenseNo', 'locations'));
     }
 
     /**
@@ -69,7 +66,6 @@ class ExpenseController extends Controller
         $query = Expense::with([
             'expenseParentCategory',
             'expenseSubCategory',
-            'supplier',
             'location',
             'creator'
         ]);
@@ -129,7 +125,6 @@ class ExpenseController extends Controller
             'date' => 'required|date',
             'expense_parent_category_id' => 'required|exists:expense_parent_categories,id',
             'expense_sub_category_id' => 'nullable|exists:expense_sub_categories,id',
-            'supplier_id' => 'required|exists:suppliers,id',
             'paid_to' => 'nullable|string|max:255',
             'location_id' => 'required|exists:locations,id',
             'payment_method' => 'required|string',
@@ -196,7 +191,7 @@ class ExpenseController extends Controller
                 'reference_no' => $request->reference_no,
                 'expense_parent_category_id' => $request->expense_parent_category_id,
                 'expense_sub_category_id' => $request->expense_sub_category_id,
-                'supplier_id' => $request->supplier_id,
+                'supplier_id' => null,
                 'paid_to' => $request->paid_to,
                 'location_id' => $request->location_id,
                 'payment_status' => $paymentStatus,
@@ -243,7 +238,7 @@ class ExpenseController extends Controller
                     'amount' => $paidAmount,
                     'reference_no' => $request->payment_reference,
                     'note' => 'Initial payment',
-                    'created_by' => auth()->id()
+                    'created_by' => auth()->id() ?? $expense->created_by
                 ]);
                 if ($cashRegisterId) {
                     $this->cashRegisterService->recordExpenseFromDrawer(
@@ -351,7 +346,6 @@ class ExpenseController extends Controller
             'date' => 'required|date',
             'expense_parent_category_id' => 'required|exists:expense_parent_categories,id',
             'expense_sub_category_id' => 'nullable|exists:expense_sub_categories,id',
-            'supplier_id' => 'required|exists:suppliers,id',
             'paid_to' => 'nullable|string|max:255',
             'location_id' => 'required|exists:locations,id',
             'payment_method' => 'required|string',
@@ -418,7 +412,7 @@ class ExpenseController extends Controller
                 'reference_no' => $request->reference_no,
                 'expense_parent_category_id' => $request->expense_parent_category_id,
                 'expense_sub_category_id' => $request->expense_sub_category_id,
-                'supplier_id' => $request->supplier_id,
+                'supplier_id' => null,
                 'paid_to' => $request->paid_to,
                 'location_id' => $request->location_id,
                 'payment_status' => $paymentStatus,
@@ -476,7 +470,7 @@ class ExpenseController extends Controller
                         'amount' => $paidAmount,
                         'reference_no' => $request->payment_reference,
                         'note' => 'Updated payment',
-                        'created_by' => auth()->id()
+                        'created_by' => auth()->id() ?? $expense->created_by
                     ]);
                     if ($cashRegisterId) {
                         $this->cashRegisterService->recordExpenseFromDrawer(
@@ -748,7 +742,7 @@ class ExpenseController extends Controller
                 'amount' => $actualPaymentAmount,
                 'reference_no' => $request->payment_reference,
                 'note' => $request->payment_note ?? 'Additional payment',
-                'created_by' => auth()->id()
+                'created_by' => auth()->id() ?? $expense->created_by
             ]);
             if ($cashRegisterId) {
                 $this->cashRegisterService->recordExpenseFromDrawer(
@@ -806,7 +800,7 @@ class ExpenseController extends Controller
      */
     public function getPaymentHistory(int $id)
     {
-        $expense = Expense::with(['payments.creator', 'location'])->find($id);
+        $expense = Expense::with(['payments.creator', 'location', 'creator'])->find($id);
 
         if (!$expense) {
             return response()->json([
@@ -828,6 +822,13 @@ class ExpenseController extends Controller
                     'location_name' => $expense->location ? $expense->location->name : 'N/A'
                 ],
                 'payments' => $expense->payments->map(function($payment) {
+                    $createdByName = optional($payment->creator)->full_name
+                        ?? optional($payment->creator)->user_name
+                        ?? optional($payment->creator)->name
+                        ?? optional($payment->expense->creator)->full_name
+                        ?? optional($payment->expense->creator)->user_name
+                        ?? 'Unknown';
+
                     return [
                         'id' => $payment->id,
                         'payment_date' => $payment->payment_date->format('d-m-Y'),
@@ -835,7 +836,7 @@ class ExpenseController extends Controller
                         'amount' => $payment->amount,
                         'reference_no' => $payment->reference_no,
                         'note' => $payment->note,
-                        'created_by' => $payment->creator->name ?? 'Unknown',
+                        'created_by' => $createdByName,
                         'created_at' => $payment->created_at->format('d-m-Y H:i')
                     ];
                 })
