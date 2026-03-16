@@ -259,12 +259,18 @@
 
         .items-table th:nth-child(6),
         .items-table th:nth-child(7),
-        .items-table th:nth-child(8),
         .items-table th:nth-child(9),
         .items-table th:nth-child(10) {
             text-align: right;
-            width: 0.65in;
+            width: 0.58in;
             padding-right: 4px;
+        }
+
+        .items-table th:nth-child(8) {
+            text-align: right;
+            width: 0.95in;
+            padding-right: 4px;
+            white-space: nowrap;
         }
 
         .items-table td {
@@ -298,12 +304,20 @@
 
         .items-table td:nth-child(6),
         .items-table td:nth-child(7),
-        .items-table td:nth-child(8),
         .items-table td:nth-child(9),
         .items-table td:nth-child(10) {
             text-align: right;
-            width: 0.65in;
+            width: 0.58in;
             padding-right: 4px;
+        }
+
+        .items-table td:nth-child(8) {
+            text-align: right;
+            width: 0.95in;
+            padding-right: 4px;
+            white-space: nowrap;
+            font-size: 10px;
+            line-height: 1.05;
         }
 
         .summary-section {
@@ -518,6 +532,7 @@
                                     'free_quantity' => 0,
                                     'amount' => $product->price * 1,
                                     'discount' => ($mrp - $product->price) * 1,
+                                    'discount_percent' => ($product->discount_type === 'percentage') ? (float) ($product->discount_amount ?? 0) : null,
                                     'unitPrice' => $mrp,
                                     'rate' => $product->price,
                                     'batch_no' => $product->batch ? $product->batch->batch_no : null,
@@ -537,6 +552,7 @@
                                     'free_quantity' => 0,
                                     'amount' => 0,
                                     'discount' => ($mrp - $product->price),
+                                    'discount_percent' => ($product->discount_type === 'percentage') ? (float) ($product->discount_amount ?? 0) : null,
                                     'unitPrice' => $mrp,
                                     'rate' => $product->price,
                                     'batch_no' => $product->batch ? $product->batch->batch_no : null,
@@ -585,7 +601,12 @@
                             @endif
                         </td>
                         <td>{{ number_format($item['unitPrice'], 2) }}</td>
-                        <td>{{ number_format($item['discount'], 2) }}</td>
+                        <td>
+                            {{ number_format($item['discount'], 2) }}
+                            @if(isset($item['discount_percent']) && $item['discount_percent'] > 0)
+                                ({{ rtrim(rtrim(number_format((float) $item['discount_percent'], 2, '.', ''), '0'), '.') }}%)
+                            @endif
+                        </td>
                         <td>{{ number_format($item['rate'], 2) }}</td>
                         <td>{{ number_format($item['amount'], 2) }}</td>
                     </tr>
