@@ -9,45 +9,31 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class Expense extends Model
 {
     use HasFactory, LocationTrait;
-    
+
     protected $table = 'expenses';
-    
+
     protected $fillable = [
         'expense_no',
         'date',
         'reference_no',
         'expense_parent_category_id',
         'expense_sub_category_id',
-        'supplier_id', // Added supplier_id
+        'supplier_id',
         'paid_to',
-        'payment_status',
-        'payment_method',
         'total_amount',
-        'paid_amount',
-        'due_amount',
-        'tax_amount',
-        'discount_type',
-        'discount_amount',
-        'shipping_charges',
         'note',
         'attachment',
         'created_by',
-        'updated_by',
         'location_id',
         'status'
     ];
 
     protected $casts = [
         'date' => 'date',
-        'total_amount' => 'decimal:2',
-        'paid_amount' => 'decimal:2',
-        'due_amount' => 'decimal:2',
-        'tax_amount' => 'decimal:2',
-        'discount_amount' => 'decimal:2',
-        'shipping_charges' => 'decimal:2'
+        'total_amount' => 'decimal:2'
     ];
 
-    protected $appends = ['formatted_date', 'supplier_name'];
+    protected $appends = ['formatted_date', 'supplier_name', 'paid_amount', 'due_amount', 'payment_status'];
 
     /**
      * Get formatted date for display
@@ -111,17 +97,18 @@ class Expense extends Model
 
     public function scopePending($query)
     {
-        return $query->where('payment_status', 'pending');
+        return $query->whereRaw('(SELECT COALESCE(SUM(ep.amount), 0) FROM expense_payments ep WHERE ep.expense_id = expenses.id) = 0');
     }
 
     public function scopePartial($query)
     {
-        return $query->where('payment_status', 'partial');
+        return $query->whereRaw('(SELECT COALESCE(SUM(ep.amount), 0) FROM expense_payments ep WHERE ep.expense_id = expenses.id) > 0')
+            ->whereRaw('(SELECT COALESCE(SUM(ep.amount), 0) FROM expense_payments ep WHERE ep.expense_id = expenses.id) < expenses.total_amount');
     }
 
     public function scopePaid($query)
     {
-        return $query->where('payment_status', 'paid');
+        return $query->whereRaw('(SELECT COALESCE(SUM(ep.amount), 0) FROM expense_payments ep WHERE ep.expense_id = expenses.id) >= expenses.total_amount');
     }
 
     public function scopeByDateRange($query, $start_date, $end_date)
@@ -150,35 +137,48 @@ class Expense extends Model
         return ucfirst(str_replace('_', ' ', $this->payment_status));
     }
 
+    public function getPaidAmountAttribute()
+    {
+        if (array_key_exists('paid_amount_sum', $this->attributes)) {
+            return (float) $this->attributes['paid_amount_sum'];
+        }
+
+        return (float) $this->payments()->sum('amount');
+    }
+
+    public function getDueAmountAttribute()
+    {
+        $due = (float) $this->total_amount - (float) $this->paid_amount;
+        return $due > 0 ? $due : 0.0;
+    }
+
+    public function getPaymentStatusAttribute()
+    {
+        $paid = (float) $this->paid_amount;
+        $total = (float) $this->total_amount;
+
+        if ($paid <= 0) {
+            return 'pending';
+        }
+
+        if ($paid >= $total) {
+            return 'paid';
+        }
+
+        return 'partial';
+    }
+
     // Methods
     public function updatePaymentStatus()
     {
-        if ($this->paid_amount >= $this->total_amount) {
-            $this->payment_status = 'paid';
-            $this->due_amount = 0;
-        } elseif ($this->paid_amount > 0) {
-            $this->payment_status = 'partial';
-            $this->due_amount = $this->total_amount - $this->paid_amount;
-        } else {
-            $this->payment_status = 'pending';
-            $this->due_amount = $this->total_amount;
-        }
-        $this->save();
+        return $this->payment_status;
     }
 
     public function calculateTotal()
     {
-        $items_total = $this->expenseItems()->sum('total');
-        $total = $items_total + $this->tax_amount + $this->shipping_charges;
-        
-        if ($this->discount_type == 'percentage') {
-            $total = $total - ($total * $this->discount_amount / 100);
-        } else {
-            $total = $total - $this->discount_amount;
-        }
-        
+        $total = (float) $this->expenseItems()->sum('amount');
         $this->total_amount = $total;
-        $this->updatePaymentStatus();
+        $this->save();
         return $total;
     }
 
@@ -217,28 +217,7 @@ class Expense extends Model
      */
     public function processPayment($paymentAmount, $paymentData = [])
     {
-        $oldPaidAmount = $this->paid_amount;
-        $newPaidAmount = $oldPaidAmount + $paymentAmount;
-        
-        // Check for overpayment
-        if ($newPaidAmount > $this->total_amount) {
-            $overpaidAmount = $newPaidAmount - $this->total_amount;
-            $this->paid_amount = $this->total_amount;
-            $this->due_amount = 0;
-            $this->payment_status = 'paid';
-            
-            // Handle overpayment
-            $this->handleOverPayment($overpaidAmount);
-            
-            // Return the actual payment amount (without overpayment)
-            return $this->total_amount - $oldPaidAmount;
-        } else {
-            $this->paid_amount = $newPaidAmount;
-            $this->due_amount = $this->total_amount - $newPaidAmount;
-            $this->updatePaymentStatus();
-            
-            return $paymentAmount;
-        }
+        return $paymentAmount;
     }
 
     /**
@@ -283,7 +262,7 @@ class Expense extends Model
     public function hasOverpayments()
     {
         if (!$this->supplier_id) return false;
-        
+
         return $this->balanceLogs()->where('transaction_type', 'expense_overpayment')->exists();
     }
 
@@ -293,7 +272,7 @@ class Expense extends Model
     public function getTotalOverpaidAmount()
     {
         if (!$this->supplier_id) return 0;
-        
+
         return $this->balanceLogs()
             ->where('transaction_type', 'expense_overpayment')
             ->sum('amount');

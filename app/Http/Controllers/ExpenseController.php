@@ -68,7 +68,7 @@ class ExpenseController extends Controller
             'expenseSubCategory',
             'location',
             'creator'
-        ]);
+        ])->withSum('payments as paid_amount_sum', 'amount');
 
         // Filter by user accessible locations
         $userLocationIds = auth()->user()->accessibleLocationIds ?? Location::pluck('id')->toArray();
@@ -81,10 +81,6 @@ class ExpenseController extends Controller
 
         if ($request->has('sub_category_id') && $request->sub_category_id != '') {
             $query->where('expense_sub_category_id', $request->sub_category_id);
-        }
-
-        if ($request->has('payment_status') && $request->payment_status != '') {
-            $query->where('payment_status', $request->payment_status);
         }
 
         // Removed supplier_id filter since using paid_to text field now
@@ -105,7 +101,24 @@ class ExpenseController extends Controller
             });
         }
 
-        $expenses = $query->latest()->get();
+        $expenses = $query->latest()->get()->map(function ($expense) {
+            $paid = (float) ($expense->paid_amount_sum ?? 0);
+            $total = (float) $expense->total_amount;
+            $due = max($total - $paid, 0);
+            $status = $paid <= 0 ? 'pending' : ($paid >= $total ? 'paid' : 'partial');
+
+            $expense->paid_amount = $paid;
+            $expense->due_amount = $due;
+            $expense->payment_status = $status;
+
+            return $expense;
+        });
+
+        if ($request->has('payment_status') && $request->payment_status != '') {
+            $expenses = $expenses->filter(function ($expense) use ($request) {
+                return $expense->payment_status === $request->payment_status;
+            })->values();
+        }
 
         // Always return consistent format with data array
         return response()->json([
@@ -131,10 +144,9 @@ class ExpenseController extends Controller
             'total_amount' => 'required|numeric|min:0',
             'paid_amount' => 'required|numeric|min:0',
             'items' => 'required|array|min:1',
-            'items.*.item_name' => 'required|string',
             'items.*.description' => 'nullable|string',
-            'items.*.quantity' => 'required|numeric|min:0.01',
-            'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.unit_price' => 'nullable|numeric|min:0',
+            'items.*.amount' => 'nullable|numeric|min:0',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048'
         ]);
 
@@ -161,28 +173,9 @@ class ExpenseController extends Controller
                 $attachmentPath = $request->file('attachment')->store('expenses', 'public');
             }
 
-            // Calculate payment status and handle overpayment
             $totalAmount = floatval($request->total_amount);
             $requestedPaidAmount = floatval($request->paid_amount);
-            $paidAmount = $requestedPaidAmount;
-            $overpaidAmount = 0;
-
-            // Check for overpayment
-            if ($requestedPaidAmount > $totalAmount) {
-                $overpaidAmount = $requestedPaidAmount - $totalAmount;
-                $paidAmount = $totalAmount; // Cap paid amount at total
-            }
-
-            $dueAmount = $totalAmount - $paidAmount;
-
-            if ($paidAmount >= $totalAmount) {
-                $paymentStatus = 'paid';
-                $dueAmount = 0;
-            } elseif ($paidAmount > 0) {
-                $paymentStatus = 'partial';
-            } else {
-                $paymentStatus = 'pending';
-            }
+            $paidAmount = min($requestedPaidAmount, $totalAmount);
 
             // Create expense
             $expense = Expense::create([
@@ -194,15 +187,7 @@ class ExpenseController extends Controller
                 'supplier_id' => null,
                 'paid_to' => $request->paid_to,
                 'location_id' => $request->location_id,
-                'payment_status' => $paymentStatus,
-                'payment_method' => $request->payment_method,
                 'total_amount' => $totalAmount,
-                'paid_amount' => $paidAmount,
-                'due_amount' => $dueAmount,
-                'tax_amount' => $request->tax_amount ?? 0,
-                'discount_type' => $request->discount_type ?? 'fixed',
-                'discount_amount' => $request->discount_amount ?? 0,
-                'shipping_charges' => $request->shipping_charges ?? 0,
                 'note' => $request->note,
                 'attachment' => $attachmentPath,
                 'created_by' => auth()->id(),
@@ -211,15 +196,15 @@ class ExpenseController extends Controller
 
             // Create expense items
             foreach ($request->items as $item) {
+                $lineAmount = isset($item['amount'])
+                    ? floatval($item['amount'])
+                    : floatval($item['unit_price'] ?? 0) * floatval($item['quantity'] ?? 1);
+
                 ExpenseItem::create([
                     'expense_id' => $expense->id,
-                    'item_name' => $item['item_name'],
                     'description' => $item['description'] ?? '',
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $item['unit_price'],
-                    'total' => $item['quantity'] * $item['unit_price'],
-                    'tax_rate' => $item['tax_rate'] ?? 0,
-                    'tax_amount' => ($item['quantity'] * $item['unit_price']) * (($item['tax_rate'] ?? 0) / 100)
+                    'amount' => $lineAmount,
+                    'location_id' => $expense->location_id,
                 ]);
             }
 
@@ -232,12 +217,14 @@ class ExpenseController extends Controller
                 }
                 $expensePayment = ExpensePayment::create([
                     'expense_id' => $expense->id,
+                    'paid_from_account_id' => is_numeric($request->paid_from_account_id) ? (int) $request->paid_from_account_id : null,
                     'cash_register_id' => $cashRegisterId,
                     'payment_date' => $request->date,
                     'payment_method' => $request->payment_method,
                     'amount' => $paidAmount,
                     'reference_no' => $request->payment_reference,
                     'note' => 'Initial payment',
+                    'location_id' => $expense->location_id,
                     'created_by' => auth()->id() ?? $expense->created_by
                 ]);
                 if ($cashRegisterId) {
@@ -250,16 +237,11 @@ class ExpenseController extends Controller
                 }
             }
 
-            // Handle overpayment - add to supplier balance
-            if ($overpaidAmount > 0) {
-                $expense->handleOverPayment($overpaidAmount);
-            }
-
             DB::commit();
 
             return response()->json([
                 'status' => 200,
-                'message' => "Expense created successfully!" . ($overpaidAmount > 0 ? " Overpayment of Rs.{$overpaidAmount} added to supplier balance." : ""),
+                'message' => "Expense created successfully!",
                 'expense_id' => $expense->id
             ]);
 
@@ -352,10 +334,9 @@ class ExpenseController extends Controller
             'total_amount' => 'required|numeric|min:0',
             'paid_amount' => 'required|numeric|min:0',
             'items' => 'required|array|min:1',
-            'items.*.item_name' => 'required|string',
             'items.*.description' => 'nullable|string',
-            'items.*.quantity' => 'required|numeric|min:0.01',
-            'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.unit_price' => 'nullable|numeric|min:0',
+            'items.*.amount' => 'nullable|numeric|min:0',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048'
         ]);
 
@@ -368,10 +349,8 @@ class ExpenseController extends Controller
 
         DB::beginTransaction();
         try {
-            // Store old values for balance tracking
             $oldTotalAmount = $expense->total_amount;
-            $oldPaidAmount = $expense->paid_amount;
-            $oldSupplierId = $expense->supplier_id;
+            $oldPaidAmount = (float) $expense->payments()->sum('amount');
 
             // Handle file upload
             $attachmentPath = $expense->attachment;
@@ -383,28 +362,9 @@ class ExpenseController extends Controller
                 $attachmentPath = $request->file('attachment')->store('expenses', 'public');
             }
 
-            // Calculate payment status and handle overpayment
             $newTotalAmount = floatval($request->total_amount);
-            $requestedPaidAmount = floatval($request->paid_amount ?? $expense->paid_amount);
-            $paidAmount = $requestedPaidAmount;
-            $overpaidAmount = 0;
-
-            // Check for overpayment
-            if ($requestedPaidAmount > $newTotalAmount) {
-                $overpaidAmount = $requestedPaidAmount - $newTotalAmount;
-                $paidAmount = $newTotalAmount; // Cap paid amount at total
-            }
-
-            $dueAmount = $newTotalAmount - $paidAmount;
-
-            if ($paidAmount >= $newTotalAmount) {
-                $paymentStatus = 'paid';
-                $dueAmount = 0;
-            } elseif ($paidAmount > 0) {
-                $paymentStatus = 'partial';
-            } else {
-                $paymentStatus = 'pending';
-            }
+            $requestedPaidAmount = floatval($request->paid_amount ?? $oldPaidAmount);
+            $paidAmount = min($requestedPaidAmount, $newTotalAmount);
 
             // Update expense
             $expense->update([
@@ -415,18 +375,9 @@ class ExpenseController extends Controller
                 'supplier_id' => null,
                 'paid_to' => $request->paid_to,
                 'location_id' => $request->location_id,
-                'payment_status' => $paymentStatus,
-                'payment_method' => $request->payment_method,
                 'total_amount' => $newTotalAmount,
-                'paid_amount' => $paidAmount,
-                'due_amount' => $dueAmount,
-                'tax_amount' => $request->tax_amount ?? 0,
-                'discount_type' => $request->discount_type ?? 'fixed',
-                'discount_amount' => $request->discount_amount ?? 0,
-                'shipping_charges' => $request->shipping_charges ?? 0,
                 'note' => $request->note,
                 'attachment' => $attachmentPath,
-                'updated_by' => auth()->id()
             ]);
 
             // Handle expense amount changes for supplier balance
@@ -438,15 +389,15 @@ class ExpenseController extends Controller
             $expense->expenseItems()->delete();
 
             foreach ($request->items as $item) {
+                $lineAmount = isset($item['amount'])
+                    ? floatval($item['amount'])
+                    : floatval($item['unit_price'] ?? 0) * floatval($item['quantity'] ?? 1);
+
                 ExpenseItem::create([
                     'expense_id' => $expense->id,
-                    'item_name' => $item['item_name'],
                     'description' => $item['description'] ?? '',
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $item['unit_price'],
-                    'total' => $item['quantity'] * $item['unit_price'],
-                    'tax_rate' => $item['tax_rate'] ?? 0,
-                    'tax_amount' => ($item['quantity'] * $item['unit_price']) * (($item['tax_rate'] ?? 0) / 100)
+                    'amount' => $lineAmount,
+                    'location_id' => $expense->location_id,
                 ]);
             }
 
@@ -464,12 +415,14 @@ class ExpenseController extends Controller
                     }
                     $expensePayment = ExpensePayment::create([
                         'expense_id' => $expense->id,
+                        'paid_from_account_id' => is_numeric($request->paid_from_account_id) ? (int) $request->paid_from_account_id : null,
                         'cash_register_id' => $cashRegisterId,
                         'payment_date' => $request->date,
                         'payment_method' => $request->payment_method,
                         'amount' => $paidAmount,
                         'reference_no' => $request->payment_reference,
                         'note' => 'Updated payment',
+                        'location_id' => $expense->location_id,
                         'created_by' => auth()->id() ?? $expense->created_by
                     ]);
                     if ($cashRegisterId) {
@@ -483,21 +436,11 @@ class ExpenseController extends Controller
                 }
             }
 
-            // Handle overpayment - add to supplier balance
-            if ($overpaidAmount > 0) {
-                $expense->handleOverPayment($overpaidAmount);
-            }
-
             DB::commit();
-
-            $message = "Expense updated successfully!";
-            if ($overpaidAmount > 0) {
-                $message .= " Overpayment of Rs.{$overpaidAmount} added to supplier balance.";
-            }
 
             return response()->json([
                 'status' => 200,
-                'message' => $message
+                'message' => "Expense updated successfully!"
             ]);
 
         } catch (\Exception $e) {
@@ -583,6 +526,18 @@ class ExpenseController extends Controller
         }
 
         $expenses = $query->get();
+
+        $expenses = $expenses->map(function ($expense) {
+            $paid = (float) $expense->payments()->sum('amount');
+            $due = max((float) $expense->total_amount - $paid, 0);
+            $status = $paid <= 0 ? 'pending' : ($paid >= (float) $expense->total_amount ? 'paid' : 'partial');
+
+            $expense->paid_amount = $paid;
+            $expense->due_amount = $due;
+            $expense->payment_status = $status;
+
+            return $expense;
+        });
 
         // Calculate summary
         $totalExpenses = $expenses->count();
@@ -703,8 +658,8 @@ class ExpenseController extends Controller
         DB::beginTransaction();
         try {
             $requestedPaymentAmount = floatval($request->payment_amount);
-            $currentPaidAmount = $expense->paid_amount;
-            $dueAmount = $expense->due_amount;
+            $currentPaidAmount = (float) $expense->payments()->sum('amount');
+            $dueAmount = max((float) $expense->total_amount - $currentPaidAmount, 0);
 
             // Handle overpayment scenario
             $actualPaymentAmount = $requestedPaymentAmount;
@@ -736,12 +691,14 @@ class ExpenseController extends Controller
             // Create payment record for the actual payment amount
             $payment = ExpensePayment::create([
                 'expense_id' => $expense->id,
+                'paid_from_account_id' => is_numeric($request->paid_from_account_id) ? (int) $request->paid_from_account_id : null,
                 'cash_register_id' => $cashRegisterId,
                 'payment_date' => $request->payment_date,
                 'payment_method' => $request->payment_method,
                 'amount' => $actualPaymentAmount,
                 'reference_no' => $request->payment_reference,
                 'note' => $request->payment_note ?? 'Additional payment',
+                'location_id' => $expense->location_id,
                 'created_by' => auth()->id() ?? $expense->created_by
             ]);
             if ($cashRegisterId) {
@@ -752,14 +709,6 @@ class ExpenseController extends Controller
                     $request->payment_note ?? 'Additional payment'
                 );
             }
-
-            // Update expense payment status
-            $expense->update([
-                'paid_amount' => $newPaidAmount,
-                'due_amount' => $newDueAmount,
-                'payment_status' => $paymentStatus,
-                'updated_by' => auth()->id()
-            ]);
 
             // Handle overpayment - add to supplier balance
             if ($overpaidAmount > 0) {
@@ -809,6 +758,10 @@ class ExpenseController extends Controller
             ]);
         }
 
+        $paidAmount = (float) $expense->payments->sum('amount');
+        $dueAmount = max((float) $expense->total_amount - $paidAmount, 0);
+        $paymentStatus = $paidAmount <= 0 ? 'pending' : ($paidAmount >= (float) $expense->total_amount ? 'paid' : 'partial');
+
         return response()->json([
             'status' => 200,
             'data' => [
@@ -816,9 +769,9 @@ class ExpenseController extends Controller
                     'id' => $expense->id,
                     'expense_no' => $expense->expense_no,
                     'total_amount' => $expense->total_amount,
-                    'paid_amount' => $expense->paid_amount,
-                    'due_amount' => $expense->due_amount,
-                    'payment_status' => $expense->payment_status,
+                    'paid_amount' => $paidAmount,
+                    'due_amount' => $dueAmount,
+                    'payment_status' => $paymentStatus,
                     'location_name' => $expense->location ? $expense->location->name : 'N/A'
                 ],
                 'payments' => $expense->payments->map(function($payment) {
@@ -879,9 +832,10 @@ class ExpenseController extends Controller
             $oldAmount = floatval($payment->amount);
             $newAmount = floatval($request->payment_amount);
             $amountDifference = $newAmount - $oldAmount;
+            $currentPaidAmount = (float) $expense->payments()->sum('amount');
 
             // Calculate new totals
-            $newPaidAmount = $expense->paid_amount + $amountDifference;
+            $newPaidAmount = $currentPaidAmount + $amountDifference;
             $newDueAmount = $expense->total_amount - $newPaidAmount;
 
             // Handle overpayment scenario
@@ -921,16 +875,7 @@ class ExpenseController extends Controller
                 'payment_method' => $request->payment_method,
                 'amount' => $newAmount,
                 'reference_no' => $request->payment_reference,
-                'note' => $request->payment_note,
-                'updated_by' => auth()->id()
-            ]);
-
-            // Update expense totals
-            $expense->update([
-                'paid_amount' => $newPaidAmount,
-                'due_amount' => $newDueAmount,
-                'payment_status' => $paymentStatus,
-                'updated_by' => auth()->id()
+                'note' => $request->payment_note
             ]);
 
             // Handle overpayment - add to supplier balance
@@ -985,9 +930,10 @@ class ExpenseController extends Controller
         try {
             $expense = $payment->expense;
             $deletedAmount = floatval($payment->amount);
+            $currentPaidAmount = (float) $expense->payments()->sum('amount');
 
             // Calculate new totals after removing this payment
-            $newPaidAmount = $expense->paid_amount - $deletedAmount;
+            $newPaidAmount = $currentPaidAmount - $deletedAmount;
             $newDueAmount = $expense->total_amount - $newPaidAmount;
 
             // Calculate new payment status
@@ -1005,27 +951,13 @@ class ExpenseController extends Controller
                 $expense->handlePaymentDeletion($payment->id, $deletedAmount);
             }
 
-            // ✅ CRITICAL FIX: Mark payment as deleted instead of hard delete
-            $payment->update([
-                'status' => 'deleted',
-                'deleted_at' => now(),
-                'deleted_by' => auth()->id(),
-                'notes' => ($payment->notes ?? '') . ' | [DELETED: Expense payment removed - ' . now()->format('Y-m-d H:i:s') . ']'
-            ]);
-
-            // Update expense totals
-            $expense->update([
-                'paid_amount' => $newPaidAmount,
-                'due_amount' => $newDueAmount,
-                'payment_status' => $paymentStatus,
-                'updated_by' => auth()->id()
-            ]);
+            $payment->delete();
 
             DB::commit();
 
             return response()->json([
                 'status' => 200,
-                'message' => "Payment deleted successfully! Amount of Rs.{$deletedAmount} added to supplier balance.",
+                'message' => "Payment deleted successfully!",
                 'data' => [
                     'expense_id' => $expense->id,
                     'total_amount' => $expense->total_amount,
@@ -1058,6 +990,9 @@ class ExpenseController extends Controller
             ]);
         }
 
+        $paidAmount = (float) $payment->expense->payments()->sum('amount');
+        $dueAmount = max((float) $payment->expense->total_amount - $paidAmount, 0);
+
         return response()->json([
             'status' => 200,
             'data' => [
@@ -1072,8 +1007,8 @@ class ExpenseController extends Controller
                     'id' => $payment->expense->id,
                     'expense_no' => $payment->expense->expense_no,
                     'total_amount' => $payment->expense->total_amount,
-                    'paid_amount' => $payment->expense->paid_amount,
-                    'due_amount' => $payment->expense->due_amount
+                    'paid_amount' => $paidAmount,
+                    'due_amount' => $dueAmount
                 ]
             ]
         ]);

@@ -156,19 +156,14 @@
                                     <option value="paid">Paid</option>
                                 </select>
                             </div>
-                            <div class="col-md-2">
-                                <label class="filter-label" for="startDate">From Date</label>
-                                <input type="date" class="form-control" id="startDate" aria-label="From date">
-                            </div>
-                            <div class="col-md-2">
-                                <label class="filter-label" for="endDate">To Date</label>
-                                <input type="date" class="form-control" id="endDate" aria-label="To date">
+                            <div class="col-md-4">
+                                <label class="filter-label" for="dateRangeFilter">Date Range</label>
+                                <input type="text" class="form-control" id="dateRangeFilter" placeholder="Select date range" autocomplete="off" aria-label="Date range">
+                                <input type="hidden" id="startDate">
+                                <input type="hidden" id="endDate">
                             </div>
                             <div class="col-md-2">
                                 <label class="filter-label d-block">Action</label>
-                                <button type="button" class="btn btn-outline-primary me-2" id="filterBtn">
-                                    <i class="feather-search"></i> Filter
-                                </button>
                                 <button type="button" class="btn btn-outline-secondary" id="resetFilterBtn">
                                     <i class="feather-refresh-cw"></i>
                                 </button>

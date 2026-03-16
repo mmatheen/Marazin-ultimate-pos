@@ -5,6 +5,7 @@ $(document).ready(function() {
     var isEditMode = false;
     var expenseId = null;
     var expenseTable = null;
+    var parentCategoriesCache = [];
 
     function initializeSelectBox(selector, placeholder) {
         if (typeof $.fn.select2 === 'undefined') {
@@ -52,8 +53,6 @@ $(document).ready(function() {
         initializeExpenseForm();
         loadLocations(); // Load locations for dropdown
         initializeSelectBox('#location_id', 'Select Location');
-        initializeSelectBox('#expense_parent_category_id', 'Select Category');
-        initializeSelectBox('#expense_sub_category_id', 'Select Sub Category');
     }
 
     // ==================== EXPENSE LIST FUNCTIONS ====================
@@ -62,6 +61,32 @@ $(document).ready(function() {
         initializeSelectBox('#categoryFilter', 'All Categories');
         initializeSelectBox('#subCategoryFilter', 'All Sub Categories');
         initializeSelectBox('#paymentStatusFilter', 'All Statuses');
+
+        if ($('#dateRangeFilter').length > 0 && typeof $.fn.daterangepicker !== 'undefined') {
+            $('#dateRangeFilter').daterangepicker({
+                autoUpdateInput: false,
+                locale: {
+                    format: 'DD-MM-YYYY',
+                    cancelLabel: 'Clear'
+                }
+            });
+
+            $('#dateRangeFilter').on('apply.daterangepicker', function(ev, picker) {
+                $('#dateRangeFilter').val(
+                    picker.startDate.format('DD-MM-YYYY') + ' - ' + picker.endDate.format('DD-MM-YYYY')
+                );
+                $('#startDate').val(picker.startDate.format('YYYY-MM-DD'));
+                $('#endDate').val(picker.endDate.format('YYYY-MM-DD'));
+                loadExpenses();
+            });
+
+            $('#dateRangeFilter').on('cancel.daterangepicker', function() {
+                $('#dateRangeFilter').val('');
+                $('#startDate').val('');
+                $('#endDate').val('');
+                loadExpenses();
+            });
+        }
 
         // Initialize DataTable
         expenseTable = $('#expenseTable').DataTable({
@@ -88,14 +113,11 @@ $(document).ready(function() {
             loadSubCategories(categoryId, '#subCategoryFilter');
         });
 
-        $('#filterBtn').click(function() {
-            loadExpenses();
-        });
-
         $('#resetFilterBtn').click(function() {
             $('#categoryFilter').val('').trigger('change');
             $('#subCategoryFilter').html('<option value="">All Sub Categories</option>').val('').trigger('change');
             $('#paymentStatusFilter').val('').trigger('change');
+            $('#dateRangeFilter').val('');
             $('#startDate').val('');
             $('#endDate').val('');
             loadExpenses();
@@ -243,65 +265,60 @@ $(document).ready(function() {
     // ==================== EXPENSE FORM FUNCTIONS ====================
 
     function initializeExpenseForm() {
-        // Check if we're in edit mode
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('edit')) {
             expenseId = urlParams.get('edit');
             isEditMode = true;
             loadExpenseForEdit(expenseId);
-            $('#pageTitle').text('Edit Expense');
+            $('#pageTitle').text('Edit Direct Expense');
             $('#submitBtn').html('<i class="feather-save"></i> Update Expense');
         } else {
             isEditMode = false;
-            $('#pageTitle').text('Create New Expense');
+            $('#pageTitle').text('Create Direct Expense');
             $('#submitBtn').html('<i class="feather-save"></i> Save Expense');
-            loadParentCategories();
-            addExpenseItem(); // Add first item by default
+            addExpenseItem();
         }
 
-        // Category change event
-        $('#expense_parent_category_id').change(function() {
-            var categoryId = $(this).val();
-            loadSubCategories(categoryId, '#expense_sub_category_id');
-        });
-
-        // Add item button
         $('#addItemBtn').click(function() {
             addExpenseItem();
         });
 
-        // Calculate totals when any amount field changes (advanced/internal fields)
-        $(document).on('input', '#tax_amount, #discount_amount, #shipping_charges, .quantity-input, .unit-price-input', function() {
-            if ($(this).hasClass('quantity-input') || $(this).hasClass('unit-price-input')) {
-                var row = $(this).closest('.item-row');
-                var quantity = parseFloat(row.find('.quantity-input').val()) || 0;
-                var unitPrice = parseFloat(row.find('.unit-price-input').val()) || 0;
-                var total = quantity * unitPrice;
-                row.find('.total-input').val(total.toFixed(2));
-            }
+        $(document).on('change', '.row-category', function() {
+            var row = $(this).closest('tr');
+            loadSubCategories($(this).val(), row.find('.row-sub-category'));
+            updateBackendCategoryFromFirstRow();
+            syncHiddenItemFields(row);
+        });
+
+        $(document).on('change', '.row-sub-category', function() {
+            syncHiddenItemFields($(this).closest('tr'));
+        });
+
+        $(document).on('input', '.row-description, .row-amount', function() {
+            var row = $(this).closest('tr');
+            syncHiddenItemFields(row);
             calculateTotals();
         });
 
-        // Simple mode: when paid amount changes, keep a single hidden item in sync
-        $('#paid_amount').on('input', function() {
-            syncSimpleItemFromPaidAmount();
-        });
-
-        $(document).on('change', '#discount_type', function() {
-            calculateTotals();
-        });
-
-        // Remove item
         $(document).on('click', '.remove-item-btn', function() {
-            if ($('.item-row').length > 1) {
-                $(this).closest('.item-row').remove();
-                calculateTotals();
+            if ($('#itemsContainer tr').length <= 1) {
+                toastr.warning('At least one expense row is required', 'Warning');
+                return;
+            }
+            $(this).closest('tr').remove();
+            updateBackendCategoryFromFirstRow();
+            calculateTotals();
+        });
+
+        $('#payment_method').on('change', function() {
+            if ($(this).val() === 'credit') {
+                $('#paid_amount').val('0.00');
             } else {
-                toastr.warning('At least one item is required', 'Warning');
+                var total = parseFloat($('#total_amount').val()) || 0;
+                $('#paid_amount').val(total.toFixed(2));
             }
         });
 
-        // Form submission
         $('#expenseForm').submit(function(e) {
             e.preventDefault();
 
@@ -309,15 +326,16 @@ $(document).ready(function() {
                 return false;
             }
 
+            prepareFormMetaData();
+
             var formData = new FormData(this);
             var url = isEditMode ? '/expense-update/' + expenseId : '/expense-store';
-            var method = 'POST';
 
             $('#submitBtn').prop('disabled', true).html('<i class="spinner-border spinner-border-sm"></i> ' + (isEditMode ? 'Updating...' : 'Saving...'));
 
             $.ajax({
                 url: url,
-                type: method,
+                type: 'POST',
                 data: formData,
                 processData: false,
                 contentType: false,
@@ -329,7 +347,7 @@ $(document).ready(function() {
                         toastr.success(response.message, 'Success');
                         setTimeout(function() {
                             window.location.href = '/expense-list';
-                        }, 1500);
+                        }, 1200);
                     } else {
                         toastr.error(response.message, 'Error');
                     }
@@ -343,7 +361,7 @@ $(document).ready(function() {
                         });
                         toastr.error('Please check the form for errors', 'Validation Error');
                     } else {
-                        toastr.error('An error occurred while ' + (isEditMode ? 'updating' : 'saving') + ' expense', 'Error');
+                        toastr.error('An error occurred while saving expense', 'Error');
                     }
                 },
                 complete: function() {
@@ -353,7 +371,6 @@ $(document).ready(function() {
         });
     }
 
-    // Load expense for editing
     function loadExpenseForEdit(id) {
         $.ajax({
             url: '/expense-edit/' + id,
@@ -363,52 +380,48 @@ $(document).ready(function() {
                 'Accept': 'application/json'
             },
             success: function(response) {
-                if (response.status == 200 && response.data) {
-                    var expense = response.data;
-
-                    // Populate form fields
-                    $('#expense_no').val(expense.expense_no);
-                    // Format date for input field (needs Y-m-d format)
-                    var dateValue = expense.date;
-                    if (dateValue && dateValue.length > 10) {
-                        dateValue = dateValue.split('T')[0]; // Remove time part if exists
-                    }
-                    $('#date').val(dateValue);
-                    $('#reference_no').val(expense.reference_no);
-                    $('#expense_parent_category_id').val(expense.expense_parent_category_id);
-                    $('#expense_sub_category_id').val(expense.expense_sub_category_id);
-                    $('#paid_to').val(expense.paid_to);
-                    $('#payment_method').val(expense.payment_method);
-                    $('#tax_amount').val(expense.tax_amount);
-                    $('#discount_type').val(expense.discount_type);
-                    $('#discount_amount').val(expense.discount_amount);
-                    $('#shipping_charges').val(expense.shipping_charges);
-                    $('#paid_amount').val(expense.paid_amount);
-                    $('#note').val(expense.note);
-
-                    // Load categories and subcategories
-                    loadParentCategories(expense.expense_parent_category_id);
-                    loadLocations(expense.location_id);
-                    if (expense.expense_parent_category_id) {
-                        loadSubCategories(expense.expense_parent_category_id, '#expense_sub_category_id', expense.expense_sub_category_id);
-                    }
-
-                    // Load expense items
-                    $('#itemsContainer').empty();
-                    itemCounter = 0;
-                    if (expense.expense_items && expense.expense_items.length > 0) {
-                        expense.expense_items.forEach(function(item) {
-                            addExpenseItem(item);
-                        });
-                    } else {
-                        addExpenseItem(); // Add one empty item
-                    }
-
-                    calculateTotals();
-                } else {
+                if (!(response.status == 200 && response.data)) {
                     toastr.error('Expense not found', 'Error');
                     window.location.href = '/expense-list';
+                    return;
                 }
+
+                var expense = response.data;
+                $('#expense_no').val(expense.expense_no);
+                var dateValue = expense.date && expense.date.length > 10 ? expense.date.split('T')[0] : expense.date;
+                $('#date').val(dateValue);
+                $('#reference_no').val(expense.reference_no);
+                $('#paid_to').val(expense.paid_to);
+                $('#payment_method').val(expense.payment_method || 'cash');
+                $('#paid_amount').val(parseFloat(expense.paid_amount || 0).toFixed(2));
+                $('#note').val(expense.note);
+                $('#expense_parent_category_id').val(expense.expense_parent_category_id || '');
+                $('#expense_sub_category_id').val(expense.expense_sub_category_id || '');
+
+                loadLocations(expense.location_id);
+
+                $('#itemsContainer').empty();
+                itemCounter = 0;
+
+                if (expense.expense_items && expense.expense_items.length > 0) {
+                    expense.expense_items.forEach(function(item, index) {
+                        addExpenseItem({
+                            category_id: index === 0 ? expense.expense_parent_category_id : '',
+                            sub_category_id: index === 0 ? expense.expense_sub_category_id : '',
+                            description: item.description || '',
+                            amount: parseFloat(item.amount || item.total || item.unit_price || 0)
+                        });
+                    });
+                } else {
+                    addExpenseItem({
+                        category_id: expense.expense_parent_category_id || '',
+                        sub_category_id: expense.expense_sub_category_id || '',
+                        description: '',
+                        amount: parseFloat(expense.total_amount || 0)
+                    });
+                }
+
+                calculateTotals();
             },
             error: function() {
                 toastr.error('Failed to load expense details', 'Error');
@@ -420,8 +433,17 @@ $(document).ready(function() {
     // ==================== SHARED FUNCTIONS ====================
 
     // Load parent categories
-    function loadParentCategories(selectedId = null) {
-        var categorySelect = $('#expense_parent_category_id');
+    function loadParentCategories(callback) {
+        if (!Array.isArray(parentCategoriesCache)) {
+            parentCategoriesCache = [];
+        }
+
+        if (parentCategoriesCache.length > 0) {
+            if (typeof callback === 'function') {
+                callback(parentCategoriesCache);
+            }
+            return;
+        }
 
         $.ajax({
             url: '/expense-parent-categories-dropdown',
@@ -429,16 +451,13 @@ $(document).ready(function() {
             dataType: 'json',
             success: function(response) {
                 if (response.status == 200 && response.data) {
-                    categorySelect.html('<option value="">Select Category</option>');
-                    response.data.forEach(function(category) {
-                        var selected = selectedId && selectedId == category.id ? 'selected' : '';
-                        categorySelect.append('<option value="' + category.id + '" ' + selected + '>' + category.expenseParentCatergoryName + '</option>');
-                    });
-                    initializeSelectBox('#expense_parent_category_id', 'Select Category');
+                    parentCategoriesCache = response.data;
+                    if (typeof callback === 'function') {
+                        callback(parentCategoriesCache);
+                    }
                 }
             },
             error: function() {
-                console.error('Error loading parent categories');
                 toastr.error('Failed to load expense categories');
             }
         });
@@ -446,28 +465,29 @@ $(document).ready(function() {
 
     // Load sub categories
     function loadSubCategories(categoryId, selector, selectedId = null) {
-        var subCategorySelect = $(selector);
+        var subCategorySelect = (selector instanceof jQuery) ? selector : $(selector);
         subCategorySelect.html('<option value="">Select Sub Category</option>');
 
-        if (categoryId) {
-            $.ajax({
-                url: '/expense-sub-categories/' + categoryId,
-                type: 'GET',
-                dataType: 'json',
-                success: function(response) {
-                    if (response.status == 200 && response.data) {
-                        response.data.forEach(function(subCategory) {
-                            var selected = selectedId && selectedId == subCategory.id ? 'selected' : '';
-                            subCategorySelect.append('<option value="' + subCategory.id + '" ' + selected + '>' + subCategory.subExpenseCategoryname + '</option>');
-                        });
+        if (!categoryId) {
+            return;
+        }
+
+        $.ajax({
+            url: '/expense-sub-categories/' + categoryId,
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                if (response.status == 200 && response.data) {
+                    response.data.forEach(function(subCategory) {
+                        var selected = selectedId && selectedId == subCategory.id ? 'selected' : '';
+                        subCategorySelect.append('<option value="' + subCategory.id + '" ' + selected + '>' + subCategory.subExpenseCategoryname + '</option>');
+                    });
+                    if (!(selector instanceof jQuery)) {
                         initializeSelectBox(selector, selector === '#subCategoryFilter' ? 'All Sub Categories' : 'Select Sub Category');
                     }
-                },
-                error: function() {
-                    console.error('Error loading sub categories');
                 }
-            });
-        }
+            }
+        });
     }
 
     // Load locations
@@ -501,119 +521,117 @@ $(document).ready(function() {
         });
     }
 
-    // Add expense item
     function addExpenseItem(itemData = null) {
-        var itemHtml = `
-            <div class="item-row" data-index="${itemCounter}">
-                <div class="row">
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label>Item Name <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="items[${itemCounter}][item_name]" value="${itemData ? itemData.item_name || '' : ''}" required>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label>Description</label>
-                            <input type="text" class="form-control" name="items[${itemCounter}][description]" value="${itemData ? itemData.description || '' : ''}">
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="form-group">
-                            <label>Quantity <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control quantity-input" name="items[${itemCounter}][quantity]" step="1" min="1" value="${itemData ? itemData.quantity || 1 : 1}" required>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="form-group">
-                            <label>Unit Price <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control unit-price-input" name="items[${itemCounter}][unit_price]" step="0.01" min="0" value="${itemData ? itemData.unit_price || 0 : 0}" required>
-                        </div>
-                    </div>
-                    <div class="col-md-1">
-                        <div class="form-group">
-                            <label>Total</label>
-                            <input type="number" class="form-control total-input" name="items[${itemCounter}][total]" value="${itemData ? itemData.total || 0 : 0}" readonly>
-                        </div>
-                    </div>
-                    <div class="col-md-1">
-                        <div class="form-group">
-                            <label>&nbsp;</label>
-                            <button type="button" class="btn btn-danger btn-sm d-block remove-item-btn">
-                                <i class="feather-trash-2"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        var index = itemCounter;
+        var amount = itemData && itemData.amount ? parseFloat(itemData.amount) : 0;
+
+        var rowHtml = `
+            <tr data-index="${index}">
+                <td>
+                    <select class="form-control row-category" name="items[${index}][category_id]" required>
+                        <option value="">Select Category</option>
+                    </select>
+                </td>
+                <td>
+                    <select class="form-control row-sub-category" name="items[${index}][sub_category_id]">
+                        <option value="">Select Sub Category</option>
+                    </select>
+                </td>
+                <td>
+                    <input type="text" class="form-control row-description" value="${itemData ? (itemData.description || '') : ''}" placeholder="e.g. March electricity bill" required>
+                    <input type="hidden" class="description-input" name="items[${index}][description]" value="">
+                    <input type="hidden" class="item-name-input" name="items[${index}][item_name]" value="">
+                    <input type="hidden" class="quantity-input" name="items[${index}][quantity]" value="1">
+                    <input type="hidden" class="unit-price-input" name="items[${index}][unit_price]" value="${amount.toFixed(2)}">
+                </td>
+                <td>
+                    <input type="number" class="form-control text-end row-amount" step="0.01" min="0" value="${amount.toFixed(2)}" placeholder="0.00" required>
+                </td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn"><i class="feather-trash-2"></i></button>
+                </td>
+            </tr>
         `;
 
-        $('#itemsContainer').append(itemHtml);
+        $('#itemsContainer').append(rowHtml);
+        var row = $('#itemsContainer tr').last();
+
+        loadParentCategories(function(categories) {
+            var categorySelect = row.find('.row-category');
+            categorySelect.html('<option value="">Select Category</option>');
+            categories.forEach(function(category) {
+                var selected = itemData && itemData.category_id == category.id ? 'selected' : '';
+                categorySelect.append('<option value="' + category.id + '" ' + selected + '>' + category.expenseParentCatergoryName + '</option>');
+            });
+
+            var selectedCategory = itemData ? itemData.category_id : '';
+            var selectedSubCategory = itemData ? itemData.sub_category_id : '';
+            if (selectedCategory) {
+                loadSubCategories(selectedCategory, row.find('.row-sub-category'), selectedSubCategory);
+            }
+            syncHiddenItemFields(row);
+            updateBackendCategoryFromFirstRow();
+            calculateTotals();
+        });
+
         itemCounter++;
     }
 
-    // Calculate totals (from item rows + additional charges)
-    function calculateTotals() {
-        var subtotal = 0;
+    function syncHiddenItemFields(row) {
+        var categoryText = row.find('.row-category option:selected').text().trim();
+        var subCategoryText = row.find('.row-sub-category option:selected').text().trim();
+        var description = (row.find('.row-description').val() || '').trim();
+        var amount = parseFloat(row.find('.row-amount').val()) || 0;
 
-        $('.item-row').each(function() {
-            var total = parseFloat($(this).find('.total-input').val()) || 0;
-            subtotal += total;
-        });
-
-        var taxAmount = parseFloat($('#tax_amount').val()) || 0;
-        var discountAmount = parseFloat($('#discount_amount').val()) || 0;
-        var discountType = $('#discount_type').val();
-        var shippingCharges = parseFloat($('#shipping_charges').val()) || 0;
-
-        var discountValue = 0;
-        if (discountType === 'percentage') {
-            discountValue = (subtotal * discountAmount) / 100;
-        } else {
-            discountValue = discountAmount;
+        var itemName = categoryText && categoryText !== 'Select Category' ? categoryText : 'Direct Expense';
+        var mergedDescription = description;
+        if (subCategoryText && subCategoryText !== 'Select Sub Category') {
+            mergedDescription = '[Sub: ' + subCategoryText + '] ' + mergedDescription;
         }
 
-        var total = subtotal + taxAmount - discountValue + shippingCharges;
+        row.find('.item-name-input').val(itemName);
+        row.find('.quantity-input').val(1);
+        row.find('.unit-price-input').val(amount.toFixed(2));
+        row.find('.row-description').val(description);
+        row.find('.description-input').val(mergedDescription);
+    }
 
-        $('#subtotalDisplay').text('Rs.' + subtotal.toFixed(2));
-        $('#taxDisplay').text('Rs.' + taxAmount.toFixed(2));
-        $('#discountDisplay').text('Rs.' + discountValue.toFixed(2));
-        $('#shippingDisplay').text('Rs.' + shippingCharges.toFixed(2));
+    function updateBackendCategoryFromFirstRow() {
+        var firstRow = $('#itemsContainer tr').first();
+        if (!firstRow.length) {
+            $('#expense_parent_category_id').val('');
+            $('#expense_sub_category_id').val('');
+            return;
+        }
+        $('#expense_parent_category_id').val(firstRow.find('.row-category').val() || '');
+        $('#expense_sub_category_id').val(firstRow.find('.row-sub-category').val() || '');
+    }
+
+    function calculateTotals() {
+        var total = 0;
+        $('#itemsContainer tr').each(function() {
+            total += parseFloat($(this).find('.row-amount').val()) || 0;
+        });
+
         $('#totalDisplay').text('Rs.' + total.toFixed(2));
         $('#total_amount').val(total.toFixed(2));
-    }
 
-    // Simple mode helper: ensure at least one hidden item row that mirrors the main amount
-    function syncSimpleItemFromPaidAmount() {
-        var amount = parseFloat($('#paid_amount').val()) || 0;
-
-        // Ensure at least one item row exists
-        if ($('.item-row').length === 0) {
-            addExpenseItem();
+        if ($('#payment_method').val() !== 'credit') {
+            $('#paid_amount').val(total.toFixed(2));
         }
-
-        // Use selected category name (or generic) as item name
-        var categoryText = $('#expense_parent_category_id option:selected').text() || 'General Expense';
-
-        $('.item-row').each(function() {
-            $(this).find('input[name*="[item_name]"]').val(categoryText.trim() || 'General Expense');
-            $(this).find('.quantity-input').val(1);
-            $(this).find('.unit-price-input').val(amount.toFixed(2));
-            $(this).find('.total-input').val(amount.toFixed(2));
-        });
-
-        calculateTotals();
     }
 
-    // Validate form (simple-mode focused)
+    function prepareFormMetaData() {
+        updateBackendCategoryFromFirstRow();
+
+        $('#itemsContainer tr').each(function() {
+            syncHiddenItemFields($(this));
+        });
+    }
+
     function validateForm() {
         var isValid = true;
         $('.text-danger').text('');
-
-        if (!$('#expense_parent_category_id').val()) {
-            $('#expense_parent_category_id_error').text('Expense category is required');
-            isValid = false;
-        }
 
         if (!$('#location_id').val()) {
             $('#location_id_error').text('Location is required');
@@ -625,10 +643,45 @@ $(document).ready(function() {
             isValid = false;
         }
 
-        // Simple mode: automatically prepare a single hidden expense item for backend
-        syncSimpleItemFromPaidAmount();
+        if ($('#itemsContainer tr').length === 0) {
+            $('#items_error').text('At least one expense row is required');
+            isValid = false;
+        }
 
-        return isValid;
+        $('#itemsContainer tr').each(function() {
+            var row = $(this);
+            var category = row.find('.row-category').val();
+            var description = (row.find('.row-description').val() || '').trim();
+            var amount = parseFloat(row.find('.row-amount').val()) || 0;
+
+            if (!category || !description || amount <= 0) {
+                isValid = false;
+            }
+        });
+
+        if (!isValid) {
+            $('#items_error').text('Please complete all expense item rows with category, description and valid amount.');
+            return false;
+        }
+
+        updateBackendCategoryFromFirstRow();
+        if (!$('#expense_parent_category_id').val()) {
+            $('#items_error').text('First expense row must contain a category.');
+            return false;
+        }
+
+        var total = parseFloat($('#total_amount').val()) || 0;
+        var paid = parseFloat($('#paid_amount').val()) || 0;
+        if (total <= 0) {
+            $('#items_error').text('Total expense must be greater than zero.');
+            return false;
+        }
+        if (paid < 0) {
+            $('#paid_amount_error').text('Paid amount cannot be negative');
+            return false;
+        }
+
+        return true;
     }
 
     // View expense details
@@ -732,16 +785,13 @@ $(document).ready(function() {
             html += '<h6><strong>Expense Items</strong></h6>';
             html += '<div class="table-responsive">';
             html += '<table class="table table-sm">';
-            html += '<thead><tr><th>Item</th><th>Description</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead>';
+            html += '<thead><tr><th>Description</th><th>Amount</th></tr></thead>';
             html += '<tbody>';
 
             expense.expense_items.forEach(function(item) {
                 html += '<tr>';
-                html += '<td>' + (item.item_name || 'N/A') + '</td>';
                 html += '<td>' + (item.description || 'N/A') + '</td>';
-                html += '<td>' + (item.quantity || 0) + '</td>';
-                html += '<td>Rs.' + parseFloat(item.unit_price || 0).toFixed(2) + '</td>';
-                html += '<td>Rs.' + parseFloat(item.total || 0).toFixed(2) + '</td>';
+                html += '<td>Rs.' + parseFloat(item.amount || item.total || 0).toFixed(2) + '</td>';
                 html += '</tr>';
             });
 

@@ -9,19 +9,20 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class ExpensePayment extends Model
 {
     use HasFactory, LocationTrait;
-    
+
     protected $table = 'expense_payments';
-    
+
     protected $fillable = [
         'expense_id',
+        'paid_from_account_id',
         'cash_register_id',
         'payment_date',
         'payment_method',
         'amount',
         'reference_no',
         'note',
+        'location_id',
         'created_by',
-        'updated_by',
     ];
 
     protected $casts = [

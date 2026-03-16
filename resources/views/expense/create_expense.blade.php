@@ -6,13 +6,25 @@
             border-radius: 8px;
             padding: 20px;
         }
-        .item-row {
-            background: white;
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
-            padding: 15px;
-            margin-bottom: 10px;
+
+        .section-card {
+            background: #fff;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
         }
+
+        .expense-items-table th,
+        .expense-items-table td {
+            vertical-align: middle;
+        }
+
+        .expense-items-table .form-control,
+        .expense-items-table .form-select {
+            min-width: 140px;
+        }
+
         .total-section {
             background: #e9ecef;
             border-radius: 5px;
@@ -98,159 +110,75 @@
                                 </div>
                             </div>
 
-                            <!-- Category Information -->
+                            <!-- Expense Items Section -->
+                            <div class="section-card">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 class="mb-0">Expense Items</h5>
+                                    <button type="button" class="btn btn-outline-primary btn-sm" id="addItemBtn">
+                                        <i class="feather-plus"></i> Add Row
+                                    </button>
+                                </div>
+
+                                <div class="table-responsive">
+                                    <table class="table table-bordered expense-items-table mb-2">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th style="min-width:180px;">Category <span class="text-danger">*</span></th>
+                                                <th style="min-width:180px;">Sub Category</th>
+                                                <th>Description <span class="text-danger">*</span></th>
+                                                <th style="min-width:140px;">Amount <span class="text-danger">*</span></th>
+                                                <th style="width:70px;">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="itemsContainer"></tbody>
+                                    </table>
+                                </div>
+                                <span class="text-danger" id="items_error"></span>
+                            </div>
+
+                            <!-- Totals and Payment -->
                             <div class="row mb-4">
-                                <div class="col-md-12">
-                                    <h5 class="mb-3">Category Information</h5>
-                                </div>
-
-                                <div class="col-md-3">
-                                    <div class="form-group">
-                                        <label>Expense Category <span class="text-danger">*</span></label>
-                                        <select class="form-control select2 selectBox" name="expense_parent_category_id" id="expense_parent_category_id" required>
-                                            <option value="">Select Category</option>
-                                            @if(isset($expenseParentCategories))
-                                                @foreach($expenseParentCategories as $category)
-                                                    <option value="{{ $category->id }}">{{ $category->expenseParentCatergoryName }}</option>
-                                                @endforeach
-                                            @endif
-                                        </select>
-                                        <span class="text-danger" id="expense_parent_category_id_error"></span>
+                                <div class="col-md-4 mb-3 mb-md-0">
+                                    <div class="section-card h-100">
+                                        <h5>Total Expense</h5>
+                                        <h3 class="mb-1" id="totalDisplay">Rs.0.00</h3>
+                                        <small class="text-muted">Auto-calculated from expense items.</small>
+                                        <input type="hidden" name="total_amount" id="total_amount" value="0">
+                                        <input type="hidden" name="expense_parent_category_id" id="expense_parent_category_id">
+                                        <input type="hidden" name="expense_sub_category_id" id="expense_sub_category_id">
                                     </div>
                                 </div>
-
-                                <div class="col-md-3">
-                                    <div class="form-group">
-                                        <label>Sub Category</label>
-                                        <select class="form-control select2 selectBox" name="expense_sub_category_id" id="expense_sub_category_id">
-                                            <option value="">Select Sub Category</option>
-                                        </select>
-                                        <span class="text-danger" id="expense_sub_category_id_error"></span>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label>Paid To <small class="text-muted">(Optional)</small></label>
-                                        <input type="text" class="form-control" name="paid_to" id="paid_to" placeholder="Enter person/company name">
-                                        <small class="text-muted">For rent, EB bill, salary, transport, internet, cleaning, repair, etc.</small>
-                                        <span class="text-danger" id="paid_to_error"></span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Expense Items (hidden in simple mode, kept for backend compatibility) -->
-                            <div class="row mb-4 d-none">
-                                <div class="col-md-12">
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <h5>Expense Items</h5>
-                                        <button type="button" class="btn btn-outline-primary btn-sm" id="addItemBtn">
-                                            <i class="feather-plus"></i> Add Item
-                                        </button>
-                                    </div>
-
-                                    <div id="itemsContainer">
-                                        <!-- Items will be added here -->
-                                    </div>
-                                    <span class="text-danger" id="items_error"></span>
-                                </div>
-                            </div>
-
-                            <!-- Additional Charges (hidden in simple mode) -->
-                            <div class="row mb-4 d-none">
-                                <div class="col-md-12">
-                                    <h5 class="mb-3">Additional Charges</h5>
-                                </div>
-
-                                <div class="col-md-3">
-                                    <div class="form-group">
-                                        <label>Tax Amount</label>
-                                        <input type="number" class="form-control" name="tax_amount" id="tax_amount" value="0" step="0.01" min="0">
-                                        <span class="text-danger" id="tax_amount_error"></span>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-3">
-                                    <div class="form-group">
-                                        <label>Discount Type</label>
-                                        <select class="form-control" name="discount_type" id="discount_type">
-                                            <option value="fixed">Fixed Amount</option>
-                                            <option value="percentage">Percentage</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-3">
-                                    <div class="form-group">
-                                        <label>Discount Amount</label>
-                                        <input type="number" class="form-control" name="discount_amount" id="discount_amount" value="0" step="0.01" min="0">
-                                        <span class="text-danger" id="discount_amount_error"></span>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-3">
-                                    <div class="form-group">
-                                        <label>Shipping Charges</label>
-                                        <input type="number" class="form-control" name="shipping_charges" id="shipping_charges" value="0" step="0.01" min="0">
-                                        <span class="text-danger" id="shipping_charges_error"></span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Total Section -->
-                            <div class="row mb-4">
-                                <div class="col-md-12">
-                                    <div class="total-section">
+                                <div class="col-md-8">
+                                    <div class="section-card h-100">
                                         <div class="row">
-                                            <div class="col-md-6">
-                                                <h5>Payment Information</h5>
-
+                                            <div class="col-md-4">
                                                 <div class="form-group mb-3">
                                                     <label>Payment Method <span class="text-danger">*</span></label>
                                                     <select class="form-control" name="payment_method" id="payment_method" required>
                                                         <option value="">Select Payment Method</option>
-                                                        <option value="cash">Cash</option>
-                                                        <option value="bank_transfer">Bank Transfer</option>
-                                                        <option value="check">Check</option>
+                                                        <option value="cash" selected>Cash</option>
+                                                        <option value="bank_transfer">Bank</option>
                                                         <option value="card">Card</option>
-                                                        <option value="other">Other</option>
+                                                        <option value="credit">Credit</option>
                                                     </select>
                                                     <span class="text-danger" id="payment_method_error"></span>
                                                 </div>
-
-                                                <div class="form-group">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-group mb-3">
                                                     <label>Paid Amount <span class="text-danger">*</span></label>
                                                     <input type="number" class="form-control" name="paid_amount" id="paid_amount" value="0" step="0.01" min="0" required>
+                                                    <small class="text-muted">For cash/bank/card this is auto set to total. For credit set partial amount if needed.</small>
                                                     <span class="text-danger" id="paid_amount_error"></span>
                                                 </div>
                                             </div>
-
-                                            <div class="col-md-6">
-                                                <h5>Total Calculation</h5>
-                                                <table class="table table-sm">
-                                                    <tr>
-                                                        <td>Subtotal:</td>
-                                                        <td class="text-end"><strong id="subtotalDisplay">Rs.0.00</strong></td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td>Tax:</td>
-                                                        <td class="text-end"><strong id="taxDisplay">Rs.0.00</strong></td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td>Discount:</td>
-                                                        <td class="text-end"><strong id="discountDisplay">Rs.0.00</strong></td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td>Shipping:</td>
-                                                        <td class="text-end"><strong id="shippingDisplay">Rs.0.00</strong></td>
-                                                    </tr>
-                                                    <tr class="table-active">
-                                                        <td><strong>Total Amount:</strong></td>
-                                                        <td class="text-end"><strong id="totalDisplay">Rs.0.00</strong></td>
-                                                    </tr>
-                                                </table>
-
-                                                <input type="hidden" name="total_amount" id="total_amount" value="0">
+                                            <div class="col-md-12">
+                                                <div class="form-group mb-0">
+                                                    <label>Paid To <small class="text-muted">(Vendor / Person / Company)</small></label>
+                                                    <input type="text" class="form-control" name="paid_to" id="paid_to" placeholder="Enter person/company name">
+                                                    <small class="text-muted">Example: Electricity board, internet provider, cleaner, transport person.</small>
+                                                    <span class="text-danger" id="paid_to_error"></span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
