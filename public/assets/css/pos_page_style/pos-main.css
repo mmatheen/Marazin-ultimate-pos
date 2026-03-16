@@ -5253,9 +5253,10 @@
                 font-size: 12px !important;
             }
 
-            /* Hide Rs / % helper labels under discount inputs on desktop for flat alignment */
+            /* Rs / % helper labels under discount inputs */
             .pos-discount-group small {
-                display: none !important;
+                display: block;
+                font-size: 0.65rem;
             }
         }
 

@@ -522,8 +522,8 @@ async function addProductToBillingBody(
                         type="number"
                         name="discount_percent[]"
                         class="form-control percent_discount text-center pos-discount-input"
-                        value="${priceValidationEnabled === 0 ? '' : discountPercent.toFixed(2)}"
-                        ${priceValidationEnabled === 0 ? 'readonly' : ((priceValidationEnabled === 1 && !canEditDiscount && !isEditing) ? 'readonly' : '')}>
+                        value="${discountPercent.toFixed(2)}"
+                        ${(priceValidationEnabled === 1 && !canEditDiscount && !isEditing) ? 'readonly' : ''}>
                     <small class="text-muted" style="font-size: 0.7rem;">%</small>
                 </div>
             </div>
