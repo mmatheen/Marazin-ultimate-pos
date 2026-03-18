@@ -642,9 +642,11 @@ function updateReportTable(data) {
                     className: 'btn btn-success btn-sm'
                 },
                 {
-                    extend: 'pdf',
-                    title: `Profit Loss Report - ${getReportTitle(reportType)}`,
-                    className: 'btn btn-danger btn-sm'
+                    text: '<i class="fas fa-file-pdf"></i> PDF',
+                    className: 'btn btn-danger btn-sm',
+                    action: function(e, dt, node, config) {
+                        exportServerPdf();
+                    }
                 },
                 {
                     extend: 'print',
@@ -670,6 +672,50 @@ function updateReportTable(data) {
         alert('Error initializing table: ' + error.message);
         return;
     }
+}
+
+// Export PDF via server-side DomPDF (professional layout)
+function exportServerPdf() {
+    const formData = new FormData(document.getElementById('reportFilters'));
+    const btn = document.querySelector('.btn-danger.btn-sm');
+    const originalHtml = btn ? btn.innerHTML : '';
+
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+        btn.disabled = true;
+    }
+
+    fetch('{{ route("profit-loss.export.pdf") }}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        return response.blob();
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'profit-loss-report-' + new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-') + '.pdf';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+    })
+    .catch(error => {
+        console.error('PDF Export Error:', error);
+        alert('Error exporting PDF: ' + error.message);
+    })
+    .finally(() => {
+        if (btn) {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+    });
 }
 
 // Get report title

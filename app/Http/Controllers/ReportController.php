@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\Customer;
 use App\Models\Brand;
 use App\Models\Location;
+use App\Models\Setting;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ProfitLossExport;
@@ -290,12 +291,23 @@ public function fetchActivityLog(Request $request)
     {
         $filters = $this->getFilters($request);
         $reportData = $this->profitLossService->generateReport($filters);
+        $setting = Setting::first();
 
-        $pdf = Pdf::loadView('reports.profit_loss_pdf', compact('reportData', 'filters'));
+        // Resolve selected location names for display
+        $locationLabel = 'All Locations';
+        if (!empty($filters['location_ids'])) {
+            $locationLabel = Location::whereIn('id', $filters['location_ids'])
+                ->pluck('name')->implode(', ');
+        }
+
+        $pdf = Pdf::loadView('reports.profit_loss_pdf', compact('reportData', 'filters', 'setting', 'locationLabel'))
+            ->setPaper('a4', 'portrait');
 
         $filename = 'profit-loss-report-' . date('Y-m-d-H-i-s') . '.pdf';
 
-        return $pdf->download($filename);
+        return response()->streamDownload(function () use ($pdf) {
+            echo $pdf->output();
+        }, $filename, ['Content-Type' => 'application/pdf']);
     }
 
     /**
