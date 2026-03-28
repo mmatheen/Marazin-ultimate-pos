@@ -554,6 +554,23 @@
                         <td class="amount">{{ number_format($item['amount'], 2, '.', ',') }}</td>
                     </tr>
 
+                    {{-- Show VAT per product if applicable --}}
+                    @php
+                        $productVatTotal = (float) ($item['product']->vat_total ?? 0);
+                        $productTaxPercent = (float) ($item['product']->tax_percent ?? 0);
+                    @endphp
+                    @if ($productVatTotal > 0)
+                        <tr class="product-vat-row">
+                            <td>&nbsp;</td>
+                            <td style="text-align: right; font-size: {{ $fontSizeBase - 1 }}px;">
+                                VAT @if ($productTaxPercent > 0)({{ number_format($productTaxPercent, 0, '.', '') }}%)@endif
+                            </td>
+                            <td colspan="3" style="text-align: right; font-weight: bold; font-size: {{ $fontSizeBase - 1 }}px;">
+                                {{ number_format($productVatTotal, 2, '.', ',') }}
+                            </td>
+                        </tr>
+                    @endif
+
                     @if (!$loop->last)
                         <tr>
                             <td colspan="5"><hr class="divider divider-light"></td>

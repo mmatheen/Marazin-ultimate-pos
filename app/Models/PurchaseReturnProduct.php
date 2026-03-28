@@ -16,7 +16,11 @@ class PurchaseReturnProduct extends Model
         'quantity',
         'free_quantity',     // Free items returned to supplier
         'unit_price',
+        'tax_percent',
+        'vat_per_unit',
+        'net_unit_cost',
         'subtotal',
+        'vat_total',
     ];
 
     public function purchaseReturn()

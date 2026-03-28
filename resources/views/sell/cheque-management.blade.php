@@ -247,6 +247,9 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="card-title mb-0">Cheque List</h5>
                         <div>
+                            @php
+                                $showRecoveredRows = request()->boolean('show_recovered');
+                            @endphp
                             <button type="button" class="btn btn-success btn-sm me-2" id="bulkClear" disabled>
                                 <i class="fas fa-check"></i> Mark as Cleared
                             </button>
@@ -258,6 +261,13 @@
                             </button>
                             <button type="button" class="btn btn-warning btn-sm me-2" id="bulkRecoveryPayment" disabled>
                                 <i class="fas fa-money-bill-wave"></i> Recovery Payment
+                            </button>
+                            <button type="button" class="btn btn-sm me-2 {{ $showRecoveredRows ? 'btn-dark' : 'btn-outline-dark' }}" id="toggleRecoveredRows">
+                                @if($showRecoveredRows)
+                                    <i class="fas fa-eye"></i> Hide Recovered Bounced
+                                @else
+                                    <i class="fas fa-eye-slash"></i> Show Recovered Bounced
+                                @endif
                             </button>
                             <button type="button" class="btn btn-secondary btn-sm" id="refreshData">
                                 <i class="fas fa-sync-alt"></i> Refresh
@@ -294,15 +304,26 @@
                             </thead>
                             <tbody id="chequesTableBody">
                                 @forelse($cheques as $payment)
+                                @php
+                                    $currentStatus = $payment->cheque_status ?? 'pending';
+                                    $isRecoveredBouncedCheque = $currentStatus === 'bounced' && (($payment->recovery_payments_count ?? 0) > 0);
+                                    $isSelectable = !$isRecoveredBouncedCheque;
+                                    $canUpdate = in_array($currentStatus, ['pending', 'deposited']) && $isSelectable;
+                                @endphp
                                 <tr data-status="{{ $payment->cheque_status ?? 'pending' }}"
                                     data-amount="{{ $payment->amount }}"
                                     data-bank-charges="{{ $payment->bank_charges ?? 0 }}"
-                                    data-customer-id="{{ $payment->customer_id }}">
+                                    data-customer-id="{{ $payment->customer_id }}"
+                                    data-has-recovery="{{ ($payment->recovery_payments_count ?? 0) > 0 ? 1 : 0 }}">
                                     <td>
+                                        @if($isSelectable)
                                         <input type="checkbox" class="form-check-input cheque-checkbox" value="{{ $payment->id }}">
+                                        @else
+                                        <i class="fas fa-lock text-muted" title="Already recovered - selection disabled"></i>
+                                        @endif
                                     </td>
                                     <td>
-                                        <strong>{{ $payment->sale->invoice_no ?? 'N/A' }}</strong>
+                                        <strong>{{ $payment->sale->invoice_no ?? $payment->originalPayment?->sale?->invoice_no ?? 'N/A' }}</strong>
                                     </td>
                                     <td>{{ $payment->customer->full_name ?? 'Unknown' }}</td>
                                     <td>
@@ -354,15 +375,8 @@
                                         @if(($payment->cheque_status ?? 'pending') === 'bounced')
                                             <span class="badge bg-warning">Floating Balance</span>
                                             <br><small class="text-danger">+Rs. {{ number_format($payment->amount + ($payment->bank_charges ?? 0), 2) }}</small>
-                                            @if($payment->customer)
-                                                <br><a href="{{ route('floating-balance.customer', $payment->customer_id) }}"
-                                                       class="btn btn-sm btn-outline-info mt-1 view-balance-btn"
-                                                       data-customer-id="{{ $payment->customer_id }}"
-                                                       target="_blank"
-                                                       title="View {{ $payment->customer->full_name ?? 'Customer' }} Balance"
-                                                       style="pointer-events: auto !important; position: relative; z-index: 1000;">
-                                                    <i class="fas fa-eye"></i> View Balance
-                                                </a>
+                                            @if($isRecoveredBouncedCheque)
+                                                <br><small class="text-success"><i class="fas fa-check-circle"></i> Recovery Initiated</small>
                                             @endif
                                         @else
                                             <span class="text-muted">No Impact</span>
@@ -389,10 +403,6 @@
                                             <button type="button" class="btn btn-sm btn-outline-info" onclick="viewChequeDetails({{ $payment->id }})" title="View Details">
                                                 <i class="fas fa-eye"></i>
                                             </button>
-                                            @php
-                                                $currentStatus = $payment->cheque_status ?? 'pending';
-                                                $canUpdate = in_array($currentStatus, ['pending', 'deposited']);
-                                            @endphp
                                             @if($canUpdate)
                                             <button type="button" class="btn btn-sm btn-outline-primary" onclick="updateChequeStatus({{ $payment->id }}, '{{ $currentStatus }}')" title="Update Status">
                                                 <i class="fas fa-edit"></i>
@@ -406,9 +416,6 @@
                                                 <i class="fas fa-history"></i>
                                             </button>
                                             @if(($payment->cheque_status ?? 'pending') === 'bounced' && $payment->customer_id)
-                                            <button type="button" class="btn btn-sm btn-outline-success" onclick="recordRecoveryPayment({{ $payment->customer_id }}, {{ $payment->amount + ($payment->bank_charges ?? 0) }})" title="Record Recovery">
-                                                <i class="fas fa-money-bill"></i>
-                                            </button>
                                             <button type="button" class="btn btn-sm btn-outline-warning" onclick="viewRecoveryChain({{ $payment->id }})" title="View Recovery Chain">
                                                 <i class="fas fa-link"></i>
                                             </button>
@@ -475,58 +482,6 @@
     </div>
 </div>
 
-<!-- Recovery Payment Modal -->
-<div class="modal fade" id="recoveryPaymentModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Record Recovery Payment</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form id="recoveryPaymentForm">
-                <div class="modal-body">
-                    <input type="hidden" id="recoveryCustomerId">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle"></i>
-                        <strong>Recovery Payment:</strong> This payment will reduce the customer's floating balance (bounced cheques, bank charges, etc.) without affecting any specific bill.
-                    </div>
-                    <div class="mb-3">
-                        <label for="recoveryAmount" class="form-label">Recovery Amount</label>
-                        <input type="number" class="form-control" id="recoveryAmount" name="amount" step="0.01" min="0.01" required placeholder="0.00">
-                        <small class="form-text text-muted">Amount to recover from floating balance</small>
-                    </div>
-                    <div class="mb-3">
-                        <label for="recoveryPaymentMethod" class="form-label">Payment Method</label>
-                        <select class="form-control" id="recoveryPaymentMethod" name="payment_method" required>
-                            <option value="">Select Method</option>
-                            <option value="cash">Cash</option>
-                            <option value="bank_transfer">Bank Transfer</option>
-                            <option value="card">Card</option>
-                            <option value="upi">UPI</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="recoveryPaymentDate" class="form-label">Payment Date</label>
-                        <input type="date" class="form-control" id="recoveryPaymentDate" name="payment_date" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="recoveryNotes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="recoveryNotes" name="notes" rows="3" placeholder="Recovery payment for bounced cheque..."></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label for="recoveryReferenceNo" class="form-label">Reference Number</label>
-                        <input type="text" class="form-control" id="recoveryReferenceNo" name="reference_no" placeholder="Transaction/Receipt number (optional)">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success">Record Payment</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 <!-- Cheque Details Modal -->
 <div class="modal fade" id="chequeDetailsModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -553,6 +508,37 @@
             <div class="modal-body" id="statusHistoryContent">
                 <!-- Content will be loaded via AJAX -->
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Bounce Modal -->
+<div class="modal fade" id="bulkBounceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Bulk Bounce Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="bulkBounceForm">
+                <div class="modal-body">
+                    <div class="alert alert-warning py-2">
+                        <small><i class="fas fa-exclamation-triangle"></i> Bank charges will be applied to each selected cheque.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="bulkBounceBankCharges" class="form-label">Bank Charges <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="bulkBounceBankCharges" step="0.01" min="0" required placeholder="Enter bank charges">
+                    </div>
+                    <div class="mb-3">
+                        <label for="bulkBounceRemarks" class="form-label">Remarks</label>
+                        <textarea class="form-control" id="bulkBounceRemarks" rows="3" placeholder="Reason for cheque bounce"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Confirm Bounce</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -613,6 +599,13 @@
                         </div>
                     </div>
 
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <label for="recoveryReferenceNo" class="form-label fw-bold">Reference No</label>
+                            <input type="text" class="form-control" id="recoveryReferenceNo" name="reference_number" placeholder="Enter reference no (optional)">
+                        </div>
+                    </div>
+
                     <!-- Dynamic Payment Fields -->
                     <div id="recoveryPaymentFields" class="mt-3">
                         <!-- Will be populated based on selected method -->
@@ -658,16 +651,6 @@ $(document).ready(function() {
     });
 
     // Load customers for filter dropdown
-    console.log('Initializing customer dropdown...');
-
-    // Test if dropdown is accessible
-    const testSelect = $('#customerFilter');
-    if (testSelect.length === 0) {
-        console.error('Customer dropdown element not found!');
-    } else {
-        console.log('Customer dropdown element found:', testSelect);
-    }
-
     loadCustomers();
 
     // Pre-populate filters from URL parameters
@@ -676,16 +659,9 @@ $(document).ready(function() {
     // Initialize filter status indicators
     updateFilterIndicators();
 
-    // Add debug info to console
-    console.log('Cheque Management Page Loaded');
-    console.log('Available debug functions:');
-    console.log('- testFloatingBalance(customerId) - Test floating balance route');
-    console.log('- $(document).find(".view-balance-btn") - Find all View Balance buttons');
-    console.log('Available View Balance buttons:', $('.view-balance-btn').length);
-
     // Select all checkbox functionality
     $('#selectAll').on('change', function() {
-        $('.cheque-checkbox').prop('checked', this.checked);
+        $('.cheque-checkbox:not(:disabled)').prop('checked', this.checked);
         updateBulkActionButtons();
     });
 
@@ -723,74 +699,6 @@ $(document).ready(function() {
         }
     });
 
-    // View Balance button handler with comprehensive error handling
-    $(document).on('click', '.view-balance-btn', function(e) {
-        const $btn = $(this);
-        const customerId = $btn.data('customer-id');
-        const href = $btn.attr('href');
-        const originalText = $btn.html();
-
-        console.log('View Balance clicked:', {
-            customerId: customerId,
-            href: href,
-            element: this
-        });
-
-        if (!customerId) {
-            e.preventDefault();
-            alert('Error: Customer ID not found');
-            return false;
-        }
-
-        // Prevent default and handle manually
-        e.preventDefault();
-
-        // Show loading state
-        $btn.html('<i class="fas fa-spinner fa-spin"></i> Loading...');
-        $btn.prop('disabled', true);
-
-        // First test if the route exists with AJAX
-        $.ajax({
-            url: href,
-            method: 'HEAD', // Just check if route exists
-            timeout: 5000,
-            success: function() {
-                console.log('Route verified, opening floating balance');
-                // Route exists, try to open it
-                const newWindow = window.open(href, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
-
-                if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
-                    // Popup blocked, show message and offer alternative
-                    if (confirm('Popup was blocked. Open in current tab instead?')) {
-                        window.location.href = href;
-                    }
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Route check failed:', xhr.status, error);
-
-                if (xhr.status === 404) {
-                    alert('Error: Floating balance page not found');
-                } else if (xhr.status === 403) {
-                    alert('Error: Access denied to floating balance');
-                } else if (xhr.status === 401) {
-                    alert('Error: Please login to view floating balance');
-                } else {
-                    // Try direct navigation as fallback
-                    console.log('Trying direct navigation...');
-                    window.open(href, '_blank');
-                }
-            },
-            complete: function() {
-                // Restore button state
-                setTimeout(() => {
-                    $btn.html(originalText);
-                    $btn.prop('disabled', false);
-                }, 1000);
-            }
-        });
-    });
-
     // Allow Enter key to apply filters from text inputs
     $('#chequeNumberFilter, #fromDate, #toDate').on('keypress', function(e) {
         if (e.which === 13) { // Enter key
@@ -804,19 +712,9 @@ $(document).ready(function() {
         if (!chequesDataTable) return;
 
         const status = $('#statusFilter').val();
-        const customer = $('#customerFilter').val();
         const chequeNumber = $('#chequeNumberFilter').val();
         const fromDate = $('#fromDate').val();
         const toDate = $('#toDate').val();
-
-        console.log('Applying filters:', {
-            status: status,
-            customer: customer,
-            customerName: $('#customerFilter option:selected').text(),
-            chequeNumber: chequeNumber,
-            fromDate: fromDate,
-            toDate: toDate
-        });
 
         // Trigger DataTable redraw which will use the custom search function
         chequesDataTable.draw();
@@ -840,10 +738,15 @@ $(document).ready(function() {
             const row = $('#chequesTable').DataTable().row(dataIndex).node();
 
             // Get row data - data array contains plain text from columns
-            const rowCustomer = data[2] ? data[2].toLowerCase() : ''; // Customer column
             const rowChequeNumber = data[3] ? data[3].toLowerCase().replace(/<[^>]*>/g, '').trim() : ''; // Cheque Number (strip HTML)
             const rowDate = data[7] ? data[7].trim() : ''; // Valid Date column
-            const rowStatus = data[8] ? data[8].toLowerCase().replace(/<[^>]*>/g, '').trim() : ''; // Status column (strip HTML badges)
+            const rowStatus = String($(row).data('status') || '').toLowerCase();
+            const rowHasRecovery = String($(row).attr('data-has-recovery') || '0') === '1';
+
+            // Hide recovered bounced rows by default; show only when explicitly requested.
+            if (!showRecoveredBouncedRows && rowStatus === 'bounced' && rowHasRecovery) {
+                return false;
+            }
 
             // Filter by status
             if (status && status !== '' && status !== 'all') {
@@ -857,8 +760,6 @@ $(document).ready(function() {
                 const rowCustomerId = $(row).data('customer-id') || $(row).attr('data-customer-id');
                 const filterCustomerId = String(customerFilter).trim();
                 const rowCustomerIdStr = String(rowCustomerId).trim();
-
-                console.log('Customer filter check - Row ID:', rowCustomerIdStr, 'Filter ID:', filterCustomerId, 'Match:', rowCustomerIdStr === filterCustomerId);
 
                 if (rowCustomerIdStr !== filterCustomerId) {
                     return false;
@@ -908,6 +809,20 @@ $(document).ready(function() {
         location.reload();
     });
 
+    // Show/hide recovered bounced rows on demand.
+    $('#toggleRecoveredRows').on('click', function() {
+        const url = new URL(window.location.href);
+        const currentlyShowingRecovered = url.searchParams.get('show_recovered') === '1';
+
+        if (currentlyShowingRecovered) {
+            url.searchParams.delete('show_recovered');
+        } else {
+            url.searchParams.set('show_recovered', '1');
+        }
+
+        window.location.href = url.toString();
+    });
+
     // Enhanced table scrolling functionality
     initializeTableScrolling();
 
@@ -937,7 +852,12 @@ $(document).ready(function() {
     });
 
     $('#bulkBounce').on('click', function() {
-        bulkUpdateStatus('bounced');
+        openBulkBounceModal();
+    });
+
+    $('#bulkBounceForm').on('submit', function(e) {
+        e.preventDefault();
+        submitBulkBounce();
     });
 
     // Bulk Recovery Payment
@@ -956,11 +876,6 @@ $(document).ready(function() {
         processBulkRecoveryPayment();
     });
 
-    // Recovery payment form
-    $('#recoveryPaymentForm').on('submit', function(e) {
-        e.preventDefault();
-        submitRecoveryPayment();
-    });
 });
 
 function initializeTableScrolling() {
@@ -1043,13 +958,6 @@ function populateFiltersFromURL() {
         $('#chequeNumberFilter').val(urlParams.get('cheque_number'));
     }
 
-    console.log('Filters populated from URL:', {
-        status: urlParams.get('status'),
-        customer_id: urlParams.get('customer_id'),
-        from_date: urlParams.get('from_date'),
-        to_date: urlParams.get('to_date'),
-        cheque_number: urlParams.get('cheque_number')
-    });
 }
 
 function updateFilterIndicators() {
@@ -1106,9 +1014,6 @@ function clearAllFilters() {
 }
 
 function loadCustomers() {
-    console.log('Loading customers for cheque management...');
-    console.log('CSRF Token:', $('meta[name="csrf-token"]').attr('content'));
-
     $.ajax({
         url: '/customer-get-all',
         method: 'GET',
@@ -1118,7 +1023,6 @@ function loadCustomers() {
             'X-Requested-With': 'XMLHttpRequest'
         },
         success: function(response) {
-            console.log('Customer response for cheque management:', response);
             const customerSelect = $('#customerFilter');
             customerSelect.empty().append('<option value="">All Customers</option>');
 
@@ -1139,7 +1043,6 @@ function loadCustomers() {
                         allowClear: true
                     });
 
-                    console.log(`Successfully loaded ${customers.length} customers for cheque management`);
                 } else {
                     console.warn('No customers found in the response');
                 }
@@ -1169,8 +1072,6 @@ function loadCustomers() {
 
             customerSelect.empty().append(`<option value="">All Customers (${errorMessage})</option>`);
 
-            // Add a manual test option for debugging
-            customerSelect.append('<option value="test">Test Customer (Manual)</option>');
         }
     });
 }
@@ -1284,33 +1185,14 @@ function updateBulkActionButtons() {
     }
 }
 
-// Debug function to test floating balance route
-window.testFloatingBalance = function(customerId) {
-    customerId = customerId || 1; // Default to customer ID 1 for testing
-    const url = `/floating-balance/customer/${customerId}`;
-    console.log('Testing floating balance URL:', url);
-
-    // Test with AJAX first
-    $.ajax({
-        url: url,
-        method: 'GET',
-        success: function(response) {
-            console.log('Floating balance route is working:', response);
-            window.open(url, '_blank');
-        },
-        error: function(xhr, status, error) {
-            console.error('Floating balance route error:', {
-                status: xhr.status,
-                error: error,
-                response: xhr.responseText
-            });
-        }
-    });
-};
-
 function updateSelectAllCheckbox() {
-    const totalCheckboxes = $('.cheque-checkbox').length;
+    const totalCheckboxes = $('.cheque-checkbox:not(:disabled)').length;
     const checkedCheckboxes = $('.cheque-checkbox:checked').length;
+
+    if (totalCheckboxes === 0) {
+        $('#selectAll').prop('indeterminate', false).prop('checked', false);
+        return;
+    }
 
     if (checkedCheckboxes === 0) {
         $('#selectAll').prop('indeterminate', false).prop('checked', false);
@@ -1323,6 +1205,7 @@ function updateSelectAllCheckbox() {
 
 // Initialize DataTables with row grouping by cheque number
 let chequesDataTable;
+let showRecoveredBouncedRows = new URLSearchParams(window.location.search).get('show_recovered') === '1';
 
 function initializeDataTable() {
     // Safely destroy existing DataTable if it exists
@@ -1404,6 +1287,23 @@ function initializeDataTable() {
     });
 }
 
+function formatDisplayDate(dateValue) {
+    if (!dateValue) {
+        return 'N/A';
+    }
+
+    const parsedDate = new Date(dateValue);
+    if (isNaN(parsedDate.getTime())) {
+        return dateValue;
+    }
+
+    return parsedDate.toLocaleDateString('en-GB', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+}
+
 function viewChequeDetails(paymentId) {
     $.ajax({
         url: `/cheque/status-history/${paymentId}`,
@@ -1413,6 +1313,9 @@ function viewChequeDetails(paymentId) {
                 const payment = response.payment;
                 const sale = payment.sale || {};
                 const customer = payment.customer || {};
+                const customerName = customer.full_name || [customer.prefix, customer.first_name, customer.last_name].filter(Boolean).join(' ').trim() || 'N/A';
+                const saleStatus = sale.payment_status || 'N/A';
+                const saleStatusBadgeClass = saleStatus === 'Paid' ? 'success' : (saleStatus === 'Partial' ? 'warning' : 'secondary');
 
                 // Enhanced details with bounce impact information
                 let bounceImpactHtml = '';
@@ -1430,7 +1333,7 @@ function viewChequeDetails(paymentId) {
                                     <div class="col-md-6">
                                         <p><strong>Customer Impact:</strong> <span class="badge bg-warning">Floating Balance Added</span></p>
                                         <p><strong>Total Added:</strong> Rs. ${numberFormat((payment.amount || 0) + (payment.bank_charges || 0))}</p>
-                                        <p><strong>Bounce Date:</strong> ${payment.cheque_bounce_date || 'N/A'}</p>
+                                        <p><strong>Bounce Date:</strong> ${formatDisplayDate(payment.cheque_bounce_date)}</p>
                                     </div>
                                 </div>
                                 <p><strong>Bounce Reason:</strong> ${payment.cheque_bounce_reason || 'Not specified'}</p>
@@ -1448,20 +1351,20 @@ function viewChequeDetails(paymentId) {
                                 <tr><td><strong>Cheque Number:</strong></td><td>${payment.cheque_number || 'N/A'}</td></tr>
                                 <tr><td><strong>Bank/Branch:</strong></td><td>${payment.cheque_bank_branch || 'N/A'}</td></tr>
                                 <tr><td><strong>Given By:</strong></td><td>${payment.cheque_given_by || 'N/A'}</td></tr>
-                                <tr><td><strong>Received Date:</strong></td><td>${payment.cheque_received_date || 'N/A'}</td></tr>
-                                <tr><td><strong>Valid Date:</strong></td><td>${payment.cheque_valid_date || 'N/A'}</td></tr>
+                                <tr><td><strong>Received Date:</strong></td><td>${formatDisplayDate(payment.cheque_received_date)}</td></tr>
+                                <tr><td><strong>Valid Date:</strong></td><td>${formatDisplayDate(payment.cheque_valid_date)}</td></tr>
                                 <tr><td><strong>Status:</strong></td><td><span class="badge bg-primary">${payment.cheque_status}</span></td></tr>
                             </table>
                         </div>
                         <div class="col-md-6">
                             <h6 class="fw-bold">Sale Details</h6>
                             <table class="table table-sm table-borderless">
-                                <tr><td><strong>Invoice:</strong></td><td>${sale.invoice_no || 'N/A'}</td></tr>
-                                <tr><td><strong>Customer:</strong></td><td>${customer.full_name || 'N/A'}</td></tr>
-                                <tr><td><strong>Sale Date:</strong></td><td>${sale.sales_date || 'N/A'}</td></tr>
+                                <tr><td><strong>Invoice:</strong></td><td>${sale.invoice_no || payment.reference_no || 'N/A'}</td></tr>
+                                <tr><td><strong>Customer:</strong></td><td>${customerName}</td></tr>
+                                <tr><td><strong>Sale Date:</strong></td><td>${formatDisplayDate(sale.sales_date)}</td></tr>
                                 <tr><td><strong>Total Amount:</strong></td><td>Rs. ${numberFormat(sale.final_total || 0)}</td></tr>
                                 <tr><td><strong>Total Paid:</strong></td><td>Rs. ${numberFormat(sale.total_paid || 0)}</td></tr>
-                                <tr><td><strong>Payment Status:</strong></td><td><span class="badge bg-${sale.payment_status === 'Paid' ? 'success' : 'warning'}">${sale.payment_status || 'N/A'}</span></td></tr>
+                                <tr><td><strong>Payment Status:</strong></td><td><span class="badge bg-${saleStatusBadgeClass}">${saleStatus}</span></td></tr>
                             </table>
                         </div>
                         ${bounceImpactHtml}
@@ -1556,46 +1459,6 @@ function updateChequeStatusSubmit() {
         },
         error: function(xhr) {
             const errorMsg = xhr.responseJSON?.message || 'Failed to update cheque status';
-            toastr.error(errorMsg, 'Error');
-        }
-    });
-}
-
-// NEW: Record recovery payment function
-function recordRecoveryPayment(customerId, suggestedAmount) {
-    $('#recoveryCustomerId').val(customerId);
-    $('#recoveryAmount').val(suggestedAmount);
-    $('#recoveryPaymentDate').val(new Date().toISOString().split('T')[0]);
-    $('#recoveryPaymentModal').modal('show');
-}
-
-function submitRecoveryPayment() {
-    const customerId = $('#recoveryCustomerId').val();
-    const formData = $('#recoveryPaymentForm').serialize();
-
-    $.ajax({
-        url: `/floating-balance/customer/${customerId}/recovery-payment`,
-        method: 'POST',
-        data: formData,
-        success: function(response) {
-            if (response.status === 200) {
-                const balanceUpdate = response.data.balance_update;
-                const detailMessage = `Payment: Rs. ${numberFormat(balanceUpdate.payment_amount)} | Old Balance: Rs. ${numberFormat(balanceUpdate.old_floating_balance)} | New Balance: Rs. ${numberFormat(balanceUpdate.new_floating_balance)} | Total Outstanding: Rs. ${numberFormat(balanceUpdate.total_outstanding)}`;
-
-                toastr.success('Recovery payment recorded successfully!<br><small>' + detailMessage + '</small>', 'Payment Recorded', {
-                    timeOut: 8000,
-                    extendedTimeOut: 3000,
-                    allowHtml: true
-                });
-
-                $('#recoveryPaymentModal').modal('hide');
-                setTimeout(() => location.reload(), 1000);
-            } else {
-                toastr.error(response.message || 'Failed to record recovery payment', 'Error');
-            }
-        },
-        error: function(xhr) {
-            const errorMsg = xhr.responseJSON?.message || 'Failed to record recovery payment';
             toastr.error(errorMsg, 'Error');
         }
     });
@@ -1726,6 +1589,91 @@ function bulkUpdateStatus(status) {
     });
 }
 
+function openBulkBounceModal() {
+    const selectedIds = $('.cheque-checkbox:checked').map(function() {
+        return this.value;
+    }).get();
+
+    if (selectedIds.length === 0) {
+        toastr.warning('Please select cheques to update', 'No Selection', {
+            timeOut: 5000,
+            progressBar: true,
+            positionClass: 'toast-top-right'
+        });
+        return;
+    }
+
+    const selectedStatuses = $('.cheque-checkbox:checked').map(function() {
+        return $(this).closest('tr').data('status');
+    }).get();
+
+    const canBounce = selectedStatuses.every(status => status === 'deposited');
+    if (!canBounce) {
+        toastr.error('Only deposited cheques can be marked as bounced.', 'Invalid Status Transition', {
+            timeOut: 8000,
+            progressBar: true,
+            positionClass: 'toast-top-right'
+        });
+        return;
+    }
+
+    $('#bulkBounceForm')[0].reset();
+    $('#bulkBounceModal').data('selectedIds', selectedIds).modal('show');
+}
+
+function submitBulkBounce() {
+    const selectedIds = $('#bulkBounceModal').data('selectedIds') || [];
+    const bankCharges = parseFloat($('#bulkBounceBankCharges').val() || '0');
+    const remarks = $('#bulkBounceRemarks').val() || 'Bulk update to bounced';
+
+    if (selectedIds.length === 0) {
+        toastr.warning('No cheques selected', 'No Selection');
+        return;
+    }
+
+    if (isNaN(bankCharges) || bankCharges < 0) {
+        toastr.error('Please enter valid bank charges', 'Validation Error');
+        return;
+    }
+
+    $.ajax({
+        url: '{{ route("cheque.bulk-update-status") }}',
+        method: 'POST',
+        data: {
+            payment_ids: selectedIds,
+            status: 'bounced',
+            remarks: remarks,
+            bank_charges: bankCharges
+        },
+        success: function(response) {
+            if (response.status === 200) {
+                $('#bulkBounceModal').modal('hide');
+                toastr.success(response.message, 'Bulk Bounce Successful', {
+                    timeOut: 8000,
+                    progressBar: true,
+                    positionClass: 'toast-top-right',
+                    escapeHtml: false
+                });
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                toastr.error(response.message || 'Failed to bounce cheques', 'Update Failed', {
+                    timeOut: 8000,
+                    progressBar: true,
+                    positionClass: 'toast-top-right'
+                });
+            }
+        },
+        error: function(xhr) {
+            const errorMsg = xhr.responseJSON?.message || 'Failed to perform bulk bounce update';
+            toastr.error(errorMsg, 'Network Error', {
+                timeOut: 8000,
+                progressBar: true,
+                positionClass: 'toast-top-right'
+            });
+        }
+    });
+}
+
 function numberFormat(number) {
     // Convert to number if it's a string
     const num = typeof number === 'string' ? parseFloat(number) : number;
@@ -1763,6 +1711,15 @@ function openBulkRecoveryModal() {
         return;
     }
 
+    const hasRecoveredCheque = $('.cheque-checkbox:checked').toArray().some(function(checkbox) {
+        return $(checkbox).closest('tr').data('has-recovery') === 1 || $(checkbox).closest('tr').data('has-recovery') === '1';
+    });
+
+    if (hasRecoveredCheque) {
+        toastr.error('Already recovered bounced cheques cannot be selected again.', 'Invalid Selection');
+        return;
+    }
+
     // Check for walk-in customers
     let hasWalkInCustomer = false;
     $('.cheque-checkbox:checked').each(function() {
@@ -1796,8 +1753,6 @@ function openBulkRecoveryModal() {
         // Use data attributes for accurate amounts
         const amount = parseFloat(row.data('amount')) || 0;
         const bankCharges = parseFloat(row.data('bank-charges')) || 0;
-
-        console.log(`Processing cheque: ${chequeNumber}, Customer: ${customerName} (ID: ${customerId}), Amount: ${amount}, Bank Charges: ${bankCharges}`);
 
         totalBouncedAmount += amount;
         totalBankCharges += bankCharges;
@@ -1894,13 +1849,9 @@ function updateRecoveryPaymentFields() {
         case 'bank_transfer':
             fieldsHtml = `
                 <div class="row">
-                    <div class="col-md-6">
+                    <div class="col-md-12">
                         <label class="form-label">Bank Account Number</label>
                         <input type="text" class="form-control" name="bank_account" required>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Reference Number</label>
-                        <input type="text" class="form-control" name="reference_number">
                     </div>
                 </div>
             `;
@@ -2525,30 +2476,6 @@ function showRecoveryChainModal(data) {
 .form-check-input:checked {
     background-color: #007bff;
     border-color: #007bff;
-}
-
-/* View Balance button styling */
-.view-balance-btn {
-    position: relative !important;
-    z-index: 10 !important;
-    pointer-events: auto !important;
-    cursor: pointer !important;
-    text-decoration: none !important;
-    transition: all 0.3s ease;
-}
-
-.view-balance-btn:hover {
-    background-color: #17a2b8 !important;
-    border-color: #17a2b8 !important;
-    color: white !important;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.view-balance-btn:disabled {
-    opacity: 0.6 !important;
-    cursor: not-allowed !important;
-    transform: none !important;
 }
 
 /* Bulk action button styling */

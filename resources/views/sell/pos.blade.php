@@ -642,6 +642,7 @@
                                                     @endif
                                                     <th class="text-center" colspan="2">Discount</th>
                                                     <th class="text-center">Unit Price</th>
+                                                    <th class="text-center">VAT</th>
                                                     <th class="text-center">Subtotal</th>
                                                     <th class="text-center" style="color: red;">X</th>
                                                 </tr>
@@ -682,6 +683,7 @@
                                         <p id="total-amount" class="form-control form-control-sm mb-0"
                                             style="height: 30px; line-height: 20px; font-size: 13px; font-weight: 600;">
                                             0.00</p>
+                                        <small class="text-muted d-block mt-1">VAT: Rs <span id="vat-total-amount">0.00</span></small>
                                     </div>
                                 </div>
                                 <div class="col-md-2">
@@ -2098,6 +2100,7 @@
                 <!-- Details collapse: Total Items + Internal Notes only (Add Shipping is single button above) -->
                 <div class="collapse mt-2" id="posMobileDetailsCollapse">
                     <div class="small text-muted mb-2"><span class="fw-semibold">Total Items:</span> <span id="mobile-total-items-text">0 (0 units)</span></div>
+                    <div class="small text-muted mb-2"><span class="fw-semibold">VAT:</span> <span id="mobile-vat-amount-text">Rs. 0.00</span></div>
                     <div class="accordion accordion-flush" id="posMobileAccordion">
                         <div class="accordion-item border-0 border-top">
                             <h2 class="accordion-header">

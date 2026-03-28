@@ -211,13 +211,30 @@
             </thead>
             <tbody>
                 @forelse ($saleReturn->returnProducts as $item)
+                    @php
+                        $returnVatTotal = (float) ($item->vat_total ?? 0);
+                        $returnTaxPercent = (float) ($item->tax_percent ?? 0);
+                        $lineSubtotalExVat = max(0, (float) $item->subtotal - $returnVatTotal);
+                    @endphp
                     <tr>
                         <td>{{ $loop->iteration }}</td>
                         <td>{{ $item->product->product_name }}</td>
                         <td>{{ number_format($item->return_price, 2, '.', ',') }}</td>
                         <td>{{ $item->quantity }}</td>
-                        <td align="right">{{ number_format($item->subtotal, 2, '.', ',') }}</td>
+                        <td align="right">{{ number_format($lineSubtotalExVat, 2, '.', ',') }}</td>
                     </tr>
+
+                    {{-- Show VAT per returned product if applicable --}}
+                    @if ($returnVatTotal > 0)
+                        <tr style="background-color: #f9f9f9;">
+                            <td colspan="3" style="text-align: right; font-size: 10px; color: #666;">
+                                VAT @if ($returnTaxPercent > 0)({{ number_format($returnTaxPercent, 0, '.', '') }}%)@endif
+                            </td>
+                            <td colspan="2" style="text-align: right; font-weight: bold; font-size: 11px; color: #d9534f;">
+                                {{ number_format($returnVatTotal, 2, '.', ',') }}
+                            </td>
+                        </tr>
+                    @endif
                 @empty
                     <tr>
                         <td colspan="5">No products returned</td>
@@ -228,8 +245,24 @@
 
         <div style="margin: 8px 0; border-top-style: dashed; border-width: 1px;"></div>
         <div style="position: relative; margin-bottom: 12px;">
+            @php
+                $returnVatGrandTotal = (float) ($saleReturn->returnProducts->sum(function ($p) {
+                    return (float) ($p->vat_total ?? 0);
+                }) ?? 0);
+                $returnSubtotalExVat = max(0, (float) $saleReturn->return_total - $returnVatGrandTotal);
+            @endphp
             <table width="100%" border="0" style="color: #000;">
                 <tbody>
+                    <tr>
+                        <td align="right"><strong>SUBTOTAL</strong></td>
+                        <td width="80" align="right">{{ number_format($returnSubtotalExVat, 2, '.', ',') }}</td>
+                    </tr>
+                    @if ($returnVatGrandTotal > 0)
+                        <tr>
+                            <td align="right"><strong>VAT</strong></td>
+                            <td width="80" align="right">{{ number_format($returnVatGrandTotal, 2, '.', ',') }}</td>
+                        </tr>
+                    @endif
                     <tr>
                         <td align="right"><strong>TOTAL RETURN AMOUNT</strong></td>
                         <td width="80" align="right" style="font-weight: bold;">

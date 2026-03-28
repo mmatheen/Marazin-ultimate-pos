@@ -178,6 +178,7 @@
                                     <th>Return Quantity</th>
                                     @if($canUseFreeQty)<th id="freeStockColumn">Sales Free Qty</th>@endif
                                     @if($canUseFreeQty)<th>Return Free Qty</th>@endif
+                                    <th>VAT</th>
                                     <th>Return Subtotal</th>
                                     <th>Action</th>
                                 </tr>
@@ -228,8 +229,10 @@
                     <!-- Summary Section -->
                     <div class="row mt-4">
                         <div class="col-md-6">
-                            <p><strong>Total Return Discount:</strong> <span id="totalReturnDiscount">$0.00</span></p>
-                            <p><strong>Return Total:</strong> <span id="returnTotalDisplay">$0.00</span></p>
+                            <p><strong>Return Subtotal:</strong> <span id="returnSubtotalDisplay">Rs. 0.00</span></p>
+                            <p><strong>Total Return VAT:</strong> <span id="totalReturnVat">Rs. 0.00</span></p>
+                            <p><strong>Total Return Discount:</strong> <span id="totalReturnDiscount">Rs. 0.00</span></p>
+                            <p><strong>Return Total:</strong> <span id="returnTotalDisplay">Rs. 0.00</span></p>
                         </div>
                         <div class="col-md-6 text-md-end">
                             <button type="submit" class="btn btn-primary btn-lg">Save</button>

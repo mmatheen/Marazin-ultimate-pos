@@ -3,9 +3,74 @@
         const canUseFreeQty              = {!! json_encode($canUseFreeQty ?? false) !!};
         const canReceiveSupplierClaims   = {!! json_encode($canReceiveSupplierClaims ?? false) !!};
         const canCreateSupplierClaims    = {!! json_encode($canCreateSupplierClaims ?? false) !!};
+        const defaultPurchaseTaxPercent  = {!! json_encode((float) (
+            \App\Models\Setting::value('default_tax_percent') ?? 0
+        )) !!};
+        const purchaseTaxRates = {!! json_encode(($purchaseTaxRates ?? collect())->map(function ($taxRate) {
+            return [
+                'id' => (int) $taxRate->id,
+                'name' => (string) $taxRate->name,
+                'rate' => (float) $taxRate->rate,
+            ];
+        })->values()) !!};
         // Expose on window so product_ajax.blade.php can read them
         window.purchaseCanUseFreeQty           = canUseFreeQty;
         window.purchaseCanCreateSupplierClaims = canCreateSupplierClaims;
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function findTaxRateIdByPercent(percent) {
+            const normalizedPercent = parseFloat(percent);
+            if (isNaN(normalizedPercent) || normalizedPercent <= 0) {
+                return '';
+            }
+
+            const match = purchaseTaxRates.find((taxRate) => {
+                return parseFloat(taxRate.rate).toFixed(2) === normalizedPercent.toFixed(2);
+            });
+
+            return match ? String(match.id) : '';
+        }
+
+        function buildProductTaxOptions(selectedTaxRateId = '') {
+            const noneOption = `<option value="">None</option>`;
+            const dynamicOptions = purchaseTaxRates.map((taxRate) => {
+                const selected = String(taxRate.id) === String(selectedTaxRateId) ? 'selected' : '';
+                const displayRate = parseFloat(taxRate.rate || 0).toFixed(2);
+                return `<option value="${taxRate.id}" data-rate="${displayRate}" ${selected}>${escapeHtml(taxRate.name)}@${displayRate}%</option>`;
+            }).join('');
+
+            return noneOption + dynamicOptions;
+        }
+
+        function resolvePurchaseTaxPercent(lineTaxPercent) {
+            const tax = parseFloat(lineTaxPercent);
+            if (!isNaN(tax) && tax > 0) {
+                return tax;
+            }
+            return parseFloat(defaultPurchaseTaxPercent) || 0;
+        }
+
+        function resolveRowTaxPercent($row) {
+            const taxRateId = $row.find('.product-tax-rate').val();
+            if (!taxRateId) {
+                return 0;
+            }
+
+            const selectedTaxRate = purchaseTaxRates.find((taxRate) => String(taxRate.id) === String(taxRateId));
+            if (!selectedTaxRate) {
+                return 0;
+            }
+
+            return resolvePurchaseTaxPercent(selectedTaxRate.rate);
+        }
         // Add CSS for batch history styling
         if (!$('#batch-history-styles').length) {
             $('<style id="batch-history-styles">')
@@ -560,14 +625,14 @@
                         'Price Adjustment');
                 }
 
-                // Generate batch history for reference (earliest 5 batches)
+                // Generate batch history for reference (latest 5 batches, most recent first)
                 let batchHistoryHtml = '';
                 if (product.batches && product.batches.length > 0) {
-                    const earliestBatches = product.batches
-                        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+                    const recentBatches = product.batches
+                        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
                         .slice(0, 5);
 
-                    batchHistoryHtml = earliestBatches.map(batch =>
+                    batchHistoryHtml = recentBatches.map(batch =>
                         `<small class="d-block text-muted">
                             Batch: ${batch.batch_no || 'N/A'} |
                             Cost: ${parseFloat(batch.unit_cost || 0).toFixed(2)} |
@@ -577,8 +642,11 @@
                     ).join('');
                 }
 
+                const taxPercent = resolvePurchaseTaxPercent(product.tax_percent);
+                const selectedTaxRateId = findTaxRateIdByPercent(taxPercent);
+
                 const newRow = `
-            <tr data-id="${product.id}" data-mrp="${maxRetailPrice}" data-imei-enabled="${product.is_imei_or_serial_no || false}">
+            <tr data-id="${product.id}" data-mrp="${maxRetailPrice}" data-tax-percent="${taxPercent}" data-imei-enabled="${product.is_imei_or_serial_no || false}">
             <td>${product.id}</td>
             <td>
                 ${product.name}
@@ -603,8 +671,15 @@
                 <input type="number" class="form-control discount-percent" value="0" min="0" max="100">
             </td>
             <td><input type="number" class="form-control amount unit-cost" value="${unitCost.toFixed(2)}" min="0"></td>
-            <td class="sub-total">0</td>
+            <td>
+                <select class="form-control form-select form-select-sm product-tax-rate" style="min-width: 150px;">
+                    ${buildProductTaxOptions(selectedTaxRateId)}
+                </select>
+            </td>
+            <td><input type="number" class="form-control tax-amount" value="0" min="0" readonly></td>
+            <td class="line-total">0</td>
             <td><input type="number" class="form-control special-price" value="${specialPrice.toFixed(2)}" min="0"></td>
+            <td style="display:none;"><input type="number" class="form-control net-unit-cost" value="${unitCost.toFixed(2)}" min="0" readonly></td>
             <td><input type="number" class="form-control wholesale-price" value="${wholesalePrice.toFixed(2)}" min="0"></td>
             <td><input type="number" class="form-control max-retail-price" value="${maxRetailPrice.toFixed(2)}" min="0"></td>
             <td><input type="number" class="form-control profit-margin" value="0" min="0" readonly></td>
@@ -627,6 +702,11 @@
                 $newRow.find(
                     ".purchase-quantity, .free-quantity, .claim-free-quantity, .discount-percent, .product-price, .unit-cost"
                 ).on("input", function() {
+                    updateRow($newRow);
+                    updateFooter();
+                });
+
+                $newRow.find('.product-tax-rate').on('change', function() {
                     updateRow($newRow);
                     updateFooter();
                 });
@@ -714,15 +794,25 @@
             const quantity = parseFloat($row.find(".purchase-quantity").val()) || 0;
             const price = parseFloat($row.find(".product-price").val()) || 0;
             const discountPercent = parseFloat($row.find(".discount-percent").val()) || 0;
+            const taxPercent = resolveRowTaxPercent($row);
+            $row.attr('data-tax-percent', taxPercent);
 
             // Calculate discounted unit cost
             const discountedPrice = price - (price * discountPercent) / 100;
             const unitCost = discountedPrice;
-            const subTotal = unitCost * quantity;
 
-            // Update unit cost and subtotal
+            // Calculate line subtotal (before tax)
+            const lineSubTotal = unitCost * quantity;
+
+            // Calculate tax amount and line total
+            const taxAmount = (lineSubTotal * taxPercent) / 100;
+            const lineTotal = lineSubTotal + taxAmount;
+
+            // Update inputs and displays
             $row.find(".unit-cost").val(unitCost.toFixed(2));
-            $row.find(".sub-total").text(subTotal.toFixed(2));
+            $row.find(".net-unit-cost").val((unitCost + (unitCost * taxPercent / 100)).toFixed(2));
+            $row.find(".tax-amount").val(taxAmount.toFixed(2));
+            $row.find(".line-total").text(lineTotal.toFixed(2));
 
             // Recalculate profit margin based on current retail price and unit cost
             window.calculateProfitMargin($row);
@@ -733,11 +823,13 @@
         // Make calculateProfitMargin globally accessible (called by updateRow)
         window.calculateProfitMargin = function($row) {
             const retailPrice = parseFloat($row.find(".retail-price").val()) || 0;
-            const unitCost = parseFloat($row.find(".unit-cost").val()) || 0;
+            // Use net unit cost (including tax) as true cost for profit margin calculation
+            const netUnitCost = parseFloat($row.find(".net-unit-cost").val()) || 0;
 
             let profitMargin = 0;
-            if (unitCost > 0 && retailPrice > 0) {
-                profitMargin = ((retailPrice - unitCost) / unitCost) * 100;
+            if (netUnitCost > 0 && retailPrice > 0) {
+                // Profit Margin % = ((Selling Price - Actual Cost) / Actual Cost) * 100
+                profitMargin = ((retailPrice - netUnitCost) / netUnitCost) * 100;
             }
 
             $row.find(".profit-margin").val(profitMargin.toFixed(2));
@@ -824,6 +916,8 @@
         window.updateFooter = function() {
             let totalItems = 0;
             let totalFreeItems = 0;
+            let subtotalAmount = 0;
+            let totalTaxAmount = 0;
             let netTotalAmount = 0;
 
             // CRITICAL FIX: Use DataTables API to get ALL rows (including paginated ones)
@@ -834,25 +928,34 @@
                     const row = this.node();
                     const quantity = parseFloat($(row).find('.purchase-quantity').val()) || 0;
                     const freeQuantity = parseFloat($(row).find('.free-quantity').val()) || 0;
-                    // Remove any commas before parsing (safety for formatted numbers)
-                    const subTotal = parseFloat($(row).find('.sub-total').text().replace(/,/g, '')) ||
-                        0;
+                    const unitCost = parseFloat($(row).find('.unit-cost').val()) || 0;
+                    const taxAmount = parseFloat($(row).find('.tax-amount').val()) || 0;
+                    const lineTotal = parseFloat($(row).find('.line-total').text()) || 0;
+
+                    const lineSubTotal = unitCost * quantity;
 
                     totalItems += quantity;
                     totalFreeItems += freeQuantity;
-                    netTotalAmount += subTotal;
+                    subtotalAmount += lineSubTotal;
+                    totalTaxAmount += taxAmount;
+                    netTotalAmount += lineTotal;
                 });
             } else {
                 // Fallback for when DataTable is not initialized yet
                 $('#purchase_product tbody tr').each(function() {
                     const quantity = parseFloat($(this).find('.purchase-quantity').val()) || 0;
                     const freeQuantity = parseFloat($(this).find('.free-quantity').val()) || 0;
-                    const subTotal = parseFloat($(this).find('.sub-total').text().replace(/,/g, '')) ||
-                        0;
+                    const unitCost = parseFloat($(this).find('.unit-cost').val()) || 0;
+                    const taxAmount = parseFloat($(this).find('.tax-amount').val()) || 0;
+                    const lineTotal = parseFloat($(this).find('.line-total').text()) || 0;
+
+                    const lineSubTotal = unitCost * quantity;
 
                     totalItems += quantity;
                     totalFreeItems += freeQuantity;
-                    netTotalAmount += subTotal;
+                    subtotalAmount += lineSubTotal;
+                    totalTaxAmount += taxAmount;
+                    netTotalAmount += lineTotal;
                 });
             }
 
@@ -862,6 +965,8 @@
                 : totalItems.toFixed(2);
 
             $('#total-items').text(totalItemsDisplay);
+            $('#subtotal-amount').text(subtotalAmount.toFixed(2));
+            $('#total-tax-amount').text(totalTaxAmount.toFixed(2));
             $('#net-total-amount').text(netTotalAmount.toFixed(2));
             $('#total').val(netTotalAmount.toFixed(2));
 
@@ -875,14 +980,9 @@
                 discountAmount = (netTotalAmount * discountInput) / 100;
             }
 
-            const taxType = $('#tax-type').val();
-            let taxAmount = 0;
-
-            if (taxType === 'vat10') {
-                taxAmount = (netTotalAmount - discountAmount) * 0.10;
-            } else if (taxType === 'cgst10') {
-                taxAmount = (netTotalAmount - discountAmount) * 0.10;
-            }
+            const taxRatePercent = parseFloat($('#tax-type option:selected').data('rate')) || 0;
+            const taxableAmount = Math.max(0, netTotalAmount - discountAmount);
+            const taxAmount = (taxableAmount * taxRatePercent) / 100;
 
             const finalTotal = netTotalAmount - discountAmount + taxAmount;
 
@@ -1131,6 +1231,7 @@
                         id: product.product_id,
                         name: product.product.product_name,
                         sku: product.product.sku,
+                        tax_percent: product.tax_percent ?? product.product.tax_percent ?? 0,
                         quantity: product.quantity,
                         price: product.unit_cost,
                         wholesale_price: product.wholesale_price,
@@ -1670,12 +1771,13 @@
                 const price = $(row).find('.product-price').val() || 0;
                 const discountPercent = $(row).find('.discount-percent').val() || 0;
                 const unitCost = $(row).find('.unit-cost').val() || 0;
+                const netUnitCost = $(row).find('.net-unit-cost').val() || 0;
                 const wholesalePrice = $(row).find('.wholesale-price').val() || 0;
                 const specialPrice = $(row).find('.special-price').val() || 0;
                 const retailPrice = $(row).find('.retail-price').val() || 0;
                 const maxRetailPrice = $(row).find('.max-retail-price').val() || 0;
-                // FIX: Parse float to ensure numeric value is sent to server
-                const total = parseFloat($(row).find('.sub-total').text().replace(/,/g, '')) || 0;
+                const taxPercent = resolveRowTaxPercent($(row));
+                const total = (parseFloat(netUnitCost) || 0) * (parseFloat(quantity) || 0);
                 const batchNo = $(row).find('.batch_no').val() || '';
                 const expiryDate = $(row).find('.expiry-date').val();
 
@@ -1700,6 +1802,7 @@
                 formData.append(`products[${index}][price]`, price);
                 formData.append(`products[${index}][discount_percent]`, discountPercent);
                 formData.append(`products[${index}][unit_cost]`, unitCost);
+                formData.append(`products[${index}][tax_percent]`, taxPercent);
                 formData.append(`products[${index}][wholesale_price]`, wholesalePrice);
                 formData.append(`products[${index}][special_price]`, specialPrice);
                 formData.append(`products[${index}][retail_price]`, retailPrice);
@@ -2519,7 +2622,13 @@
         });
 
         // Event listener for dynamic table changes
-        $('#purchase_product').on('input', '.purchase-quantity, .discount-percent, .product-tax', function() {
+        $('#purchase_product').on('input', '.purchase-quantity, .discount-percent, .product-price, .retail-price', function() {
+            const row = $(this).closest('tr');
+            updateRow(row);
+            updateFooter();
+        });
+
+        $('#purchase_product').on('change', '.product-tax-rate', function() {
             const row = $(this).closest('tr');
             updateRow(row);
             updateFooter();

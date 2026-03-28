@@ -4,11 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\SalesReturn;
 use App\Models\SalesReturnProduct;
+use App\Models\SalesProduct;
 use App\Models\Batch;
 use App\Models\Ledger;
 use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\Customer;
+use App\Services\PosVatCalculatorService;
+use App\Services\TaxConfigurationService;
 use App\Services\UnifiedLedgerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -204,9 +207,10 @@ class SaleReturnController extends Controller
                     'location_id' => $request->location_id,
                     // Set return_date as created_at in Asia/Colombo timezone
                     'return_date' => Carbon::now('Asia/Colombo')->format('Y-m-d H:i:s'),
-                    'return_total' => $request->return_total,
+                    // Always recalculate from persisted return-product rows server-side.
+                    'return_total' => 0,
                     'total_paid' => 0, // Ensure total_paid is set to 0
-                    'total_due' => $request->return_total, // Calculate total_due since total_paid is 0
+                    'total_due' => 0,
                     'notes' => $request->notes,
                     'is_defective' => $request->is_defective,
                     'stock_type' => $stockType,
@@ -232,8 +236,14 @@ class SaleReturnController extends Controller
 
             // Process each returned product
             foreach ($request->products as $productData) {
-                $this->processProductReturn($productData, $salesReturn->id, $request->location_id, $stockType);
+                $this->processProductReturn($productData, $salesReturn->id, $request->location_id, $stockType, $request->sale_id);
             }
+
+            // Recalculate authoritative totals from saved lines (prevents client-side tampering).
+            $correctedReturnTotal = (float) SalesReturnProduct::where('sales_return_id', $salesReturn->id)->sum('subtotal');
+            $salesReturn->return_total = $correctedReturnTotal;
+            $salesReturn->total_due = max(0, $correctedReturnTotal - (float) ($salesReturn->total_paid ?? 0));
+            $salesReturn->save();
 
             // No updateTotalDue() here — the saving hook already set total_due = return_total - 0
             // on create. The real recalculation happens below after payments are recorded.
@@ -465,12 +475,92 @@ class SaleReturnController extends Controller
         return view('saleReturn.add_sale_return', compact('salesReturn'));
     }
 
-    private function processProductReturn($productData, $salesReturnId, $locationId, $stockType)
+    private function processProductReturn($productData, $salesReturnId, $locationId, $stockType, $saleId = null)
     {
         $paidQtyToRestock = floatval($productData['quantity'] ?? 0);
         $freeQtyToRestock = floatval($productData['free_quantity'] ?? 0);
         $totalQuantityToRestock = $paidQtyToRestock + $freeQtyToRestock;
         $batchId = $productData['batch_id'];
+        $originalSaleLine = null;
+        if (!empty($saleId)) {
+            $originalSaleLine = SalesProduct::query()
+                ->where('sale_id', $saleId)
+                ->where('product_id', $productData['product_id'])
+                ->when(!empty($batchId), function ($q) use ($batchId) {
+                    $q->where('batch_id', $batchId);
+                })
+                ->orderByDesc('id')
+                ->first();
+        }
+
+        $product = \App\Models\Product::select('id', 'tax_percent', 'selling_price_tax_type')
+            ->whereKey($productData['product_id'])
+            ->first();
+
+        $taxPercent = TaxConfigurationService::resolveTaxPercent(
+            $productData['tax_percent'] ?? null,
+            $originalSaleLine?->tax_percent ?? $product?->tax_percent
+        );
+
+        $returnPrice = (float) (
+            $productData['return_price']
+            ?? $originalSaleLine?->price
+            ?? 0
+        );
+
+        $sellingPriceTaxType = TaxConfigurationService::resolveSellingPriceTaxType(
+            $product?->selling_price_tax_type,
+            $productData['selling_price_tax_type'] ?? null
+        );
+
+        if ($originalSaleLine && $taxPercent > 0) {
+            $saleExclVatPerUnit = (float) ($originalSaleLine->sale_excl_vat_per_unit ?? 0);
+            $sellingPriceTaxType = (abs($saleExclVatPerUnit - $returnPrice) < 0.01) ? 'exclusive' : 'inclusive';
+        }
+
+        $unitCostExVat = (float) ($productData['original_price'] ?? 0);
+
+        if (!empty($batchId)) {
+            $batch = Batch::select('id', 'unit_cost')->find($batchId);
+            if ($batch && $batch->unit_cost !== null) {
+                $unitCostExVat = (float) $batch->unit_cost;
+            }
+        }
+
+        if ($originalSaleLine) {
+            $vatPerUnit = round((float) ($originalSaleLine->vat_per_unit ?? 0), 2);
+            $saleExclVatPerUnit = (float) ($originalSaleLine->sale_excl_vat_per_unit ?? 0);
+            if ($saleExclVatPerUnit <= 0) {
+                $saleExclVatPerUnit = $sellingPriceTaxType === 'exclusive'
+                    ? $returnPrice
+                    : max(0, $returnPrice - $vatPerUnit);
+            }
+
+            $profitPerUnit = round($saleExclVatPerUnit - $unitCostExVat, 2);
+            $vatTotal = round($vatPerUnit * max($paidQtyToRestock, 0), 2);
+
+            $vatMetrics = [
+                'tax_percent' => $taxPercent,
+                'vat_per_unit' => $vatPerUnit,
+                'sale_excl_vat_per_unit' => round($saleExclVatPerUnit, 2),
+                'vat_total' => $vatTotal,
+                'profit_per_unit' => $profitPerUnit,
+                'profit_reversal_total' => round($profitPerUnit * max($paidQtyToRestock, 0), 2),
+            ];
+        } else {
+            $vatMetrics = PosVatCalculatorService::forSaleReturn(
+                $returnPrice,
+                $taxPercent,
+                $unitCostExVat,
+                $paidQtyToRestock,
+                $sellingPriceTaxType
+            );
+        }
+
+        $lineBaseSubtotal = round($paidQtyToRestock * $returnPrice, 2);
+        $lineSubtotal = $sellingPriceTaxType === 'exclusive'
+            ? round($lineBaseSubtotal + $vatMetrics['vat_total'], 2)
+            : $lineBaseSubtotal;
 
         if (empty($batchId)) {
             // Create new batch if no batch ID is provided (for returns without a bill)
@@ -515,13 +605,19 @@ class SaleReturnController extends Controller
             'quantity' => $paidQtyToRestock,
             'free_quantity' => $freeQtyToRestock,
             'original_price' => $productData['original_price'],
-            'return_price' => $productData['return_price'],
-            'subtotal' => $productData['subtotal'],
+            'return_price' => $returnPrice,
+            'subtotal' => $lineSubtotal,
             'batch_id' => $batchId,
             'location_id' => $locationId,
             'price_type' => $productData['price_type'],
             'discount' => $productData['discount'],
-            'tax' => $productData['tax'],
+            'tax' => $vatMetrics['vat_total'],
+            'tax_percent' => $vatMetrics['tax_percent'],
+            'vat_per_unit' => $vatMetrics['vat_per_unit'],
+            'vat_total' => $vatMetrics['vat_total'],
+            'sale_excl_vat_per_unit' => $vatMetrics['sale_excl_vat_per_unit'],
+            'profit_per_unit' => $vatMetrics['profit_per_unit'],
+            'profit_reversal_total' => $vatMetrics['profit_reversal_total'],
         ]);
     }
 

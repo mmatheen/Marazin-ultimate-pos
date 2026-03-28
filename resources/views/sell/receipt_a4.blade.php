@@ -422,6 +422,23 @@
                         <strong>Rs. {{ number_format($item['amount'], 2) }}</strong>
                     </td>
                 </tr>
+
+                {{-- Show VAT per product if applicable --}}
+                @php
+                    $productVatTotal = (float) ($item['product']->vat_total ?? 0);
+                    $productTaxPercent = (float) ($item['product']->tax_percent ?? 0);
+                @endphp
+                @if ($productVatTotal > 0)
+                    <tr style="background-color: #f9f9f9;">
+                        <td></td>
+                        <td style="font-size: 11px; color: #666; text-align: right;">
+                            VAT @if ($productTaxPercent > 0)({{ number_format($productTaxPercent, 0, '.', '') }}%)@endif
+                        </td>
+                        <td colspan="3" style="font-size: 11px; text-align: right; font-weight: bold; color: #d9534f;">
+                            Rs. {{ number_format($productVatTotal, 2) }}
+                        </td>
+                    </tr>
+                @endif
             @endforeach
         </tbody>
     </table>

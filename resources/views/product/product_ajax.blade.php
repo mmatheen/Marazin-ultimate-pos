@@ -589,6 +589,94 @@
         populateSubCategories(selectedMainCategoryId);
     });
 
+   // Initialize Applicable Tax Dropdown with tax rates
+   function initializeApplicableTaxDropdown() {
+       const applicableTaxSelect = $('#edit_applicable_tax');
+       if (!applicableTaxSelect.length) return; // Exit if dropdown doesn't exist
+
+       const renderTaxOptions = function(rates) {
+           // Clear existing options (except the first one - placeholder)
+           applicableTaxSelect.find('option:not(:first)').remove();
+
+           // Add "None - No Tax" option after placeholder
+           const noneOption = $('<option>', {
+               value: 'none',
+               'data-rate': '0',
+               text: '✓ None - No Tax Applied'
+           });
+           applicableTaxSelect.append(noneOption);
+
+           if (Array.isArray(rates) && rates.length > 0) {
+               rates.forEach(tax => {
+                   const rateValue = parseFloat(tax.rate);
+                   if (Number.isNaN(rateValue)) {
+                       return;
+                   }
+                   const option = $('<option>', {
+                       value: tax.id,
+                       'data-rate': rateValue.toFixed(2),
+                       text: `${tax.name} @ ${rateValue.toFixed(2)}%`
+                   });
+                   applicableTaxSelect.append(option);
+               });
+           }
+       };
+
+       if (window.taxRates && Array.isArray(window.taxRates) && window.taxRates.length > 0) {
+           renderTaxOptions(window.taxRates);
+           return;
+       }
+
+       // Fallback for pages that do not preload window.taxRates (e.g., purchase modal)
+       $.ajax({
+           url: '/tax-rates-get-all',
+           type: 'GET',
+           dataType: 'json',
+           success: function(response) {
+               if (response && response.status === 200 && Array.isArray(response.message)) {
+                   window.taxRates = response.message;
+                   renderTaxOptions(window.taxRates);
+               }
+           }
+       });
+   }
+
+   // Handle Applicable Tax dropdown change - auto-populate tax percent
+   $('#edit_applicable_tax').on('change', function() {
+       const selectedOption = $(this).find('option:selected');
+       const selectedValue = $(this).val();
+       const rate = selectedOption.data('rate');
+
+       // Handle "None - No Tax" selection
+       if (selectedValue === 'none' || rate === '0' || rate === 0) {
+           $('#edit_tax_percent').val('0');
+           $('#edit_tax_percent_display').text('0.00');
+           console.log('✓ No tax applied (0%)');
+           return;
+       }
+
+       if (rate !== undefined && rate !== null && rate !== '') {
+           // Set the tax percent field with the selected tax rate
+           const normalizedRate = parseFloat(rate).toFixed(2);
+           $('#edit_tax_percent').val(normalizedRate);
+           $('#edit_tax_percent_display').text(normalizedRate);
+           console.log('Auto-populated tax percent: ' + normalizedRate + '%');
+       } else {
+           $('#edit_tax_percent').val('');
+           $('#edit_tax_percent_display').text('--');
+       }
+   });
+
+   // Initialize on page load
+   initializeApplicableTaxDropdown();
+   (function initializeTaxPercentDisplayFromExistingValue() {
+       const existingTaxPercent = $('#edit_tax_percent').val();
+       if (existingTaxPercent !== undefined && existingTaxPercent !== null && existingTaxPercent !== '') {
+           $('#edit_tax_percent_display').text(parseFloat(existingTaxPercent).toFixed(2));
+       } else {
+           $('#edit_tax_percent_display').text('--');
+       }
+   })();
     function populateProductDetails(product, mainCategories, subCategories, brands, units, locations) {
         $('#product_id').val(product.id);
         $('#edit_product_name').val(product.product_name);
@@ -600,6 +688,14 @@
         $('#edit_whole_sale_price').val(product.whole_sale_price || 0);
         $('#edit_special_price').val(product.special_price || 0);
         $('#edit_max_retail_price').val(product.max_retail_price || 0);
+        const productTaxPercent = product.tax_percent !== null && product.tax_percent !== undefined && product.tax_percent !== ''
+            ? parseFloat(product.tax_percent).toFixed(2)
+            : '';
+        $('#edit_tax_percent').val(productTaxPercent);
+        $('#edit_tax_percent_display').text(productTaxPercent || '--');
+            // Reset applicable tax dropdown to empty when loading product details
+            $('#edit_applicable_tax').val('');
+        $('#edit_selling_price_tax_type').val(product.selling_price_tax_type || 'exclusive');
         $('#edit_alert_quantity').val(product.alert_quantity || 0);
         $('#edit_product_type').val(product.product_type || "").trigger('change');
         $('#Enable_Product_description').prop('checked', product.is_imei_or_serial_no === 1);
@@ -2106,6 +2202,10 @@
     $(document).on('show.bs.modal', '#new_purchase_product', function() {
         console.log('🔓 Add Product Modal opening...');
 
+        // Initialize tax dropdown for modal
+        console.log('📋 Initializing tax dropdown for modal...');
+        initializeApplicableTaxDropdown();
+
         // Check if data is already loaded
         if (window.initialProductDataLoaded && window.initialProductData) {
             console.log('✅ Initial product data already cached - no need to reload');
@@ -2134,6 +2234,12 @@
 
         // Clear product ID (important for edit mode)
         $('#product_id').val('');
+
+        // Reset tax fields explicitly
+        $('#edit_applicable_tax').val('').trigger('change');
+        $('#edit_tax_percent').val('0');
+        $('#edit_tax_percent_display').text('0.00');
+        $('#edit_selling_price_tax_type').val('exclusive').trigger('change');
 
         // Reset buttons to add mode
         resetButtonsForAddMode();
@@ -2178,6 +2284,12 @@
 
         // Clear product ID (important for edit mode)
         $('#product_id').val('');
+
+        // Reset tax fields explicitly
+        $('#edit_applicable_tax').val('').trigger('change');
+        $('#edit_tax_percent').val('0');
+        $('#edit_tax_percent_display').text('0.00');
+        $('#edit_selling_price_tax_type').val('exclusive').trigger('change');
 
         // Reset buttons to add mode
         resetButtonsForAddMode();
@@ -2568,11 +2680,18 @@
                     <input type="number" class="form-control discount-percent" value="0" min="0" max="100">
                 </td>
                 <td><input type="number" class="form-control amount unit-cost" value="${unitCost.toFixed(2)}" min="0"></td>
-                <td class="sub-total">0</td>
+                <td>
+                    <select class="form-control form-select form-select-sm product-tax-rate" style="min-width: 150px;">
+                        ${typeof buildProductTaxOptions === 'function' ? buildProductTaxOptions('') : '<option value="">None</option>'}
+                    </select>
+                </td>
+                <td><input type="number" class="form-control tax-amount" value="0" min="0" readonly></td>
+                <td class="line-total">0</td>
                 <td><input type="number" class="form-control special-price" value="${specialPrice.toFixed(2)}" min="0"></td>
+                <td style="display:none;"><input type="number" class="form-control net-unit-cost" value="${unitCost.toFixed(2)}" min="0" readonly></td>
                 <td><input type="number" class="form-control wholesale-price" value="${wholesalePrice.toFixed(2)}" min="0"></td>
                 <td><input type="number" class="form-control max-retail-price" value="${maxRetailPrice.toFixed(2)}" min="0"></td>
-                <td><input type="number" class="form-control profit-margin" value="0" min="0"></td>
+                <td><input type="number" class="form-control profit-margin" value="0" min="0" readonly></td>
                 <td><input type="number" class="form-control retail-price" value="${retailPrice.toFixed(2)}" min="0" required></td>
                 <td><input type="date" class="form-control expiry-date" value="${product.expiry_date || ''}"></td>
                 <td><input type="text" class="form-control batch_no" value="${product.batch_no || ''}"></td>

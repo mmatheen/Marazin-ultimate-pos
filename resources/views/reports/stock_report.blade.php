@@ -541,11 +541,10 @@
                 });
             });
 
-            // Auto-reload when location changes
-            $('#locationFilter').on('change', function() {
-                // Reload page with new location filter to update summary cards
+            function reloadReportWithFilters() {
+                // Reload page with current filter set to keep summary cards and table aligned
                 var url = new URL(window.location.href);
-                var locationId = $(this).val();
+                var locationId = $('#locationFilter').val();
 
                 if (locationId) {
                     url.searchParams.set('location_id', locationId);
@@ -553,18 +552,41 @@
                     url.searchParams.delete('location_id');
                 }
 
-                // Preserve other filters
                 var categoryId = $('#categoryFilter').val();
                 var subCategoryId = $('#subCategoryFilter').val();
                 var brandId = $('#brandFilter').val();
                 var unitId = $('#unitFilter').val();
 
-                if (categoryId) url.searchParams.set('category_id', categoryId);
-                if (subCategoryId) url.searchParams.set('sub_category_id', subCategoryId);
-                if (brandId) url.searchParams.set('brand_id', brandId);
-                if (unitId) url.searchParams.set('unit_id', unitId);
+                if (categoryId) {
+                    url.searchParams.set('category_id', categoryId);
+                } else {
+                    url.searchParams.delete('category_id');
+                }
+
+                if (subCategoryId) {
+                    url.searchParams.set('sub_category_id', subCategoryId);
+                } else {
+                    url.searchParams.delete('sub_category_id');
+                }
+
+                if (brandId) {
+                    url.searchParams.set('brand_id', brandId);
+                } else {
+                    url.searchParams.delete('brand_id');
+                }
+
+                if (unitId) {
+                    url.searchParams.set('unit_id', unitId);
+                } else {
+                    url.searchParams.delete('unit_id');
+                }
 
                 window.location.href = url.toString();
+            }
+
+            // Auto-reload when any filter changes
+            $('#locationFilter, #categoryFilter, #subCategoryFilter, #brandFilter, #unitFilter').on('change', function() {
+                reloadReportWithFilters();
             });
         });
     </script>

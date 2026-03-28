@@ -444,18 +444,30 @@ function buildProductPayloadFromRow(productRow) {
     }
     const customNameEl = productRow.find('.custom-name-input');
     const customName = customNameEl.length > 0 ? (customNameEl.val()?.trim() || null) : null;
+    const selectedPriceType = (productRow.find('.selected-price-type').text().trim() || window.priceType || 'retail');
+    const taxPercent = parseFloat(productRow.attr('data-tax-percent')) || 0;
+    const sellingPriceTaxType = ((productRow.attr('data-selling-price-tax-type') || 'inclusive') + '').toLowerCase();
+    const subtotalValue = parseFormattedAmount(productRow.find('.subtotal').text().trim());
+    const quantityValue = parseFloat(quantity) || 0;
+    const unitPriceValue = parseFormattedAmount(productRow.find('.price-input').val().trim());
+    const baseSubtotal = quantityValue * unitPriceValue;
+    const lineTaxAmount = sellingPriceTaxType === 'exclusive'
+        ? Math.max(0, subtotalValue - baseSubtotal)
+        : 0;
 
     const productData = {
         product_id: parseInt(productRow.find('.product-id').text().trim(), 10),
         location_id: parseInt(rowLocationId, 10),
         quantity,
         free_quantity: freeQuantity,
-        price_type: window.priceType || 'retail',
-        unit_price: parseFormattedAmount(productRow.find('.price-input').val().trim()),
-        subtotal: parseFormattedAmount(productRow.find('.subtotal').text().trim()),
+        price_type: selectedPriceType,
+        unit_price: unitPriceValue,
+        subtotal: subtotalValue,
         discount_amount: rowDiscountAmount,
         discount_type: rowDiscountType,
-        tax: 0,
+        tax: lineTaxAmount,
+        tax_percent: taxPercent,
+        selling_price_tax_type: sellingPriceTaxType,
         batch_id: processedBatchId,
         custom_name: customName,
     };
@@ -503,52 +515,116 @@ function gatherSaleData(status) {
 //  refreshStockDataAfterSale
 // ================================================================
 function refreshStockDataAfterSale(saleData) {
+    const stockData = Array.isArray(window.stockData) ? window.stockData : [];
+    if (!saleData || !Array.isArray(saleData.products) || stockData.length === 0) {
+        return;
+    }
 
-    const soldProducts = [];
-    const billingBody = document.getElementById('billing-body');
-    const billingRows = Array.from(billingBody.querySelectorAll('tr'));
+    const q = (v) => parseFloat(v) || 0;
 
-    billingRows.forEach(row => {
-        const productId = row.querySelector('.product-id')?.textContent;
-        const imeiData = row.querySelector('.imei-data')?.textContent.trim();
+    // Mirrors backend allocation intent for local cache sync only.
+    function deductFromLocationBatch(lb, paidReq, freeReq) {
+        let paid = q(lb.quantity);
+        let free = q(lb.free_quantity);
 
-        if (productId && imeiData) {
-            const imeis = imeiData.split(',').filter(Boolean);
-            soldProducts.push({
-                productId: parseInt(productId),
-                soldImeis: imeis
-            });
+        // paid: paid pool first, then free pool
+        const paidFromPaid = Math.min(paid, paidReq);
+        paid -= paidFromPaid;
+        paidReq -= paidFromPaid;
+
+        const paidFromFree = Math.min(free, paidReq);
+        free -= paidFromFree;
+        paidReq -= paidFromFree;
+
+        // free: remaining free pool first, then remaining paid pool
+        const freeFromFree = Math.min(free, freeReq);
+        free -= freeFromFree;
+        freeReq -= freeFromFree;
+
+        const freeFromPaid = Math.min(paid, freeReq);
+        paid -= freeFromPaid;
+        freeReq -= freeFromPaid;
+
+        lb.quantity = Math.max(0, paid);
+        lb.free_quantity = Math.max(0, free);
+
+        return {
+            remainingPaid: Math.max(0, paidReq),
+            remainingFree: Math.max(0, freeReq)
+        };
+    }
+
+    saleData.products.forEach((line) => {
+        const productId = parseInt(line.product_id, 10);
+        if (!productId) return;
+
+        const stockEntry = stockData.find(s => parseInt(s?.product?.id, 10) === productId);
+        if (!stockEntry || !Array.isArray(stockEntry.batches)) return;
+
+        let remainingPaid = q(line.quantity);
+        let remainingFree = q(line.free_quantity);
+        const lineLocationId = line.location_id || window.selectedLocationId;
+        const requestedBatchId = String(line.batch_id || 'all');
+
+        let candidateBatches = stockEntry.batches
+            .filter(b => Array.isArray(b.location_batches))
+            .map(b => ({
+                batch: b,
+                lb: b.location_batches.find(x => String(x.location_id) === String(lineLocationId))
+            }))
+            .filter(x => x.lb);
+
+        if (requestedBatchId !== 'all') {
+            candidateBatches = candidateBatches.filter(x => String(x.batch.id) === requestedBatchId);
         }
-    });
 
+        for (const item of candidateBatches) {
+            if (remainingPaid <= 0 && remainingFree <= 0) break;
+            const result = deductFromLocationBatch(item.lb, remainingPaid, remainingFree);
+            remainingPaid = result.remainingPaid;
+            remainingFree = result.remainingFree;
+        }
 
-    if (soldProducts.length > 0) {
-        const stockData = window.stockData;
-        soldProducts.forEach(soldProduct => {
-            const stockIndex = stockData.findIndex(stock => stock.product.id ===
-                soldProduct.productId);
-            if (stockIndex !== -1) {
+        // Recompute stock entry totals from location_batches
+        let totalPaid = 0;
+        let totalFree = 0;
 
-                if (stockData[stockIndex].imei_numbers) {
-                    stockData[stockIndex].imei_numbers.forEach(imei => {
-                        if (soldProduct.soldImeis.includes(imei.imei_number)) {
-                            imei.status = 'sold';
-                        }
-                    });
-                }
+        stockEntry.batches.forEach((b) => {
+            const lbs = Array.isArray(b.location_batches) ? b.location_batches : [];
+            const paidSum = lbs.reduce((s, lb) => s + q(lb.quantity), 0);
+            const freeSum = lbs.reduce((s, lb) => s + q(lb.free_quantity), 0);
 
-                const availableImeis = stockData[stockIndex].imei_numbers?.filter(
-                    imei => imei.status === 'available') || [];
-                stockData[stockIndex].total_stock = availableImeis.length;
+            totalPaid += paidSum;
+            totalFree += freeSum;
 
-            }
+            b.total_batch_quantity = paidSum + freeSum;
+            b.free_qty = freeSum;
+            b.paid_qty = paidSum;
         });
 
-        // Also trigger a background refresh for server sync
-        setTimeout(() => {
-            window.fetchPaginatedProducts(true);
-        }, 1000);
-    }
+        stockEntry.total_stock = totalPaid;
+        stockEntry.total_free_stock = totalFree;
+    });
+
+    // Update IMEI status cache for IMEI products in the same local snapshot
+    const soldImeiMap = new Map();
+    saleData.products.forEach((line) => {
+        if (!Array.isArray(line.imei_numbers) || line.imei_numbers.length === 0) return;
+        soldImeiMap.set(parseInt(line.product_id, 10), line.imei_numbers);
+    });
+
+    soldImeiMap.forEach((soldImeis, productId) => {
+        const stockEntry = stockData.find(s => parseInt(s?.product?.id, 10) === productId);
+        if (!stockEntry || !Array.isArray(stockEntry.imei_numbers)) return;
+
+        stockEntry.imei_numbers.forEach((imei) => {
+            if (soldImeis.includes(imei.imei_number)) {
+                imei.status = 'sold';
+            }
+        });
+    });
+
+    // Server refresh is triggered centrally in runAfterSaleSuccess.
 }
 
 // ================================================================
@@ -704,7 +780,6 @@ function runAfterSaleSuccess(saleData, onComplete) {
         }, 500);
     }
     setTimeout(() => {
-        if (window.fetchPaginatedProducts) window.fetchPaginatedProducts(true);
         fetch('/api/sales/clear-cache', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') } }).catch(() => {});
         if (saleData && saleData.status === 'final' && window.customerFunctions && typeof window.customerFunctions.fetchCustomerData === 'function' && !window.isSalesRep) {
             window.customerFunctions.fetchCustomerData().catch(e => console.error('Failed to refresh customer data:', e));

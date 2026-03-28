@@ -309,6 +309,18 @@ class Customer extends Model
     }
 
     /**
+     * Get total bill-wise outstanding from sales table.
+     * This is used by floating balance dashboard cards.
+     */
+    public function getBillWiseOutstanding(): float
+    {
+        return (float) $this->sales()
+            ->whereIn('status', ['final', 'suspend'])
+            ->where('total_due', '>', 0)
+            ->sum('total_due');
+    }
+
+    /**
      * Get customer risk score based on payment history
      */
     public function getRiskScore()

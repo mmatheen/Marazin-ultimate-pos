@@ -424,7 +424,7 @@
                 </li>
 
                 @canany(['view location', 'view settings'])
-                    <li class="submenu {{ set_active(['location', 'settings.index']) }}">
+                    <li class="submenu {{ set_active(['location', 'settings.index', 'tax-rates']) }}">
                         <a href="#">
                             <i class="fas fa-cog"></i>
                             <span class="sidebar-text">Settings</span>
@@ -437,6 +437,10 @@
 
                             @can('view settings')
                                 <li><a href="{{ route('settings.index') }}" class="{{ set_active(['settings.index']) }}">General Settings</a></li>
+                            @endcan
+
+                            @can('view settings')
+                                <li><a href="{{ route('tax-rates.index') }}" class="{{ set_active(['tax-rates']) }}">Tax Rates</a></li>
                             @endcan
 
                         </ul>

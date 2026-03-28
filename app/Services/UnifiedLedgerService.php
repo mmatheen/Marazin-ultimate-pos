@@ -686,9 +686,9 @@ class UnifiedLedgerService
     /**
      * Record floating balance recovery payment
      */
-    public function recordFloatingBalanceRecovery($customerId, $amount, $paymentMethod = 'cash', $notes = '')
+    public function recordFloatingBalanceRecovery($customerId, $amount, $paymentMethod = 'cash', $notes = '', $referenceNo = null)
     {
-        $referenceNo = 'RECOVERY-' . $customerId . '-' . time();
+        $referenceNo = $referenceNo ?: ('RECOVERY-' . $customerId . '-' . time());
 
         return Ledger::createEntry([
             'contact_id' => $customerId,

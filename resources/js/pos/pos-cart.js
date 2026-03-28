@@ -224,6 +224,7 @@ function calculateRowTotals(billingBody) {
     let totalItems     = 0;
     let totalFreeItems = 0;
     let totalAmount    = 0;
+    let totalVat       = 0;
 
     billingBody.querySelectorAll('tr').forEach((row, index) => {
         const qtyInput      = row.querySelector('.quantity-input');
@@ -237,19 +238,38 @@ function calculateRowTotals(billingBody) {
 
         if (counterCell) counterCell.textContent = index + 1;
 
-        const subtotal   = qty * price;
+        const taxPercent = parseFloat(row.getAttribute('data-tax-percent')) || 0;
+        const taxType = (row.getAttribute('data-selling-price-tax-type') || 'inclusive').toLowerCase();
+        const baseSubtotal = qty * price;
+        const lineTaxAmount = (taxType === 'exclusive' && taxPercent > 0)
+            ? (baseSubtotal * taxPercent / 100)
+            : 0;
+        const subtotal   = baseSubtotal + lineTaxAmount;
         const subtotalEl = row.querySelector('.subtotal');
+        const vatEl      = row.querySelector('.vat-amount');
         if (subtotalEl) {
             subtotalEl.textContent = _fmtAmount(subtotal.toFixed(2));
             subtotalEl.setAttribute('data-total', subtotal.toFixed(2));
         }
+        if (vatEl) {
+            vatEl.textContent = _fmtAmount(lineTaxAmount.toFixed(2));
+            vatEl.setAttribute('data-vat', lineTaxAmount.toFixed(2));
+            const taxLabel = row.getAttribute('data-tax-label');
+            if (taxLabel && taxLabel.trim() !== '') {
+                const hoverText = taxPercent > 0 ? `${taxLabel} (${taxType})` : 'None (No Tax)';
+                vatEl.setAttribute('title', hoverText);
+            }
+        }
+
+        row.setAttribute('data-row-tax-amount', lineTaxAmount.toFixed(2));
 
         totalItems     += qty;
         totalFreeItems += freeQty;
         totalAmount    += subtotal;
+        totalVat       += lineTaxAmount;
     });
 
-    return { totalItems, totalFreeItems, totalAmount };
+    return { totalItems, totalFreeItems, totalAmount, totalVat };
 }
 
 function applyGlobalDiscount(totalAmount) {
@@ -338,7 +358,7 @@ function buildUnitSummary(billingBody, totalItems, totalFreeItems) {
 }
 
 function writeTotalsToDom(billingBody, totals) {
-    const { totalItems, totalFreeItems = 0, totalAmount, finalTotal, unitDisplay, totalDiscount = 0 } = totals;
+    const { totalItems, totalFreeItems = 0, totalAmount, finalTotal, unitDisplay, totalDiscount = 0, totalVat = 0 } = totals;
 
     const fmt   = _fmtAmount;
     const setId = (id, val) => {
@@ -352,6 +372,7 @@ function writeTotalsToDom(billingBody, totals) {
     setId('modal-total-items', itemDisplay);
     setId('total-amount',      fmt(totalAmount.toFixed(2)));
     setId('final-total-amount', fmt(finalTotal.toFixed(2)));
+    setId('vat-total-amount', fmt(totalVat.toFixed(2)));
 
     const totalEl  = document.getElementById('total');
     const payAmtEl = document.getElementById('payment-amount');
@@ -388,6 +409,8 @@ function writeTotalsToDom(billingBody, totals) {
         mobileTotalDiscountEl.textContent = totalDiscount > 0 ? '-Rs. ' + fmt(totalDiscount.toFixed(2)) : 'Rs. 0.00';
         mobileTotalDiscountEl.classList.toggle('text-danger', totalDiscount > 0);
     }
+    const mobileVatAmountEl = document.getElementById('mobile-vat-amount-text');
+    if (mobileVatAmountEl) mobileVatAmountEl.textContent = 'Rs. ' + fmt(totalVat.toFixed(2));
     const mobileFinalInlineEl = document.getElementById('mobile-final-total-inline');
     if (mobileFinalInlineEl) mobileFinalInlineEl.textContent = 'Rs. ' + fmt(finalTotal.toFixed(2));
     /* Single source: also update mobile footer so it matches order summary (no separate setInterval overwrite) */
@@ -399,7 +422,7 @@ function updateTotals() {
     const billingBody = document.getElementById('billing-body');
     if (!billingBody) return;
 
-    const { totalItems, totalFreeItems, totalAmount } = calculateRowTotals(billingBody);
+    const { totalItems, totalFreeItems, totalAmount, totalVat } = calculateRowTotals(billingBody);
     const totalWithDisc = applyGlobalDiscount(totalAmount);
     const finalTotal    = computeFinalTotal(totalWithDisc);
     const unitDisplay   = buildUnitSummary(billingBody, totalItems, totalFreeItems);
@@ -409,6 +432,7 @@ function updateTotals() {
         totalItems,
         totalFreeItems,
         totalAmount,
+        totalVat,
         finalTotal,
         unitDisplay,
         totalDiscount

@@ -44,6 +44,7 @@ use App\Http\Controllers\{
     DiscountController,
     ReportController,
     SettingController,
+    TaxRateController,
     ReceiptSettingsController,
     SupplierFreeClaimController
 };
@@ -156,7 +157,6 @@ Route::middleware(['auth'])->group(function () {
 
         // Floating Balance Routes
         Route::get('/customer/credit-info/{id}', [CustomerController::class, 'getCreditInfo']);
-        Route::post('/floating-balance/customer/{id}/recovery-payment', [CustomerController::class, 'recordRecoveryPayment']);
 
         // Cheque Management Routes
         Route::post('/cheque/bulk-recovery-payment', [PaymentController::class, 'bulkRecoveryPayment']);
@@ -395,22 +395,6 @@ Route::middleware(['auth'])->group(function () {
 
         // Customer Previous Price History
         Route::get('/customer-previous-price', [SaleController::class, 'getCustomerPreviousPrice']);
-
-
-        // -------------------- Floating Balance Management Routes --------------------
-        Route::prefix('floating-balance')->group(function () {
-            Route::get('/customer/{customerId}', [App\Http\Controllers\FloatingBalanceController::class, 'getCustomerBalance'])
-                ->name('floating-balance.customer');
-            Route::post('/customer/{customerId}/recovery-payment', [App\Http\Controllers\FloatingBalanceController::class, 'recordRecoveryPayment'])
-                ->name('floating-balance.recovery-payment');
-            Route::get('/customer/{customerId}/history', [App\Http\Controllers\FloatingBalanceController::class, 'getFloatingBalanceHistory'])
-                ->name('floating-balance.history');
-            Route::post('/customer/{customerId}/adjust', [App\Http\Controllers\FloatingBalanceController::class, 'adjustBalance'])
-                ->name('floating-balance.adjust');
-            Route::get('/customers-with-balance', [App\Http\Controllers\FloatingBalanceController::class, 'getCustomersWithFloatingBalance'])
-                ->name('floating-balance.customers');
-        });
-
          // -------------------- SaleReturnController Routes --------------------
         Route::get('/sale-returns', [SaleReturnController::class, 'getAllSaleReturns']);
         Route::get('/sale-return-get/{id}', [SaleReturnController::class, 'getSaleReturnById']);
@@ -609,6 +593,14 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/site-settings/update-price-validation', [SettingController::class, 'updatePriceValidation'])->name('settings.update-price-validation');
         Route::post('/site-settings/update-free-qty', [SettingController::class, 'updateFreeQty'])->name('settings.update-free-qty');
         Route::post('/site-settings/backup-now', [SettingController::class, 'backupNow'])->name('settings.backup-now');
+
+        // -------------------- Tax Rate CRUD Routes --------------------
+        Route::get('/tax-rates', [TaxRateController::class, 'index'])->name('tax-rates.index');
+        Route::get('/tax-rates-get-all', [TaxRateController::class, 'getAll'])->name('tax-rates.get-all');
+        Route::get('/tax-rates-edit/{id}', [TaxRateController::class, 'edit'])->name('tax-rates.edit');
+        Route::post('/tax-rates', [TaxRateController::class, 'store'])->name('tax-rates.store');
+        Route::put('/tax-rates/{taxRate}', [TaxRateController::class, 'update'])->name('tax-rates.update');
+        Route::delete('/tax-rates/{taxRate}', [TaxRateController::class, 'destroy'])->name('tax-rates.destroy');
 
         //Salesrep routes
 

@@ -878,6 +878,9 @@ function initAutocomplete() {
             if (cached) {
                 autocompleteState.lastResults = cached.results.filter(r => r.product);
                 checkForAutoAdd(cached.results, term);
+                if (typeof window.displaySearchResultsInGrid === 'function') {
+                    window.displaySearchResultsInGrid(cached.rawData || []);
+                }
                 response(cached.results);
                 return;
             }
@@ -885,10 +888,13 @@ function initAutocomplete() {
             // Tier 2  cascade from full parent entry (0 ms, 0 network)
             const cascaded = getCascadeResults(locationId, term);
             if (cascaded !== null) {
-                storeCacheEntry(locationId, term, cascaded,
-                    cascaded.map(r => r.stockData).filter(Boolean));
+                const cascadedRaw = cascaded.map(r => r.stockData).filter(Boolean);
+                storeCacheEntry(locationId, term, cascaded, cascadedRaw);
                 autocompleteState.lastResults = cascaded.filter(r => r.product);
                 checkForAutoAdd(cascaded, term);
+                if (typeof window.displaySearchResultsInGrid === 'function') {
+                    window.displaySearchResultsInGrid(cascadedRaw);
+                }
                 response(cascaded.length > 0
                     ? cascaded
                     : [{ label: 'No results found', value: '' }]);
@@ -1083,6 +1089,7 @@ function createImeiItemHtml(item) {
 function setupKeyboardEvents() {
     let scannerBuffer  = '';      // accumulates chars sent by the scanner
     let scannerTimeout = null;    // resets buffer if scanner goes silent
+    let scannerFallbackTimer = null; // fallback search when fast typing looks like scanner but no Enter arrives
     let prevKeyTime    = 0;       // timestamp of second-most-recent keydown
     let lastKeyTime    = 0;       // timestamp of most-recent keydown
     let scannerActive  = false;   // true while scanner is mid-sequence
@@ -1115,6 +1122,11 @@ function setupKeyboardEvents() {
                                        scannerBuffer.length > 0 ||
                                        (value.length > 0 && interKeyDiff < 100);
 
+                if (scannerFallbackTimer) {
+                    clearTimeout(scannerFallbackTimer);
+                    scannerFallbackTimer = null;
+                }
+
                 if (isScannerEnter) {
                     // Kill all other async paths first, then do one clean scan add
                     cancelAllPendingPaths($(this));
@@ -1132,13 +1144,35 @@ function setupKeyboardEvents() {
                 if (event.key.length === 1) scannerBuffer += event.key;
                 scannerActive = true;
 
+                // Fast manual typing (e.g. 0241) can look like scanner speed.
+                // If no Enter comes shortly, fall back to standard autocomplete search.
+                if (scannerFallbackTimer) clearTimeout(scannerFallbackTimer);
+                scannerFallbackTimer = setTimeout(() => {
+                    if (!scannerActive) return;
+                    const $input = $('#productSearchInput');
+                    const val = $input.val().trim();
+                    if (val.length > 0) {
+                        scannerActive = false;
+                        scannerBuffer = '';
+                        $input.autocomplete('search', val);
+                    }
+                }, 180);
+
                 if (scannerTimeout) clearTimeout(scannerTimeout);
                 scannerTimeout = setTimeout(() => {
                     scannerBuffer = '';
                     scannerActive = false;
+                    if (scannerFallbackTimer) {
+                        clearTimeout(scannerFallbackTimer);
+                        scannerFallbackTimer = null;
+                    }
                 }, SCANNER.BUFFER_RESET_MS);
 
             } else {
+                if (scannerFallbackTimer) {
+                    clearTimeout(scannerFallbackTimer);
+                    scannerFallbackTimer = null;
+                }
                 scannerActive = false; // human-speed key  clear scanner state
             }
         })

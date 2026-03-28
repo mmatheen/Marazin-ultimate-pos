@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Log;
 
 class SaleSaveService
 {
+    private const MONEY_SCALE = 100;
+
     /**
      * Capture pre-save change flags, fill all fields onto the Sale model,
      * persist it (with error handling), and refresh it from the DB.
@@ -49,9 +51,9 @@ class SaleSaveService
 
         // Check if financial data changed (for ledger update decision)
         $financialDataChanged = $isUpdate && (
-            abs($oldFinalTotal - $amounts['final_total']) > 0.01 ||
-            abs($oldSubtotal   - $amounts['subtotal'])    > 0.01 ||
-            abs($oldDiscount   - $amounts['discount'])    > 0.01
+            $this->toCents((float) $oldFinalTotal) !== $this->toCents((float) ($amounts['final_total'] ?? 0)) ||
+            $this->toCents((float) $oldSubtotal)   !== $this->toCents((float) ($amounts['subtotal'] ?? 0)) ||
+            $this->toCents((float) $oldDiscount)   !== $this->toCents((float) ($amounts['discount'] ?? 0))
         );
 
         // ----- Fill all sale fields -----
@@ -122,5 +124,10 @@ class SaleSaveService
             'customer_changed'     => $customerChanged,
             'financial_data_changed' => $financialDataChanged,
         ];
+    }
+
+    private function toCents(float $amount): int
+    {
+        return (int) round($amount * self::MONEY_SCALE);
     }
 }

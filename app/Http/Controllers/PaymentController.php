@@ -2436,15 +2436,11 @@ class PaymentController extends Controller
      */
     public function chequeManagement(Request $request)
     {
-        // Get only active cheque payments (exclude deleted and recovery payments)
+        // Get active cheque payments including recovery cheques
         $query = Payment::chequePayments()
             ->where('status', 'active')
-            ->whereNull('recovery_for_payment_id')
-            ->where(function($q) {
-                $q->whereNull('payment_type')
-                  ->orWhere('payment_type', '!=', 'recovery');
-            })
-            ->with(['customer', 'sale']);
+            ->with(['customer', 'sale', 'originalPayment.sale'])
+            ->withCount('recoveryPayments');
 
         // Filter by status
         if ($request->filled('status') && $request->status !== '' && $request->status !== 'all') {
@@ -2469,19 +2465,26 @@ class PaymentController extends Controller
             $query->where('cheque_number', 'like', '%' . $request->cheque_number . '%');
         }
 
+        // Hide bounced cheques that already have recovery payments by default.
+        // Only include them when explicitly requested from UI.
+        if (!$request->boolean('show_recovered')) {
+            $query->where(function ($innerQuery) {
+                $innerQuery->where('cheque_status', '!=', 'bounced')
+                    ->orWhereDoesntHave('recoveryPayments');
+            });
+        }
+
         // Get all records for DataTables client-side pagination (not Laravel pagination)
         $cheques = $query->orderBy('cheque_valid_date', 'asc')->get();
 
-        // Get summary stats with proper null handling
-        // Explicitly filter for active status to ensure deleted payments are excluded
-        // Also exclude recovery payments as they are negative amounts
+        // Get summary stats including recovery cheques too.
         $stats = [
-            'total_pending' => abs(Payment::pendingCheques()->where('status', 'active')->sum('amount') ?? 0),
-            'total_deposited' => abs(Payment::depositedCheques()->where('status', 'active')->sum('amount') ?? 0),
-            'total_cleared' => abs(Payment::clearedCheques()->where('status', 'active')->sum('amount') ?? 0),
-            'total_bounced' => abs(Payment::bouncedCheques()->where('status', 'active')->sum('amount') ?? 0),
-            'due_soon_count' => Payment::dueSoon(7)->where('status', 'active')->count() ?? 0,
-            'overdue_count' => Payment::overdue()->where('status', 'active')->count() ?? 0,
+            'total_pending' => abs(Payment::chequePayments()->where('status', 'active')->where('cheque_status', 'pending')->sum('amount') ?? 0),
+            'total_deposited' => abs(Payment::chequePayments()->where('status', 'active')->where('cheque_status', 'deposited')->sum('amount') ?? 0),
+            'total_cleared' => abs(Payment::chequePayments()->where('status', 'active')->where('cheque_status', 'cleared')->sum('amount') ?? 0),
+            'total_bounced' => abs(Payment::chequePayments()->where('status', 'active')->where('cheque_status', 'bounced')->sum('amount') ?? 0),
+            'due_soon_count' => Payment::chequePayments()->where('status', 'active')->where('cheque_status', 'pending')->where('cheque_valid_date', '<=', now()->addDays(7))->count() ?? 0,
+            'overdue_count' => Payment::chequePayments()->where('status', 'active')->where('cheque_status', 'pending')->where('cheque_valid_date', '<', now())->count() ?? 0,
         ];
 
         if ($request->ajax()) {
@@ -2554,7 +2557,8 @@ class PaymentController extends Controller
                 $request->payment_ids,
                 $request->status,
                 $request->remarks,
-                auth()->id()
+                auth()->id(),
+                $request->bank_charges ?? 0
             );
 
             $successCount = count($results['success']);
@@ -2687,13 +2691,14 @@ class PaymentController extends Controller
             $bouncedPayments = Payment::whereIn('id', $chequeIds)
                 ->where('payment_method', 'cheque')
                 ->where('cheque_status', 'bounced')
+                ->whereDoesntHave('recoveryPayments')
                 ->with(['customer', 'sale'])
                 ->get();
 
             if ($bouncedPayments->isEmpty()) {
                 return response()->json([
                     'status' => 400,
-                    'message' => 'No valid bounced cheques found'
+                    'message' => 'No valid bounced cheques found (already recovered cheques are excluded)'
                 ], 400);
             }
 
@@ -2746,7 +2751,7 @@ class PaymentController extends Controller
                 if ($paymentCashAmount > 0) {
                     $recoveryPayment = Payment::create([
                         'customer_id' => $bouncedPayment->customer_id,
-                        'reference_id' => $bouncedPayment->reference_id, // Same sale
+                        'reference_id' => null,
                         'payment_type' => 'recovery', // New payment type
                         'payment_method' => $request->recovery_method === 'partial_cash_cheque' ? 'cash' : $request->recovery_method,
                         'actual_payment_method' => $request->recovery_method, // Store original recovery method
@@ -2771,13 +2776,14 @@ class PaymentController extends Controller
                 if ($paymentChequeAmount > 0) {
                     $chequeRecoveryPayment = Payment::create([
                         'customer_id' => $bouncedPayment->customer_id,
-                        'reference_id' => $bouncedPayment->reference_id, // Same sale
+                        'reference_id' => null,
                         'payment_type' => 'recovery',
                         'payment_method' => 'cheque',
                         'actual_payment_method' => $request->recovery_method, // Store original recovery method
                         'amount' => $paymentChequeAmount, // Positive amount (consistent with single recovery method)
                         'payment_date' => $request->recovery_date,
                         'notes' => $request->recovery_notes ?? "New cheque for bounced cheque #{$bouncedPayment->cheque_number}",
+                        'reference_no' => $request->reference_number,
                         'payment_status' => 'pending', // New cheques start as pending
                         'recovery_for_payment_id' => $bouncedPayment->id,
                         'created_by' => auth()->id(),
@@ -2793,16 +2799,16 @@ class PaymentController extends Controller
                     $recoveryPayments[] = $chequeRecoveryPayment;
                 }
 
-                // Record in unified ledger (only for completed payments, not pending cheques)
+                // Record in unified ledger for all recovery attempts (cash or cheque).
+                // Use deterministic reference to avoid duplicate ledger posting on later status updates.
                 foreach ($recoveryPayments as $recoveryPayment) {
-                    if ($recoveryPayment->payment_status === 'completed') {
-                        $this->unifiedLedgerService->recordFloatingBalanceRecovery(
-                            $recoveryPayment->customer_id,
-                            $recoveryPayment->amount, // Amount is now positive, matching single recovery method
-                            $recoveryPayment->payment_method,
-                            "Recovery payment for bounced cheque #{$bouncedPayment->cheque_number}"
-                        );
-                    }
+                    $this->unifiedLedgerService->recordFloatingBalanceRecovery(
+                        $recoveryPayment->customer_id,
+                        $recoveryPayment->amount,
+                        $recoveryPayment->payment_method,
+                        "Recovery payment attempt for bounced cheque #{$bouncedPayment->cheque_number}",
+                        'RECOVERY-PAY-' . $recoveryPayment->id
+                    );
                 }
 
                 $recoveryResults[] = [

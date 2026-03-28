@@ -21,6 +21,10 @@
     </script>
     @endif
 
+    <script>
+        window.taxRates = @json(\Illuminate\Support\Facades\Schema::hasTable('tax_rates') ? \App\Models\TaxRate::active()->get(['id', 'name', 'rate'])->toArray() : []);
+    </script>
+
     <div class="content container-fluid">
 
         <style>
@@ -375,6 +379,30 @@
 
                                             <div class="row">
                                                 <div class="col-md-12">
+                                                    <div class="row g-3 mb-3">
+                                                        <div class="col-md-6">
+                                                            <div class="form-group local-forms">
+                                                                <label>Applicable Tax</label>
+                                                                <select id="edit_applicable_tax" class="form-control form-select selectBox">
+                                                                    <option value="">-- Choose Tax or None --</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <div class="form-group local-forms">
+                                                                <label>Selling Price Tax Type <span class="login-danger">*</span></label>
+                                                                <select id="edit_selling_price_tax_type"
+                                                                    name="selling_price_tax_type"
+                                                                    class="form-control form-select">
+                                                                    <option value="exclusive" selected>Exclusive</option>
+                                                                    <option value="inclusive">Inclusive</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-12">
+                                                            <small class="text-muted">Select a tax rate to auto-populate the Tax Percent field</small>
+                                                        </div>
+                                                    </div>
                                                     <div class="table-responsive">
                                                         <table class="table table-bordered">
                                                             <thead class="table-success">
@@ -384,6 +412,7 @@
                                                                     <th scope="col">Whole Sale Price</th>
                                                                     <th scope="col">Retail Price</th>
                                                                     <th scope="col">Max Retail Price</th>
+                                                                    <th scope="col">Tax Percent</th>
                                                                 </tr>
                                                             </thead>
                                                             <tbody>
@@ -441,9 +470,22 @@
                                                                                 id="max_retail_price_error"></span>
                                                                         </div>
                                                                     </td>
+
+                                                                    <td>
+                                                                        <div class="form-group">
+                                                                            <input type="hidden" id="edit_tax_percent"
+                                                                                name="tax_percent" value="">
+                                                                            <div id="edit_tax_percent_display"
+                                                                                class="form-control bg-light d-flex align-items-center"
+                                                                                aria-label="Tax Percent (auto)">--</div>
+                                                                            <span class="text-danger"
+                                                                                id="tax_percent_error"></span>
+                                                                        </div>
+                                                                    </td>
                                                                 </tr>
                                                             </tbody>
                                                         </table>
+                                                        <span class="text-danger" id="selling_price_tax_type_error"></span>
                                                     </div>
                                                 </div>
                                             </div>

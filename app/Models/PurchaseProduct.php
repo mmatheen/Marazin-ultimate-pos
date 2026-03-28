@@ -20,11 +20,15 @@ class PurchaseProduct extends Model
         'price',              // Original price before discount
         'discount_percent',   // Product-level discount percentage
         'unit_cost',          // Final unit cost after discount
+        'tax_percent',
+        'vat_per_unit',
+        'net_unit_cost',
         'wholesale_price',
         'special_price',
         'retail_price',
         'max_retail_price',
-        'total'
+        'total',
+        'vat_total'
     ];
 
     public function purchase()

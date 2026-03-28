@@ -35,6 +35,17 @@ let selectedImeisInBilling    = [];
 let currentImeiProduct        = null;
 let currentImeiStockEntry     = null;
 
+function resolveAutoPriceType(customerType, batch, product) {
+    const wholesale = parseFloat(batch?.wholesale_price ?? product?.whole_sale_price ?? 0) || 0;
+    const special = parseFloat(batch?.special_price ?? product?.special_price ?? 0) || 0;
+    const maxRetail = parseFloat(batch?.max_retail_price ?? product?.max_retail_price ?? 0) || 0;
+
+    if (customerType === 'wholesaler' && wholesale > 0) return 'wholesale';
+    if (customerType === 'special' && special > 0) return 'special';
+    if (customerType === 'max_retail' && maxRetail > 0) return 'max_retail';
+    return 'retail';
+}
+
 // ---- addProductToTable ----
 function addProductToTable(product, searchTermOrQty = '', matchType = '') {
     // Check if second parameter is a number (quantity from mobile modal)
@@ -86,13 +97,14 @@ function addProductToTable(product, searchTermOrQty = '', matchType = '') {
         }
 
         window.locationId = selectedLocationId;
+        const autoPriceType = resolveAutoPriceType(currentCustomer.customer_type, latestBatch, product);
         window.Pos.Billing.addProductToBillingBody(
             product,
             stockEntry,
             priceResult.price,
             "all", // batchId is "all"
             0, // unlimited stock, so quantity is 0
-            currentCustomer.customer_type,
+            autoPriceType,
             mobileQty || 1, // pass mobile quantity or default to 1
             [], // imeis
             null, // discountType
@@ -221,13 +233,14 @@ function addProductToTable(product, searchTermOrQty = '', matchType = '') {
         }
 
         window.locationId = selectedLocationId;
+        const autoPriceType = resolveAutoPriceType(currentCustomer.customer_type, latestBatch, product);
         window.Pos.Billing.addProductToBillingBody(
             product,
             stockEntry,
             priceResult.price,
             "all", // batchId is "all"
             totalQty,
-            currentCustomer.customer_type,
+            autoPriceType,
             mobileQty || 1, // pass mobile quantity or default to 1
             [], // imeis
             null, // discountType
@@ -290,7 +303,9 @@ function showBatchPriceSelectionModal(product, stockEntry, batches, currentCusto
     const validBatches = batches.filter(batch => {
         const locationBatch = batch.location_batches.find(lb => lb.location_id ==
             selectedLocationId);
-        return locationBatch && parseFloat(locationBatch.quantity) > 0;
+        const paid = parseFloat(locationBatch?.quantity || 0) || 0;
+        const free = parseFloat(locationBatch?.free_quantity || 0) || 0;
+        return locationBatch && (paid + free) > 0;
     }).sort((a, b) => parseInt(b.id) - parseInt(a.id));
 
     if (validBatches.length === 0) {
@@ -358,6 +373,8 @@ function showBatchPriceSelectionModal(product, stockEntry, batches, currentCusto
         }
 
         const showFreeQtyColumn = window.showFreeQtyColumn;
+        const locationFreeQty = parseFloat(locationBatch?.free_quantity || 0) || 0;
+        const locationPaidQty = parseFloat(locationBatch?.quantity || 0) || 0;
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -365,8 +382,8 @@ function showBatchPriceSelectionModal(product, stockEntry, batches, currentCusto
             <td>${batch.batch_no}</td>
             ${priceColumnsHtml}
             <td class="text-center">
-                ${locationBatch.quantity} PC(s)
-                ${batch.free_qty && batch.free_qty > 0 && showFreeQtyColumn ? `<br><small style="color: #28a745; font-weight: 600;">FREE: ${batch.free_qty} (${batch.free_qty_percentage}%)</small>` : ''}
+                ${locationPaidQty} PC(s)
+                ${locationFreeQty > 0 && showFreeQtyColumn ? `<br><small style="color: #28a745; font-weight: 600;">FREE: ${locationFreeQty}</small>` : ''}
             </td>
             <td class="text-center">${buttonContent}</td>
         `;
@@ -429,7 +446,7 @@ function showBatchPriceSelectionModal(product, stockEntry, batches, currentCusto
                     customerPrice,
                     selectedBatch.id,
                     qty,
-                    currentCustomer.customer_type,
+                    resolveAutoPriceType(currentCustomer.customer_type, selectedBatch, productWithBatchPrices),
                     1, // Quantity is 1 when selecting from modal
                     [],
                     null,
@@ -1063,7 +1080,7 @@ function updateBilling(imeis, product, stockEntry, price, batchId) {
             finalPrice,
             imeiBatchId,
             1, // batchQuantity = 1 for individual IMEI
-            currentCustomer.customer_type,
+            resolveAutoPriceType(currentCustomer.customer_type, batchForPricing, product),
             1, // saleQuantity = 1 for individual IMEI
             [imeiNumber], // Array with single IMEI
             null, // discountType
@@ -1361,7 +1378,8 @@ function showProductModal(product, stockEntry, row) {
         // Validate that the saved price type is available for this product
         if (savedPriceType === 'retail' ||
             (savedPriceType === 'wholesale' && hasWholesale) ||
-            (savedPriceType === 'special' && hasSpecial)) {
+            (savedPriceType === 'special' && hasSpecial) ||
+            (savedPriceType === 'max_retail')) {
             defaultPriceType = savedPriceType;
         } else {
         }
@@ -1378,6 +1396,28 @@ function showProductModal(product, stockEntry, row) {
     }
 
     const formatAmountWithSeparators = window.formatAmountWithSeparators;
+
+    // Tax selection state for modal (supports None + configured rates)
+    const currentRowTaxPercent = row ? (parseFloat(row.getAttribute('data-tax-percent')) || 0) : (parseFloat(product.tax_percent || 0) || 0);
+    const fallbackProductTaxPercent = parseFloat(product.tax_percent || 0) || 0;
+
+    let taxOptionsHtml = '<option value="none" data-rate="0"' + (currentRowTaxPercent <= 0 ? ' selected' : '') + '>None (No Tax)</option>';
+
+    // If global tax rates are already available, render them immediately.
+    if (Array.isArray(window.posTaxRates) && window.posTaxRates.length > 0) {
+        taxOptionsHtml += window.posTaxRates.map((tax) => {
+            const rate = parseFloat(tax.rate);
+            if (Number.isNaN(rate)) {
+                return '';
+            }
+            const isSelected = Math.abs(rate - currentRowTaxPercent) < 0.001;
+            const safeName = String(tax.name || 'Tax').replace(/"/g, '&quot;');
+            return `<option value="${tax.id}" data-rate="${rate.toFixed(2)}"${isSelected ? ' selected' : ''}>${safeName} @ ${rate.toFixed(2)}%</option>`;
+        }).join('');
+    } else if (currentRowTaxPercent > 0 || fallbackProductTaxPercent > 0) {
+        const selectedRate = currentRowTaxPercent > 0 ? currentRowTaxPercent : fallbackProductTaxPercent;
+        taxOptionsHtml += `<option value="current_tax" data-rate="${selectedRate.toFixed(2)}" selected>Current Tax @ ${selectedRate.toFixed(2)}%</option>`;
+    }
 
     if (locationBatches.length > 0) {
         // Build batch options - only show prices user has permission to see
@@ -1527,6 +1567,13 @@ function showProductModal(product, stockEntry, row) {
                     </option>
                     ${batchOptions}
                 </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold text-muted small">TAX</label>
+                <select id="modalTaxDropdown" class="form-select">
+                    ${taxOptionsHtml}
+                </select>
+                <small class="text-muted">Choose a tax rate or select None to disable tax for this line.</small>
                 <style>
                     .batch-dropdown {
                         font-size: 1rem;
@@ -1598,6 +1645,46 @@ function showProductModal(product, stockEntry, row) {
     const productModalEl = document.getElementById('productModal');
     const modal = new bootstrap.Modal(productModalEl);
     modal.show();
+
+    // Load tax rates lazily for POS modal when not preloaded.
+    const taxDropdown = document.getElementById('modalTaxDropdown');
+    if (taxDropdown && (!Array.isArray(window.posTaxRates) || window.posTaxRates.length === 0)) {
+        fetch('/tax-rates-get-all', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            }
+        })
+        .then((response) => response.ok ? response.json() : null)
+        .then((payload) => {
+            if (!payload || payload.status !== 200 || !Array.isArray(payload.message)) {
+                return;
+            }
+
+            window.posTaxRates = payload.message;
+            const previousRate = parseFloat(taxDropdown.selectedOptions[0]?.getAttribute('data-rate') || '0') || 0;
+
+            let options = '<option value="none" data-rate="0">None (No Tax)</option>';
+            options += window.posTaxRates.map((tax) => {
+                const rate = parseFloat(tax.rate);
+                if (Number.isNaN(rate)) {
+                    return '';
+                }
+                const isSelected = Math.abs(rate - previousRate) < 0.001;
+                const safeName = String(tax.name || 'Tax').replace(/"/g, '&quot;');
+                return `<option value="${tax.id}" data-rate="${rate.toFixed(2)}"${isSelected ? ' selected' : ''}>${safeName} @ ${rate.toFixed(2)}%</option>`;
+            }).join('');
+
+            taxDropdown.innerHTML = options;
+            if (previousRate <= 0) {
+                taxDropdown.value = 'none';
+            }
+        })
+        .catch(() => {
+            // Keep fallback options silently if API is unavailable.
+        });
+    }
 
     // Helper: get currently selected price type (retail / wholesale / special / max_retail)
     function getSelectedPriceType() {
@@ -1716,6 +1803,15 @@ function showProductModal(product, stockEntry, row) {
             }
 
             const selection = getPriceSelectionFromBatchDropdown();
+            const selectedTaxOption = taxDropdown ? taxDropdown.selectedOptions[0] : null;
+            const selectedTaxPercent = selectedTaxOption
+                ? (parseFloat(selectedTaxOption.getAttribute('data-rate')) || 0)
+                : currentRowTaxPercent;
+            const selectedTaxType = selectedTaxPercent > 0 ? 'exclusive' : 'inclusive';
+            const selectedTaxLabel = selectedTaxOption
+                ? (selectedTaxOption.textContent || '').trim()
+                : (selectedTaxPercent > 0 ? `Tax ${selectedTaxPercent.toFixed(2)}%` : 'None (No Tax)');
+
             if (selection && selection.price > 0) {
                 const priceInput = selectedRow.querySelector('.price-input.unit-price');
                 if (priceInput) {
@@ -1724,6 +1820,12 @@ function showProductModal(product, stockEntry, row) {
                     priceInput.setAttribute('data-max-retail-price', selection.mrp || selection.price);
                 }
 
+                const priceTypeCell = selectedRow.querySelector('.selected-price-type');
+                if (priceTypeCell) {
+                    priceTypeCell.textContent = selection.priceType || 'retail';
+                }
+                window.priceType = selection.priceType || 'retail';
+
                 // update batch id cell/attribute if needed
                 if (selection.batchId) {
                     const batchCell = selectedRow.querySelector('.batch-id');
@@ -1731,6 +1833,19 @@ function showProductModal(product, stockEntry, row) {
                     selectedRow.setAttribute('data-batch-id', selection.batchId);
                     // Mark that user explicitly selected a batch in the modal
                     selectedRow.setAttribute('data-user-selected-batch', '1');
+                }
+
+                // Apply chosen tax to this cart line.
+                selectedRow.setAttribute('data-tax-percent', selectedTaxPercent.toFixed(2));
+                selectedRow.setAttribute('data-selling-price-tax-type', selectedTaxType);
+                selectedRow.setAttribute('data-tax-label', selectedTaxLabel || 'None (No Tax)');
+
+                const vatCell = selectedRow.querySelector('.vat-amount');
+                if (vatCell) {
+                    const hoverText = selectedTaxPercent > 0
+                        ? `${selectedTaxLabel} (${selectedTaxType})`
+                        : 'None (No Tax)';
+                    vatCell.setAttribute('title', hoverText);
                 }
 
                 // Let cart module recalc discounts/totals

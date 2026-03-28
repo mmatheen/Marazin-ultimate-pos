@@ -120,7 +120,7 @@
                             <th>Paid Qty Change</th>
                             <th>Free Qty Change</th>
                             <th>New Quantity</th>
-                            <th>Date</th>
+                            <th>Event Time</th>
                             <th>Reference No</th>
                             <th>Customer/Supplier information</th>
                         </tr>
@@ -177,13 +177,66 @@
                 }, 10); // Very short delay to allow DOM render
             });
             var stockTable = $('#stockTable').DataTable({
-                order: [[4, 'asc']], // Order by Date column (index 4) in ascending order (FIFO)
+                order: [[4, 'asc']], // Show from oldest to latest for clear movement trail
                 columnDefs: [
                     { orderable: true, targets: [0, 1, 2, 3, 4, 5, 6] } // All columns orderable
-                ]
+                ],
+                drawCallback: function() {
+                    injectDateGroupHeaders(this.api());
+                }
             });
             var productId = getProductIdFromUrl(); // Get product ID from URL
             var initialLoad = true;
+
+            function extractDateGroupKeyFromCell(cellHtml) {
+                const html = String(cellHtml || '');
+                const match = html.match(/class="date-group-key"[^>]*>([^<]+)/);
+                return match ? match[1] : 'older';
+            }
+
+            function getDateGroupTitle(groupKey) {
+                if (groupKey === 'today') {
+                    return 'Today';
+                }
+
+                if (groupKey === 'yesterday') {
+                    return 'Yesterday';
+                }
+
+                return 'Older Updates';
+            }
+
+            function injectDateGroupHeaders(api) {
+                const tbody = $(api.table().body());
+                tbody.find('tr.stock-date-group-row').remove();
+
+                const rowNodes = api.rows({
+                    page: 'current'
+                }).nodes();
+                const rowData = api.rows({
+                    page: 'current'
+                }).data();
+
+                if (!rowNodes || rowNodes.length === 0) {
+                    return;
+                }
+
+                let lastGroupKey = null;
+
+                for (let i = 0; i < rowData.length; i++) {
+                    const dateCellHtml = rowData[i][4] || '';
+                    const groupKey = extractDateGroupKeyFromCell(dateCellHtml);
+
+                    if (groupKey !== lastGroupKey) {
+                        $(rowNodes[i]).before(
+                            '<tr class="stock-date-group-row table-secondary">' +
+                            '<td colspan="7"><strong>' + getDateGroupTitle(groupKey) + '</strong></td>' +
+                            '</tr>'
+                        );
+                        lastGroupKey = groupKey;
+                    }
+                }
+            }
 
             // Initialize location filter status
             updateLocationFilterStatus();
@@ -295,7 +348,7 @@
                 // Ensure we have valid data structure
                 if (!data.product) {
                     $('#stock-history-body').html(
-                        '<tr><td colspan="6" class="text-center text-muted">Invalid product data received.</td></tr>'
+                        '<tr><td colspan="7" class="text-center text-muted">Invalid product data received.</td></tr>'
                     );
                     return;
                 }
@@ -314,7 +367,11 @@
                 // Update Quantities In
                 $('#total-purchase').text((stockSums['purchase'] || 0) + ' Pcs');
                 $('#opening-stock').text((stockSums['opening_stock'] || 0) + ' Pcs');
-                $('#total-sell-return').text((stockSums['sales_return_with_bill'] || 0) + ' Pcs');
+                const totalSellReturn =
+                    (stockSums['sales_return_with_bill'] || 0) +
+                    (stockSums['sales_return_without_bill'] || 0) +
+                    (stockSums['sale_reversal'] || 0);
+                $('#total-sell-return').text(totalSellReturn + ' Pcs');
                 $('#purchase-return-reversal').text((stockSums['purchase_return_reversal'] || 0) + ' Pcs');
                 $('#stock-transfers-in').text((stockSums['transfer_in'] || 0) + ' Pcs');
 
@@ -332,8 +389,6 @@
 
                 // Handle empty stock histories
                 if (!data.stock_histories || data.stock_histories.length === 0) {
-                    const locationId = $('#businessLocation').val();
-                    const locationName = $('#businessLocation option:selected').text();
                     let message = 'No stock movements found for this product';
 
                     if (locationId) {
@@ -347,29 +402,119 @@
                     return;
                 }
 
+                const getHistoryTimestamp = function(history) {
+                    return new Date(history.created_at || history.updated_at).getTime() || 0;
+                };
+
+                const formatDateTime = function(value) {
+                    if (!value) {
+                        return 'N/A';
+                    }
+
+                    const parsedDate = new Date(value);
+                    if (Number.isNaN(parsedDate.getTime())) {
+                        return 'N/A';
+                    }
+
+                    return parsedDate.toLocaleString('en-GB', {
+                        timeZone: 'Asia/Colombo',
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: true
+                    });
+                };
+
+                const getColomboDayKey = function(dateValue) {
+                    const parsedDate = new Date(dateValue);
+                    if (Number.isNaN(parsedDate.getTime())) {
+                        return null;
+                    }
+
+                    return new Intl.DateTimeFormat('en-CA', {
+                        timeZone: 'Asia/Colombo',
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                    }).format(parsedDate);
+                };
+
+                const renderHistoryDateCell = function(history) {
+                    const createdAt = history.created_at;
+                    const updatedAt = history.updated_at;
+                    const createdAtDate = createdAt ? new Date(createdAt) : null;
+                    const sortValue = (createdAtDate && !Number.isNaN(createdAtDate.getTime()))
+                        ? createdAtDate.toISOString()
+                        : '';
+                    let groupKey = 'older';
+
+                    if (createdAtDate && !Number.isNaN(createdAtDate.getTime())) {
+                        const createdDayKey = getColomboDayKey(createdAtDate);
+                        const todayDayKey = getColomboDayKey(new Date());
+                        const yesterdayDayKey = getColomboDayKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
+
+                        if (createdDayKey && todayDayKey && createdDayKey === todayDayKey) {
+                            groupKey = 'today';
+                        } else if (createdDayKey && yesterdayDayKey && createdDayKey === yesterdayDayKey) {
+                            groupKey = 'yesterday';
+                        }
+                    }
+
+                    const hasSeparateUpdateTime = updatedAt && createdAt &&
+                        (new Date(updatedAt).getTime() !== new Date(createdAt).getTime());
+
+                    if (hasSeparateUpdateTime) {
+                        return '<span style="display:none;">' + sortValue + '</span>' +
+                            '<span class="date-group-key" style="display:none;">' + groupKey + '</span>' +
+                            '<div><strong>' + formatDateTime(createdAt) + '</strong></div>' +
+                            '<small class="text-muted">Updated: ' + formatDateTime(updatedAt) + '</small>';
+                    }
+
+                    return '<span style="display:none;">' + sortValue + '</span>' +
+                        '<span class="date-group-key" style="display:none;">' + groupKey + '</span>' +
+                        '<div><strong>' + formatDateTime(createdAt || updatedAt) + '</strong></div>';
+                };
+
+                // First pass in chronological order to compute the stock after each movement.
+                const chronologicalHistories = [...data.stock_histories].sort((a, b) => {
+                    const timeDiff = getHistoryTimestamp(a) - getHistoryTimestamp(b);
+                    if (timeDiff !== 0) {
+                        return timeDiff;
+                    }
+                    return (a.id || 0) - (b.id || 0);
+                });
+
+                const runningStockByHistoryId = new Map();
                 let runningStock = 0;
 
-                // Sort histories by date ascending (FIFO)
-                const sortedHistories = [...data.stock_histories].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                chronologicalHistories.forEach(function(history) {
+                    if ([
+                            'purchase', 'opening_stock',
+                            'sales_return_with_bill', 'sales_return_without_bill',
+                            'sale_reversal', 'purchase_return_reversal', 'transfer_in'
+                        ].includes(history.stock_type)) {
+                        runningStock += parseFloat(history.quantity);
+                    } else if ([
+                            'sale', 'adjustment',
+                            'purchase_return', 'purchase_reversal',
+                            'transfer_out'
+                        ].includes(history.stock_type)) {
+                        runningStock -= Math.abs(history.quantity);
+                    }
 
-                if (sortedHistories.length > 0) {
-                    sortedHistories.forEach(function(history) {
-                        if ([
-                                'purchase', 'opening_stock',
-                                'sales_return_with_bill', 'sales_return_without_bill',
-                                'sale_reversal', 'purchase_return_reversal', 'transfer_in'
-                            ].includes(history.stock_type)) {
-                            runningStock += parseFloat(history.quantity);
-                        } else if ([
-                                'sale', 'adjustment',
-                                'purchase_return', 'purchase_reversal',
-                                'transfer_out'
-                            ].includes(history.stock_type)) {
-                            runningStock -= Math.abs(history.quantity);
-                        }
+                    runningStockByHistoryId.set(history.id, runningStock);
+                });
 
+                // Display in chronological order (oldest to latest)
+                // so each row naturally explains the full movement trail from start.
+                if (chronologicalHistories.length > 0) {
+                    chronologicalHistories.forEach(function(history) {
                         var referenceNo = getReferenceNo(history);
                         var customerSupplierInfo = getCustomerSupplierInfo(history);
+                        var stockAfterMovement = runningStockByHistoryId.get(history.id) || 0;
 
                         // Calculate paid and free quantities with correct signs
                         var totalQty = parseFloat(history.quantity);
@@ -390,67 +535,110 @@
                             history.stock_type.replace('_', ' ').toUpperCase(),
                             paidQtyDisplay,
                             freeQtyDisplay,
-                            runningStock.toFixed(2),
-                            new Date(history.created_at).toLocaleString(),
+                            stockAfterMovement.toFixed(2),
+                            renderHistoryDateCell(history),
                             referenceNo,
                             customerSupplierInfo
                         ]);
                     });
 
-                    // Draw all rows at once (maintains FIFO order with date column sort)
+                    // Draw all rows at once (oldest-first)
                     stockTable.draw();
                 }
             }
 
             function getReferenceNo(history) {
-                // Try to find the most relevant transaction for this stock history
-                if (history.stock_type === 'purchase' && history.location_batch?.batch?.purchase_products?.length) {
-                    const matchedPurchase = findBestMatchingTransaction(
-                        history,
-                        history.location_batch.batch.purchase_products,
-                        'purchase'
-                    );
-                    return matchedPurchase?.purchase?.reference_no || 'N/A';
-                } else if (history.stock_type === 'sale' && history.location_batch?.batch?.sales_products?.length) {
-                    const matchedSale = findBestMatchingTransaction(
-                        history,
-                        history.location_batch.batch.sales_products,
-                        'sale'
-                    );
-                    return matchedSale?.sale?.invoice_no || 'N/A';
-                } else if ((history.stock_type === 'purchase_return' || history.stock_type === 'purchase_return_reversal') && history.location_batch?.batch
-                    ?.purchase_returns?.length) {
-                    const matchedReturn = findBestMatchingTransaction(
-                        history,
-                        history.location_batch.batch.purchase_returns,
-                        'purchase_return'
-                    );
-                    return matchedReturn?.purchase_return?.reference_no || 'N/A';
-                } else if ((history.stock_type === 'sales_return_with_bill' || history.stock_type === 'sales_return_without_bill' || history.stock_type === 'sale_reversal') && history.location_batch?.batch?.sale_returns
-                    ?.length) {
-                    const matchedReturn = findBestMatchingTransaction(
-                        history,
-                        history.location_batch.batch.sale_returns,
-                        'sale_return'
-                    );
-                    return matchedReturn?.sales_return?.reference_no || 'N/A';
-                } else if (history.stock_type === 'adjustment' && history.location_batch?.batch?.stock_adjustments
-                    ?.length) {
-                    return history.location_batch.batch.stock_adjustments[0]?.stock_adjustment?.reference_no ||
-                        'N/A';
-                } else if (history.stock_type === 'transfer_in' || history.stock_type === 'transfer_out') {
-                    return history.location_batch.batch.stock_transfers[0]?.stock_transfer?.reference_no || 'N/A';
-                } else {
-                    return 'N/A';
+                const matchedHistoryTransaction = getMatchedHistoryTransaction(history);
+
+                const referencePathByType = {
+                    purchase: 'purchase.reference_no',
+                    sale: 'sale.invoice_no',
+                    purchase_return: 'purchase_return.reference_no',
+                    sale_return: 'sales_return.reference_no'
+                };
+
+                const matchedReferencePath = referencePathByType[matchedHistoryTransaction.type];
+                if (matchedReferencePath) {
+                    return getNestedValue(matchedHistoryTransaction.record, matchedReferencePath, 'N/A');
                 }
+
+                if (history.stock_type === 'adjustment') {
+                    return getNestedValue(history, 'location_batch.batch.stock_adjustments.0.stock_adjustment.reference_no', 'N/A');
+                }
+
+                if (history.stock_type === 'transfer_in' || history.stock_type === 'transfer_out') {
+                    return getNestedValue(history, 'location_batch.batch.stock_transfers.0.stock_transfer.reference_no', 'N/A');
+                }
+
+                return 'N/A';
             }
 
-            function findBestMatchingTransaction(stockHistory, transactions, transactionType) {
+            function getMatchedHistoryTransaction(history) {
+                const matcherRules = [
+                    {
+                        types: ['purchase'],
+                        relationPath: 'location_batch.batch.purchase_products',
+                        type: 'purchase'
+                    },
+                    {
+                        types: ['sale'],
+                        relationPath: 'location_batch.batch.sales_products',
+                        type: 'sale'
+                    },
+                    {
+                        types: ['purchase_return', 'purchase_return_reversal'],
+                        relationPath: 'location_batch.batch.purchase_returns',
+                        type: 'purchase_return'
+                    },
+                    {
+                        types: ['sales_return_with_bill', 'sales_return_without_bill'],
+                        relationPath: 'location_batch.batch.sale_returns',
+                        type: 'sale_return'
+                    },
+                ];
+
+                // sale_reversal special handling with fallback priority.
+                if (history.stock_type === 'sale_reversal') {
+                    const saleReturnTransactions = getNestedArray(history, 'location_batch.batch.sale_returns');
+                    if (saleReturnTransactions.length > 0) {
+                        return {
+                            type: 'sale_return',
+                            record: findBestMatchingTransaction(history, saleReturnTransactions)
+                        };
+                    }
+
+                    const saleTransactions = getNestedArray(history, 'location_batch.batch.sales_products');
+                    if (saleTransactions.length > 0) {
+                        return {
+                            type: 'sale',
+                            record: findBestMatchingTransaction(history, saleTransactions)
+                        };
+                    }
+                }
+
+                for (const rule of matcherRules) {
+                    if (!rule.types.includes(history.stock_type)) {
+                        continue;
+                    }
+
+                    const transactions = getNestedArray(history, rule.relationPath);
+                    if (transactions.length > 0) {
+                        return {
+                            type: rule.type,
+                            record: findBestMatchingTransaction(history, transactions)
+                        };
+                    }
+                }
+
+                return { type: null, record: null };
+            }
+
+            function findBestMatchingTransaction(stockHistory, transactions) {
                 if (!transactions || transactions.length === 0) return null;
                 if (transactions.length === 1) return transactions[0];
 
                 // Try to match based on quantity and timing
-                const historyDate = new Date(stockHistory.created_at);
+                const historyDate = new Date(stockHistory.created_at || stockHistory.updated_at);
                 const historyQuantity = Math.abs(stockHistory.quantity);
 
                 // Find transactions with matching quantity
@@ -480,43 +668,58 @@
             }
 
             function getCustomerSupplierInfo(history) {
-                if (history.stock_type === 'purchase' && history.location_batch?.batch?.purchase_products?.length) {
-                    const matchedPurchase = findBestMatchingTransaction(
-                        history,
-                        history.location_batch.batch.purchase_products,
-                        'purchase'
-                    );
-                    const supplier = matchedPurchase?.purchase?.supplier;
-                    return supplier ? (supplier.first_name + ' ' + supplier.last_name) : 'N/A';
-                } else if (history.stock_type === 'sale' && history.location_batch?.batch?.sales_products?.length) {
-                    const matchedSale = findBestMatchingTransaction(
-                        history,
-                        history.location_batch.batch.sales_products,
-                        'sale'
-                    );
-                    const customer = matchedSale?.sale?.customer;
-                    return customer ? (customer.first_name + ' ' + customer.last_name) : 'N/A';
-                } else if ((history.stock_type === 'purchase_return' || history.stock_type === 'purchase_return_reversal') && history.location_batch?.batch
-                    ?.purchase_returns?.length) {
-                    const matchedReturn = findBestMatchingTransaction(
-                        history,
-                        history.location_batch.batch.purchase_returns,
-                        'purchase_return'
-                    );
-                    const supplier = matchedReturn?.purchase_return?.supplier;
-                    return supplier ? (supplier.first_name + ' ' + supplier.last_name) : 'N/A';
-                } else if ((history.stock_type === 'sales_return_with_bill' || history.stock_type === 'sales_return_without_bill' || history.stock_type === 'sale_reversal') && history.location_batch?.batch?.sale_returns
-                    ?.length) {
-                    const matchedReturn = findBestMatchingTransaction(
-                        history,
-                        history.location_batch.batch.sale_returns,
-                        'sale_return'
-                    );
-                    const customer = matchedReturn?.sales_return?.customer;
-                    return customer ? (customer.first_name + ' ' + customer.last_name) : 'N/A';
-                } else {
+                const matchedHistoryTransaction = getMatchedHistoryTransaction(history);
+
+                const partyPathByType = {
+                    purchase: 'purchase.supplier',
+                    sale: 'sale.customer',
+                    purchase_return: 'purchase_return.supplier',
+                    sale_return: 'sales_return.customer'
+                };
+
+                const partyPath = partyPathByType[matchedHistoryTransaction.type];
+                if (!partyPath) {
                     return 'N/A';
                 }
+
+                const party = getNestedValue(matchedHistoryTransaction.record, partyPath, null);
+                return formatContactName(party);
+            }
+
+            function getNestedValue(source, path, defaultValue = undefined) {
+                if (!source || !path) {
+                    return defaultValue;
+                }
+
+                const keys = path.split('.');
+                let current = source;
+
+                for (const key of keys) {
+                    if (current == null) {
+                        return defaultValue;
+                    }
+
+                    current = current[key];
+                }
+
+                return current ?? defaultValue;
+            }
+
+            function getNestedArray(source, path) {
+                const value = getNestedValue(source, path, []);
+                return Array.isArray(value) ? value : [];
+            }
+
+            function formatContactName(contact) {
+                if (!contact) {
+                    return 'N/A';
+                }
+
+                const firstName = (contact.first_name || '').trim();
+                const lastName = (contact.last_name || '').trim();
+                const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+
+                return fullName || 'N/A';
             }
 
             // Helper Functions

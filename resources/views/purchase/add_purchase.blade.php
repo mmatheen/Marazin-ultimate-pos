@@ -5,6 +5,9 @@
     $canUseFreeQty            = $canUseFreeQty ?? ((bool)(\App\Models\Setting::value('enable_free_qty') ?? 1) && (auth()->user()?->can('create supplier claims') ?? false));
     $canReceiveSupplierClaims = $canReceiveSupplierClaims ?? ($canUseFreeQty && (auth()->user()?->can('receive supplier claims') ?? false));
     $canCreateSupplierClaims  = $canCreateSupplierClaims ?? $canUseFreeQty;
+    $purchaseTaxRates         = \Illuminate\Support\Facades\Schema::hasTable('tax_rates')
+        ? \App\Models\TaxRate::active()->orderBy('name')->get(['id', 'name', 'rate'])
+        : collect();
 @endphp
     <div class="content container-fluid">
         <style>
@@ -359,8 +362,10 @@
                                                 @if($canUseFreeQty)<th>Claim<br>Free Qty</th>@endif
                                                 <th>Unit Cost<br>(Before Discount)</th>
                                                 <th>Discount<br>Percent</th>
-                                                <th>Unit<br>Cost</th>
-                                                <th>Sub<br>Total</th>
+                                                <th>Unit Cost<br>(After Discount)</th>
+                                                <th>Product<br>Tax</th>
+                                                <th>Tax<br>Amount</th>
+                                                <th>Line Total<br>(Incl Tax)</th>
                                                 <th>Special<br>Price</th>
                                                 <th>Wholesale<br>Price</th>
                                                 <th>Max Retail<br>Price</th>
@@ -377,7 +382,9 @@
                                 <hr>
                                 <div class="table-footer">
                                     <p>Total Items: <span id="total-items">0.00</span></p>
-                                    <p>Net Total Amount: Rs<span id="net-total-amount">0.00</span></p>
+                                    <p>Subtotal (Before Tax): Rs<span id="subtotal-amount">0.00</span></p>
+                                    <p>Total Tax: Rs<span id="total-tax-amount">0.00</span></p>
+                                    <p><strong>Net Total Amount: Rs<span id="net-total-amount">0.00</span></strong></p>
                                     <input class="form-control" type="hidden" id="total" name="total"
                                         placeholder="Total">
                                     <input class="form-control" type="hidden" id="final-total" name="final_total"
@@ -481,9 +488,10 @@
                                                     <label>Purchase Tax<span class="login-danger"></span></label>
                                                     <select class="form-control form-select select" id="tax-type"
                                                         name="tax_type">
-                                                        <option selected value="none">None</option>
-                                                        <option value="vat10">VAT@10%</< /option>
-                                                        <option value="cgst10">CGST@10%</option>
+                                                            <option selected value="">None</option>
+                                                            @foreach($purchaseTaxRates as $taxRate)
+                                                                <option value="{{ $taxRate->id }}" data-rate="{{ number_format((float)$taxRate->rate, 2, '.', '') }}">{{ $taxRate->name }}@{{ number_format((float)$taxRate->rate, 2) }}%</option>
+                                                            @endforeach
                                                     </select>
                                                 </div>
                                             </div>

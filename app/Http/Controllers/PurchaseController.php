@@ -9,6 +9,8 @@ use App\Models\Ledger;
 use App\Models\ImeiNumber;
 use App\Services\UnifiedLedgerService;
 use App\Services\PaymentService;
+use App\Services\PosVatCalculatorService;
+use App\Services\TaxConfigurationService;
 use Illuminate\Http\Request;
 use App\Models\LocationBatch;
 use App\Models\Payment;
@@ -166,6 +168,7 @@ class PurchaseController extends Controller
             'products.*.price' => 'nullable|numeric|min:0',
             'products.*.discount_percent' => 'nullable|numeric|min:0|max:100',
             'products.*.unit_cost' => 'required|numeric|min:0',
+            'products.*.tax_percent' => 'nullable|numeric|min:0|max:100',
             'products.*.wholesale_price' => 'required|numeric|min:0',
             'products.*.special_price' => 'required|numeric|min:0',
             'products.*.retail_price' => 'required|numeric|min:0',
@@ -307,11 +310,19 @@ class PurchaseController extends Controller
                     $discountAmount = ($calculatedTotal * $discountValue) / 100.0;
                 }
 
-                // Compute tax if provided (supporting common codes used in front-end)
+                // Compute tax if provided (legacy header tax).
+                // If row-level VAT already exists, do not apply header tax again.
                 $taxAmount = 0.0;
                 $taxType = $request->input('tax_type');
-                if ($taxType === 'vat10' || $taxType === 'cgst10') {
+                $rowVatTotal = (float) $purchase->purchaseProducts()->sum(DB::raw('COALESCE(vat_total,0)'));
+                if (($taxType === 'vat10' || $taxType === 'cgst10') && $rowVatTotal <= 0.01) {
                     $taxAmount = ($calculatedTotal - $discountAmount) * 0.10;
+                } elseif (($taxType === 'vat10' || $taxType === 'cgst10') && $rowVatTotal > 0.01) {
+                    Log::info('Skipping legacy header tax on purchase because row-level VAT exists', [
+                        'purchase_id' => $purchase->id,
+                        'tax_type' => $taxType,
+                        'row_vat_total' => $rowVatTotal,
+                    ]);
                 }
 
                 $serverFinalTotal = $calculatedTotal - $discountAmount + $taxAmount;
@@ -426,6 +437,11 @@ class PurchaseController extends Controller
             collect($request->products)->chunk(100)->each(function ($productsChunk) use ($purchase, $existingProducts, $request) {
                 foreach ($productsChunk as $productData) {
                     $productId = $productData['product_id'];
+                    $productTaxPercent = \App\Models\Product::whereKey($productId)->value('tax_percent');
+                    $taxPercent = TaxConfigurationService::resolveTaxPercent(
+                        $productData['tax_percent'] ?? null,
+                        $productTaxPercent
+                    );
 
                     // Validate product data before processing
                     if (!isset($productData['quantity']) || $productData['quantity'] < 0) {
@@ -477,6 +493,12 @@ class PurchaseController extends Controller
                             ? $incomingClaimFreeQty
                             : $storedClaimFreeQty;
 
+                        $vatMetrics = PosVatCalculatorService::forPurchase(
+                            (float) $productData['unit_cost'],
+                            $taxPercent,
+                            (float) ($isFreeClaim ? 0 : $newQuantity)
+                        );
+
                         $existingProduct->update([
                             'quantity' => $newQuantity,
                             'free_quantity' => $newFreeQuantity,
@@ -484,11 +506,15 @@ class PurchaseController extends Controller
                             'price' => $productData['price'] ?? $productData['unit_cost'],
                             'discount_percent' => $productData['discount_percent'] ?? 0,
                             'unit_cost' => $productData['unit_cost'],
+                            'tax_percent' => $vatMetrics['tax_percent'],
+                            'vat_per_unit' => $vatMetrics['vat_per_unit'],
+                            'net_unit_cost' => $vatMetrics['net_unit_cost'],
                             'wholesale_price' => $productData['wholesale_price'],
                             'special_price' => $productData['special_price'],
                             'retail_price' => $productData['retail_price'],
                             'max_retail_price' => $productData['max_retail_price'],
                             'total' => $productData['total'],
+                            'vat_total' => $vatMetrics['vat_total'],
                         ]);
 
                         // Update batch prices (but NOT quantity - that's handled by updateProductStock)
@@ -522,7 +548,7 @@ class PurchaseController extends Controller
                             'purchase_id' => $purchase->id
                         ]);
 
-                        $this->addNewProductToPurchase($purchase, $productData, $request->location_id, $purchaseType);
+                        $this->addNewProductToPurchase($purchase, $productData, $request->location_id, $purchaseType, $taxPercent);
                     }
                 }
             });
@@ -683,7 +709,7 @@ class PurchaseController extends Controller
         });
     }
 
-    private function addNewProductToPurchase($purchase, $productData, $locationId, $purchaseType = 'regular')
+    private function addNewProductToPurchase($purchase, $productData, $locationId, $purchaseType = 'regular', float $taxPercent = 0.0)
     {
         // First check if batch already exists with same batch_no and product_id
         $batchNo = $productData['batch_no'] ?? Batch::generateNextBatchNo();
@@ -693,6 +719,11 @@ class PurchaseController extends Controller
         $paidQuantity = $isFreeClaim ? 0 : ($productData['quantity'] ?? 0);
         $freeQuantity = $isFreeClaim ? ($productData['quantity'] ?? 0) : ($productData['free_quantity'] ?? 0);
         $totalQuantity = $paidQuantity + $freeQuantity;
+        $vatMetrics = PosVatCalculatorService::forPurchase(
+            (float) $productData['unit_cost'],
+            $taxPercent,
+            (float) $paidQuantity
+        );
 
         $batch = Batch::where([
             'batch_no' => $batchNo,
@@ -766,11 +797,15 @@ class PurchaseController extends Controller
                 'price' => $productData['price'] ?? $productData['unit_cost'],
                 'discount_percent' => $productData['discount_percent'] ?? 0,
                 'unit_cost' => $productData['unit_cost'],
+                'tax_percent' => $vatMetrics['tax_percent'],
+                'vat_per_unit' => $vatMetrics['vat_per_unit'],
+                'net_unit_cost' => $vatMetrics['net_unit_cost'],
                 'wholesale_price' => $productData['wholesale_price'],
                 'special_price' => $productData['special_price'],
                 'retail_price' => $productData['retail_price'],
                 'max_retail_price' => $productData['max_retail_price'],
                 'total' => $productData['total'], // Total cost is only for paid items
+                'vat_total' => $vatMetrics['vat_total'],
                 'location_id' => $locationId,
             ]
         );

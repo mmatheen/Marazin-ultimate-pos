@@ -213,8 +213,19 @@ function mergeExistingRowIfPossible({
         : newQuantity;
 
     const subtotalElement = existingRow.querySelector('.subtotal');
-    const updatedSubtotal = newQuantity * finalPrice;
+    const vatElement = existingRow.querySelector('.vat-amount');
+    const taxPercent = parseFloat(existingRow.getAttribute('data-tax-percent')) || 0;
+    const taxType = (existingRow.getAttribute('data-selling-price-tax-type') || 'inclusive').toLowerCase();
+    const baseSubtotal = newQuantity * finalPrice;
+    const lineTaxAmount = (taxType === 'exclusive' && taxPercent > 0)
+        ? (baseSubtotal * taxPercent / 100)
+        : 0;
+    const updatedSubtotal = baseSubtotal + lineTaxAmount;
     subtotalElement.textContent = formatAmountWithSeparators(updatedSubtotal.toFixed(2));
+    subtotalElement.setAttribute('data-total', updatedSubtotal.toFixed(2));
+    vatElement.textContent = formatAmountWithSeparators(lineTaxAmount.toFixed(2));
+    vatElement.setAttribute('data-vat', lineTaxAmount.toFixed(2));
+    existingRow.setAttribute('data-row-tax-amount', lineTaxAmount.toFixed(2));
 
     billingBody.insertBefore(existingRow, billingBody.firstChild);
 
@@ -262,6 +273,9 @@ async function addProductToBillingBody(
     saleQuantity = 1, imeis = [], discountType = null, discountAmount = null,
     selectedBatch = null, editFreeQuantity = 0, isLoadingExisting = false, customName = null
 ) {
+    const normalizedPriceType = ['retail', 'wholesale', 'special', 'max_retail'].includes(priceType)
+        ? priceType
+        : 'retail';
     // Warning for specific batch IDs that might cause stock issues
     if (batchId && batchId !== 'all' && batchId !== '' && imeis.length === 0) {
         console.warn('⚠️ NON-IMEI product using specific batch ID:', batchId, 'for product:', product.product_name);
@@ -413,6 +427,17 @@ async function addProductToBillingBody(
     }
 
     // ── Build new row ───────────────────────────────────────
+    // Calculate initial VAT amount
+    const taxPercent = parseFloat(product.tax_percent || 0);
+    const taxType = (product.selling_price_tax_type || 'inclusive').toLowerCase();
+    const baseSubtotal = parseFloat(initialQuantityValue) * finalPrice;
+    const initialVatAmount = (taxType === 'exclusive' && taxPercent > 0)
+        ? (baseSubtotal * taxPercent / 100)
+        : 0;
+    const initialTaxLabel = (taxPercent > 0)
+        ? `Tax ${taxPercent.toFixed(2)}% (${taxType})`
+        : 'None (No Tax)';
+
     const row = document.createElement('tr');
     row.setAttribute('data-product-id', product.id);
     row.setAttribute('data-batch-id', batchId);
@@ -421,6 +446,10 @@ async function addProductToBillingBody(
     row.setAttribute('data-unit-price', finalPrice);
     row.setAttribute('data-price-source', priceType);
     row.setAttribute('data-max-quantity', adjustedBatchQuantity);
+    row.setAttribute('data-tax-percent', parseFloat(product.tax_percent || 0).toFixed(2));
+    row.setAttribute('data-selling-price-tax-type', (product.selling_price_tax_type || 'inclusive'));
+    row.setAttribute('data-tax-label', initialTaxLabel);
+    row.setAttribute('data-row-tax-amount', initialVatAmount.toFixed(2));
     // Layout helper: when free qty is disabled by role/setting, mark row so CSS can make QUANTITY full-width
     row.classList.add(window.showFreeQtyColumn ? 'has-free-qty' : 'no-free-qty');
     // Low-stock indicator for mobile (target: "• Low Stock (3 units)" in orange)
@@ -538,11 +567,13 @@ async function addProductToBillingBody(
                 data-max-retail-price="${batch ? batch.max_retail_price || product.max_retail_price : product.max_retail_price}"
                 min="0" ${(priceValidationEnabled === 1 && !canEditUnitPrice && !isEditing) ? 'readonly' : ''}>
         </td>
-        <td class="subtotal total-price text-center" data-total="${(parseFloat(initialQuantityValue) * finalPrice).toFixed(2)}">${formatAmountWithSeparators((parseFloat(initialQuantityValue) * finalPrice).toFixed(2))}</td>
+        <td class="vat-amount text-center" data-vat="${initialVatAmount.toFixed(2)}" title="${initialTaxLabel}">${formatAmountWithSeparators(initialVatAmount.toFixed(2))}</td>
+        <td class="subtotal total-price text-center" data-total="${(parseFloat(initialQuantityValue) * finalPrice + initialVatAmount).toFixed(2)}">${formatAmountWithSeparators((parseFloat(initialQuantityValue) * finalPrice + initialVatAmount).toFixed(2))}</td>
         <td class="text-center"><button class="btn btn-danger btn-sm remove-btn" type="button" aria-label="Remove item"><i class="fas fa-trash-alt"></i></button></td>
         <td class="product-id d-none">${product.id}</td>
         <td class="location-id d-none">${locationId}</td>
         <td class="batch-id d-none">${batchId || 'all'}</td>
+        <td class="selected-price-type d-none">${normalizedPriceType}</td>
         <td class="discount-data d-none">${JSON.stringify(activeDiscount || {})}</td>
         <td class="d-none imei-data">${imeis.join(',') || ''}</td>
     `;

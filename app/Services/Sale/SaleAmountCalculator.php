@@ -7,6 +7,10 @@ use Illuminate\Support\Facades\Log;
 
 class SaleAmountCalculator
 {
+    private const MONEY_SCALE = 100;
+    private const QTY_SCALE = 10000;
+    private const PERCENT_SCALE = 10000;
+
     // -------------------------------------------------------------------------
     // PUBLIC API
     // -------------------------------------------------------------------------
@@ -19,21 +23,28 @@ class SaleAmountCalculator
      */
     public function estimateFinalTotal(Request $request): float
     {
-        $subtotal = 0.0;
+        $subtotalCents = 0;
 
         if (!empty($request->products)) {
             foreach ($request->products as $product) {
-                $subtotal += floatval($product['quantity']   ?? 0)
-                           * floatval($product['unit_price'] ?? 0);
+                $quantity = (float) ($product['quantity'] ?? 0);
+                $unitPrice = (float) ($product['unit_price'] ?? 0);
+                $taxPercent = (float) ($product['tax_percent'] ?? 0);
+                $sellingPriceTaxType = strtolower((string) ($product['selling_price_tax_type'] ?? 'inclusive'));
+
+                [$lineSubtotalCents, ] = $this->computeLineSubtotalCents($quantity, $unitPrice, $taxPercent, $sellingPriceTaxType);
+                $subtotalCents += $lineSubtotalCents;
             }
         }
 
-        return $this->applyDiscountAndShipping(
-            $subtotal,
-            floatval($request->discount_amount  ?? 0),
+        $finalTotalCents = $this->applyDiscountAndShippingCents(
+            $subtotalCents,
+            (float) ($request->discount_amount  ?? 0),
             $request->discount_type ?? 'fixed',
-            floatval($request->shipping_charges ?? 0)
+            (float) ($request->shipping_charges ?? 0)
         );
+
+        return $this->fromCents($finalTotalCents);
     }
 
     /**
@@ -63,19 +74,20 @@ class SaleAmountCalculator
         $correctedProducts = $this->correctProductSubtotals($products, $request);
 
         // Step 2 — Monetary totals
-        $subtotal        = array_reduce($correctedProducts, fn($c, $p) => $c + $p['subtotal'], 0.0);
-        $discount        = floatval($request->discount_amount  ?? 0);
-        $shippingCharges = floatval($request->shipping_charges ?? 0);
+        $subtotalCents   = array_reduce($correctedProducts, fn($c, $p) => $c + $this->toCents((float) ($p['subtotal'] ?? 0)), 0);
+        $discount        = (float) ($request->discount_amount  ?? 0);
+        $shippingCharges = (float) ($request->shipping_charges ?? 0);
         $discountType    = $request->discount_type ?? 'fixed';
 
-        $totalAfterDiscount = $discountType === 'percentage'
-            ? $subtotal - ($subtotal * $discount / 100)
-            : $subtotal - $discount;
+        $totalAfterDiscountCents = $this->applyDiscountOnlyCents($subtotalCents, $discount, $discountType);
+        $finalTotalCents = $this->applyDiscountAndShippingCents($subtotalCents, $discount, $discountType, $shippingCharges);
 
-        $finalTotal = $totalAfterDiscount + $shippingCharges;
+        $subtotal = $this->fromCents($subtotalCents);
+        $totalAfterDiscount = $this->fromCents($totalAfterDiscountCents);
+        $finalTotal = $this->fromCents($finalTotalCents);
 
         // Step 3 — Payment amounts
-        $paymentAmounts = $this->computePaymentAmounts($finalTotal, $request, $newStatus);
+        $paymentAmounts = $this->computePaymentAmounts($finalTotalCents, $request, $newStatus);
 
         return array_merge(
             [
@@ -104,23 +116,37 @@ class SaleAmountCalculator
         $corrected = [];
 
         foreach ($products as $productData) {
-            $quantity         = floatval($productData['quantity']   ?? 0);
-            $unitPrice        = floatval($productData['unit_price'] ?? 0);
-            $frontendSubtotal = floatval($productData['subtotal']   ?? 0);
-            $correctSubtotal  = $quantity * $unitPrice;
+            $quantity         = (float) ($productData['quantity']   ?? 0);
+            $unitPrice        = (float) ($productData['unit_price'] ?? 0);
+            $taxPercent       = (float) ($productData['tax_percent'] ?? 0);
+            $sellingPriceTaxType = strtolower((string) ($productData['selling_price_tax_type'] ?? 'inclusive'));
+            $frontendSubtotal = (float) ($productData['subtotal']   ?? 0);
 
-            if (abs($correctSubtotal - $frontendSubtotal) > 0.01) {
+            [$correctSubtotalCents, $lineTaxCents] = $this->computeLineSubtotalCents(
+                $quantity,
+                $unitPrice,
+                $taxPercent,
+                $sellingPriceTaxType
+            );
+
+            $frontendSubtotalCents = $this->toCents($frontendSubtotal);
+
+            $productData['tax'] = $this->fromCents($lineTaxCents);
+
+            if ($correctSubtotalCents !== $frontendSubtotalCents) {
                 Log::warning('⚠️ SUBTOTAL MISMATCH — server corrected', [
                     'product_id'         => $productData['product_id'] ?? 'unknown',
                     'quantity'           => $quantity,
                     'unit_price'         => $unitPrice,
-                    'frontend_subtotal'  => $frontendSubtotal,
-                    'corrected_subtotal' => $correctSubtotal,
-                    'difference'         => $correctSubtotal - $frontendSubtotal,
+                    'tax_percent'        => $taxPercent,
+                    'selling_price_tax_type' => $sellingPriceTaxType,
+                    'frontend_subtotal'  => $this->fromCents($frontendSubtotalCents),
+                    'corrected_subtotal' => $this->fromCents($correctSubtotalCents),
+                    'difference'         => $this->fromCents($correctSubtotalCents - $frontendSubtotalCents),
                 ]);
             }
 
-            $productData['subtotal'] = $correctSubtotal;
+            $productData['subtotal'] = $this->fromCents($correctSubtotalCents);
             $corrected[]             = $productData;
         }
 
@@ -131,17 +157,30 @@ class SaleAmountCalculator
      * Apply discount (fixed or percentage) and add shipping charges.
      * Used by estimateFinalTotal() and internally by calculate().
      */
-    private function applyDiscountAndShipping(
-        float  $subtotal,
+    private function applyDiscountAndShippingCents(
+        int    $subtotalCents,
         float  $discount,
         string $discountType,
         float  $shippingCharges
-    ): float {
-        $totalAfterDiscount = $discountType === 'percentage'
-            ? $subtotal - ($subtotal * $discount / 100)
-            : $subtotal - $discount;
+    ): int {
+        $totalAfterDiscountCents = $this->applyDiscountOnlyCents($subtotalCents, $discount, $discountType);
+        $shippingCents = $this->toCents($shippingCharges);
 
-        return $totalAfterDiscount + $shippingCharges;
+        return max(0, $totalAfterDiscountCents + $shippingCents);
+    }
+
+    private function applyDiscountOnlyCents(int $subtotalCents, float $discount, string $discountType): int
+    {
+        if ($discountType === 'percentage') {
+            $discountBps = $this->toPercentScaled($discount);
+            $discountCents = $this->roundDiv($subtotalCents * $discountBps, self::PERCENT_SCALE);
+
+            return max(0, $subtotalCents - $discountCents);
+        }
+
+        $discountCents = $this->toCents($discount);
+
+        return max(0, $subtotalCents - $discountCents);
     }
 
     /**
@@ -155,42 +194,91 @@ class SaleAmountCalculator
      *   - amount_given drives total_paid (capped at finalTotal)
      *   - change (balance_amount) = amount_given − finalTotal  (if positive)
      */
-    private function computePaymentAmounts(float $finalTotal, Request $request, string $newStatus): array
+    private function computePaymentAmounts(int $finalTotalCents, Request $request, string $newStatus): array
     {
-        $advanceAmount = floatval($request->advance_amount ?? 0);
+        $advanceAmountCents = $this->toCents((float) ($request->advance_amount ?? 0));
 
         if ($newStatus === 'jobticket') {
-            if ($advanceAmount >= $finalTotal) {
+            if ($advanceAmountCents >= $finalTotalCents) {
                 return [
-                    'advance_amount' => $advanceAmount,
-                    'total_paid'     => $finalTotal,
+                    'advance_amount' => $this->fromCents($advanceAmountCents),
+                    'total_paid'     => $this->fromCents($finalTotalCents),
                     'total_due'      => 0.0,
-                    'amount_given'   => $advanceAmount,
-                    'balance_amount' => $advanceAmount - $finalTotal,
+                    'amount_given'   => $this->fromCents($advanceAmountCents),
+                    'balance_amount' => $this->fromCents($advanceAmountCents - $finalTotalCents),
                 ];
             }
 
             return [
-                'advance_amount' => $advanceAmount,
-                'total_paid'     => $advanceAmount,
-                'total_due'      => $finalTotal - $advanceAmount,
-                'amount_given'   => $advanceAmount,
+                'advance_amount' => $this->fromCents($advanceAmountCents),
+                'total_paid'     => $this->fromCents($advanceAmountCents),
+                'total_due'      => $this->fromCents($finalTotalCents - $advanceAmountCents),
+                'amount_given'   => $this->fromCents($advanceAmountCents),
                 'balance_amount' => 0.0,
             ];
         }
 
         // Normal sale
-        $amountGiven   = floatval($request->amount_given ?? $finalTotal);
-        $totalPaid     = min($amountGiven, $finalTotal);
-        $totalDue      = max(0.0, $finalTotal - $totalPaid);
-        $balanceAmount = max(0.0, $amountGiven - $finalTotal);
+        $amountGivenCents = $this->toCents((float) ($request->amount_given ?? $this->fromCents($finalTotalCents)));
+        $totalPaidCents = min($amountGivenCents, $finalTotalCents);
+        $totalDueCents = max(0, $finalTotalCents - $totalPaidCents);
+        $balanceAmountCents = max(0, $amountGivenCents - $finalTotalCents);
 
         return [
-            'advance_amount' => $advanceAmount,
-            'total_paid'     => $totalPaid,
-            'total_due'      => $totalDue,
-            'amount_given'   => $amountGiven,
-            'balance_amount' => $balanceAmount,
+            'advance_amount' => $this->fromCents($advanceAmountCents),
+            'total_paid'     => $this->fromCents($totalPaidCents),
+            'total_due'      => $this->fromCents($totalDueCents),
+            'amount_given'   => $this->fromCents($amountGivenCents),
+            'balance_amount' => $this->fromCents($balanceAmountCents),
         ];
+    }
+
+    private function computeLineSubtotalCents(float $quantity, float $unitPrice, float $taxPercent, string $sellingPriceTaxType): array
+    {
+        $qtyUnits = $this->toQtyUnits($quantity);
+        $unitPriceCents = $this->toCents($unitPrice);
+        $baseSubtotalCents = $this->roundDiv($qtyUnits * $unitPriceCents, self::QTY_SCALE);
+
+        $lineTaxCents = 0;
+        if ($sellingPriceTaxType === 'exclusive' && $taxPercent > 0) {
+            $taxBps = $this->toPercentScaled($taxPercent);
+            $lineTaxCents = $this->roundDiv($baseSubtotalCents * $taxBps, self::PERCENT_SCALE);
+        }
+
+        return [$baseSubtotalCents + $lineTaxCents, $lineTaxCents];
+    }
+
+    private function toCents(float $amount): int
+    {
+        return (int) round($amount * self::MONEY_SCALE);
+    }
+
+    private function fromCents(int $cents): float
+    {
+        return round($cents / self::MONEY_SCALE, 2);
+    }
+
+    private function toQtyUnits(float $qty): int
+    {
+        return (int) round($qty * self::QTY_SCALE);
+    }
+
+    private function toPercentScaled(float $percent): int
+    {
+        return (int) round($percent * 100);
+    }
+
+    private function roundDiv(int $numerator, int $denominator): int
+    {
+        if ($denominator === 0) {
+            return 0;
+        }
+
+        $half = intdiv($denominator, 2);
+        if ($numerator >= 0) {
+            return intdiv($numerator + $half, $denominator);
+        }
+
+        return -intdiv(abs($numerator) + $half, $denominator);
     }
 }

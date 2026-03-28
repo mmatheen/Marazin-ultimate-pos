@@ -13,7 +13,7 @@ use Exception;
 
 /**
  * Centralized Cheque Management Service
- * 
+ *
  * This service handles all cheque-related operations including:
  * - Status updates (pending, deposited, cleared, bounced, cancelled)
  * - Bounce processing with ledger entries
@@ -32,7 +32,7 @@ class ChequeService
 
     /**
      * Update cheque status with proper ledger handling
-     * 
+     *
      * @param int $paymentId
      * @param string $newStatus
      * @param string|null $remarks
@@ -64,8 +64,8 @@ class ChequeService
                 // Handle ledger entries based on new status
                 $ledgerResult = $this->handleLedgerEntries($payment, $oldStatus, $newStatus, $bankCharges, $userId);
 
-                // Update sale total_paid when cheque status changes
-                $this->updateSaleTotalPaid($payment);
+                // Do not touch sale totals/status after cheque lifecycle events.
+                // Cheque management is customer-ledger based once sale is closed.
 
                 // Prepare response data
                 $responseData = [
@@ -108,20 +108,20 @@ class ChequeService
 
     /**
      * Bulk update cheque status
-     * 
+     *
      * @param array $paymentIds
      * @param string $status
      * @param string|null $remarks
      * @param int|null $userId
      * @return array
      */
-    public function bulkUpdateChequeStatus(array $paymentIds, $status, $remarks = null, $userId = null)
+    public function bulkUpdateChequeStatus(array $paymentIds, $status, $remarks = null, $userId = null, $bankCharges = 0)
     {
         $results = ['success' => [], 'failed' => []];
-        
+
         foreach ($paymentIds as $paymentId) {
             try {
-                $result = $this->updateChequeStatus($paymentId, $status, $remarks, 0, $userId);
+                $result = $this->updateChequeStatus($paymentId, $status, $remarks, $bankCharges, $userId);
                 $results['success'][] = [
                     'payment_id' => $paymentId,
                     'data' => $result
@@ -139,7 +139,7 @@ class ChequeService
 
     /**
      * Record recovery payment for bounced cheques
-     * 
+     *
      * @param int $customerId
      * @param float $amount
      * @param string $paymentMethod
@@ -153,24 +153,24 @@ class ChequeService
         try {
             return DB::transaction(function () use ($customerId, $amount, $paymentMethod, $paymentDate, $notes, $referenceNo) {
                 $customer = Customer::withoutGlobalScopes()->findOrFail($customerId);
-                
+
                 // Check if customer is walk-in customer
-                if (strtolower($customer->full_name) === 'walk-in customer' || 
+                if (strtolower($customer->full_name) === 'walk-in customer' ||
                     $customer->customer_type === 'walk_in' ||
                     $customer->id === 1) { // Assuming ID 1 is walk-in customer
                     throw new Exception('Recovery payments cannot be processed for walk-in customers');
                 }
-                
+
                 // Check if customer has bounced cheques
                 $bouncedCheques = Payment::where('customer_id', $customerId)
                     ->where('payment_method', 'cheque')
                     ->where('cheque_status', 'bounced')
                     ->count();
-                    
+
                 if ($bouncedCheques === 0) {
                     throw new Exception('This customer has no bounced cheques to recover');
                 }
-                
+
                 $floatingBalance = $customer->getFloatingBalance();
 
                 if ($floatingBalance <= 0) {
@@ -229,13 +229,13 @@ class ChequeService
 
     /**
      * Get cheque status history
-     * 
+     *
      * @param int $paymentId
      * @return array
      */
     public function getChequeStatusHistory($paymentId)
     {
-        $payment = Payment::with(['chequeStatusHistory.user'])
+        $payment = Payment::with(['chequeStatusHistory.user', 'sale', 'customer'])
                           ->findOrFail($paymentId);
 
         return [
@@ -256,7 +256,7 @@ class ChequeService
 
     /**
      * Get customers with floating balance from bounced cheques
-     * 
+     *
      * @return array
      */
     public function getCustomersWithFloatingBalance()
@@ -302,7 +302,7 @@ class ChequeService
     private function validateStatusTransition($oldStatus, $newStatus)
     {
         $validStatuses = ['pending', 'deposited', 'cleared', 'bounced', 'cancelled'];
-        
+
         if (!in_array($newStatus, $validStatuses)) {
             throw new Exception("Invalid cheque status: {$newStatus}");
         }
@@ -318,12 +318,12 @@ class ChequeService
 
         // Get current status (default to pending if null)
         $currentStatus = $oldStatus ?? 'pending';
-        
+
         // Check if transition is allowed
         if (!isset($validTransitions[$currentStatus])) {
             throw new Exception("Unknown current status: {$currentStatus}");
         }
-        
+
         if (!in_array($newStatus, $validTransitions[$currentStatus])) {
             $allowedStatuses = implode(', ', $validTransitions[$currentStatus]);
             throw new Exception("Cannot change status from '{$currentStatus}' to '{$newStatus}'. Allowed transitions: {$allowedStatuses}");
@@ -399,7 +399,7 @@ class ChequeService
 
     private function handleBouncedChequeLedger($payment, $bankCharges, $userId)
     {
-        if (!$payment->sale || !$payment->customer_id) {
+        if (!$payment->customer_id) {
             return [];
         }
 
@@ -423,6 +423,8 @@ class ChequeService
         }
 
         // 1. Create bounced cheque debit entry (increases customer floating balance)
+        $invoiceReference = $payment->reference_no ?: ($payment->sale->invoice_no ?? 'N/A');
+
         $bounceEntry = Ledger::createEntry([
             'contact_id' => $payment->customer_id,  // ✅ FIX: Use contact_id instead of user_id
             'contact_type' => 'customer',
@@ -430,7 +432,7 @@ class ChequeService
             'reference_no' => $referenceNo,
             'transaction_type' => 'cheque_bounce',
             'amount' => $payment->amount,
-            'notes' => "Cheque bounce - {$payment->cheque_number} (Bill {$payment->sale->invoice_no} remains settled)"
+            'notes' => "Cheque bounce - {$payment->cheque_number} (Ref {$invoiceReference} remains settled)"
         ]);
         $ledgerEntries[] = $bounceEntry;
 
@@ -453,7 +455,7 @@ class ChequeService
             'cheque_number' => $payment->cheque_number,
             'bounce_amount' => $payment->amount,
             'bank_charges' => $bankCharges,
-            'sale_id' => $payment->sale->id,
+            'sale_id' => $payment->sale->id ?? null,
             'customer_id' => $payment->customer_id,
             'ledger_entries_created' => count($ledgerEntries)
         ]);
@@ -467,6 +469,22 @@ class ChequeService
     private function handleRecoveryChequeClearedLedger($payment, $userId)
     {
         if (!$payment->customer_id || $payment->payment_type !== 'recovery') {
+            return [];
+        }
+
+        // If recovery ledger was already posted when payment was created, do not duplicate on clear.
+        $existingRecoveryAtCreation = Ledger::where('contact_id', $payment->customer_id)
+            ->where('contact_type', 'customer')
+            ->where('reference_no', 'RECOVERY-PAY-' . $payment->id)
+            ->where('transaction_type', 'bounce_recovery')
+            ->exists();
+
+        if ($existingRecoveryAtCreation) {
+            Log::info('Recovery cheque cleared - ledger already posted at creation, skipping duplicate', [
+                'payment_id' => $payment->id,
+                'cheque_number' => $payment->cheque_number,
+                'reference_no' => 'RECOVERY-PAY-' . $payment->id
+            ]);
             return [];
         }
 
@@ -512,66 +530,4 @@ class ChequeService
         return $ledgerEntries;
     }
 
-    /**
-     * Update sale's total_paid amount based on completed payments (excluding pending cheques)
-     * 
-     * @param Payment $payment
-     * @return bool
-     */
-    private function updateSaleTotalPaid($payment)
-    {
-        if ($payment->payment_type !== 'sale' || !$payment->reference_id) {
-            return false;
-        }
-
-        try {
-            // Calculate total paid amount excluding pending cheques
-            $totalPaid = DB::table('payments')
-                ->where('reference_id', $payment->reference_id)
-                ->where('payment_type', 'sale')
-                ->where(function($query) {
-                    $query->where('payment_method', '!=', 'cheque')
-                          ->orWhere(function($subQuery) {
-                              $subQuery->where('payment_method', 'cheque')
-                                       ->whereIn('cheque_status', ['cleared', 'deposited']);
-                          });
-                })
-                ->sum('amount');
-
-            // Get the sale
-            $sale = DB::table('sales')->where('id', $payment->reference_id)->first();
-            
-            if ($sale) {
-                $totalDue = $sale->final_total - $totalPaid;
-                
-                // Update sale with correct amounts
-                DB::table('sales')
-                    ->where('id', $payment->reference_id)
-                    ->update([
-                        'total_paid' => $totalPaid,
-                        'total_due' => max(0, $totalDue),
-                        'updated_at' => now()
-                    ]);
-
-                Log::info('Updated sale total_paid after cheque status change', [
-                    'sale_id' => $payment->reference_id,
-                    'payment_id' => $payment->id,
-                    'cheque_status' => $payment->cheque_status,
-                    'total_paid' => $totalPaid,
-                    'total_due' => max(0, $totalDue)
-                ]);
-
-                return true;
-            }
-
-        } catch (Exception $e) {
-            Log::error('Failed to update sale total_paid after cheque status change', [
-                'payment_id' => $payment->id,
-                'sale_id' => $payment->reference_id,
-                'error' => $e->getMessage()
-            ]);
-        }
-
-        return false;
-    }
 }

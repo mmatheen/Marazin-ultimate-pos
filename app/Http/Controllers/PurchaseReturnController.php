@@ -9,6 +9,8 @@ use App\Models\Product;
 use App\Models\PurchaseReturn;
 use App\Models\PurchaseProduct;
 use App\Models\PurchaseReturnProduct;
+use App\Services\PosVatCalculatorService;
+use App\Services\TaxConfigurationService;
 use App\Models\StockHistory;
 use App\Services\UnifiedLedgerService;
 use Illuminate\Http\Request;
@@ -116,7 +118,8 @@ class PurchaseReturnController extends Controller
 
                 $referenceNo = $purchaseReturnId ? PurchaseReturn::find($purchaseReturnId)->reference_no : $this->generateReferenceNo();
 
-                $totalReturnAmount = collect($request->products)->sum(fn($product) => $product['subtotal']);
+                // Recomputed after line processing from persisted rows.
+                $totalReturnAmount = 0;
 
                 // Create or update the purchase return record
                 $purchaseReturn = PurchaseReturn::updateOrCreate(
@@ -206,6 +209,12 @@ class PurchaseReturnController extends Controller
                     $this->processProductReturn($productData, $purchaseReturn->id, $request->location_id);
                 }
 
+                // Recalculate authoritative return total using persisted product rows.
+                $correctedReturnTotal = (float) PurchaseReturnProduct::where('purchase_return_id', $purchaseReturn->id)->sum('subtotal');
+                $purchaseReturn->update([
+                    'return_total' => $correctedReturnTotal,
+                ]);
+
                 // Record or update purchase return in ledger
                 if ($isUpdate) {
                     $this->unifiedLedgerService->updatePurchaseReturn($purchaseReturn, $oldReferenceNo);
@@ -265,6 +274,27 @@ class PurchaseReturnController extends Controller
         $paidQtyToReturn = floatval($productData['quantity'] ?? 0);
         $freeQtyToReturn = floatval($productData['free_quantity'] ?? 0);
         $batchId = $productData['batch_id'] ?? null;
+        $sourcePurchaseLine = PurchaseProduct::query()
+            ->where('product_id', $productData['product_id'])
+            ->when(!empty($batchId), function ($q) use ($batchId) {
+                $q->where('batch_id', $batchId);
+            })
+            ->orderByDesc('id')
+            ->first();
+
+        $unitPriceExVat = (float) ($sourcePurchaseLine?->unit_cost ?? $productData['unit_price'] ?? 0);
+        $productTaxPercent = \App\Models\Product::whereKey($productData['product_id'])->value('tax_percent');
+        $taxPercent = TaxConfigurationService::resolveTaxPercent(
+            $productData['tax_percent'] ?? null,
+            $sourcePurchaseLine?->tax_percent ?? $productTaxPercent
+        );
+        $vatMetrics = PosVatCalculatorService::forPurchaseReturn(
+            $unitPriceExVat,
+            $taxPercent,
+            $paidQtyToReturn
+        );
+        $lineBaseSubtotal = round($unitPriceExVat * $paidQtyToReturn, 2);
+        $lineSubtotal = round($lineBaseSubtotal + $vatMetrics['vat_total'], 2);
 
         if (empty($batchId)) {
             // Handle FIFO return (no specific batch) - reduce paid and free separately
@@ -280,8 +310,12 @@ class PurchaseReturnController extends Controller
             'product_id' => $productData['product_id'],
             'quantity' => $paidQtyToReturn,
             'free_quantity' => $freeQtyToReturn,
-            'unit_price' => $productData['unit_price'],
-            'subtotal' => $productData['subtotal'],
+            'unit_price' => $unitPriceExVat,
+            'tax_percent' => $vatMetrics['tax_percent'],
+            'vat_per_unit' => $vatMetrics['vat_per_unit'],
+            'net_unit_cost' => $vatMetrics['net_unit_cost'],
+            'subtotal' => $lineSubtotal,
+            'vat_total' => $vatMetrics['vat_total'],
             'batch_no' => $batchId,
         ]);
     }
@@ -673,7 +707,7 @@ class PurchaseReturnController extends Controller
                 'count' => $returns->count()
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error fetching supplier returns', [
+            Log::error('Error fetching supplier returns', [
                 'supplier_id' => $supplierId,
                 'error' => $e->getMessage()
             ]);

@@ -106,6 +106,8 @@
                                         sku: item.product.sku,
                                         retail_price: item.product.retail_price,
                                         total_stock: item.total_stock ?? 0,
+                                        tax_percent: item.product.tax_percent ?? 0,
+                                        selling_price_tax_type: item.product.selling_price_tax_type ?? 'exclusive',
                                     }));
                                     response(results);
                                 } else {
@@ -342,6 +344,10 @@
                     const quantity = parseFloat(product.quantity || 0);
                     const freeQuantity = parseFloat(product.free_quantity || 0);
                     const returnPrice = parseFloat(product.return_price || 0);
+                    const lineVatTotal = parseFloat(product.vat_total || 0);
+                    const vatPerUnit = parseFloat(product.vat_per_unit || 0);
+                    const taxPercent = parseFloat(product.tax_percent || 0);
+                    const sellingPriceTaxType = String(product.selling_price_tax_type || 'exclusive').toLowerCase();
                     const subtotal = parseFloat(product.subtotal || 0);
 
                     const unitDisplay = productData.unit ? productData.unit.short_name : 'Pc(s)';
@@ -384,6 +390,10 @@
                                 <div class="free-quantity-error">Free quantity cannot exceed<br>the available amount.</div>
                             </td>`
                                 : `<td class="d-none"><input type="number" class="return-free-quantity" name="products[${index}][free_quantity]" value="0" style="display:none"></td>`}
+                            <td class="return-vat" data-vat-per-unit="${vatPerUnit}" data-tax-percent="${taxPercent}" data-selling-price-tax-type="${sellingPriceTaxType}">
+                                <div class="vat-display">Rs. ${(quantity * vatPerUnit).toFixed(2)}</div>
+                                ${taxPercent > 0 ? `<small class="text-muted" style="font-size: 9px;">${taxPercent.toFixed(0)}%</small>` : ''}
+                            </td>
                             <td class="return-subtotal">Rs. ${subtotal.toFixed(2)}</td>
                             <td><button type="button" class="btn btn-danger remove-product"><i class="fas fa-trash-alt"></i></button></td>
                         </tr>
@@ -406,8 +416,7 @@
                         $(this).val(quantity);
                     }
 
-                    const returnSubtotal = quantity * unitPrice;
-                    $(this).closest('tr').find('.return-subtotal').text(`Rs. ${returnSubtotal.toFixed(2)}`);
+                    updateRowTotals($(this).closest('tr'));
                     calculateReturnTotal();
                 });
 
@@ -565,6 +574,11 @@
                             const freeQuantity = parseFloat(product.free_quantity || 0);
                             const currentFreeQuantity = parseFloat(product.current_free_quantity || freeQuantity);
 
+                            // VAT must be calculated from RETURN qty, not from original sold line total
+                            const vatPerUnit = parseFloat(product.vat_per_unit || 0);
+                            const taxPercent = parseFloat(product.tax_percent || 0);
+                            const sellingPriceTaxType = String(product.selling_price_tax_type || 'exclusive').toLowerCase();
+
                             const row = `
                                             <tr data-index="${index}">
                                                 <td>${index + 1}</td>
@@ -601,6 +615,10 @@
                                                     <div class="free-quantity-error">Free quantity cannot exceed<br>the available amount.</div>
                                                 </td>`
                                                     : `<td class="d-none"><input type="number" class="return-free-quantity" name="products[${index}][free_quantity]" value="0" style="display:none"></td>`}
+                                                <td class="return-vat" data-vat-per-unit="${vatPerUnit}" data-tax-percent="${taxPercent}" data-selling-price-tax-type="${sellingPriceTaxType}">
+                                                    <div class="vat-display">Rs. 0.00</div>
+                                                    ${taxPercent > 0 ? `<small class="text-muted" style="font-size: 9px;">${taxPercent.toFixed(0)}%</small>` : ''}
+                                                </td>
                                                 <td class="return-subtotal">Rs. 0.00</td>
                                                 <td><button type="button" class="btn btn-danger remove-product"><i class="fas fa-trash-alt"></i></button></td>
                                             </tr>
@@ -665,9 +683,7 @@
                                 errorDiv.hide();
                             }
 
-                            const returnSubtotal = quantity * unitPrice;
-                            $input.closest('tr').find('.return-subtotal').text(
-                                `Rs. ${returnSubtotal.toFixed(2)}`);
+                            updateRowTotals($input.closest('tr'));
                             calculateReturnTotal();
                         });
 
@@ -863,13 +879,51 @@
                 }
             }
 
+            function calculateVatPerUnit(unitPrice, taxPercent, sellingPriceTaxType) {
+                const price = parseFloat(unitPrice) || 0;
+                const tax = parseFloat(taxPercent) || 0;
+                const taxType = String(sellingPriceTaxType || 'exclusive').toLowerCase();
+
+                if (tax <= 0 || price <= 0) {
+                    return 0;
+                }
+
+                if (taxType === 'inclusive') {
+                    const basePrice = price / (1 + (tax / 100));
+                    return price - basePrice;
+                }
+
+                return price * (tax / 100);
+            }
+
+            function updateRowTotals($row) {
+                const quantity = parseFloat($row.find('.return-quantity').val()) || 0;
+                const unitPrice = parseFloat($row.find('.return-quantity').data('unit-price')) || 0;
+                const vatPerUnit = parseFloat($row.find('.return-vat').data('vat-per-unit')) || 0;
+                const taxType = String($row.find('.return-vat').data('selling-price-tax-type') || 'exclusive').toLowerCase();
+
+                const returnVat = quantity * vatPerUnit;
+                const subtotalExVat = (taxType === 'inclusive')
+                    ? quantity * Math.max(0, unitPrice - vatPerUnit)
+                    : quantity * unitPrice;
+                const lineSubtotal = subtotalExVat + returnVat;
+
+                $row.find('.return-subtotal').text(`Rs. ${lineSubtotal.toFixed(2)}`);
+                $row.find('.vat-display').text(`Rs. ${returnVat.toFixed(2)}`);
+            }
+
             function calculateReturnTotal() {
                 let totalSubtotal = 0;
+                let totalVat = 0;
                 let totalReturnQuantity = 0;
 
                 // Calculate total subtotal and return quantity
                 $('.return-subtotal').each(function() {
                     totalSubtotal += parseFloat($(this).text().replace('Rs. ', ''));
+                });
+
+                $('.vat-display').each(function() {
+                    totalVat += parseFloat($(this).text().replace('Rs. ', '')) || 0;
                 });
 
                 $('.return-quantity').each(function() {
@@ -926,7 +980,10 @@
                     }
                 }
 
-                const returnTotal = totalSubtotal - totalDiscount;
+                const subtotalExVat = Math.max(0, totalSubtotal - totalVat);
+                const returnTotal = subtotalExVat - totalDiscount + totalVat;
+                $('#returnSubtotalDisplay').text(`Rs. ${subtotalExVat.toFixed(2)}`);
+                $('#totalReturnVat').text(`Rs. ${totalVat.toFixed(2)}`);
                 $('#totalReturnDiscount').text(`Rs. ${totalDiscount.toFixed(2)}`);
                 $('#returnTotalDisplay').text(`Rs. ${returnTotal.toFixed(2)}`);
                 $('#returnTotal').val(returnTotal.toFixed(2));
@@ -970,6 +1027,9 @@
             function addProductToTable(product) {
                 const stockDisplay = product.total_stock !== undefined && product.total_stock !== null ? product.total_stock : 0;
                 const freeStockDisplay = product.free_stock !== undefined && product.free_stock !== null ? product.free_stock : 0;
+                const taxPercent = parseFloat(product.tax_percent || 0);
+                const sellingPriceTaxType = String(product.selling_price_tax_type || 'exclusive').toLowerCase();
+                const defaultVatPerUnit = calculateVatPerUnit(product.retail_price, taxPercent, sellingPriceTaxType);
                 const newRow = `
                 <tr>
                     <td></td>
@@ -983,6 +1043,13 @@
                     ${canUseFreeQty
                         ? `<td><input type="number" class="form-control return-free-quantity" name="products[${product.value}][free_quantity]" placeholder="Free qty" min="0" step="any" data-product-id="${product.value}" value="0"></td>`
                         : `<td class="d-none"><input type="number" class="return-free-quantity" name="products[${product.value}][free_quantity]" value="0" style="display:none"></td>`}
+                    <td class="return-vat" data-vat-per-unit="${defaultVatPerUnit}" data-tax-percent="${taxPercent}" data-selling-price-tax-type="${sellingPriceTaxType}" style="text-align: center;">
+                        <div class="vat-display">Rs. 0.00</div>
+                        <select class="form-select form-select-sm return-tax-select" style="margin-top:4px; font-size:11px;">
+                            <option value="0">NON VAT</option>
+                            ${taxPercent > 0 ? `<option value="${taxPercent}" selected>VAT (${taxPercent.toFixed(0)}%)</option>` : ''}
+                        </select>
+                    </td>
                     <td class="return-subtotal">Rs. 0.00</td>
                     <td><button type="button" class="btn btn-danger remove-product"><i class="fas fa-trash-alt"></i></button></td>
                 </tr>
@@ -994,7 +1061,6 @@
 
                 $(".return-quantity").off('input').on('input', function() {
                     let quantity = parseFloat($(this).val()) || 0;
-                    const unitPrice = parseFloat($(this).data('unit-price'));
 
                     // For without-bill returns, no max stock limit — returns restore stock
                     if (quantity < 0) {
@@ -1002,8 +1068,24 @@
                         $(this).val(quantity);
                     }
 
-                    const returnSubtotal = quantity * unitPrice;
-                    $(this).closest('tr').find('.return-subtotal').text(`Rs. ${returnSubtotal.toFixed(2)}`);
+                    updateRowTotals($(this).closest('tr'));
+                    calculateReturnTotal();
+                });
+
+                $(".return-tax-select").off('change').on('change', function() {
+                    const $row = $(this).closest('tr');
+                    const selectedTaxPercent = parseFloat($(this).val()) || 0;
+                    const unitPrice = parseFloat($row.find('.return-quantity').data('unit-price')) || 0;
+                    const taxType = String($row.find('.return-vat').data('selling-price-tax-type') || 'exclusive').toLowerCase();
+                    const vatPerUnit = calculateVatPerUnit(unitPrice, selectedTaxPercent, taxType);
+
+                    $row.find('.return-vat')
+                        .data('tax-percent', selectedTaxPercent)
+                        .attr('data-tax-percent', selectedTaxPercent)
+                        .data('vat-per-unit', vatPerUnit)
+                        .attr('data-vat-per-unit', vatPerUnit);
+
+                    updateRowTotals($row);
                     calculateReturnTotal();
                 });
 
@@ -1107,6 +1189,8 @@
                             // Only include products with return quantity > 0 (paid or free)
                             if (quantity > 0 || freeQuantity > 0) {
                                 const $input = $(row).find('.return-quantity');
+                                const $vatCell = $(row).find('.return-vat');
+                                const lineVat = parseFloat($(row).find('.vat-display').text().replace('Rs. ', '')) || 0;
                                 const product = {
                                     product_id: $input.data('productId'),
                                     quantity: quantity,
@@ -1118,7 +1202,9 @@
                                     batch_id: $input.data('batchId') || null,
                                     price_type: "retail",
                                     discount: 0,
-                                    tax: 0,
+                                    tax: lineVat,
+                                    tax_percent: parseFloat($vatCell.data('tax-percent')) || 0,
+                                    selling_price_tax_type: String($vatCell.data('selling-price-tax-type') || 'exclusive'),
                                 };
                                 jsonData.products.push(product);
                             }

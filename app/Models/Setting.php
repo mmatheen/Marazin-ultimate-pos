@@ -16,6 +16,12 @@ class Setting extends Model
         'favicon',
         'enable_price_validation',
         'enable_free_qty',
+        'default_tax_percent',
+        'default_selling_price_tax_type',
+    ];
+
+    protected $casts = [
+        'default_tax_percent' => 'float',
     ];
 
     // Accessor: Full URL for logo

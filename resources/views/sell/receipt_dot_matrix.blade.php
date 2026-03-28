@@ -610,6 +610,22 @@
                         <td>{{ number_format($item['rate'], 2) }}</td>
                         <td>{{ number_format($item['amount'], 2) }}</td>
                     </tr>
+
+                    {{-- Show VAT per product if applicable --}}
+                    @php
+                        $productVatTotal = (float) ($item['product']->vat_total ?? 0);
+                        $productTaxPercent = (float) ($item['product']->tax_percent ?? 0);
+                    @endphp
+                    @if ($productVatTotal > 0)
+                        <tr style="background-color: #f9f9f9;">
+                            <td colspan="8" style="text-align: right; font-size: 10px; color: #666;">
+                                VAT @if ($productTaxPercent > 0)({{ number_format($productTaxPercent, 0, '.', '') }}%)@endif
+                            </td>
+                            <td colspan="2" style="text-align: right; font-weight: bold; font-size: 11px; color: #d9534f;">
+                                {{ number_format($productVatTotal, 2) }}
+                            </td>
+                        </tr>
+                    @endif
                     @empty
                         <tr>
                     <td colspan="10" style="text-align: center;">NO PRODUCTS FOUND</td>
@@ -662,6 +678,10 @@
                 @endif
                 {{-- RIGHT: discount, Bill Total, balance due --}}
                 <div class="summary-column summary-column-right">
+                    <div class="summary-row">
+                        <span>Sub Total:</span>
+                        <span>{{ number_format($sale->subtotal, 2) }}</span>
+                    </div>
                     @if ($total_all_discounts > 0)
                         <div class="summary-row">
                             <span>Discount:</span>

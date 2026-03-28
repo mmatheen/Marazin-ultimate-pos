@@ -465,6 +465,9 @@ $(document).ready(function() {
                 console.log('📊 Response customer object:', response.customer);
                 console.log('💰 Response summary object:', response.summary);
 
+                // Keep latest successful response for statement exports.
+                window.lastLedgerResponse = response;
+
                 $('#filterStatus').html('<i class="fa fa-check-circle text-success"></i> <small class="text-success">Loaded</small>');
 
                 // Hide loading and show ready status
@@ -757,7 +760,7 @@ $(document).ready(function() {
             destroy: true,
             responsive: true,
             processing: true,
-            pageLength: 10,
+            pageLength: 100,
             lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
             ordering: false, // Disable sorting to maintain chronological order
             columnDefs: [
@@ -776,7 +779,7 @@ $(document).ready(function() {
                     className: 'text-center'
                 },
                 {
-                    targets: [3, 5], // Type and Status columns
+                    targets: [3, 4, 5], // Type, Location, and Status columns
                     orderable: false,
                     className: 'text-center'
                 },
@@ -791,7 +794,7 @@ $(document).ready(function() {
                     className: 'text-center'
                 }
             ],
-            dom: 'Bfrtip',
+            dom: 'Blfrtip',
             buttons: [
                 {
                     extend: 'excel',
@@ -799,9 +802,221 @@ $(document).ready(function() {
                     className: 'btn btn-success btn-sm'
                 },
                 {
-                    extend: 'pdf',
+                    extend: 'pdfHtml5',
                     text: '<i class="fas fa-file-pdf"></i> Export PDF',
-                    className: 'btn btn-danger btn-sm'
+                    className: 'btn btn-danger btn-sm',
+                    orientation: 'portrait',
+                    pageSize: 'A4',
+                    customize: function (doc) {
+                        function formatCurrency(amount) {
+                            return parseFloat(amount || 0).toLocaleString('en-IN', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            });
+                        }
+
+                        const customerName = $('#contact_id option:selected').text() || 'N/A';
+                        const ledgerType = $('#ledger_type').val();
+                        const startDate = $('#start_date').val() || '';
+                        const endDate = $('#end_date').val() || '';
+                        const titlePrefix = ledgerType === 'supplier' ? 'SUPPLIER' : 'CUSTOMER';
+                        const response = window.lastLedgerResponse || {};
+                        const customer = response.customer || {};
+                        const summary = response.summary || {};
+                        const transactions = response.transactions || [];
+                        const selectedLocationText = ($('#location_id option:selected').text() || '').trim();
+                        const locationName = selectedLocationText && selectedLocationText.toLowerCase() !== 'all locations'
+                            ? selectedLocationText
+                            : 'All Locations';
+                        const companyName =
+                            $('.main-header .logo .logo-lg').first().text().trim() ||
+                            $('.main-header .logo').first().text().trim() ||
+                            $('.navbar-brand').first().text().trim() ||
+                            (document.title || '').split('|')[0].trim() ||
+                            'Business';
+                        const customerMobile = customer.mobile || customer.phone || 'N/A';
+                        const customerAddress = customer.address || customer.city || 'N/A';
+                        const openingBalance = parseFloat(summary.opening_balance || customer.opening_balance || 0);
+                        const totalSales = parseFloat(summary.total_transactions || summary.total_invoices || 0);
+                        const totalPaid = parseFloat(summary.total_payments || summary.total_paid || 0);
+                        const totalReturns = parseFloat(summary.total_returns || 0);
+                        const outstandingDue = parseFloat(summary.outstanding || summary.outstanding_due || 0);
+                        const advanceAmount = parseFloat(summary.advance_amount || 0);
+                        const effectiveDue = parseFloat(summary.effective_due || 0);
+                        const periodText = startDate || endDate
+                            ? (startDate ? formatDisplayDate(startDate) : 'Beginning') + ' to ' + (endDate ? formatDisplayDate(endDate) : 'Today')
+                            : 'All Time';
+
+                        // Base page formatting
+                        doc.pageMargins = [24, 24, 24, 24];
+                        doc.defaultStyle.fontSize = 9;
+
+                        // Clear default content
+                        doc.content = [];
+
+                        // 1) Professional statement header
+                        doc.content.push({
+                            table: {
+                                widths: ['62%', '38%'],
+                                body: [
+                                    [
+                                        {
+                                            text: [
+                                                { text: companyName + '\n', fontSize: 15, bold: true, color: '#0f172a' },
+                                                { text: titlePrefix + ' ACCOUNT STATEMENT', fontSize: 11, bold: true, color: '#334155' }
+                                            ],
+                                            border: [false, false, false, false]
+                                        },
+                                        {
+                                            text: [
+                                                { text: 'Statement Date: ' + new Date().toLocaleDateString('en-GB') + '\n', fontSize: 9 },
+                                                { text: 'Account ID: ' + (customer.id || 'N/A') + '\n', fontSize: 9 },
+                                                { text: 'Location: ' + locationName, fontSize: 9 }
+                                            ],
+                                            alignment: 'right',
+                                            border: [false, false, false, false]
+                                        }
+                                    ]
+                                ]
+                            },
+                            layout: 'noBorders',
+                            margin: [0, 0, 0, 6]
+                        });
+
+                        doc.content.push({
+                            canvas: [
+                                { type: 'line', x1: 0, y1: 0, x2: 545, y2: 0, lineWidth: 1, lineColor: '#cbd5e1' }
+                            ],
+                            margin: [0, 0, 0, 8]
+                        });
+
+                        doc.content.push({
+                            table: {
+                                widths: ['18%', '32%', '18%', '32%'],
+                                body: [
+                                    [
+                                        { text: 'Account Holder', bold: true, fontSize: 9, border: [false, false, false, false] },
+                                        { text: customerName, fontSize: 9, border: [false, false, false, false] },
+                                        { text: 'Mobile', bold: true, fontSize: 9, border: [false, false, false, false] },
+                                        { text: customerMobile, fontSize: 9, border: [false, false, false, false] }
+                                    ],
+                                    [
+                                        { text: 'Address', bold: true, fontSize: 9, border: [false, false, false, false] },
+                                        { text: customerAddress, fontSize: 9, border: [false, false, false, false] },
+                                        { text: 'Period', bold: true, fontSize: 9, border: [false, false, false, false] },
+                                        { text: periodText, fontSize: 9, border: [false, false, false, false] }
+                                    ]
+                                ]
+                            },
+                            layout: 'noBorders',
+                            margin: [0, 0, 0, 12]
+                        });
+
+                        function formatDisplayDate(dateValue) {
+                            const date = new Date(dateValue);
+                            if (isNaN(date.getTime())) {
+                                return dateValue;
+                            }
+                            return date.toLocaleDateString('en-GB');
+                        }
+
+                        // 2) Summary box
+                        doc.content.push({
+                            table: {
+                                widths: ['33.33%', '33.33%', '33.33%'],
+                                body: [
+                                    [
+                                        { text: 'Total Sales\nRs. ' + formatCurrency(totalSales), margin: [4, 4, 4, 4] },
+                                        { text: 'Total Paid\nRs. ' + formatCurrency(totalPaid), margin: [4, 4, 4, 4] },
+                                        { text: 'Total Returns\nRs. ' + formatCurrency(totalReturns), margin: [4, 4, 4, 4] }
+                                    ],
+                                    [
+                                        { text: 'Outstanding Due\nRs. ' + formatCurrency(outstandingDue), margin: [4, 4, 4, 4] },
+                                        { text: 'Advance Amount\nRs. ' + formatCurrency(advanceAmount), margin: [4, 4, 4, 4] },
+                                        { text: 'Opening Balance\nRs. ' + formatCurrency(openingBalance), margin: [4, 4, 4, 4] }
+                                    ]
+                                ]
+                            },
+                            layout: {
+                                fillColor: function () { return '#f8f9fa'; },
+                                hLineColor: function () { return '#d9d9d9'; },
+                                vLineColor: function () { return '#d9d9d9'; }
+                            },
+                            margin: [0, 0, 0, 10]
+                        });
+
+                        // 3) Build statement table directly from API response
+                        doc.styles.tableHeader = {
+                            bold: true,
+                            fontSize: 10,
+                            color: 'black',
+                            fillColor: '#eeeeee'
+                        };
+
+                        const tableBody = [
+                            [
+                                { text: 'Date', style: 'tableHeader' },
+                                { text: 'Ref No', style: 'tableHeader' },
+                                { text: 'Type', style: 'tableHeader' },
+                                { text: 'Description', style: 'tableHeader' },
+                                { text: 'Debit', style: 'tableHeader', alignment: 'right' },
+                                { text: 'Credit', style: 'tableHeader', alignment: 'right' },
+                                { text: 'Balance', style: 'tableHeader', alignment: 'right' }
+                            ]
+                        ];
+
+                        // Add transaction rows from API response
+                        transactions.forEach(function(entry) {
+                            const debitValue = parseFloat(entry.debit || 0);
+                            const creditValue = parseFloat(entry.credit || 0);
+                            const balanceValue = parseFloat(entry.running_balance || 0);
+
+                            tableBody.push([
+                                entry.date || entry.created_at || 'N/A',
+                                entry.reference_no || 'N/A',
+                                entry.type || entry.transaction_type || 'N/A',
+                                entry.notes || entry.others || 'N/A',
+                                debitValue > 0 ? 'Rs. ' + formatCurrency(debitValue) : '-',
+                                creditValue > 0 ? 'Rs. ' + formatCurrency(creditValue) : '-',
+                                'Rs. ' + formatCurrency(balanceValue)
+                            ]);
+                        });
+
+                        doc.content.push({
+                            table: {
+                                headerRows: 1,
+                                widths: ['12%', '14%', '12%', '22%', '13%', '13%', '14%'],
+                                body: tableBody
+                            },
+                            layout: {
+                                fillColor: function (rowIndex) {
+                                    return rowIndex === 0 ? '#eeeeee' : null;
+                                },
+                                hLineColor: function () { return '#d9d9d9'; },
+                                vLineColor: function () { return '#d9d9d9'; }
+                            },
+                            margin: [0, 0, 0, 10]
+                        });
+
+                        // 4) Footer section
+                        const finalBalanceLabel = effectiveDue > 0 ? 'Final Outstanding Due' : 'Advance Balance';
+                        const finalBalanceValue = Math.abs(effectiveDue);
+
+                        doc.content.push({
+                            text: finalBalanceLabel + ': Rs. ' + formatCurrency(finalBalanceValue),
+                            bold: true,
+                            margin: [0, 2, 0, 16],
+                            alignment: 'right'
+                        });
+
+                        doc.content.push({
+                            columns: [
+                                { text: 'Generated On: ' + new Date().toLocaleString('en-GB') },
+                                { text: 'Authorized Signature: ____________________', alignment: 'right' }
+                            ],
+                            margin: [0, 0, 0, 0]
+                        });
+                    }
                 },
                 {
                     extend: 'print',

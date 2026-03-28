@@ -21,6 +21,12 @@ class SalesReturnProduct extends Model
         'return_price',     // Price for the return
         'discount',         // Discount applied during return
         'tax',              // Tax applied during return
+        'tax_percent',
+        'vat_per_unit',
+        'vat_total',
+        'sale_excl_vat_per_unit',
+        'profit_per_unit',
+        'profit_reversal_total',
         'subtotal',         // Calculated subtotal
     ];
 

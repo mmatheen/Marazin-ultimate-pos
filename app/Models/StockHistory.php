@@ -13,6 +13,10 @@ class StockHistory extends Model
         'loc_batch_id',
         'quantity',
         'stock_type',
+        'paid_qty',
+        'free_qty',
+        'source_pool',
+        'movement_type',
     ];
 
     // Append computed attributes to JSON/array output
@@ -24,6 +28,7 @@ class StockHistory extends Model
     const STOCK_TYPE_PURCHASE_RETURN = 'purchase_return';
     const STOCK_TYPE_PURCHASE_RETURN_REVERSAL = 'purchase_return_reversal';
     const STOCK_TYPE_SALE = 'sale';
+    const STOCK_TYPE_VIRTUAL_SALE = 'virtual_sale';
     const STOCK_TYPE_SALE_REVERSAL = 'sale_reversal';
     const STOCK_TYPE_SALE_ORDER = 'sale_order';
     const STOCK_TYPE_SALE_ORDER_REVERSAL = 'sale_order_reversal';
@@ -155,6 +160,7 @@ class StockHistory extends Model
             self::STOCK_TYPE_PURCHASE_RETURN,
             self::STOCK_TYPE_PURCHASE_RETURN_REVERSAL,
             self::STOCK_TYPE_SALE,
+            self::STOCK_TYPE_VIRTUAL_SALE,
             self::STOCK_TYPE_SALE_REVERSAL,
             self::STOCK_TYPE_SALE_ORDER,
             self::STOCK_TYPE_SALE_ORDER_REVERSAL,

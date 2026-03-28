@@ -22,6 +22,12 @@ class SalesProduct extends Model
         'discount_amount',
         'discount_type', // 'fixed' or 'percentage'
         'tax',
+        'tax_percent',
+        'vat_per_unit',
+        'vat_total',
+        'sale_excl_vat_per_unit',
+        'profit_per_unit',
+        'profit_total',
     ];
 
     public function sale()

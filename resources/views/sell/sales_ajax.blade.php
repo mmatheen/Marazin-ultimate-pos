@@ -1948,6 +1948,10 @@
                                 sku: product.sku,
                                 quantity: totalQuantity,
                                 price: product.retail_price,
+                                retail_price: product.retail_price || 0,
+                                wholesale_price: product.whole_sale_price || 0,
+                                special_price: product.special_price || 0,
+                                max_retail_price: product.max_retail_price || 0,
                                 product_details: product,
                                 batches: stock.batches
                             };
@@ -2033,7 +2037,10 @@
             if (isEditing) {
                 return product.batches.map(batch => ({
                     batch_id: batch.id,
-                    batch_price: parseFloat(batch.retail_price) || 0,
+                    batch_retail_price: parseFloat(batch.retail_price) || 0,
+                    batch_wholesale_price: parseFloat(batch.wholesale_price) || 0,
+                    batch_special_price: parseFloat(batch.special_price) || 0,
+                    batch_max_retail_price: parseFloat(batch.max_retail_price) || 0,
                     batch_quantity: batch.qty || 0,
                     batch_quantity_plus_sold: batch.qty + (batch.id === selectedBatchId ? product
                         .quantity : 0) // Adjust batch quantity if editing
@@ -2042,10 +2049,35 @@
                 return product.batches.flatMap(batch =>
                     Array.isArray(batch.location_batches) ? batch.location_batches.map(locationBatch => ({
                         batch_id: batch.id,
-                        batch_price: parseFloat(batch.retail_price) || 0,
+                        batch_retail_price: parseFloat(batch.retail_price) || 0,
+                        batch_wholesale_price: parseFloat(batch.wholesale_price) || 0,
+                        batch_special_price: parseFloat(batch.special_price) || 0,
+                        batch_max_retail_price: parseFloat(batch.max_retail_price) || 0,
                         batch_quantity: locationBatch.quantity || 0
                     })) : []
                 );
+            }
+        }
+
+        function resolveRowPriceByType($row) {
+            const selectedOption = $row.find('.batch-dropdown option:selected');
+            const priceType = $row.find('.price-type').val() || 'retail';
+
+            const retail = parseFloat(selectedOption.data('retailPrice')) || 0;
+            const wholesale = parseFloat(selectedOption.data('wholesalePrice')) || 0;
+            const special = parseFloat(selectedOption.data('specialPrice')) || 0;
+            const maxRetail = parseFloat(selectedOption.data('maxRetailPrice')) || 0;
+
+            switch (priceType) {
+                case 'wholesale':
+                    return wholesale > 0 ? wholesale : retail;
+                case 'special':
+                    return special > 0 ? special : retail;
+                case 'max_retail':
+                    return maxRetail > 0 ? maxRetail : retail;
+                case 'retail':
+                default:
+                    return retail;
             }
         }
 
@@ -2096,11 +2128,14 @@
             // Generate batch options
             const batchOptions = batches.map(batch => `
         <option value="${batch.batch_id}"
-                data-price="${batch.batch_price}"
+                data-retail-price="${batch.batch_retail_price}"
+                data-wholesale-price="${batch.batch_wholesale_price}"
+                data-special-price="${batch.batch_special_price}"
+                data-max-retail-price="${batch.batch_max_retail_price}"
                 data-quantity="${batch.batch_quantity}"
                 ${isEditing ? `data-quantity-plus-sold="${batch.batch_quantity_plus_sold}"` : ''}
                 ${selectedBatchId === batch.batch_id ? 'selected' : ''}>
-            Batch ${batch.batch_id} - Qty: ${isEditing ? batch.batch_quantity_plus_sold : batch.batch_quantity} - Price: ${batch.batch_price}
+            Batch ${batch.batch_id} - Qty: ${isEditing ? batch.batch_quantity_plus_sold : batch.batch_quantity} - R: ${batch.batch_retail_price}
         </option>
     `).join('');
 
@@ -2108,7 +2143,12 @@
         <tr data-id="${product.id}">
             <td>${product.name || '-'} <br><span style="font-size:12px;">Current stock: ${totalQuantity}</span>
                 <select class="form-select batch-dropdown" aria-label="Select Batch">
-                    <option value="all" data-price="${finalPrice}" data-quantity="${totalQuantity}">
+                    <option value="all"
+                        data-retail-price="${parseFloat(product.retail_price || finalPrice) || 0}"
+                        data-wholesale-price="${parseFloat(product.wholesale_price || 0) || 0}"
+                        data-special-price="${parseFloat(product.special_price || 0) || 0}"
+                        data-max-retail-price="${parseFloat(product.max_retail_price || finalPrice) || 0}"
+                        data-quantity="${totalQuantity}">
                         All Batches - Total Qty: ${totalQuantity} - Price: ${finalPrice}
                     </option>
                     ${batchOptions}
@@ -2122,6 +2162,20 @@
                 : `<td class="d-none"><input type="number" class="free-quantity-input" value="0" style="display:none"></td>`}
             <td>
                 <input type="number" class="form-control price-input" value="${finalPrice.toFixed(2)}" min="0">
+                <select class="form-select mt-2 price-type" aria-label="Select Price Type">
+                    @can('select retail price')
+                    <option value="retail" selected>Retail</option>
+                    @endcan
+                    @can('select wholesale price')
+                    <option value="wholesale">Wholesale</option>
+                    @endcan
+                    @can('select special price')
+                    <option value="special">Special</option>
+                    @endcan
+                    @can('select max retail price')
+                    <option value="max_retail">Max Retail</option>
+                    @endcan
+                </select>
             </td>
             <td>
                 <input type="number" class="form-control discount-percent" value="${discountPercent}" min="0" max="100">
@@ -2155,6 +2209,7 @@
             const priceInput = $newRow.find('.price-input');
             const discountTypeSelect = $newRow.find('.discount-type');
             const batchDropdown = $newRow.find('.batch-dropdown');
+            const priceTypeSelect = $newRow.find('.price-type');
 
             $newRow.find('.remove-btn').on('click', function(event) {
                 event.preventDefault(); // Prevent form submission
@@ -2228,7 +2283,7 @@
 
             batchDropdown.on('change', () => {
                 const selectedOption = batchDropdown.find(':selected');
-                const batchPrice = parseFloat(selectedOption.data('price')) || 0;
+                const batchPrice = resolveRowPriceByType($newRow);
                 const batchQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(
                     selectedOption.data('quantity-plus-sold') || selectedOption.data('quantity'), 10
                 );
@@ -2240,6 +2295,13 @@
                 }
                 priceInput.val(batchPrice.toFixed(2));
                 updateRow($newRow); // Update row when batch is changed
+                updateTotals();
+            });
+
+            priceTypeSelect.on('change', () => {
+                const selectedPrice = resolveRowPriceByType($newRow);
+                priceInput.val(selectedPrice.toFixed(2));
+                updateRow($newRow);
                 updateTotals();
             });
         }

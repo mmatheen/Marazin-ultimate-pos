@@ -99,7 +99,7 @@ class PaymentReportService
         return '';
     }
 
-    //  Private helpers 
+    //  Private helpers
 
     private function fetchPayments(Request $request): \Illuminate\Database\Eloquent\Collection
     {
@@ -123,6 +123,16 @@ class PaymentReportService
         if (filled($request->start_date))     $query->whereDate('payment_date', '>=', $request->start_date);
         if (filled($request->end_date))       $query->whereDate('payment_date', '<=', $request->end_date);
 
+        // Business rule: bounced cheque entries are not treated as successful payments
+        // in payment reports unless explicitly requested.
+        if (!$request->boolean('include_bounced')) {
+            $query->where(function ($q) {
+                $q->where('payment_method', '!=', 'cheque')
+                  ->orWhereNull('cheque_status')
+                  ->orWhere('cheque_status', '!=', 'bounced');
+            });
+        }
+
         if (filled($request->location_id)) {
             $locId = $request->location_id;
             $query->where(function ($q) use ($locId) {
@@ -139,7 +149,9 @@ class PaymentReportService
     ): array {
         $collections = [];
 
-        foreach ($payments->groupBy('reference_no') as $referenceNo => $group) {
+        foreach ($payments->groupBy(function ($payment) {
+            return filled($payment->reference_no) ? $payment->reference_no : 'PAY-' . $payment->id;
+        }) as $referenceNo => $group) {
             $first        = $group->first();
             $locationName = $this->resolveLocationFromPayment($first);
 

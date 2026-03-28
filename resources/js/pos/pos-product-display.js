@@ -561,14 +561,15 @@ function displayProducts(products, append = false) {
 
     const newlyAddedCards = [];
 
-    // Show products with stock > 0 or unlimited stock
+    // Show products with paid/free stock > 0 or unlimited stock
     const filteredProducts = products.filter(stock => {
         const product = stock.product;
         if (product.stock_alert === 0) {
             return true;
         }
-        const stockLevel = parseFloat(stock.total_stock) || 0;
-        const hasStock   = stockLevel > 0;
+        const paidStockLevel = parseFloat(stock.total_stock) || 0;
+        const freeStockLevel = parseFloat(stock.total_free_stock) || 0;
+        const hasStock   = (paidStockLevel + freeStockLevel) > 0;
         return hasStock;
     });
 
@@ -770,8 +771,9 @@ function displayMobileProducts(products, append = false) {
     const filteredProducts = products.filter(stock => {
         const product = stock.product;
         if (product.stock_alert === 0) return true;
-        const stockLevel = parseFloat(stock.total_stock) || 0;
-        return stockLevel > 0;
+        const paidStockLevel = parseFloat(stock.total_stock) || 0;
+        const freeStockLevel = parseFloat(stock.total_free_stock) || 0;
+        return (paidStockLevel + freeStockLevel) > 0;
     });
 
     const fmtAmount = (typeof window.formatAmountWithSeparators === 'function')

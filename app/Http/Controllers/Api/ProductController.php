@@ -30,6 +30,7 @@ use App\Events\StockUpdated;
 use App\Models\Discount;
 use App\Models\ImeiNumber;
 use Illuminate\Http\JsonResponse;
+use App\Services\TaxConfigurationService;
 
 class ProductController extends Controller
 {
@@ -63,7 +64,9 @@ class ProductController extends Controller
                     $query->with('batch');
                 },
                 'locationBatches.stockHistories' => function ($query) {
-                    $query->orderBy('created_at', 'asc') // FIFO order
+                    $query->orderByDesc('updated_at')
+                        ->orderByDesc('created_at')
+                        ->orderByDesc('id')
                         ->with([
                             'locationBatch.batch.purchaseProducts.purchase.supplier',
                             'locationBatch.batch.salesProducts.sale.customer',
@@ -80,7 +83,19 @@ class ProductController extends Controller
             // Flatten all stock histories across location batches
             $stockHistories = $product->locationBatches->flatMap(function ($locBatch) {
                 return $locBatch->stockHistories;
-            });
+            })->sort(function ($a, $b) {
+                $aDate = $a->updated_at ?: $a->created_at;
+                $bDate = $b->updated_at ?: $b->created_at;
+
+                $aTs = $aDate ? $aDate->getTimestamp() : 0;
+                $bTs = $bDate ? $bDate->getTimestamp() : 0;
+
+                if ($aTs === $bTs) {
+                    return ($b->id ?? 0) <=> ($a->id ?? 0);
+                }
+
+                return $bTs <=> $aTs;
+            })->values();
 
             // Log for debugging
             Log::info('API Stock History Debug', [
@@ -468,6 +483,8 @@ class ProductController extends Controller
             'whole_sale_price' => 'required|numeric|min:0',
             'special_price' => 'nullable|numeric|min:0',
             'original_price' => 'required|numeric|min:0',
+            'tax_percent' => 'nullable|numeric|min:0|max:100',
+            'selling_price_tax_type' => 'nullable|in:inclusive,exclusive',
             'max_retail_price' => 'nullable|numeric|min:0',
         ];
 
@@ -538,6 +555,8 @@ class ProductController extends Controller
             'whole_sale_price' => $request->whole_sale_price,
             'special_price' => $request->special_price,
             'original_price' => $request->original_price,
+            'tax_percent' => TaxConfigurationService::resolveTaxPercent($request->input('tax_percent')),
+            'selling_price_tax_type' => TaxConfigurationService::resolveSellingPriceTaxType($request->input('selling_price_tax_type')),
             'max_retail_price' => $request->max_retail_price,
         ];
 
@@ -1591,6 +1610,8 @@ class ProductController extends Controller
                 'product_type',
                 'pax',
                 'original_price',
+                'tax_percent',
+                'selling_price_tax_type',
                 'retail_price',
                 'whole_sale_price',
                 'special_price',
@@ -1797,6 +1818,8 @@ class ProductController extends Controller
                         'product_type' => $product->product_type,
                         'pax' => $product->pax,
                         'original_price' => $product->original_price,
+                        'tax_percent' => (float) ($product->tax_percent ?? 0),
+                        'selling_price_tax_type' => (string) ($product->selling_price_tax_type ?? 'inclusive'),
                         'retail_price' => $product->retail_price,
                         'whole_sale_price' => $product->whole_sale_price,
                         'special_price' => $product->special_price,
@@ -2140,6 +2163,8 @@ class ProductController extends Controller
                     'product_type' => $product->product_type,
                     'pax' => $product->pax,
                     'original_price' => $product->original_price,
+                    'tax_percent' => (float) ($product->tax_percent ?? 0),
+                    'selling_price_tax_type' => (string) ($product->selling_price_tax_type ?? 'inclusive'),
                     'retail_price' => $product->retail_price,
                     'whole_sale_price' => $product->whole_sale_price,
                     'special_price' => $product->special_price,

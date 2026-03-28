@@ -31,6 +31,8 @@ class Product extends Model
         'whole_sale_price',
         'special_price',
         'original_price',
+        'tax_percent',
+        'selling_price_tax_type',
         'max_retail_price',
         'is_active'
     ];
