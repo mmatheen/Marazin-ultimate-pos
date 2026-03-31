@@ -375,7 +375,7 @@ class StockTransferController extends Controller
             StockHistory::create([
                 'loc_batch_id' => $fromLocationBatch->id,
                 'quantity' => $quantity,
-                'stock_type' => StockHistory::STOCK_TYPE_ADJUSTMENT,
+                'stock_type' => StockHistory::STOCK_TYPE_TRANSFER_IN,
             ]);
 
             // Reverse the movement: Remove from destination location
@@ -397,8 +397,8 @@ class StockTransferController extends Controller
                     // Log the reversal
                     StockHistory::create([
                         'loc_batch_id' => $toLocationBatch->id,
-                        'quantity' => -$quantity, // Negative because it's being removed
-                        'stock_type' => StockHistory::STOCK_TYPE_ADJUSTMENT,
+                        'quantity' => $quantity,
+                        'stock_type' => StockHistory::STOCK_TYPE_TRANSFER_OUT,
                     ]);
 
                     // Delete the location_batch if quantity becomes 0
@@ -420,8 +420,8 @@ class StockTransferController extends Controller
                         $toLocationBatch->update(['qty' => 0]);
                         StockHistory::create([
                             'loc_batch_id' => $toLocationBatch->id,
-                            'quantity' => -$availableQty,
-                            'stock_type' => StockHistory::STOCK_TYPE_ADJUSTMENT,
+                            'quantity' => $availableQty,
+                            'stock_type' => StockHistory::STOCK_TYPE_TRANSFER_OUT,
                         ]);
                         $toLocationBatch->delete();
                         Log::info('Partial reversal completed', [

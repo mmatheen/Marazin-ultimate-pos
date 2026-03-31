@@ -1487,14 +1487,18 @@
                             row.batches.forEach(batch => {
                                 if (batch.location_batches) {
                                     batch.location_batches.forEach(lb => {
-                                        if (lb.quantity > 0) {
+                                        const paidQty = parseFloat(lb.quantity ?? lb.qty ?? 0);
+                                        const freeQty = parseFloat(lb.free_quantity ?? lb.free_qty ?? 0);
+                                        if (paidQty > 0 || freeQty > 0) {
                                             if (!locationStocks[lb.location_id]) {
                                                 locationStocks[lb.location_id] = {
                                                     name: lb.location_name,
-                                                    qty: 0
+                                                    qty: 0,
+                                                    free_qty: 0
                                                 };
                                             }
-                                            locationStocks[lb.location_id].qty += parseFloat(lb.quantity);
+                                            locationStocks[lb.location_id].qty += paidQty;
+                                            locationStocks[lb.location_id].free_qty += freeQty;
                                         }
                                     });
                                 }
@@ -1502,10 +1506,11 @@
 
                             // Build display array with quantities
                             Object.values(locationStocks).forEach(location => {
-                                if (location.qty > 0) {
+                                if (location.qty > 0 || location.free_qty > 0) {
                                     locationDisplay.push({
                                         name: location.name,
-                                        qty: location.qty
+                                        qty: location.qty,
+                                        free_qty: location.free_qty
                                     });
                                 }
                             });
@@ -1520,9 +1525,11 @@
                                 if (locationName && !existingLocationNames.includes(locationName)) {
                                     // Check if this location has stock
                                     const stockQty = locationStocks[locationId] ? locationStocks[locationId].qty : 0;
+                                    const freeStockQty = locationStocks[locationId] ? locationStocks[locationId].free_qty : 0;
                                     locationDisplay.push({
                                         name: locationName,
-                                        qty: stockQty
+                                        qty: stockQty,
+                                        free_qty: freeStockQty
                                     });
                                 }
                             });
@@ -1541,7 +1548,14 @@
                         } else if (locationDisplay.length === 1) {
                             // Show single location inline
                             const loc = locationDisplay[0];
-                            return loc.qty > 0 ? `${loc.name} (${loc.qty})` : loc.name;
+                            const paid = parseFloat(loc.qty || 0);
+                            const free = parseFloat(loc.free_qty || 0);
+                            if (paid > 0 || free > 0) {
+                                const paidText = `Paid: ${paid}`;
+                                const freeText = `Free: ${free}`;
+                                return `${loc.name} <small class="text-muted">(${paidText}${free > 0 ? ' | ' + freeText : ''})</small>`;
+                            }
+                            return loc.name;
                         } else {
                             // Show button for multiple locations
                             const locationsJson = JSON.stringify(locationDisplay).replace(/"/g, '&quot;');
@@ -1609,7 +1623,23 @@
                     }
                 },
                 {
-                    data: "total_stock"
+                    data: null,
+                    render: function(data, type, row) {
+                        // If unlimited stock, keep existing behavior
+                        if (row.product && (row.product.stock_alert === 0 || row.product.stock_alert === "0")) {
+                            return 'Unlimited';
+                        }
+
+                        const paid = parseFloat(row.total_stock ?? 0) || 0;
+                        const free = parseFloat(row.total_free_stock ?? 0) || 0;
+                        const total = paid + free;
+
+                        // Show combined total, but keep visibility of paid/free
+                        if (free > 0) {
+                            return `${total} <small class="text-muted">(Paid: ${paid} | Free: ${free})</small>`;
+                        }
+                        return `${total}`;
+                    }
                 },
                 {
                     data: null,
@@ -3749,10 +3779,12 @@
 
                                             locationStocks[lb.location_id] = {
                                                 name: locName,
-                                                qty: 0
+                                                qty: 0,
+                                                free_qty: 0
                                             };
                                         }
                                         locationStocks[lb.location_id].qty += parseFloat(lb.quantity || lb.qty || 0);
+                                        locationStocks[lb.location_id].free_qty += parseFloat(lb.free_quantity || lb.free_qty || 0);
                                     });
                                 }
                             });
@@ -3762,10 +3794,11 @@
                         if (Object.keys(locationStocks).length > 0) {
                             locationHtml = '<div class="d-flex flex-wrap gap-2">';
                             Object.values(locationStocks).forEach(loc => {
-                                const badgeClass = loc.qty > 0 ? 'success' : 'secondary';
+                                const badgeClass = (loc.qty > 0 || loc.free_qty > 0) ? 'success' : 'secondary';
                                 locationHtml += `
                                     <span class="badge bg-${badgeClass} px-3 py-2">
-                                        <i class="fas fa-map-marker-alt me-1"></i>${loc.name} <strong>(${loc.qty})</strong>
+                                        <i class="fas fa-map-marker-alt me-1"></i>${loc.name}
+                                        <strong>(Paid: ${loc.qty}${loc.free_qty > 0 ? ` | Free: ${loc.free_qty}` : ''})</strong>
                                     </span>
                                 `;
                             });
@@ -4404,8 +4437,9 @@
             if (batch.locations && batch.locations.length > 0) {
                 // Create full locations text
                 locationsFullText = batch.locations.map(loc => {
-                    const locQty = allowDecimal ? parseFloat(loc.qty || 0).toFixed(2) : parseInt(loc.qty || 0);
-                    return `${loc.name} (${locQty})`;
+                    const paid = allowDecimal ? parseFloat(loc.qty || 0).toFixed(2) : parseInt(loc.qty || 0);
+                    const free = allowDecimal ? parseFloat(loc.free_qty || 0).toFixed(2) : parseInt(loc.free_qty || 0);
+                    return `${loc.name} (Paid: ${paid}${parseFloat(free) > 0 ? ` | Free: ${free}` : ''})`;
                 }).join(', ');
 
                 // For display: show first 2 locations, then "View More" button if there are more
@@ -4413,8 +4447,9 @@
                     locationsDisplay = locationsFullText;
                 } else {
                     const firstTwo = batch.locations.slice(0, 2).map(loc => {
-                        const locQty = allowDecimal ? parseFloat(loc.qty || 0).toFixed(2) : parseInt(loc.qty || 0);
-                        return `${loc.name} (${locQty})`;
+                        const paid = allowDecimal ? parseFloat(loc.qty || 0).toFixed(2) : parseInt(loc.qty || 0);
+                        const free = allowDecimal ? parseFloat(loc.free_qty || 0).toFixed(2) : parseInt(loc.free_qty || 0);
+                        return `${loc.name} (Paid: ${paid}${parseFloat(free) > 0 ? ` | Free: ${free}` : ''})`;
                     }).join(', ');
                     const remaining = batch.locations.length - 2;
                     const escapedLocations = locationsFullText.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -4683,18 +4718,21 @@
 
         if (locations && locations.length > 0) {
             locations.forEach((location, index) => {
+                const paid = parseFloat(location.qty || 0);
+                const free = parseFloat(location.free_qty || 0);
                 const row = `
                     <tr>
                         <td>${index + 1}</td>
                         <td>${location.name}</td>
-                        <td class="text-end">${location.qty > 0 ? '<span class="badge bg-success">' + location.qty + '</span>' : '<span class="badge bg-secondary">0</span>'}</td>
+                        <td class="text-end">${paid > 0 ? '<span class="badge bg-success">' + paid + '</span>' : '<span class="badge bg-secondary">0</span>'}</td>
+                        <td class="text-end">${free > 0 ? '<span class="badge bg-info">' + free + '</span>' : '<span class="badge bg-secondary">0</span>'}</td>
                     </tr>
                 `;
                 $('#locationsTableBody').append(row);
             });
         } else {
             $('#locationsTableBody').append(
-                '<tr><td colspan="3" class="text-center text-muted">No location data</td></tr>'
+                '<tr><td colspan="4" class="text-center text-muted">No location data</td></tr>'
             );
         }
 

@@ -89,6 +89,24 @@ class StockAdjustmentController extends Controller
             // Determine if we are updating or creating a new stock adjustment
             $stockAdjustment = $id ? StockAdjustment::findOrFail($id) : new StockAdjustment();
 
+            // On update, reverse previously applied stock movements before re-applying new lines.
+            // This keeps stock and stock_history consistent after edits.
+            if ($id) {
+                $stockAdjustment->load('adjustmentProducts');
+
+                $reverseType = $stockAdjustment->adjustment_type === 'increase' ? 'decrease' : 'increase';
+                foreach ($stockAdjustment->adjustmentProducts as $existingProduct) {
+                    $this->applyStockAdjustmentMovement(
+                        (int) $existingProduct->batch_id,
+                        (int) $stockAdjustment->location_id,
+                        (float) $existingProduct->quantity,
+                        $reverseType
+                    );
+                }
+
+                $stockAdjustment->adjustmentProducts()->delete();
+            }
+
             // Generate the reference number if creating a new adjustment
             $referenceNo = $id ? $stockAdjustment->reference_no : $this->generateReferenceNumber();
 
@@ -103,11 +121,6 @@ class StockAdjustmentController extends Controller
                 'user_id' => auth()->id(),
             ])->save();
 
-            // Delete existing adjustment products if updating
-            if ($id) {
-                $stockAdjustment->adjustmentProducts()->delete();
-            }
-
             // Add products to the stock adjustment
             foreach ($request->products as $product) {
                 $subtotal = $product['quantity'] * $product['unit_price'];
@@ -121,35 +134,12 @@ class StockAdjustmentController extends Controller
                     'subtotal' => $subtotal,
                 ]);
 
-                // Update stock history and location batch quantity
-                $locationBatch = LocationBatch::where('batch_id', $product['batch_id'])
-                    ->where('location_id', $request->location_id)
-                    ->first();
-
-                if ($locationBatch) {
-                    $newQuantity = $request->adjustment_type === 'increase'
-                        ? $locationBatch->qty + $product['quantity']
-                        : $locationBatch->qty - $product['quantity'];
-
-                    $locationBatch->update(['qty' => $newQuantity]);
-
-                    // Record stock history
-                    StockHistory::create([
-                        'loc_batch_id' => $locationBatch->id,
-                        'quantity' => -$product['quantity'],
-                        'stock_type' => StockHistory::STOCK_TYPE_ADJUSTMENT,
-                    ]);
-
-                    // Update the total quantity in the batches table
-                    $batch = Batch::find($product['batch_id']);
-                    if ($batch) {
-                        $newBatchQuantity = $request->adjustment_type === 'increase'
-                            ? $batch->qty + $product['quantity']
-                            : $batch->qty - $product['quantity'];
-
-                        $batch->update(['qty' => $newBatchQuantity]);
-                    }
-                }
+                $this->applyStockAdjustmentMovement(
+                    (int) $product['batch_id'],
+                    (int) $request->location_id,
+                    (float) $product['quantity'],
+                    (string) $request->adjustment_type
+                );
             }
         });
 
@@ -173,6 +163,58 @@ class StockAdjustmentController extends Controller
         $referenceNo = 'ADJ-' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
 
         return $referenceNo;
+    }
+
+    /**
+     * Apply a single stock adjustment movement and write a matching stock_history row.
+     */
+    private function applyStockAdjustmentMovement(int $batchId, int $locationId, float $quantity, string $adjustmentType): void
+    {
+        $locationBatch = LocationBatch::where('batch_id', $batchId)
+            ->where('location_id', $locationId)
+            ->lockForUpdate()
+            ->first();
+
+        if (!$locationBatch) {
+            if ($adjustmentType === 'increase') {
+                $locationBatch = LocationBatch::create([
+                    'batch_id' => $batchId,
+                    'location_id' => $locationId,
+                    'qty' => 0,
+                    'free_qty' => 0,
+                ]);
+            } else {
+                throw new \Exception("Location batch not found for decrease adjustment. Batch ID: {$batchId}, Location ID: {$locationId}");
+            }
+        }
+
+        $batch = Batch::where('id', $batchId)
+            ->lockForUpdate()
+            ->firstOrFail();
+
+        if ($adjustmentType === 'increase') {
+            $locationBatch->increment('qty', $quantity);
+            $batch->increment('qty', $quantity);
+            $signedQuantity = $quantity;
+        } else {
+            if ((float) $locationBatch->qty < $quantity) {
+                throw new \Exception("Insufficient location stock for decrease adjustment. Available: {$locationBatch->qty}, Requested: {$quantity}");
+            }
+
+            if ((float) $batch->qty < $quantity) {
+                throw new \Exception("Insufficient batch stock for decrease adjustment. Available: {$batch->qty}, Requested: {$quantity}");
+            }
+
+            $locationBatch->decrement('qty', $quantity);
+            $batch->decrement('qty', $quantity);
+            $signedQuantity = -$quantity;
+        }
+
+        StockHistory::create([
+            'loc_batch_id' => $locationBatch->id,
+            'quantity' => $signedQuantity,
+            'stock_type' => StockHistory::STOCK_TYPE_ADJUSTMENT,
+        ]);
     }
 
     // Show details of a specific stock adjustment

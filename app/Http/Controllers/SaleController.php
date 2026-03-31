@@ -86,10 +86,10 @@ class SaleController extends Controller
         $this->saleOrderConversionService  = $saleOrderConversionService;
         $this->saleQueryService            = $saleQueryService;
 
-        $this->middleware('permission:view all sales|view own sales', ['only' => ['listSale', 'index', 'show', 'getDataTableSales', 'salesDetails']]);
+        $this->middleware('permission:view all sales|view own sales', ['only' => ['listSale', 'index', 'show', 'getDataTableSales', 'salesDetails', 'fetchSuspendedSales', 'getSaleByInvoiceNo', 'searchSales']]);
         $this->middleware('permission:create sale',        ['only' => ['storeOrUpdate']]);
         $this->middleware('permission:access pos',         ['only' => ['pos']]);
-        $this->middleware('permission:edit sale',          ['only' => ['editSale']]);
+        $this->middleware('permission:edit sale',          ['only' => ['editSale', 'convertToInvoice', 'updateSaleOrder', 'cancelConvertedInvoice']]);
         $this->middleware('permission:delete sale',        ['only' => ['destroy', 'deleteSuspendedSale']]);
         $this->middleware('permission:print sale invoice', ['only' => ['printRecentTransaction']]);
 
@@ -143,6 +143,11 @@ class SaleController extends Controller
         $users = $usersQuery->get();
 
         return view('sell.sale', compact('locations', 'customers', 'users'));
+    }
+
+    public function posList()
+    {
+        return $this->listSale();
     }
 
     public function pos()

@@ -20,6 +20,7 @@ use App\Http\Controllers\{
   PurchaseReturnController,
   RoleAndPermissionController,
   RoleController,
+    ReportController,
   SaleController,
   SaleReturnController,
   SalesReturnController,
@@ -234,6 +235,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/initial-product-details', [ProductController::class, 'initialProductDetails'])->name('product-details');
     Route::get('/product-get-details/{id}', [ProductController::class, 'getProductDetails']);
     Route::get('/products/stock-history/{id}', [ProductController::class, 'getStockHistory'])->name('productStockHistory');
+    Route::get('/products/stock-reconcile/{id}', [ProductController::class, 'reconcileStock'])->name('productStockReconcile');
     Route::get('/products/stocks/autocomplete', [ProductController::class, 'autocompleteStock']);
     Route::post('/product/store', [ProductController::class, 'storeOrUpdate']);
     Route::post('/product/update/{id}', [ProductController::class, 'storeOrUpdate']);
@@ -310,9 +312,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/sales/edit/{id}', [SaleController::class, 'editSale'])->name('sales.edit');
     Route::delete('/sales/delete/{id}', [SaleController::class, 'destroy'])->name('sales.destroy');
     Route::get('/sales/suspended', [SaleController::class, 'fetchSuspendedSales']);
-    Route::get('/pos/sales/edit/{id}', [SaleController::class, 'show']);
+    Route::get('/pos/sales/edit/{id}', [SaleController::class, 'editSale']);
     Route::delete('/sales/delete-suspended/{id}', [SaleController::class, 'deleteSuspendedSale']);
-    Route::get('/daily-sales-report', [SaleController::class, 'dailyReport']);
+    Route::get('/daily-sales-report', [ReportController::class, 'dailyReport']);
 
     // Sale Returns Management
     Route::get('sale-returns', [SaleReturnController::class, 'getAllSaleReturns']);

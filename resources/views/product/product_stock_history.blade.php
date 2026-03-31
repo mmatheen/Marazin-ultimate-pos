@@ -58,8 +58,12 @@
                                 </tr>
                                 <tr>
                                     <td>Total Sell Return</td>
-                                    <td id="total-sell-return">{{ $stock_type_sums['sales_return_with_bill'] ?? '0.00' }}
+                                    <td id="total-sell-return">{{ ($stock_type_sums['sales_return_with_bill'] ?? 0) + ($stock_type_sums['sales_return_without_bill'] ?? 0) }}
                                         packets</td>
+                                </tr>
+                                <tr>
+                                    <td>Sale Reversal (Net)</td>
+                                    <td id="total-sale-reversal">{{ $stock_type_sums['sale_reversal'] ?? '0.00' }} packets</td>
                                 </tr>
                                 <tr>
                                     <td>Purchase Return Reversal</td>
@@ -112,6 +116,18 @@
                     </div>
                 </div>
                 <hr>
+
+                <div class="d-flex flex-wrap align-items-center justify-content-between mb-2 gap-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="1" id="toggle-clean-view" checked>
+                        <label class="form-check-label" for="toggle-clean-view">
+                            Clean view (hide N/A + Sale Reversal rows, keep Opening Stock visible)
+                        </label>
+                    </div>
+                    <small class="text-muted">
+                        Tip: Opening Stock / Purchases / Adjustments / Transfers will always show. Clean view hides only movements without linked document details and internal reversals.
+                    </small>
+                </div>
 
                 <table id="stockTable" class="table table-striped table-bordered" style="width:100%">
                     <thead>
@@ -177,13 +193,59 @@
                 }, 10); // Very short delay to allow DOM render
             });
             var stockTable = $('#stockTable').DataTable({
-                order: [[4, 'asc']], // Show from oldest to latest for clear movement trail
+                order: [[4, 'asc']], // Show oldest to latest for movement trail
                 columnDefs: [
                     { orderable: true, targets: [0, 1, 2, 3, 4, 5, 6] } // All columns orderable
                 ],
                 drawCallback: function() {
                     injectDateGroupHeaders(this.api());
                 }
+            });
+
+            // DataTables filter: hide rows where both Reference No and Party are N/A.
+            // This keeps the report clean when document links cannot be resolved.
+            $.fn.dataTable.ext.search.push(function(settings, data) {
+                if (settings.nTable && settings.nTable.id !== 'stockTable') {
+                    return true;
+                }
+
+                const cleanView = $('#toggle-clean-view').is(':checked');
+                if (!cleanView) {
+                    return true;
+                }
+
+                // Always show key stock movements even if they don't have doc links.
+                const typeLabel = (data[0] || '').toString().trim().toUpperCase();
+                if (typeLabel === 'SALE REVERSAL'
+                    || typeLabel === 'SALE REVERSE (SALE EDIT/DELETE)'
+                    || typeLabel === 'SALE RETURN REVERSE (RETURN EDIT/DELETE)') {
+                    return false;
+                }
+
+                const alwaysShowTypes = new Set([
+                    'OPENING STOCK',
+                    'PURCHASE',
+                    'STOCK ADJUSTMENT',
+                    'STOCK TRANSFER (IN)',
+                    'STOCK TRANSFER (OUT)',
+                    'PURCHASE RETURN',
+                    'PURCHASE RETURN REVERSAL',
+                    'SALE RETURN (WITH BILL)',
+                    'SALE RETURN (WITHOUT BILL)',
+                ]);
+                if (alwaysShowTypes.has(typeLabel)) {
+                    return true;
+                }
+
+                const ref = (data[5] || '').toString().trim();
+                const party = (data[6] || '').toString().trim();
+
+                return !(ref === 'N/A' && party === 'N/A');
+            });
+
+            // Apply filter on toggle
+            $('#toggle-clean-view').on('change', function() {
+                stockTable.draw();
             });
             var productId = getProductIdFromUrl(); // Get product ID from URL
             var initialLoad = true;
@@ -369,9 +431,9 @@
                 $('#opening-stock').text((stockSums['opening_stock'] || 0) + ' Pcs');
                 const totalSellReturn =
                     (stockSums['sales_return_with_bill'] || 0) +
-                    (stockSums['sales_return_without_bill'] || 0) +
-                    (stockSums['sale_reversal'] || 0);
+                    (stockSums['sales_return_without_bill'] || 0);
                 $('#total-sell-return').text(totalSellReturn + ' Pcs');
+                $('#total-sale-reversal').text((stockSums['sale_reversal'] || 0) + ' Pcs');
                 $('#purchase-return-reversal').text((stockSums['purchase_return_reversal'] || 0) + ' Pcs');
                 $('#stock-transfers-in').text((stockSums['transfer_in'] || 0) + ' Pcs');
 
@@ -478,6 +540,35 @@
                         '<div><strong>' + formatDateTime(createdAt || updatedAt) + '</strong></div>';
                 };
 
+                const formatStockTypeLabel = function(stockType, movementType) {
+                    const labels = {
+                        opening_stock: 'OPENING STOCK',
+                        purchase: 'PURCHASE',
+                        sale: 'SALE',
+                        sales_return_with_bill: 'SALE RETURN (WITH BILL)',
+                        sales_return_without_bill: 'SALE RETURN (WITHOUT BILL)',
+                        // sale_reversal can mean multiple events; refine using movement_type when available.
+                        sale_reversal: 'SALE REVERSAL',
+                        purchase_return: 'PURCHASE RETURN',
+                        purchase_return_reversal: 'PURCHASE RETURN REVERSAL',
+                        transfer_in: 'STOCK TRANSFER (IN)',
+                        transfer_out: 'STOCK TRANSFER (OUT)',
+                        adjustment: 'STOCK ADJUSTMENT'
+                    };
+
+                    if (stockType === 'sale_reversal') {
+                        if (movementType === 'return_reverse') {
+                            return 'SALE RETURN REVERSE (RETURN EDIT/DELETE)';
+                        }
+                        if (movementType === 'restoration') {
+                            return 'SALE REVERSE (SALE EDIT/DELETE)';
+                        }
+                        return labels.sale_reversal;
+                    }
+
+                    return labels[stockType] || String(stockType || '').replace(/_/g, ' ').toUpperCase();
+                };
+
                 // First pass in chronological order to compute the stock after each movement.
                 const chronologicalHistories = [...data.stock_histories].sort((a, b) => {
                     const timeDiff = getHistoryTimestamp(a) - getHistoryTimestamp(b);
@@ -511,9 +602,64 @@
                 // Display in chronological order (oldest to latest)
                 // so each row naturally explains the full movement trail from start.
                 if (chronologicalHistories.length > 0) {
-                    chronologicalHistories.forEach(function(history) {
+                    const consolidatedRows = [];
+
+                    const inferNearbyRefAndParty = function(index, history, currentRef, currentParty) {
+                        if (currentRef !== 'N/A' && currentParty !== 'N/A') {
+                            return { referenceNo: currentRef, customerSupplierInfo: currentParty };
+                        }
+
+                        const stockType = history.stock_type;
+                        if (stockType !== 'sale' && stockType !== 'sale_reversal') {
+                            return { referenceNo: currentRef, customerSupplierInfo: currentParty };
+                        }
+
+                        const historyQty = Math.abs(parseFloat(history.quantity || 0));
+                        const historyTime = new Date(history.created_at || history.updated_at);
+                        if (Number.isNaN(historyTime.getTime())) {
+                            return { referenceNo: currentRef, customerSupplierInfo: currentParty };
+                        }
+
+                        const maxWindowMs = 2 * 60 * 1000; // 2 minutes
+
+                        const tryCandidate = function(candidate) {
+                            if (!candidate) return null;
+                            const candidateQty = Math.abs(parseFloat(candidate.quantity || 0));
+                            if (Math.abs(candidateQty - historyQty) > 0.01) return null;
+
+                            const candidateTime = new Date(candidate.created_at || candidate.updated_at);
+                            if (Number.isNaN(candidateTime.getTime())) return null;
+                            if (Math.abs(candidateTime.getTime() - historyTime.getTime()) > maxWindowMs) return null;
+
+                            const ref = getReferenceNo(candidate);
+                            const party = getCustomerSupplierInfo(candidate);
+                            if (ref === 'N/A' || party === 'N/A') return null;
+                            return { referenceNo: ref, customerSupplierInfo: party };
+                        };
+
+                        // Prefer next row for sale_reversal (usually reversal then recreated sale)
+                        if (stockType === 'sale_reversal') {
+                            const forward = tryCandidate(chronologicalHistories[index + 1]);
+                            if (forward) return forward;
+                        }
+
+                        // Try previous then next as fallback
+                        const backward = tryCandidate(chronologicalHistories[index - 1]);
+                        if (backward) return backward;
+
+                        const forwardAny = tryCandidate(chronologicalHistories[index + 1]);
+                        if (forwardAny) return forwardAny;
+
+                        return { referenceNo: currentRef, customerSupplierInfo: currentParty };
+                    };
+
+                    chronologicalHistories.forEach(function(history, index) {
                         var referenceNo = getReferenceNo(history);
                         var customerSupplierInfo = getCustomerSupplierInfo(history);
+
+                        const inferred = inferNearbyRefAndParty(index, history, referenceNo, customerSupplierInfo);
+                        referenceNo = inferred.referenceNo;
+                        customerSupplierInfo = inferred.customerSupplierInfo;
                         var stockAfterMovement = runningStockByHistoryId.get(history.id) || 0;
 
                         // Calculate paid and free quantities with correct signs
@@ -527,18 +673,56 @@
                         var paidQty = totalQty - freeQty;
 
                         // Format with + or - sign
-                        var paidQtyDisplay = paidQty > 0 ? '+' + paidQty.toFixed(2) : paidQty.toFixed(2);
-                        var freeQtyDisplay = freeQty > 0 ? '+' + freeQty.toFixed(2) : (freeQty !== 0 ? freeQty.toFixed(2) : '0.00');
+                        const eventDate = new Date(history.created_at || history.updated_at);
+                        const eventSecondKey = Number.isNaN(eventDate.getTime())
+                            ? 'invalid-date'
+                            : eventDate.toISOString().slice(0, 19);
 
-                        // Add row without drawing (for performance)
+                        const canConsolidate =
+                            referenceNo !== 'N/A' &&
+                            customerSupplierInfo !== 'N/A';
+
+                        const consolidateKey = [
+                            history.stock_type,
+                            referenceNo,
+                            customerSupplierInfo,
+                            eventSecondKey
+                        ].join('|');
+
+                        const previous = consolidatedRows.length > 0 ? consolidatedRows[consolidatedRows.length - 1] : null;
+
+                        if (canConsolidate && previous && previous.key === consolidateKey) {
+                            previous.paidQty += paidQty;
+                            previous.freeQty += freeQty;
+                            previous.stockAfterMovement = stockAfterMovement;
+                            return;
+                        }
+
+                        consolidatedRows.push({
+                            key: consolidateKey,
+                            stockType: history.stock_type,
+                            movementType: history.movement_type || null,
+                            paidQty: paidQty,
+                            freeQty: freeQty,
+                            stockAfterMovement: stockAfterMovement,
+                            eventHtml: renderHistoryDateCell(history),
+                            referenceNo: referenceNo,
+                            customerSupplierInfo: customerSupplierInfo
+                        });
+                    });
+
+                    consolidatedRows.forEach(function(row) {
+                        var paidQtyDisplay = row.paidQty > 0 ? '+' + row.paidQty.toFixed(2) : row.paidQty.toFixed(2);
+                        var freeQtyDisplay = row.freeQty > 0 ? '+' + row.freeQty.toFixed(2) : (row.freeQty !== 0 ? row.freeQty.toFixed(2) : '0.00');
+
                         stockTable.row.add([
-                            history.stock_type.replace('_', ' ').toUpperCase(),
+                            formatStockTypeLabel(row.stockType, row.movementType),
                             paidQtyDisplay,
                             freeQtyDisplay,
-                            stockAfterMovement.toFixed(2),
-                            renderHistoryDateCell(history),
-                            referenceNo,
-                            customerSupplierInfo
+                            row.stockAfterMovement.toFixed(2),
+                            row.eventHtml,
+                            row.referenceNo,
+                            row.customerSupplierInfo
                         ]);
                     });
 
@@ -548,6 +732,11 @@
             }
 
             function getReferenceNo(history) {
+                // Prefer server-computed reference when provided (reduces N/A).
+                if (history && history.reference_no) {
+                    return history.reference_no;
+                }
+
                 const matchedHistoryTransaction = getMatchedHistoryTransaction(history);
 
                 const referencePathByType = {
@@ -607,13 +796,10 @@
                         };
                     }
 
-                    const saleTransactions = getNestedArray(history, 'location_batch.batch.sales_products');
-                    if (saleTransactions.length > 0) {
-                        return {
-                            type: 'sale',
-                            record: findBestMatchingTransaction(history, saleTransactions)
-                        };
-                    }
+                    // Do not fallback to batch-level sales products for sale_reversal.
+                    // That fallback is ambiguous and can incorrectly pin many reversals
+                    // to the same invoice number (for example repeated ARM-024 labels).
+                    return { type: null, record: null };
                 }
 
                 for (const rule of matcherRules) {
@@ -635,39 +821,99 @@
 
             function findBestMatchingTransaction(stockHistory, transactions) {
                 if (!transactions || transactions.length === 0) return null;
-                if (transactions.length === 1) return transactions[0];
+                if (transactions.length === 1) {
+                    const single = transactions[0];
+                    const singleTotalQty = Math.abs(parseFloat(single.quantity || 0) + parseFloat(single.free_quantity || 0));
+                    const historyTotalQty = Math.abs(parseFloat(stockHistory.quantity || 0));
+                    if (Math.abs(singleTotalQty - historyTotalQty) > 0.01) {
+                        return null;
+                    }
+
+                    const historyDateSingle = new Date(stockHistory.created_at || stockHistory.updated_at);
+                    const transactionDateSingle = new Date(single.created_at || single.updated_at);
+                    if (Number.isNaN(historyDateSingle.getTime()) || Number.isNaN(transactionDateSingle.getTime())) {
+                        return null;
+                    }
+
+                    const maxTimeDiffMs = 10 * 60 * 1000;
+                    return Math.abs(transactionDateSingle - historyDateSingle) <= maxTimeDiffMs ? single : null;
+                }
 
                 // Try to match based on quantity and timing
                 const historyDate = new Date(stockHistory.created_at || stockHistory.updated_at);
-                const historyQuantity = Math.abs(stockHistory.quantity);
+                if (Number.isNaN(historyDate.getTime())) {
+                    return null;
+                }
 
-                // Find transactions with matching quantity
-                const quantityMatches = transactions.filter(transaction => {
-                    return Math.abs(transaction.quantity) === historyQuantity;
+                const historyQuantity = Math.abs(parseFloat(stockHistory.quantity || 0));
+                const maxTimeDiffMs = 10 * 60 * 1000;
+
+                const extractRefAndPartyKey = function(transaction) {
+                    // Build a stable key that represents "same document + same party".
+                    // If multiple candidates share the same key, we can safely pick one
+                    // to reduce N/A noise without guessing across different documents.
+                    const saleInvoice = getNestedValue(transaction, 'sale.invoice_no', null);
+                    const purchaseRef = getNestedValue(transaction, 'purchase.reference_no', null);
+                    const purchaseReturnRef = getNestedValue(transaction, 'purchaseReturn.reference_no', null);
+                    const salesReturnRef = getNestedValue(transaction, 'salesReturn.reference_no', null);
+
+                    const ref = saleInvoice || purchaseRef || purchaseReturnRef || salesReturnRef || null;
+
+                    const customer = getNestedValue(transaction, 'sale.customer', null)
+                        || getNestedValue(transaction, 'salesReturn.customer', null);
+                    const supplier = getNestedValue(transaction, 'purchase.supplier', null)
+                        || getNestedValue(transaction, 'purchaseReturn.supplier', null);
+
+                    const partyName = formatContactName(customer || supplier);
+                    return (ref || 'N/A') + '|' + (partyName || 'N/A');
+                };
+
+                // Strict match: total quantity (paid + free) must match stock history quantity.
+                let quantityMatches = transactions.filter(transaction => {
+                    const transactionTotal = Math.abs(parseFloat(transaction.quantity || 0) + parseFloat(transaction.free_quantity || 0));
+                    return Math.abs(transactionTotal - historyQuantity) <= 0.01;
                 });
 
-                if (quantityMatches.length === 1) {
-                    return quantityMatches[0];
+                // Fallback: if quantity cannot match (FIFO splits / merged rows),
+                // try time-window matches first, but only if they all point to same ref+party.
+                if (quantityMatches.length === 0) {
+                    quantityMatches = transactions;
                 }
 
-                // If multiple quantity matches or no quantity matches, find closest by time
-                let bestMatch = transactions[0];
-                let smallestTimeDiff = Math.abs(new Date(bestMatch.created_at || bestMatch.updated_at) - historyDate);
-
-                for (let i = 1; i < transactions.length; i++) {
-                    const transactionDate = new Date(transactions[i].created_at || transactions[i].updated_at);
-                    const timeDiff = Math.abs(transactionDate - historyDate);
-
-                    if (timeDiff < smallestTimeDiff) {
-                        smallestTimeDiff = timeDiff;
-                        bestMatch = transactions[i];
+                // Keep only candidates within safe time window.
+                const windowMatches = quantityMatches.filter(transaction => {
+                    const transactionDate = new Date(transaction.created_at || transaction.updated_at);
+                    if (Number.isNaN(transactionDate.getTime())) {
+                        return false;
                     }
+
+                    return Math.abs(transactionDate - historyDate) <= maxTimeDiffMs;
+                });
+
+                if (windowMatches.length === 0) {
+                    return null;
                 }
 
-                return bestMatch;
+                if (windowMatches.length === 1) {
+                    return windowMatches[0];
+                }
+
+                // Ambiguous candidate set: ONLY pick when all candidates resolve to the same ref + party.
+                const keys = windowMatches.map(extractRefAndPartyKey).filter(Boolean);
+                const uniqueKeys = [...new Set(keys)];
+                if (uniqueKeys.length === 1 && uniqueKeys[0] !== 'N/A|N/A') {
+                    return windowMatches[0];
+                }
+
+                return null;
             }
 
             function getCustomerSupplierInfo(history) {
+                // Prefer server-computed party name when provided (reduces N/A).
+                if (history && history.party_name) {
+                    return history.party_name;
+                }
+
                 const matchedHistoryTransaction = getMatchedHistoryTransaction(history);
 
                 const partyPathByType = {

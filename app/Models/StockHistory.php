@@ -56,6 +56,11 @@ class StockHistory extends Model
             return (float) $this->attributes['free_quantity'];
         }
 
+        // Prefer persisted movement breakdown when available.
+        if (array_key_exists('free_qty', $this->attributes) && $this->attributes['free_qty'] !== null) {
+            return (float) $this->attributes['free_qty'];
+        }
+
         if (!$this->locationBatch || !$this->locationBatch->batch) {
             return 0;
         }

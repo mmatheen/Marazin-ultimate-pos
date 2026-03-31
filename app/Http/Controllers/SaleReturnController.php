@@ -698,6 +698,10 @@ class SaleReturnController extends Controller
             'loc_batch_id' => $locationBatch->id,
             'quantity' => -$totalQuantity,
             'stock_type' => StockHistory::STOCK_TYPE_SALE_REVERSAL,
+            // Distinguish "return edit/delete reverse" from "sale edit/delete reverse"
+            // so the stock history screen can label it correctly.
+            'source_pool' => 'separate_pool',
+            'movement_type' => 'return_reverse',
         ]);
 
         Log::info('Product return reversed successfully', [

@@ -118,7 +118,7 @@
         }
 
         #dueReportTable tbody td {
-            font-size: 11px;
+            font-size: 12px;
             padding: 7px 5px;
         }
 
@@ -255,17 +255,16 @@
                                     <li><a class="dropdown-item" href="#" data-value="hide all">1. Hide All Columns</a></li>
                                     <li><a class="dropdown-item" href="#" data-value="show all">2. Show All Columns</a></li>
                                     <li><a class="dropdown-item" href="#" data-value="1">Invoice/Ref No</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="2">Party Name</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="3">Date</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="2">Date</a></li>
                                 </div>
                                 <div class="col-md-6">
-                                    <li><a class="dropdown-item" href="#" data-value="4">Final Total</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="5">Total Paid</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="6">Original Due</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="7">Return Amount</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="8">Final Due</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="9">Payment Status</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="10">Due Days</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="3">Final Total</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="4">Total Paid</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="5">Original Due</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="6">Return Amount</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="7">Final Due</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="8">Payment Status</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="9">Due Days</a></li>
                                 </div>
                             </div>
                         </ul>
@@ -457,7 +456,8 @@
                             <tr style="font-size: 11px;">
                                 <th style="padding: 8px 6px;">Action</th>
                                 <th id="refNoHeader" style="padding: 8px 6px;">Ref No</th>
-                                <th id="partyNameHeader" style="padding: 8px 6px;">Party</th>
+                                {{-- Hidden group key column (Party) - used only for grouping/sorting, not shown/exported --}}
+                                <th id="partyNameHeader" style="padding: 8px 6px; display:none;">Party</th>
                                 <th id="dateHeader" style="padding: 8px 6px;">Date</th>
                                 <th class="text-end" style="padding: 8px 6px;">Final Total</th>
                                 <th class="text-end" style="padding: 8px 6px;">Paid</th>
@@ -553,11 +553,13 @@
                 }
 
                 const raw = String(data);
-                return raw
-                    .replace(/<span[^>]*>/g, '')
-                    .replace(/<\/span>/g, '')
-                    .replace(/<strong>/g, '')
-                    .replace(/<\/strong>/g, '')
+                // DataTables export receives HTML strings (e.g. <strong title="...">NAME</strong>).
+                // Convert to plain text so PDF/Excel don't show HTML tags.
+                const text = $('<div/>').html(raw).text();
+                return String(text)
+                    .replace(/\u00a0/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim()
                     .replace(/Rs\.\s*/g, 'Rs. ');
             }
 
@@ -664,6 +666,52 @@
                     table.destroy();
                 }
 
+                function injectBillsDueFooters(dt) {
+                    const $tbody = $('#dueReportTable tbody');
+                    // Remove previously injected footer rows to avoid duplicates
+                    $tbody.find('tr.dtrg-billsdue').remove();
+
+                    // DataTables RowGroup may not support endRender in older plugin versions.
+                    // This draw-time injection guarantees the "Bills Due" row appears below invoices.
+                    const api = dt;
+                    const rows = api.rows({ page: 'current' }).nodes().toArray();
+
+                    // Walk DOM rows and insert footer after each group block
+                    for (let i = 0; i < rows.length; i++) {
+                        const tr = rows[i];
+                        const $tr = $(tr);
+
+                        if (!$tr.hasClass('dtrg-group')) continue;
+
+                        const groupName = $tr.text().trim();
+                        let sum = 0;
+                        let j = i + 1;
+
+                        while (j < rows.length && !$(rows[j]).hasClass('dtrg-group')) {
+                            const rowData = api.row(rows[j]).data();
+                            if (rowData) {
+                                sum += toNumber(rowData.total_due);
+                            }
+                            j++;
+                        }
+
+                        // Insert footer row before next group header (or at end)
+                        const $insertAfter = $(rows[j - 1]); // last invoice row in group
+                        const footerHtml =
+                            `<tr class="dtrg-billsdue">
+                                <td colspan="11" style="background:#ffffff; padding:6px 8px; border-top:1px dashed #f1c0c0;">
+                                    <span style="float:right; background:#fff5f5; color:#dc3545; font-size:13px; padding:4px 10px; border-radius:4px; border:1px solid #ffe0e0; font-weight:800;">
+                                        Bills Due: Rs. ${formatAmount(sum)}
+                                    </span>
+                                </td>
+                            </tr>`;
+                        $insertAfter.after(footerHtml);
+
+                        // Move loop index to end of this group block for efficiency
+                        i = j - 1;
+                    }
+                }
+
                 table = $('#dueReportTable').DataTable({
                     "processing": true,
                     "serverSide": false,
@@ -714,12 +762,25 @@
                             // But we need to show the actual ledger-based balance for this customer
                             // The actual ledger balance will be shown in the badge
 
+                            // Header row: show customer name only (keep it clean)
                             return $('<tr/>')
-                                .append('<td colspan="11" style="background: linear-gradient(to right, #f8f9fa 0%, #ffffff 100%); border-left: 4px solid #007bff; font-weight: 600; padding: 10px 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">' +
-                                    '<i class="fas fa-user-circle" style="color: #007bff; font-size: 14px; margin-right: 6px;"></i>' +
-                                    '<span style="font-size: 12px; color: #2c3e50;">' + group + '</span>' +
-                                    '<span style="margin-left: 10px; color: #95a5a6; font-weight: 400; font-size: 10px;">(' + billCount + ' bill' + (billCount > 1 ? 's' : '') + ')</span>' +
-                                    '<span style="float: right; background: #fff5f5; color: #dc3545; font-size: 13px; padding: 4px 10px; border-radius: 4px; border: 1px solid #ffe0e0; font-weight: 700;">' +
+                                .append('<td colspan="11" style="background: linear-gradient(to right, #f8f9fa 0%, #ffffff 100%); border-left: 4px solid #007bff; font-weight: 700; padding: 10px 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">' +
+                                    '<i class="fas fa-user-circle" style="color: #007bff; font-size: 15px; margin-right: 6px;"></i>' +
+                                    '<span style="font-size: 13px; color: #2c3e50;">' + group + '</span>' +
+                                    '<span style="margin-left: 10px; color: #95a5a6; font-weight: 500; font-size: 11px;">(' + billCount + ' bill' + (billCount > 1 ? 's' : '') + ')</span>' +
+                                    '</td>');
+                        },
+                        "endRender": function(rows, group) {
+                            // Footer row: show Bills Due on the right, below invoice rows
+                            let totalDueBills = 0;
+                            rows.every(function() {
+                                let data = this.data();
+                                totalDueBills += toNumber(data.total_due);
+                            });
+
+                            return $('<tr/>')
+                                .append('<td colspan="11" style="background: #ffffff; padding: 6px 8px; border-top: 1px dashed #f1c0c0;">' +
+                                    '<span style="float: right; background: #fff5f5; color: #dc3545; font-size: 13px; padding: 4px 10px; border-radius: 4px; border: 1px solid #ffe0e0; font-weight: 800;">' +
                                     'Bills Due: Rs. ' + formatAmount(totalDueBills) +
                                     '</span>' +
                                     '</td>');
@@ -746,11 +807,15 @@
                             }
                         },
                         {
+                            // Hidden group key column (Party) - keeps grouping stable
                             "data": function(row) {
                                 return currentReportType === 'customer' ? row.customer_name : row.supplier_name;
                             },
-                            "render": function(data) {
-                                return '<strong title="' + data + '">' + data + '</strong>';
+                            "visible": false,
+                            "searchable": false,
+                            "render": function(data, type, row) {
+                                // Provide text for sorting/grouping/export normalization, but never display
+                                return data ?? '';
                             }
                         },
                         {
@@ -822,31 +887,43 @@
                     "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
                     "autoWidth": false,
                     "columnDefs": [
-                        { "targets": 0, "width": "6%" },
-                        { "targets": 1, "width": "9%" },
-                        { "targets": 2, "width": "17%" },
-                        { "targets": 3, "width": "9%" },
-                        { "targets": 4, "width": "10%" },
-                        { "targets": 5, "width": "10%" },
-                        { "targets": 6, "width": "11%" },
-                        { "targets": 7, "width": "9%" },
-                        { "targets": 8, "width": "10%" },
-                        { "targets": 9, "width": "5%" },
-                        { "targets": 10, "width": "4%" }
+                        { "targets": 0, "width": "6%" },  // Action
+                        { "targets": 1, "width": "12%" }, // Ref No
+                        { "targets": 2, "visible": false }, // Party (hidden group key)
+                        { "targets": 3, "width": "10%" }, // Date
+                        { "targets": 4, "width": "11%" }, // Final Total
+                        { "targets": 5, "width": "11%" }, // Paid
+                        { "targets": 6, "width": "11%" }, // Original Due
+                        { "targets": 7, "width": "10%" }, // Return Amount
+                        { "targets": 8, "width": "11%" }, // Final Due
+                        { "targets": 9, "width": "8%" },  // Status
+                        { "targets": 10, "width": "5%" }   // Days
                     ],
-                    "order": [[2, 'asc'], [3, 'desc']],
+                    // Keep all bills grouped together by hidden Party column, then newest date
                     "orderFixed": [[2, 'asc']],
+                    "order": [[2, 'asc'], [3, 'desc']],
                     "dom": '<"dt-top"B><"dt-controls"<"dt-length"l><"dt-search"f>>rtip',
+                    "drawCallback": function() {
+                        try {
+                            injectBillsDueFooters(this.api());
+                        } catch (e) {
+                            console.warn('Bills Due footer injection skipped:', e);
+                        }
+                    },
                     "buttons": [
                         {
                             extend: 'pdfHtml5',
                             text: '<i class="fa fa-file-pdf"></i> PDF',
-                            orientation: 'landscape',
-                            pageSize: 'A3',
+                            orientation: 'portrait',
+                            pageSize: 'A4',
                             title: currentReportType.charAt(0).toUpperCase() + currentReportType.slice(1) + ' Due Report',
                             filename: () => currentReportType + '_due_report_' + new Date().toISOString().slice(0, 10),
                             exportOptions: {
-                                columns: ':visible:not(:first-child)',
+                                columns: function(idx) {
+                                    // Exclude Action (0), hidden Party key (2), and Status (9) from PDF export
+                                    if (idx === 0 || idx === 2 || idx === 9) return false;
+                                    return table.column(idx).visible();
+                                },
                                 orthogonal: 'export',
                                 format: {
                                     body: function(data, row, column, node) {
@@ -860,28 +937,55 @@
                             },
                             customize: function(doc) {
                                 // Use landscape orientation for better fit
-                                doc.pageOrientation = 'landscape';
+                                doc.pageOrientation = 'portrait';
+                                // Keep A4 as requested
                                 doc.pageSize = 'A4';
-                                doc.defaultStyle.fontSize = 6.5;
-                                doc.styles.tableHeader.fontSize = 7;
+                                // Slightly smaller font (reduce by 1)
+                                doc.defaultStyle.fontSize = 8;
+                                doc.styles.tableHeader.fontSize = 8.5;
                                 doc.styles.tableHeader.bold = true;
                                 doc.styles.tableHeader.fillColor = '#4472C4';
                                 doc.styles.tableHeader.color = 'white';
+                                // Tight, consistent header spacing (avoid huge whitespace on top)
+                                doc.styles.header = {
+                                    fontSize: 12,
+                                    bold: true,
+                                    alignment: 'center',
+                                    margin: [0, 0, 0, 2]
+                                };
 
-                                // Add title
-                                doc.content[0].text = currentReportType.charAt(0).toUpperCase() + currentReportType.slice(1) + ' Due Report';
+                                // Add title (if a specific customer/supplier is selected, show it in the header)
+                                const selectedCustomerId = $('#customerFilter').val();
+                                const selectedSupplierId = $('#supplierFilter').val();
+                                let selectedPartyText = '';
+
+                                if (currentReportType === 'customer' && selectedCustomerId) {
+                                    selectedPartyText = ($('#customerFilter option:selected').text() || '').trim();
+                                } else if (currentReportType === 'supplier' && selectedSupplierId) {
+                                    selectedPartyText = ($('#supplierFilter option:selected').text() || '').trim();
+                                }
+
+                                // Common format: "NAME - MOBILE" → keep NAME only for clean PDF title
+                                if (selectedPartyText.includes(' - ')) {
+                                    selectedPartyText = selectedPartyText.split(' - ')[0].trim();
+                                }
+
+                                const baseTitle = currentReportType === 'customer'
+                                    ? 'All Customer Dues'
+                                    : ('All Supplier Dues');
+                                doc.content[0].text = selectedPartyText ? (baseTitle + ' - ' + selectedPartyText) : baseTitle;
                                 doc.content[0].style = 'header';
                                 doc.content[0].alignment = 'center';
                                 doc.content[0].fontSize = 12;
                                 doc.content[0].bold = true;
-                                doc.content[0].margin = [0, 0, 0, 3];
+                                doc.content[0].margin = [0, 0, 0, 2];
 
                                 // Add generated date
                                 doc.content.splice(1, 0, {
                                     text: 'Generated on: ' + new Date().toLocaleString(),
                                     alignment: 'center',
                                     fontSize: 7,
-                                    margin: [0, 0, 0, 5]
+                                    margin: [0, 0, 0, 6]
                                 });
 
                                 // Get actual data from DataTable to calculate correct totals
@@ -914,15 +1018,39 @@
                                     Object.keys(groupedData).forEach(function(groupKey) {
                                         var group = groupedData[groupKey];
 
-                                        // Add group header row with correct total due
-                                        newBody.push([{
-                                            text: groupKey + ' (' + group.rows.length + ' bill' + (group.rows.length > 1 ? 's' : '') + ') - Due: Rs. ' + formatAmount(group.totalDue),
-                                            colSpan: headers.length,
-                                            fillColor: '#e3f2fd',
-                                            bold: true,
-                                            fontSize: 7.5,
-                                            margin: [1, 2, 1, 2]
-                                        }]);
+                                        // Add group header row like UI: name only (Bills Due will be below)
+                                        var billLabel = group.rows.length + ' bill' + (group.rows.length > 1 ? 's' : '');
+                                        var leftText = groupKey + ' (' + billLabel + ')';
+                                        var rightText = 'Bills Due: Rs. ' + formatAmount(group.totalDue);
+
+                                        var headerRow = [];
+                                        var colCount = (headers || []).length;
+                                        if (colCount >= 2) {
+                                            headerRow.push({
+                                                text: leftText,
+                                                colSpan: colCount,
+                                                fillColor: '#e3f2fd',
+                                                bold: true,
+                                                fontSize: 9,
+                                                margin: [1, 2, 1, 2]
+                                            });
+                                            // fill the spanned cells
+                                            for (var s = 0; s < colCount - 1; s++) {
+                                                headerRow.push('');
+                                            }
+                                        } else {
+                                            // Fallback: single column table
+                                            headerRow.push({
+                                                text: leftText + ' - ' + rightText,
+                                                colSpan: colCount || 1,
+                                                fillColor: '#e3f2fd',
+                                                bold: true,
+                                                fontSize: 9,
+                                                margin: [1, 2, 1, 2]
+                                            });
+                                        }
+
+                                        newBody.push(headerRow);
 
                                         // Add group data rows from body
                                         for (var i = 0; i < group.rows.length; i++) {
@@ -931,39 +1059,61 @@
                                                 dataRowIndex++;
                                             }
                                         }
+
+                                        // Add Bills Due row BELOW invoices (right aligned, red badge style)
+                                        var footerRow = [];
+                                    // Build explicit cells (more reliable than colSpan for pdfmake)
+                                    for (var fc = 0; fc < colCount - 1; fc++) {
+                                        footerRow.push({
+                                            text: '',
+                                            fillColor: '#ffffff',
+                                            margin: [1, 2, 1, 2]
+                                        });
+                                    }
+                                    footerRow.push({
+                                        text: rightText,
+                                        fillColor: '#fff5f5',
+                                        bold: true,
+                                        fontSize: 9,
+                                        color: '#dc3545',
+                                        alignment: 'right',
+                                        noWrap: true,
+                                        margin: [1, 2, 1, 2]
+                                    });
+                                        newBody.push(footerRow);
                                     });
 
                                     doc.content[2].table.body = newBody;
 
-                                    // Set specific column widths to reduce white space
-                                    // Adjust based on actual column count and content
+                                    // A4 portrait: make the table consume available width,
+                                    // while keeping numeric columns readable.
+                                    // Exported columns: [Ref No, Date, Final Total, Paid, Original Due, Return, Final Due, Days]
                                     doc.content[2].table.widths = [
-                                        '11%',  // Invoice/Ref No
-                                        '16%',  // Party Name
-                                        '10%',  // Sale/Purchase Date
-                                        '10%',  // Final Total
-                                        '10%',  // Total Paid
-                                        '10%',  // Original Due
-                                        '10%',  // Return Amt
-                                        '10%',  // Final Due
-                                        '8%',   // Status
-                                        '5%'    // Days
+                                        'auto', // Ref No
+                                        'auto', // Date
+                                        '*',    // Final Total
+                                        'auto', // Paid
+                                        '*',    // Original Due
+                                        'auto', // Return
+                                        '*',    // Final Due
+                                        'auto'  // Days
                                     ];
+                                    doc.content[2].alignment = 'left';
 
                                     doc.content[2].layout = {
                                         hLineWidth: function(i, node) { return 0.5; },
                                         vLineWidth: function(i, node) { return 0.5; },
                                         hLineColor: function(i, node) { return '#ddd'; },
                                         vLineColor: function(i, node) { return '#ddd'; },
-                                        paddingLeft: function(i, node) { return 1; },
-                                        paddingRight: function(i, node) { return 1; },
-                                        paddingTop: function(i, node) { return 1; },
-                                        paddingBottom: function(i, node) { return 1; }
+                                        paddingLeft: function(i, node) { return 2; },
+                                        paddingRight: function(i, node) { return 2; },
+                                        paddingTop: function(i, node) { return 2; },
+                                        paddingBottom: function(i, node) { return 2; }
                                     };
                                 }
 
-                                // Set page margins to reduce white space
-                                doc.pageMargins = [15, 40, 15, 20];
+                                // Page margins (portrait): reduce top whitespace
+                                doc.pageMargins = [8, 14, 8, 14];
                             }
                         },
                         {

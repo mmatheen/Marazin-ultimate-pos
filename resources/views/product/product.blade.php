@@ -78,6 +78,7 @@
                                     <select class="form-control selectBox select2" id="stockStatusFilter" style="width: 100%;">
                                         <option value="">All Products</option>
                                         <option value="in_stock">In Stock (Qty > 0)</option>
+                                        <option value="free_stock">Free Stock (Free Qty > 0)</option>
                                         <option value="out_of_stock">Out of Stock (Qty = 0)</option>
                                         <option value="low_stock">Low Stock (Alert Level)</option>
                                     </select>
@@ -606,6 +607,7 @@
                                     <th style="width: 50px;">#</th>
                                     <th>Location Name</th>
                                     <th class="text-end" style="width: 100px;">Stock Qty</th>
+                                    <th class="text-end" style="width: 100px;">Free Qty</th>
                                 </tr>
                             </thead>
                             <tbody id="locationsTableBody">

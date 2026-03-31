@@ -235,6 +235,8 @@ class SaleOrderConversionService
 
             // Revert stock history type: sale → sale_order
             foreach ($sale->products as $item) {
+                $lineTotalQty = (float) ($item->quantity ?? 0) + (float) ($item->free_quantity ?? 0);
+
                 $locationBatch = LocationBatch::where('batch_id', $item->batch_id)
                     ->where('location_id', $item->location_id)
                     ->first();
@@ -245,7 +247,7 @@ class SaleOrderConversionService
 
                 $stockHistory = StockHistory::where('loc_batch_id', $locationBatch->id)
                     ->where('stock_type', StockHistory::STOCK_TYPE_SALE)
-                    ->where('quantity', -$item->quantity)
+                    ->where('quantity', -$lineTotalQty)
                     ->whereHas('locationBatch.batch', fn ($q) => $q->where('product_id', $item->product_id))
                     ->orderByDesc('created_at')
                     ->first();
@@ -257,7 +259,7 @@ class SaleOrderConversionService
                         'stock_history_id' => $stockHistory->id,
                         'batch_id'         => $item->batch_id,
                         'location_id'      => $item->location_id,
-                        'quantity'         => $item->quantity,
+                        'quantity'         => $lineTotalQty,
                     ]);
                 }
             }
@@ -350,7 +352,7 @@ class SaleOrderConversionService
 
         $stockHistory = StockHistory::where('loc_batch_id', $locationBatch->id)
             ->where('stock_type', StockHistory::STOCK_TYPE_SALE_ORDER)
-            ->where('quantity', -$item->quantity)
+            ->where('quantity', -((float) ($item->quantity ?? 0) + (float) ($item->free_quantity ?? 0)))
             ->whereHas('locationBatch.batch', fn ($q) => $q->where('product_id', $item->product_id))
             ->orderByDesc('created_at')
             ->first();
@@ -362,14 +364,14 @@ class SaleOrderConversionService
                 'stock_history_id' => $stockHistory->id,
                 'batch_id'         => $item->batch_id,
                 'location_id'      => $item->location_id,
-                'quantity'         => $item->quantity,
+                'quantity'         => (float) ($item->quantity ?? 0) + (float) ($item->free_quantity ?? 0),
             ]);
         } else {
             Log::warning("Stock history record not found for sale order conversion", [
                 'batch_id'   => $item->batch_id,
                 'location_id' => $item->location_id,
                 'product_id' => $item->product_id,
-                'quantity'   => $item->quantity,
+                'quantity'   => (float) ($item->quantity ?? 0) + (float) ($item->free_quantity ?? 0),
             ]);
         }
     }

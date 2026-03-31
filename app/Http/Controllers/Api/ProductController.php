@@ -34,6 +34,229 @@ use App\Services\TaxConfigurationService;
 
 class ProductController extends Controller
 {
+    /**
+     * Resolve reference number + party name for a stock history row.
+     * This reduces UI-side "N/A" by providing authoritative, server-computed fields.
+     */
+    private function resolveHistoryReferenceAndParty(StockHistory $history): array
+    {
+        $batch = $history->locationBatch?->batch;
+        if (!$batch) {
+            return ['reference_no' => null, 'party_name' => null];
+        }
+
+        $historyQty = abs((float) ($history->quantity ?? 0));
+        $historyTime = $history->created_at ?? $history->updated_at;
+        $historyTs = $historyTime ? $historyTime->getTimestamp() : null;
+
+        $candidates = collect();
+
+        $addCandidate = function ($ref, $party, $qtyTotal, $ts) use (&$candidates) {
+            $ref = $ref ? trim((string) $ref) : null;
+            $party = $party ? trim((string) $party) : null;
+            $qtyTotal = abs((float) ($qtyTotal ?? 0));
+
+            if (!$ref && !$party) {
+                return;
+            }
+
+            $candidates->push([
+                'ref' => $ref,
+                'party' => $party,
+                'qty' => $qtyTotal,
+                'ts' => $ts,
+            ]);
+        };
+
+        $formatParty = function ($contact) {
+            if (!$contact) return null;
+            $first = trim((string) ($contact->first_name ?? ''));
+            $last = trim((string) ($contact->last_name ?? ''));
+            $name = trim($first . ' ' . $last);
+            return $name !== '' ? $name : null;
+        };
+
+        switch ($history->stock_type) {
+            case StockHistory::STOCK_TYPE_PURCHASE:
+                foreach (($batch->purchaseProducts ?? collect()) as $pp) {
+                    $purchase = $pp->purchase ?? null;
+                    $addCandidate(
+                        $purchase?->reference_no,
+                        $formatParty($purchase?->supplier),
+                        ((float) ($pp->quantity ?? 0)) + ((float) ($pp->free_quantity ?? 0)),
+                        ($pp->created_at ?? $pp->updated_at)?->getTimestamp()
+                    );
+                }
+                break;
+
+            case StockHistory::STOCK_TYPE_SALE:
+            case StockHistory::STOCK_TYPE_VIRTUAL_SALE:
+            case StockHistory::STOCK_TYPE_SALE_ORDER:
+                foreach (($batch->salesProducts ?? collect()) as $sp) {
+                    $sale = $sp->sale ?? null;
+                    $addCandidate(
+                        $sale?->invoice_no,
+                        $formatParty($sale?->customer),
+                        ((float) ($sp->quantity ?? 0)) + ((float) ($sp->free_quantity ?? 0)),
+                        ($sp->created_at ?? $sp->updated_at)?->getTimestamp()
+                    );
+                }
+                break;
+
+            case StockHistory::STOCK_TYPE_PURCHASE_RETURN:
+            case StockHistory::STOCK_TYPE_PURCHASE_RETURN_REVERSAL:
+                foreach (($batch->purchaseReturns ?? collect()) as $pr) {
+                    $doc = $pr->purchaseReturn ?? null;
+                    $addCandidate(
+                        $doc?->reference_no,
+                        $formatParty($doc?->supplier),
+                        ((float) ($pr->quantity ?? 0)) + ((float) ($pr->free_quantity ?? 0)),
+                        ($pr->created_at ?? $pr->updated_at)?->getTimestamp()
+                    );
+                }
+                break;
+
+            case StockHistory::STOCK_TYPE_SALE_RETURN_WITH_BILL:
+            case StockHistory::STOCK_TYPE_SALE_RETURN_WITHOUT_BILL:
+            case StockHistory::STOCK_TYPE_SALE_REVERSAL:
+                foreach (($batch->saleReturns ?? collect()) as $sr) {
+                    $doc = $sr->salesReturn ?? null;
+                    $addCandidate(
+                        $doc?->reference_no ?? $doc?->invoice_no,
+                        $formatParty($doc?->customer),
+                        ((float) ($sr->quantity ?? 0)) + ((float) ($sr->free_quantity ?? 0)),
+                        ($sr->created_at ?? $sr->updated_at)?->getTimestamp()
+                    );
+                }
+                break;
+
+            case StockHistory::STOCK_TYPE_ADJUSTMENT:
+                foreach (($batch->stockAdjustments ?? collect()) as $adj) {
+                    $doc = $adj->stockAdjustment ?? null;
+                    $addCandidate(
+                        $doc?->reference_no,
+                        null,
+                        (float) ($adj->quantity ?? 0),
+                        ($adj->created_at ?? $adj->updated_at)?->getTimestamp()
+                    );
+                }
+                break;
+
+            case StockHistory::STOCK_TYPE_TRANSFER_IN:
+            case StockHistory::STOCK_TYPE_TRANSFER_OUT:
+                foreach (($batch->stockTransfers ?? collect()) as $tr) {
+                    $doc = $tr->stockTransfer ?? null;
+                    $addCandidate(
+                        $doc?->reference_no,
+                        null,
+                        (float) ($tr->quantity ?? 0),
+                        ($tr->created_at ?? $tr->updated_at)?->getTimestamp()
+                    );
+                }
+                break;
+        }
+
+        $salesProductsFallback = function () use ($history, $batch, $historyQty, $historyTime, $historyTs): ?array {
+            if (!in_array($history->stock_type, [
+                StockHistory::STOCK_TYPE_SALE,
+                StockHistory::STOCK_TYPE_SALE_REVERSAL,
+                StockHistory::STOCK_TYPE_VIRTUAL_SALE,
+                StockHistory::STOCK_TYPE_SALE_ORDER,
+            ], true)) {
+                return null;
+            }
+
+            $lb = $history->locationBatch;
+            if (!$lb || !$historyTime) {
+                return null;
+            }
+
+            // Wider window because edits can re-save a bit later.
+            $windowStart = $historyTime->copy()->subMinutes(30);
+            $windowEnd = $historyTime->copy()->addMinutes(30);
+
+            $rows = DB::table('sales_products as sp')
+                ->join('sales as s', 's.id', '=', 'sp.sale_id')
+                ->leftJoin('customers as c', 'c.id', '=', 's.customer_id')
+                ->where('sp.batch_id', (int) $lb->batch_id)
+                ->where('sp.location_id', (int) $lb->location_id)
+                ->where('sp.product_id', (int) $batch->product_id)
+                ->whereBetween('sp.created_at', [$windowStart, $windowEnd])
+                ->select([
+                    's.invoice_no',
+                    'c.first_name',
+                    'c.last_name',
+                    'sp.quantity',
+                    'sp.free_quantity',
+                    'sp.created_at',
+                ])
+                ->get();
+
+            if ($rows->isEmpty()) {
+                return null;
+            }
+
+            $best = $rows->map(function ($row) use ($historyQty, $historyTs) {
+                $total = abs((float) ($row->quantity ?? 0) + (float) ($row->free_quantity ?? 0));
+                $ts = $row->created_at ? strtotime($row->created_at) : null;
+                $timeDiff = ($ts && $historyTs) ? abs($ts - $historyTs) : PHP_INT_MAX;
+                $qtyDiff = abs($total - $historyQty);
+                // Prefer exact qty match heavily, then closest time.
+                $row->match_score = ($qtyDiff <= 0.01 ? 0 : 100000) + $timeDiff;
+                $row->total_qty = $total;
+                return $row;
+            })->sortBy('match_score')->first();
+
+            if (!$best || ($best->match_score ?? PHP_INT_MAX) === PHP_INT_MAX) {
+                return null;
+            }
+
+            // Only accept when qty matches (avoid wrong invoice mapping).
+            if (abs(((float) ($best->total_qty ?? 0)) - $historyQty) > 0.01) {
+                return null;
+            }
+
+            $party = trim(trim((string) ($best->first_name ?? '')) . ' ' . trim((string) ($best->last_name ?? '')));
+            return [
+                'reference_no' => $best->invoice_no ?: null,
+                'party_name' => $party !== '' ? $party : null,
+            ];
+        };
+
+        if ($candidates->isEmpty()) {
+            return $salesProductsFallback() ?? ['reference_no' => null, 'party_name' => null];
+        }
+
+        // 1) Prefer exact quantity matches.
+        $qtyMatches = $candidates->filter(fn ($c) => abs(($c['qty'] ?? 0) - $historyQty) <= 0.01);
+        $pool = $qtyMatches->isNotEmpty() ? $qtyMatches : $candidates;
+
+        // 2) Prefer closest timestamp (within 10 minutes) when available.
+        if ($historyTs !== null) {
+            $pool = $pool
+                ->map(function ($c) use ($historyTs) {
+                    $c['time_diff'] = $c['ts'] ? abs($c['ts'] - $historyTs) : PHP_INT_MAX;
+                    return $c;
+                })
+                ->sortBy('time_diff')
+                ->values();
+
+            $best = $pool->first();
+            if ($best && ($best['time_diff'] ?? PHP_INT_MAX) <= 600) {
+                return ['reference_no' => $best['ref'] ?? null, 'party_name' => $best['party'] ?? null];
+            }
+        }
+
+        // 3) If still ambiguous, only return when all candidates point to same ref+party.
+        $uniqueKey = $pool->map(fn ($c) => ($c['ref'] ?? 'N/A') . '|' . ($c['party'] ?? 'N/A'))->unique()->values();
+        if ($uniqueKey->count() === 1 && $uniqueKey->first() !== 'N/A|N/A') {
+            $best = $pool->first();
+            return ['reference_no' => $best['ref'] ?? null, 'party_name' => $best['party'] ?? null];
+        }
+
+        // Last resort: resolve via sales_products by qty+time match.
+        return $salesProductsFallback() ?? ['reference_no' => null, 'party_name' => null];
+    }
 
     public function getStockHistory($productId)
     {
@@ -80,6 +303,12 @@ class ProductController extends Controller
 
             $product = $productQuery->findOrFail($productId);
 
+            // Authoritative on-hand stock comes from location_batches, not history rollups.
+            // History can be incomplete for older data/imports, but location_batches reflects current system stock.
+            $currentStockFromBatches = (float) $product->locationBatches->sum(function ($locBatch) {
+                return (float) ($locBatch->qty ?? 0) + (float) ($locBatch->free_qty ?? 0);
+            });
+
             // Flatten all stock histories across location batches
             $stockHistories = $product->locationBatches->flatMap(function ($locBatch) {
                 return $locBatch->stockHistories;
@@ -97,6 +326,14 @@ class ProductController extends Controller
                 return $bTs <=> $aTs;
             })->values();
 
+            // Attach server-computed reference fields to reduce N/A in UI.
+            $stockHistories = $stockHistories->map(function ($history) {
+                $resolved = $this->resolveHistoryReferenceAndParty($history);
+                $history->reference_no = $resolved['reference_no'];
+                $history->party_name = $resolved['party_name'];
+                return $history;
+            });
+
             // Log for debugging
             Log::info('API Stock History Debug', [
                 'product_id' => $productId,
@@ -111,7 +348,8 @@ class ProductController extends Controller
                     'product' => $product,
                     'stock_histories' => [],
                     'stock_type_sums' => [],
-                    'current_stock' => 0,
+                    'current_stock' => round($currentStockFromBatches, 2),
+                    'current_stock_source' => 'location_batches',
                 ], 200); // Return 200 instead of 404 for better UX
             }
 
@@ -141,13 +379,17 @@ class ProductController extends Controller
             // Calculate totals
             $quantitiesIn = $stockTypeSums->filter(fn($val, $key) => in_array($key, $inTypes))->sum();
             $quantitiesOut = $stockTypeSums->filter(fn($val, $key) => in_array($key, $outTypes))->sum(fn($val) => abs($val));
-            $currentStock = $quantitiesIn - $quantitiesOut;
+            $currentStockFromHistory = $quantitiesIn - $quantitiesOut;
 
             $responseData = [
                 'product' => $product,
                 'stock_histories' => $stockHistories,
                 'stock_type_sums' => $stockTypeSums,
-                'current_stock' => round($currentStock, 2),
+                // Keep UI consistent with actual system stock.
+                'current_stock' => round($currentStockFromBatches, 2),
+                // Expose history-derived figure for debugging/reconciliation if needed.
+                'derived_current_stock' => round($currentStockFromHistory, 2),
+                'current_stock_source' => 'location_batches',
             ];
 
             // API always returns JSON
@@ -166,6 +408,128 @@ class ProductController extends Controller
                 'stock_histories' => [],
                 'stock_type_sums' => [],
                 'current_stock' => 0,
+            ], 500);
+        }
+    }
+
+    /**
+     * Stock reconciliation helper:
+     * returns authoritative location_batches qty/free_qty and compares against
+     * stock_histories + transactional tables for a single product (and optional batch).
+     */
+    public function reconcileStock(int $productId): JsonResponse
+    {
+        $locationId = request()->input('location_id');
+        $batchNo = trim((string) request()->input('batch_no', ''));
+        $batchId = request()->input('batch_id');
+
+        try {
+            $product = Product::select('id', 'product_name', 'sku')->findOrFail($productId);
+
+            $batchQuery = Batch::query()->where('product_id', $productId);
+            if ($batchId) {
+                $batchQuery->where('id', (int) $batchId);
+            } elseif ($batchNo !== '') {
+                $batchQuery->where('batch_no', $batchNo);
+            }
+
+            $batches = $batchQuery->get(['id', 'batch_no']);
+            if ($batches->isEmpty()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'No batch found for this product with given batch filter.',
+                    'product' => $product,
+                    'filters' => ['location_id' => $locationId, 'batch_no' => $batchNo, 'batch_id' => $batchId],
+                ], 404);
+            }
+
+            $batchIds = $batches->pluck('id')->all();
+
+            $locationBatchesQuery = LocationBatch::query()
+                ->whereIn('batch_id', $batchIds);
+            if ($locationId) {
+                $locationBatchesQuery->where('location_id', (int) $locationId);
+            }
+            $locationBatches = $locationBatchesQuery->get(['id', 'batch_id', 'location_id', 'qty', 'free_qty']);
+
+            $locBatchIds = $locationBatches->pluck('id')->all();
+
+            $onHand = [
+                'paid_qty' => (float) $locationBatches->sum(fn ($lb) => (float) ($lb->qty ?? 0)),
+                'free_qty' => (float) $locationBatches->sum(fn ($lb) => (float) ($lb->free_qty ?? 0)),
+            ];
+            $onHand['total'] = (float) ($onHand['paid_qty'] + $onHand['free_qty']);
+
+            $stockHistoryByType = collect();
+            if (!empty($locBatchIds)) {
+                $stockHistoryByType = StockHistory::query()
+                    ->whereIn('loc_batch_id', $locBatchIds)
+                    ->select('stock_type', DB::raw('SUM(quantity) as qty_sum'))
+                    ->groupBy('stock_type')
+                    ->pluck('qty_sum', 'stock_type');
+            }
+
+            // Transactional table rollups (these are helpful to understand WHY history exists)
+            $salesTotals = DB::table('sales_products as sp')
+                ->join('sales as s', 's.id', '=', 'sp.sale_id')
+                ->where('sp.product_id', $productId)
+                ->whereIn('sp.batch_id', $batchIds)
+                ->when($locationId, fn ($q) => $q->where('sp.location_id', (int) $locationId))
+                ->whereIn('s.status', ['final', 'suspend'])
+                ->selectRaw('COALESCE(SUM(sp.quantity),0) as paid, COALESCE(SUM(sp.free_quantity),0) as free')
+                ->first();
+
+            $returnTotals = DB::table('sales_return_products as srp')
+                ->join('sales_returns as sr', 'sr.id', '=', 'srp.sales_return_id')
+                ->where('srp.product_id', $productId)
+                ->whereIn('srp.batch_id', $batchIds)
+                ->when($locationId, fn ($q) => $q->where('srp.location_id', (int) $locationId))
+                ->selectRaw('COALESCE(SUM(srp.quantity),0) as paid, COALESCE(SUM(srp.free_quantity),0) as free')
+                ->first();
+
+            return response()->json([
+                'status' => 'success',
+                'product' => $product,
+                'filters' => [
+                    'location_id' => $locationId ? (int) $locationId : null,
+                    'batch_no' => $batchNo !== '' ? $batchNo : null,
+                    'batch_id' => $batchId ? (int) $batchId : null,
+                ],
+                'batches' => $batches,
+                'location_batches' => $locationBatches,
+                'on_hand_from_location_batches' => [
+                    'paid_qty' => round($onHand['paid_qty'], 4),
+                    'free_qty' => round($onHand['free_qty'], 4),
+                    'total' => round($onHand['total'], 4),
+                ],
+                'stock_history_sum_by_type' => $stockHistoryByType,
+                'transaction_rollups' => [
+                    'sales_products_sum' => [
+                        'paid_qty' => round((float) ($salesTotals->paid ?? 0), 4),
+                        'free_qty' => round((float) ($salesTotals->free ?? 0), 4),
+                        'total' => round((float) (($salesTotals->paid ?? 0) + ($salesTotals->free ?? 0)), 4),
+                    ],
+                    'sales_return_products_sum' => [
+                        'paid_qty' => round((float) ($returnTotals->paid ?? 0), 4),
+                        'free_qty' => round((float) ($returnTotals->free ?? 0), 4),
+                        'total' => round((float) (($returnTotals->paid ?? 0) + ($returnTotals->free ?? 0)), 4),
+                    ],
+                ],
+                'note' => 'If physical stock exists but on_hand_from_location_batches.total is 0, the system stock is currently 0 and needs adjustment or data correction.',
+            ], 200);
+
+        } catch (\Throwable $e) {
+            Log::error('Stock reconcile failed', [
+                'product_id' => $productId,
+                'location_id' => $locationId,
+                'batch_no' => $batchNo,
+                'batch_id' => $batchId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
             ], 500);
         }
     }

@@ -406,8 +406,18 @@
         }
 
         .sale-notes {
-            font-size: 10px;
-            line-height: 1.4;
+            margin-top: 0.08in;
+            padding-top: 0.06in;
+            border-top: 1px dashed #333;
+            font-size: 12px;
+            line-height: 1.45;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+
+        .sale-notes-text {
+            white-space: pre-wrap;
+            word-break: break-word;
         }
 
 
@@ -727,9 +737,13 @@
             @endif
 
             {{-- Sale Notes Section --}}
-            @if (isset($sale->sale_notes) && $sale->sale_notes)
+            @php
+                $saleNotesRaw = isset($sale->sale_notes) ? (string) $sale->sale_notes : '';
+                $saleNotes = trim(preg_replace("/\R/u", "\n", $saleNotesRaw));
+            @endphp
+            @if ($saleNotes !== '')
                 <div class="sale-notes">
-                    <div>{{ $sale->sale_notes }}</div>
+                    <div class="sale-notes-text">{!! nl2br(e($saleNotes)) !!}</div>
                 </div>
             @endif
 

@@ -826,19 +826,25 @@ class PurchaseController extends Controller
     private function removeProductFromPurchase($productToRemove, $locationId)
     {
         $batch = Batch::find($productToRemove->batch_id);
+        if (!$batch) {
+            throw new \Exception("Batch not found while removing purchase product. Batch ID: {$productToRemove->batch_id}");
+        }
+
         $locationBatch = LocationBatch::where('batch_id', $batch->id)
             ->where('location_id', $locationId)
             ->first();
+
+        if (!$locationBatch) {
+            throw new \Exception("Location batch not found while removing purchase product. Batch ID: {$batch->id}, Location ID: {$locationId}");
+        }
 
         // Remove paid and free quantities separately
         $paidQuantityToRemove = $productToRemove->quantity;
         $freeQuantityToRemove = $productToRemove->free_quantity ?? 0;
         $totalQuantityToRemove = $paidQuantityToRemove + $freeQuantityToRemove;
 
-        if ($locationBatch) {
-            $locationBatch->decrement('qty', $paidQuantityToRemove); // Paid qty
-            $locationBatch->decrement('free_qty', $freeQuantityToRemove); // Free qty
-        }
+        $locationBatch->decrement('qty', $paidQuantityToRemove); // Paid qty
+        $locationBatch->decrement('free_qty', $freeQuantityToRemove); // Free qty
 
         $batch->decrement('qty', $paidQuantityToRemove); // Paid qty
         $batch->decrement('free_qty', $freeQuantityToRemove); // Free qty
