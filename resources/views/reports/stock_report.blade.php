@@ -99,6 +99,21 @@
                         data-bs-target="#collapseFilters" aria-expanded="false" aria-controls="collapseFilters">
                         <i class="fas fa-filter"></i> &nbsp; Filters
                     </button>
+
+                    {{-- Stock Scope Toggle --}}
+                    <div class="btn-group" role="group" aria-label="Stock scope">
+                        <input type="radio" class="btn-check" name="stock_scope_toggle" id="stockScopeInStock"
+                               autocomplete="off" value="in_stock"
+                               {{ request('stock_scope', 'in_stock') === 'in_stock' ? 'checked' : '' }}>
+                        <label class="btn btn-outline-primary" for="stockScopeInStock">In Stock</label>
+
+                        <input type="radio" class="btn-check" name="stock_scope_toggle" id="stockScopeAll"
+                               autocomplete="off" value="all"
+                               {{ request('stock_scope') === 'all' ? 'checked' : '' }}>
+                        <label class="btn btn-outline-primary" for="stockScopeAll">All</label>
+                    </div>
+                    <input type="hidden" id="stockScope" value="{{ request('stock_scope', 'in_stock') }}">
+
                     <div class="btn-group">
                         <button class="btn btn-success dropdown-toggle" type="button" id="dropdownMenuButton"
                             data-bs-toggle="dropdown" aria-expanded="false">
@@ -119,11 +134,13 @@
                                 <div class="col-md-6">
                                     <li><a class="dropdown-item" href="#" data-value="6">Unit Cost</a></li>
                                     <li><a class="dropdown-item" href="#" data-value="7">Unit Selling Price</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="8">Current Stock</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="9">Stock Value (Purchase)</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="10">Stock Value (Sale)</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="11">Potential Profit</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="12">Expiry Date</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="8">Paid Qty</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="9">Free Qty</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="10">Total Qty</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="11">Stock Value (Purchase)</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="12">Stock Value (Sale)</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="13">Markup Value</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="14">Expiry Date</a></li>
                                 </div>
                             </div>
                         </ul>
@@ -278,7 +295,9 @@
                                 <th>Location</th>
                                 <th>Unit Cost</th>
                                 <th>Unit Selling Price</th>
-                                <th>Current Stock (Qty)</th>
+                                <th>Paid Qty</th>
+                                <th>Free Qty</th>
+                                <th>Total Qty</th>
                                 <th>Stock Value (Purchase)</th>
                                 <th>Stock Value (Sale)</th>
                                 <th>Markup Value</th>
@@ -326,7 +345,8 @@
                     category_id: $('#categoryFilter').val(),
                     sub_category_id: $('#subCategoryFilter').val(),
                     brand_id: $('#brandFilter').val(),
-                    unit_id: $('#unitFilter').val()
+                    unit_id: $('#unitFilter').val(),
+                    stock_scope: $('#stockScope').val()
                 };
             }
 
@@ -341,6 +361,10 @@
                         return $.extend({}, d, getFilters());
                     }
                 },
+                "columnDefs": [
+                    // Default-hide less important columns for daily stock checking
+                    { "targets": [4, 5], "visible": false } // Category, Location
+                ],
                 "columns": [
                     {
                         "data": null,
@@ -383,6 +407,20 @@
                         "data": "unit_selling_price",
                         "render": function(data) {
                             return 'Rs. ' + parseFloat(data).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        }
+                    },
+                    {
+                        "data": "paid_qty",
+                        "className": "text-center",
+                        "render": function(data) {
+                            return '<strong>' + parseFloat(data).toFixed(2) + '</strong>';
+                        }
+                    },
+                    {
+                        "data": "free_qty",
+                        "className": "text-center",
+                        "render": function(data) {
+                            return '<strong>' + parseFloat(data).toFixed(2) + '</strong>';
                         }
                     },
                     {
@@ -511,6 +549,9 @@
                 });
             }
 
+            // Sync initial dropdown highlights with default hidden columns
+            updateDropdownHighlights();
+
             $('#columnVisibilityDropdown a').on('click', function(e) {
                 e.preventDefault();
                 const selectedValue = $(this).data('value');
@@ -581,6 +622,13 @@
                     url.searchParams.delete('unit_id');
                 }
 
+                var stockScope = $('#stockScope').val();
+                if (stockScope && stockScope !== 'in_stock') {
+                    url.searchParams.set('stock_scope', stockScope);
+                } else {
+                    url.searchParams.delete('stock_scope');
+                }
+
                 window.location.href = url.toString();
             }
 
@@ -588,6 +636,20 @@
             $('#locationFilter, #categoryFilter, #subCategoryFilter, #brandFilter, #unitFilter').on('change', function() {
                 reloadReportWithFilters();
             });
+
+            // Stock scope toggle (In Stock vs All)
+            $('input[name="stock_scope_toggle"]').on('change', function() {
+                $('#stockScope').val($(this).val());
+                reloadReportWithFilters();
+            });
+
+            // Permission-gated visibility: hide Free Qty if not allowed
+            const canUseFreeQty = @json($canUseFreeQty ?? false);
+            if (!canUseFreeQty) {
+                // column index 9 is Free Qty (0-based incl Action)
+                table.column(9).visible(false);
+                updateDropdownHighlights();
+            }
         });
     </script>
 @endsection

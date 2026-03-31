@@ -46,6 +46,8 @@ class StockHistoryService
                 'b.unit_cost',
                 'b.retail_price',
                 'b.expiry_date',
+                DB::raw('lb.qty as paid_qty'),
+                DB::raw('lb.free_qty as free_qty'),
                 DB::raw('(lb.qty + lb.free_qty) as current_stock'),
                 'l.name       as location_name',
                 'mc.mainCategoryName as category',
@@ -70,6 +72,8 @@ class StockHistoryService
                 'location'             => $row->location_name ?? 'Unknown Location',
                 'unit_cost'            => $unitCost,
                 'unit_selling_price'   => $retailPrice,
+                'paid_qty'             => (float) ($row->paid_qty ?? 0),
+                'free_qty'             => (float) ($row->free_qty ?? 0),
                 'current_stock'        => $currentStock,
                 'stock_value_purchase' => $byPurchase,
                 'stock_value_sale'     => $bySale,
@@ -135,6 +139,14 @@ class StockHistoryService
         }
         if (filled($request->unit_id)) {
             $query->where('p.unit_id', $request->unit_id);
+        }
+
+        // Stock scope toggle:
+        // - in_stock: only show rows where total qty > 0 (default)
+        // - all: show all rows (including 0 stock)
+        $stockScope = $request->input('stock_scope', 'in_stock');
+        if ($stockScope !== 'all') {
+            $query->whereRaw('(lb.qty + lb.free_qty) > 0');
         }
     }
 }

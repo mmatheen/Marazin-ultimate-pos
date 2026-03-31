@@ -17,6 +17,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 use App\Services\Report\StockHistoryService;
 use App\Services\Report\DueReportService;
@@ -59,8 +60,9 @@ class ReportController extends Controller
 
         $filters     = $this->stockHistoryService->getFilters();
         $summaryData = $this->stockHistoryService->calculateSummary($request);
+        $canUseFreeQty = Gate::allows('use free quantity');
 
-        return view('reports.stock_report', array_merge($filters, compact('summaryData')));
+        return view('reports.stock_report', array_merge($filters, compact('summaryData', 'canUseFreeQty')));
     }
 
     /**
@@ -217,7 +219,7 @@ public function fetchActivityLog(Request $request)
             'report_type' => $reportType
         ]);
 
-        $canUseFreeQty = auth()->user()?->can('use free quantity') ?? false;
+        $canUseFreeQty = Gate::allows('use free quantity');
 
         return view('reports.profit_loss_report', compact(
             'reportData',
