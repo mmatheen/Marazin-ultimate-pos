@@ -416,6 +416,7 @@
         }
 
         .sale-notes-text {
+            font-weight: bold;
             white-space: pre-wrap;
             word-break: break-word;
         }
