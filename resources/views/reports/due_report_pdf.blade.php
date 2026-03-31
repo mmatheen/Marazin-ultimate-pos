@@ -81,7 +81,7 @@
 </head>
 <body>
     <h1>{{ ucfirst($reportType) }} Due Report</h1>
-    
+
     <div class="summary">
         <div class="summary-item">
             <span class="summary-label">Total Due Amount:</span>
@@ -107,15 +107,12 @@
                 @if($reportType === 'customer')
                     <th>Invoice No</th>
                     <th>Customer Name</th>
-                    <th>Mobile</th>
                     <th>Sale Date</th>
                 @else
                     <th>Reference No</th>
                     <th>Supplier Name</th>
-                    <th>Mobile</th>
                     <th>Purchase Date</th>
                 @endif
-                <th>Location</th>
                 <th class="text-right">Final Total</th>
                 <th class="text-right">Paid</th>
                 <th class="text-right">Due</th>
@@ -129,15 +126,12 @@
                     @if($reportType === 'customer')
                         <td>{{ $row->invoice_no ?? 'N/A' }}</td>
                         <td>{{ $row->customer_name ?? 'N/A' }}</td>
-                        <td>{{ $row->customer_mobile ?? 'N/A' }}</td>
                         <td>{{ $row->sales_date ?? 'N/A' }}</td>
                     @else
                         <td>{{ $row->reference_no ?? 'N/A' }}</td>
                         <td>{{ $row->supplier_name ?? 'N/A' }}</td>
-                        <td>{{ $row->supplier_mobile ?? 'N/A' }}</td>
                         <td>{{ $row->purchase_date ?? 'N/A' }}</td>
                     @endif
-                    <td>{{ $row->location ?? 'N/A' }}</td>
                     <td class="text-right">Rs. {{ number_format($row->final_total ?? 0, 2) }}</td>
                     <td class="text-right">Rs. {{ number_format($row->total_paid ?? 0, 2) }}</td>
                     <td class="text-right">Rs. {{ number_format($row->total_due ?? 0, 2) }}</td>

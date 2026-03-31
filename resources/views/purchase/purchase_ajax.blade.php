@@ -29,17 +29,50 @@
         function findTaxRateIdByPercent(percent) {
             const normalizedPercent = parseFloat(percent);
             if (isNaN(normalizedPercent) || normalizedPercent <= 0) {
+                console.warn(`⚠️ Invalid tax percent: ${percent}`);
                 return '';
             }
 
-            const match = purchaseTaxRates.find((taxRate) => {
-                return parseFloat(taxRate.rate).toFixed(2) === normalizedPercent.toFixed(2);
+            // CRITICAL FIX: Check if purchaseTaxRates is populated
+            if (!purchaseTaxRates || purchaseTaxRates.length === 0) {
+                console.warn(`⚠️ purchaseTaxRates is empty or not loaded. Available rates:`, purchaseTaxRates);
+                return '';
+            }
+
+            // CRITICAL FIX: Try exact match first with proper precision
+            const exactMatch = purchaseTaxRates.find((taxRate) => {
+                const taxRateValue = parseFloat(taxRate.rate);
+                const isMatch = taxRateValue.toFixed(2) === normalizedPercent.toFixed(2);
+                return isMatch;
             });
 
-            return match ? String(match.id) : '';
+            if (exactMatch) {
+                console.log(`✅ Found exact tax rate match: ${normalizedPercent}% -> Tax Rate ID: ${exactMatch.id}`);
+                return String(exactMatch.id);
+            }
+
+            // CRITICAL FIX: If no exact match, find closest match (tolerance: 0.01%)
+            const closestMatch = purchaseTaxRates.reduce((closest, current) => {
+                const currentDiff = Math.abs(parseFloat(current.rate) - normalizedPercent);
+                const closestDiff = Math.abs(parseFloat(closest.rate) - normalizedPercent);
+                return currentDiff < closestDiff ? current : closest;
+            });
+
+            if (closestMatch && Math.abs(parseFloat(closestMatch.rate) - normalizedPercent) < 0.1) {
+                console.log(`⚠️ No exact tax rate match for ${normalizedPercent}%. Using closest: ${closestMatch.rate}% (ID: ${closestMatch.id})`);
+                return String(closestMatch.id);
+            }
+
+            console.warn(`❌ No matching tax rate found for ${normalizedPercent}%. Available rates:`, purchaseTaxRates.map(r => `${r.name}@${r.rate}%`));
+            return '';
         }
 
         function buildProductTaxOptions(selectedTaxRateId = '') {
+            // CRITICAL FIX: Add debugging for tax rate population
+            if (!purchaseTaxRates || purchaseTaxRates.length === 0) {
+                console.warn('⚠️ buildProductTaxOptions: purchaseTaxRates is empty', purchaseTaxRates);
+            }
+
             const noneOption = `<option value="">None</option>`;
             const dynamicOptions = purchaseTaxRates.map((taxRate) => {
                 const selected = String(taxRate.id) === String(selectedTaxRateId) ? 'selected' : '';
@@ -47,7 +80,11 @@
                 return `<option value="${taxRate.id}" data-rate="${displayRate}" ${selected}>${escapeHtml(taxRate.name)}@${displayRate}%</option>`;
             }).join('');
 
-            return noneOption + dynamicOptions;
+            const result = noneOption + dynamicOptions;
+            if (selectedTaxRateId) {
+                console.log(`🔍 Building tax options with selectedTaxRateId: ${selectedTaxRateId}, options count: ${purchaseTaxRates.length}`);
+            }
+            return result;
         }
 
         function resolvePurchaseTaxPercent(lineTaxPercent) {
@@ -437,7 +474,8 @@
                                             allow_decimal: item.product.unit
                                                 ?.allow_decimal || false,
                                             is_imei_or_serial_no: item.product
-                                                .is_imei_or_serial_no || false
+                                                .is_imei_or_serial_no || false,
+                                            tax_percent: item.product.tax_percent || 0
                                         }
                                     }));
 
@@ -571,8 +609,9 @@
             let existingRow = null;
 
             // ENHANCED DUPLICATE CHECKING: Use DataTable API for more reliable checking
-            if ($.fn.DataTable.isDataTable('#purchase_product')) {
-                table.rows().every(function() {
+            // CRITICAL: Use purchaseProductTable (global) for consistency across all functions
+            if ($.fn.DataTable.isDataTable('#purchase_product') && purchaseProductTable) {
+                purchaseProductTable.rows().every(function() {
                     const rowData = this.node();
                     const rowProductId = $(rowData).data('id');
                     if (rowProductId && rowProductId == product.id) {
@@ -600,12 +639,28 @@
             const quantityPattern = allowDecimal ? "[0-9]+([.][0-9]{1,2})?" : "[0-9]+([.][0-9]{1,2})?";
 
             if (existingRow && !isEditing) {
-                console.log(`📋 Product ${product.id} (${product.name}) already exists - incrementing quantity`);
-                const quantityInput = existingRow.find('.purchase-quantity');
-                let currentVal = parseFloat(quantityInput.val());
-                let newQuantity = allowDecimal ? (currentVal + 1) : (parseInt(currentVal) + 1);
-                quantityInput.val(newQuantity).trigger('input');
-            } else {
+                // CRITICAL FIX: Validate that existingRow is actually in the DOM
+                // and not a stale reference from a deleted row
+                if (existingRow.closest('body').length === 0) {
+                    console.warn(`⚠️ Product ${product.id} found in DataTable but not in DOM - treating as new product`);
+                    existingRow = null; // Reset so it gets added as new row
+                } else {
+                    console.log(`📋 Product ${product.id} (${product.name}) already exists - incrementing quantity`);
+                    const quantityInput = existingRow.find('.purchase-quantity');
+                    let currentVal = parseFloat(quantityInput.val());
+                    let newQuantity = allowDecimal ? (currentVal + 1) : (parseInt(currentVal) + 1);
+                    quantityInput.val(newQuantity).trigger('input');
+
+                    // Show message to user ONLY if update succeeded
+                    if (typeof toastr !== 'undefined') {
+                        toastr.success(`Quantity updated for ${product.name}`, 'Product Exists');
+                    }
+                    return; // Exit early - don't add as new product
+                }
+            }
+
+            // If existingRow was null, stale/deleted, or isEditing is true, add as new product
+            if (!existingRow || isEditing) {
                 console.log(`➕ Adding new product ${product.id} (${product.name}) to table. IsEditing: ${isEditing}`);
                 // Get latest batch prices using helper function
                 const latestPrices = getLatestBatchPrices(product);
@@ -644,6 +699,13 @@
 
                 const taxPercent = resolvePurchaseTaxPercent(product.tax_percent);
                 const selectedTaxRateId = findTaxRateIdByPercent(taxPercent);
+
+                // CRITICAL FIX: Debug logging for tax rate selection
+                console.log(`📦 Adding Product: ${product.name} (ID: ${product.id})`);
+                console.log(`   product.tax_percent: ${product.tax_percent} (type: ${typeof product.tax_percent})`);
+                console.log(`   resolved taxPercent: ${taxPercent}`);
+                console.log(`   selectedTaxRateId: "${selectedTaxRateId}"`);
+                console.log(`   Available tax rates:`, purchaseTaxRates);
 
                 const newRow = `
             <tr data-id="${product.id}" data-mrp="${maxRetailPrice}" data-tax-percent="${taxPercent}" data-imei-enabled="${product.is_imei_or_serial_no || false}">
@@ -691,7 +753,9 @@
         `;
 
                 const $newRow = $(newRow);
-                const addedRow = table.row.add($newRow).draw();
+                // CRITICAL FIX: Use purchaseProductTable (global) for consistency with delete/footer operations
+                let tableRef = purchaseProductTable || table;
+                const addedRow = tableRef.row.add($newRow).draw();
                 // Last added = first row (like POS): move new row to top
                 $(addedRow.node()).prependTo('#purchase_product tbody');
                 updateRow($newRow);
@@ -753,13 +817,19 @@
                 // Uses .remove-purchase-row class to avoid conflict with product_ajax.blade.php
                 $newRow.find(".remove-purchase-row").on("click", function(e) {
                     e.preventDefault();
+                    e.stopImmediatePropagation(); // Prevent delegated handler from also executing
 
                     const productName = $newRow.find('td:nth-child(2)').text().trim();
                     const quantity = $newRow.find('.purchase-quantity').val() || '0';
                     const productId = $newRow.data('id');
 
-                    // Remove from DataTable directly without confirmation
-                    table.row($newRow).remove().draw();
+                    // CRITICAL FIX: Use global purchaseProductTable instead of local table variable
+                    // to ensure consistency with updateFooter() function
+                    if (purchaseProductTable) {
+                        purchaseProductTable.row($newRow).remove().draw();
+                    } else {
+                        $newRow.remove();
+                    }
 
                     // CRITICAL FIX: Clean up ALL tracking arrays to prevent re-adding
                     const originalPendingLength = pendingImeiProducts.length;
@@ -778,7 +848,10 @@
 
                     console.log(`🗑️ Removed from pendingImeiProducts: ${originalPendingLength} -> ${pendingImeiProducts.length}`);
 
-                    updateFooter();
+                    // CRITICAL FIX: Call updateFooter after a short delay to ensure DataTable has redrawn
+                    setTimeout(function() {
+                        updateFooter();
+                    }, 50);
 
                     if (typeof toastr !== 'undefined') {
                         toastr.info(`${productName} removed from purchase list`, 'Row Removed');
@@ -2638,18 +2711,48 @@
         // Uses .remove-purchase-row class to avoid conflict with product deletion in product_ajax.blade.php
         $('#purchase_product').on('click', '.remove-purchase-row', function(e) {
             e.preventDefault();
+            e.stopImmediatePropagation(); // Prevent other handlers from executing
 
             const $row = $(this).closest('tr');
             const productName = $row.find('td:nth-child(2)').text().trim();
             const quantity = $row.find('.purchase-quantity').val() || '0';
+            const productId = $row.data('id');
 
-            // Remove row directly without confirmation
-            $row.remove();
-            updateFooter();
+            // CRITICAL FIX: Remove from DataTable (not just DOM)
+            if (purchaseProductTable && $.fn.DataTable.isDataTable('#purchase_product')) {
+                purchaseProductTable.row($row).remove().draw();
+            } else {
+                // Fallback: just remove from DOM
+                $row.remove();
+            }
+
+            // CRITICAL FIX: Clean up ALL tracking arrays to prevent re-adding
+            const originalPendingLength = pendingImeiProducts.length;
+            pendingImeiProducts = pendingImeiProducts.filter(product =>
+                product.productId != productId
+            );
+
+            // Clear any cached product data
+            if (typeof allProducts !== 'undefined') {
+                const originalAllLength = allProducts.length;
+                allProducts = allProducts.filter(product =>
+                    product.id != productId
+                );
+                console.log(`🗑️ Removed from allProducts: ${originalAllLength} -> ${allProducts.length}`);
+            }
+
+            console.log(`🗑️ Removed from pendingImeiProducts: ${originalPendingLength} -> ${pendingImeiProducts.length}`);
+
+            // Call updateFooter after a short delay to ensure DataTable has redrawn
+            setTimeout(function() {
+                updateFooter();
+            }, 50);
 
             if (typeof toastr !== 'undefined') {
-            toastr.info(`${productName} removed from purchase list`, 'Row Removed');
+                toastr.info(`${productName} removed from purchase list`, 'Row Removed');
             }
+
+            console.log(`✅ Cleaned up product ${productId} from all tracking arrays`);
         });
 
         // Fetch suppliers using AJAX

@@ -206,6 +206,7 @@
                                         id: product.product.id,
                                         name: product.product.product_name,
                                         sku: product.product.sku,
+                                        tax_percent: parseFloat(product.product.tax_percent || 0),
                                         unit: product.unit,
                                         total_stock: product.total_stock,
                                         total_free_stock: product.total_free_stock || 0,
@@ -310,6 +311,7 @@
                         id: product.product.id,
                         name: product.product.product_name,
                         sku: product.product.sku,
+                        tax_percent: parseFloat(product.tax_percent || product.product.tax_percent || 0),
                         batches: [{
                             batch_id: batchId,
                             batch_no: batchNo,
@@ -324,7 +326,8 @@
                         }],
                         returnedQuantity: parseFloat(product.quantity), // Track the originally returned quantity
                         returnedFreeQuantity: parseFloat(product.free_quantity || 0), // Track the originally returned free quantity
-                        returnedUnitPrice: parseFloat(product.unit_price)
+                        returnedUnitPrice: parseFloat(product.unit_price),
+                        returnedTaxPercent: parseFloat(product.tax_percent || 0)
                     });
                 });
                 if (data.attach_document) {
@@ -385,7 +388,12 @@
                 const initialQuantity = isEditing ? product.returnedQuantity : "";
                 const initialFreeQty = isEditing ? product.returnedFreeQuantity : "";
                 const unitPrice = isEditing ? product.returnedUnitPrice : (firstBatch.unit_cost || 0);
-                const subtotal = isEditing ? (product.returnedQuantity * product.returnedUnitPrice) : 0;
+                const taxPercent = isEditing
+                    ? (parseFloat(product.returnedTaxPercent) || 0)
+                    : (parseFloat(product.tax_percent) || 0);
+                const initialLineBase = isEditing ? ((parseFloat(product.returnedQuantity) || 0) * unitPrice) : 0;
+                const initialVatAmount = initialLineBase * (taxPercent / 100);
+                const subtotal = initialLineBase + initialVatAmount;
 
                 const batchOptions = product.batches.map(batch => {
                     const isSelected = isEditing && batch.batch_id == firstBatch.batch_id ? 'selected' : '';
@@ -424,6 +432,13 @@
                         : `<td class="d-none"><input type="number" class="purchase-free-quantity" value="0" style="display:none"></td>`
                     }
                     <td class="unit-price amount">${unitPrice}</td>
+                    <td>
+                        <input type="number" class="form-control product-tax-percent"
+                            value="${taxPercent.toFixed(2)}"
+                            min="0" max="100" step="0.01"
+                            placeholder="Tax %">
+                    </td>
+                    <td class="vat-amount amount">${initialVatAmount.toFixed(2)}</td>
                     <td class="sub-total amount">${subtotal.toFixed(2)}</td>
                     <td><button class="btn btn-danger btn-sm delete-product"><i class="fas fa-trash"></i></button></td>
                 </tr>
@@ -505,6 +520,19 @@
                     updateRow($newRow);
                     updateFooter();
                 });
+
+                $newRow.find('.product-tax-percent').on('input change', function() {
+                    let value = parseFloat($(this).val());
+                    if (isNaN(value) || value < 0) {
+                        value = 0;
+                    }
+                    if (value > 100) {
+                        value = 100;
+                    }
+                    $(this).val(value.toFixed(2));
+                    updateRow($newRow);
+                    updateFooter();
+                });
             }
 
             function updateRow($row) {
@@ -514,7 +542,11 @@
                     $row.find('.purchase-quantity').val(quantity);
                 }
                 const price = parseFloat($row.find('.unit-price').text()) || 0;
-                const subTotal = quantity * price;
+                const taxPercent = parseFloat($row.find('.product-tax-percent').val()) || 0;
+                const lineBase = quantity * price;
+                const vatAmount = lineBase * (taxPercent / 100);
+                const subTotal = lineBase + vatAmount;
+                $row.find('.vat-amount').text(vatAmount.toFixed(2));
                 $row.find('.sub-total').text(subTotal.toFixed(2));
             }
         }
@@ -535,16 +567,26 @@
         // Update footer function
         function updateFooter() {
             let totalItems = 0;
+            let subTotalBeforeVat = 0;
+            let totalVatAmount = 0;
             let netTotalAmount = 0;
             $('#purchase_return tbody tr').each(function() {
                 const quantity = parseFloat($(this).find('.purchase-quantity').val()) || 0;
                 const price = parseFloat($(this).find('.unit-price').text()) || 0;
-                const subtotal = quantity * price;
+                const taxPercent = parseFloat($(this).find('.product-tax-percent').val()) || 0;
+                const lineBase = quantity * price;
+                const vatAmount = lineBase * (taxPercent / 100);
+                const subtotal = lineBase + vatAmount;
+                $(this).find('.vat-amount').text(vatAmount.toFixed(2));
                 $(this).find('.sub-total').text(subtotal.toFixed(2));
                 totalItems += quantity;
+                subTotalBeforeVat += lineBase;
+                totalVatAmount += vatAmount;
                 netTotalAmount += subtotal;
             });
             $('#total-items').text(totalItems.toFixed(2));
+            $('#sub-total-before-vat').text(subTotalBeforeVat.toFixed(2));
+            $('#total-vat-amount').text(totalVatAmount.toFixed(2));
             // Format currency properly
             $('#net-total-amount').text(netTotalAmount.toFixed(2));
         }
@@ -568,12 +610,14 @@
                 const quantity = parseFloat(row.find('.purchase-quantity').val()) || 0;
                 const freeQuantity = parseFloat(row.find('.purchase-free-quantity').val()) || 0;
                 const unitPrice = parseFloat(row.find('.unit-price').text()) || 0;
+                const taxPercent = parseFloat(row.find('.product-tax-percent').val()) || 0;
                 const subtotal = parseFloat(row.find('.sub-total').text()) || 0;
                 const batchId = row.find('.batch-select').val();
                 formData.append(`products[${index}][product_id]`, row.data('id'));
                 formData.append(`products[${index}][quantity]`, quantity);
                 formData.append(`products[${index}][free_quantity]`, freeQuantity);
                 formData.append(`products[${index}][unit_price]`, unitPrice);
+                formData.append(`products[${index}][tax_percent]`, taxPercent);
                 formData.append(`products[${index}][subtotal]`, subtotal);
                 formData.append(`products[${index}][batch_id]`, batchId);
             });
@@ -625,6 +669,8 @@
             $('#addAndUpdatePurchaseReturnForm').find('.is-invalid').removeClass('is-invalid');
             $('#purchase_return').DataTable().clear().draw();
             $('#total-items').text('0.00');
+            $('#sub-total-before-vat').text('0.00');
+            $('#total-vat-amount').text('0.00');
             $('#net-total-amount').text('0.00');
             $('#productSearchInput').prop('disabled', true);
             $("#pdfViewer").hide();

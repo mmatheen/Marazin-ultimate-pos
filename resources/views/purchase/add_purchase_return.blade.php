@@ -155,7 +155,9 @@
                                             <th>Return Quantity</th>
                                             @if($canUseFreeQty)<th>Return Free Qty</th>@endif
                                             <th>Unit Price</th>
-                                            <th>Subtotal</th>
+                                            <th>Tax %</th>
+                                            <th>VAT Amount</th>
+                                            <th>Subtotal (Incl VAT)</th>
                                             <th><i class="fas fa-trash"></i></th>
                                         </tr>
                                     </thead>
@@ -168,6 +170,8 @@
                             <hr>
                             <div class="table-footer">
                                 <p>Total Items: <span id="total-items">.00</span></p>
+                                <p>Subtotal (Before VAT): Rs. <span id="sub-total-before-vat">0.00</span></p>
+                                <p>Total VAT: Rs. <span id="total-vat-amount">0.00</span></p>
                                 <p>Net Total Amount: Rs. <span id="net-total-amount">0.00</span></p>
                             </div>
                             <hr>

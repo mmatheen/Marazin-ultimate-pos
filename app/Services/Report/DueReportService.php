@@ -2,7 +2,6 @@
 namespace App\Services\Report;
 
 use App\Models\Sale;
-use App\Models\Location;
 use App\Helpers\BalanceHelper;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -41,35 +40,18 @@ class DueReportService
     /** Customer due rows (ledger-based). */
     public function getCustomerData(Request $request): array
     {
-        // Get customer IDs that have an outstanding ledger balance
-        $customerIds = \App\Models\Ledger::where('contact_type', 'customer')
-            ->where('status', 'active')
-            ->distinct()
-            ->pluck('contact_id');
-
-        $customerBalances = [];
-        foreach ($customerIds as $cid) {
-            $balance = BalanceHelper::getCustomerBalance($cid);
-            if ($balance > 0) {
-                $customerBalances[$cid] = $balance;
-            }
-        }
-
-        // Narrow to specific customer if filter applied
-        if (filled($request->customer_id)) {
-            $filterCid = $request->customer_id;
-            $customerBalances = isset($customerBalances[$filterCid])
-                ? [$filterCid => $customerBalances[$filterCid]]
-                : [];
-        }
-
-        $query = Sale::with(['customer', 'location', 'user', 'salesReturns'])
-            ->whereIn('customer_id', array_keys($customerBalances))
+        $query = Sale::with(['customer'])
+            ->withSum('salesReturns as sales_return_total', 'return_total')
             ->whereIn('payment_status', ['partial', 'due'])
             ->where('total_due', '>', 0)
             ->whereNotNull('customer_id')
             ->where('status', 'final')
             ->where('transaction_type', 'invoice');
+
+        // Narrow to specific customer if filter applied
+        if (filled($request->customer_id)) {
+            $query->where('customer_id', $request->customer_id);
+        }
 
         if (filled($request->city_id)) {
             $cityId = $request->city_id;
@@ -89,38 +71,55 @@ class DueReportService
                 Carbon::now()->endOfDay(),
             ]);
         } else {
-            $noCustomerFilter = !filled($request->customer_id);
-            if ($noCustomerFilter && filled($request->start_date)) {
+            if (filled($request->start_date)) {
                 $query->whereDate('sales_date', '>=', $request->start_date);
             }
-            if ($noCustomerFilter && filled($request->end_date)) {
+            if (filled($request->end_date)) {
                 $query->whereDate('sales_date', '<=', $request->end_date);
             }
         }
 
         $sales = $query->orderBy('sales_date', 'desc')->get();
+        if ($sales->isEmpty()) {
+            return [];
+        }
+
+        // Compute balances only for customers that already passed filters.
+        $customerBalances = [];
+        $customerIds = $sales->pluck('customer_id')->filter()->unique()->values();
+        foreach ($customerIds as $cid) {
+            $balance = (float) BalanceHelper::getCustomerBalance((int) $cid);
+            if ($balance > 0) {
+                $customerBalances[(int) $cid] = $balance;
+            }
+        }
+
         $data  = [];
 
         foreach ($sales as $sale) {
-            $totalReturns = $sale->salesReturns()->sum('return_total');
-            $actualDue    = $sale->total_due - $totalReturns;
+            $customerId    = (int) $sale->customer_id;
+            $ledgerBalance = $customerBalances[$customerId] ?? 0.0;
+            if ($ledgerBalance <= 0) {
+                continue;
+            }
+
+            $totalReturns = (float) ($sale->sales_return_total ?? 0);
+            $actualDue    = max(0, (float) $sale->total_due - $totalReturns);
 
             if ($actualDue <= 0) {
                 continue;
             }
 
             $salesDate = Carbon::parse($sale->sales_date);
-            $dueDays   = Carbon::now()->diffInDays($salesDate, false);
+            $dueDays   = max(0, $salesDate->diffInDays(Carbon::now(), false));
 
             $data[] = [
                 'id'              => $sale->id,
-                'customer_id'     => $sale->customer_id,   //  used by calculateSummaryFromData
+                'customer_id'     => $customerId,
                 'invoice_no'      => $sale->invoice_no ?? 'N/A',
                 'customer_name'   => $sale->customer ? $sale->customer->full_name : 'N/A',
-                'customer_mobile' => $sale->customer ? $sale->customer->mobile_no : 'N/A',
                 'sales_date'      => $salesDate->format('d-M-Y'),
-                'location'        => $sale->location ? $sale->location->name : 'N/A',
-                'user'            => $sale->user ? ($sale->user->full_name ?? $sale->user->name) : 'N/A',
+                'ledger_balance'  => $ledgerBalance,
                 'final_total'     => $sale->final_total,
                 'total_paid'      => $sale->total_paid,
                 'original_due'    => $sale->total_due,
@@ -128,7 +127,7 @@ class DueReportService
                 'total_due'       => $actualDue,
                 'final_due'       => $actualDue,
                 'payment_status'  => $sale->payment_status,
-                'due_days'        => abs($dueDays),
+                'due_days'        => $dueDays,
                 'due_status'      => $this->getDueStatus($dueDays),
             ];
         }
@@ -139,7 +138,7 @@ class DueReportService
     /** Supplier due rows. */
     public function getSupplierData(Request $request): array
     {
-        $query = \App\Models\Purchase::with(['supplier', 'location', 'user'])
+        $query = \App\Models\Purchase::with(['supplier'])
             ->whereIn('payment_status', ['partial', 'due'])
             ->where('total_due', '>', 0)
             ->whereNotNull('supplier_id')
@@ -185,6 +184,20 @@ class DueReportService
         }
 
         $purchases = $query->orderBy('purchase_date', 'desc')->get();
+        if ($purchases->isEmpty()) {
+            return [];
+        }
+
+        // Compute supplier balances once and re-use in rows + summary.
+        $supplierBalances = [];
+        $supplierIds = $purchases->pluck('supplier_id')->filter()->unique()->values();
+        foreach ($supplierIds as $sid) {
+            $balance = (float) BalanceHelper::getSupplierBalance((int) $sid);
+            if ($balance > 0) {
+                $supplierBalances[(int) $sid] = $balance;
+            }
+        }
+
         $data      = [];
 
         foreach ($purchases as $purchase) {
@@ -192,18 +205,22 @@ class DueReportService
                 continue;
             }
 
+            $supplierId    = (int) $purchase->supplier_id;
+            $ledgerBalance = $supplierBalances[$supplierId] ?? 0.0;
+            if ($ledgerBalance <= 0) {
+                continue;
+            }
+
             $purchaseDate = Carbon::parse($purchase->purchase_date);
-            $dueDays      = Carbon::now()->diffInDays($purchaseDate, false);
+            $dueDays      = max(0, $purchaseDate->diffInDays(Carbon::now(), false));
 
             $data[] = [
                 'id'               => $purchase->id,
-                'supplier_id'      => $purchase->supplier_id,  //  used by calculateSummaryFromData
+                'supplier_id'      => $supplierId,
                 'reference_no'     => $purchase->reference_no ?? 'N/A',
                 'supplier_name'    => $purchase->supplier ? $purchase->supplier->full_name : 'N/A',
-                'supplier_mobile'  => $purchase->supplier ? $purchase->supplier->mobile_no : 'N/A',
                 'purchase_date'    => $purchaseDate->format('d-M-Y'),
-                'location'         => $purchase->location ? $purchase->location->name : 'N/A',
-                'user'             => $purchase->user ? ($purchase->user->full_name ?? $purchase->user->name) : 'N/A',
+                'ledger_balance'   => $ledgerBalance,
                 'final_total'      => $purchase->final_total,
                 'total_paid'       => $purchase->total_paid,
                 'original_due'     => $purchase->total_due,
@@ -211,7 +228,7 @@ class DueReportService
                 'total_due'        => $purchase->total_due,
                 'final_due'        => $purchase->total_due,
                 'payment_status'   => $purchase->payment_status,
-                'due_days'         => abs($dueDays),
+                'due_days'         => $dueDays,
                 'due_status'       => $this->getDueStatus($dueDays),
             ];
         }
@@ -229,44 +246,40 @@ class DueReportService
         $totalDue      = 0.0;
         $maxSingleDue  = 0.0;
         $uniqueParties = [];
+        $ledgerByParty = [];
 
         foreach ($data as $row) {
             $totalDue     += $row['total_due'];
             $maxSingleDue  = max($maxSingleDue, $row['final_due'] ?? 0);
 
             if ($reportType === 'customer') {
-                $uniqueParties[$row['customer_name']] = true;
+                if (!empty($row['customer_id'])) {
+                    $partyId = (int) $row['customer_id'];
+                    $uniqueParties[$partyId] = true;
+                    if (isset($row['ledger_balance'])) {
+                        $ledgerByParty[$partyId] = (float) $row['ledger_balance'];
+                    }
+                }
             } else {
-                $uniqueParties[$row['supplier_name']] = true;
-            }
-        }
-
-        // Use ledger-based outstanding balance (no N+1  IDs already in rows)
-        $actualOutstanding = 0.0;
-
-        if ($reportType === 'customer') {
-            $uniqueCustomerIds = array_unique(array_column($data, 'customer_id'));
-            foreach ($uniqueCustomerIds as $cid) {
-                $balance = BalanceHelper::getCustomerBalance($cid);
-                if ($balance > 0) {
-                    $actualOutstanding += $balance;
-                }
-            }
-        } else {
-            $uniqueSupplierIds = array_unique(array_column($data, 'supplier_id'));
-            foreach ($uniqueSupplierIds as $sid) {
-                $balance = BalanceHelper::getSupplierBalance($sid);
-                if ($balance > 0) {
-                    $actualOutstanding += $balance;
+                if (!empty($row['supplier_id'])) {
+                    $partyId = (int) $row['supplier_id'];
+                    $uniqueParties[$partyId] = true;
+                    if (isset($row['ledger_balance'])) {
+                        $ledgerByParty[$partyId] = (float) $row['ledger_balance'];
+                    }
                 }
             }
         }
+
+        $actualOutstanding = array_sum(array_filter($ledgerByParty, fn($v) => $v > 0));
+        $finalOutstanding  = $actualOutstanding > 0 ? $actualOutstanding : $totalDue;
 
         return [
-            'total_due'    => $actualOutstanding,
+            'total_due'    => $finalOutstanding,
             'total_bills'  => $totalBills,
             'total_parties' => count($uniqueParties),
             'max_single_due' => $maxSingleDue,
+            'avg_due_per_bill' => $totalBills > 0 ? $finalOutstanding / $totalBills : 0,
         ];
     }
 

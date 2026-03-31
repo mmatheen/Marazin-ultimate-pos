@@ -92,6 +92,7 @@ class PurchaseReturnController extends Controller
                 },
             ],
             'products.*.unit_price' => 'required|numeric|min:0',
+            'products.*.tax_percent' => 'nullable|numeric|min:0|max:100',
             'products.*.subtotal' => 'required|numeric|min:0',
             'products.*.batch_id' => 'nullable|integer|exists:batches,id',
         ]);
@@ -206,7 +207,12 @@ class PurchaseReturnController extends Controller
 
                 // Process each product in the request
                 foreach ($request->products as $productData) {
-                    $this->processProductReturn($productData, $purchaseReturn->id, $request->location_id);
+                    $this->processProductReturn(
+                        $productData,
+                        $purchaseReturn->id,
+                        $request->location_id,
+                        $request->supplier_id
+                    );
                 }
 
                 // Recalculate authoritative return total using persisted product rows.
@@ -269,18 +275,37 @@ class PurchaseReturnController extends Controller
         }
         return null;
     }
-    private function processProductReturn($productData, $purchaseReturnId, $locationId)
+    private function processProductReturn($productData, $purchaseReturnId, $locationId, $supplierId)
     {
         $paidQtyToReturn = floatval($productData['quantity'] ?? 0);
         $freeQtyToReturn = floatval($productData['free_quantity'] ?? 0);
         $batchId = $productData['batch_id'] ?? null;
+
+        // Prefer a purchase line from the same supplier/location to preserve the
+        // original tax context. This avoids pulling a mismatched tax rate from an
+        // unrelated purchase when the same product exists across suppliers.
         $sourcePurchaseLine = PurchaseProduct::query()
             ->where('product_id', $productData['product_id'])
+            ->where('location_id', $locationId)
             ->when(!empty($batchId), function ($q) use ($batchId) {
                 $q->where('batch_id', $batchId);
             })
+            ->whereHas('purchase', function ($q) use ($supplierId) {
+                $q->where('supplier_id', $supplierId);
+            })
             ->orderByDesc('id')
             ->first();
+
+        if (!$sourcePurchaseLine) {
+            $sourcePurchaseLine = PurchaseProduct::query()
+                ->where('product_id', $productData['product_id'])
+                ->where('location_id', $locationId)
+                ->when(!empty($batchId), function ($q) use ($batchId) {
+                    $q->where('batch_id', $batchId);
+                })
+                ->orderByDesc('id')
+                ->first();
+        }
 
         $unitPriceExVat = (float) ($sourcePurchaseLine?->unit_cost ?? $productData['unit_price'] ?? 0);
         $productTaxPercent = \App\Models\Product::whereKey($productData['product_id'])->value('tax_percent');

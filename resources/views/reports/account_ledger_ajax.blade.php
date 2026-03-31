@@ -956,8 +956,6 @@ $(document).ready(function() {
                         const tableBody = [
                             [
                                 { text: 'Date', style: 'tableHeader' },
-                                { text: 'Ref No', style: 'tableHeader' },
-                                { text: 'Type', style: 'tableHeader' },
                                 { text: 'Description', style: 'tableHeader' },
                                 { text: 'Debit', style: 'tableHeader', alignment: 'right' },
                                 { text: 'Credit', style: 'tableHeader', alignment: 'right' },
@@ -973,8 +971,6 @@ $(document).ready(function() {
 
                             tableBody.push([
                                 entry.date || entry.created_at || 'N/A',
-                                entry.reference_no || 'N/A',
-                                entry.type || entry.transaction_type || 'N/A',
                                 entry.notes || entry.others || 'N/A',
                                 debitValue > 0 ? 'Rs. ' + formatCurrency(debitValue) : '-',
                                 creditValue > 0 ? 'Rs. ' + formatCurrency(creditValue) : '-',
@@ -985,7 +981,7 @@ $(document).ready(function() {
                         doc.content.push({
                             table: {
                                 headerRows: 1,
-                                widths: ['12%', '14%', '12%', '22%', '13%', '13%', '14%'],
+                                widths: ['15%', '35%', '15%', '15%', '20%'],
                                 body: tableBody
                             },
                             layout: {

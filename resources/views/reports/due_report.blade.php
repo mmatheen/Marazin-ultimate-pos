@@ -104,9 +104,22 @@
         }
 
         /* Compact table styling for better fit */
+        #dueReportTable {
+            table-layout: fixed;
+            width: 100% !important;
+        }
+
+        #dueReportTable thead th,
+        #dueReportTable tbody td {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            vertical-align: middle;
+        }
+
         #dueReportTable tbody td {
             font-size: 11px;
-            padding: 8px 6px;
+            padding: 7px 5px;
         }
 
         #dueReportTable .btn-sm {
@@ -155,6 +168,16 @@
         /* Smooth scrolling */
         .table-responsive {
             scroll-behavior: smooth;
+            overflow-x: hidden;
+        }
+
+        .action-btn-compact {
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
         /* Custom scrollbar styling */
@@ -233,19 +256,16 @@
                                     <li><a class="dropdown-item" href="#" data-value="show all">2. Show All Columns</a></li>
                                     <li><a class="dropdown-item" href="#" data-value="1">Invoice/Ref No</a></li>
                                     <li><a class="dropdown-item" href="#" data-value="2">Party Name</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="3">Mobile No</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="4">Date</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="5">Location</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="6">Created By</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="3">Date</a></li>
                                 </div>
                                 <div class="col-md-6">
-                                    <li><a class="dropdown-item" href="#" data-value="7">Final Total</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="8">Total Paid</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="9">Original Due</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="10">Return Amount</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="11">Final Due</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="12">Payment Status</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="13">Due Days</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="4">Final Total</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="5">Total Paid</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="6">Original Due</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="7">Return Amount</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="8">Final Due</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="9">Payment Status</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="10">Due Days</a></li>
                                 </div>
                             </div>
                         </ul>
@@ -436,17 +456,14 @@
                         <thead class="table-light">
                             <tr style="font-size: 11px;">
                                 <th style="padding: 8px 6px;">Action</th>
-                                <th id="refNoHeader" style="padding: 8px 6px;">Invoice No</th>
-                                <th id="partyNameHeader" style="padding: 8px 6px;">Customer Name</th>
-                                <th style="padding: 8px 6px;">Mobile No</th>
-                                <th id="dateHeader" style="padding: 8px 6px;">Sale Date</th>
-                                <th style="padding: 8px 6px;">Location</th>
-                                <th style="padding: 8px 6px;">Created By</th>
-                                <th style="padding: 8px 6px;">Final Total</th>
-                                <th style="padding: 8px 6px;">Total Paid</th>
-                                <th style="padding: 8px 6px;">Original Due</th>
-                                <th style="border-left: 3px solid #ff9800; padding: 8px 6px;">Return Amt</th>
-                                <th style="border-left: 3px solid #dc3545; font-weight: 600; padding: 8px 6px;">Final Due</th>
+                                <th id="refNoHeader" style="padding: 8px 6px;">Ref No</th>
+                                <th id="partyNameHeader" style="padding: 8px 6px;">Party</th>
+                                <th id="dateHeader" style="padding: 8px 6px;">Date</th>
+                                <th class="text-end" style="padding: 8px 6px;">Final Total</th>
+                                <th class="text-end" style="padding: 8px 6px;">Paid</th>
+                                <th class="text-end" style="padding: 8px 6px;">Original Due</th>
+                                <th class="text-end" style="border-left: 3px solid #ff9800; padding: 8px 6px;">Return</th>
+                                <th class="text-end" style="border-left: 3px solid #dc3545; font-weight: 600; padding: 8px 6px;">Final Due</th>
                                 <th style="padding: 8px 6px;">Status</th>
                                 <th style="padding: 8px 6px;">Days</th>
                             </tr>
@@ -455,6 +472,35 @@
                             <!-- Data will be loaded via AJAX -->
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="dueDetailsModal" tabindex="-1" aria-labelledby="dueDetailsModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="dueDetailsModalLabel">Due Entry Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row g-2">
+                            <div class="col-md-6"><strong>Type:</strong> <span id="detailDocType">-</span></div>
+                            <div class="col-md-6"><strong>Ref No:</strong> <span id="detailRefNo">-</span></div>
+                            <div class="col-md-6"><strong>Party:</strong> <span id="detailParty">-</span></div>
+                            <div class="col-md-6"><strong>Date:</strong> <span id="detailDate">-</span></div>
+                            <div class="col-md-6"><strong>Final Total:</strong> <span id="detailFinalTotal">-</span></div>
+                            <div class="col-md-6"><strong>Paid:</strong> <span id="detailPaid">-</span></div>
+                            <div class="col-md-6"><strong>Original Due:</strong> <span id="detailOriginalDue">-</span></div>
+                            <div class="col-md-6"><strong>Return:</strong> <span id="detailReturn">-</span></div>
+                            <div class="col-md-6"><strong>Final Due:</strong> <span id="detailFinalDue">-</span></div>
+                            <div class="col-md-6"><strong>Status:</strong> <span id="detailStatus">-</span></div>
+                            <div class="col-md-6"><strong>Due Days:</strong> <span id="detailDueDays">-</span></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -491,6 +537,33 @@
         $(document).ready(function() {
             let currentReportType = 'customer';
             let table;
+
+            function toNumber(value) {
+                const num = Number(value);
+                return Number.isFinite(num) ? num : 0;
+            }
+
+            function formatAmount(value) {
+                return toNumber(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+
+            function normalizeExportCell(data) {
+                if (data === null || data === undefined) {
+                    return '';
+                }
+
+                const raw = String(data);
+                return raw
+                    .replace(/<span[^>]*>/g, '')
+                    .replace(/<\/span>/g, '')
+                    .replace(/<strong>/g, '')
+                    .replace(/<\/strong>/g, '')
+                    .replace(/Rs\.\s*/g, 'Rs. ');
+            }
+
+            function escapeHtml(value) {
+                return $('<div/>').text(value ?? '').html();
+            }
 
             // Get URL parameters
             const urlParams = new URLSearchParams(window.location.search);
@@ -627,9 +700,9 @@
 
                             rows.every(function() {
                                 let data = this.data();
-                                totalDueBills += parseFloat(data.total_due || 0);
-                                totalFinal += parseFloat(data.final_total || 0);
-                                totalPaid += parseFloat(data.total_paid || 0);
+                                totalDueBills += toNumber(data.total_due);
+                                totalFinal += toNumber(data.final_total);
+                                totalPaid += toNumber(data.total_paid);
 
                                 // Get customer ID from the first row
                                 if (customerId === null) {
@@ -642,12 +715,12 @@
                             // The actual ledger balance will be shown in the badge
 
                             return $('<tr/>')
-                                .append('<td colspan="14" style="background: linear-gradient(to right, #f8f9fa 0%, #ffffff 100%); border-left: 4px solid #007bff; font-weight: 600; padding: 10px 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">' +
+                                .append('<td colspan="11" style="background: linear-gradient(to right, #f8f9fa 0%, #ffffff 100%); border-left: 4px solid #007bff; font-weight: 600; padding: 10px 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">' +
                                     '<i class="fas fa-user-circle" style="color: #007bff; font-size: 14px; margin-right: 6px;"></i>' +
                                     '<span style="font-size: 12px; color: #2c3e50;">' + group + '</span>' +
                                     '<span style="margin-left: 10px; color: #95a5a6; font-weight: 400; font-size: 10px;">(' + billCount + ' bill' + (billCount > 1 ? 's' : '') + ')</span>' +
                                     '<span style="float: right; background: #fff5f5; color: #dc3545; font-size: 13px; padding: 4px 10px; border-radius: 4px; border: 1px solid #ffe0e0; font-weight: 700;">' +
-                                    'Due: Rs. ' + totalDueBills.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) +
+                                    'Bills Due: Rs. ' + formatAmount(totalDueBills) +
                                     '</span>' +
                                     '</td>');
                         }
@@ -656,18 +729,12 @@
                         {
                             "data": null,
                             "orderable": false,
+                            "className": "text-center",
                             "render": function(data, type, row) {
-                                let viewUrl = currentReportType === 'customer'
-                                    ? "{{ url('sales') }}/" + row.id
-                                    : "{{ url('purchases') }}/" + row.id;
-                                return `<div class="dropdown">
-                                    <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                        Actions
-                                    </button>
-                                    <ul class="dropdown-menu">
-                                        <li><a class="dropdown-item" href="${viewUrl}"><i class="fas fa-eye"></i> View Details</a></li>
-                                    </ul>
-                                </div>`;
+                                const encodedRow = encodeURIComponent(JSON.stringify(row));
+                                return `<button type="button" class="btn btn-sm btn-secondary action-btn-compact view-due-details" data-row="${encodedRow}" data-report-type="${currentReportType}" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </button>`;
                             }
                         },
                         {
@@ -683,12 +750,7 @@
                                 return currentReportType === 'customer' ? row.customer_name : row.supplier_name;
                             },
                             "render": function(data) {
-                                return '<strong>' + data + '</strong>';
-                            }
-                        },
-                        {
-                            "data": function(row) {
-                                return currentReportType === 'customer' ? row.customer_mobile : row.supplier_mobile;
+                                return '<strong title="' + data + '">' + data + '</strong>';
                             }
                         },
                         {
@@ -696,35 +758,34 @@
                                 return currentReportType === 'customer' ? row.sales_date : row.purchase_date;
                             }
                         },
-                        { "data": "location" },
-                        { "data": "user" },
                         {
                             "data": "final_total",
                             "className": "text-end",
                             "render": function(data) {
-                                return 'Rs. ' + parseFloat(data).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                                return 'Rs. ' + formatAmount(data);
                             }
                         },
                         {
                             "data": "total_paid",
                             "className": "text-end",
                             "render": function(data) {
-                                return 'Rs. ' + parseFloat(data).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                                return 'Rs. ' + formatAmount(data);
                             }
                         },
                         {
                             "data": "original_due",
                             "className": "text-end",
                             "render": function(data) {
-                                return '<span style="color: #6c757d;">Rs. ' + parseFloat(data).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</span>';
+                                return '<span style="color: #6c757d;">Rs. ' + formatAmount(data) + '</span>';
                             }
                         },
                         {
                             "data": "return_amount",
                             "className": "text-end",
                             "render": function(data) {
-                                if (parseFloat(data) > 0) {
-                                    return '<span style="color: #ff9800; border-left: 3px solid #ff9800; padding-left: 8px; display: inline-block;"><strong>- Rs. ' + parseFloat(data).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></span>';
+                                const returnAmount = toNumber(data);
+                                if (returnAmount > 0) {
+                                    return '<span style="color: #ff9800; border-left: 3px solid #ff9800; padding-left: 8px; display: inline-block;"><strong>- Rs. ' + formatAmount(returnAmount) + '</strong></span>';
                                 }
                                 return '<span style="color: #adb5bd; border-left: 3px solid #e9ecef; padding-left: 8px; display: inline-block;">Rs. 0.00</span>';
                             }
@@ -733,7 +794,7 @@
                             "data": "total_due",
                             "className": "text-end",
                             "render": function(data) {
-                                return '<span style="color: #dc3545; border-left: 3px solid #dc3545; padding-left: 8px; display: inline-block;"><strong>Rs. ' + parseFloat(data).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></span>';
+                                return '<span style="color: #dc3545; border-left: 3px solid #dc3545; padding-left: 8px; display: inline-block;"><strong>Rs. ' + formatAmount(data) + '</strong></span>';
                             }
                         },
                         {
@@ -759,7 +820,21 @@
                     ],
                     "pageLength": 25,
                     "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-                    "order": [[2, 'asc'], [4, 'desc']],
+                    "autoWidth": false,
+                    "columnDefs": [
+                        { "targets": 0, "width": "6%" },
+                        { "targets": 1, "width": "9%" },
+                        { "targets": 2, "width": "17%" },
+                        { "targets": 3, "width": "9%" },
+                        { "targets": 4, "width": "10%" },
+                        { "targets": 5, "width": "10%" },
+                        { "targets": 6, "width": "11%" },
+                        { "targets": 7, "width": "9%" },
+                        { "targets": 8, "width": "10%" },
+                        { "targets": 9, "width": "5%" },
+                        { "targets": 10, "width": "4%" }
+                    ],
+                    "order": [[2, 'asc'], [3, 'desc']],
                     "orderFixed": [[2, 'asc']],
                     "dom": '<"dt-top"B><"dt-controls"<"dt-length"l><"dt-search"f>>rtip',
                     "buttons": [
@@ -777,15 +852,9 @@
                                     body: function(data, row, column, node) {
                                         // Check if this is a group row
                                         if ($(node).parent().hasClass('dtrg-group')) {
-                                            return data;
+                                            return normalizeExportCell(data);
                                         }
-                                        // Remove HTML tags and styling
-                                        data = data.replace(/<span[^>]*>/g, '');
-                                        data = data.replace(/<\/span>/g, '');
-                                        data = data.replace(/<strong>/g, '');
-                                        data = data.replace(/<\/strong>/g, '');
-                                        data = data.replace(/Rs\.\s*/g, 'Rs. ');
-                                        return data;
+                                        return normalizeExportCell(data);
                                     }
                                 }
                             },
@@ -830,7 +899,7 @@
                                         };
                                     }
                                     groupedData[groupKey].rows.push(row);
-                                    groupedData[groupKey].totalDue += parseFloat(row.total_due || 0);
+                                    groupedData[groupKey].totalDue += toNumber(row.total_due);
                                 });
 
                                 // Style the table with grouping
@@ -847,7 +916,7 @@
 
                                         // Add group header row with correct total due
                                         newBody.push([{
-                                            text: groupKey + ' (' + group.rows.length + ' bill' + (group.rows.length > 1 ? 's' : '') + ') - Due: Rs. ' + group.totalDue.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ","),
+                                            text: groupKey + ' (' + group.rows.length + ' bill' + (group.rows.length > 1 ? 's' : '') + ') - Due: Rs. ' + formatAmount(group.totalDue),
                                             colSpan: headers.length,
                                             fillColor: '#e3f2fd',
                                             bold: true,
@@ -869,19 +938,16 @@
                                     // Set specific column widths to reduce white space
                                     // Adjust based on actual column count and content
                                     doc.content[2].table.widths = [
-                                        '7%',   // Invoice No
-                                        '12%',  // Customer Name
-                                        '8%',   // Mobile No
-                                        '7%',   // Sale Date
-                                        '11%',  // Location
-                                        '9%',   // Created By
-                                        '7%',   // Final Total
-                                        '7%',   // Total Paid
-                                        '7%',   // Original Due
-                                        '7%',   // Return Amt
-                                        '8%',   // Final Due
-                                        '6%',   // Status
-                                        '4%'    // Days
+                                        '11%',  // Invoice/Ref No
+                                        '16%',  // Party Name
+                                        '10%',  // Sale/Purchase Date
+                                        '10%',  // Final Total
+                                        '10%',  // Total Paid
+                                        '10%',  // Original Due
+                                        '10%',  // Return Amt
+                                        '10%',  // Final Due
+                                        '8%',   // Status
+                                        '5%'    // Days
                                     ];
 
                                     doc.content[2].layout = {
@@ -912,15 +978,9 @@
                                     body: function(data, row, column, node) {
                                         // Check if this is a group row
                                         if ($(node).parent().hasClass('dtrg-group')) {
-                                            return data;
+                                            return normalizeExportCell(data);
                                         }
-                                        // Remove HTML tags and styling
-                                        data = data.replace(/<span[^>]*>/g, '');
-                                        data = data.replace(/<\/span>/g, '');
-                                        data = data.replace(/<strong>/g, '');
-                                        data = data.replace(/<\/strong>/g, '');
-                                        data = data.replace(/Rs\.\s*/g, 'Rs. ');
-                                        return data;
+                                        return normalizeExportCell(data);
                                     }
                                 }
                             },
@@ -944,7 +1004,7 @@
                                         };
                                     }
                                     groupedData[groupKey].count++;
-                                    groupedData[groupKey].totalDue += parseFloat(row.total_due || 0);
+                                    groupedData[groupKey].totalDue += toNumber(row.total_due);
                                     groupIndexMap[idx] = groupKey;
                                 });
 
@@ -1074,10 +1134,10 @@
             // Function to update summary cards
             function updateSummaryCards(summary) {
                 // Update the summary cards dynamically
-                $('.row.g-2.mb-2 .col-xl-3:eq(0) h3').text('Rs. ' + parseFloat(summary.total_due).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-                $('.row.g-2.mb-2 .col-xl-3:eq(1) h3').text(summary.total_bills);
-                $('.row.g-2.mb-2 .col-xl-3:eq(2) h3').text(summary.total_parties);
-                $('.row.g-2.mb-2 .col-xl-3:eq(3) h3').text('Rs. ' + parseFloat(summary.max_single_due).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+                $('.row.g-2.mb-2 .col-xl-3:eq(0) h3').text('Rs. ' + formatAmount(summary.total_due));
+                $('.row.g-2.mb-2 .col-xl-3:eq(1) h3').text(toNumber(summary.total_bills).toLocaleString('en-US'));
+                $('.row.g-2.mb-2 .col-xl-3:eq(2) h3').text(toNumber(summary.total_parties).toLocaleString('en-US'));
+                $('.row.g-2.mb-2 .col-xl-3:eq(3) h3').text('Rs. ' + formatAmount(summary.max_single_due));
             }
 
             // Report type toggle
@@ -1225,6 +1285,43 @@
                 item.addEventListener('click', function(e) {
                     e.stopPropagation();
                 });
+            });
+
+            $('#dueReportTable tbody').on('click', '.view-due-details', function() {
+                const encodedRow = $(this).attr('data-row');
+                const reportType = $(this).attr('data-report-type') || currentReportType;
+                if (!encodedRow) {
+                    return;
+                }
+
+                let rowData = null;
+                try {
+                    rowData = JSON.parse(decodeURIComponent(encodedRow));
+                } catch (error) {
+                    console.error('Failed to parse row data for due details modal', error);
+                    return;
+                }
+
+                const isCustomer = reportType === 'customer';
+                const refNo = isCustomer ? rowData.invoice_no : rowData.reference_no;
+                const partyName = isCustomer ? rowData.customer_name : rowData.supplier_name;
+                const transDate = isCustomer ? rowData.sales_date : rowData.purchase_date;
+
+                $('#detailDocType').text(isCustomer ? 'Sale' : 'Purchase');
+                $('#detailRefNo').html(escapeHtml(refNo || '-'));
+                $('#detailParty').html(escapeHtml(partyName || '-'));
+                $('#detailDate').html(escapeHtml(transDate || '-'));
+                $('#detailFinalTotal').text('Rs. ' + formatAmount(rowData.final_total));
+                $('#detailPaid').text('Rs. ' + formatAmount(rowData.total_paid));
+                $('#detailOriginalDue').text('Rs. ' + formatAmount(rowData.original_due));
+                $('#detailReturn').text('Rs. ' + formatAmount(rowData.return_amount));
+                $('#detailFinalDue').text('Rs. ' + formatAmount(rowData.total_due));
+                $('#detailStatus').html('<span class="badge ' + (rowData.payment_status === 'paid' ? 'bg-success' : (rowData.payment_status === 'partial' ? 'bg-warning text-dark' : 'bg-danger')) + '">' + escapeHtml((rowData.payment_status || 'N/A').toUpperCase()) + '</span>');
+                $('#detailDueDays').text(toNumber(rowData.due_days) + ' days');
+
+                const modalEl = document.getElementById('dueDetailsModal');
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
             });
         });
     </script>

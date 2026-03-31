@@ -31,10 +31,7 @@ class DueReportExport implements FromCollection, WithHeadings, WithMapping, With
             return [
                 'Invoice No',
                 'Customer Name',
-                'Mobile No',
                 'Sale Date',
-                'Location',
-                'Created By',
                 'Final Total',
                 'Total Paid',
                 'Total Due',
@@ -46,10 +43,7 @@ class DueReportExport implements FromCollection, WithHeadings, WithMapping, With
             return [
                 'Reference No',
                 'Supplier Name',
-                'Mobile No',
                 'Purchase Date',
-                'Location',
-                'Created By',
                 'Final Total',
                 'Total Paid',
                 'Total Due',
@@ -66,10 +60,7 @@ class DueReportExport implements FromCollection, WithHeadings, WithMapping, With
             return [
                 $row->invoice_no ?? 'N/A',
                 $row->customer_name ?? 'N/A',
-                $row->customer_mobile ?? 'N/A',
                 $row->sales_date ?? 'N/A',
-                $row->location ?? 'N/A',
-                $row->user ?? 'N/A',
                 number_format($row->final_total ?? 0, 2),
                 number_format($row->total_paid ?? 0, 2),
                 number_format($row->total_due ?? 0, 2),
@@ -81,10 +72,7 @@ class DueReportExport implements FromCollection, WithHeadings, WithMapping, With
             return [
                 $row->reference_no ?? 'N/A',
                 $row->supplier_name ?? 'N/A',
-                $row->supplier_mobile ?? 'N/A',
                 $row->purchase_date ?? 'N/A',
-                $row->location ?? 'N/A',
-                $row->user ?? 'N/A',
                 number_format($row->final_total ?? 0, 2),
                 number_format($row->total_paid ?? 0, 2),
                 number_format($row->total_due ?? 0, 2),
