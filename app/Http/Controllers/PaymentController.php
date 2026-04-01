@@ -2527,6 +2527,8 @@ class PaymentController extends Controller
             'total_deposited' => abs(Payment::chequePayments()->where('status', 'active')->where('cheque_status', 'deposited')->sum('amount') ?? 0),
             'total_cleared' => abs(Payment::chequePayments()->where('status', 'active')->where('cheque_status', 'cleared')->sum('amount') ?? 0),
             'total_bounced' => abs(Payment::chequePayments()->where('status', 'active')->where('cheque_status', 'bounced')->sum('amount') ?? 0),
+            'cleared_count' => Payment::chequePayments()->where('status', 'active')->where('cheque_status', 'cleared')->count() ?? 0,
+            'bounced_count' => Payment::chequePayments()->where('status', 'active')->where('cheque_status', 'bounced')->count() ?? 0,
             // Due soon = pending, due date today..+7 days (not already overdue)
             'due_soon_count' => Payment::chequePayments()->where('status', 'active')->where('cheque_status', 'pending')->whereDate('cheque_valid_date', '>=', now()->toDateString())->whereDate('cheque_valid_date', '<=', now()->addDays(7)->toDateString())->count() ?? 0,
             'due_soon_amount' => abs(Payment::chequePayments()->where('status', 'active')->where('cheque_status', 'pending')->whereDate('cheque_valid_date', '>=', now()->toDateString())->whereDate('cheque_valid_date', '<=', now()->addDays(7)->toDateString())->sum('amount') ?? 0),
@@ -2687,6 +2689,7 @@ class PaymentController extends Controller
         $first = $payments->first();
         $totalAmount = abs($payments->sum('amount') ?? 0);
 
+        // Group invoice breakdown by invoice number (one cheque can settle the same invoice via multiple rows).
         $invoices = $payments->map(function ($p) {
             $sale = $p->sale ?? $p->originalPayment?->sale;
             $invoiceNo = $sale?->invoice_no
@@ -2713,7 +2716,22 @@ class PaymentController extends Controller
                 'amount' => abs($p->amount ?? 0),
                 'bill_status' => $sale?->payment_status,
             ];
-        })->values();
+        })
+        ->groupBy(function ($row) {
+            return (string) ($row['invoice_no'] ?? 'N/A');
+        })
+        ->map(function ($rows, $invoiceNo) {
+            $first = $rows->first();
+            return [
+                'invoice_no' => $invoiceNo,
+                'sale_id' => $first['sale_id'] ?? null,
+                'invoice_url' => $first['invoice_url'] ?? null,
+                'bill_date' => $first['bill_date'] ?? null,
+                'amount' => (float) ($rows->sum('amount') ?? 0),
+                'bill_status' => $first['bill_status'] ?? null,
+            ];
+        })
+        ->values();
 
         $history = [];
         try {
@@ -2809,16 +2827,18 @@ class PaymentController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'cheque_ids' => 'required|string', // JSON string of cheque IDs
-                'recovery_method' => 'required|string|in:cash,bank_transfer,card,new_cheque,partial_cash_cheque',
+                'recovery_method' => 'required|string|in:cash,bank_transfer,card,new_cheque,partial_cash_cheque,multiple_cheques,partial_cash_multiple_cheques',
                 'recovery_date' => 'required|date',
                 'recovery_notes' => 'nullable|string|max:1000',
                 // Cash amount for partial payment
-                'cash_amount' => 'required_if:recovery_method,partial_cash_cheque|nullable|numeric|min:0',
+                'cash_amount' => 'required_if:recovery_method,partial_cash_cheque,partial_cash_multiple_cheques|nullable|numeric|min:0',
                 // New cheque details
                 'new_cheque_number' => 'required_if:recovery_method,new_cheque,partial_cash_cheque|nullable|string',
                 'new_cheque_bank' => 'required_if:recovery_method,new_cheque,partial_cash_cheque|nullable|string',
                 'new_cheque_date' => 'required_if:recovery_method,new_cheque,partial_cash_cheque|nullable|date',
                 'new_cheque_valid_date' => 'required_if:recovery_method,new_cheque,partial_cash_cheque|nullable|date',
+                // Multiple cheques payload (JSON string)
+                'multi_cheques' => 'required_if:recovery_method,multiple_cheques,partial_cash_multiple_cheques|nullable|string',
                 // Bank transfer details
                 'bank_account' => 'required_if:recovery_method,bank_transfer|nullable|string',
                 'reference_number' => 'nullable|string',
@@ -2861,14 +2881,30 @@ class PaymentController extends Controller
                 ], 400);
             }
 
-            // Calculate total recovery amount
-            $totalRecoveryAmount = $bouncedPayments->sum(function($payment) {
-                return $payment->amount + ($payment->bank_charges ?? 0);
+            // Group by physical cheque (one cheque can map to multiple payment rows/invoices).
+            // IMPORTANT: bank_charges are per-cheque, NOT per-payment-row; avoid double counting and invoice-level allocation noise.
+            $chequeGroups = $bouncedPayments->groupBy(function ($p) {
+                return implode('|', [
+                    (string) ($p->cheque_number ?? ''),
+                    (string) ($p->customer_id ?? ''),
+                ]);
+            });
+
+            // Calculate total recovery amount per physical cheque (sum amounts + one bank charge).
+            $totalRecoveryAmount = $chequeGroups->sum(function ($group) {
+                $amountSum = $group->sum(function ($p) {
+                    return abs($p->amount ?? 0);
+                });
+                $charge = $group->max(function ($p) {
+                    return abs($p->bank_charges ?? 0);
+                });
+                return $amountSum + $charge;
             });
 
             $recoveryResults = [];
             $cashAmount = 0;
             $chequeAmount = 0;
+            $multiChequeParts = [];
 
             // Determine payment amounts
             switch ($request->recovery_method) {
@@ -2893,32 +2929,77 @@ class PaymentController extends Controller
                         ], 400);
                     }
                     break;
+
+                case 'multiple_cheques':
+                case 'partial_cash_multiple_cheques':
+                    $cashAmount = $request->recovery_method === 'partial_cash_multiple_cheques'
+                        ? floatval($request->cash_amount)
+                        : 0;
+
+                    $decoded = json_decode((string) $request->multi_cheques, true);
+                    if (!is_array($decoded) || empty($decoded)) {
+                        return response()->json([
+                            'status' => 400,
+                            'message' => 'Invalid multi_cheques payload'
+                        ], 400);
+                    }
+                    $multiChequeParts = collect($decoded)->map(function ($row) {
+                        return [
+                            'cheque_number' => (string) ($row['cheque_number'] ?? ''),
+                            'cheque_bank' => (string) ($row['cheque_bank'] ?? ''),
+                            'cheque_date' => (string) ($row['cheque_date'] ?? ''),
+                            'cheque_valid_date' => (string) ($row['cheque_valid_date'] ?? ''),
+                            'amount' => (float) ($row['amount'] ?? 0),
+                        ];
+                    })->filter(function ($row) {
+                        return $row['amount'] > 0;
+                    })->values()->all();
+
+                    if (empty($multiChequeParts)) {
+                        return response()->json([
+                            'status' => 400,
+                            'message' => 'Please add at least one cheque amount'
+                        ], 400);
+                    }
+
+                    $chequeAmount = collect($multiChequeParts)->sum('amount');
+                    $sumTotal = $cashAmount + $chequeAmount;
+                    if (abs($sumTotal - $totalRecoveryAmount) > 0.01) {
+                        return response()->json([
+                            'status' => 400,
+                            'message' => 'Split total must equal total recovery amount'
+                        ], 400);
+                    }
+                    break;
             }
 
-            // Process each bounced payment
-            foreach ($bouncedPayments as $bouncedPayment) {
-                $paymentRecoveryAmount = $bouncedPayment->amount + ($bouncedPayment->bank_charges ?? 0);
+            // Process each physical cheque group as ONE recovery unit (not per-invoice).
+            foreach ($chequeGroups as $groupKey => $group) {
+                /** @var \Illuminate\Support\Collection<int, \App\Models\Payment> $group */
+                $firstBounced = $group->first();
+                $groupAmountSum = $group->sum(fn ($p) => abs($p->amount ?? 0));
+                $groupCharge = $group->max(fn ($p) => abs($p->bank_charges ?? 0));
+                $groupTotal = $groupAmountSum + $groupCharge;
 
-                // Calculate proportional amounts for this payment
-                $paymentCashAmount = $cashAmount > 0 ? ($paymentRecoveryAmount / $totalRecoveryAmount) * $cashAmount : 0;
-                $paymentChequeAmount = $chequeAmount > 0 ? ($paymentRecoveryAmount / $totalRecoveryAmount) * $chequeAmount : 0;
+                // Allocate the overall chosen method amounts proportionally by group total
+                $groupCashAmount = $cashAmount > 0 ? ($groupTotal / $totalRecoveryAmount) * $cashAmount : 0;
+                $groupChequeAmount = $chequeAmount > 0 ? ($groupTotal / $totalRecoveryAmount) * $chequeAmount : 0;
 
-                // Create recovery payments
                 $recoveryPayments = [];
 
                 // Cash/Card/Bank Transfer recovery
-                if ($paymentCashAmount > 0) {
+                if ($groupCashAmount > 0) {
                     $recoveryPayment = Payment::create([
-                        'customer_id' => $bouncedPayment->customer_id,
+                        'customer_id' => $firstBounced->customer_id,
                         'reference_id' => null,
                         'payment_type' => 'recovery', // New payment type
                         'payment_method' => $request->recovery_method === 'partial_cash_cheque' ? 'cash' : $request->recovery_method,
                         'actual_payment_method' => $request->recovery_method, // Store original recovery method
-                        'amount' => $paymentCashAmount, // Positive amount (consistent with single recovery method)
+                        'amount' => $groupCashAmount, // Positive amount
                         'payment_date' => $request->recovery_date,
-                        'notes' => $request->recovery_notes ?? "Recovery for bounced cheque #{$bouncedPayment->cheque_number}",
+                        'notes' => $request->recovery_notes ?? "Recovery for bounced cheque #{$firstBounced->cheque_number}",
                         'payment_status' => 'completed',
-                        'recovery_for_payment_id' => $bouncedPayment->id, // Link to original bounced payment
+                        'recovery_for_payment_id' => $firstBounced->id, // Link to representative bounced payment (cheque group)
                         'created_by' => auth()->id(),
                         'updated_by' => auth()->id(),
                         // Add method-specific fields
@@ -2932,19 +3013,19 @@ class PaymentController extends Controller
                 }
 
                 // New cheque recovery
-                if ($paymentChequeAmount > 0) {
+                if ($groupChequeAmount > 0 && empty($multiChequeParts)) {
                     $chequeRecoveryPayment = Payment::create([
-                        'customer_id' => $bouncedPayment->customer_id,
+                        'customer_id' => $firstBounced->customer_id,
                         'reference_id' => null,
                         'payment_type' => 'recovery',
                         'payment_method' => 'cheque',
                         'actual_payment_method' => $request->recovery_method, // Store original recovery method
-                        'amount' => $paymentChequeAmount, // Positive amount (consistent with single recovery method)
+                        'amount' => $groupChequeAmount, // Positive amount
                         'payment_date' => $request->recovery_date,
-                        'notes' => $request->recovery_notes ?? "New cheque for bounced cheque #{$bouncedPayment->cheque_number}",
+                        'notes' => $request->recovery_notes ?? "New cheque for bounced cheque #{$firstBounced->cheque_number}",
                         'reference_no' => $request->reference_number,
                         'payment_status' => 'pending', // New cheques start as pending
-                        'recovery_for_payment_id' => $bouncedPayment->id,
+                        'recovery_for_payment_id' => $firstBounced->id,
                         'created_by' => auth()->id(),
                         'updated_by' => auth()->id(),
                         // New cheque details
@@ -2956,6 +3037,37 @@ class PaymentController extends Controller
                     ]);
 
                     $recoveryPayments[] = $chequeRecoveryPayment;
+                }
+
+                // Multiple cheque recovery (split)
+                if (!empty($multiChequeParts)) {
+                    foreach ($multiChequeParts as $part) {
+                        $partAmount = ($groupTotal / $totalRecoveryAmount) * (float) $part['amount'];
+                        if ($partAmount <= 0) {
+                            continue;
+                        }
+                        $chequeRecoveryPayment = Payment::create([
+                            'customer_id' => $firstBounced->customer_id,
+                            'reference_id' => null,
+                            'payment_type' => 'recovery',
+                            'payment_method' => 'cheque',
+                            'actual_payment_method' => $request->recovery_method,
+                            'amount' => $partAmount,
+                            'payment_date' => $request->recovery_date,
+                            'notes' => $request->recovery_notes ?? "Split cheque recovery for bounced cheque #{$firstBounced->cheque_number}",
+                            'reference_no' => $request->reference_number,
+                            'payment_status' => 'pending',
+                            'recovery_for_payment_id' => $firstBounced->id,
+                            'created_by' => auth()->id(),
+                            'updated_by' => auth()->id(),
+                            'cheque_number' => $part['cheque_number'],
+                            'cheque_bank_branch' => $part['cheque_bank'],
+                            'cheque_received_date' => $part['cheque_date'],
+                            'cheque_valid_date' => $part['cheque_valid_date'],
+                            'cheque_status' => 'pending',
+                        ]);
+                        $recoveryPayments[] = $chequeRecoveryPayment;
+                    }
                 }
 
                 // Record in unified ledger for all recovery attempts (cash or cheque).
@@ -2971,9 +3083,9 @@ class PaymentController extends Controller
                 }
 
                 $recoveryResults[] = [
-                    'original_payment_id' => $bouncedPayment->id,
-                    'customer_id' => $bouncedPayment->customer_id,
-                    'recovery_amount' => $paymentRecoveryAmount,
+                    'original_payment_id' => $firstBounced->id,
+                    'customer_id' => $firstBounced->customer_id,
+                    'recovery_amount' => $groupTotal,
                     'recovery_payments' => collect($recoveryPayments)->map(function($p) {
                         return [
                             'id' => $p->id,

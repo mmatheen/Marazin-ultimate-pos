@@ -107,7 +107,20 @@
         border: 1px solid #fcd34d;
     }
 
-    .cheque-mgmt-page #chequesTable.cheque-ui-table .cheque-ui-status--overdue {
+    /* Overdue severity: 1–7d mild, 8–30d medium, 31+d severe */
+    .cheque-mgmt-page #chequesTable.cheque-ui-table .cheque-ui-status--overdue-1 {
+        background: #fffbeb;
+        color: #92400e;
+        border: 1px solid #fcd34d;
+    }
+
+    .cheque-mgmt-page #chequesTable.cheque-ui-table .cheque-ui-status--overdue-2 {
+        background: #fff7ed;
+        color: #9a3412;
+        border: 1px solid #fdba74;
+    }
+
+    .cheque-mgmt-page #chequesTable.cheque-ui-table .cheque-ui-status--overdue-3 {
         background: #fef2f2;
         color: #991b1b;
         border: 1px solid #fecaca;
@@ -125,8 +138,61 @@
         border: 1px solid #dadce0;
     }
 
-    .cheque-mgmt-page #chequesTable.cheque-ui-table tbody tr.cheque-row--overdue td:first-child {
-        box-shadow: inset 2px 0 0 #c5221f;
+    .cheque-mgmt-page #chequesTable.cheque-ui-table tbody tr.cheque-row--overdue-1 td:first-child {
+        box-shadow: inset 3px 0 0 #ca8a04;
+    }
+
+    .cheque-mgmt-page #chequesTable.cheque-ui-table tbody tr.cheque-row--overdue-2 td:first-child {
+        box-shadow: inset 3px 0 0 #ea580c;
+    }
+
+    .cheque-mgmt-page #chequesTable.cheque-ui-table tbody tr.cheque-row--overdue-3 td:first-child {
+        box-shadow: inset 3px 0 0 #c5221f;
+    }
+
+    .cheque-mgmt-page #chequesTable .cheque-ui-due.cheque-due-today {
+        font-weight: 700;
+        color: #b45309;
+        background: #fffbeb;
+        border-radius: 4px;
+        padding: 0.1rem 0.35rem;
+    }
+
+    .cheque-mgmt-page #chequesTable.cheque-ui-table thead th.sorting_asc,
+    .cheque-mgmt-page #chequesTable.cheque-ui-table thead th.sorting_desc {
+        background: #e8f0fe !important;
+        color: #1967d2 !important;
+        box-shadow: inset 0 -2px 0 #1967d2;
+    }
+
+    .cheque-mgmt-page .cheque-bulk-toolbar .cheque-bulk-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        filter: grayscale(0.35);
+        box-shadow: none;
+    }
+
+    .cheque-mgmt-page .cheque-bulk-toolbar.cheque-bulk-has-selection .cheque-bulk-btn:not(:disabled) {
+        opacity: 1;
+        filter: none;
+    }
+
+    .cheque-mgmt-page .cheque-legend-bar {
+        display: inline-block;
+        width: 4px;
+        height: 14px;
+        border-radius: 2px;
+        vertical-align: middle;
+    }
+
+    .cheque-mgmt-page .cheque-legend-bar--sev1 { background: #ca8a04; }
+    .cheque-mgmt-page .cheque-legend-bar--sev2 { background: #ea580c; }
+    .cheque-mgmt-page .cheque-legend-bar--sev3 { background: #c5221f; }
+
+    .cheque-mgmt-page .cheque-page-jump input[type="number"]::-webkit-outer-spin-button,
+    .cheque-mgmt-page .cheque-page-jump input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
     }
 
     /* Avoid flash of ungrouped table before DataTables + RowGroup finishes */
@@ -562,6 +628,24 @@
             margin: 0.5rem;
         }
     }
+
+    /* Bulk Recovery modal: wider on desktop */
+    @media (min-width: 1200px) {
+        #bulkRecoveryModal .modal-dialog {
+            max-width: 1100px;
+        }
+    }
+
+    /* Bulk Recovery modal: ensure inner scrolling works */
+    #bulkRecoveryModal .modal-content {
+        max-height: calc(100vh - 2rem);
+    }
+
+    #bulkRecoveryModal .modal-body {
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        max-height: calc(100vh - 180px); /* header + footer reserve */
+    }
 </style>
 @endpush
 
@@ -591,9 +675,11 @@
             <div class="card mb-0 cheque-filters-card border shadow-sm">
                 <div class="card-body">
                     <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse"
-                        data-bs-target="#collapseFilters" aria-expanded="false" aria-controls="collapseFilters">
+                        data-bs-target="#collapseFilters" aria-expanded="false" aria-controls="collapseFilters"
+                        title="Open filters: status, due date range, customer, cheque number">
                         <i class="fas fa-filter"></i> Filters
                     </button>
+                    <span class="small text-muted ms-2 d-none d-md-inline">Status · dates · customer · cheque no.</span>
                 </div>
             </div>
         </div>
@@ -670,7 +756,7 @@
                 <div class="card-body d-flex flex-column">
                     <div class="stat-label">Bounced</div>
                     <div class="stat-value">Rs. {{ number_format($stats['total_bounced'] ?? 0, 2) }}</div>
-                    <div class="stat-sub">Requires follow-up</div>
+                    <div class="stat-sub">{{ $stats['bounced_count'] ?? 0 }} <span class="stat-value-suffix">cheques</span> <span class="stat-sub-muted">· follow-up</span></div>
                 </div>
             </div>
         </div>
@@ -679,7 +765,7 @@
                 <div class="card-body d-flex flex-column">
                     <div class="stat-label">Cleared</div>
                     <div class="stat-value">Rs. {{ number_format($stats['total_cleared'] ?? 0, 2) }}</div>
-                    <div class="stat-sub">Successfully cleared</div>
+                    <div class="stat-sub">{{ $stats['cleared_count'] ?? 0 }} <span class="stat-value-suffix">cheques</span> <span class="stat-sub-muted">· settled</span></div>
                 </div>
             </div>
         </div>
@@ -692,14 +778,14 @@
                 <div class="card-header">
                     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
                         <h2 class="card-title mb-0">Cheque list</h2>
-                        <div class="d-flex flex-wrap align-items-center gap-1 cheque-toolbar">
+                        <div class="d-flex flex-wrap align-items-center gap-1 cheque-toolbar cheque-bulk-toolbar">
                             @php
                                 $showRecoveredRows = request()->boolean('show_recovered');
                             @endphp
-                            <button type="button" class="btn btn-outline-secondary btn-sm" id="bulkClear" disabled title="Mark selected as cleared"><i class="fas fa-check"></i><span class="d-none d-md-inline ms-1">Clear</span></button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" id="bulkDeposit" disabled title="Mark as deposited"><i class="fas fa-university"></i><span class="d-none d-md-inline ms-1">Deposit</span></button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" id="bulkBounce" disabled title="Mark as bounced"><i class="fas fa-times"></i><span class="d-none d-md-inline ms-1">Bounce</span></button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" id="bulkRecoveryPayment" disabled title="Recovery payment"><i class="fas fa-money-bill-wave"></i><span class="d-none d-lg-inline ms-1">Recovery</span></button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm cheque-bulk-btn" id="bulkClear" disabled title="Select deposited cheques on this page, then mark as cleared"><i class="fas fa-check"></i><span class="d-none d-md-inline ms-1">Clear</span></button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm cheque-bulk-btn" id="bulkDeposit" disabled title="Select pending cheques on this page, then mark as deposited"><i class="fas fa-university"></i><span class="d-none d-md-inline ms-1">Deposit</span></button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm cheque-bulk-btn" id="bulkBounce" disabled title="Select deposited cheques on this page, then mark as bounced"><i class="fas fa-times"></i><span class="d-none d-md-inline ms-1">Bounce</span></button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm cheque-bulk-btn" id="bulkRecoveryPayment" disabled title="Select bounced cheques on this page for recovery"><i class="fas fa-money-bill-wave"></i><span class="d-none d-lg-inline ms-1">Recovery</span></button>
                             <button type="button" class="btn btn-outline-secondary btn-sm {{ $showRecoveredRows ? 'active' : '' }}" id="toggleRecoveredRows" title="Toggle recovered bounced">
                                 <i class="fas fa-{{ $showRecoveredRows ? 'eye' : 'eye-slash' }}"></i>
                             </button>
@@ -707,7 +793,15 @@
                         </div>
                     </div>
                     <div class="mt-2 small text-muted">
-                        <span id="selectedCount">0</span> selected
+                        <div><span id="selectedCount">0</span> selected <span class="d-none d-md-inline">· applies to <strong>this page</strong> only</span></div>
+                        <div class="mt-1 cheque-bulk-hint"><i class="fas fa-info-circle me-1" aria-hidden="true"></i>Tick rows, then enable Clear / Deposit / Bounce / Recovery based on status.</div>
+                        <div class="mt-2 d-flex flex-wrap align-items-center gap-3 cheque-overdue-legend" title="Left edge of a row matches overdue severity">
+                            <span class="fw-semibold text-secondary me-1">Row bar:</span>
+                            <span><span class="cheque-legend-bar cheque-legend-bar--sev1" aria-hidden="true"></span> 1–7d overdue</span>
+                            <span><span class="cheque-legend-bar cheque-legend-bar--sev2" aria-hidden="true"></span> 8–30d</span>
+                            <span><span class="cheque-legend-bar cheque-legend-bar--sev3" aria-hidden="true"></span> 31d+</span>
+                            <span class="d-md-none small text-muted ms-1">· Swipe table sideways if needed</span>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body p-0 position-relative">
@@ -719,12 +813,12 @@
                             <thead>
                                 <tr>
                                     <th width="40" class="text-center">
-                                        <input type="checkbox" id="selectAll" class="form-check-input form-check-input-sm" title="Select all">
+                                        <input type="checkbox" id="selectAll" class="form-check-input form-check-input-sm" title="Select all cheques on this page (not all pages)">
                                     </th>
                                     <th class="d-none" aria-hidden="true">Customer</th>
                                     <th>Cheque no.</th>
                                     <th class="text-end">Amount</th>
-                                    <th>Due date</th>
+                                    <th title="Click to sort by due date">Due date</th>
                                     <th>Status</th>
                                     <th width="108" class="text-center">Actions</th>
                                 </tr>
@@ -746,34 +840,40 @@
                                     $today = \Carbon\Carbon::today();
                                     $isOverdueUi = ($currentStatus === 'pending') && $valid && $valid->lt($today);
                                     $overdueDays = ($isOverdueUi && $valid) ? (int) $valid->diffInDays($today) : 0;
+                                    $overdueSev = 0;
+                                    if ($isOverdueUi && $overdueDays > 0) {
+                                        $overdueSev = $overdueDays <= 7 ? 1 : ($overdueDays <= 30 ? 2 : 3);
+                                    }
+                                    $isDueToday = ($currentStatus === 'pending') && $valid && $valid->equalTo($today);
                                     if ($currentStatus === 'mixed') {
                                         $uiStatusLabel = 'Mixed';
-                                        $uiStatusClass = 'mixed';
+                                        $uiStatusClass = 'default';
                                     } elseif ($currentStatus === 'cancelled') {
                                         $uiStatusLabel = 'Cancelled';
-                                        $uiStatusClass = 'cancelled';
+                                        $uiStatusClass = 'default';
                                     } elseif ($currentStatus === 'cleared') {
                                         $uiStatusLabel = 'Cleared';
                                         $uiStatusClass = 'cleared';
                                     } elseif ($currentStatus === 'bounced') {
                                         $uiStatusLabel = 'Bounced';
-                                        $uiStatusClass = 'bounced';
+                                        $uiStatusClass = 'default';
                                     } elseif ($currentStatus === 'deposited') {
                                         $uiStatusLabel = 'Deposited';
-                                        $uiStatusClass = 'deposited';
+                                        $uiStatusClass = 'default';
                                     } elseif ($isOverdueUi) {
                                         $uiStatusLabel = 'Overdue ' . $overdueDays . 'd';
-                                        $uiStatusClass = 'overdue';
+                                        $uiStatusClass = 'overdue-' . $overdueSev;
                                     } elseif ($currentStatus === 'pending') {
                                         $uiStatusLabel = 'Pending';
                                         $uiStatusClass = 'pending';
                                     } else {
                                         $uiStatusLabel = ucfirst((string) $currentStatus);
-                                        $uiStatusClass = 'pending';
+                                        $uiStatusClass = 'default';
                                     }
                                 @endphp
-                                <tr class="{{ $isOverdueUi ? 'cheque-row--overdue' : '' }}"
+                                <tr class="{{ $overdueSev ? 'cheque-row--overdue cheque-row--overdue-' . $overdueSev : '' }}"
                                     data-status="{{ $currentStatus }}"
+                                    data-overdue-days="{{ $overdueDays }}"
                                     data-amount="{{ $row['total_amount'] ?? $payment->amount }}"
                                     data-bank-charges="{{ $payment->bank_charges ?? 0 }}"
                                     data-customer-id="{{ $payment->customer_id }}"
@@ -796,7 +896,7 @@
                                         <span class="cheque-ui-amount">Rs. {{ number_format($row['total_amount'] ?? $payment->amount, 2) }}</span>
                                     </td>
                                     <td>
-                                        <span class="cheque-ui-due">{{ $payment->cheque_valid_date ? \Carbon\Carbon::parse($payment->cheque_valid_date)->format('d-m-Y') : '—' }}</span>
+                                        <span class="cheque-ui-due{{ $isDueToday ? ' cheque-due-today' : '' }}" @if($isDueToday) title="Due today" @endif>{{ $payment->cheque_valid_date ? \Carbon\Carbon::parse($payment->cheque_valid_date)->format('d-m-Y') : '—' }}</span>
                                     </td>
                                     <td>
                                         <span class="cheque-ui-status cheque-ui-status--{{ $uiStatusClass }}">{{ $uiStatusLabel }}</span>@if($currentStatus === 'bounced' && ($payment->bank_charges ?? 0) > 0)<span class="small text-muted ms-1" style="font-size:10px;white-space:nowrap;">· chg. {{ number_format($payment->bank_charges ?? 0, 2) }}</span>@endif
@@ -810,7 +910,7 @@
                                             <button type="button" class="btn btn-icon" disabled data-cheque-tooltip="1" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-container="body" title="Locked — this row cannot be edited (mixed status or recovered)" aria-label="Cheque locked for editing"><i class="fas fa-lock" aria-hidden="true"></i></button>
                                             @endif
                                             <div class="dropdown">
-                                                <button type="button" class="btn btn-icon border-0" data-bs-toggle="dropdown" aria-expanded="false" title="More actions — status history, recovery chain" aria-label="More actions menu"><i class="fas fa-ellipsis-v" aria-hidden="true"></i></button>
+                                                <button type="button" class="btn btn-icon border-0" data-bs-toggle="dropdown" aria-expanded="false" title="More: Status history; if bounced — Recovery chain" aria-label="Open more actions menu"><i class="fas fa-ellipsis-v" aria-hidden="true"></i></button>
                                                 <ul class="dropdown-menu dropdown-menu-end shadow-sm small">
                                                     <li><button type="button" class="dropdown-item py-2" onclick="viewStatusHistory({{ $payment->id }})">Status history</button></li>
                                                     @if($currentStatus === 'bounced' && $payment->customer_id)
@@ -959,7 +1059,7 @@
 
 <!-- Bulk Recovery Payment Modal -->
 <div class="modal fade" id="bulkRecoveryModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Recovery Payment for Multiple Bounced Cheques</h5>
@@ -1004,7 +1104,9 @@
                                 <option value="bank_transfer">Bank Transfer</option>
                                 <option value="card">Card Payment</option>
                                 <option value="new_cheque">New Cheque</option>
+                                <option value="multiple_cheques">Multiple Cheques (Split)</option>
                                 <option value="partial_cash_cheque">Partial Cash + New Cheque</option>
+                                <option value="partial_cash_multiple_cheques">Partial Cash + Multiple Cheques</option>
                             </select>
                         </div>
                         <div class="col-md-6">
@@ -1345,7 +1447,7 @@ $(document).ready(function() {
 });
 
 function initializeTableScrolling() {
-    const tableWrapper = $('.table-responsive');
+    const tableWrapper = $('#chequeTableResponsiveWrapper');
     const table = $('#chequesTable');
 
     if (tableWrapper.length === 0 || table.length === 0) return;
@@ -1596,12 +1698,15 @@ function loadCustomersWithBouncedCheques(selectElementId = '#recoveryCustomerSel
 
 function updateBulkActionButtons() {
     const selectedCount = $('.cheque-checkbox:checked').length;
+    const $tb = $('.cheque-bulk-toolbar');
     $('#selectedCount').text(selectedCount);
 
     // Disable all bulk actions initially
     $('#bulkClear, #bulkDeposit, #bulkBounce, #bulkRecoveryPayment').prop('disabled', true);
+    $tb.removeClass('cheque-bulk-has-selection');
 
     if (selectedCount > 0) {
+        $tb.addClass('cheque-bulk-has-selection');
         // Get statuses of selected cheques
         const selectedStatuses = $('.cheque-checkbox:checked').map(function() {
             return $(this).closest('tr').data('status');
@@ -1704,7 +1809,8 @@ function initializeDataTable() {
         ordering: true,
         info: true,
         autoWidth: false,
-        pagingType: "simple_numbers",
+        pagingType: "full_numbers",
+        orderClasses: true,
         columnDefs: [
             {
                 targets: [0, 6], // Checkbox and Actions
@@ -1722,6 +1828,9 @@ function initializeDataTable() {
             startRender: function (rows, group) {
                 let totalAmount = 0;
                 const chequeCount = rows.count();
+                let groupOverdue = 0;
+                let groupPending = 0;
+                let groupDeposited = 0;
 
                 rows.every(function() {
                     const rowNode = this.node();
@@ -1733,6 +1842,15 @@ function initializeDataTable() {
                     const amount = parseFloat(raw, 10);
                     if (!isNaN(amount)) {
                         totalAmount += Math.abs(amount);
+                    }
+                    const st = String($row.data('status') || '').toLowerCase();
+                    const od = parseInt($row.attr('data-overdue-days') || '0', 10) || 0;
+                    if (st === 'pending' && od > 0) {
+                        groupOverdue++;
+                    } else if (st === 'pending') {
+                        groupPending++;
+                    } else if (st === 'deposited') {
+                        groupDeposited++;
                     }
                 });
 
@@ -1769,7 +1887,22 @@ function initializeDataTable() {
                 $countSpan.append(document.createTextNode(' '));
                 $countSpan.append($('<span class="cheque-dtrg-count-word"></span>').text(chequeCount === 1 ? 'Cheque' : 'Cheques'));
 
+                const summaryBits = [];
+                if (groupOverdue > 0) {
+                    summaryBits.push(groupOverdue + ' overdue');
+                }
+                if (groupPending > 0) {
+                    summaryBits.push(groupPending + ' pending');
+                }
+                if (groupDeposited > 0) {
+                    summaryBits.push(groupDeposited + ' deposited');
+                }
                 $metaLine.append($totalSpan, $sep, $countSpan);
+                if (summaryBits.length) {
+                    const $sum = $('<span class="cheque-dtrg-group-status small text-muted ms-2"></span>');
+                    $sum.text('· ' + summaryBits.join(' · '));
+                    $metaLine.append($sum);
+                }
                 $inner.append($customerLine, $metaLine);
                 $td.append($inner);
                 $tr.append($td);
@@ -1778,11 +1911,44 @@ function initializeDataTable() {
         },
         initComplete: function() {
             revealChequeTableAfterInit();
+            const wrap = $('#chequesTable').closest('.dataTables_wrapper');
+            if (!wrap.find('.cheque-page-jump').length) {
+                const len = wrap.find('.dataTables_length');
+                const jump = $('<div class="cheque-page-jump d-flex align-items-center gap-1 ms-lg-3 mt-2 mt-lg-0 flex-wrap"></div>');
+                jump.append('<label class="small text-muted mb-0" for="chequePageJumpInput">Go to page</label>');
+                jump.append('<input type="number" min="1" class="form-control form-control-sm" id="chequePageJumpInput" style="width:4rem" title="Enter page number, then Go or Enter">');
+                jump.append('<button type="button" class="btn btn-sm btn-outline-secondary" id="chequePageJumpBtn">Go</button>');
+                len.parent().addClass('d-flex flex-wrap align-items-center');
+                len.after(jump);
+                $('#chequePageJumpBtn').on('click', function() {
+                    const tbl = $('#chequesTable').DataTable();
+                    const info = tbl.page.info();
+                    let p = parseInt($('#chequePageJumpInput').val(), 10);
+                    if (isNaN(p) || p < 1) {
+                        p = 1;
+                    }
+                    if (p > info.pages) {
+                        p = info.pages;
+                    }
+                    tbl.page(p - 1).draw(false);
+                    $('#chequePageJumpInput').val('');
+                });
+                $('#chequePageJumpInput').on('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        $('#chequePageJumpBtn').trigger('click');
+                    }
+                });
+            }
         },
         drawCallback: function(settings) {
             revealChequeTableAfterInit();
             updateSelectAllCheckbox();
             updateBulkActionButtons();
+            if ($.fn.DataTable.isDataTable('#chequesTable') && $('#chequePageJumpInput').length) {
+                const info = $('#chequesTable').DataTable().page.info();
+                $('#chequePageJumpInput').attr('max', info.pages).attr('placeholder', '1–' + info.pages);
+            }
             $('.cheque-mgmt-page .dataTables_paginate ul.pagination').addClass('pagination-sm');
             if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
                 document.querySelectorAll('#chequesTable [data-cheque-tooltip="1"]').forEach(function (el) {
@@ -2371,43 +2537,69 @@ function bulkUpdateStatus(status) {
         return;
     }
 
-    if (!confirm(`Are you sure you want to mark ${selectedIds.length} cheques as ${status}?`)) {
-        return;
-    }
-
-    $.ajax({
-        url: '{{ route("cheque.bulk-update-status") }}',
-        method: 'POST',
-        data: {
-            payment_ids: selectedIds,
-            status: status,
-            remarks: `Bulk update to ${status}`
-        },
-        success: function(response) {
-            if (response.status === 200) {
-                toastr.success(response.message, 'Bulk Update Successful', {
-                    timeOut: 8000,
-                    progressBar: true,
-                    positionClass: 'toast-top-right',
-                    escapeHtml: false
-                });
-                setTimeout(() => location.reload(), 2000);
-            } else {
-                toastr.error(response.message || 'Failed to update cheques', 'Update Failed', {
+    const prettyStatus = String(status || '').charAt(0).toUpperCase() + String(status || '').slice(1);
+    const confirmText = `Are you sure you want to mark ${selectedIds.length} cheque(s) as ${prettyStatus}?`;
+    const doUpdate = function () {
+        $.ajax({
+            url: '{{ route("cheque.bulk-update-status") }}',
+            method: 'POST',
+            data: {
+                payment_ids: selectedIds,
+                status: status,
+                remarks: `Bulk update to ${status}`
+            },
+            success: function(response) {
+                if (response.status === 200) {
+                    toastr.success(response.message, 'Bulk Update Successful', {
+                        timeOut: 8000,
+                        progressBar: true,
+                        positionClass: 'toast-top-right',
+                        escapeHtml: false
+                    });
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    toastr.error(response.message || 'Failed to update cheques', 'Update Failed', {
+                        timeOut: 8000,
+                        progressBar: true,
+                        positionClass: 'toast-top-right'
+                    });
+                }
+            },
+            error: function() {
+                toastr.error('Failed to perform bulk update', 'Network Error', {
                     timeOut: 8000,
                     progressBar: true,
                     positionClass: 'toast-top-right'
                 });
             }
-        },
-        error: function() {
-            toastr.error('Failed to perform bulk update', 'Network Error', {
-                timeOut: 8000,
-                progressBar: true,
-                positionClass: 'toast-top-right'
-            });
-        }
-    });
+        });
+    };
+
+    // SweetAlert (project uses vendor/sweetalert/js/sweetalert.min.js)
+    if (typeof window.swal === 'function') {
+        const isDanger = String(status).toLowerCase() === 'bounced';
+        window.swal({
+            title: "Confirm bulk update",
+            text: confirmText,
+            type: isDanger ? "warning" : "info",
+            showCancelButton: true,
+            confirmButtonColor: isDanger ? "#d33" : "#3085d6",
+            cancelButtonColor: "#6c757d",
+            confirmButtonText: "Yes, continue",
+            cancelButtonText: "Cancel",
+            closeOnConfirm: true
+        }, function(isConfirm) {
+            if (isConfirm) {
+                doUpdate();
+            }
+        });
+        return;
+    }
+
+    // Fallback (shouldn't happen if SweetAlert is loaded)
+    if (!confirm(confirmText)) return;
+
+    doUpdate();
 }
 
 function openBulkBounceModal() {
@@ -2633,8 +2825,10 @@ function openBulkRecoveryModal() {
     $('#bulkRecoveryModal').data('selectedIds', selectedIds);
     $('#bulkRecoveryModal').data('totalAmount', totalBouncedAmount + totalBankCharges);
 
-    // Show modal
-    $('#bulkRecoveryModal').modal('show');
+    // Show modal (Bootstrap 5 compatible)
+    if (!showChequeManagementModal('bulkRecoveryModal')) {
+        toastr.error('Recovery modal could not be opened. Please refresh the page.', 'UI Error');
+    }
 }
 
 /**
@@ -2651,6 +2845,74 @@ function updateRecoveryPaymentFields() {
     if (!method) return;
 
     let fieldsHtml = '';
+
+    function renderSplitChequeRow(prefixName, idx, displayNo, amountValue) {
+        const safeIdx = Number.isFinite(idx) ? idx : 0;
+        const showNo = Number.isFinite(displayNo) ? displayNo : 1;
+        const amt = Number.isFinite(amountValue) ? amountValue : 0;
+        return `
+            <div class="card mb-2 border" data-split-idx="${safeIdx}">
+                <div class="card-body p-2">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div class="fw-semibold"><i class="fas fa-money-check-alt me-1"></i>Cheque ${showNo}</div>
+                        <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 js-remove-split-cheque" title="Remove this cheque row">×</button>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <label class="form-label small mb-1">Cheque Number</label>
+                            <input type="text" class="form-control form-control-sm" name="${prefixName}[${safeIdx}][cheque_number]" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small mb-1">Bank/Branch</label>
+                            <input type="text" class="form-control form-control-sm" name="${prefixName}[${safeIdx}][cheque_bank]" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small mb-1">Amount</label>
+                            <input type="number" class="form-control form-control-sm js-split-cheque-amount" step="0.01" min="0" name="${prefixName}[${safeIdx}][amount]" value="${amt.toFixed(2)}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small mb-1">Cheque Date</label>
+                            <input type="date" class="form-control form-control-sm" name="${prefixName}[${safeIdx}][cheque_date]" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small mb-1">Valid Until Date</label>
+                            <input type="date" class="form-control form-control-sm" name="${prefixName}[${safeIdx}][cheque_valid_date]" required>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renumberSplitRows() {
+        $('#splitChequeRows .card').each(function (i) {
+            $(this).find('.fw-semibold').first().html('<i class="fas fa-money-check-alt me-1"></i>Cheque ' + (i + 1));
+        });
+    }
+
+    function autoSplitAcrossCurrentRows(totalToSplit) {
+        const $rows = $('#splitChequeRows .js-split-cheque-amount');
+        const n = $rows.length || 1;
+        const per = totalToSplit > 0 ? (Number(totalToSplit) / n) : 0;
+        $rows.each(function () {
+            $(this).val(per.toFixed(2));
+        });
+    }
+
+    function recalcSplitSummary(totalRequired, cashSelector) {
+        const cash = cashSelector ? (parseFloat($(cashSelector).val()) || 0) : 0;
+        let sumCheques = 0;
+        $('.js-split-cheque-amount').each(function () {
+            sumCheques += parseFloat($(this).val()) || 0;
+        });
+        const total = cash + sumCheques;
+        const ok = Math.abs(total - totalRequired) < 0.01;
+        const badge = ok
+            ? '<span class="badge bg-success">OK</span>'
+            : '<span class="badge bg-warning text-dark">Mismatch</span>';
+        $('#splitTotalsHint').html(`${badge} Total entered: <strong>Rs. ${numberFormat(total)}</strong> (required Rs. ${numberFormat(totalRequired)})`);
+        showPaymentSummary('Split Payment', cash, sumCheques);
+    }
 
     switch(method) {
         case 'cash':
@@ -2725,6 +2987,25 @@ function updateRecoveryPaymentFields() {
             showPaymentSummary('New Cheque', 0, totalAmount);
             break;
 
+        case 'multiple_cheques':
+            fieldsHtml = `
+                <div class="alert alert-warning">
+                    <h6><i class="fas fa-layer-group"></i> Multiple Cheques (Split)</h6>
+                    <p class="mb-0">You can split <strong>Rs. ${numberFormat(totalAmount)}</strong> into multiple cheques. Amounts will auto-split equally, but you can edit.</p>
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="splitAddChequeBtn"><i class="fas fa-plus me-1"></i>Add cheque</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="splitAutoEvenBtn" title="Re-split equally">Auto split</button>
+                    <div class="small text-muted" id="splitTotalsHint"></div>
+                </div>
+                <div id="splitChequeRows">
+                    ${renderSplitChequeRow('multi_cheques', 0, 1, totalAmount / 3)}
+                    ${renderSplitChequeRow('multi_cheques', 1, 2, totalAmount / 3)}
+                    ${renderSplitChequeRow('multi_cheques', 2, 3, totalAmount / 3)}
+                </div>
+            `;
+            break;
+
         case 'partial_cash_cheque':
             fieldsHtml = `
                 <div class="alert alert-info">
@@ -2765,6 +3046,36 @@ function updateRecoveryPaymentFields() {
                 </div>
             `;
             break;
+
+        case 'partial_cash_multiple_cheques':
+            fieldsHtml = `
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-random"></i> Partial Cash + Multiple Cheques</h6>
+                    <p class="mb-0">Enter a cash amount, and split the remaining into multiple cheques.</p>
+                </div>
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label">Cash Amount</label>
+                        <input type="number" class="form-control" id="splitCashAmount" name="cash_amount" step="0.01" min="0" max="${totalAmount}" required>
+                        <small class="text-muted">Max: Rs. ${numberFormat(totalAmount)}</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Remaining for cheques (auto)</label>
+                        <input type="number" class="form-control" id="splitRemainingAmount" readonly>
+                    </div>
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-3 mb-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="splitAddChequeBtn"><i class="fas fa-plus me-1"></i>Add cheque</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="splitAutoEvenBtn" title="Re-split equally">Auto split</button>
+                    <div class="small text-muted" id="splitTotalsHint"></div>
+                </div>
+                <div id="splitChequeRows">
+                    ${renderSplitChequeRow('multi_cheques', 0, 1, totalAmount / 3)}
+                    ${renderSplitChequeRow('multi_cheques', 1, 2, totalAmount / 3)}
+                    ${renderSplitChequeRow('multi_cheques', 2, 3, totalAmount / 3)}
+                </div>
+            `;
+            break;
     }
 
     fieldsContainer.html(fieldsHtml);
@@ -2778,6 +3089,61 @@ function updateRecoveryPaymentFields() {
 
             showPaymentSummary('Cash + Cheque', cashAmount, chequeAmount);
         });
+    }
+
+    if (method === 'multiple_cheques' || method === 'partial_cash_multiple_cheques') {
+        const cashSel = method === 'partial_cash_multiple_cheques' ? '#splitCashAmount' : null;
+        const getRemaining = function () {
+            if (!cashSel) return Number(totalAmount) || 0;
+            const cash = parseFloat($(cashSel).val()) || 0;
+            const remaining = Math.max(0, (Number(totalAmount) || 0) - cash);
+            $('#splitRemainingAmount').val(remaining.toFixed(2));
+            return remaining;
+        };
+
+        // Track next index so removed rows don't break names
+        $('#splitChequeRows').data('nextIdx', $('#splitChequeRows .card').length);
+
+        $('#splitAddChequeBtn').on('click', function () {
+            const nextIdx = parseInt($('#splitChequeRows').data('nextIdx') || '0', 10) || 0;
+            const remaining = getRemaining();
+            $('#splitChequeRows').append(renderSplitChequeRow('multi_cheques', nextIdx, $('#splitChequeRows .card').length + 1, 0));
+            $('#splitChequeRows').data('nextIdx', nextIdx + 1);
+            renumberSplitRows();
+            recalcSplitSummary(totalAmount, cashSel);
+        });
+
+        $('#splitAutoEvenBtn').on('click', function () {
+            const remaining = getRemaining();
+            autoSplitAcrossCurrentRows(remaining);
+            recalcSplitSummary(totalAmount, cashSel);
+        });
+        fieldsContainer.on('input', '.js-split-cheque-amount', function () {
+            recalcSplitSummary(totalAmount, cashSel);
+        });
+        fieldsContainer.on('click', '.js-remove-split-cheque', function () {
+            const $card = $(this).closest('.card');
+            $card.remove();
+            if ($('#splitChequeRows .card').length === 0) {
+                const nextIdx = parseInt($('#splitChequeRows').data('nextIdx') || '0', 10) || 0;
+                $('#splitChequeRows').append(renderSplitChequeRow('multi_cheques', nextIdx, 1, 0));
+                $('#splitChequeRows').data('nextIdx', nextIdx + 1);
+            }
+            renumberSplitRows();
+            recalcSplitSummary(totalAmount, cashSel);
+        });
+        if (cashSel) {
+            $(cashSel).on('input', function () {
+                getRemaining();
+                recalcSplitSummary(totalAmount, cashSel);
+            });
+        }
+
+        // Initial compute
+        if (cashSel) {
+            $('#splitRemainingAmount').val(totalAmount.toFixed(2));
+        }
+        recalcSplitSummary(totalAmount, cashSel);
     }
 }
 
@@ -2826,9 +3192,39 @@ function showPaymentSummary(method, cashAmount, chequeAmount) {
 function processBulkRecoveryPayment() {
     const selectedIds = $('#bulkRecoveryModal').data('selectedIds');
     const formData = new FormData($('#bulkRecoveryForm')[0]);
+    const method = String($('#recoveryMethod').val() || '');
+    const totalRequired = Number($('#bulkRecoveryModal').data('totalAmount') || 0);
 
     // Add selected cheque IDs to form data
     formData.append('cheque_ids', JSON.stringify(selectedIds));
+
+    // For split methods, validate total and send structured JSON
+    if (method === 'multiple_cheques' || method === 'partial_cash_multiple_cheques') {
+        const cashAmount = method === 'partial_cash_multiple_cheques' ? (parseFloat($('#splitCashAmount').val()) || 0) : 0;
+        const cheques = [];
+        $('#recoveryPaymentFields').find('#splitChequeRows .card').each(function () {
+            const $card = $(this);
+            const getByName = (suffix) => $card.find(`[name$="${suffix}"]`).val();
+            const amt = parseFloat(getByName('[amount]')) || 0;
+            cheques.push({
+                cheque_number: getByName('[cheque_number]') || '',
+                cheque_bank: getByName('[cheque_bank]') || '',
+                cheque_date: getByName('[cheque_date]') || '',
+                cheque_valid_date: getByName('[cheque_valid_date]') || '',
+                amount: amt
+            });
+        });
+
+        const sumCheques = cheques.reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
+        const sumTotal = cashAmount + sumCheques;
+        if (Math.abs(sumTotal - totalRequired) > 0.01) {
+            toastr.error(`Split total must equal Rs. ${numberFormat(totalRequired)} (currently Rs. ${numberFormat(sumTotal)})`, 'Amount mismatch');
+            return;
+        }
+
+        formData.set('cash_amount', cashAmount);
+        formData.append('multi_cheques', JSON.stringify(cheques));
+    }
 
     $.ajax({
         url: '/cheque/bulk-recovery-payment',
