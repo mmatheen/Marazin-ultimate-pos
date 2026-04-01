@@ -412,6 +412,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/cheque-guide', function() { return view('sell.cheque-guide'); })->name('cheque-guide');
         Route::post('/cheque/update-status/{paymentId}', [PaymentController::class, 'updateChequeStatus'])->name('cheque.update-status');
         Route::get('/cheque/status-history/{paymentId}', [PaymentController::class, 'chequeStatusHistory'])->name('cheque.status-history');
+        Route::get('/cheque/group-details', [PaymentController::class, 'chequeGroupDetails'])->name('cheque.group-details');
         Route::get('/cheque/pending-reminders', [PaymentController::class, 'pendingChequeReminders'])->name('cheque.pending-reminders');
         Route::post('/cheque/mark-reminder-sent/{reminderId}', [PaymentController::class, 'markReminderSent'])->name('cheque.mark-reminder-sent');
         Route::post('/cheque/bulk-update-status', [PaymentController::class, 'bulkUpdateChequeStatus'])->name('cheque.bulk-update-status');

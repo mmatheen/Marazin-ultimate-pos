@@ -2477,24 +2477,75 @@ class PaymentController extends Controller
         // Get all records for DataTables client-side pagination (not Laravel pagination)
         $cheques = $query->orderBy('cheque_valid_date', 'asc')->get();
 
+        // Group by cheque so one cheque = one row in UI (a cheque can settle multiple invoices).
+        $chequeGroups = $cheques
+            ->groupBy(function ($payment) {
+                // IMPORTANT: group by cheque number + customer.
+                // A single cheque can be used to settle multiple invoices, so we must not split by bill.
+                // Bank/branch or dates can be inconsistent per payment row; don't use them as group keys.
+                return implode('|', [
+                    (string) ($payment->cheque_number ?? ''),
+                    (string) ($payment->customer_id ?? ''),
+                ]);
+            })
+            ->map(function ($group) {
+                /** @var \Illuminate\Support\Collection<int, \App\Models\Payment> $group */
+                $first = $group->first();
+
+                $statuses = $group->pluck('cheque_status')->filter()->unique()->values();
+                $status = $statuses->count() === 1 ? $statuses->first() : 'mixed';
+
+                $groupKey = implode('|', [
+                    (string) ($first->cheque_number ?? ''),
+                    (string) ($first->customer_id ?? ''),
+                ]);
+
+                return [
+                    'group_key' => $groupKey,
+                    'group_id' => md5($groupKey),
+                    'payment_ids' => $group->pluck('id')->values(),
+                    'payment' => $first,
+                    'total_amount' => abs($group->sum('amount') ?? 0),
+                    'invoice_nos' => $group->map(function ($p) {
+                        return $p->sale->invoice_no
+                            ?? $p->originalPayment?->sale?->invoice_no
+                            ?? $p->reference_no
+                            ?? null;
+                    })->filter()->unique()->values(),
+                    'status' => $status,
+                    'has_recovery' => $group->sum('recovery_payments_count') > 0,
+                    'recovered_bounced' => $status === 'bounced' && ($group->sum('recovery_payments_count') > 0),
+                    'can_update' => in_array($status, ['pending', 'deposited'], true) && !($status === 'bounced' && ($group->sum('recovery_payments_count') > 0)),
+                    'is_selectable' => !($status === 'bounced' && ($group->sum('recovery_payments_count') > 0)) && $status !== 'mixed',
+                ];
+            })
+            ->values();
+
         // Get summary stats including recovery cheques too.
         $stats = [
             'total_pending' => abs(Payment::chequePayments()->where('status', 'active')->where('cheque_status', 'pending')->sum('amount') ?? 0),
             'total_deposited' => abs(Payment::chequePayments()->where('status', 'active')->where('cheque_status', 'deposited')->sum('amount') ?? 0),
             'total_cleared' => abs(Payment::chequePayments()->where('status', 'active')->where('cheque_status', 'cleared')->sum('amount') ?? 0),
             'total_bounced' => abs(Payment::chequePayments()->where('status', 'active')->where('cheque_status', 'bounced')->sum('amount') ?? 0),
-            'due_soon_count' => Payment::chequePayments()->where('status', 'active')->where('cheque_status', 'pending')->where('cheque_valid_date', '<=', now()->addDays(7))->count() ?? 0,
-            'overdue_count' => Payment::chequePayments()->where('status', 'active')->where('cheque_status', 'pending')->where('cheque_valid_date', '<', now())->count() ?? 0,
+            // Due soon = pending, due date today..+7 days (not already overdue)
+            'due_soon_count' => Payment::chequePayments()->where('status', 'active')->where('cheque_status', 'pending')->whereDate('cheque_valid_date', '>=', now()->toDateString())->whereDate('cheque_valid_date', '<=', now()->addDays(7)->toDateString())->count() ?? 0,
+            'due_soon_amount' => abs(Payment::chequePayments()->where('status', 'active')->where('cheque_status', 'pending')->whereDate('cheque_valid_date', '>=', now()->toDateString())->whereDate('cheque_valid_date', '<=', now()->addDays(7)->toDateString())->sum('amount') ?? 0),
+            'overdue_count' => Payment::chequePayments()->where('status', 'active')->where('cheque_status', 'pending')->whereDate('cheque_valid_date', '<', now()->toDateString())->count() ?? 0,
+            'overdue_amount' => abs(Payment::chequePayments()->where('status', 'active')->where('cheque_status', 'pending')->whereDate('cheque_valid_date', '<', now()->toDateString())->sum('amount') ?? 0),
         ];
 
         if ($request->ajax()) {
             return response()->json([
-                'cheques' => $cheques,
+                'cheques' => $chequeGroups,
                 'stats' => $stats
             ]);
         }
 
-        return view('sell.cheque-management', compact('cheques', 'stats'));
+        return view('sell.cheque-management', [
+            'cheques' => $cheques,
+            'chequeGroups' => $chequeGroups,
+            'stats' => $stats,
+        ]);
     }
 
     /**
@@ -2602,6 +2653,114 @@ class PaymentController extends Controller
                 'message' => 'Cheque payment not found: ' . $e->getMessage()
             ], 404);
         }
+    }
+
+    /**
+     * Get grouped cheque details (one cheque can have multiple payments/invoices).
+     * Expects payment_ids as comma-separated string or array.
+     */
+    public function chequeGroupDetails(Request $request)
+    {
+        $ids = $request->input('payment_ids', []);
+        if (is_string($ids)) {
+            $ids = array_filter(array_map('trim', explode(',', $ids)));
+        }
+        if (!is_array($ids) || empty($ids)) {
+            return response()->json([
+                'status' => 422,
+                'message' => 'payment_ids is required',
+            ], 422);
+        }
+
+        $payments = Payment::query()
+            ->whereIn('id', $ids)
+            ->with(['customer', 'sale', 'originalPayment.sale'])
+            ->get();
+
+        if ($payments->isEmpty()) {
+            return response()->json([
+                'status' => 404,
+                'message' => 'No payments found for given IDs',
+            ], 404);
+        }
+
+        $first = $payments->first();
+        $totalAmount = abs($payments->sum('amount') ?? 0);
+
+        $invoices = $payments->map(function ($p) {
+            $sale = $p->sale ?? $p->originalPayment?->sale;
+            $invoiceNo = $sale?->invoice_no
+                ?? $p->reference_no
+                ?? 'N/A';
+
+            $saleId = $sale?->id;
+            $invoiceUrl = $saleId ? route('sales.edit', $saleId) : null;
+            $billDateStr = null;
+            if ($sale && $sale->sales_date) {
+                try {
+                    $billDateStr = \Carbon\Carbon::parse($sale->sales_date)->format('Y-m-d');
+                } catch (\Throwable $e) {
+                    $billDateStr = null;
+                }
+            }
+
+            return [
+                'payment_id' => $p->id,
+                'invoice_no' => $invoiceNo,
+                'sale_id' => $saleId,
+                'invoice_url' => $invoiceUrl,
+                'bill_date' => $billDateStr,
+                'amount' => abs($p->amount ?? 0),
+                'bill_status' => $sale?->payment_status,
+            ];
+        })->values();
+
+        $history = [];
+        try {
+            $chequeService = app(\App\Services\ChequeService::class);
+            $historyResult = $chequeService->getChequeStatusHistory($first->id);
+            $history = $historyResult['history'] ?? [];
+        } catch (\Throwable $e) {
+            // Still return invoice breakdown even if history lookup fails.
+            $history = [];
+        }
+
+        $customerModel = $first->customer;
+        $customerPayload = null;
+        if ($customerModel) {
+            $customerPayload = [
+                'id' => $customerModel->id,
+                'full_name' => $customerModel->full_name,
+                'first_name' => $customerModel->first_name,
+                'last_name' => $customerModel->last_name,
+                'prefix' => $customerModel->prefix,
+                'mobile_no' => $customerModel->mobile_no,
+                'email' => $customerModel->email,
+                'address' => $customerModel->address,
+                'current_balance' => $customerModel->current_balance,
+                'current_due' => $customerModel->current_due,
+            ];
+        }
+
+        return response()->json([
+            'status' => 200,
+            'cheque' => [
+                'cheque_number' => $first->cheque_number,
+                'cheque_bank_branch' => $first->cheque_bank_branch,
+                'cheque_given_by' => $first->cheque_given_by,
+                'cheque_received_date' => $first->cheque_received_date,
+                'cheque_valid_date' => $first->cheque_valid_date,
+                'cheque_status' => $first->cheque_status,
+                'bank_charges' => $first->bank_charges,
+                'cheque_bounce_date' => $first->cheque_bounce_date,
+                'cheque_bounce_reason' => $first->cheque_bounce_reason,
+            ],
+            'customer' => $customerPayload,
+            'total_amount' => $totalAmount,
+            'payments' => $payments,
+            'invoices' => $invoices,
+            'history' => $history,
+        ]);
     }
 
     /**
