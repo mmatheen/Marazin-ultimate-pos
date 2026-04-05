@@ -444,6 +444,24 @@
     </table>
 
     {{-- Totals Section --}}
+    @php
+        $a4SaleBillDiscount = 0;
+        $a4SaleDiscountPct = null;
+        if ($sale->discount_amount > 0) {
+            if ($sale->discount_type == 'percentage') {
+                $a4SaleBillDiscount = ($sale->subtotal * $sale->discount_amount) / 100;
+                $a4SaleDiscountPct = (float) $sale->discount_amount;
+            } else {
+                $a4SaleBillDiscount = $sale->discount_amount;
+                if ((float) $sale->subtotal > 0) {
+                    $a4SaleDiscountPct = round(($a4SaleBillDiscount / (float) $sale->subtotal) * 100, 4);
+                }
+            }
+        }
+        $fmtPctTrimA4 = static function ($v) {
+            return rtrim(rtrim(number_format((float) $v, 2, '.', ''), '0'), '.');
+        };
+    @endphp
     <table class="totals-table">
         <tr>
             <td class="label">SUBTOTAL</td>
@@ -452,19 +470,12 @@
 
         @if ($sale->discount_amount > 0)
             <tr>
-                <td class="label">
-                    DISCOUNT
-                    @if ($sale->discount_type == 'percentage')
-                        ({{ $sale->discount_amount }}%)
-                    @else
-                        (RS)
-                    @endif
-                </td>
+                <td class="label">DISCOUNT :</td>
                 <td class="value">
-                    @if ($sale->discount_type == 'percentage')
-                        -Rs. {{ number_format(($sale->subtotal * $sale->discount_amount) / 100, 2) }}
+                    @if ($a4SaleDiscountPct !== null)
+                        {{ $fmtPctTrimA4($a4SaleDiscountPct) }}% ({{ number_format($a4SaleBillDiscount, 2) }})
                     @else
-                        -Rs. {{ number_format($sale->discount_amount, 2) }}
+                        Rs. {{ number_format($a4SaleBillDiscount, 2) }}
                     @endif
                 </td>
             </tr>
@@ -513,38 +524,6 @@
             @endif
         @endif
     </table>
-
-    @php
-        $total_discount = $products->sum(function ($product) {
-            // Get MRP from batch first, then fallback to product
-            $mrp = 0;
-            if ($product->batch && $product->batch->max_retail_price) {
-                $mrp = $product->batch->max_retail_price;
-            } elseif ($product->product && $product->product->max_retail_price) {
-                $mrp = $product->product->max_retail_price;
-            }
-
-            $price = $product->price;
-            // Only count as discount if MRP exists and is greater than selling price
-            if ($mrp > 0 && $mrp > $price) {
-                return ($mrp - $price) * $product->quantity;
-            }
-            return 0;
-        });
-
-        // Calculate bill discount if exists
-        $bill_discount = 0;
-        if ($sale->discount_amount > 0) {
-            if ($sale->discount_type == 'percentage') {
-                $bill_discount = ($sale->subtotal * $sale->discount_amount) / 100;
-            } else {
-                $bill_discount = $sale->discount_amount;
-            }
-        }
-
-        // Total all discounts (product discounts + bill discount)
-        $total_all_discounts = $total_discount + $bill_discount;
-    @endphp
 
     {{-- Stats Section --}}
     <div class="stats-section">

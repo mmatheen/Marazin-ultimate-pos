@@ -584,6 +584,24 @@
 
         {{-- Totals Section --}}
         <section class="totals-section">
+            @php
+                $saleBillDiscountRow = 0;
+                $saleDiscountPctForRow = null;
+                if ($sale->discount_amount > 0) {
+                    if ($sale->discount_type == 'percentage') {
+                        $saleBillDiscountRow = ($sale->subtotal * $sale->discount_amount) / 100;
+                        $saleDiscountPctForRow = (float) $sale->discount_amount;
+                    } else {
+                        $saleBillDiscountRow = $sale->discount_amount;
+                        if ((float) $sale->subtotal > 0) {
+                            $saleDiscountPctForRow = round(($saleBillDiscountRow / (float) $sale->subtotal) * 100, 4);
+                        }
+                    }
+                }
+                $fmtPctTrimReceipt = static function ($v) {
+                    return rtrim(rtrim(number_format((float) $v, 2, '.', ''), '0'), '.');
+                };
+            @endphp
             <table class="totals-table">
                 @if ($showDiscountBreakdown)
                     <tr>
@@ -593,19 +611,12 @@
 
                     @if ($sale->discount_amount > 0)
                         <tr>
-                            <td class="label">
-                                DISCOUNT
-                                @if ($sale->discount_type == 'percentage')
-                                    ({{ $sale->discount_amount }}%)
-                                @else
-                                    (RS)
-                                @endif
-                            </td>
+                            <td class="label">DISCOUNT :</td>
                             <td class="value discount-value">
-                                @if ($sale->discount_type == 'percentage')
-                                    -{{ number_format(($sale->subtotal * $sale->discount_amount) / 100, 2, '.', ',') }}
+                                @if ($saleDiscountPctForRow !== null)
+                                    {{ $fmtPctTrimReceipt($saleDiscountPctForRow) }}% ({{ number_format($saleBillDiscountRow, 2, '.', ',') }})
                                 @else
-                                    -{{ number_format($sale->discount_amount, 2, '.', ',') }}
+                                    {{ number_format($saleBillDiscountRow, 2, '.', ',') }}
                                 @endif
                             </td>
                         </tr>
@@ -671,23 +682,7 @@
             </table>
 
             @php
-                $total_discount = $products->sum(function ($product) {
-                    // Check if product has batch_id and batch data
-                    $mrp = 0;
-                    if (!empty($product->batch_id) && isset($product->batch)) {
-                        // Get MRP from batch table for batch-managed products
-                        $mrp = $product->batch->max_retail_price ?? 0;
-                    } else {
-                        // Get MRP from product table for non-batch products
-                        $mrp = $product->product->max_retail_price ?? 0;
-                    }
-                    $price = $product->price;
-                    if ($mrp > 0 && $mrp > $price) {
-                        return ($mrp - $price) * $product->quantity;
-                    }
-                    return 0;
-                });
-
+                // Invoice-level discount only (subtotal already reflects line selling prices).
                 $bill_discount = 0;
                 if ($sale->discount_amount > 0) {
                     if ($sale->discount_type == 'percentage') {
@@ -696,8 +691,6 @@
                         $bill_discount = $sale->discount_amount;
                     }
                 }
-
-                $total_all_discounts = $total_discount + $bill_discount;
             @endphp
         </section>
 
@@ -720,8 +713,8 @@
                 <span class="stat-label">TOTAL QTY @if($totalFreeQty > 0)({{ $fmtQ($totalQty) }} + {{ $fmtQ($totalFreeQty) }} FREE)@endif</span>
             </div>
             <div class="stat-box">
-                <span class="stat-number">{{ number_format($total_all_discounts, 2, '.', ',') }}</span>
-                <span class="stat-label">TOTAL DISCOUNT</span>
+                <span class="stat-number">{{ number_format($bill_discount, 2, '.', ',') }}</span>
+                <span class="stat-label">INVOICE DISCOUNT</span>
             </div>
         </section>
         @endif

@@ -646,17 +646,8 @@
             </table>
 
             @php
-                $total_discount = $products->sum(function ($product) {
-                    // Get MRP from batch first, then fallback to product
-                    $mrp = 0;
-                    if ($product->batch && $product->batch->max_retail_price) {
-                        $mrp = $product->batch->max_retail_price;
-                    } elseif ($product->product && $product->product->max_retail_price) {
-                        $mrp = $product->product->max_retail_price;
-                    }
-                    return ($mrp - $product->price) * $product->quantity;
-                });
-
+                // Subtotal = sum of line totals at selling price (item/MRP savings already included).
+                // Only invoice-level discount is applied on top of subtotal — do not show MRP savings again here.
                 $bill_discount = 0;
                 if ($sale->discount_amount > 0) {
                     if ($sale->discount_type == 'percentage') {
@@ -666,7 +657,19 @@
                     }
                 }
 
-                $total_all_discounts = $total_discount + $bill_discount;
+                $globalBillDiscountPctForLabel = null;
+                if ($bill_discount > 0 && (float) $sale->subtotal > 0) {
+                    if ($sale->discount_type == 'percentage') {
+                        $globalBillDiscountPctForLabel = (float) $sale->discount_amount;
+                    } else {
+                        $globalBillDiscountPctForLabel = round(($bill_discount / (float) $sale->subtotal) * 100, 4);
+                    }
+                }
+
+                $fmtPctTrim = static function ($v) {
+                    return rtrim(rtrim(number_format((float) $v, 2, '.', ''), '0'), '.');
+                };
+
                 $amount_paid = $sale->total_paid ?? 0;
                 $balance = $sale->total_due ?? 0;
 
@@ -690,13 +693,19 @@
                 {{-- RIGHT: discount, Bill Total, balance due --}}
                 <div class="summary-column summary-column-right">
                     <div class="summary-row">
-                        <span>Sub Total:</span>
+                        <span>SUB TOTAL:</span>
                         <span>{{ number_format($sale->subtotal, 2) }}</span>
                     </div>
-                    @if ($total_all_discounts > 0)
+                    @if ($bill_discount > 0)
                         <div class="summary-row">
-                            <span>Discount:</span>
-                            <span>{{ number_format($total_all_discounts, 2) }}</span>
+                            <span>DISCOUNT :</span>
+                            <span>
+                                @if ($globalBillDiscountPctForLabel !== null)
+                                    {{ $fmtPctTrim($globalBillDiscountPctForLabel) }}% ({{ number_format($bill_discount, 2) }})
+                                @else
+                                    {{ number_format($bill_discount, 2) }}
+                                @endif
+                            </span>
                         </div>
                     @endif
                     @if (!is_null($sale->shipping_charges) && $sale->shipping_charges > 0)
@@ -706,7 +715,7 @@
                         </div>
                     @endif
                     <div class="summary-row bold">
-                        <span>{{ in_array($sale->status, ['quotation', 'draft']) || (isset($sale->transaction_type) && $sale->transaction_type === 'sale_order') ? 'Estimated Total:' : 'Bill Total:' }}</span>
+                        <span>{{ in_array($sale->status, ['quotation', 'draft']) || (isset($sale->transaction_type) && $sale->transaction_type === 'sale_order') ? 'Estimated Total:' : 'BILL TOTAL:' }}</span>
                         <span>{{ number_format($sale->final_total, 2) }}</span>
                     </div>
                     @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))
