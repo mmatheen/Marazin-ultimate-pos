@@ -284,11 +284,12 @@
 
         .summary-section {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 0.2in;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.25in;
             font-size: 12px;
             padding: 0;
             flex-grow: 1;
+            align-items: flex-start;
         }
 
         .summary-column {
@@ -641,20 +642,6 @@
                 </div>
 
                 <div class="summary-column">
-                    {{-- Discount shown once in the right column (SUB TOTAL → DISCOUNT → BILL TOTAL) --}}
-                    @if (!is_null($sale->shipping_charges) && $sale->shipping_charges > 0)
-                        <div class="summary-row">
-                            <span>Shipping Charges:</span>
-                            <span>{{ number_format($sale->shipping_charges, 2) }}</span>
-                        </div>
-                    @endif
-                    <div class="summary-row">
-                        <span>{{ in_array($sale->status, ['quotation', 'draft']) || (isset($sale->transaction_type) && $sale->transaction_type === 'sale_order') ? 'Estimated Total:' : 'Amount Payable:' }}</span>
-                        <span>{{ number_format($sale->final_total, 2) }}</span>
-                    </div>
-                </div>
-
-                <div class="summary-column">
                     <div class="summary-row">
                         <span>SUB TOTAL:</span>
                         <span>{{ number_format($sale->subtotal, 2) }}</span>
@@ -669,6 +656,12 @@
                                     {{ number_format($bill_discount, 2) }}
                                 @endif
                             </span>
+                        </div>
+                    @endif
+                    @if (!is_null($sale->shipping_charges) && $sale->shipping_charges > 0)
+                        <div class="summary-row">
+                            <span>SHIPPING:</span>
+                            <span>{{ number_format($sale->shipping_charges, 2) }}</span>
                         </div>
                     @endif
                     <div class="summary-row bold">
