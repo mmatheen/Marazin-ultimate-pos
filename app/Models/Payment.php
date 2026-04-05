@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use App\Models\ChequeStatusHistory;
 use App\Models\ChequeReminder;
+use App\Models\ChequeValidDateExtension;
 
 class Payment extends Model
 {
@@ -137,6 +138,11 @@ class Payment extends Model
     public function chequeStatusHistory()
     {
         return $this->hasMany(ChequeStatusHistory::class);
+    }
+
+    public function chequeValidDateExtensions()
+    {
+        return $this->hasMany(ChequeValidDateExtension::class);
     }
 
     public function chequeReminders()

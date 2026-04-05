@@ -6,6 +6,7 @@ use App\Models\Payment;
 use App\Models\Customer;
 use App\Models\Ledger;
 use App\Models\ChequeStatusHistory;
+use App\Models\ChequeValidDateExtension;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -247,11 +248,96 @@ class ChequeService
                     'status_date' => $history->status_date,
                     'remarks' => $history->remarks,
                     'bank_charges' => $history->bank_charges,
-                    'changed_by' => $history->user->name ?? 'System',
+                    'changed_by' => $history->user->full_name ?? $history->user->user_name ?? 'System',
                     'created_at' => $history->created_at
                 ];
             })
         ];
+    }
+
+    /**
+     * Extend cheque valid date (customer request), for all payment rows tied to the same physical cheque.
+     *
+     * @param  array<int>  $paymentIds
+     * @return array{payments_updated: int, new_valid_date: string, extension_ids: array<int>}
+     */
+    public function extendValidDate(array $paymentIds, string $newValidDateStr, string $reason, ?int $userId): array
+    {
+        $paymentIds = array_values(array_unique(array_map('intval', $paymentIds)));
+        if ($paymentIds === []) {
+            throw new Exception('No payments specified.');
+        }
+
+        return DB::transaction(function () use ($paymentIds, $newValidDateStr, $reason, $userId) {
+            $newDate = Carbon::parse($newValidDateStr)->startOfDay();
+
+            $payments = Payment::whereIn('id', $paymentIds)
+                ->where('payment_method', 'cheque')
+                ->where('status', 'active')
+                ->get();
+
+            if ($payments->count() !== count($paymentIds)) {
+                throw new Exception('One or more payments were not found or are not active cheque payments.');
+            }
+
+            $first = $payments->first();
+            $chequeNo = (string) ($first->cheque_number ?? '');
+            $firstCustomerId = $first->customer_id;
+            $firstSupplierId = $first->supplier_id;
+
+            foreach ($payments as $p) {
+                if ((string) ($p->cheque_number ?? '') !== $chequeNo) {
+                    throw new Exception('All selected payments must belong to the same cheque number.');
+                }
+                if ((int) ($p->customer_id ?? 0) !== (int) ($firstCustomerId ?? 0)
+                    || (int) ($p->supplier_id ?? 0) !== (int) ($firstSupplierId ?? 0)) {
+                    throw new Exception('All selected payments must belong to the same customer or supplier (same cheque group).');
+                }
+                if (! in_array($p->cheque_status, ['pending', 'deposited'], true)) {
+                    throw new Exception(
+                        'Valid date can only be extended while the cheque is pending or deposited (not cleared, bounced, or cancelled).'
+                    );
+                }
+            }
+
+            $oldDates = $payments->pluck('cheque_valid_date')->filter();
+            if ($oldDates->isNotEmpty()) {
+                $maxOld = $oldDates->map(fn ($d) => Carbon::parse($d)->startOfDay())->max();
+                if ($maxOld && $newDate->lte($maxOld)) {
+                    throw new Exception('The new valid date must be after the current valid date.');
+                }
+            }
+
+            $extensionIds = [];
+
+            foreach ($payments as $payment) {
+                $prev = $payment->cheque_valid_date;
+                $payment->cheque_valid_date = $newDate->toDateString();
+                $payment->updated_by = $userId;
+                $payment->save();
+
+                $row = ChequeValidDateExtension::create([
+                    'payment_id' => $payment->id,
+                    'previous_valid_date' => $prev ? Carbon::parse($prev)->toDateString() : null,
+                    'new_valid_date' => $newDate->toDateString(),
+                    'reason' => $reason,
+                    'extended_by' => $userId,
+                ]);
+                $extensionIds[] = $row->id;
+            }
+
+            Log::info('Cheque valid date extended', [
+                'payment_ids' => $paymentIds,
+                'new_valid_date' => $newDate->toDateString(),
+                'extended_by' => $userId,
+            ]);
+
+            return [
+                'payments_updated' => $payments->count(),
+                'new_valid_date' => $newDate->toDateString(),
+                'extension_ids' => $extensionIds,
+            ];
+        });
     }
 
     /**

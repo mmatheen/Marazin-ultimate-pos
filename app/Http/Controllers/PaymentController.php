@@ -12,7 +12,10 @@ use App\Models\SalesReturn;
 use App\Models\PurchaseReturn;
 use App\Models\Location;
 use App\Models\BulkPaymentLog;
+use App\Models\ChequeValidDateExtension;
+use App\Models\Setting;
 use App\Helpers\BalanceHelper;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Log;
 use App\Services\CashRegisterService;
 use App\Services\PaymentService;
@@ -2743,6 +2746,23 @@ class PaymentController extends Controller
             $history = [];
         }
 
+        $validDateExtensions = ChequeValidDateExtension::whereIn('payment_id', $payments->pluck('id'))
+            ->with('user')
+            ->orderByDesc('created_at')
+            ->limit(40)
+            ->get()
+            ->map(function ($e) {
+                return [
+                    'payment_id' => $e->payment_id,
+                    'previous_valid_date' => $e->previous_valid_date?->format('Y-m-d'),
+                    'new_valid_date' => $e->new_valid_date?->format('Y-m-d'),
+                    'reason' => $e->reason,
+                    'extended_by' => $e->user->full_name ?? $e->user->user_name ?? '—',
+                    'created_at' => $e->created_at?->format('d-m-Y H:i'),
+                ];
+            })
+            ->values();
+
         $customerModel = $first->customer;
         $customerPayload = null;
         if ($customerModel) {
@@ -2778,7 +2798,172 @@ class PaymentController extends Controller
             'payments' => $payments,
             'invoices' => $invoices,
             'history' => $history,
+            'valid_date_extensions' => $validDateExtensions,
         ]);
+    }
+
+    /**
+     * PDF listing for bank deposit: one or many cheque groups (grouped by party + cheque no.).
+     */
+    public function chequeDepositPdf(Request $request)
+    {
+        // Accept array (legacy) or comma-separated string (avoids PHP max_input_vars when many rows selected).
+        $raw = $request->input('payment_ids');
+        $ids = [];
+        if (is_array($raw)) {
+            $ids = array_values(array_unique(array_map('intval', $raw)));
+        } elseif (is_string($raw) && $raw !== '') {
+            $ids = array_values(array_unique(array_filter(array_map('intval', preg_split('/[\s,]+/', $raw)))));
+        }
+
+        if ($ids === []) {
+            abort(422, 'No payment IDs were received. If you selected many cheques, try again or contact support (POST may be too large).');
+        }
+
+        $maxIds = 8000;
+        if (count($ids) > $maxIds) {
+            abort(422, "Too many cheques selected (maximum {$maxIds} payment rows). Filter by date or status and try again.");
+        }
+
+        $payments = Payment::query()
+            ->whereIn('id', $ids)
+            ->where('payment_method', 'cheque')
+            ->with(['customer', 'supplier', 'sale', 'purchase', 'originalPayment.sale'])
+            ->get();
+
+        if ($payments->isEmpty()) {
+            abort(404, 'No cheque payments found for the selected rows.');
+        }
+
+        $groups = $payments->groupBy(function ($p) {
+            return implode('|', [
+                (string) ($p->cheque_number ?? ''),
+                (string) ($p->customer_id ?? ''),
+                (string) ($p->supplier_id ?? ''),
+            ]);
+        });
+
+        $groupedRows = $groups->map(function ($group) {
+            /** @var \Illuminate\Support\Collection<int, \App\Models\Payment> $group */
+            $first = $group->first();
+            $totalAmount = abs($group->sum('amount') ?? 0);
+
+            $invoiceRefs = $group->map(function ($p) {
+                if (($p->payment_type ?? '') === 'purchase' && $p->purchase) {
+                    return $p->purchase->reference_no ?? $p->reference_no ?? '—';
+                }
+                $sale = $p->sale ?? $p->originalPayment?->sale;
+
+                return $sale?->invoice_no ?? $p->reference_no ?? '—';
+            })->filter()->unique()->values()->implode(', ');
+
+            $partyLabel = '—';
+            $partyPhone = null;
+            if ($first->customer_id && $first->customer) {
+                $partyLabel = $first->customer->full_name ?? ('Customer #' . $first->customer_id);
+                $partyPhone = $first->customer->mobile_no ?? null;
+            } elseif ($first->supplier_id && $first->supplier) {
+                $partyLabel = $first->supplier->full_name ?? ('Supplier #' . $first->supplier_id);
+                $partyPhone = $first->supplier->mobile_no ?? null;
+            }
+
+            $recv = $first->cheque_received_date
+                ? Carbon::parse($first->cheque_received_date)->format('d-m-Y')
+                : '—';
+            $valid = $first->cheque_valid_date
+                ? Carbon::parse($first->cheque_valid_date)->format('d-m-Y')
+                : '—';
+
+            $partyKey = implode('|', [
+                (string) ($first->customer_id ?? ''),
+                (string) ($first->supplier_id ?? ''),
+            ]);
+
+            return [
+                'party_key' => $partyKey,
+                'party_label' => $partyLabel,
+                'party_phone' => $partyPhone,
+                'cheque_number' => $first->cheque_number ?? '—',
+                'bank_branch' => $first->cheque_bank_branch ?? '—',
+                'given_by' => $first->cheque_given_by ?? '—',
+                'received_date' => $recv,
+                'valid_date' => $valid,
+                'status' => $first->cheque_status ?? '—',
+                'payment_type' => $first->payment_type ?? '—',
+                'total_amount' => $totalAmount,
+                'invoice_refs' => $invoiceRefs ?: '—',
+            ];
+        })->values();
+
+        $groupedRows = $groupedRows->sortBy(function ($row) {
+            return ($row['party_label'] ?? '') . '|' . ($row['cheque_number'] ?? '');
+        })->values();
+
+        $customerGroups = $groupedRows->groupBy('party_key')->map(function ($rows) {
+            $first = $rows->first();
+
+            return [
+                'party_label' => $first['party_label'] ?? '—',
+                'party_phone' => $first['party_phone'] ?? null,
+                'rows' => $rows->values(),
+                'subtotal' => (float) $rows->sum('total_amount'),
+                'cheque_count' => $rows->count(),
+            ];
+        })->values()->sortBy('party_label')->values();
+
+        $grandTotal = (float) $groupedRows->sum('total_amount');
+        $setting = Setting::first();
+        $user = auth()->user();
+        $preparedBy = $user->full_name ?? $user->user_name ?? '—';
+        $printedAt = now()->format('d-m-Y H:i');
+
+        $pdf = Pdf::loadView('sell.cheque_deposit_pdf', [
+            'customerGroups' => $customerGroups,
+            'grandTotal' => $grandTotal,
+            'setting' => $setting,
+            'preparedBy' => $preparedBy,
+            'printedAt' => $printedAt,
+            'customerCount' => $customerGroups->count(),
+            'chequeCount' => $groupedRows->count(),
+        ])->setPaper('a4', 'portrait');
+
+        $filename = 'cheque-deposit-' . now()->format('Y-m-d-His') . '.pdf';
+
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Extend cheque valid date (customer-requested); updates all payment rows for the grouped cheque.
+     */
+    public function extendChequeValidDate(Request $request)
+    {
+        $request->validate([
+            'payment_ids' => 'required|array|min:1',
+            'payment_ids.*' => 'integer|exists:payments,id',
+            'new_cheque_valid_date' => 'required|date',
+            'reason' => 'required|string|min:3|max:2000',
+        ]);
+
+        try {
+            $chequeService = app(ChequeService::class);
+            $result = $chequeService->extendValidDate(
+                $request->payment_ids,
+                $request->new_cheque_valid_date,
+                $request->reason,
+                auth()->id()
+            );
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Cheque valid date extended successfully.',
+                'data' => $result,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 422,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
     }
 
     /**

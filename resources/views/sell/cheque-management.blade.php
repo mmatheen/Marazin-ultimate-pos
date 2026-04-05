@@ -786,6 +786,7 @@
                             <button type="button" class="btn btn-outline-secondary btn-sm cheque-bulk-btn" id="bulkDeposit" disabled title="Select pending cheques on this page, then mark as deposited"><i class="fas fa-university"></i><span class="d-none d-md-inline ms-1">Deposit</span></button>
                             <button type="button" class="btn btn-outline-secondary btn-sm cheque-bulk-btn" id="bulkBounce" disabled title="Select deposited cheques on this page, then mark as bounced"><i class="fas fa-times"></i><span class="d-none d-md-inline ms-1">Bounce</span></button>
                             <button type="button" class="btn btn-outline-secondary btn-sm cheque-bulk-btn" id="bulkRecoveryPayment" disabled title="Select bounced cheques on this page for recovery"><i class="fas fa-money-bill-wave"></i><span class="d-none d-lg-inline ms-1">Recovery</span></button>
+                            <button type="button" class="btn btn-outline-primary btn-sm cheque-bulk-btn" id="bulkPdfDeposit" disabled title="Download PDF for bank deposit (selected rows; one row per cheque)"><i class="fas fa-file-pdf text-danger"></i><span class="d-none d-md-inline ms-1">Deposit PDF</span></button>
                             <button type="button" class="btn btn-outline-secondary btn-sm {{ $showRecoveredRows ? 'active' : '' }}" id="toggleRecoveredRows" title="Toggle recovered bounced">
                                 <i class="fas fa-{{ $showRecoveredRows ? 'eye' : 'eye-slash' }}"></i>
                             </button>
@@ -794,7 +795,7 @@
                     </div>
                     <div class="mt-2 small text-muted">
                         <div><span id="selectedCount">0</span> selected <span class="d-none d-md-inline">· applies to <strong>this page</strong> only</span></div>
-                        <div class="mt-1 cheque-bulk-hint"><i class="fas fa-info-circle me-1" aria-hidden="true"></i>Tick rows, then enable Clear / Deposit / Bounce / Recovery based on status.</div>
+                        <div class="mt-1 cheque-bulk-hint"><i class="fas fa-info-circle me-1" aria-hidden="true"></i>Tick rows, then enable Clear / Deposit / Bounce / Recovery based on status. Use <strong>Deposit PDF</strong> anytime you need a printable list for the bank.</div>
                         <div class="mt-2 d-flex flex-wrap align-items-center gap-3 cheque-overdue-legend" title="Left edge of a row matches overdue severity">
                             <span class="fw-semibold text-secondary me-1">Row bar:</span>
                             <span><span class="cheque-legend-bar cheque-legend-bar--sev1" aria-hidden="true"></span> 1–7d overdue</span>
@@ -941,6 +942,10 @@
     </div>
 </div>
 
+<form id="chequeDepositPdfForm" method="POST" action="{{ route('cheque.deposit-pdf') }}" target="_blank" style="display:none;" aria-hidden="true">
+    @csrf
+</form>
+
 <!-- Update Status Modal -->
 <div class="modal fade" id="updateStatusModal" tabindex="-1">
     <div class="modal-dialog">
@@ -1001,12 +1006,48 @@
                     <button type="button" class="btn btn-outline-primary btn-sm" id="chequeDetailsEditBtn">
                         <i class="fas fa-pen me-1" aria-hidden="true"></i>Edit
                     </button>
+                    <button type="button" class="btn btn-outline-info btn-sm" id="chequeDetailsExtendDateBtn" title="Record customer request to extend cheque validity">
+                        <i class="fas fa-calendar-plus me-1" aria-hidden="true"></i>Extend valid date
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" id="chequeDetailsPdfBtn" title="Download PDF for bank deposit (this cheque)">
+                        <i class="fas fa-file-pdf me-1" aria-hidden="true"></i>Deposit PDF
+                    </button>
                     <button type="button" class="btn btn-outline-secondary btn-sm" id="chequeDetailsPrintBtn" title="Print this summary">
                         <i class="fas fa-print me-1" aria-hidden="true"></i>Print
                     </button>
                 </div>
                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Extend cheque valid date (customer request) -->
+<div class="modal fade" id="extendChequeValidDateModal" tabindex="-1" aria-labelledby="extendChequeValidDateModalLabel">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title" id="extendChequeValidDateModalLabel">Extend cheque valid date</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="extendChequeValidDateForm">
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">Use this when the customer asks for a later validity date. The new date must be after the current valid date. All invoices linked to this cheque are updated together.</p>
+                    <input type="hidden" id="extend_payment_ids" name="extend_payment_ids" value="">
+                    <div class="mb-3">
+                        <label for="extend_new_valid_date" class="form-label">New valid date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="extend_new_valid_date" name="new_cheque_valid_date" required>
+                    </div>
+                    <div class="mb-0">
+                        <label for="extend_reason" class="form-label">Reason / customer request <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="extend_reason" name="reason" rows="3" required placeholder="e.g. Customer requested 2-week extension by phone on …"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="extendChequeValidDateSubmit">Save</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -1433,6 +1474,84 @@ $(document).ready(function() {
         printChequeDetailsModal();
     });
 
+    $('#chequeDetailsPdfBtn').on('click', function() {
+        const ctx = $('#chequeDetailsModal').data('ctx');
+        if (!ctx || !ctx.paymentIdsCsv) {
+            return;
+        }
+        const ids = String(ctx.paymentIdsCsv).split(',').map(function(s) { return s.trim(); }).filter(Boolean).map(Number).filter(function(n) { return !Number.isNaN(n); });
+        submitChequeDepositPdf(ids);
+    });
+
+    $('#bulkPdfDeposit').on('click', function() {
+        const ids = getSelectedPaymentIds();
+        submitChequeDepositPdf(ids);
+    });
+
+    $('#chequeDetailsExtendDateBtn').on('click', function() {
+        const ctx = $('#chequeDetailsModal').data('ctx');
+        if (!ctx || !ctx.paymentIdsCsv) {
+            return;
+        }
+        $('#extend_payment_ids').val(ctx.paymentIdsCsv);
+        const prev = (ctx.chequeValidDate || '').toString();
+        if (prev.length >= 10) {
+            const d = new Date(prev.substring(0, 10) + 'T12:00:00');
+            d.setDate(d.getDate() + 1);
+            $('#extend_new_valid_date').attr('min', d.toISOString().slice(0, 10)).val('');
+        } else {
+            $('#extend_new_valid_date').removeAttr('min').val('');
+        }
+        $('#extend_reason').val('');
+        hideChequeDetailsModal();
+        setTimeout(function () {
+            showChequeManagementModal('extendChequeValidDateModal');
+        }, 200);
+    });
+
+    $('#extendChequeValidDateForm').on('submit', function(e) {
+        e.preventDefault();
+        const raw = ($('#extend_payment_ids').val() || '').trim();
+        const payment_ids = String(raw).split(',').map(function(s) { return s.trim(); }).filter(Boolean).map(Number).filter(function(n) { return !Number.isNaN(n); });
+        if (!payment_ids.length) {
+            toastr.error('Missing payment reference', 'Error');
+            return;
+        }
+        $.ajax({
+            url: '{{ route("cheque.extend-valid-date") }}',
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                'Accept': 'application/json'
+            },
+            data: {
+                payment_ids: payment_ids,
+                new_cheque_valid_date: $('#extend_new_valid_date').val(),
+                reason: $('#extend_reason').val()
+            },
+            success: function(response) {
+                if (response.status === 200) {
+                    toastr.success(response.message || 'Valid date updated', 'Success');
+                    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                        const em = document.getElementById('extendChequeValidDateModal');
+                        if (em) {
+                            bootstrap.Modal.getOrCreateInstance(em).hide();
+                        }
+                    } else {
+                        $('#extendChequeValidDateModal').modal('hide');
+                    }
+                    setTimeout(function() { location.reload(); }, 800);
+                } else {
+                    toastr.error(response.message || 'Update failed', 'Error');
+                }
+            },
+            error: function(xhr) {
+                const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Failed to extend valid date';
+                toastr.error(msg, 'Error');
+            }
+        });
+    });
+
     $('#chequeDetailsModal').on('hidden.bs.modal', function () {
         if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
             $(this).find('[data-bs-toggle="tooltip"]').each(function () {
@@ -1702,7 +1821,7 @@ function updateBulkActionButtons() {
     $('#selectedCount').text(selectedCount);
 
     // Disable all bulk actions initially
-    $('#bulkClear, #bulkDeposit, #bulkBounce, #bulkRecoveryPayment').prop('disabled', true);
+    $('#bulkClear, #bulkDeposit, #bulkBounce, #bulkRecoveryPayment, #bulkPdfDeposit').prop('disabled', true);
     $tb.removeClass('cheque-bulk-has-selection');
 
     if (selectedCount > 0) {
@@ -1737,6 +1856,8 @@ function updateBulkActionButtons() {
         if (canRecovery) {
             $('#bulkRecoveryPayment').prop('disabled', false);
         }
+
+        $('#bulkPdfDeposit').prop('disabled', false);
 
         // If no valid actions available, show a message
         if (!canClear && !canDeposit && !canBounce && !canRecovery) {
@@ -2106,6 +2227,27 @@ function hideChequeDetailsModal() {
     $(el).modal('hide');
 }
 
+function submitChequeDepositPdf(paymentIds) {
+    if (!paymentIds || !paymentIds.length) {
+        toastr.warning('No cheques selected for PDF', 'Nothing to print');
+        return;
+    }
+    const form = document.getElementById('chequeDepositPdfForm');
+    if (!form) {
+        return;
+    }
+    // Single comma-separated field avoids PHP max_input_vars (often 1000) when "select all" sends many IDs.
+    form.querySelectorAll('input[name="payment_ids[]"], input[name="payment_ids"]').forEach(function(el) {
+        el.remove();
+    });
+    const inp = document.createElement('input');
+    inp.type = 'hidden';
+    inp.name = 'payment_ids';
+    inp.value = paymentIds.join(',');
+    form.appendChild(inp);
+    form.submit();
+}
+
 function printChequeDetailsModal() {
     const body = document.getElementById('chequeDetailsContent');
     if (!body) {
@@ -2213,7 +2355,8 @@ function viewChequeDetailsFromRow(btnEl) {
                 $('#chequeDetailsModal').data('ctx', {
                     paymentIdsCsv: paymentIdsCsv,
                     groupId: groupId,
-                    currentStatus: effectiveStatus
+                    currentStatus: effectiveStatus,
+                    chequeValidDate: cheque.cheque_valid_date || null
                 });
 
                 const customerName = customer.full_name
@@ -2296,6 +2439,29 @@ function viewChequeDetailsFromRow(btnEl) {
                     `;
                 }
 
+                const extList = response.valid_date_extensions || [];
+                let extHtml = '';
+                if (extList.length) {
+                    const extRows = extList.map(function (x) {
+                        const from = x.previous_valid_date ? escapeHtml(String(x.previous_valid_date)) : '—';
+                        const to = escapeHtml(String(x.new_valid_date || ''));
+                        return '<tr><td>' + escapeHtml(String(x.created_at || '')) + '</td><td>' + from + '</td><td>' + to + '</td><td>' + escapeHtml(String(x.extended_by || '')) + '</td><td>' + escapeHtml(String(x.reason || '')) + '</td></tr>';
+                    }).join('');
+                    extHtml = `
+                        <div class="col-12 mt-2">
+                            <div class="cheque-details-section-title">Valid date change history</div>
+                            <div class="table-responsive rounded border">
+                                <table class="table table-sm table-hover mb-0 align-middle">
+                                    <thead class="table-light">
+                                        <tr><th>When</th><th>Previous</th><th>New</th><th>By</th><th>Reason</th></tr>
+                                    </thead>
+                                    <tbody>${extRows}</tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                }
+
                 const detailsHtml = `
                     <div class="row g-4">
                         <div class="col-12 col-lg-6">
@@ -2331,6 +2497,7 @@ function viewChequeDetailsFromRow(btnEl) {
                             </dl>
                         </div>
                         ${bounceImpactHtml}
+                        ${extHtml}
                     </div>
                     ${invoicesTable}
                 `;
@@ -2339,6 +2506,9 @@ function viewChequeDetailsFromRow(btnEl) {
 
                 const depositDisabled = ['deposited', 'cleared', 'bounced', 'cancelled'].indexOf(effectiveStatus) !== -1;
                 $('#chequeDetailsDepositBtn').prop('disabled', depositDisabled);
+
+                const extendDisabled = ['cleared', 'bounced', 'cancelled', 'mixed'].indexOf(effectiveStatus) !== -1;
+                $('#chequeDetailsExtendDateBtn').prop('disabled', extendDisabled);
 
                 if (!showChequeManagementModal('chequeDetailsModal')) {
                     toastr.error('Modal could not be opened. Please refresh the page.', 'UI Error');

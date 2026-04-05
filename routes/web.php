@@ -417,6 +417,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/cheque/pending-reminders', [PaymentController::class, 'pendingChequeReminders'])->name('cheque.pending-reminders');
         Route::post('/cheque/mark-reminder-sent/{reminderId}', [PaymentController::class, 'markReminderSent'])->name('cheque.mark-reminder-sent');
         Route::post('/cheque/bulk-update-status', [PaymentController::class, 'bulkUpdateChequeStatus'])->name('cheque.bulk-update-status');
+        Route::post('/cheque/extend-valid-date', [PaymentController::class, 'extendChequeValidDate'])->name('cheque.extend-valid-date');
+        Route::post('/cheque/deposit-pdf', [PaymentController::class, 'chequeDepositPdf'])->name('cheque.deposit-pdf');
 
          // -------------------- PaymentController Routes --------------------
         Route::get('payments', [PaymentController::class, 'index']);
