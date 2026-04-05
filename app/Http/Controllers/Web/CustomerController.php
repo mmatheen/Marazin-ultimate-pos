@@ -40,6 +40,15 @@ class CustomerController extends Controller
         return view('contact.customer.customer', compact('cities', 'customerGroups'));
     }
 
+    public function viewContact(int $id)
+    {
+        $customer = Customer::withoutLocationScope()
+            ->with(['city:id,name'])
+            ->findOrFail($id);
+
+        return view('contact.customer.view_contact_tabs', compact('customer'));
+    }
+
     public function importCustomer()
     {
         return view('contact.customer.import_customer');
@@ -102,7 +111,11 @@ class CustomerController extends Controller
             ->groupBy('customer_id')
             ->pluck('total_return_due', 'customer_id');
 
-        $customers = $customers->map(function ($customer) use ($balances, $advances, $salesDues, $returnDues) {
+        $repInvoiceDues = $salesRepAssignments->isNotEmpty()
+            ? BalanceHelper::getBulkSalesRepOpenInvoiceDues($customerIds, (int) $user->id)
+            : collect();
+
+        $customers = $customers->map(function ($customer) use ($balances, $advances, $salesDues, $returnDues, $repInvoiceDues) {
             // Concatenate full name in PHP instead of using accessor
             $fullName = trim(($customer->prefix ? $customer->prefix . ' ' : '') .
                             $customer->first_name . ' ' .
@@ -132,6 +145,7 @@ class CustomerController extends Controller
                 'total_return_due' => $totalReturnDue, // ✅ Actual returns from sales_returns table
                 'total_advance_credit' => (float)$advanceCredit, // ✅ Advance credit from overpayments
                 'current_due' => (float)max(0, $currentBalance), // Only positive balances (customer owes)
+                'my_invoice_due' => (float) $repInvoiceDues->get($customer->id, 0.0),
                 'city_id' => $customer->city_id,
                 'city_name' => $customer->city?->name ?? '',
                 'credit_limit' => (float)$customer->credit_limit,
@@ -143,7 +157,8 @@ class CustomerController extends Controller
             'status' => 200,
             'message' => $customers,
             'total_customers' => $customers->count(),
-            'sales_rep_info' => $salesRepAssignments->isNotEmpty() ? $this->getSalesRepInfoFromAssignments($salesRepAssignments) : null
+            'sales_rep_info' => $salesRepAssignments->isNotEmpty() ? $this->getSalesRepInfoFromAssignments($salesRepAssignments) : null,
+            'show_rep_invoice_due' => $salesRepAssignments->isNotEmpty(),
         ]);
     }
 
@@ -737,30 +752,40 @@ class CustomerController extends Controller
         // The frontend route selection already determines which city IDs to send
         // So we trust the city_ids provided and don't further restrict by sales rep's default route
 
-        $customers = $customers->orderBy('first_name')
-            ->get()
-            ->map(function ($customer) {
-                return [
-                    'id' => $customer->id,
-                    'prefix' => $customer->prefix,
-                    'first_name' => $customer->first_name,
-                    'last_name' => $customer->last_name,
-                    'full_name' => $customer->full_name,
-                    'mobile' => $customer->mobile_no,
-                    'email' => $customer->email,
-                    'address' => $customer->address,
-                    'city_id' => $customer->city_id,
-                    'city_name' => $customer->city?->name ?? '',
-                    'customer_type' => $customer->customer_type,
-                    'credit_limit' => (float)$customer->credit_limit,
-                    'current_balance' => (float)$customer->current_balance,
-                ];
-            });
+        $customers = $customers->orderBy('first_name')->get();
+        $filteredIds = $customers->pluck('id')->toArray();
+        $balances = BalanceHelper::getBulkCustomerBalances($filteredIds);
+        $repInvoiceDues = ($user && $isSalesRep)
+            ? BalanceHelper::getBulkSalesRepOpenInvoiceDues($filteredIds, (int) $user->id)
+            : collect();
+
+        $customers = $customers->map(function ($customer) use ($balances, $repInvoiceDues, $isSalesRep) {
+            $currentBalance = (float) $balances->get($customer->id, (float) $customer->opening_balance);
+
+            return [
+                'id' => $customer->id,
+                'prefix' => $customer->prefix,
+                'first_name' => $customer->first_name,
+                'last_name' => $customer->last_name,
+                'full_name' => $customer->full_name,
+                'mobile' => $customer->mobile_no,
+                'email' => $customer->email,
+                'address' => $customer->address,
+                'city_id' => $customer->city_id,
+                'city_name' => $customer->city?->name ?? '',
+                'customer_type' => $customer->customer_type,
+                'credit_limit' => (float) $customer->credit_limit,
+                'current_balance' => $currentBalance,
+                'current_due' => (float) max(0, $currentBalance),
+                'my_invoice_due' => $isSalesRep ? (float) $repInvoiceDues->get($customer->id, 0.0) : 0.0,
+            ];
+        });
 
         return response()->json([
             'status' => 200,
             'customers' => $customers,
-            'total_customers' => $customers->count()
+            'total_customers' => $customers->count(),
+            'show_rep_invoice_due' => $isSalesRep,
         ]);
     }
 

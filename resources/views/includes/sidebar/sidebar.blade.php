@@ -302,11 +302,10 @@
                     </li>
                 @endcanany
 
-                <li class="menu-title">
-                    <span>Stock</span>
-                </li>
-
                 @canany(['view stock-transfer', 'create stock-transfer', 'view stock-adjustment', 'create stock-adjustment'])
+                    <li class="menu-title">
+                        <span>Stock</span>
+                    </li>
                     <li class="submenu {{ set_active(['list-stock-transfer', 'add-stock-transfer', 'list-stock-adjustment', 'add-stock-adjustment']) }}">
                         <a href="#">
                             <i class="fas fa-warehouse"></i>
@@ -386,11 +385,10 @@
                 </li>
                 @endcanany
 
-                <li class="menu-title">
-                    <span>Reports</span>
-                </li>
-
                 @canany(['view daily-report', 'view sales-report', 'view purchase-report', 'view stock-report', 'view profit-loss-report', 'view payment-report'])
+                    <li class="menu-title">
+                        <span>Reports</span>
+                    </li>
                     <li class="submenu {{ set_active(['sales-report', 'purchase-report', 'stock-report', 'daily-report', 'profit-loss.report', 'payment.report', 'due-report']) }}">
                         <a href="#">
                             <i class="fas fa-chart-line"></i>
@@ -419,11 +417,10 @@
                     </li>
                 @endcanany
 
-                <li class="menu-title">
-                    <span>System</span>
-                </li>
-
                 @canany(['view location', 'view settings'])
+                    <li class="menu-title">
+                        <span>System</span>
+                    </li>
                     <li class="submenu {{ set_active(['location', 'settings.index', 'tax-rates']) }}">
                         <a href="#">
                             <i class="fas fa-cog"></i>

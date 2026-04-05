@@ -397,6 +397,18 @@
             return (str || '').toString().toLowerCase().replace(/[^a-z0-9]/gi, '');
         }
 
+        /** Total sellable stock: paid qty + free qty (same as POS autocomplete). Unlimited products → 'Unlimited'. */
+        function purchaseSellableStockDisplay(stockRow) {
+            const p = stockRow && stockRow.product;
+            if (!p) return 0;
+            if (p.stock_alert === 0 || p.stock_alert === '0') {
+                return 'Unlimited';
+            }
+            const paid = parseFloat(stockRow.total_stock) || 0;
+            const free = parseFloat(stockRow.total_free_stock) || 0;
+            return paid + free;
+        }
+
         function initAutocomplete() {
             const $input = $("#productSearchInput");
 
@@ -449,14 +461,16 @@
                         success: function(data) {
                             if (data.status === 200 && Array.isArray(data.data)) {
                                 let items = data.data
-                                    .map(item => ({
-                                        label: `${item.product.product_name} (${item.product.sku || 'N/A'}) [Stock: ${item.total_stock || 0}]`,
+                                    .map(item => {
+                                        const stockDisplay = purchaseSellableStockDisplay(item);
+                                        return {
+                                        label: `${item.product.product_name} (${item.product.sku || 'N/A'}) [Stock: ${stockDisplay}]`,
                                         value: item.product.product_name,
                                         product: {
                                             id: item.product.id,
                                             name: item.product.product_name,
                                             sku: item.product.sku || "N/A",
-                                            quantity: item.total_stock || 0,
+                                            quantity: stockDisplay,
                                             price: item.product
                                                 .original_price || 0,
                                             wholesale_price: item.product
@@ -477,7 +491,8 @@
                                                 .is_imei_or_serial_no || false,
                                             tax_percent: item.product.tax_percent || 0
                                         }
-                                    }));
+                                    };
+                                    });
 
                                 // Remove client-side filtering - let server-side prioritization handle this
                                 // Server already returns results ordered by: exact SKU match > exact name > partial matches
@@ -570,7 +585,7 @@
                                 id: stock.product.id,
                                 name: stock.product.product_name,
                                 sku: stock.product.sku || "N/A",
-                                quantity: stock.total_stock || 0,
+                                quantity: purchaseSellableStockDisplay(stock),
                                 price: stock.batches?.[0]?.unit_cost || stock.product
                                     .original_price || 0,
                                 wholesale_price: stock.batches?.[0]?.wholesale_price || stock

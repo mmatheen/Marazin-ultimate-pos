@@ -45,6 +45,10 @@
                         <div class="text-muted small">Amount to Pay</div>
                         <div class="h3 fw-bold text-danger mb-0" id="netCustomerDue">Rs. 48750.00</div>
                         <div class="text-muted small" id="netCalculation">Sale Due - Returns</div>
+                        <div id="bulkRepMyInvoicesLine" class="text-muted small mt-1" style="display: none;">
+                            My invoices due:
+                            <strong class="text-secondary">Rs. <span id="bulkRepMyInvoicesAmount">0.00</span></strong>
+                        </div>
                     </div>
                 </div>
 
@@ -471,6 +475,7 @@ function loadCustomersForBulkPayment() {
             customerSelect.append('<option value="" selected disabled>Select Customer</option>');
 
             if (response.status === 200 && response.message && response.message.length > 0) {
+                window.bulkPaymentShowRepDue = !!response.show_rep_invoice_due;
                 response.message.forEach(function(customer) {
                     // Skip walk-in customer (customer ID 1)
                     if (customer.id === 1) {
@@ -506,12 +511,14 @@ function loadCustomersForBulkPayment() {
                             displayText += ' (Sales Due)';
                         }
 
+                        var myInv = parseFloat(customer.my_invoice_due) || 0;
                         customerSelect.append(
                             '<option value="' + customer.id +
                             '" data-opening-balance="' + openingBalance +
                             '" data-sale-due="' + saleDue +
                             '" data-total-due="' + currentDue +
                             '" data-advance-credit="' + advanceCredit +
+                            '" data-my-invoice-due="' + myInv +
                             '">' + displayText + '</option>'
                         );
                     }
@@ -746,6 +753,7 @@ $(document).on('change', '#customerSelect', function() {
         $('#paymentMethodSection').hide();
         $('#notesSection').hide();
         $('#submitButtonSection').hide();
+        $('#bulkRepMyInvoicesLine').hide();
         return;
     }
 
@@ -811,6 +819,14 @@ $(document).on('change', '#customerSelect', function() {
     // Set amount to pay
     $('#netCustomerDue').text('Rs. ' + totalDue.toFixed(2));
     window.netCustomerDue = totalDue;
+
+    var myInvDueBulk = parseFloat(selectedOption.data('my-invoice-due')) || 0;
+    if (window.bulkPaymentShowRepDue) {
+        $('#bulkRepMyInvoicesAmount').text(myInvDueBulk.toFixed(2));
+        $('#bulkRepMyInvoicesLine').show();
+    } else {
+        $('#bulkRepMyInvoicesLine').hide();
+    }
 
     // Reset and clear previous validation errors
     $('#globalPaymentAmount').removeClass('is-invalid').next('.invalid-feedback').remove();

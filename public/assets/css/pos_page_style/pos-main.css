@@ -1531,6 +1531,34 @@
             font-size: 13px !important;
         }
 
+        /* Customer + product search row: cols must shrink so Select2 does not spill into next column */
+        .pos-customer-search-header > [class*="col-"] {
+            min-width: 0;
+        }
+
+        /* Select2 + add-customer: flex min-width 0 stops overlap into + btn / product search */
+        .pos-customer-row {
+            min-width: 0;
+            gap: 0.25rem;
+        }
+        .pos-customer-select-wrap {
+            min-width: 0;
+        }
+        .pos-customer-select-wrap .select2-container {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+        .pos-customer-select-wrap .select2-container--default .select2-selection--single .select2-selection__rendered {
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+        }
+        .pos-customer-row .pos-add-customer-btn {
+            flex-shrink: 0 !important;
+            position: relative;
+            z-index: 2;
+        }
+
         .batch-dropdown {
             width: 100%;
             margin-top: 5px;

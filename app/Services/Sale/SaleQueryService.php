@@ -3,6 +3,7 @@
 namespace App\Services\Sale;
 
 use App\Models\Sale;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
@@ -16,7 +17,21 @@ use Illuminate\Http\Request;
  */
 class SaleQueryService
 {
-    private const WITH_FULL = ['products.product', 'customer', 'location', 'payments', 'user'];
+    /**
+     * Eager loads for POS recent transactions and similar lists.
+     * Customer must use withoutGlobalScopes() — otherwise LocationScope (and sales-rep city filter)
+     * drops the relation and the UI shows "Walk-In Customer" for every row.
+     */
+    private static function withFullListing(): array
+    {
+        return [
+            'products.product',
+            'customer' => fn ($q) => $q->withoutGlobalScopes(),
+            'location',
+            'payments',
+            'user',
+        ];
+    }
 
     // -------------------------------------------------------------------------
     // PUBLIC API
@@ -76,9 +91,12 @@ class SaleQueryService
      */
     public function getByInvoiceNo(string $invoiceNo): array
     {
-        $sale = Sale::with(['products.product.unit', 'salesReturns'])
-            ->where('invoice_no', $invoiceNo)
-            ->first();
+        $query = Sale::with(['products.product.unit', 'salesReturns'])
+            ->where('invoice_no', $invoiceNo);
+
+        $this->applyViewOwnSalesRestriction($query);
+
+        $sale = $query->first();
 
         if (!$sale) {
             throw new ModelNotFoundException('Sale not found');
@@ -134,9 +152,14 @@ class SaleQueryService
      */
     public function search(string $term): Collection
     {
-        return Sale::where('invoice_no', 'LIKE', '%' . $term . '%')
-            ->orWhere('id', 'LIKE', '%' . $term . '%')
-            ->get(['invoice_no as value', 'id']);
+        $query = Sale::where(function ($q) use ($term) {
+            $q->where('invoice_no', 'LIKE', '%' . $term . '%')
+                ->orWhere('id', 'LIKE', '%' . $term . '%');
+        });
+
+        $this->applyViewOwnSalesRestriction($query);
+
+        return $query->get(['invoice_no as value', 'id']);
     }
 
     /**
@@ -144,12 +167,15 @@ class SaleQueryService
      */
     public function getSuspended(): \Illuminate\Support\Collection
     {
-        return Sale::where('status', 'suspend')
+        $query = Sale::where('status', 'suspend')
             ->with([
                 'customer' => fn ($q) => $q->withoutGlobalScopes(),
                 'products.product',
-            ])
-            ->get()
+            ]);
+
+        $this->applyViewOwnSalesRestriction($query);
+
+        return $query->get()
             ->map(fn ($sale) => [
                 'id'          => $sale->id,
                 'invoice_no'  => $sale->invoice_no,
@@ -166,49 +192,78 @@ class SaleQueryService
     // PRIVATE HELPERS
     // -------------------------------------------------------------------------
 
+    /**
+     * Same rule as SaleDataTableService: users with only "view own sales" must not see others' rows.
+     * Applied here because Recent Transactions uses SaleQueryService, not the DataTable service.
+     */
+    private function applyViewOwnSalesRestriction(Builder $query): void
+    {
+        $user = auth()->user();
+        if ($user && $user->can('view own sales') && ! $user->can('view all sales')) {
+            $table = $query->getModel()->getTable();
+            $query->where($table . '.user_id', $user->id);
+        }
+    }
+
     private function recentTransactions(): Collection
     {
-        return Sale::with(self::WITH_FULL)
+        $query = Sale::with(self::withFullListing())
             ->where(fn ($q) => $q->where('transaction_type', 'invoice')->orWhereNull('transaction_type'))
             ->whereIn('status', ['final', 'quotation', 'draft', 'jobticket', 'suspend'])
             ->where('payment_status', '!=', 'Cancelled')
-            ->orderBy('created_at', 'desc')
-            ->limit(200)
-            ->get();
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(200);
+
+        $this->applyViewOwnSalesRestriction($query);
+
+        return $query->get();
     }
 
     private function saleOrders(): Collection
     {
-        return Sale::with(self::WITH_FULL)
+        $query = Sale::with(self::withFullListing())
             ->where('transaction_type', 'sale_order')
-            ->orderBy('created_at', 'desc')
-            ->limit(200)
-            ->get();
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(200);
+
+        $this->applyViewOwnSalesRestriction($query);
+
+        return $query->get();
     }
 
     private function byStatus(string $status): Collection
     {
-        return Sale::with(self::WITH_FULL)
+        $query = Sale::with(self::withFullListing())
             ->where('status', $status)
-            ->orderBy('created_at', 'desc')
-            ->limit(200)
-            ->get();
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(200);
+
+        $this->applyViewOwnSalesRestriction($query);
+
+        return $query->get();
     }
 
     private function finalInvoices(Request $request): Collection
     {
         $query = $request->has('customer_id')
             ? Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
-                ->with(self::WITH_FULL)
+                ->with(self::withFullListing())
                 ->where('customer_id', $request->customer_id)
-            : Sale::with(self::WITH_FULL);
+            : Sale::with(self::withFullListing());
 
-        return $query
+        $query
             ->where('status', 'final')
             ->where('transaction_type', '!=', 'sale_order')
             ->where(fn ($q) => $q->where('transaction_type', 'invoice')->orWhereNull('transaction_type'))
-            ->orderBy('created_at', 'desc')
-            ->limit(100)
-            ->get();
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(100);
+
+        $this->applyViewOwnSalesRestriction($query);
+
+        return $query->get();
     }
 }

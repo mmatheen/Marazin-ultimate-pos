@@ -200,7 +200,7 @@
                         success: function(data) {
                             if (data && data.products && data.products.length > 0) {
                                 const results = data.products.map(product => ({
-                                    label: `${product.product.product_name} ${product.product.sku ? `(${product.product.sku})` : ''} [Stock: ${product.total_stock} + ${product.total_free_stock || 0} Free]`,
+                                    label: `${product.product.product_name} ${product.product.sku ? `(${product.product.sku})` : ''} [Stock: ${(parseFloat(product.total_stock) || 0) + (parseFloat(product.total_free_stock) || 0)}]`,
                                     value: product.product.product_name,
                                     product: {
                                         id: product.product.id,

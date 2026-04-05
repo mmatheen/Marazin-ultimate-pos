@@ -605,6 +605,15 @@
             originalOpeningBalance = parseFloat(selectedOption.data('opening-balance')) || 0;
             saleDueAmount = parseFloat(selectedOption.data('sale-due')) || 0;
             totalDueAmount = parseFloat(selectedOption.data('total-due')) || 0;
+            var myInvSel = parseFloat(selectedOption.data('my-invoice-due')) || 0;
+            if ($('#bulkRepMyInvoicesLine').length) {
+                if (window.bulkPaymentShowRepDue) {
+                    $('#bulkRepMyInvoicesAmount').text(myInvSel.toFixed(2));
+                    $('#bulkRepMyInvoicesLine').show();
+                } else {
+                    $('#bulkRepMyInvoicesLine').hide();
+                }
+            }
 
             // Display balance breakdown with proper currency formatting
             $('#openingBalance').text('Rs. ' + originalOpeningBalance.toFixed(2));
@@ -886,6 +895,7 @@
 
                     if (response.status === 200 && response.message && response.message.length >
                         0) {
+                        window.bulkPaymentShowRepDue = !!response.show_rep_invoice_due;
                         response.message.forEach(function(customer) {
                             // Skip walk-in customer (customer ID 1)
                             if (customer.id === 1) {
@@ -911,11 +921,13 @@
                                         .toFixed(2) + ']';
                                 }
 
+                                var myInvOpt = parseFloat(customer.my_invoice_due) || 0;
                                 customerSelect.append(
                                     '<option value="' + customer.id +
                                     '" data-opening-balance="' + openingBalance +
                                     '" data-sale-due="' + saleDue +
                                     '" data-total-due="' + currentDue +
+                                    '" data-my-invoice-due="' + myInvOpt +
                                     '">' + displayText + '</option>'
                                 );
                             }
@@ -2612,12 +2624,17 @@
             });
         }
 
-        // Extract the sale ID from the URL and fetch data if editing
+        // Extract the sale ID from the URL and fetch data ONLY on the Sale Edit page
+        // (Prevents false fetches on pages whose last URL segment is numeric, e.g. customer/view-contact/{id})
         $(document).ready(function() {
-            const pathSegments = window.location.pathname.split('/');
-            const saleId = pathSegments[pathSegments.length - 1];
+            const pathname = window.location.pathname || '';
+            if (!pathname.startsWith('/sales/edit/')) {
+                return;
+            }
 
-            if (saleId && saleId !== 'add-sale' && saleId !== 'list-sale') {
+            const pathSegments = pathname.split('/').filter(Boolean);
+            const saleId = pathSegments[pathSegments.length - 1];
+            if (saleId) {
                 fetchSaleData(saleId);
             }
         });
@@ -2662,36 +2679,14 @@
 
     });
 
-    // Add filter functionality
-    // Initialize date range picker
-    $('#dateRangeFilter').daterangepicker({
-        autoUpdateInput: false,
-        locale: {
-            cancelLabel: 'Clear',
-            format: 'YYYY-MM-DD'
-        }
-    });
-
-    $('#dateRangeFilter').on('apply.daterangepicker', function(ev, picker) {
-        $(this).val(picker.startDate.format('YYYY-MM-DD') + ' - ' + picker.endDate.format('YYYY-MM-DD'));
-    });
-
-    $('#dateRangeFilter').on('cancel.daterangepicker', function(ev, picker) {
-        $(this).val('');
-    });
-
-    // Filter change events
-    $('#locationFilter, #customerFilter, #userFilter, #paymentStatusFilter, #paymentMethodFilter').change(function() {
-        if ($.fn.DataTable.isDataTable('#salesTable')) {
-            $('#salesTable').DataTable().ajax.reload();
-        }
-    });
-
-    // Date range filter change
-    $('#dateRangeFilter').on('apply.daterangepicker', function(ev, picker) {
-        if ($.fn.DataTable.isDataTable('#salesTable')) {
-            $('#salesTable').DataTable().ajax.reload();
-        }
+    // Add filter functionality (must run after vendor scripts are loaded)
+    $(function() {
+        // Filter change events
+        $('#locationFilter, #customerFilter, #userFilter, #paymentStatusFilter, #paymentMethodFilter').change(function() {
+            if ($.fn.DataTable.isDataTable('#salesTable')) {
+                $('#salesTable').DataTable().ajax.reload();
+            }
+        });
     });
 
     // Function to toggle payment method fields in bulk payment modal
@@ -2714,8 +2709,14 @@
         }
     }
 
-    // Initialize date range picker
-    if ($('#dateRangeFilter').length) {
+    // Initialize date range picker (guard if plugin not loaded yet)
+    $(function() {
+        if (!$('#dateRangeFilter').length) return;
+        if (!$.fn.daterangepicker) {
+            console.error('daterangepicker plugin is not loaded. Ensure vendor/daterangepicker/daterangepicker.min.js is included.');
+            return;
+        }
+
         $('#dateRangeFilter').daterangepicker({
             autoUpdateInput: false,
             locale: {
@@ -2745,7 +2746,7 @@
             // Trigger change event to reload table
             $(this).trigger('change');
         });
-    }
+    });
 
     // Fix Select2 initialization for filter dropdowns in collapsed section
     // Re-initialize Select2 when the filter collapse is shown

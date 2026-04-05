@@ -3,6 +3,21 @@
         let productIndex = 1;
         let locationFilteredProducts = [];
 
+        /** Paid + free at location row (location_batches.qty + free_qty). */
+        function transferLocationBatchSellableQty(locBatch) {
+            const paid = parseFloat(locBatch.quantity ?? locBatch.qty) || 0;
+            const free = parseFloat(locBatch.free_quantity ?? locBatch.free_qty) || 0;
+            return paid + free;
+        }
+
+        /** Total sellable for autocomplete row (matches POS). */
+        function transferSellableStockDisplay(data) {
+            const p = data && data.product;
+            if (!p) return 0;
+            if (p.stock_alert === 0 || p.stock_alert === '0') return 'Unlimited';
+            return (parseFloat(data.total_stock) || 0) + (parseFloat(data.total_free_stock) || 0);
+        }
+
           // Set default status to "pending" and date to today
         $('#status').val('pending').trigger('change');
         let today = new Date();
@@ -99,7 +114,7 @@
                     }
                     return batches.some(batch => {
                         const locationBatches = batch.location_batches || batch.locationBatches || [];
-                        return locationBatches.some(locBatch => locBatch.location_id == fromLocationId && parseFloat(locBatch.quantity ?? locBatch.qty) > 0);
+                        return locationBatches.some(locBatch => locBatch.location_id == fromLocationId && transferLocationBatchSellableQty(locBatch) > 0);
                     });
                     });
                     if (locationFilteredProducts.length === 0) {
@@ -109,7 +124,7 @@
                     }]);
                     } else {
                     response(locationFilteredProducts.map(data => ({
-                        label: data.product.product_name + (data.product.sku ? " (" + data.product.sku + ")" : ""),
+                        label: data.product.product_name + (data.product.sku ? " (" + data.product.sku + ")" : "") + ` [Stock: ${transferSellableStockDisplay(data)}]`,
                         value: data.product.product_name,
                         sku: data.product.sku
                     })));
@@ -430,13 +445,13 @@
                 return locationBatches
                     .filter(locBatch =>
                         locBatch.location_id == fromLocationId &&
-                        parseFloat(locBatch.quantity ?? locBatch.qty) > 0
+                        transferLocationBatchSellableQty(locBatch) > 0
                     )
                     .map(locationBatch => ({
                         batch_id: batch.id,
                         batch_no: batch.batch_no,
                         batch_price: parseFloat(batch.retail_price),
-                        batch_quantity: parseFloat(locationBatch.quantity ?? locationBatch.qty),
+                        batch_quantity: transferLocationBatchSellableQty(locationBatch),
                         transfer_quantity: productData.quantity
                     }));
             });
@@ -567,14 +582,14 @@
             return locationBatches
                 .filter(locBatch =>
                 locBatch.location_id == fromLocationId &&
-                parseFloat(locBatch.quantity ?? locBatch.qty) > 0
+                transferLocationBatchSellableQty(locBatch) > 0
                 )
                 .map(locationBatch => ({
                 batch_id: batch.id,
                 batch_no: batch.batch_no,
                 batch_price: parseFloat(batch.retail_price),
-                batch_quantity: parseFloat(locationBatch.quantity ?? locationBatch.qty),
-                transfer_quantity: parseFloat(locationBatch.quantity ?? locationBatch.qty)
+                batch_quantity: transferLocationBatchSellableQty(locationBatch),
+                transfer_quantity: transferLocationBatchSellableQty(locationBatch)
                 }));
             });
 

@@ -136,6 +136,9 @@ function loadTableData(status) {
                     sale.customer.first_name,
                     sale.customer.last_name
                 ].filter(Boolean).join(' ');
+            } else if (sale.customer_id && String(sale.customer_id) !== '1') {
+                // Relation missing (e.g. old API) — avoid labelling credit customers as walk-in
+                customerName = 'Customer #' + sale.customer_id;
             }
 
             // Format the final total

@@ -19,7 +19,8 @@
             fetchCustomerData();
         } else {
             console.log('📌 Sales rep on POS: Skipping initial customer load, waiting for route-based filtering');
-            // Add placeholder option for sales reps
+            // fetchCustomerData() never runs for reps, so set flag here — otherwise "My invoices due" never shows
+            window.posShowRepInvoiceDue = true;
             $('#customer-id').html('<option value="">Please Select</option>');
         }
 
@@ -214,6 +215,9 @@
                                         <li><hr class="dropdown-divider"></li>
                                         <li><h6 class="dropdown-header">Customer Actions</h6></li>
                                         @can('view customer')
+                                            <li><a class="dropdown-item" href="{{ route('customer.view-contact', ['id' => '__ID__']) }}" target="_blank" data-customer-view-contact-link="1">
+                                                <i class="feather-user text-success"></i> View Contact
+                                            </a></li>
                                             <li><a class="dropdown-item ledger_btn" href="#" data-id="${row.id}">
                                                 <i class="feather-book-open text-primary"></i> Ledger
                                             </a></li>
@@ -233,7 +237,8 @@
                             `;
 
                             actions += '</div>';
-                            return actions;
+                            // Replace placeholder __ID__ with real row id
+                            return actions.replaceAll('__ID__', row.id) + '';
                         },
                         orderable: false
                     },
@@ -1002,6 +1007,7 @@
                     customerSelect.empty();
 
                     if (data && data.status === 200 && Array.isArray(data.message)) {
+                        window.posShowRepInvoiceDue = !!data.show_rep_invoice_due;
                         const sortedCustomers = data.message.sort((a, b) => {
                             if (a.first_name === 'Walk-in') return -1;
                             if (b.first_name === 'Walk-in') return 1;
@@ -1031,6 +1037,7 @@
                                 0); // Default due to 0
                             option.data('credit_limit', customer.credit_limit ||
                                 0); // Add credit limit data
+                            option.data('myInvoiceDue', parseFloat(customer.my_invoice_due) || 0);
                             customerSelect.append(option);
                         });
 
@@ -1065,6 +1072,21 @@
             $('#total-due-amount').text(`Rs. ${dueAmount.toFixed(2)}`);
         }
 
+        function updateRepInvoiceDueRow(myInvoiceDue, visible) {
+            const $row = $('#rep-my-invoices-due-row');
+            if (!$row.length) {
+                return;
+            }
+            myInvoiceDue = isNaN(myInvoiceDue) ? 0 : parseFloat(myInvoiceDue);
+            const repDueEnabled = !!window.posShowRepInvoiceDue || !!isSalesRep || !!window.isSalesRep;
+            if (visible && repDueEnabled) {
+                $('#rep-my-invoices-due-amount').text(`Rs. ${myInvoiceDue.toFixed(2)}`);
+                $row.show();
+            } else {
+                $row.hide();
+            }
+        }
+
         function updateCreditLimit(creditLimit, dueAmount = 0, isWalkIn = false) {
             const creditInfoContainer = $('.customer-credit-info');
             const creditLimitElement = $('#credit-limit-amount');
@@ -1073,6 +1095,7 @@
             if (isWalkIn) {
                 // Hide entire credit info section for walk-in customers
                 creditInfoContainer.hide();
+                updateRepInvoiceDueRow(0, false);
             } else {
                 // Show credit info section for other customers
                 creditLimit = isNaN(creditLimit) ? 0 : parseFloat(creditLimit);
@@ -1100,16 +1123,26 @@
 
         $('#customer-id').on('change', function() {
             const selectedOption = $(this).find('option:selected');
+            const customerId = selectedOption.val();
+            const customerText = selectedOption.text().toLowerCase();
+
+            // No customer chosen — hide due/credit strip (avoids empty Rs 0.00 block + saves space)
+            if (customerId === '' || customerId === null || customerId === undefined) {
+                $('.customer-credit-info').hide();
+                updateRepInvoiceDueRow(0, false);
+                return;
+            }
+
             const dueAmount = selectedOption.data('due') || 0;
             const creditLimit = selectedOption.data('credit_limit') || 0;
-            const customerText = selectedOption.text().toLowerCase();
-            const customerId = selectedOption.val();
+            const myInvoiceDue = selectedOption.data('myInvoiceDue') || 0;
 
             // Check if it's walk-in customer (ID = 1 or text contains 'walk-in')
             const isWalkIn = customerId === '1' || customerText.includes('walk-in');
 
             updateDueAmount(dueAmount);
             updateCreditLimit(creditLimit, dueAmount, isWalkIn);
+            updateRepInvoiceDueRow(myInvoiceDue, !isWalkIn);
         });
 
         // City filter change event

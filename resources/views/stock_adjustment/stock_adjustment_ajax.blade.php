@@ -8,6 +8,20 @@
         let productIndex = 0; // Track product index for dynamic row naming
         let productsData = []; // Store fetched products data
 
+        /** Paid + free (same as POS autocomplete). Unlimited → 'Unlimited'. */
+        function adjustmentSellableStockDisplay(item) {
+            const p = item && item.product;
+            if (!p) return 0;
+            if (p.stock_alert === 0 || p.stock_alert === '0') return 'Unlimited';
+            return (parseFloat(item.total_stock) || 0) + (parseFloat(item.total_free_stock) || 0);
+        }
+
+        function locationBatchSellableQty(locBatch) {
+            const paid = parseFloat(locBatch.quantity ?? locBatch.qty) || 0;
+            const free = parseFloat(locBatch.free_quantity ?? locBatch.free_qty) || 0;
+            return paid + free;
+        }
+
         // Fetch and populate location dropdown
         fetchDropdownData('/location-get-all', $('#location_id'), "Select Location");
 
@@ -30,10 +44,10 @@
             },
             success: function(response) {
                 if (response.status === 200) {
-                // Filter out products with 0 total_stock (unless Unlimited)
+                // Keep products with any sellable stock (paid and/or free)
                 const filteredData = response.data.filter(item => {
                     if (item.total_stock === 'Unlimited') return true;
-                    return parseFloat(item.total_stock) > 0;
+                    return adjustmentSellableStockDisplay(item) > 0;
                 });
                 productsData = filteredData;
                 if (filteredData.length === 0 && searchTerm) {
@@ -103,7 +117,7 @@
 
             // Prepare suggestions
             const productSuggestions = customProducts.map(data => ({
-            label: `${data.product.product_name} (${data.product.sku})`,
+            label: `${data.product.product_name} (${data.product.sku}) [Stock: ${adjustmentSellableStockDisplay(data)}]`,
             value: data.product.product_name,
             sku: data.product.sku
             }));
@@ -133,7 +147,7 @@
                     // Only update if the search term hasn't changed during the AJAX call
                     if (latestSearchTerm === term) {
                     const matches = fetchedProducts.map(data => ({
-                        label: `${data.product.product_name} (${data.product.sku})`,
+                        label: `${data.product.product_name} (${data.product.sku}) [Stock: ${adjustmentSellableStockDisplay(data)}]`,
                         value: data.product.product_name,
                         sku: data.product.sku
                     })).filter(item =>
@@ -470,7 +484,7 @@
                 .filter(locationBatch => String(locationBatch.location_id) == String(
                     selectedLocationId))
                 .map(locationBatch => {
-                    const batch_quantity = parseFloat(locationBatch.quantity || locationBatch.qty);
+                    const batch_quantity = locationBatchSellableQty(locationBatch);
                     return (!isNaN(batch_quantity) && batch_quantity > 0) ? {
                         batch_id: locationBatch.batch_id || batch.id,
                         batch_price: parseFloat(batch.retail_price),

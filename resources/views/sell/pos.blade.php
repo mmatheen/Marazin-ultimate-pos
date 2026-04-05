@@ -545,40 +545,49 @@
                                     <p id="sale-invoice-no" class="text-info fw-bold mb-1"></p>
                                 </div>
                             </div>
-                            <div class="row pos-mobile-top-section">
+                            <div class="row pos-mobile-top-section pos-customer-search-header">
                                 <div class="col-md-5 pe-2">
                                     <div class="d-flex align-items-center customer-select2 pos-customer-row">
-                                        <span class="d-inline d-md-none me-2 text-muted" aria-hidden="true"><i class="fas fa-user"></i></span>
-                                        <select class="form-control selectBox" id="customer-id" style="flex: 1;">
+                                        <span class="d-inline d-md-none me-2 text-muted flex-shrink-0" aria-hidden="true"><i class="fas fa-user"></i></span>
+                                        <div class="pos-customer-select-wrap flex-grow-1 min-w-0">
+                                        <select class="form-control selectBox" id="customer-id">
                                             <option selected disabled>Please Select</option>
                                         </select>
-                                        <button type="button" class="btn btn-outline-info rounded-0 pos-add-customer-btn" id="addCustomerButton" title="Add customer">
+                                        </div>
+                                        <button type="button" class="btn btn-outline-info rounded-0 pos-add-customer-btn flex-shrink-0" id="addCustomerButton" title="Add customer">
                                             <i class="fas fa-plus-circle d-none d-md-inline-block"></i>
                                             <i class="fas fa-plus d-md-none"></i>
                                         </button>
                                     </div>
                                     <!-- Customer Credit Information Row -->
-                                    <div class="customer-credit-info mt-2" style="display: none;">
-                                        <div class="d-flex border rounded">
-                                            <div class="flex-fill border-end p-2 text-center">
-                                                <small class="text-muted d-block">Total Due</small>
-                                                <span id="total-due-amount" class="fw-bold text-danger d-block">
+                                    <div class="customer-credit-info mt-1 mt-md-2 border rounded small" style="display: none;">
+                                        <div class="d-flex flex-wrap">
+                                            <div class="flex-fill border-end p-1 p-md-2 text-center" style="min-width: 5.5rem;">
+                                                <small class="text-muted d-block text-truncate" title="Total due (all)">Total due (all)</small>
+                                                <span id="total-due-amount" class="fw-bold text-danger d-block text-nowrap">
                                                     Rs. 0.00
                                                 </span>
                                             </div>
-                                            <div class="flex-fill border-end p-2 text-center">
-                                                <small class="text-muted d-block">Credit Limit</small>
-                                                <span id="credit-limit-amount" class="fw-bold text-info d-block">
+                                            <div class="flex-fill border-end p-1 p-md-2 text-center" style="min-width: 5.5rem;">
+                                                <small class="text-muted d-block text-truncate" title="Credit limit">Credit limit</small>
+                                                <span id="credit-limit-amount" class="fw-bold text-info d-block text-nowrap">
                                                     Rs. 0.00
                                                 </span>
                                             </div>
-                                            <div class="flex-fill border-end p-2 text-center">
-                                                <small class="text-muted d-block">Available</small>
+                                            <div class="flex-fill p-1 p-md-2 text-center" style="min-width: 5.5rem;">
+                                                <small class="text-muted d-block text-truncate" title="Available">Available</small>
                                                 <span id="available-credit-amount"
-                                                    class="fw-bold text-success d-block">
+                                                    class="fw-bold text-success d-block text-nowrap">
                                                     Rs. 0.00
                                                 </span>
                                             </div>
+                                        </div>
+                                        <div id="rep-my-invoices-due-row"
+                                            class="border-top px-1 px-md-2 py-1 text-center"
+                                            style="display: none;">
+                                            <small class="text-muted d-block mb-0">My invoices due</small>
+                                            <span id="rep-my-invoices-due-amount"
+                                                class="fw-bold text-warning d-block">Rs. 0.00</span>
                                         </div>
                                     </div>
                                 </div>

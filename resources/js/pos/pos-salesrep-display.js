@@ -675,6 +675,7 @@ function populateFilteredCustomers(customers, routeName) {
         const option = $(`<option value="${customer.id}" data-customer-type="${customer.customer_type || 'retailer'}">${displayText}</option>`);
         option.data('due', customer.current_due || customer.current_balance || 0);
         option.data('credit_limit', customer.credit_limit || 0);
+        option.data('myInvoiceDue', parseFloat(customer.my_invoice_due) || 0);
         customerSelect.append(option);
     });
 
@@ -692,8 +693,13 @@ function populateFilteredCustomers(customers, routeName) {
         const option = $(`<option value="${customer.id}" data-customer-type="${customer.customer_type || 'retailer'}">${displayText}</option>`);
         option.data('due', customer.current_due || customer.current_balance || 0);
         option.data('credit_limit', customer.credit_limit || 0);
+        option.data('myInvoiceDue', parseFloat(customer.my_invoice_due) || 0);
         customerSelect.append(option);
     });
+
+    if (window.isSalesRep) {
+        window.posShowRepInvoiceDue = true;
+    }
 
     customerSelect.trigger('change');
 }

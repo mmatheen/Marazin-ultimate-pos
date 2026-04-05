@@ -7,6 +7,7 @@ use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\SalesProduct;
 use App\Models\User;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class SaleReceiptService
 {
@@ -27,7 +28,15 @@ class SaleReceiptService
      */
     public function getHtml(int $saleId, ?string $layout): string
     {
-        $sale     = Sale::findOrFail($saleId);
+        $sale = Sale::findOrFail($saleId);
+
+        $authUser = auth()->user();
+        if ($authUser && $authUser->can('view own sales') && ! $authUser->can('view all sales')) {
+            if ((int) $sale->user_id !== (int) $authUser->id) {
+                throw (new ModelNotFoundException)->setModel(Sale::class, [$saleId]);
+            }
+        }
+
         $customer = Customer::withoutLocationScope()->findOrFail($sale->customer_id);
         $products = SalesProduct::with(['product', 'imeis', 'batch'])->where('sale_id', $saleId)->get();
         $payments = Payment::where('reference_id', $saleId)->where('payment_type', 'sale')->get();

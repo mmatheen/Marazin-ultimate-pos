@@ -149,6 +149,16 @@
         background-color: #f8f9fa;
         border-radius: 3px;
     }
+
+    /* Product list — DataTables export toolbar (aligned with daily sales report) */
+    #productTable_wrapper .dt-top {
+        margin-bottom: 12px;
+    }
+
+    #productTable_wrapper .dt-top .dt-buttons .btn {
+        margin-right: 6px;
+        margin-bottom: 6px;
+    }
 </style>
 
 <script>
@@ -1307,6 +1317,447 @@
             `;
     }
 
+    function escapeHtmlForExport(text) {
+        if (text === null || text === undefined) {
+            return '';
+        }
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    /**
+     * Single source for per-location qty from batches + row.locations, with optional #locationFilter narrow.
+     * Used by the product list column and CSV export text.
+     */
+    function buildProductLocationDisplayRows(row) {
+        const locationFilter = $('#locationFilter').val();
+        const locationStocks = {};
+        let locationDisplay = [];
+
+        if (row.batches && row.batches.length > 0) {
+            row.batches.forEach(batch => {
+                if (batch.location_batches) {
+                    batch.location_batches.forEach(lb => {
+                        const paidQty = parseFloat(lb.quantity ?? lb.qty ?? 0);
+                        const freeQty = parseFloat(lb.free_quantity ?? lb.free_qty ?? 0);
+                        if (paidQty > 0 || freeQty > 0) {
+                            if (!locationStocks[lb.location_id]) {
+                                locationStocks[lb.location_id] = {
+                                    name: lb.location_name || (lb.location && lb.location.name) || '',
+                                    qty: 0,
+                                    free_qty: 0
+                                };
+                            }
+                            locationStocks[lb.location_id].qty += paidQty;
+                            locationStocks[lb.location_id].free_qty += freeQty;
+                        }
+                    });
+                }
+            });
+        }
+
+        Object.entries(locationStocks).forEach(([lid, location]) => {
+            if (location.qty > 0 || location.free_qty > 0) {
+                locationDisplay.push({
+                    id: lid,
+                    name: location.name,
+                    qty: location.qty,
+                    free_qty: location.free_qty
+                });
+            }
+        });
+
+        if (row.locations && row.locations.length > 0) {
+            const existingLocationNames = locationDisplay.map(l => l.name);
+            row.locations.forEach(location => {
+                const locationName = location.location_name || location.name;
+                const locationId = location.location_id || location.id;
+                if (locationName && !existingLocationNames.includes(locationName)) {
+                    const stockQty = locationStocks[locationId] ? locationStocks[locationId].qty : 0;
+                    const freeStockQty = locationStocks[locationId] ? locationStocks[locationId].free_qty : 0;
+                    locationDisplay.push({
+                        id: locationId,
+                        name: locationName,
+                        qty: stockQty,
+                        free_qty: freeStockQty
+                    });
+                }
+            });
+        }
+
+        if (locationFilter) {
+            const fid = String(locationFilter);
+            locationDisplay = locationDisplay.filter(function(loc) {
+                return loc.id != null && String(loc.id) === fid;
+            });
+        }
+
+        return {
+            locationDisplay,
+            locationFilter
+        };
+    }
+
+    function formatLocationRowPlainText(loc) {
+        const paid = parseFloat(loc.qty || 0);
+        const free = parseFloat(loc.free_qty || 0);
+        if (paid > 0 || free > 0) {
+            const freePart = free > 0 ? ' | Free: ' + free : '';
+            return loc.name + ' (Paid: ' + paid + freePart + ')';
+        }
+        return loc.name;
+    }
+
+    function getProductLocationExportText(row) {
+        const {
+            locationDisplay,
+            locationFilter
+        } = buildProductLocationDisplayRows(row);
+
+        if (locationFilter) {
+            const fid = String(locationFilter);
+            if (locationDisplay.length) {
+                return locationDisplay.map(formatLocationRowPlainText).join('; ');
+            }
+            const assignedHere = row.locations && row.locations.some(l => String(l.location_id || l.id) === fid);
+            if (assignedHere) {
+                return $('#locationFilter option:selected').text() || 'Location';
+            }
+            return '';
+        }
+
+        if (locationDisplay.length === 0) {
+            return 'No locations';
+        }
+
+        return locationDisplay.map(formatLocationRowPlainText).join('; ');
+    }
+
+    function formatProductExportRow(row) {
+        const name = row.product.product_name || '';
+        const sku = row.product.sku || '';
+        const loc = getProductLocationExportText(row);
+        let displayPrice = row.product.retail_price || 0;
+        if (row.product.batches && row.product.batches.length > 0) {
+            const batchWithPrice = row.product.batches.find(batch =>
+                batch.retail_price !== null &&
+                batch.retail_price !== undefined &&
+                batch.retail_price !== '' &&
+                parseFloat(batch.retail_price) > 0
+            );
+            if (batchWithPrice) {
+                displayPrice = batchWithPrice.retail_price;
+            }
+        }
+        const price = parseFloat(displayPrice).toFixed(2);
+
+        let stockStr;
+        if (row.product && (row.product.stock_alert === 0 || row.product.stock_alert === '0')) {
+            stockStr = 'Unlimited';
+        } else {
+            const paid = parseFloat(row.total_stock ?? 0) || 0;
+            const free = parseFloat(row.total_free_stock ?? 0) || 0;
+            const total = paid + free;
+            stockStr = free > 0 ?
+                `${total} (Paid: ${paid} | Free: ${free})` :
+                String(total);
+        }
+
+        const category = categoryMap[row.product.main_category_id] || 'N/A';
+        const brand = brandMap[row.product.brand_id] || 'N/A';
+        const status = (row.product.is_active === 1 || row.product.is_active === true) ? 'Active' : 'Inactive';
+        const imei = row.product.is_imei_or_serial_no === 1 ? 'True' : 'False';
+
+        return [name, sku, loc, price, stockStr, category, brand, status, imei];
+    }
+
+    function getProductExportTitle() {
+        const cat = $('#categoryFilter option:selected').text() || '';
+        const br = $('#brandFilter option:selected').text() || '';
+        const loc = $('#locationFilter option:selected').text() || '';
+        const prod = $('#productNameFilter option:selected').text() || '';
+        const stock = $('#stockStatusFilter option:selected').text() || '';
+        const parts = ['Product List'];
+        if (prod && prod !== 'Select Product') {
+            parts.push(prod);
+        }
+        if (cat && cat !== 'Select Category') {
+            parts.push(cat);
+        }
+        if (br && br !== 'Select Brand') {
+            parts.push(br);
+        }
+        if (loc && loc !== 'Select Location') {
+            parts.push(loc);
+        }
+        if (stock && stock !== 'All Products') {
+            parts.push(stock);
+        }
+        return parts.join(' — ');
+    }
+
+    function buildProductStocksQueryParams(d) {
+        const locationId = $('#locationFilter').val();
+        return {
+            draw: d.draw,
+            start: d.start,
+            length: d.length,
+            'search[value]': d.search.value,
+            'order[0][column]': d.order && d.order.length ? d.order[0].column : 0,
+            'order[0][dir]': d.order && d.order.length ? d.order[0].dir : 'asc',
+            'columns': d.columns,
+            product_name: $('#productNameFilter').val(),
+            main_category_id: $('#categoryFilter').val(),
+            brand_id: $('#brandFilter').val(),
+            location_id: locationId,
+            stock_status: $('#stockStatusFilter').val(),
+            show_all: true,
+            _: new Date().getTime()
+        };
+    }
+
+    function exportProductListFiltered(kind) {
+        if (!$('#productTable').length || !$.fn.DataTable.isDataTable('#productTable')) {
+            toastr.error('Product table is not ready.');
+            return;
+        }
+
+        const api = $('#productTable').DataTable();
+        const excelSelectedOnly = (kind === 'excel' && Array.isArray(selectedProductIds) && selectedProductIds.length > 0);
+        const selectedIdsUnique = excelSelectedOnly ?
+            [...new Set(selectedProductIds.map(function(id) {
+                return parseInt(id, 10);
+            }).filter(function(id) {
+                return !isNaN(id) && id > 0;
+            }))] :
+            [];
+
+        if (excelSelectedOnly && selectedIdsUnique.length === 0) {
+            toastr.warning('No valid products selected. Tick the checkboxes for products to export.');
+            return;
+        }
+
+        let json = typeof api.ajax.json === 'function' ? api.ajax.json() : null;
+        if (!json && window._lastProductStocksDataTablesJson) {
+            json = window._lastProductStocksDataTablesJson;
+        }
+
+        if (!excelSelectedOnly) {
+            if (!json || typeof json.recordsFiltered !== 'number') {
+                toastr.error('Could not read the filtered list. Try refreshing the page.');
+                return;
+            }
+
+            const total = json.recordsFiltered;
+            if (total < 1) {
+                toastr.warning('No products to export for the current filters.');
+                return;
+            }
+
+            const maxExport = 25000;
+            if (total > maxExport) {
+                toastr.warning('Too many products (' + total + '). Narrow filters to export at most ' + maxExport + '.');
+                return;
+            }
+        } else {
+            const maxExport = 25000;
+            if (selectedIdsUnique.length > maxExport) {
+                toastr.warning('Too many selected products. Select at most ' + maxExport + '.');
+                return;
+            }
+        }
+
+        const exportCount = excelSelectedOnly ? selectedIdsUnique.length : json.recordsFiltered;
+        const settings = api.settings()[0];
+        const d = {
+            draw: 1,
+            start: 0,
+            length: exportCount,
+            search: {
+                value: api.search()
+            },
+            order: [],
+            columns: []
+        };
+
+        for (let i = 0; i < settings.aoColumns.length; i++) {
+            const col = settings.aoColumns[i];
+            let dData = col.mData;
+            if (typeof dData === 'function' || typeof dData === 'number') {
+                dData = null;
+            }
+            d.columns.push({
+                data: dData,
+                name: col.sName || '',
+                searchable: col.bSearchable,
+                orderable: col.bSortable,
+                search: {
+                    value: '',
+                    regex: false
+                }
+            });
+        }
+
+        const params = buildProductStocksQueryParams(d);
+        params.for_export = 1;
+        params.start = 0;
+        params.length = exportCount;
+        if (excelSelectedOnly) {
+            params.product_ids = selectedIdsUnique;
+        }
+
+        let title = getProductExportTitle();
+        if (excelSelectedOnly) {
+            title = title + ' — Selected (' + selectedIdsUnique.length + ')';
+        }
+        const dateStr = new Date().toISOString().slice(0, 10);
+        const headers = ['Product Name', 'SKU', 'Business Location', 'Selling Price', 'Current Stock', 'Category', 'Brand', 'Status', 'IMEI or Serial'];
+
+        toastr.info('Preparing export…', 'Please wait', {
+            timeOut: 0,
+            extendedTimeOut: 0
+        });
+
+        $.ajax({
+            url: '/products/stocks',
+            type: 'GET',
+            dataType: 'json',
+            timeout: 120000,
+            cache: false,
+            data: params,
+            success: function(res) {
+                toastr.clear();
+                if (!res || !Array.isArray(res.data) || !res.data.length) {
+                    toastr.error('No data returned for export.');
+                    return;
+                }
+
+                const rows = res.data.map(formatProductExportRow);
+
+                if (kind === 'excel') {
+                    let csv = '\uFEFF';
+                    csv += headers.map(h => '"' + String(h).replace(/"/g, '""') + '"').join(',') + '\n';
+                    rows.forEach(function(r) {
+                        csv += r.map(function(cell) {
+                            const s = String(cell).replace(/"/g, '""');
+                            return '"' + s + '"';
+                        }).join(',') + '\n';
+                    });
+                    const blob = new Blob([csv], {
+                        type: 'text/csv;charset=utf-8;'
+                    });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    const selectedOnly = excelSelectedOnly && selectedIdsUnique.length > 0;
+                    link.download = selectedOnly ?
+                        'product_list_selected_' + dateStr + '.csv' :
+                        'product_list_' + dateStr + '.csv';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(link.href);
+                    toastr.success(selectedOnly ?
+                        ('Download started: ' + selectedIdsUnique.length + ' selected product(s) (Excel).') :
+                        'Download started (opens in Excel).');
+                    return;
+                }
+
+                if (kind === 'print') {
+                    const win = window.open('', '_blank');
+                    if (!win) {
+                        toastr.error('Pop-up blocked. Allow pop-ups to print.');
+                        return;
+                    }
+                    win.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>' +
+                        escapeHtmlForExport(title) + '</title>');
+                    win.document.write(
+                        '<style>body{font-family:Arial,sans-serif;padding:16px}table{width:100%;border-collapse:collapse;margin-top:12px}td,th{border:1px solid #ccc;padding:6px;font-size:12px}th{background:#f5f5f5;text-align:left}h2{text-align:center;font-size:18px}</style>'
+                    );
+                    win.document.write('</head><body>');
+                    win.document.write('<h2>' + escapeHtmlForExport(title) + '</h2>');
+                    win.document.write('<table><thead><tr>');
+                    headers.forEach(function(h) {
+                        win.document.write('<th>' + escapeHtmlForExport(h) + '</th>');
+                    });
+                    win.document.write('</tr></thead><tbody>');
+                    rows.forEach(function(r) {
+                        win.document.write('<tr>');
+                        r.forEach(function(c) {
+                            win.document.write('<td>' + escapeHtmlForExport(c) + '</td>');
+                        });
+                        win.document.write('</tr>');
+                    });
+                    win.document.write('</tbody></table></body></html>');
+                    win.document.close();
+                    win.focus();
+                    win.print();
+                    return;
+                }
+
+                if (kind === 'pdf') {
+                    if (typeof pdfMake === 'undefined') {
+                        toastr.error('PDF library not loaded.');
+                        return;
+                    }
+                    const tableBody = [headers.map(function(h) {
+                        return {
+                            text: h,
+                            style: 'tableHeader',
+                            bold: true
+                        };
+                    })];
+                    rows.forEach(function(r) {
+                        tableBody.push(r.map(function(c) {
+                            return String(c);
+                        }));
+                    });
+                    const docDefinition = {
+                        pageOrientation: 'landscape',
+                        pageSize: 'A4',
+                        pageMargins: [12, 12, 12, 12],
+                        content: [{
+                                text: title,
+                                style: 'header',
+                                margin: [0, 0, 0, 10]
+                            },
+                            {
+                                table: {
+                                    headerRows: 1,
+                                    widths: Array(headers.length).fill('*'),
+                                    body: tableBody
+                                },
+                                layout: 'lightHorizontalLines'
+                            }
+                        ],
+                        styles: {
+                            header: {
+                                fontSize: 12,
+                                bold: true
+                            },
+                            tableHeader: {
+                                fontSize: 8,
+                                bold: true
+                            }
+                        },
+                        defaultStyle: {
+                            fontSize: 7
+                        }
+                    };
+                    pdfMake.createPdf(docDefinition).download('product_list_' + dateStr + '.pdf');
+                    return;
+                }
+            },
+            error: function(xhr, status, err) {
+                toastr.clear();
+                console.error('Export failed:', status, err, xhr && xhr.responseText);
+                toastr.error('Export failed. Try using filters or a smaller result set.');
+            }
+        });
+    }
+
     // Make fetchProductData globally accessible for cache invalidation
     window.initializeProductTable = function() {
         fetchProductData();
@@ -1323,6 +1774,26 @@
             serverSide: true,
             deferRender: true, // Improve performance for large datasets
             stateSave: false, // DISABLE state saving to prevent cached data
+            dom: '<"dt-top"B><"dt-controls"<"dt-length"l><"dt-search"f>>rtip',
+            buttons: [{
+                    text: '<i class="fa fa-file-pdf"></i> PDF',
+                    action: function() {
+                        exportProductListFiltered('pdf');
+                    }
+                },
+                {
+                    text: '<i class="fa fa-file-excel"></i> Excel',
+                    action: function() {
+                        exportProductListFiltered('excel');
+                    }
+                },
+                {
+                    text: '<i class="fa fa-print"></i> Print',
+                    action: function() {
+                        exportProductListFiltered('print');
+                    }
+                }
+            ],
             ajax: {
                 url: '/products/stocks',
                 type: 'GET',
@@ -1330,10 +1801,6 @@
                 cache: false, // DISABLE caching - always fetch fresh data
                 timeout: 60000, // 60 second timeout for large datasets
                 data: function(d) {
-                    // DataTables sends search and paging params in 'd'
-                    const locationId = $('#locationFilter').val();
-
-                    // Warn user if trying to load all records
                     if (d.length === -1) {
                         console.warn('⚠️ Loading all records - this may take a while...');
                         toastr.info('Loading all products... This may take a moment.', 'Please Wait', {
@@ -1341,36 +1808,14 @@
                         });
                     }
 
-                    const requestData = {
-                        draw: d.draw,
-                        start: d.start,
-                        length: d.length,
-                        // DataTables global search
-                        'search[value]': d.search.value,
-                        // DataTables ordering
-                        'order[0][column]': d.order && d.order.length ? d.order[0].column :
-                            0,
-                        'order[0][dir]': d.order && d.order.length ? d.order[0].dir : 'asc',
-                        // DataTables columns (for ordering)
-                        'columns': d.columns,
-                        // Custom filters
-                        product_name: $('#productNameFilter').val(),
-                        main_category_id: $('#categoryFilter').val(),
-                        brand_id: $('#brandFilter').val(),
-                        location_id: locationId,
-                        stock_status: $('#stockStatusFilter').val(),
-                        // Show all products (active and inactive) in product list
-                        show_all: true,
-                        // Cache busting - force fresh data on every request
-                        _: new Date().getTime()
-                    };
-                    // Debug: Log the location filter value being sent
+                    const locationId = $('#locationFilter').val();
                     if (locationId) {
                         console.log('🔍 Location filter applied:', locationId, $('#locationFilter option:selected').text());
                     } else {
                         console.log('🔍 No location filter - showing all locations');
                     }
-                    return requestData;
+
+                    return buildProductStocksQueryParams(d);
                 },
                 dataSrc: function(response) {
 
@@ -1379,6 +1824,8 @@
                         console.error('Invalid JSON response from server');
                         return [];
                     }
+
+                    window._lastProductStocksDataTablesJson = response;
 
                     // If your backend returns {status: 200, data: [...]}, convert to DataTables format
                     if (response.status === 200 && Array.isArray(response.data)) {
@@ -1478,73 +1925,23 @@
                 {
                     data: null,
                     render: function(data, type, row) {
-                        let locationDisplay = [];
-                        const locationStocks = {};
-                        const locationFilter = $('#locationFilter').val();
-
-                        if (row.batches && row.batches.length > 0) {
-                            // Collect locations with stock from batches
-                            row.batches.forEach(batch => {
-                                if (batch.location_batches) {
-                                    batch.location_batches.forEach(lb => {
-                                        const paidQty = parseFloat(lb.quantity ?? lb.qty ?? 0);
-                                        const freeQty = parseFloat(lb.free_quantity ?? lb.free_qty ?? 0);
-                                        if (paidQty > 0 || freeQty > 0) {
-                                            if (!locationStocks[lb.location_id]) {
-                                                locationStocks[lb.location_id] = {
-                                                    name: lb.location_name,
-                                                    qty: 0,
-                                                    free_qty: 0
-                                                };
-                                            }
-                                            locationStocks[lb.location_id].qty += paidQty;
-                                            locationStocks[lb.location_id].free_qty += freeQty;
-                                        }
-                                    });
-                                }
-                            });
-
-                            // Build display array with quantities
-                            Object.values(locationStocks).forEach(location => {
-                                if (location.qty > 0 || location.free_qty > 0) {
-                                    locationDisplay.push({
-                                        name: location.name,
-                                        qty: location.qty,
-                                        free_qty: location.free_qty
-                                    });
-                                }
-                            });
-                        }
-
-                        // Add locations from row.locations (product assigned locations)
-                        if (row.locations && row.locations.length > 0) {
-                            const existingLocationNames = locationDisplay.map(l => l.name);
-                            row.locations.forEach(location => {
-                                const locationName = location.location_name || location.name;
-                                const locationId = location.location_id || location.id;
-                                if (locationName && !existingLocationNames.includes(locationName)) {
-                                    // Check if this location has stock
-                                    const stockQty = locationStocks[locationId] ? locationStocks[locationId].qty : 0;
-                                    const freeStockQty = locationStocks[locationId] ? locationStocks[locationId].free_qty : 0;
-                                    locationDisplay.push({
-                                        name: locationName,
-                                        qty: stockQty,
-                                        free_qty: freeStockQty
-                                    });
-                                }
-                            });
-                        }
+                        const {
+                            locationDisplay,
+                            locationFilter
+                        } = buildProductLocationDisplayRows(row);
 
                         // Handle display based on whether location filter is applied
                         if (locationDisplay.length === 0) {
-                            // No locations found
                             if (locationFilter) {
-                                // Location filter is applied but product has no stock/assignment in that location
+                                const fid = String(locationFilter);
+                                const assigned = row.locations && row.locations.some(l => String(l.location_id || l.id) === fid);
+                                if (assigned) {
+                                    const locName = $('#locationFilter option:selected').text() || 'Location';
+                                    return `${locName} <small class="text-muted">(Paid: 0)</small>`;
+                                }
                                 return '<span class="text-muted">No stock in filtered location</span>';
-                            } else {
-                                // No location filter, but product has no locations
-                                return '<span class="text-muted">No locations</span>';
                             }
+                            return '<span class="text-muted">No locations</span>';
                         } else if (locationDisplay.length === 1) {
                             // Show single location inline
                             const loc = locationDisplay[0];
@@ -2076,16 +2473,20 @@
         });
     }
 
-    // On filter change, reload DataTable (triggers ajax with filters)
+    // Debounce filter reloads so rapid Select2 changes issue one request (faster, less server load)
+    let productListFilterReloadTimer = null;
     $('#productNameFilter, #categoryFilter, #brandFilter, #locationFilter, #stockStatusFilter').on('change', function() {
-        if ($.fn.DataTable.isDataTable('#productTable')) {
-            try {
-                $('#productTable').DataTable().ajax.reload(null, false);
-            } catch (error) {
-                console.error('Error reloading DataTable:', error);
-                toastr.error('Error reloading product list', 'Error');
+        clearTimeout(productListFilterReloadTimer);
+        productListFilterReloadTimer = setTimeout(function() {
+            if ($.fn.DataTable.isDataTable('#productTable')) {
+                try {
+                    $('#productTable').DataTable().ajax.reload(null, false);
+                } catch (error) {
+                    console.error('Error reloading DataTable:', error);
+                    toastr.error('Error reloading product list', 'Error');
+                }
             }
-        }
+        }, 280);
     });
 
     // Clear Filters Button Handler
@@ -4398,13 +4799,6 @@
         $('#productName').text(product.product_name);
         $('#productSku').text(product.sku);
 
-        // Debug: Log batch data to check if unit_cost is present
-        console.log('Batch data received:', batches);
-        if (batches.length > 0) {
-            console.log('First batch sample:', batches[0]);
-            console.log('Unit cost field:', batches[0].unit_cost);
-        }
-
         // Clear both table and mobile containers
         $('#batchPricesTableBody').empty();
         $('#batchPricesMobile').empty();
@@ -4430,28 +4824,50 @@
             const formattedQty = allowDecimal ? parseFloat(batch.qty || 0).toFixed(2) : parseInt(batch.qty ||
                 0);
 
+            // Locations: highest stock first (matches API; avoids showing "0" rows before "+N more" while total stock > 0)
+            let locs = (batch.locations && batch.locations.length) ? batch.locations.slice() : [];
+            locs.sort(function(a, b) {
+                const ta = parseFloat(a.qty || 0) + parseFloat(a.free_qty || 0);
+                const tb = parseFloat(b.qty || 0) + parseFloat(b.free_qty || 0);
+                return tb - ta;
+            });
+
+            let paidTotal = batch.qty_paid;
+            let freeTotal = batch.qty_free;
+            if (paidTotal === undefined || freeTotal === undefined) {
+                paidTotal = locs.reduce(function(s, l) {
+                    return s + parseFloat(l.qty || 0);
+                }, 0);
+                freeTotal = locs.reduce(function(s, l) {
+                    return s + parseFloat(l.free_qty || 0);
+                }, 0);
+            }
+            const paidFmt = allowDecimal ? parseFloat(paidTotal || 0).toFixed(2) : parseInt(paidTotal || 0, 10);
+            const freeFmt = allowDecimal ? parseFloat(freeTotal || 0).toFixed(2) : parseInt(freeTotal || 0, 10);
+            const stockSubline = '<div class="small text-muted mt-1">Paid: ' + paidFmt + ' &nbsp;|&nbsp; Free: ' + freeFmt + '</div>';
+
             // Format locations with proper quantity formatting
             let locationsDisplay = 'No locations';
             let locationsFullText = '';
 
-            if (batch.locations && batch.locations.length > 0) {
+            if (locs.length > 0) {
                 // Create full locations text
-                locationsFullText = batch.locations.map(loc => {
+                locationsFullText = locs.map(loc => {
                     const paid = allowDecimal ? parseFloat(loc.qty || 0).toFixed(2) : parseInt(loc.qty || 0);
                     const free = allowDecimal ? parseFloat(loc.free_qty || 0).toFixed(2) : parseInt(loc.free_qty || 0);
                     return `${loc.name} (Paid: ${paid}${parseFloat(free) > 0 ? ` | Free: ${free}` : ''})`;
                 }).join(', ');
 
                 // For display: show first 2 locations, then "View More" button if there are more
-                if (batch.locations.length <= 2) {
+                if (locs.length <= 2) {
                     locationsDisplay = locationsFullText;
                 } else {
-                    const firstTwo = batch.locations.slice(0, 2).map(loc => {
+                    const firstTwo = locs.slice(0, 2).map(loc => {
                         const paid = allowDecimal ? parseFloat(loc.qty || 0).toFixed(2) : parseInt(loc.qty || 0);
                         const free = allowDecimal ? parseFloat(loc.free_qty || 0).toFixed(2) : parseInt(loc.free_qty || 0);
                         return `${loc.name} (Paid: ${paid}${parseFloat(free) > 0 ? ` | Free: ${free}` : ''})`;
                     }).join(', ');
-                    const remaining = batch.locations.length - 2;
+                    const remaining = locs.length - 2;
                     const escapedLocations = locationsFullText.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                     const escapedBatch = (batch.batch_no || 'N/A').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                     locationsDisplay = firstTwo + ' <button type="button" class="btn btn-sm btn-link p-0 view-batch-locations" data-locations="' + escapedLocations + '" data-batch="' + escapedBatch + '" style="font-size: 0.75rem;">+' + remaining + ' more</button>';
@@ -4468,7 +4884,7 @@
             const row = `
                 <tr data-batch-id="${batch.id}" class="d-none d-md-table-row">
                     <td>${batch.batch_no || 'N/A'}</td>
-                    <td>${formattedQty}</td>
+                    <td class="align-top"><div class="fw-semibold">${formattedQty}</div>${stockSubline}</td>
                     <td class="d-none d-md-table-cell"><input type="number" class="form-control form-control-sm price-input" name="unit_cost" value="${parseFloat(batch.unit_cost || 0).toFixed(2)}" min="0" step="0.01" placeholder="0.00"></td>
                     <td><input type="number" class="form-control form-control-sm price-input" name="wholesale_price" value="${parseFloat(batch.wholesale_price || 0).toFixed(2)}" min="0" step="0.01" placeholder="0.00"></td>
                     <td><input type="number" class="form-control form-control-sm price-input" name="special_price" value="${parseFloat(batch.special_price || 0).toFixed(2)}" min="0" step="0.01" placeholder="0.00"></td>
@@ -4489,7 +4905,8 @@
                                 <strong>Batch: ${batch.batch_no || 'N/A'}</strong>
                             </div>
                             <div class="col-6 text-end">
-                                <small class="text-muted">Stock: ${formattedQty}</small>
+                                <div class="fw-semibold">Stock: ${formattedQty}</div>
+                                <small class="text-muted">Paid: ${paidFmt} | Free: ${freeFmt}</small>
                             </div>
                         </div>
                     </div>

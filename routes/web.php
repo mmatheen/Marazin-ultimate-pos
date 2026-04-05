@@ -147,6 +147,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/customer-update/{id}', [CustomerController::class, 'update']);
         Route::delete('/customer-delete/{id}', [CustomerController::class, 'destroy']);
         Route::get('/customer-get-by-id/{id}', [CustomerController::class, 'show']);
+        Route::get('/customer/view-contact/{id}', [CustomerController::class, 'viewContact'])->name('customer.view-contact');
         Route::get('/customer-export', [CustomerController::class, 'export'])->name('customer.export');
 
         // Customer Import/Export Routes

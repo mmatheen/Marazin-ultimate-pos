@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\SalesRep;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
@@ -40,36 +42,32 @@ class DashboardController extends Controller
 
     private function fetchDashboardData($startDate, $endDate, $selectedLocationId)
     {
-        // Get user's accessible locations
+        /** @var User $user */
         $user = auth()->user();
-        $isSuperAdmin = ($user->role === 'Super Admin' || !$user->locations || $user->locations->isEmpty());
+        $user->loadMissing(['roles', 'locations']);
 
-        // Determine which locations to filter by
+        $permittedLocationIds = $this->resolvePermittedLocationIds($user);
+        $seesAllLocations = $permittedLocationIds === null;
+        $restrictSalesToRepUserId = $user->isSalesRep() ? $user->id : null;
+
+        // Determine which locations to filter by (aligned with LocationController::index)
         $locationFilter = null;
 
         if ($selectedLocationId) {
-            // Specific location selected
-            if ($isSuperAdmin) {
-                // Super admin can see any location
+            if ($seesAllLocations) {
                 $locationFilter = [$selectedLocationId];
             } else {
-                // Check if user has access to selected location
-                $userLocationIds = $user->locations->pluck('id')->toArray();
-                if (in_array($selectedLocationId, $userLocationIds)) {
+                if (in_array((int) $selectedLocationId, array_map('intval', $permittedLocationIds), true)) {
                     $locationFilter = [$selectedLocationId];
                 } else {
-                    // User doesn't have access - return empty array to show no data
                     $locationFilter = [];
                 }
             }
         } else {
-            // "All Location" selected
-            if ($isSuperAdmin) {
-                // Super admin sees all locations - no filter (NULL means all)
+            if ($seesAllLocations) {
                 $locationFilter = null;
             } else {
-                // Regular user sees only their assigned locations
-                $locationFilter = $user->locations->pluck('id')->toArray();
+                $locationFilter = $permittedLocationIds;
             }
         }
 
@@ -99,6 +97,10 @@ class DashboardController extends Controller
             } else {
                 $salesQuery->whereIn('location_id', $locationFilter);
             }
+        }
+
+        if ($restrictSalesToRepUserId !== null) {
+            $salesQuery->where('user_id', $restrictSalesToRepUserId);
         }
 
         $salesMetrics = $salesQuery->first();
@@ -134,6 +136,15 @@ class DashboardController extends Controller
                 $purchaseReturnQuery->whereIn('location_id', $locationFilter);
                 $salesReturnQuery->whereIn('location_id', $locationFilter);
             }
+        }
+
+        if ($restrictSalesToRepUserId !== null) {
+            $repId = $restrictSalesToRepUserId;
+            $salesReturnQuery->where(function ($q) use ($repId) {
+                $q->whereIn('sale_id', function ($sub) use ($repId) {
+                    $sub->select('id')->from('sales')->where('user_id', $repId);
+                })->orWhere('sales_returns.user_id', $repId);
+            });
         }
 
         $purchaseReturnData = $purchaseReturnQuery->first();
@@ -173,6 +184,10 @@ class DashboardController extends Controller
             } else {
                 $salesChartQuery->whereRaw('1 = 0');
             }
+        }
+
+        if ($restrictSalesToRepUserId !== null) {
+            $salesChartQuery->where('user_id', $restrictSalesToRepUserId);
         }
 
         $chartData = $salesChartQuery->groupBy(DB::raw('DATE(sales_date)'))->get();
@@ -255,6 +270,10 @@ class DashboardController extends Controller
             }
         }
 
+        if ($restrictSalesToRepUserId !== null) {
+            $recentSalesQuery->where('sales.user_id', $restrictSalesToRepUserId);
+        }
+
         $recentSales = $recentSalesQuery
             ->orderByDesc('sales.created_at')
             ->limit(5)
@@ -282,6 +301,40 @@ class DashboardController extends Controller
             ->limit(10)
             ->get();
 
+        $totalSaleOrdersValue = 0;
+        $totalSaleOrdersCount = 0;
+
+        if ($user->isSalesRep()) {
+            $startDateOnly = substr((string) $startDate, 0, 10);
+            $endDateOnly = substr((string) $endDate, 0, 10);
+
+            $saleOrdersQuery = DB::table('sales')
+                ->selectRaw('COALESCE(SUM(final_total), 0) as total_value, COUNT(*) as order_count')
+                ->where('transaction_type', 'sale_order')
+                ->where(function ($q) {
+                    $q->whereNull('order_status')->orWhere('order_status', '!=', 'cancelled');
+                })
+                ->where(function ($q) use ($startDate, $endDate, $startDateOnly, $endDateOnly) {
+                    $q->whereBetween('order_date', [$startDateOnly, $endDateOnly])
+                        ->orWhere(function ($q2) use ($startDate, $endDate) {
+                            $q2->whereNull('order_date')->whereBetween('sales_date', [$startDate, $endDate]);
+                        });
+                })
+                ->where('user_id', $user->id);
+
+            if ($locationFilter !== null) {
+                if (empty($locationFilter)) {
+                    $saleOrdersQuery->whereRaw('1 = 0');
+                } else {
+                    $saleOrdersQuery->whereIn('location_id', $locationFilter);
+                }
+            }
+
+            $saleOrdersRow = $saleOrdersQuery->first();
+            $totalSaleOrdersValue = $saleOrdersRow->total_value ?? 0;
+            $totalSaleOrdersCount = (int) ($saleOrdersRow->order_count ?? 0);
+        }
+
         return response()->json([
             'totalSales' => $salesMetrics->total_sales ?? 0,
             'totalPurchases' => $purchaseMetrics->total_purchases ?? 0,
@@ -301,7 +354,77 @@ class DashboardController extends Controller
             'lowStockProducts' => $lowStockProducts,
             'recentSales' => $recentSales,
             'noSalesProducts' => $noSalesProducts,
+            'totalSaleOrdersValue' => $totalSaleOrdersValue,
+            'totalSaleOrdersCount' => $totalSaleOrdersCount,
         ]);
+    }
+
+    /**
+     * null = all locations; [] = none; non-empty array = restrict to these IDs.
+     */
+    private function resolvePermittedLocationIds(User $user): ?array
+    {
+        if ($this->isDashboardMasterSuperAdmin($user)) {
+            return null;
+        }
+        if ($this->hasDashboardLocationBypass($user)) {
+            return null;
+        }
+        if ($user->isSalesRep()) {
+            return $this->getSalesRepPermittedLocationIds($user);
+        }
+
+        return $user->locations->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
+    }
+
+    private function isDashboardMasterSuperAdmin(User $user): bool
+    {
+        if (!$user->relationLoaded('roles')) {
+            $user->load('roles');
+        }
+
+        return $user->roles->pluck('name')->contains('Master Super Admin')
+            || $user->roles->pluck('key')->contains('master_super_admin');
+    }
+
+    private function hasDashboardLocationBypass(User $user): bool
+    {
+        if (!$user->relationLoaded('roles')) {
+            $user->load('roles');
+        }
+
+        foreach ($user->roles as $role) {
+            if ($role->bypass_location_scope ?? false) {
+                return true;
+            }
+        }
+
+        return $user->hasPermissionTo('override location scope');
+    }
+
+    private function getSalesRepPermittedLocationIds(User $user): array
+    {
+        $assignments = SalesRep::where('user_id', $user->id)
+            ->where('status', SalesRep::STATUS_ACTIVE)
+            ->with(['subLocation'])
+            ->get();
+
+        if ($assignments->isEmpty()) {
+            return [];
+        }
+
+        $ids = [];
+        foreach ($assignments as $assignment) {
+            $sub = $assignment->subLocation;
+            if ($sub) {
+                $ids[] = (int) $sub->id;
+                if ($sub->parent_id) {
+                    $ids[] = (int) $sub->parent_id;
+                }
+            }
+        }
+
+        return array_values(array_unique(array_filter($ids)));
     }
 
     // Clear cache when sales, purchases, or products are updated

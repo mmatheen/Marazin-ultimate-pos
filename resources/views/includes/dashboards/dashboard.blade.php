@@ -54,9 +54,30 @@
 
         </div>
 
-
-        <div class="row">
-            <div class="col-xl-3 col-sm-6 col-12 d-flex">
+        @php
+            $dashboardIsSalesRep = Auth::user()->isSalesRep();
+            $kpiColClass = $dashboardIsSalesRep ? 'col d-flex' : 'col-xl-3 col-sm-6 col-12 d-flex';
+        @endphp
+        <div class="row g-3 {{ $dashboardIsSalesRep ? 'row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-5' : '' }}">
+            @if ($dashboardIsSalesRep)
+                <div class="col d-flex">
+                    <div class="card bg-comman w-100 border-top-purple">
+                        <div class="card-body">
+                            <div class="db-widgets d-flex justify-content-between align-items-center">
+                                <div class="db-info">
+                                    <h6>Total Sale Orders</h6>
+                                    <h3 id="totalSaleOrdersValue">Rs. 0.00</h3>
+                                    <small class="text-muted" id="totalSaleOrdersMeta">0 orders in range</small>
+                                </div>
+                                <div class="db-icon">
+                                    <i class="fas fa-file-invoice" style="color: #9c27b0;"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
+            <div class="{{ $kpiColClass }}">
                 <div class="card bg-comman w-100 border-top-green">
                     <div class="card-body">
                         <div class="db-widgets d-flex justify-content-between align-items-center">
@@ -71,7 +92,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-xl-3 col-sm-6 col-12 d-flex">
+            <div class="{{ $kpiColClass }}">
                 <div class="card bg-comman w-100 border-top-blue">
                     <div class="card-body">
                         <div class="db-widgets d-flex justify-content-between align-items-center">
@@ -86,7 +107,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-xl-3 col-sm-6 col-12 d-flex">
+            <div class="{{ $kpiColClass }}">
                 <div class="card bg-comman w-100 border-top-red">
                     <div class="card-body">
                         <div class="db-widgets d-flex justify-content-between align-items-center">
@@ -101,7 +122,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-xl-3 col-sm-6 col-12 d-flex">
+            <div class="{{ $kpiColClass }}">
                 <div class="card bg-comman w-100 border-top-orange">
                     <div class="card-body">
                         <div class="db-widgets d-flex justify-content-between align-items-center">
@@ -118,7 +139,7 @@
             </div>
         </div>
 
-        <div class="row">
+        <div class="row g-3">
             <div class="col-xl-3 col-sm-6 col-12 d-flex">
                 <div class="card bg-comman w-100 border-top-green">
                     <div class="card-body">
@@ -327,6 +348,10 @@
 
         .border-top-orange {
             border-top: 2px solid #ff9800 !important;
+        }
+
+        .border-top-purple {
+            border-top: 2px solid #9c27b0 !important;
         }
 
         .bg-comman {
@@ -592,6 +617,11 @@
             }
 
             function updateDashboardUI(response) {
+                if ($("#totalSaleOrdersValue").length) {
+                    $("#totalSaleOrdersValue").text(formatCurrency(response.totalSaleOrdersValue ?? 0));
+                    const cnt = parseInt(response.totalSaleOrdersCount ?? 0, 10);
+                    $("#totalSaleOrdersMeta").text(cnt === 1 ? "1 order in range" : cnt + " orders in range");
+                }
                 $("#totalSales").text(formatCurrency(response.totalSales));
                 $("#totalPurchases").text(formatCurrency(response.totalPurchases));
                 $("#totalSalesReturn").text(formatCurrency(response.totalSalesReturn));

@@ -99,16 +99,25 @@
                             },
                             success: function(data) {
                                 if (data.status === 200 && Array.isArray(data.data)) {
-                                    // Map backend response to autocomplete format
-                                    const results = data.data.map(item => ({
-                                        label: item.product.product_name,
-                                        value: item.product.id,
-                                        sku: item.product.sku,
-                                        retail_price: item.product.retail_price,
-                                        total_stock: item.total_stock ?? 0,
-                                        tax_percent: item.product.tax_percent ?? 0,
-                                        selling_price_tax_type: item.product.selling_price_tax_type ?? 'exclusive',
-                                    }));
+                                    // Map backend response to autocomplete format (stock = paid + free, like POS)
+                                    const results = data.data.map(item => {
+                                        const p = item.product;
+                                        const unlimited = p.stock_alert === 0 || p.stock_alert === '0';
+                                        const paid = parseFloat(item.total_stock);
+                                        const free = parseFloat(item.total_free_stock) || 0;
+                                        const stockLabel = unlimited ? 'Unlimited' : (isNaN(paid) ? 0 : paid) + free;
+                                        return {
+                                        label: `${p.product_name} [Stock: ${stockLabel}]`,
+                                        value: p.id,
+                                        sku: p.sku,
+                                        retail_price: p.retail_price,
+                                        stock_alert: p.stock_alert,
+                                        total_stock: unlimited ? 'Unlimited' : (isNaN(paid) ? 0 : paid),
+                                        total_free_stock: unlimited ? 0 : free,
+                                        tax_percent: p.tax_percent ?? 0,
+                                        selling_price_tax_type: p.selling_price_tax_type ?? 'exclusive',
+                                    };
+                                    });
                                     response(results);
                                 } else {
                                     response([]);
@@ -150,8 +159,13 @@
                 const instance = $("#productSearch").autocomplete("instance");
                 if (instance) {
                     instance._renderItem = function(ul, item) {
+                        const paid = parseFloat(item.total_stock);
+                        const free = parseFloat(item.total_free_stock) || 0;
+                        const sub = (item.stock_alert === 0 || item.stock_alert === '0')
+                            ? ''
+                            : `<br><small class="text-muted">Paid: ${isNaN(paid) ? 0 : paid} · Free: ${free}</small>`;
                         return $("<li>")
-                            .append(`<div>${item.label}<br><small class="text-muted">${item.sku}</small></div>`)
+                            .append(`<div>${item.label}<br><small class="text-muted">${item.sku || ''}</small>${sub}</div>`)
                             .data('ui-autocomplete-item', item)
                             .appendTo(ul);
                     };
@@ -1025,8 +1039,11 @@
 
 
             function addProductToTable(product) {
-                const stockDisplay = product.total_stock !== undefined && product.total_stock !== null ? product.total_stock : 0;
-                const freeStockDisplay = product.free_stock !== undefined && product.free_stock !== null ? product.free_stock : 0;
+                const unlimited = product.stock_alert === 0 || product.stock_alert === '0';
+                const paidRaw = product.total_stock;
+                const paid = unlimited ? 0 : (parseFloat(paidRaw) || 0);
+                const freeStockDisplay = unlimited ? 0 : (parseFloat(product.total_free_stock) || 0);
+                const stockDisplay = unlimited ? 'Unlimited' : paid;
                 const taxPercent = parseFloat(product.tax_percent || 0);
                 const sellingPriceTaxType = String(product.selling_price_tax_type || 'exclusive').toLowerCase();
                 const defaultVatPerUnit = calculateVatPerUnit(product.retail_price, taxPercent, sellingPriceTaxType);
@@ -1035,7 +1052,7 @@
                     <td></td>
                     <td>${product.label} <br> ${product.sku}</td>
                     <td>Rs. ${product.retail_price.toFixed(2)}</td>
-                    <td>${stockDisplay} Pcs</td>
+                    <td>${unlimited ? stockDisplay : stockDisplay + ' Pcs'}</td>
                     <td>
                         <input type="number" class="form-control return-quantity" name="products[${product.value}][quantity]" placeholder="Enter qty" min="0" step="any" data-unit-price="${product.retail_price}" data-product-id="${product.value}">
                     </td>

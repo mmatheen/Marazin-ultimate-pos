@@ -2143,7 +2143,11 @@ class ProductController extends Controller
             $now = now();
 
             // DataTable params with validation (legacy support)
-            $perPageDataTable = min((int)$request->input('length', 50), 100); // Limit max per page for hosting
+            $rawLength = (int)$request->input('length', 50);
+            $forExport = $request->boolean('for_export');
+            // Allow larger page size only for explicit list export (PDF/Excel/Print) — same filters as grid
+            $maxPage = ($forExport && !$request->has('per_page') && !$request->has('page')) ? 25000 : 100;
+            $perPageDataTable = min(max($rawLength, 1), $maxPage);
             $startDataTable = max(0, (int)$request->input('start', 0));
             $pageDataTable = intval($startDataTable / $perPageDataTable) + 1;
 
@@ -2259,8 +2263,18 @@ class ProductController extends Controller
                 ->when(!$request->has('show_all'), function ($query) {
                     return $query->where('is_active', true);
                 });
-                // NOTE: Don't use whereHas('locations') here - it filters out products
-                // Instead, we filter location data in the eager load and response mapping
+
+            // Product list: when a location filter is set, only products that belong to that location
+            // (assigned in location_product OR any batch row at that location, including zero qty).
+            if (!empty($locationId)) {
+                $query->where(function ($q) use ($locationId) {
+                    $q->whereHas('locations', function ($q2) use ($locationId) {
+                        $q2->where('locations.id', $locationId);
+                    })->orWhereHas('batches.locationBatches', function ($q2) use ($locationId) {
+                        $q2->where('location_id', $locationId);
+                    });
+                });
+            }
 
             // Apply DataTable global search
             if (!empty($search)) {
@@ -2283,6 +2297,23 @@ class ProductController extends Controller
             }
             if (!empty($filterBrand)) {
                 $query->where('brand_id', $filterBrand);
+            }
+
+            // Optional: restrict to specific product IDs (e.g. Excel export of checked rows only)
+            $filterProductIds = $request->input('product_ids');
+            if ($filterProductIds !== null && $filterProductIds !== '') {
+                if (is_string($filterProductIds)) {
+                    $ids = array_filter(array_map('intval', explode(',', $filterProductIds)));
+                } elseif (is_array($filterProductIds)) {
+                    $ids = array_values(array_filter(array_map('intval', $filterProductIds)));
+                } else {
+                    $ids = [];
+                }
+                $ids = array_values(array_unique($ids));
+                if (!empty($ids)) {
+                    $ids = array_slice($ids, 0, 25000);
+                    $query->whereIn('id', $ids);
+                }
             }
 
             // Apply with_stock filter (for POS - only show products with stock > 0)
@@ -2376,27 +2407,20 @@ class ProductController extends Controller
                 $query->orderBy('id', 'asc');
             }
 
-            // Get total count before filtering
-            Log::info('Memory before total count: ' . memory_get_usage(true) / 1024 / 1024 . 'MB');
+            // Total rows in table (DataTables recordsTotal)
             $totalCount = Product::count();
-            Log::info('Total products count: ' . $totalCount);
 
-            // Get filtered paginated products with error handling
-            Log::info('Memory before pagination: ' . memory_get_usage(true) / 1024 / 1024 . 'MB');
             try {
                 $products = $query->paginate($perPage, ['*'], 'page', $page);
             } catch (\Exception $e) {
                 Log::error('Error during pagination: ' . $e->getMessage());
                 throw new \Exception('Database query failed: ' . $e->getMessage());
             }
-            Log::info('Memory after pagination: ' . memory_get_usage(true) / 1024 / 1024 . 'MB');
 
-            // Get filtered count for pagination
             $filteredCount = $products->total();
-            Log::info('Filtered count: ' . $filteredCount);
 
-            // Get product IDs for batch and IMEI filtering
             $productIds = $products->pluck('id');
+            $pageProductIds = $productIds->all();
 
             // Load IMEIs grouped by product ID (filter by location if specified)
             $imeisQuery = ImeiNumber::whereIn('product_id', $productIds)
@@ -2408,6 +2432,80 @@ class ProductController extends Controller
 
             $imeis = $imeisQuery->get()->groupBy('product_id');
 
+            // --- Batched queries for current page (avoids N+1 per product / per batch) ---
+            $stockPaidByProduct = collect();
+            $stockFreeByProduct = collect();
+            $batchSumsByBatchId = [];
+            $productIdsWithBatchAtLocationSet = [];
+            $locationsWithStockByProduct = collect();
+            $locationForFilter = null;
+
+            if (!empty($pageProductIds)) {
+                $stockPaidByProduct = DB::table('location_batches')
+                    ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                    ->whereIn('batches.product_id', $pageProductIds)
+                    ->when($locationId, function ($q) use ($locationId) {
+                        return $q->where('location_batches.location_id', $locationId);
+                    })
+                    ->groupBy('batches.product_id')
+                    ->selectRaw('batches.product_id as product_id, SUM(location_batches.qty) as sq')
+                    ->pluck('sq', 'product_id');
+
+                $stockFreeByProduct = DB::table('location_batches')
+                    ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                    ->whereIn('batches.product_id', $pageProductIds)
+                    ->when($locationId, function ($q) use ($locationId) {
+                        return $q->where('location_batches.location_id', $locationId);
+                    })
+                    ->groupBy('batches.product_id')
+                    ->selectRaw('batches.product_id as product_id, SUM(location_batches.free_qty) as sfq')
+                    ->pluck('sfq', 'product_id');
+
+                $allBatchIds = $products->flatMap(function ($p) {
+                    return $p->batches->pluck('id');
+                })->unique()->values()->all();
+
+                if (!empty($allBatchIds)) {
+                    $sumRows = DB::table('location_batches')
+                        ->whereIn('batch_id', $allBatchIds)
+                        ->when($locationId, function ($q) use ($locationId) {
+                            return $q->where('location_id', $locationId);
+                        })
+                        ->groupBy('batch_id')
+                        ->selectRaw('batch_id, SUM(qty) as q, SUM(free_qty) as fq')
+                        ->get();
+                    foreach ($sumRows as $br) {
+                        $batchSumsByBatchId[(int) $br->batch_id] = [
+                            'q' => $br->q,
+                            'fq' => $br->fq,
+                        ];
+                    }
+                }
+
+                if ($locationId) {
+                    $pidsWithBatch = DB::table('location_batches')
+                        ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                        ->whereIn('batches.product_id', $pageProductIds)
+                        ->where('location_batches.location_id', $locationId)
+                        ->distinct()
+                        ->pluck('batches.product_id');
+                    foreach ($pidsWithBatch as $pid) {
+                        $productIdsWithBatchAtLocationSet[(int) $pid] = true;
+                    }
+                    $locationForFilter = Location::find($locationId);
+                } else {
+                    $locationsWithStockByProduct = DB::table('location_batches')
+                        ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                        ->join('locations', 'location_batches.location_id', '=', 'locations.id')
+                        ->whereIn('batches.product_id', $pageProductIds)
+                        ->where('location_batches.qty', '>', 0)
+                        ->select('batches.product_id', 'locations.id as loc_id', 'locations.name as loc_name')
+                        ->distinct()
+                        ->get()
+                        ->groupBy('product_id');
+                }
+            }
+
             // Prepare response data
             $productStocks = [];
 
@@ -2417,23 +2515,9 @@ class ProductController extends Controller
                 // Determine if allow_decimal is true for this product's unit
                 $allowDecimal = $product->unit && $product->unit->allow_decimal;
 
-                // Calculate total paid stock based on location filter
-                $totalStock = DB::table('location_batches')
-                    ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
-                    ->where('batches.product_id', $product->id)
-                    ->when($locationId, function ($q) use ($locationId) {
-                        return $q->where('location_batches.location_id', $locationId);
-                    })
-                    ->sum('location_batches.qty');
-
-                // Calculate total free stock based on location filter
-                $totalFreeStock = DB::table('location_batches')
-                    ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
-                    ->where('batches.product_id', $product->id)
-                    ->when($locationId, function ($q) use ($locationId) {
-                        return $q->where('location_batches.location_id', $locationId);
-                    })
-                    ->sum('location_batches.free_qty');
+                $pid = $product->id;
+                $totalStock = (float) ($stockPaidByProduct->get($pid) ?? $stockPaidByProduct->get((string) $pid) ?? 0);
+                $totalFreeStock = (float) ($stockFreeByProduct->get($pid) ?? $stockFreeByProduct->get((string) $pid) ?? 0);
 
                 if ($allowDecimal) {
                     $totalStock = round($totalStock, 2);
@@ -2483,41 +2567,20 @@ class ProductController extends Controller
                 $productLocations = collect();
 
                 if ($locationId) {
-                    // When filtering by location, check if this product has stock in that location
-                    $hasStockInLocation = DB::table('location_batches')
-                        ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
-                        ->where('batches.product_id', $product->id)
-                        ->where('location_batches.location_id', $locationId)
-                        ->where('location_batches.qty', '>', 0)
-                        ->exists();
-
-                    // Also check if product is assigned to this location
+                    $hasBatchRowAtLocation = isset($productIdsWithBatchAtLocationSet[(int) $product->id]);
                     $isAssignedToLocation = $product->locations->contains('id', $locationId);
 
-                    // If product has stock OR is assigned to this location, include the location
-                    if ($hasStockInLocation || $isAssignedToLocation) {
-                        $location = Location::find($locationId);
-                        if ($location) {
-                            $productLocations->push($location);
-                        }
+                    if (($hasBatchRowAtLocation || $isAssignedToLocation) && $locationForFilter) {
+                        $productLocations->push($locationForFilter);
                     }
                 } else {
-                    // No filter - show all locations that either:
-                    // 1. Are assigned to the product, OR
-                    // 2. Have stock for this product
                     $assignedLocations = $product->locations;
-                    $locationsWithStock = DB::table('location_batches')
-                        ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
-                        ->join('locations', 'location_batches.location_id', '=', 'locations.id')
-                        ->where('batches.product_id', $product->id)
-                        ->where('location_batches.qty', '>', 0)
-                        ->select('locations.id', 'locations.name')
-                        ->distinct()
-                        ->get();
+                    $locationsWithStock = $locationsWithStockByProduct->get($product->id)
+                        ?? $locationsWithStockByProduct->get((string) $product->id)
+                        ?? collect();
 
-                    // Merge assigned locations and locations with stock
                     $allLocationIds = $assignedLocations->pluck('id')
-                        ->merge($locationsWithStock->pluck('id'))
+                        ->merge($locationsWithStock->pluck('loc_id'))
                         ->unique();
 
                     $productLocations = Location::whereIn('id', $allLocationIds)->get();
@@ -2587,22 +2650,15 @@ class ProductController extends Controller
                     ],
                     'total_stock' => $totalStock,
                     'total_free_stock' => $totalFreeStock,
-                    'batches' => $filteredBatches->map(function ($batch) use ($allowDecimal, $locationId) {
+                    'batches' => $filteredBatches->map(function ($batch) use ($allowDecimal, $locationId, $batchSumsByBatchId) {
                         // Filter location batches based on location filter
                         $locationBatches = $locationId
                             ? $batch->locationBatches->where('location_id', $locationId)
                             : $batch->locationBatches;
 
-                        // ✅ Use live DB query for batch quantity to avoid stale data
-                        $batchQty = DB::table('location_batches')
-                            ->where('batch_id', $batch->id)
-                            ->when($locationId, fn($q) => $q->where('location_id', $locationId))
-                            ->sum('qty');
-
-                        $batchFreeQty = DB::table('location_batches')
-                            ->where('batch_id', $batch->id)
-                            ->when($locationId, fn($q) => $q->where('location_id', $locationId))
-                            ->sum('free_qty');
+                        $sums = $batchSumsByBatchId[(int) $batch->id] ?? ['q' => 0, 'fq' => 0];
+                        $batchQty = $sums['q'];
+                        $batchFreeQty = $sums['fq'];
 
                         return [
                             'id' => $batch->id,
@@ -3572,15 +3628,40 @@ class ProductController extends Controller
                     // Check if the product unit allows decimals
                     $allowDecimal = $product->unit && $product->unit->allow_decimal;
 
-                    // ✅ Use live DB query for total available stock (paid + free) to avoid stale data
-                    $totalLocationStock = DB::table('location_batches')
+                    $lbTotals = DB::table('location_batches')
                         ->where('batch_id', $batch->id)
-                        ->selectRaw('COALESCE(SUM(qty),0) + COALESCE(SUM(free_qty),0) as total_available')
-                        ->value('total_available');
+                        ->selectRaw('COALESCE(SUM(qty),0) as sum_paid, COALESCE(SUM(free_qty),0) as sum_free')
+                        ->first();
 
-                    // Use location-based stock total as the accurate stock count
-                    $fallback = ((float) ($batch->qty ?? 0)) + ((float) ($batch->free_qty ?? 0));
-                    $actualQty = $totalLocationStock > 0 ? $totalLocationStock : $fallback;
+                    $sumPaid = (float) ($lbTotals->sum_paid ?? 0);
+                    $sumFree = (float) ($lbTotals->sum_free ?? 0);
+                    $fromLocations = $sumPaid + $sumFree;
+
+                    // Displayed stock = sum(location_batches) only (matches "By location" column)
+                    $actualQty = $fromLocations;
+
+                    // Merge rows per location (duplicate location_batch rows for same store sum together)
+                    $locationsMerged = $batch->locationBatches
+                        ->groupBy('location_id')
+                        ->map(function ($rows) use ($allowDecimal) {
+                            $first = $rows->first();
+
+                            return [
+                                'id' => optional($first->location)->id,
+                                'name' => optional($first->location)->name ?? 'N/A',
+                                'qty' => $allowDecimal
+                                    ? round((float) $rows->sum('qty'), 2)
+                                    : (int) $rows->sum('qty'),
+                                'free_qty' => $allowDecimal
+                                    ? round((float) $rows->sum('free_qty'), 2)
+                                    : (int) $rows->sum('free_qty'),
+                            ];
+                        })
+                        ->values()
+                        ->sortByDesc(function ($row) {
+                            return (float) ($row['qty'] ?? 0) + (float) ($row['free_qty'] ?? 0);
+                        })
+                        ->values();
 
                     return [
                         'id' => $batch->id,
@@ -3591,15 +3672,10 @@ class ProductController extends Controller
                         'retail_price' => $batch->retail_price,
                         'max_retail_price' => $batch->max_retail_price,
                         'expiry_date' => $batch->expiry_date,
-                        'qty' => $allowDecimal ? round((float)$actualQty, 2) : (int)$actualQty,
-                        'locations' => $batch->locationBatches->map(function($lb) use ($allowDecimal) {
-                            return [
-                                'id' => optional($lb->location)->id,
-                                'name' => optional($lb->location)->name ?? 'N/A',
-                                'qty' => $allowDecimal ? round((float)($lb->qty ?? 0), 2) : (int)($lb->qty ?? 0),
-                                'free_qty' => $allowDecimal ? round((float)($lb->free_qty ?? 0), 2) : (int)($lb->free_qty ?? 0),
-                            ];
-                        })
+                        'qty' => $allowDecimal ? round((float) $actualQty, 2) : (int) $actualQty,
+                        'qty_paid' => $allowDecimal ? round($sumPaid, 2) : (int) $sumPaid,
+                        'qty_free' => $allowDecimal ? round($sumFree, 2) : (int) $sumFree,
+                        'locations' => $locationsMerged,
                     ];
                 })
             ]);

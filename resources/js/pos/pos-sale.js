@@ -643,10 +643,35 @@ function validateWalkInCheque(saleData) {
 
 function resolveSaleIdFromUrl(saleId) {
     if (saleId) return saleId;
+    // After a successful edit-save we clear isEditing; never treat /sales/edit/{id} as active edit.
+    if (!window.isEditing && !window.currentEditingSaleId) {
+        return null;
+    }
     const segs = window.location.pathname.split('/');
     const last = segs[segs.length - 1];
     if (!isNaN(last) && last !== 'pos' && last !== 'list-sale') return last;
     return null;
+}
+
+/**
+ * After a successful POST /sales/update/{id} from POS, clear edit flags and URL so the next bill
+ * is always a new sale (avoids updating the same invoice number again).
+ */
+function clearPosEditSessionAfterSave() {
+    window.isEditing = false;
+    window.currentEditingSaleId = null;
+    window.isEditingFinalizedSale = false;
+    window.originalSaleData = null;
+    try {
+        if (window.location.pathname.includes('/sales/edit/')) {
+            window.history.replaceState({}, document.title, '/pos-create');
+            document.title = 'POS - Create Sale';
+            const invEl = document.getElementById('sale-invoice-no');
+            if (invEl) invEl.textContent = '';
+        }
+    } catch (e) {
+        console.warn('clearPosEditSessionAfterSave:', e);
+    }
 }
 
 function showCreditOrStockSwal(message, isCreditLimit) {
@@ -696,7 +721,7 @@ function handleSaleXhrError(xhr, onComplete) {
     if (onComplete) onComplete();
 }
 
-function openPrintForSale(response, saleId) {
+function openPrintForSale(response, saleId, wasEditingSale) {
     if (!response.invoice_html) {
         const returnedSaleId = (response.sale && response.sale.id) || response.id || saleId;
         if (typeof window.printReceipt === 'function') {
@@ -705,14 +730,14 @@ function openPrintForSale(response, saleId) {
             const w = window.open(`/sales/print-recent-transaction/${returnedSaleId}`, '_blank');
             if (!w) toastr.error('Print window was blocked. Please allow pop-ups.');
         }
-        if (saleId && window.location.pathname.includes('/edit/')) {
-            setTimeout(() => { window.location.href = '/pos-create'; }, 1200);
+        if (wasEditingSale) {
+            setTimeout(() => { window.location.replace('/pos-create'); }, 1200);
         }
         return;
     }
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     const returnedSaleId = (response.sale && response.sale.id) || response.id || saleId;
-    const isEdit = saleId && window.location.pathname.includes('/edit/');
+    const isEdit = !!wasEditingSale;
     const focusSearch = () => {
         const el = document.getElementById('productSearchInput');
         if (el) { el.focus(); el.select(); }
@@ -793,10 +818,11 @@ function handleSaleSuccessResponse(response, saleData, saleId, onComplete) {
         return;
     }
     try { document.getElementsByClassName('successSound')[0].play(); } catch (_) {}
-    const isEdit = saleId && window.location.pathname.includes('/edit/');
+    const isEdit = !!(saleId && (window.location.pathname.includes('/edit/') || window.isEditing));
 
     if (response.sale && response.sale.transaction_type === 'sale_order') {
         toastr.success(response.message + ' Order Number: ' + response.sale.order_number, 'Sale Order Created', { timeOut: 5000, progressBar: true });
+        if (saleId) clearPosEditSessionAfterSave();
         if (isEdit) { setTimeout(() => window.navigateToPosCreate(), 1500); if (onComplete) onComplete(); return; }
         setTimeout(() => { resetForm(); if (onComplete) onComplete(); }, 50);
         return;
@@ -804,20 +830,36 @@ function handleSaleSuccessResponse(response, saleData, saleId, onComplete) {
     toastr.success(response.message);
     $(document).trigger('pos:register-refresh');
     if (isEdit && (saleData.status === 'draft' || saleData.status === 'quotation')) {
+        if (saleId) clearPosEditSessionAfterSave();
         setTimeout(() => window.navigateToPosCreate(), 1500);
         if (onComplete) onComplete();
         return;
     }
     if (isEdit && saleData.status === 'suspend') {
-        setTimeout(() => { window.location.href = '/pos-create'; }, 1200);
+        if (saleId) clearPosEditSessionAfterSave();
+        setTimeout(() => { window.location.replace('/pos-create'); }, 1200);
         if (onComplete) onComplete();
         return;
     }
 
+    // Final (and similar) invoice updates: clear edit URL/flags immediately so the next sale cannot
+    // POST to /sales/update/{sameId} even if the user skips/cancels print (onafterprint never fires).
+    const wasEditingSale = isEdit;
+    if (saleId) clearPosEditSessionAfterSave();
+
     if (saleData.status !== 'suspend' && saleData.transaction_type !== 'sale_order') {
-        try { openPrintForSale(response, saleId); } catch (err) { console.warn('Error initiating print:', err); }
+        try { openPrintForSale(response, saleId, wasEditingSale); } catch (err) { console.warn('Error initiating print:', err); }
     }
     setTimeout(() => runAfterSaleSuccess(saleData, onComplete), 50);
+
+    // Hard fallback: full reload to clean POS if browser history/print left any stale state
+    if (wasEditingSale && (saleData.status === 'final' || saleData.status === 'jobticket')) {
+        setTimeout(() => {
+            if (window.location.pathname.includes('/sales/edit/')) {
+                window.location.replace('/pos-create');
+            }
+        }, 4000);
+    }
 }
 
 // ================================================================

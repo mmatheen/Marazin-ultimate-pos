@@ -561,14 +561,14 @@
                             <thead class="table-light">
                                 <tr>
                                     <th class="text-nowrap">Batch No</th>
-                                    <th class="text-nowrap">Stock</th>
+                                    <th class="text-nowrap">Current stock<br><small class="fw-normal text-muted">(paid + free)</small></th>
                                     <th class="text-nowrap d-none d-md-table-cell">Cost Price</th>
                                     <th class="text-nowrap">Wholesale</th>
                                     <th class="text-nowrap">Special</th>
                                     <th class="text-nowrap">Retail</th>
                                     <th class="text-nowrap">Max Retail</th>
                                     <th class="text-nowrap d-none d-lg-table-cell">Expiry</th>
-                                    <th class="text-nowrap d-none d-lg-table-cell">Locations</th>
+                                    <th class="text-nowrap d-none d-lg-table-cell">By location<br><small class="fw-normal text-muted">(stock per store)</small></th>
                                 </tr>
                             </thead>
                             <tbody id="batchPricesTableBody">

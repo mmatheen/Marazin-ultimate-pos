@@ -232,6 +232,50 @@ class BalanceHelper
     }
 
     /**
+     * Per-customer sum of remaining invoice total_due for sales created by the given user.
+     * Matches due-report style filters (final invoice, partial/due, total_due > 0).
+     * For sales-rep display / collection tracking only — credit decisions must use full ledger balance.
+     */
+    public static function getBulkSalesRepOpenInvoiceDues(array $customerIds, int $userId)
+    {
+        if ($userId < 1 || empty($customerIds)) {
+            return collect();
+        }
+
+        $customerIds = array_values(array_unique(array_map('intval', $customerIds)));
+        $customerIds = array_values(array_filter($customerIds, fn ($id) => $id > 1));
+
+        if (empty($customerIds)) {
+            return collect();
+        }
+
+        $placeholders = str_repeat('?,', count($customerIds) - 1) . '?';
+        $bindings = array_merge([(int) $userId], $customerIds);
+
+        $results = DB::select(
+            "
+            SELECT customer_id, COALESCE(SUM(total_due), 0) AS rep_invoice_due
+            FROM sales
+            WHERE user_id = ?
+                AND customer_id IN ({$placeholders})
+                AND status = 'final'
+                AND transaction_type = 'invoice'
+                AND LOWER(payment_status) IN ('partial', 'due')
+                AND total_due > 0
+            GROUP BY customer_id
+            ",
+            $bindings
+        );
+
+        $dues = collect();
+        foreach ($results as $row) {
+            $dues->put((int) $row->customer_id, (float) $row->rep_invoice_due);
+        }
+
+        return $dues;
+    }
+
+    /**
      * Get multiple customer advance amounts at once (negative balances only)
      * Returns collection with customer_id => advance_amount
      */
