@@ -20,6 +20,18 @@
         .select2-container--default .select2-selection--single .select2-selection__arrow {
             height: 42px !important;
         }
+
+        /* All Sales: Payment Method — min-width prevents collapsed column / vertical letter stacking */
+        #salesTable thead th.sales-col-payment-method,
+        #salesTable tbody td.sales-col-payment-method {
+            min-width: 9.5rem;
+            max-width: 18rem;
+            width: 11rem;
+            white-space: normal;
+            word-break: normal;
+            overflow-wrap: break-word;
+            vertical-align: middle;
+        }
     </style>
 @endpush
 

@@ -9,16 +9,31 @@ use Illuminate\Http\Request;
 class SaleDataTableService
 {
     /**
+     * MySQL does not allow OFFSET without LIMIT. DataTables "All" uses length=-1 (no user page size);
+     * we use a large LIMIT so the full filtered set is returned in one query.
+     */
+    private const MAX_ROWS_ALL = 2147483647;
+
+    /**
      * Build the DataTable response payload for the All Sales list.
      *
      * @return array{draw:int, recordsTotal:int, recordsFiltered:int, data:array}
      */
     public function getData(Request $request, ?User $user): array
     {
-        $perPage = max(1, (int) $request->input('length', 10));
-        $start   = max(0, (int) $request->input('start', 0));
-        $draw    = (int) $request->input('draw', 1);
-        $search  = $request->input('search.value', '');
+        $start = max(0, (int) $request->input('start', 0));
+        $draw  = (int) $request->input('draw', 1);
+        $search = $request->input('search.value', '');
+
+        // DataTables sends length=-1 for "Show All". Normalize so -1 is never confused with other types.
+        $rawLength = $request->input('length', 10);
+        if ($rawLength === '-1' || $rawLength === -1) {
+            $lengthInt = -1;
+        } elseif (is_numeric($rawLength)) {
+            $lengthInt = (int) $rawLength;
+        } else {
+            $lengthInt = 10;
+        }
 
         // Base query – bypass location global scope so admins see all sales
         $baseQuery = Sale::withoutGlobalScopes()
@@ -34,9 +49,9 @@ class SaleDataTableService
             $baseQuery->where('user_id', $user->id);
         }
 
-        $totalSales = (clone $baseQuery)->count();
+        $recordsTotal = (clone $baseQuery)->count();
 
-        if ($totalSales === 0) {
+        if ($recordsTotal === 0) {
             return [
                 'draw'            => $draw,
                 'recordsTotal'    => 0,
@@ -85,14 +100,30 @@ class SaleDataTableService
         if (filled($request->start_date)) $query->whereDate('sales_date', '>=', $request->start_date);
         if (filled($request->end_date))   $query->whereDate('sales_date', '<=', $request->end_date);
 
-        // --- Pagination ---
-        $totalCount = $query->count();
-        $sales = $query->orderByDesc('created_at')->skip($start)->take($perPage)->get();
+        $recordsFiltered = (clone $query)->count();
+
+        if ($recordsFiltered === 0) {
+            return [
+                'draw'            => $draw,
+                'recordsTotal'    => $recordsTotal,
+                'recordsFiltered' => 0,
+                'data'            => [],
+            ];
+        }
+
+        // MySQL does not allow OFFSET without LIMIT. Always set take() to a positive integer.
+        if ($lengthInt === -1) {
+            $take = min(self::MAX_ROWS_ALL, $recordsFiltered);
+        } else {
+            $take = max(1, $lengthInt);
+        }
+
+        $sales = $query->orderByDesc('created_at')->skip($start)->take($take)->get();
 
         return [
             'draw'            => $draw,
-            'recordsTotal'    => $totalCount,
-            'recordsFiltered' => $totalCount,
+            'recordsTotal'    => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
             'data'            => $this->formatRows($sales),
         ];
     }

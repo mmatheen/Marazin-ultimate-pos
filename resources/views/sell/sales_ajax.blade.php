@@ -1,4 +1,278 @@
 <script>
+    function escapeHtmlForExportSales(text) {
+        if (text === null || text === undefined) return '';
+        return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function formatSalesExportRow(row) {
+        var customerName = '';
+        if (row.customer) {
+            if (row.customer.name) {
+                customerName = row.customer.name;
+            } else {
+                customerName = ((row.customer.first_name || '') + ' ' + (row.customer.last_name || '')).trim();
+            }
+        }
+        var phone = row.customer ? (row.customer.phone || row.customer.mobile_no || '') : '';
+        var paymentStatus = row.payment_status || 'Due';
+        paymentStatus = paymentStatus.charAt(0).toUpperCase() + paymentStatus.slice(1).toLowerCase();
+        var paymentMethod = 'N/A';
+        if (row.payments && row.payments.length > 0) {
+            if (row.payments.length > 1) {
+                paymentMethod = row.payments.map(function(p) {
+                    return p.method;
+                }).join(', ');
+            } else {
+                paymentMethod = row.payments[0].method || 'N/A';
+            }
+        }
+        var totalPaid = 0;
+        if (row.payments && row.payments.length > 0) {
+            totalPaid = row.payments.reduce(function(sum, payment) {
+                var amount = typeof payment.amount === 'string' ?
+                    parseFloat(String(payment.amount).replace(/,/g, '')) :
+                    parseFloat(payment.amount || 0);
+                return sum + amount;
+            }, 0);
+        }
+        var dueAmount = Math.max(0, parseFloat(row.total_due || 0));
+        var finalTotal = typeof row.final_total === 'string' ?
+            row.final_total :
+            parseFloat(row.final_total || 0).toFixed(2);
+        var addedBy = row.user ? (row.user.name || row.user.user_name || '') : '';
+        return [
+            row.sales_date || '',
+            row.invoice_no || row.id || '',
+            customerName,
+            phone,
+            row.location ? row.location.name : '',
+            paymentStatus,
+            paymentMethod,
+            finalTotal,
+            totalPaid.toFixed(2),
+            dueAmount.toFixed(2),
+            row.status || '',
+            row.total_items || 0,
+            addedBy
+        ];
+    }
+
+    /** Shared by DataTable ajax and export — keeps filter query params in one place. */
+    function appendSalesListFiltersToParams(requestData) {
+        if ($('#customerFilter').val()) {
+            requestData.customer_id = $('#customerFilter').val();
+        }
+        if ($('#locationFilter').val()) {
+            requestData.location_id = $('#locationFilter').val();
+        }
+        if ($('#userFilter').val()) {
+            requestData.user_id = $('#userFilter').val();
+        }
+        if ($('#paymentStatusFilter').val()) {
+            requestData.payment_status = $('#paymentStatusFilter').val();
+        }
+        if ($('#paymentMethodFilter').val()) {
+            requestData.payment_method = $('#paymentMethodFilter').val();
+        }
+        if ($('#dateRangeFilter').val()) {
+            var dateRange = $('#dateRangeFilter').val().split(' - ');
+            if (dateRange.length === 2) {
+                requestData.start_date = dateRange[0];
+                requestData.end_date = dateRange[1];
+            }
+        }
+        return requestData;
+    }
+
+    function exportSalesListFiltered(kind) {
+        if (!$('#salesTable').length || !$.fn.DataTable.isDataTable('#salesTable')) {
+            return;
+        }
+        var api = $('#salesTable').DataTable();
+        var info = api.page.info();
+        var total = info.recordsTotal;
+        if (total === 0) {
+            if (typeof toastr !== 'undefined') {
+                toastr.warning('No sales to export.');
+            }
+            return;
+        }
+        var maxExport = 25000;
+        if (total > maxExport) {
+            if (typeof toastr !== 'undefined') {
+                toastr.warning('Too many sales (' + total + '). Narrow filters to export at most ' + maxExport + '.');
+            }
+            return;
+        }
+        var order = api.order();
+        var params = {
+            draw: 1,
+            start: 0,
+            length: -1,
+            'search[value]': api.search(),
+            'search[regex]': false
+        };
+        if (order && order.length && order[0]) {
+            params['order[0][column]'] = order[0][0];
+            params['order[0][dir]'] = order[0][1];
+        }
+        appendSalesListFiltersToParams(params);
+        var headers = ['Date', 'Invoice No.', 'Customer Name', 'Phone', 'Location', 'Payment Status', 'Payment Method',
+            'Total Amount', 'Paid Amount', 'Due Amount', 'Status', 'Total Items', 'Added By'
+        ];
+        var title = 'Sales List';
+        var dateStr = new Date().toISOString().slice(0, 10);
+        if (typeof toastr !== 'undefined') {
+            toastr.info('Preparing export…', 'Please wait', {
+                timeOut: 0,
+                extendedTimeOut: 0
+            });
+        }
+        $.ajax({
+            url: '/api/sales/paginated',
+            type: 'GET',
+            dataType: 'json',
+            timeout: 120000,
+            cache: false,
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                'Accept': 'application/json'
+            },
+            data: params,
+            success: function(json) {
+                if (typeof toastr !== 'undefined') {
+                    toastr.clear();
+                }
+                if (!json || !Array.isArray(json.data) || !json.data.length) {
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error('No data returned for export.');
+                    }
+                    return;
+                }
+                var rows = json.data.map(formatSalesExportRow);
+                if (kind === 'excel') {
+                    var csv = '\uFEFF';
+                    csv += headers.map(function(h) {
+                        return '"' + String(h).replace(/"/g, '""') + '"';
+                    }).join(',') + '\n';
+                    rows.forEach(function(r) {
+                        csv += r.map(function(cell) {
+                            var s = String(cell).replace(/"/g, '""');
+                            return '"' + s + '"';
+                        }).join(',') + '\n';
+                    });
+                    var blob = new Blob([csv], {
+                        type: 'text/csv;charset=utf-8;'
+                    });
+                    var link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = 'sales_list_' + dateStr + '.csv';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(link.href);
+                    if (typeof toastr !== 'undefined') {
+                        toastr.success('Download started (opens in Excel).');
+                    }
+                    return;
+                }
+                if (kind === 'print') {
+                    var win = window.open('', '_blank');
+                    if (!win) {
+                        if (typeof toastr !== 'undefined') {
+                            toastr.error('Pop-up blocked. Allow pop-ups to print.');
+                        }
+                        return;
+                    }
+                    win.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>' +
+                        escapeHtmlForExportSales(title) + '</title>');
+                    win.document.write(
+                        '<style>body{font-family:Arial,sans-serif;padding:16px}table{width:100%;border-collapse:collapse;margin-top:12px}td,th{border:1px solid #ccc;padding:6px;font-size:12px}th{background:#f5f5f5;text-align:left}h2{text-align:center;font-size:18px}</style>'
+                    );
+                    win.document.write('</head><body>');
+                    win.document.write('<h2>' + escapeHtmlForExportSales(title) + '</h2>');
+                    win.document.write('<table><thead><tr>');
+                    headers.forEach(function(h) {
+                        win.document.write('<th>' + escapeHtmlForExportSales(h) + '</th>');
+                    });
+                    win.document.write('</tr></thead><tbody>');
+                    rows.forEach(function(r) {
+                        win.document.write('<tr>');
+                        r.forEach(function(c) {
+                            win.document.write('<td>' + escapeHtmlForExportSales(c) + '</td>');
+                        });
+                        win.document.write('</tr>');
+                    });
+                    win.document.write('</tbody></table></body></html>');
+                    win.document.close();
+                    win.focus();
+                    win.print();
+                    return;
+                }
+                if (kind === 'pdf') {
+                    if (typeof pdfMake === 'undefined') {
+                        if (typeof toastr !== 'undefined') {
+                            toastr.error('PDF library not loaded.');
+                        }
+                        return;
+                    }
+                    var tableBody = [headers.map(function(h) {
+                        return {
+                            text: h,
+                            style: 'tableHeader',
+                            bold: true
+                        };
+                    })];
+                    rows.forEach(function(r) {
+                        tableBody.push(r.map(function(c) {
+                            return String(c);
+                        }));
+                    });
+                    var docDefinition = {
+                        pageOrientation: 'landscape',
+                        pageSize: 'A4',
+                        pageMargins: [12, 12, 12, 12],
+                        content: [{
+                                text: title,
+                                style: 'header',
+                                margin: [0, 0, 0, 10]
+                            },
+                            {
+                                table: {
+                                    headerRows: 1,
+                                    widths: Array(headers.length).fill('*'),
+                                    body: tableBody
+                                },
+                                layout: 'lightHorizontalLines'
+                            }
+                        ],
+                        styles: {
+                            header: {
+                                fontSize: 12,
+                                bold: true
+                            },
+                            tableHeader: {
+                                fontSize: 8,
+                                bold: true
+                            }
+                        },
+                        defaultStyle: {
+                            fontSize: 7
+                        }
+                    };
+                    pdfMake.createPdf(docDefinition).download('sales_list_' + dateStr + '.pdf');
+                }
+            },
+            error: function(xhr, status, err) {
+                if (typeof toastr !== 'undefined') {
+                    toastr.clear();
+                    toastr.error('Export failed. Try using filters or a smaller result set.');
+                }
+                console.error('Sales export failed:', status, err, xhr && xhr.responseText);
+            }
+        });
+    }
+
     $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); // For CSRF token
         const canUseFreeQty = {!! json_encode($canUseFreeQty ?? false) !!};
@@ -42,9 +316,10 @@
                 data: function(d) {
                     // STRICT DataTable server-side parameter enforcement
                     var requestData = {
-                        draw: parseInt(d.draw) || 1,
-                        start: parseInt(d.start) || 0,
-                        length: parseInt(d.length) || 10
+                        draw: parseInt(d.draw, 10) || 1,
+                        start: parseInt(d.start, 10) || 0,
+                        // DataTables sends -1 for "All"; must pass through (server treats -1 as no limit).
+                        length: (d.length === -1 || d.length === '-1') ? -1 : (parseInt(d.length, 10) || 10)
                     };
 
                     // Add search parameters if present
@@ -59,23 +334,7 @@
                         requestData['order[0][dir]'] = d.order[0].dir || 'desc';
                     }
 
-
-                    if ($('#customerFilter').val()) requestData.customer_id = $('#customerFilter')
-                        .val();
-                    if ($('#locationFilter').val()) requestData.location_id = $('#locationFilter')
-                        .val();
-                    if ($('#userFilter').val()) requestData.user_id = $('#userFilter').val();
-                    if ($('#paymentStatusFilter').val()) requestData.payment_status = $(
-                        '#paymentStatusFilter').val();
-                    if ($('#paymentMethodFilter').val()) requestData.payment_method = $(
-                        '#paymentMethodFilter').val();
-                    if ($('#dateRangeFilter').val()) {
-                        var dateRange = $('#dateRangeFilter').val().split(' - ');
-                        if (dateRange.length === 2) {
-                            requestData.start_date = dateRange[0];
-                            requestData.end_date = dateRange[1];
-                        }
-                    }
+                    appendSalesListFiltersToParams(requestData);
 
                     return requestData;
                 },
@@ -221,13 +480,15 @@
                     data: null,
                     orderable: false,
                     searchable: false,
+                    className: 'sales-col-payment-method',
                     title: 'Payment Method',
                     render: function(data, type, row) {
                         if (row.payments && row.payments.length > 0) {
-                            // If multiple payments, show all methods
+                            // If multiple payments, show all methods (wrapped; title has full text for hover)
                             if (row.payments.length > 1) {
                                 let methods = row.payments.map(p => p.method).join(', ');
-                                return `<span title="${methods}">${methods}</span>`;
+                                let safeAttr = escapeHtmlForExportSales(methods);
+                                return '<span title="' + safeAttr + '">' + safeAttr + '</span>';
                             } else {
                                 // Single payment method
                                 return row.payments[0].method || 'N/A';
@@ -316,7 +577,29 @@
             order: [
                 [1, 'desc']
             ], // Order by sales_date descending
-            dom: '<"row"<"col-sm-6"l><"col-sm-6"f>><"row"<"col-sm-12"t>><"row"<"col-sm-5"i><"col-sm-7"p>>',
+            dom: '<"dt-top"B><"dt-controls"<"dt-length"l><"dt-search"f>>rtip',
+            buttons: [{
+                    text: '<i class="fa fa-file-pdf"></i> PDF',
+                    className: 'btn btn-secondary btn-sm',
+                    action: function() {
+                        exportSalesListFiltered('pdf');
+                    }
+                },
+                {
+                    text: '<i class="fa fa-file-excel"></i> Excel',
+                    className: 'btn btn-secondary btn-sm',
+                    action: function() {
+                        exportSalesListFiltered('excel');
+                    }
+                },
+                {
+                    text: '<i class="fa fa-print"></i> Print',
+                    className: 'btn btn-secondary btn-sm',
+                    action: function() {
+                        exportSalesListFiltered('print');
+                    }
+                }
+            ],
             lengthChange: true, // Enable length change dropdown
             searching: true,
             ordering: true,
@@ -2677,16 +2960,6 @@
 
 
 
-    });
-
-    // Add filter functionality (must run after vendor scripts are loaded)
-    $(function() {
-        // Filter change events
-        $('#locationFilter, #customerFilter, #userFilter, #paymentStatusFilter, #paymentMethodFilter').change(function() {
-            if ($.fn.DataTable.isDataTable('#salesTable')) {
-                $('#salesTable').DataTable().ajax.reload();
-            }
-        });
     });
 
     // Function to toggle payment method fields in bulk payment modal
