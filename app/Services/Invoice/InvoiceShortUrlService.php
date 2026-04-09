@@ -33,10 +33,16 @@ class InvoiceShortUrlService
 
     public function buildPublicShortUrl(string $code): string
     {
+        // Try to use dedicated short URL base first
         $base = config('services.invoice.short_url_base');
 
+        // Fall back to APP_URL if not set
         if (! filled($base)) {
-            throw new \RuntimeException('INVOICE_SHORT_URL_BASE is not configured.');
+            $base = config('app.url');
+        }
+
+        if (! filled($base)) {
+            throw new \RuntimeException('Short URL base not configured. Set INVOICE_SHORT_URL_BASE or check APP_URL.');
         }
 
         return rtrim((string) $base, '/') . '/' . $code;

@@ -142,6 +142,16 @@ class Sale extends Model
                 'sale_id' => $sale->id,
                 'error' => $e->getMessage(),
             ]);
+
+            // Fallback to direct public invoice URL so SMS still contains a link.
+            try {
+                $invoiceLink = route('public.invoice.show', ['token' => $sale->invoice_token]);
+            } catch (\Throwable $routeException) {
+                Log::warning('Invoice fallback URL generation also failed for SMS dispatch.', [
+                    'sale_id' => $sale->id,
+                    'error' => $routeException->getMessage(),
+                ]);
+            }
         }
 
         $totalAmount = number_format((float) ($sale->final_total ?? 0), 2);
