@@ -19,6 +19,52 @@ class UnifiedLedgerService
 {
 
     /**
+     * Build the canonical ledger reference for payment entries.
+     * Bulk payment references are stored as BLK-...-PAY{id} for uniqueness.
+     */
+    private function resolvePaymentLedgerReference($payment, $fallbackBaseReference = null)
+    {
+        $baseReferenceNo = $payment->reference_no ?: ($fallbackBaseReference ?: 'PAY-' . $payment->id);
+
+        if (strpos($baseReferenceNo, 'BLK-') === 0 && $payment->id) {
+            $expectedSuffix = '-PAY' . $payment->id;
+            if (substr($baseReferenceNo, -strlen($expectedSuffix)) !== $expectedSuffix) {
+                return $baseReferenceNo . $expectedSuffix;
+            }
+        }
+
+        return $baseReferenceNo;
+    }
+
+    /**
+     * Resolve expected payment ledger transaction type.
+     */
+    private function resolvePaymentLedgerTransactionType($payment, $fallbackType = null)
+    {
+        if (!empty($fallbackType)) {
+            return $fallbackType;
+        }
+
+        if (!empty($payment->supplier_id)) {
+            return 'purchase_payment';
+        }
+
+        if (($payment->payment_method ?? null) === 'discount') {
+            return 'discount_given';
+        }
+
+        return 'payments';
+    }
+
+    /**
+     * Transaction types that may represent payment ledger lines.
+     */
+    private function getPaymentLedgerTransactionTypes()
+    {
+        return ['payments', 'purchase_payment', 'discount_given'];
+    }
+
+    /**
      * Record opening balance for customer or supplier
      */
     public function recordOpeningBalance($contactId, $contactType, $amount, $notes = '', $createdBy = null)
@@ -171,13 +217,7 @@ class UnifiedLedgerService
         // ✅ CRITICAL FIX: For bulk payments, append payment ID to reference to ensure unique ledger entries
         // This prevents duplicate detection from incorrectly skipping legitimate payments
         $baseReferenceNo = $payment->reference_no ?: ($sale ? $sale->invoice_no : 'PAY-' . $payment->id);
-
-        // Check if this is a bulk payment (reference starts with BLK-)
-        $referenceNo = $baseReferenceNo;
-        if (strpos($baseReferenceNo, 'BLK-') === 0 && $payment->id) {
-            // Append payment ID to make it unique: BLK-S0075-PAY638
-            $referenceNo = $baseReferenceNo . '-PAY' . $payment->id;
-        }
+        $referenceNo = $this->resolvePaymentLedgerReference($payment, $sale ? $sale->invoice_no : null);
 
         // Use the user-entered payment_date (not system created_at).
         // payment_date is cast as 'date' — a plain Y-m-d already in Asia/Colombo time.
@@ -229,13 +269,7 @@ class UnifiedLedgerService
 
         // ✅ CRITICAL FIX: For bulk payments, append payment ID to reference to ensure unique ledger entries
         $baseReferenceNo = $payment->reference_no ?: ($purchase ? $purchase->reference_no : 'PAY-' . $payment->id);
-
-        // Check if this is a bulk payment (reference starts with BLK-)
-        $referenceNo = $baseReferenceNo;
-        if (strpos($baseReferenceNo, 'BLK-') === 0 && $payment->id) {
-            // Append payment ID to make it unique: BLK-P0075-PAY638
-            $referenceNo = $baseReferenceNo . '-PAY' . $payment->id;
-        }
+        $referenceNo = $this->resolvePaymentLedgerReference($payment, $purchase ? $purchase->reference_no : null);
 
         // Use the user-entered payment_date (not system created_at).
         // payment_date is cast as 'date' — a plain Y-m-d already in Asia/Colombo time.
@@ -2040,13 +2074,13 @@ class UnifiedLedgerService
         // This maintains complete audit trail and prevents data loss
 
         if ($oldPayment) {
-            $oldReferenceNo = $oldPayment->reference_no ?: 'PAY-' . $oldPayment->id;
+            $oldReferenceNo = $this->resolvePaymentLedgerReference($oldPayment);
             $contactType = $oldPayment->customer_id ? 'customer' : 'supplier';
             $userId = $oldPayment->customer_id ?: $oldPayment->supplier_id;
 
             // Instead of deleting, create REVERSAL entries
             $oldLedgerEntries = Ledger::where('reference_no', $oldReferenceNo)
-                ->where('transaction_type', 'payments')
+                ->whereIn('transaction_type', $this->getPaymentLedgerTransactionTypes())
                 ->where('contact_id', $userId)
                 ->where('contact_type', $contactType)
                 ->where('status', 'active') // ✅ Only reverse ACTIVE entries
@@ -2063,7 +2097,7 @@ class UnifiedLedgerService
                 $reversalEntry = new Ledger();
                 $reversalEntry->transaction_date = now();
                 $reversalEntry->reference_no = $oldReferenceNo . '-REV';
-                $reversalEntry->transaction_type = 'payments';
+                $reversalEntry->transaction_type = $oldEntry->transaction_type;
                 $reversalEntry->debit = $oldEntry->credit;  // Swap: original credit becomes debit
                 $reversalEntry->credit = $oldEntry->debit;  // Swap: original debit becomes credit
                 $reversalEntry->status = 'reversed'; // ✅ Reversal entries should be marked as reversed
@@ -2729,7 +2763,7 @@ class UnifiedLedgerService
                 return null;
             }
 
-            $referenceNo = $payment->reference_no ?: 'PAY-' . $payment->id;
+            $referenceNo = $this->resolvePaymentLedgerReference($payment);
             $contactType = $payment->customer_id ? 'customer' : 'supplier';
             $contactId = $payment->customer_id ?: $payment->supplier_id;
 
@@ -2737,7 +2771,7 @@ class UnifiedLedgerService
             $originalEntry = Ledger::where('reference_no', $referenceNo)
                 ->where('contact_id', $contactId)
                 ->where('contact_type', $contactType)
-                ->where('transaction_type', 'payments')
+                ->whereIn('transaction_type', $this->getPaymentLedgerTransactionTypes())
                 ->where('status', 'active')
                 ->orderBy('created_at', 'desc')
                 ->first();
@@ -2768,7 +2802,7 @@ class UnifiedLedgerService
                 'contact_type' => $contactType,
                 'transaction_date' => Carbon::now('Asia/Colombo'),
                 'reference_no' => $referenceNo,
-                'transaction_type' => 'payments',
+                'transaction_type' => $this->resolvePaymentLedgerTransactionType($payment, $originalEntry->transaction_type ?? null),
                 'amount' => $newAmount,
                 'notes' => 'Payment Edit - New Amount Rs.' . number_format($newAmount, 2) .
                           ($editReason ? ' | Reason: ' . $editReason : ''),
@@ -2803,7 +2837,7 @@ class UnifiedLedgerService
     public function deletePayment($payment, $deleteReason = '', $deletedBy = null)
     {
         return DB::transaction(function () use ($payment, $deleteReason, $deletedBy) {
-            $referenceNo = $payment->reference_no ?: 'PAY-' . $payment->id;
+            $referenceNo = $this->resolvePaymentLedgerReference($payment);
             $contactType = $payment->customer_id ? 'customer' : 'supplier';
             $contactId = $payment->customer_id ?: $payment->supplier_id;
 
@@ -2817,7 +2851,7 @@ class UnifiedLedgerService
             $originalEntry = Ledger::where('reference_no', $referenceNo)
                 ->where('contact_id', $contactId)
                 ->where('contact_type', $contactType)
-                ->where('transaction_type', 'payments')
+                ->whereIn('transaction_type', $this->getPaymentLedgerTransactionTypes())
                 ->where('status', 'active')
                 ->orderBy('created_at', 'desc')
                 ->first();
@@ -2846,7 +2880,7 @@ class UnifiedLedgerService
                     'contact_type' => $contactType,
                     'transaction_date' => Carbon::now('Asia/Colombo'),
                     'reference_no' => $referenceNo . '-DEL-' . time(),
-                    'transaction_type' => 'payments',
+                    'transaction_type' => $originalEntry->transaction_type,
                     'amount' => -$payment->amount, // ✅ NEGATIVE creates DEBIT for reversal
                     'status' => 'reversed',
                     'notes' => $reversalNotes
@@ -3049,7 +3083,7 @@ class UnifiedLedgerService
     public function updatePurchasePayment($payment, $purchase)
     {
         return DB::transaction(function () use ($payment, $purchase) {
-            $referenceNo = $payment->reference_no ?: 'PAY-' . $payment->id;
+            $referenceNo = $this->resolvePaymentLedgerReference($payment);
 
             Log::info('Updating purchase payment in ledger', [
                 'payment_id' => $payment->id,
@@ -3061,7 +3095,7 @@ class UnifiedLedgerService
 
             // Mark existing payment ledger entries as reversed
             $existingEntries = Ledger::where('reference_no', $referenceNo)
-                ->where('transaction_type', 'payments')
+                ->whereIn('transaction_type', ['purchase_payment', 'payments'])
                 ->where('contact_id', $purchase->supplier_id)
                 ->where('status', 'active')
                 ->get();
@@ -3078,7 +3112,7 @@ class UnifiedLedgerService
                     'contact_type' => 'supplier',
                     'transaction_date' => Carbon::now('Asia/Colombo'),
                     'reference_no' => $referenceNo . '-REV-' . time(),
-                    'transaction_type' => 'payments',
+                    'transaction_type' => $entry->transaction_type,
                     'amount' => $entry->debit ? -$entry->debit : $entry->credit,
                     'status' => 'reversed',
                     'notes' => 'REVERSAL: Payment Update - Cancel amount Rs.' . number_format($entry->debit ?: $entry->credit, 2)

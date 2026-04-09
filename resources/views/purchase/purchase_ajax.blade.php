@@ -3430,11 +3430,13 @@
                                     const supplierName = ((supplier.first_name ||
                                         '') + ' ' + (supplier.last_name ||
                                         '')).trim() || 'Unnamed Supplier';
+                                    const mobileRaw = supplier.mobile_no != null ? String(supplier.mobile_no).trim() : '';
+                                    const mobileSeg = mobileRaw ? ' · ' + mobileRaw : '';
                                     supplierSelect.append(
                                         '<option value="' + supplier.id +
                                         '" data-opening-balance="' + (supplier
                                             .opening_balance || 0) + '">' +
-                                        supplierName +
+                                        supplierName + mobileSeg +
                                         '</option>'
                                     );
                                 }

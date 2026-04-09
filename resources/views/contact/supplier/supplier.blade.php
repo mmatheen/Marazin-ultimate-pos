@@ -41,7 +41,6 @@
                             <thead>
                                 <tr>
                                     <th>ID</th>
-                                    <th>Prefix</th>
                                     <th>First Name</th>
                                     <th>Last Name</th>
                                     <th>Full Name</th>

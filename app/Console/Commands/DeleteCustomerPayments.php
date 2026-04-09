@@ -315,15 +315,6 @@ class DeleteCustomerPayments extends Command
         $sale->save();
         $sale->refresh();
 
-        if ($sale->total_due <= 0) {
-            $sale->payment_status = 'Paid';
-        } elseif ($sale->total_paid > 0) {
-            $sale->payment_status = 'Partial';
-        } else {
-            $sale->payment_status = 'Due';
-        }
-        $sale->save();
-
         $this->line("   ✅ Sale {$saleId} ({$sale->invoice_no}): Paid: " .
             number_format($oldTotalPaid, 2) . " → " . number_format($sale->total_paid, 2) .
             ", Status: {$oldPaymentStatus} → {$sale->payment_status}");

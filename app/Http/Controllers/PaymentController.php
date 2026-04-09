@@ -761,32 +761,16 @@ class PaymentController extends Controller
                 ->where('payment_type', 'sale')
                 ->sum('amount');
 
-            // ✅ SIMPLE AND CORRECT APPROACH:
-            // total_paid = all cash payments + this transaction's return credit
-            // The cash payments sum already includes all previous cash payments
-            // We add the NEW return credit from this transaction
-            $totalPaid = $totalCashPayments + $returnCreditForThisSale;
-
-            // Update total_paid
-            $sale->total_paid = $totalPaid;
-
-            // ✅ FIX: Force MySQL to recalculate generated column by updating timestamp
-            // This triggers MySQL to recalculate the total_due generated column
-            $sale->touch();
-
-            $sale->save();
-
-            // Refresh the model to get the updated generated total_due column
-            $sale->refresh();
-
-            // Calculate payment status based on the database generated total_due
-            if ($sale->total_due <= 0) {
-                $sale->payment_status = 'Paid';
-            } elseif ($sale->total_paid > 0) {
-                $sale->payment_status = 'Partial';
-            } else {
-                $sale->payment_status = 'Due';
-            }
+            // Preserve already-applied non-cash credits and include linked return credits.
+            // This prevents later bulk payments from wiping previous return-credit settlement.
+            $existingNonCashCredit = max(0, (float) $sale->total_paid - (float) $totalCashPayments);
+            $linkedReturnCredit = $this->getAppliedReturnCreditForSale((int) $sale->id);
+            $effectiveReturnCredit = max(
+                $existingNonCashCredit,
+                (float) $returnCreditForThisSale,
+                $linkedReturnCredit
+            );
+            $sale->total_paid = $totalCashPayments + $effectiveReturnCredit;
             $sale->save();
 
             Log::info('Sale table updated', [
@@ -794,11 +778,32 @@ class PaymentController extends Controller
                 'invoice_no' => $sale->invoice_no,
                 'cash_payments' => $totalCashPayments,
                 'return_credit_this_txn' => $returnCreditForThisSale,
+                'linked_return_credit' => $linkedReturnCredit,
+                'effective_return_credit' => $effectiveReturnCredit,
                 'total_paid' => $sale->total_paid,
                 'total_due' => $sale->total_due,
                 'payment_status' => $sale->payment_status
             ]);
         }
+    }
+
+    private function getAppliedReturnCreditForSale(int $saleId): float
+    {
+        $returns = SalesReturn::where('sale_id', $saleId)->get(['id', 'total_paid']);
+        if ($returns->isEmpty()) {
+            return 0.0;
+        }
+
+        $totalReturnPaid = (float) $returns->sum(function ($return) {
+            return (float) $return->total_paid;
+        });
+
+        // Cash-refunded amounts are payment rows. The remaining paid portion is what settled invoices.
+        $cashRefunded = Payment::whereIn('reference_id', $returns->pluck('id')->all())
+            ->where('payment_type', 'sale_return_with_bill')
+            ->sum('amount');
+
+        return max(0.0, $totalReturnPaid - (float) $cashRefunded);
     }
 
     private function updateCustomerBalance($customerId)
@@ -876,6 +881,10 @@ class PaymentController extends Controller
                         'notes' => ($payment->notes ?? '') . ' | [DELETED: Manual deletion by user #' . auth()->id() . ' - ' . now()->format('Y-m-d H:i:s') . ']'
                     ]);
 
+                    if ($payment->payment_type === 'sale' && $payment->reference_id) {
+                        $this->refreshSaleTableAfterDeletion((int) $payment->reference_id);
+                    }
+
                     Log::info('Payment deleted successfully with proper reversal accounting', [
                         'payment_id' => $payment->id,
                         'payment_type' => $payment->payment_type,
@@ -917,6 +926,37 @@ class PaymentController extends Controller
                 'message' => 'Failed to delete payment: ' . $e->getMessage()
             ], 500);
         }
+    }
+    private function refreshSaleTableAfterDeletion(int $saleId): void
+    {
+        $sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->find($saleId);
+        if (!$sale) {
+            return;
+        }
+
+        $totalCashPayments = Payment::where('reference_id', $sale->id)
+            ->where('payment_type', 'sale')
+            ->where('status', '!=', 'deleted')
+            ->where(function ($query) {
+                $query->whereNull('payment_status')
+                    ->orWhereNotIn('payment_status', ['cancelled']);
+            })
+            ->sum('amount');
+
+        $linkedReturnCredit = $this->getAppliedReturnCreditForSale((int) $sale->id);
+
+        $sale->total_paid = $totalCashPayments + $linkedReturnCredit;
+        $sale->save();
+
+        Log::info('Sale table refreshed after payment deletion', [
+            'sale_id' => $sale->id,
+            'invoice_no' => $sale->invoice_no,
+            'cash_payments' => $totalCashPayments,
+            'linked_return_credit' => $linkedReturnCredit,
+            'total_paid' => $sale->total_paid,
+            'total_due' => $sale->total_due,
+            'payment_status' => $sale->payment_status,
+        ]);
     }
 
     // Bulk payment functions for sales (customer) and purchases (supplier)
@@ -2380,6 +2420,316 @@ class PaymentController extends Controller
     }
 
     /**
+     * Update all payment rows under one bulk reference in a single operation.
+     */
+    public function updateBulkPaymentByReference(Request $request, $referenceNo)
+    {
+        $validator = Validator::make($request->all(), [
+            'reason' => 'required|string|max:500',
+            'rows' => 'required|array|min:1',
+            'rows.*.payment_id' => 'required|integer|exists:payments,id',
+            'rows.*.amount' => 'required|numeric|min:0.01',
+            'rows.*.payment_method' => 'required|string|in:cash,card,cheque,bank_transfer',
+            'rows.*.payment_date' => 'required|date',
+            'rows.*.notes' => 'nullable|string',
+            'rows.*.cheque_number' => 'nullable|string',
+            'rows.*.cheque_bank_branch' => 'nullable|string',
+            'rows.*.cheque_received_date' => 'nullable|date',
+            'rows.*.cheque_valid_date' => 'nullable|date',
+            'rows.*.cheque_given_by' => 'nullable|string',
+            'rows.*.card_number' => 'nullable|string',
+            'rows.*.card_holder_name' => 'nullable|string',
+            'rows.*.card_expiry_month' => 'nullable|string',
+            'rows.*.card_expiry_year' => 'nullable|string',
+            'rows.*.card_security_code' => 'nullable|string',
+            'rows.*.bank_account_number' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+        }
+
+        try {
+            $rows = $request->input('rows', []);
+            $paymentIds = array_values(array_unique(array_map(fn ($row) => (int) ($row['payment_id'] ?? 0), $rows)));
+
+            $payments = Payment::where('reference_no', $referenceNo)
+                ->whereIn('id', $paymentIds)
+                ->where('status', 'active')
+                ->get()
+                ->keyBy('id');
+
+            if ($payments->count() !== count($paymentIds)) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => 'Some payments do not belong to this active bulk reference or were not found.'
+                ], 404);
+            }
+
+            $today = Carbon::today();
+            foreach ($payments as $payment) {
+                if (!Carbon::parse($payment->payment_date)->isSameDay($today)) {
+                    return response()->json([
+                        'status' => 403,
+                        'message' => 'Cannot edit past payments. Only TODAY\'s payments can be edited.'
+                    ], 403);
+                }
+            }
+
+            $affectedSales = [];
+            $affectedPurchases = [];
+            $affectedCustomers = [];
+            $affectedSuppliers = [];
+
+            DB::transaction(function () use ($rows, $payments, $referenceNo, $request, &$affectedSales, &$affectedPurchases, &$affectedCustomers, &$affectedSuppliers) {
+                foreach ($rows as $row) {
+                    $paymentId = (int) ($row['payment_id'] ?? 0);
+                    $payment = $payments->get($paymentId);
+
+                    if (! $payment) {
+                        throw new \Exception("Payment #{$paymentId} not found in bulk reference {$referenceNo}");
+                    }
+
+                    $newAmount = (float) ($row['amount'] ?? 0);
+                    $oldPaymentData = $payment->toArray();
+                    $oldAmount = (float) $payment->amount;
+
+                    $entityType = $payment->payment_type === 'sale' ? 'sale' : 'purchase';
+                    $entityId = $payment->reference_id;
+                    $customerId = $payment->customer_id;
+                    $supplierId = $payment->supplier_id;
+
+                    if ($entityId) {
+                        if ($entityType === 'sale') {
+                            $sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->find($entityId);
+                            if ($sale && $sale->total_amount > 0) {
+                                $totalOtherPayments = Payment::where('reference_id', $entityId)
+                                    ->where('payment_type', 'sale')
+                                    ->where('id', '!=', $payment->id)
+                                    ->where('status', 'active')
+                                    ->sum('amount');
+
+                                $maxAmount = min($sale->total_amount - $totalOtherPayments, $sale->total_due + $oldAmount);
+                                if ($newAmount > $maxAmount + 0.0001) {
+                                    throw new \Exception("Payment amount for {$sale->invoice_no} exceeds maximum allowed Rs." . number_format($maxAmount, 2));
+                                }
+                            }
+                        } else {
+                            $purchase = Purchase::find($entityId);
+                            if ($purchase && $purchase->total_amount > 0) {
+                                $totalOtherPayments = Payment::where('reference_id', $entityId)
+                                    ->where('payment_type', 'purchase')
+                                    ->where('id', '!=', $payment->id)
+                                    ->where('status', 'active')
+                                    ->sum('amount');
+
+                                $maxAmount = min($purchase->total_amount - $totalOtherPayments, $purchase->total_due + $oldAmount);
+                                if ($newAmount > $maxAmount + 0.0001) {
+                                    throw new \Exception("Payment amount for {$purchase->reference_no} exceeds maximum allowed Rs." . number_format($maxAmount, 2));
+                                }
+                            }
+                        }
+                    }
+
+                    $updateData = [
+                        'amount' => $newAmount,
+                        'payment_method' => $row['payment_method'],
+                        'payment_date' => $row['payment_date'],
+                        'notes' => $row['notes'] ?? null,
+                    ];
+
+                    if (($row['payment_method'] ?? '') === 'card') {
+                        $updateData = array_merge($updateData, [
+                            'card_number' => $row['card_number'] ?? $payment->card_number,
+                            'card_holder_name' => $row['card_holder_name'] ?? $payment->card_holder_name,
+                            'card_expiry_month' => $row['card_expiry_month'] ?? $payment->card_expiry_month,
+                            'card_expiry_year' => $row['card_expiry_year'] ?? $payment->card_expiry_year,
+                            'card_security_code' => $row['card_security_code'] ?? $payment->card_security_code,
+                        ]);
+                    } elseif (($row['payment_method'] ?? '') === 'cheque') {
+                        $updateData = array_merge($updateData, [
+                            'cheque_number' => $row['cheque_number'] ?? $payment->cheque_number,
+                            'cheque_bank_branch' => $row['cheque_bank_branch'] ?? $payment->cheque_bank_branch,
+                            'cheque_received_date' => $row['cheque_received_date'] ?? $payment->cheque_received_date,
+                            'cheque_valid_date' => $row['cheque_valid_date'] ?? $payment->cheque_valid_date,
+                            'cheque_given_by' => $row['cheque_given_by'] ?? $payment->cheque_given_by,
+                        ]);
+                    } elseif (($row['payment_method'] ?? '') === 'bank_transfer') {
+                        $updateData['bank_account_number'] = $row['bank_account_number'] ?? $payment->bank_account_number;
+                    }
+
+                    $payment->update($updateData);
+
+                    $oldPayment = new Payment($oldPaymentData);
+                    $oldPayment->id = $payment->id;
+                    $this->unifiedLedgerService->updatePayment($payment->fresh(), $oldPayment);
+
+                    BulkPaymentLog::create([
+                        'action' => 'edit',
+                        'entity_type' => $entityType,
+                        'payment_id' => $payment->id,
+                        'entity_id' => $entityId,
+                        'customer_id' => $customerId,
+                        'supplier_id' => $supplierId,
+                        'old_data' => $oldPaymentData,
+                        'new_data' => $payment->fresh()->toArray(),
+                        'old_amount' => $oldAmount,
+                        'new_amount' => $newAmount,
+                        'reference_no' => $referenceNo,
+                        'reason' => $request->reason,
+                        'performed_by' => Auth::id(),
+                        'performed_at' => Carbon::now(),
+                    ]);
+
+                    if ($entityType === 'sale') {
+                        if ($entityId) { $affectedSales[] = (int) $entityId; }
+                        if ($customerId) { $affectedCustomers[] = (int) $customerId; }
+                    } else {
+                        if ($entityId) { $affectedPurchases[] = (int) $entityId; }
+                        if ($supplierId) { $affectedSuppliers[] = (int) $supplierId; }
+                    }
+                }
+
+                foreach (array_unique($affectedSales) as $saleId) {
+                    $this->updateSaleTable($saleId);
+                }
+                foreach (array_unique($affectedCustomers) as $customerId) {
+                    $this->updateCustomerBalance($customerId);
+                }
+                foreach (array_unique($affectedPurchases) as $purchaseId) {
+                    $this->updatePurchaseTable($purchaseId);
+                }
+                foreach (array_unique($affectedSuppliers) as $supplierId) {
+                    $this->updateSupplierBalance($supplierId);
+                }
+            });
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Bulk reference updated successfully with unified ledger sync.',
+                'reference_no' => $referenceNo,
+                'updated_count' => count($rows),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to update bulk reference: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete all payment rows under one bulk reference in a single operation.
+     */
+    public function deleteBulkPaymentByReference(Request $request, $referenceNo)
+    {
+        $validator = Validator::make($request->all(), [
+            'reason' => 'required|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+        }
+
+        try {
+            $payments = Payment::where('reference_no', $referenceNo)
+                ->where('status', 'active')
+                ->get();
+
+            if ($payments->isEmpty()) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => 'No active payments found for this bulk reference.'
+                ], 404);
+            }
+
+            $today = Carbon::today();
+            foreach ($payments as $payment) {
+                if (!Carbon::parse($payment->payment_date)->isSameDay($today)) {
+                    return response()->json([
+                        'status' => 403,
+                        'message' => 'Cannot delete past payments. Only TODAY\'s payments can be deleted.'
+                    ], 403);
+                }
+            }
+
+            $affectedSales = [];
+            $affectedPurchases = [];
+            $affectedCustomers = [];
+            $affectedSuppliers = [];
+
+            DB::transaction(function () use ($payments, $referenceNo, $request, &$affectedSales, &$affectedPurchases, &$affectedCustomers, &$affectedSuppliers) {
+                foreach ($payments as $payment) {
+                    $paymentData = $payment->toArray();
+                    $entityType = $payment->payment_type === 'sale' ? 'sale' : 'purchase';
+                    $entityId = $payment->reference_id;
+                    $customerId = $payment->customer_id;
+                    $supplierId = $payment->supplier_id;
+                    $amount = $payment->amount;
+
+                    $this->unifiedLedgerService->deletePayment($payment, $request->reason ?? 'Bulk reference deleted');
+
+                    BulkPaymentLog::create([
+                        'action' => 'delete',
+                        'entity_type' => $entityType,
+                        'payment_id' => $payment->id,
+                        'entity_id' => $entityId,
+                        'customer_id' => $customerId,
+                        'supplier_id' => $supplierId,
+                        'old_data' => $paymentData,
+                        'new_data' => null,
+                        'old_amount' => $amount,
+                        'new_amount' => null,
+                        'reference_no' => $referenceNo,
+                        'reason' => $request->reason,
+                        'performed_by' => Auth::id(),
+                        'performed_at' => Carbon::now(),
+                    ]);
+
+                    $payment->update([
+                        'status' => 'deleted',
+                        'payment_status' => 'cancelled',
+                        'notes' => ($payment->notes ?? '') . ' | [BULK-DELETED by user #' . Auth::id() . ': ' . ($request->reason ?? 'No reason provided') . ' - ' . now()->format('Y-m-d H:i:s') . ']'
+                    ]);
+
+                    if ($entityType === 'sale') {
+                        if ($entityId) { $affectedSales[] = (int) $entityId; }
+                        if ($customerId) { $affectedCustomers[] = (int) $customerId; }
+                    } else {
+                        if ($entityId) { $affectedPurchases[] = (int) $entityId; }
+                        if ($supplierId) { $affectedSuppliers[] = (int) $supplierId; }
+                    }
+                }
+
+                foreach (array_unique($affectedSales) as $saleId) {
+                    $this->refreshSaleTableAfterDeletion($saleId);
+                }
+                foreach (array_unique($affectedCustomers) as $customerId) {
+                    $this->updateCustomerBalance($customerId);
+                }
+                foreach (array_unique($affectedPurchases) as $purchaseId) {
+                    $this->updatePurchaseTable($purchaseId);
+                }
+                foreach (array_unique($affectedSuppliers) as $supplierId) {
+                    $this->updateSupplierBalance($supplierId);
+                }
+            });
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Entire bulk reference deleted with unified ledger reversal updates.',
+                'reference_no' => $referenceNo,
+                'deleted_count' => $payments->count(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to delete bulk reference: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Get bulk payment logs
      */
     public function getBulkPaymentLogs(Request $request)
@@ -3262,7 +3612,7 @@ class PaymentController extends Controller
                         $recoveryPayment->customer_id,
                         $recoveryPayment->amount,
                         $recoveryPayment->payment_method,
-                        "Recovery payment attempt for bounced cheque #{$bouncedPayment->cheque_number}",
+                        "Recovery payment attempt for bounced cheque #{$firstBounced->cheque_number}",
                         'RECOVERY-PAY-' . $recoveryPayment->id
                     );
                 }

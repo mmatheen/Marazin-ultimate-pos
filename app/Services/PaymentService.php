@@ -6,6 +6,7 @@ use App\Models\Payment;
 use App\Models\Purchase;
 use App\Models\PurchaseReturn;
 use App\Models\Sale;
+use App\Models\SalesReturn;
 use App\Models\Ledger;
 use App\Services\CashRegisterService;
 use App\Services\UnifiedLedgerService;
@@ -307,36 +308,42 @@ class PaymentService
      */
     public function updateSalePaymentStatus(Sale $sale): void
     {
-        // Calculate total paid excluding cancelled/bounced/deleted/pending payments
-        // ✅ FIX: EXCLUDE pending cheque payments from total_paid calculation
-        // Pending cheques should not count as paid until they are cleared/deposited
-        $totalPaid = Payment::where('reference_id', $sale->id)
+        // Sum all non-deleted sale payments (cash/card/cheque pending/cleared/bounced). Invoice is treated as
+        // settled when the payment line exists; cheque bounce is handled on customer ledger only, not by reopening the sale.
+        $cashTotalPaid = Payment::where('reference_id', $sale->id)
             ->where('payment_type', 'sale')
-            ->where('status', '!=', 'deleted') // Exclude deleted payments
-            ->where(function($query) {
-                $query->where('payment_status', '!=', 'bounced')
-                      ->where('payment_status', '!=', 'cancelled')
-                      ->where('payment_status', '!=', 'pending') // EXCLUDE pending (cheque) payments
-                      ->orWhereNull('payment_status')
-                      ->orWhere('payment_status', 'completed') // Only include completed payments
-                      ->orWhere('payment_status', 'cleared'); // Include cleared cheques
+            ->where('status', '!=', 'deleted')
+            ->where(function ($q) {
+                $q->whereNull('payment_status')
+                    ->orWhereNotIn('payment_status', ['cancelled']);
             })
             ->sum('amount');
 
-        // Update sale totals
-        $sale->total_paid = $totalPaid;
-        $sale->total_due = $sale->final_total - $totalPaid;
+        $existingNonCashCredit = max(0, (float) $sale->total_paid - (float) $cashTotalPaid);
+        $linkedReturnCredit = $this->getAppliedReturnCreditForSale((int) $sale->id);
+        $effectiveReturnCredit = max($existingNonCashCredit, $linkedReturnCredit);
 
-        // Determine payment status
-        if ($sale->total_due <= 0.01) {
-            $sale->payment_status = 'Paid';
-        } elseif ($totalPaid > 0) {
-            $sale->payment_status = 'Partial';
-        } else {
-            $sale->payment_status = 'Due';
+        $sale->total_paid = $cashTotalPaid + $effectiveReturnCredit;
+        // total_due + payment_status: Sale::saving
+        $sale->save();
+    }
+
+    private function getAppliedReturnCreditForSale(int $saleId): float
+    {
+        $returns = SalesReturn::where('sale_id', $saleId)->get(['id', 'total_paid']);
+        if ($returns->isEmpty()) {
+            return 0.0;
         }
 
-        $sale->save();
+        $totalReturnPaid = (float) $returns->sum(function ($return) {
+            return (float) $return->total_paid;
+        });
+
+        $cashRefunded = Payment::whereIn('reference_id', $returns->pluck('id')->all())
+            ->where('payment_type', 'sale_return_with_bill')
+            ->sum('amount');
+
+        return max(0.0, $totalReturnPaid - (float) $cashRefunded);
     }
 
     /**

@@ -147,7 +147,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/customer-update/{id}', [CustomerController::class, 'update']);
         Route::delete('/customer-delete/{id}', [CustomerController::class, 'destroy']);
         Route::get('/customer-get-by-id/{id}', [CustomerController::class, 'show']);
-        Route::get('/customer/view-contact/{id}', [CustomerController::class, 'viewContact'])->name('customer.view-contact');
+        Route::get('/customer/view-contact/{id}/{slug?}', [CustomerController::class, 'viewContact'])->name('customer.view-contact');
         Route::get('/customer-export', [CustomerController::class, 'export'])->name('customer.export');
 
         // Customer Import/Export Routes
@@ -440,6 +440,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/bulk-payment/{id}/edit', [PaymentController::class, 'editBulkPayment'])->name('bulk.payment.edit');
         Route::put('/bulk-payment/{id}', [PaymentController::class, 'updateBulkPayment'])->name('bulk.payment.update');
         Route::delete('/bulk-payment/{id}', [PaymentController::class, 'deleteBulkPayment'])->name('bulk.payment.delete');
+        Route::put('/bulk-payment/reference/{referenceNo}', [PaymentController::class, 'updateBulkPaymentByReference'])->name('bulk.payment.reference.update');
+        Route::delete('/bulk-payment/reference/{referenceNo}', [PaymentController::class, 'deleteBulkPaymentByReference'])->name('bulk.payment.reference.delete');
         Route::get('/bulk-payment-logs', [PaymentController::class, 'getBulkPaymentLogs'])->name('bulk.payment.logs');
 
 
@@ -545,6 +547,11 @@ Route::middleware(['auth'])->group(function () {
         // -------------------- ReportController Routes --------------------
         Route::get('/stock-report', [ReportController::class, 'stockHistory'])->name('stock.report');
         Route::get('/account-ledger', [ReportController::class, 'accountLedger'])->name('account.ledger');
+        Route::get('/account_ledger', function () {
+            $qs = request()->getQueryString();
+
+            return redirect(route('account.ledger').($qs ? '?'.$qs : ''));
+        });
         Route::get('/activity-log', [ReportController::class, 'activityLogPage'])->name('activity-log.activityLogPage');
         Route::post('/activity-log/fetch', [ReportController::class, 'fetchActivityLog'])->name('activity-log.fetch');
 
@@ -596,6 +603,8 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/site-settings/update', [SettingController::class, 'update'])->name('settings.update');
         Route::post('/site-settings/update-price-validation', [SettingController::class, 'updatePriceValidation'])->name('settings.update-price-validation');
         Route::post('/site-settings/update-free-qty', [SettingController::class, 'updateFreeQty'])->name('settings.update-free-qty');
+        Route::post('/site-settings/update-sms-settings', [SettingController::class, 'updateSmsSettings'])->name('settings.update-sms-settings');
+        Route::post('/site-settings/send-sms', [SettingController::class, 'sendSms'])->name('settings.send-sms');
         Route::post('/site-settings/backup-now', [SettingController::class, 'backupNow'])->name('settings.backup-now');
 
         // -------------------- Tax Rate CRUD Routes --------------------

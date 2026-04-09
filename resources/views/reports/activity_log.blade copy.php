@@ -424,34 +424,6 @@
             border-radius: 16px;
         }
 
-        .activity-record-modal .modal-content {
-            border: 1px solid rgba(15, 23, 42, 0.08);
-            border-radius: 18px;
-            overflow: hidden;
-            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.16);
-        }
-
-        .activity-record-modal .modal-header {
-            background: #ffffff;
-            color: #0f172a;
-            border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-            padding: 18px 22px;
-        }
-
-        .activity-record-modal .modal-title {
-            font-weight: 800;
-            letter-spacing: -0.02em;
-        }
-
-        .activity-record-modal .modal-body {
-            background: #f8fafc;
-            color: #334155;
-        }
-
-        .activity-record-modal .modal-header .btn-close {
-            box-shadow: none;
-        }
-
         @media print {
             body {
                 font-size: 14px !important;
@@ -622,14 +594,14 @@
         </div>
     </div>
     <!-- Modal: Full record for super admin -->
-    <div class="modal fade activity-record-modal" id="fullRecordModal" tabindex="-1" aria-labelledby="fullRecordModalLabel" aria-hidden="true">
+    <div class="modal fade" id="fullRecordModal" tabindex="-1" aria-labelledby="fullRecordModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content">
-                <div class="modal-header">
+                <div class="modal-header bg-dark text-white">
                     <h5 class="modal-title" id="fullRecordModalLabel">Full Record — Sale Edit Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body bg-light">
                     <p class="text-muted small mb-3">Complete change details for this sale edit are shown below.</p>
                     <div class="table-responsive">
                         <table class="table table-bordered table-sm" id="fullRecordTable">

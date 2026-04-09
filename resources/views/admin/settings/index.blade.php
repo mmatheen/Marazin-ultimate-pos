@@ -158,6 +158,67 @@
             </div>
             @endif
 
+            @can('edit sms-settings')
+            <div class="card shadow-sm rounded-4 border-0 mt-4">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 text-dark">SMS Gateway Settings</h5>
+                    <small class="text-muted">SMSLenz Sri Lanka</small>
+                </div>
+                <div class="card-body">
+                    <form id="smsSettingsForm">
+                        @csrf
+                        <div class="row g-4">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">SMS User ID</label>
+                                <input type="text" class="form-control rounded-3" name="sms_user_id" value="{{ old('sms_user_id', $setting->sms_user_id) }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">SMS API Key</label>
+                                <input type="password" class="form-control rounded-3" name="sms_api_key" placeholder="Leave blank to keep existing key">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Sender ID</label>
+                                <input type="text" class="form-control rounded-3" name="sms_sender_id" value="{{ old('sms_sender_id', $setting->sms_sender_id) }}">
+                            </div>
+                        </div>
+
+                        <div class="text-end mt-4">
+                            <button type="submit" class="btn btn-primary px-4">Update SMS Settings</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            @endcan
+
+            @can('sms.send')
+            <div class="card shadow-sm rounded-4 border-0 mt-4">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 text-dark">Manual SMS</h5>
+                    <small class="text-muted">Single or bulk</small>
+                </div>
+                <div class="card-body">
+                    <form id="smsSendForm">
+                        @csrf
+                        <div class="row g-4">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Phone Number(s)</label>
+                                <textarea class="form-control rounded-3" name="phones" rows="6" placeholder="07XXXXXXXX or +947XXXXXXXX\nOne number per line or comma separated"></textarea>
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label fw-bold">Message</label>
+                                <textarea class="form-control rounded-3" name="message" rows="6" placeholder="Type your SMS message here"></textarea>
+                                <small class="text-muted d-block mt-2">Sri Lanka numbers will be normalized to +947 format automatically.</small>
+                            </div>
+                        </div>
+
+                        <div class="text-end mt-4">
+                            <button type="submit" class="btn btn-dark px-4">Send SMS</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            @endcan
+
             {{-- Card 4: Database Backup — separate button --}}
             <div class="card shadow-sm rounded-4 border-0 mt-4">
                 <div class="card-header bg-light">
@@ -289,6 +350,65 @@ $('#enable_free_qty').on('change', function () {
         },
         error: function (xhr) {
             toastr.error(xhr.responseJSON?.message || 'Please fix the errors.');
+        }
+    });
+});
+
+$('#smsSettingsForm').on('submit', function (e) {
+    e.preventDefault();
+
+    $.ajax({
+        url: '{{ route('settings.update-sms-settings') }}',
+        type: 'POST',
+        data: new FormData(this),
+        contentType: false,
+        processData: false,
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function (response) {
+            if (response.status) {
+                toastr.success(response.message);
+            } else {
+                toastr.error(response.message || 'Failed.');
+            }
+        },
+        error: function (xhr) {
+            let message = 'Please fix the errors.';
+            if (xhr.responseJSON?.errors) {
+                message = Object.values(xhr.responseJSON.errors).flat().join('\n');
+            }
+            toastr.error(message);
+        }
+    });
+});
+
+$('#smsSendForm').on('submit', function (e) {
+    e.preventDefault();
+
+    $.ajax({
+        url: '{{ route('settings.send-sms') }}',
+        type: 'POST',
+        data: new FormData(this),
+        contentType: false,
+        processData: false,
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function (response) {
+            if (response.status) {
+                toastr.success(response.message);
+                $('#smsSendForm')[0].reset();
+            } else {
+                toastr.error(response.message || 'Failed.');
+            }
+        },
+        error: function (xhr) {
+            let message = 'Please fix the errors.';
+            if (xhr.responseJSON?.errors) {
+                message = Object.values(xhr.responseJSON.errors).flat().join('\n');
+            }
+            toastr.error(message);
         }
     });
 });

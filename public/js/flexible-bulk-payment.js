@@ -64,7 +64,7 @@ class FlexibleBulkPayment {
         if ($('#flexibleBulkPaymentModal').length === 0) {
             this.createFlexibleModal();
         }
-        
+
         $('#flexibleBulkPaymentModal').modal('show');
         this.loadCustomers();
     }
@@ -199,12 +199,12 @@ class FlexibleBulkPayment {
             if (response.status === 200) {
                 const customers = response.data;
                 let options = '<option value="">Select Customer</option>';
-                
+
                 customers.forEach(customer => {
                     const customerName = `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || customer.business_name || 'Unnamed Customer';
                     options += `<option value="${customer.id}">${customerName} - ${customer.mobile || 'No Mobile'}</option>`;
                 });
-                
+
                 $('#flexibleCustomerSelect').html(options);
             }
         } catch (error) {
@@ -230,13 +230,13 @@ class FlexibleBulkPayment {
 
             if (response.status === 200) {
                 this.currentCustomer = response.data;
-                
+
                 // Show customer summary
                 this.displayCustomerSummary();
-                
+
                 // Load due sales
                 await this.loadDueSales(customerId);
-                
+
                 // Add first payment group
                 this.addPaymentGroup();
             }
@@ -262,21 +262,20 @@ class FlexibleBulkPayment {
                 method: 'GET',
                 data: {
                     customer_id: customerId,
-                    payment_status: 'due,partial'
+                    length: 500
                 }
             });
 
-            if (response.data && response.data.data) {
-                this.availableSales = response.data.data.filter(sale => sale.total_due > 0);
-                
-                // Update summary
-                const totalSales = this.availableSales.reduce((sum, sale) => sum + parseFloat(sale.final_total || 0), 0);
-                const totalDue = this.availableSales.reduce((sum, sale) => sum + parseFloat(sale.total_due || 0), 0);
-                
-                $('#totalSalesAmount').text(`Rs. ${totalSales.toFixed(2)}`);
-                $('#totalDueAmount').text(`Rs. ${totalDue.toFixed(2)}`);
-                $('#availableBillsCount').text(this.availableSales.length);
-            }
+            // API returns { draw, recordsTotal, recordsFiltered, data: [...] }
+            const rows = Array.isArray(response.data) ? response.data : [];
+            this.availableSales = rows.filter(sale => (parseFloat(sale.total_due) || 0) > 0.005);
+
+            const totalSales = this.availableSales.reduce((sum, sale) => sum + parseFloat(sale.final_total || 0), 0);
+            const totalDue = this.availableSales.reduce((sum, sale) => sum + parseFloat(sale.total_due || 0), 0);
+
+            $('#totalSalesAmount').text(`Rs. ${totalSales.toFixed(2)}`);
+            $('#totalDueAmount').text(`Rs. ${totalDue.toFixed(2)}`);
+            $('#availableBillsCount').text(this.availableSales.length);
         } catch (error) {
             console.error('Failed to load due sales:', error);
             toastr.error('Failed to load due sales');
@@ -286,7 +285,7 @@ class FlexibleBulkPayment {
     // Add payment group
     addPaymentGroup() {
         const groupIndex = this.groupCounter++;
-        const salesOptions = this.availableSales.map(sale => 
+        const salesOptions = this.availableSales.map(sale =>
             `<option value="${sale.id}" data-due="${sale.total_due}" data-invoice="${sale.invoice_no}">
                 ${sale.invoice_no} - Due: Rs.${parseFloat(sale.total_due).toFixed(2)}
             </option>`
@@ -327,8 +326,8 @@ class FlexibleBulkPayment {
                                 </select>
                             </div>
                             <div class="col-md-4">
-                                <input type="number" class="form-control bill-amount" 
-                                       name="payment_groups[${groupIndex}][bills][0][amount]" 
+                                <input type="number" class="form-control bill-amount"
+                                       name="payment_groups[${groupIndex}][bills][0][amount]"
                                        step="0.01" min="0.01" placeholder="Amount" required>
                                 <small class="text-muted">Due: Rs. <span class="due-display">0.00</span></small>
                             </div>
@@ -354,22 +353,22 @@ class FlexibleBulkPayment {
         `;
 
         $('#paymentGroupsContainer').append(groupHtml);
-        
+
         // Update bill dropdown change handler
         this.bindBillSelectEvents(groupIndex);
-        
+
         this.calculateGroupTotals();
     }
 
     // Bind bill select events
     bindBillSelectEvents(groupIndex) {
         const $group = $(`.payment-group[data-group-index="${groupIndex}"]`);
-        
+
         $group.on('change', '.bill-select', function() {
             const selectedOption = $(this).find('option:selected');
             const dueAmount = selectedOption.data('due') || 0;
             const $row = $(this).closest('.bill-row');
-            
+
             $row.find('.due-display').text(parseFloat(dueAmount).toFixed(2));
             $row.find('.bill-amount').attr('max', dueAmount).val('');
         });
@@ -390,15 +389,15 @@ class FlexibleBulkPayment {
                     <label class="form-label mb-1">Cheque Details</label>
                     <div class="row">
                         <div class="col-md-6">
-                            <input type="text" name="payment_groups[${groupIndex}][cheque_number]" 
+                            <input type="text" name="payment_groups[${groupIndex}][cheque_number]"
                                    class="form-control form-control-sm mb-1" placeholder="Cheque Number" required>
                         </div>
                         <div class="col-md-6">
-                            <input type="text" name="payment_groups[${groupIndex}][cheque_bank_branch]" 
+                            <input type="text" name="payment_groups[${groupIndex}][cheque_bank_branch]"
                                    class="form-control form-control-sm mb-1" placeholder="Bank & Branch" required>
                         </div>
                     </div>
-                    <input type="date" name="payment_groups[${groupIndex}][cheque_valid_date]" 
+                    <input type="date" name="payment_groups[${groupIndex}][cheque_valid_date]"
                            class="form-control form-control-sm" title="Valid Date" required>
                 `;
                 break;
@@ -408,11 +407,11 @@ class FlexibleBulkPayment {
                     <label class="form-label mb-1">Card Details</label>
                     <div class="row">
                         <div class="col-md-6">
-                            <input type="text" name="payment_groups[${groupIndex}][card_number]" 
+                            <input type="text" name="payment_groups[${groupIndex}][card_number]"
                                    class="form-control form-control-sm mb-1" placeholder="Card Number" required>
                         </div>
                         <div class="col-md-6">
-                            <input type="text" name="payment_groups[${groupIndex}][card_holder_name]" 
+                            <input type="text" name="payment_groups[${groupIndex}][card_holder_name]"
                                    class="form-control form-control-sm" placeholder="Card Holder Name">
                         </div>
                     </div>
@@ -422,7 +421,7 @@ class FlexibleBulkPayment {
             case 'bank_transfer':
                 fieldsHtml = `
                     <label class="form-label mb-1">Bank Transfer</label>
-                    <input type="text" name="payment_groups[${groupIndex}][bank_account_number]" 
+                    <input type="text" name="payment_groups[${groupIndex}][bank_account_number]"
                            class="form-control form-control-sm" placeholder="Account Number" required>
                 `;
                 break;
@@ -438,7 +437,7 @@ class FlexibleBulkPayment {
     addBillToGroup($group) {
         const groupIndex = $group.data('group-index');
         const billIndex = $group.find('.bill-row').length;
-        const salesOptions = this.availableSales.map(sale => 
+        const salesOptions = this.availableSales.map(sale =>
             `<option value="${sale.id}" data-due="${sale.total_due}" data-invoice="${sale.invoice_no}">
                 ${sale.invoice_no} - Due: Rs.${parseFloat(sale.total_due).toFixed(2)}
             </option>`
@@ -453,8 +452,8 @@ class FlexibleBulkPayment {
                     </select>
                 </div>
                 <div class="col-md-4">
-                    <input type="number" class="form-control bill-amount" 
-                           name="payment_groups[${groupIndex}][bills][${billIndex}][amount]" 
+                    <input type="number" class="form-control bill-amount"
+                           name="payment_groups[${groupIndex}][bills][${billIndex}][amount]"
                            step="0.01" min="0.01" placeholder="Amount" required>
                     <small class="text-muted">Due: Rs. <span class="due-display">0.00</span></small>
                 </div>
@@ -535,7 +534,7 @@ class FlexibleBulkPayment {
         $('.payment-group').each(function() {
             const $group = $(this);
             const method = $group.find('.group-payment-method').val();
-            
+
             if (!method) return;
 
             const groupData = {
@@ -548,7 +547,7 @@ class FlexibleBulkPayment {
                 groupData.cheque_number = $group.find('[name*="[cheque_number]"]').val();
                 groupData.cheque_bank_branch = $group.find('[name*="[cheque_bank_branch]"]').val();
                 groupData.cheque_valid_date = $group.find('[name*="[cheque_valid_date]"]').val();
-                
+
                 if (!groupData.cheque_number || !groupData.cheque_bank_branch || !groupData.cheque_valid_date) {
                     toastr.error('Please fill all cheque details');
                     return false;
@@ -556,14 +555,14 @@ class FlexibleBulkPayment {
             } else if (method === 'card') {
                 groupData.card_number = $group.find('[name*="[card_number]"]').val();
                 groupData.card_holder_name = $group.find('[name*="[card_holder_name]"]').val();
-                
+
                 if (!groupData.card_number) {
                     toastr.error('Please enter card number');
                     return false;
                 }
             } else if (method === 'bank_transfer') {
                 groupData.bank_account_number = $group.find('[name*="[bank_account_number]"]').val();
-                
+
                 if (!groupData.bank_account_number) {
                     toastr.error('Please enter bank account number');
                     return false;
@@ -614,15 +613,15 @@ class FlexibleBulkPayment {
             if (response.status === 200) {
                 toastr.success(response.message);
                 $('#flexibleBulkPaymentModal').modal('hide');
-                
+
                 // Refresh the sales table
                 if (typeof salesTable !== 'undefined') {
                     salesTable.ajax.reload();
                 }
-                
+
                 // Reset form
                 this.resetForm();
-                
+
                 // Show success details
                 setTimeout(() => {
                     toastr.info(`Bulk Reference: ${response.bulk_reference}<br>Total Amount: Rs. ${response.total_amount}`, 'Payment Details', {
@@ -648,7 +647,7 @@ class FlexibleBulkPayment {
         $('#flexiblePaymentNotes').val('');
         $('#customerSummaryCards').hide();
         $('#paymentGroupsContainer').empty();
-        
+
         this.availableSales = [];
         this.currentCustomer = null;
         this.groupCounter = 0;
@@ -659,6 +658,6 @@ class FlexibleBulkPayment {
 $(document).ready(function() {
     window.flexibleBulkPayment = new FlexibleBulkPayment();
     window.flexibleBulkPayment.init();
-    
+
     console.log('Enhanced Flexible Multi-Method Bulk Payment System Initialized');
 });

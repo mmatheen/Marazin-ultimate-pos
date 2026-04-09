@@ -48,6 +48,10 @@ class UpdatePermissions extends Command
         $this->line('    • view cheque-management - Access cheque management page');
         $this->newLine();
 
+        $this->line('  SMS Management:');
+        $this->line('    • sms.send - Send manual SMS messages');
+        $this->newLine();
+
         $this->info('✨ Smart Assignment Logic:');
         $this->line('  New permissions will be automatically assigned to roles that have related permissions.');
         $this->line('  For example: If a role has "save draft", it will get "create sale-order".');
@@ -116,7 +120,8 @@ class UpdatePermissions extends Command
                 $this->newLine();
 
                 $this->info('📊 What was done:');
-                $this->line('  ✓ Created 7 new permissions');
+                $this->line('  ✓ Created 8 new permissions');
+                $this->line('  ✓ Included SMS manual send permission');
                 $this->line('  ✓ Assigned permissions to existing roles based on related permissions');
                 $this->line('  ✓ Updated sidebar and POS page to use new permissions');
                 $this->line('  ✓ Cleared all caches');

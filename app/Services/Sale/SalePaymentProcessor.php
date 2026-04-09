@@ -163,12 +163,9 @@ class SalePaymentProcessor
             $totalPaid += $paymentData['amount'];
         }
 
-        $totalDue_walkIn = max(0, $sale->final_total - $totalPaid);
-
+        // total_due + payment_status: Sale::saving (final/suspend) — avoids duplicate Paid/Partial logic
         $sale->update([
-            'total_paid'     => $totalPaid,
-            'total_due'      => $totalDue_walkIn,
-            'payment_status' => $totalPaid >= $sale->final_total ? 'Paid' : 'Partial',
+            'total_paid' => $totalPaid,
         ]);
     }
 
@@ -256,13 +253,8 @@ class SalePaymentProcessor
             ]);
         }
 
-        $totalDue      = max(0, $sale->final_total - $totalPaid);
-        $paymentStatus = $totalDue <= 0 ? 'Paid' : ($totalPaid > 0 ? 'Partial' : 'Due');
-
         $update = [
-            'total_paid'     => $totalPaid,
-            'total_due'      => $totalDue,
-            'payment_status' => $paymentStatus,
+            'total_paid' => $totalPaid,
         ];
         // Receipt should show bill amount only when excess was saved as advance
         if ($saveExcessAsAdvance) {
@@ -293,14 +285,10 @@ class SalePaymentProcessor
             ->where('status', '!=', 'deleted')
             ->sum('amount');
 
-        $totalDue      = max(0, $sale->final_total - $actualTotalPaid);
-        $paymentStatus = $totalDue <= 0 ? 'Paid' : ($actualTotalPaid > 0 ? 'Partial' : 'Due');
-        $amountGiven   = floatval($request->amount_given ?? $sale->final_total);
+        $amountGiven = floatval($request->amount_given ?? $sale->final_total);
 
         $sale->update([
             'total_paid'     => $actualTotalPaid,
-            'total_due'      => $totalDue,
-            'payment_status' => $paymentStatus,
             'amount_given'   => $amountGiven,
             'balance_amount' => max(0, $amountGiven - $sale->final_total),
         ]);
@@ -417,7 +405,8 @@ class SalePaymentProcessor
             ->where('cheque_status', 'bounced')
             ->sum('amount');
 
-        $newTotalPaid = $totalReceived - $bouncedCheques;
+        // Invoice stays settled once recorded; do not subtract bounced cheques from sale totals (ledger handles bounce).
+        $newTotalPaid = $totalReceived;
 
         Log::info("Sale {$sale->id} payment recalculation:", [
             'total_received' => $totalReceived,
@@ -428,17 +417,9 @@ class SalePaymentProcessor
         ]);
 
         $sale->total_paid = $newTotalPaid;
-        $sale->total_due  = $sale->final_total - $newTotalPaid;
-
-        if ($sale->total_due <= 0) {
-            $sale->payment_status = 'Paid';
-        } elseif ($sale->total_paid > 0) {
-            $sale->payment_status = 'Partial';
-        } else {
-            $sale->payment_status = 'Due';
-        }
-
+        // total_due + payment_status: Sale::saving
         $sale->save();
+        $sale->refresh();
 
         return [
             'total_received'  => $totalReceived,

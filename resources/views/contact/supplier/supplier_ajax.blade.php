@@ -95,7 +95,6 @@
                     response.message.forEach(function(item) {
                         let row = $('<tr>');
                         row.append('<td>' + item.id + '</td>'); // Supplier ID
-                        row.append('<td>' + item.prefix + '</td>');
                         row.append('<td>' + item.first_name + '</td>');
                         row.append('<td>' + item.last_name + '</td>');
                         row.append('<td>' + item.full_name + '</td>');
@@ -158,7 +157,6 @@
                         };
                         toastr.error(response.message, 'Error');
                     } else if (response.status == 200) {
-                        $('#edit_prefix').val(response.message.prefix);
                         $('#edit_first_name').val(response.message.first_name);
                         $('#edit_last_name').val(response.message.last_name);
                         $('#edit_mobile_no').val(response.message.mobile_no);

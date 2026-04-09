@@ -108,6 +108,7 @@
                                         <th>Method</th>
                                         <th>Status</th>
                                         <th>Action</th>
+                                        <th style="display:none;">Group Key</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -301,6 +302,78 @@
     </div>
 </div>
 
+<!-- Bulk Group Edit Modal -->
+<div class="modal fade" id="bulkGroupEditModal" tabindex="-1" role="dialog" aria-labelledby="bulkGroupEditModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="bulkGroupEditModalLabel">Edit Bulk Payment Group</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="bulkGroupEditForm">
+                <div class="modal-body">
+                    <input type="hidden" id="bulk_edit_reference_no">
+                    <div class="alert alert-info py-2">
+                        <strong>Bulk Reference:</strong> <span id="bulkEditReferenceLabel">-</span>
+                        <small class="d-block text-muted">Edit all rows under this bulk reference and save once.</small>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Invoice</th>
+                                    <th>Method</th>
+                                    <th>Amount</th>
+                                    <th>Payment Date</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bulkEditRowsBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="form-group local-forms mt-2">
+                        <label>Reason for Bulk Edit <span class="login-danger">*</span></label>
+                        <textarea id="bulk_edit_reason" class="form-control" rows="2" placeholder="Why are you editing this bulk payment?" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Update Bulk Group</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Group Delete Modal -->
+<div class="modal fade" id="bulkGroupDeleteModal" tabindex="-1" role="dialog" aria-labelledby="bulkGroupDeleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="bulkGroupDeleteModalLabel">Delete Entire Bulk Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="bulkGroupDeleteForm">
+                <div class="modal-body">
+                    <input type="hidden" id="bulk_delete_reference_no">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Warning!</strong> This will delete all payment rows under bulk reference <strong id="bulkDeleteReferenceLabel">-</strong>.
+                    </div>
+                    <div class="form-group local-forms">
+                        <label>Reason for Bulk Deletion <span class="login-danger">*</span></label>
+                        <textarea id="bulk_delete_reason" class="form-control" rows="3" placeholder="Provide a detailed reason..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> Delete Entire Bulk</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Logs Modal -->
 <div class="modal fade" id="logsModal" tabindex="-1" role="dialog" aria-labelledby="logsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl" role="document">
@@ -417,6 +490,7 @@ $(document).ready(function() {
 
     let currentEntityType = '';
     let paymentsDataTable = null;
+    let paymentsByReference = {};
 
     // Initialize DataTable with row grouping
     function initializeDataTable() {
@@ -425,26 +499,38 @@ $(document).ready(function() {
         }
 
         paymentsDataTable = $('#paymentsTable').DataTable({
-            "order": [[0, 'desc']], // Sort by date descending
+            "order": [[8, 'desc'], [0, 'desc']],
             "pageLength": 50,
             "responsive": true,
             "columnDefs": [
-                { "visible": false, "targets": 2 } // Hide contact column (used for grouping)
+                { "visible": false, "targets": 2 }, // Hide contact column
+                { "visible": false, "targets": 8 } // Hide grouping key column
             ],
             "drawCallback": function (settings) {
                 var api = this.api();
                 var rows = api.rows({ page: 'current' }).nodes();
                 var last = null;
 
-                api.column(2, { page: 'current' }).data().each(function (group, i) {
-                    if (last !== group) {
-                        // Calculate group total by iterating through current page rows
+                api.column(8, { page: 'current' }).data().each(function (groupKey, i) {
+                    if (last !== groupKey) {
+                        const groupItems = paymentsByReference[groupKey] || [];
+                        const firstItem = groupItems[0] || null;
+                        const contactLabel = firstItem
+                            ? ((firstItem.customer
+                                ? ((firstItem.customer.first_name || '') + ' ' + (firstItem.customer.last_name || '') + ' (Customer)')
+                                : ((firstItem.supplier
+                                    ? ((firstItem.supplier.first_name || '') + ' ' + (firstItem.supplier.last_name || '') + ' (Supplier)')
+                                    : 'Unknown Contact'))) )
+                            : 'Unknown Contact';
+
+                        const allRowsToday = groupItems.length > 0 && groupItems.every(item => !!item.is_today);
+
                         var groupTotal = 0;
                         var groupCount = 0;
 
                         api.rows({ page: 'current' }).every(function() {
                             var data = this.data();
-                            if (data[2] === group) {
+                            if (data[8] === groupKey) {
                                 // Extract numeric value from HTML formatted amount
                                 // Amount is in format: <strong>Rs. 17,050.00</strong>
                                 var amountText = data[4];
@@ -457,14 +543,27 @@ $(document).ready(function() {
                             }
                         });
 
+                        const groupActions = allRowsToday
+                            ? `<span class="ms-2">
+                                    <button type="button" class="btn btn-xs btn-outline-primary edit-bulk-group-btn" data-reference="${groupKey}" title="Edit entire bulk reference">
+                                        <i class="fas fa-edit"></i> Edit Bulk
+                                    </button>
+                                    <button type="button" class="btn btn-xs btn-outline-danger delete-bulk-group-btn" data-reference="${groupKey}" title="Delete entire bulk reference">
+                                        <i class="fas fa-trash"></i> Delete Bulk
+                                    </button>
+                                </span>`
+                            : `<span class="badge bg-secondary ms-2" title="Contains past rows, bulk edit/delete locked"><i class="fas fa-lock"></i> Locked</span>`;
+
                         $(rows).eq(i).before(
                             '<tr class="group"><td colspan="7" style="background-color: #e9ecef; font-weight: 600;"><i class="fas fa-user-circle"></i> ' +
-                            group +
+                            contactLabel +
+                            ' <span class="badge bg-dark ms-2">' + groupKey + '</span>' +
                             ' <span class="badge bg-secondary ms-2">' + groupCount + ' payment(s)</span>' +
+                            groupActions +
                             ' <span class="float-end text-success">Total: Rs. ' + groupTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></td></tr>'
                         );
 
-                        last = group;
+                        last = groupKey;
                     }
                 });
             },
@@ -479,10 +578,10 @@ $(document).ready(function() {
         // Toggle group visibility on click
         $('#paymentsTable tbody').on('click', 'tr.group', function() {
             var currentOrder = paymentsDataTable.order()[0];
-            if (currentOrder[0] === 2 && currentOrder[1] === 'asc') {
-                paymentsDataTable.order([2, 'desc']).draw();
+            if (currentOrder[0] === 8 && currentOrder[1] === 'asc') {
+                paymentsDataTable.order([8, 'desc'], [0, 'desc']).draw();
             } else {
-                paymentsDataTable.order([2, 'asc']).draw();
+                paymentsDataTable.order([8, 'asc'], [0, 'desc']).draw();
             }
         });
     }
@@ -623,6 +722,7 @@ $(document).ready(function() {
     // Populate payments table with DataTable row grouping
     function populatePaymentsTable(payments, entityType) {
         console.log('Populating table with payments:', payments);
+        paymentsByReference = {};
 
         // Clear existing data
         if (paymentsDataTable) {
@@ -635,6 +735,12 @@ $(document).ready(function() {
         }
 
         payments.forEach(function(payment) {
+            const referenceKey = payment.reference_no || ('PAY-' + payment.id);
+            if (!paymentsByReference[referenceKey]) {
+                paymentsByReference[referenceKey] = [];
+            }
+            paymentsByReference[referenceKey].push(payment);
+
             // Get contact name for grouping
             let contactName = '';
             if (payment.customer) {
@@ -708,7 +814,8 @@ $(document).ready(function() {
                 '<strong>Rs. ' + parseFloat(payment.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</strong>',
                 methodBadge,
                 '<span class="badge bg-success"><i class="fas fa-check"></i> Paid</span>',
-                actionsHtml
+                actionsHtml,
+                referenceKey
             ];
 
             paymentsDataTable.row.add(rowData);
@@ -716,6 +823,420 @@ $(document).ready(function() {
 
         paymentsDataTable.draw();
     }
+
+    function ajaxPromise(options) {
+        return new Promise((resolve, reject) => {
+            $.ajax(Object.assign({}, options, {
+                success: resolve,
+                error: reject
+            }));
+        });
+    }
+
+    function formatBulkCurrency(amount) {
+        const safeAmount = Number.isFinite(amount) ? amount : 0;
+        return `Rs. ${safeAmount.toLocaleString('en-IN', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        })}`;
+    }
+
+    function formatAmountValue(amount) {
+        const safeAmount = Number.isFinite(amount) ? amount : 0;
+        return safeAmount.toFixed(2);
+    }
+
+    function parseAmountValue(value) {
+        if (value === null || value === undefined || value === '') {
+            return 0;
+        }
+
+        const normalized = String(value).replace(/[^0-9.-]/g, '');
+        const parsed = parseFloat(normalized);
+
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function formatDateInputValue(value) {
+        if (!value) {
+            return '';
+        }
+
+        const stringValue = String(value);
+
+        if (stringValue.includes('T')) {
+            return stringValue.slice(0, 10);
+        }
+
+        return stringValue.slice(0, 10);
+    }
+
+    function formatDateTimeLocalValue(value) {
+        if (!value) {
+            return '';
+        }
+
+        const stringValue = String(value);
+
+        if (stringValue.includes('T')) {
+            return stringValue.slice(0, 16);
+        }
+
+        return stringValue;
+    }
+
+    function getBulkRowLimitInfo(payment) {
+        const amount = parseFloat(payment.amount || 0);
+        const sale = payment.sale || null;
+        const purchase = payment.purchase || null;
+
+        let invoiceTotal = 0;
+        let currentDue = 0;
+        let invoiceLabel = payment.reference_no || '-';
+
+        if (sale) {
+            invoiceTotal = parseFloat(sale.total_amount || sale.final_total || 0);
+            currentDue = parseFloat(sale.total_due ?? (invoiceTotal - parseFloat(sale.total_paid || 0)));
+            invoiceLabel = sale.invoice_no || invoiceLabel;
+        } else if (purchase) {
+            invoiceTotal = parseFloat(purchase.total_amount || 0);
+            currentDue = parseFloat(purchase.total_due ?? (invoiceTotal - parseFloat(purchase.total_paid || 0)));
+            invoiceLabel = purchase.reference_no || invoiceLabel;
+        }
+
+        const maxEditable = Math.max(0, currentDue + amount);
+
+        return {
+            invoiceLabel,
+            invoiceTotal: Number.isFinite(invoiceTotal) ? invoiceTotal : 0,
+            currentDue: Number.isFinite(currentDue) ? currentDue : 0,
+            maxEditable: Number.isFinite(maxEditable) ? maxEditable : amount
+        };
+    }
+
+    function toggleBulkRowSpecificFields($detailRow, method) {
+        $detailRow.find('.bulk-specific-block').hide();
+        $detailRow.find(`.bulk-specific-block[data-method="${method}"]`).show();
+    }
+
+    function getBulkRowValues($row) {
+        const $detailRow = $row.next('.bulk-row-extra-row');
+
+        return {
+            payment_method: $row.find('.bulk-row-method').val(),
+            amount: parseFloat($row.find('.bulk-row-amount').val() || 0),
+            payment_date: $row.find('.bulk-row-date').val(),
+            notes: $row.find('.bulk-row-notes').val() || '',
+            cheque_number: $detailRow.find('.bulk-row-cheque-number').val() || '',
+            cheque_bank_branch: $detailRow.find('.bulk-row-cheque-bank-branch').val() || '',
+            cheque_received_date: $detailRow.find('.bulk-row-cheque-received-date').val() || '',
+            cheque_valid_date: $detailRow.find('.bulk-row-cheque-valid-date').val() || '',
+            cheque_given_by: $detailRow.find('.bulk-row-cheque-given-by').val() || '',
+            card_number: $detailRow.find('.bulk-row-card-number').val() || '',
+            card_holder_name: $detailRow.find('.bulk-row-card-holder-name').val() || '',
+            card_expiry_month: $detailRow.find('.bulk-row-card-expiry-month').val() || '',
+            card_expiry_year: $detailRow.find('.bulk-row-card-expiry-year').val() || '',
+            card_security_code: $detailRow.find('.bulk-row-card-security-code').val() || '',
+            bank_account_number: $detailRow.find('.bulk-row-bank-account-number').val() || ''
+        };
+    }
+
+    function updateBulkRowAmountPreview($row) {
+        const $input = $row.find('.bulk-row-amount');
+        const maxEditable = parseFloat($row.data('max-editable')) || 0;
+        const currentDue = parseFloat($row.data('current-due')) || 0;
+        const amount = parseAmountValue($input.val());
+        const newDue = Math.max(0, maxEditable - amount);
+
+        $row.find('.bulk-row-current-due-preview').text(formatBulkCurrency(currentDue));
+        $row.find('.bulk-row-new-due-preview').text(formatBulkCurrency(newDue));
+
+        return { amount, maxEditable, currentDue, newDue };
+    }
+
+    function syncBulkRowAmountState($row, options = {}) {
+        const { amount, maxEditable, currentDue, newDue } = updateBulkRowAmountPreview($row);
+        const $input = $row.find('.bulk-row-amount');
+        const $error = $row.find('.bulk-row-amount-error');
+        const rawValue = $input.val();
+        const shouldClamp = Boolean(options.clamp);
+
+        if (rawValue === '') {
+            $error.hide().text('');
+            $input.removeClass('is-invalid');
+            return { amount, maxEditable, newDue, isValid: true };
+        }
+
+        if (amount > maxEditable + 0.0001) {
+            if (shouldClamp) {
+                $input.val(formatAmountValue(maxEditable));
+                updateBulkRowAmountPreview($row);
+                $error.text(`Trimmed to max editable ${formatBulkCurrency(maxEditable)}.`).show();
+                $input.removeClass('is-invalid');
+                return { amount: maxEditable, maxEditable, currentDue, newDue: 0, isValid: true };
+            } else {
+                $error.text(`Amount exceeds max editable ${formatBulkCurrency(maxEditable)}.`).show();
+                $input.addClass('is-invalid');
+                return { amount, maxEditable, newDue, isValid: false };
+            }
+        }
+
+        $error.hide().text('');
+        $input.removeClass('is-invalid');
+        return { amount, maxEditable, newDue, isValid: true };
+    }
+
+    $(document).on('click', '.edit-bulk-group-btn', function(e) {
+        e.stopPropagation();
+        const referenceNo = $(this).data('reference');
+        const groupPayments = paymentsByReference[referenceNo] || [];
+
+        if (!groupPayments.length) {
+            toastr.error('No payments found for this bulk reference');
+            return;
+        }
+
+        if (!groupPayments.every(p => !!p.is_today)) {
+            toastr.error('Bulk edit is allowed only when all rows are from today.');
+            return;
+        }
+
+        $('#bulk_edit_reference_no').val(referenceNo);
+        $('#bulkEditReferenceLabel').text(referenceNo);
+        $('#bulk_edit_reason').val('');
+
+        const rowsHtml = groupPayments.map(p => {
+            const limitInfo = getBulkRowLimitInfo(p);
+            const billRef = limitInfo.invoiceLabel;
+            const currentMethod = p.payment_method || 'cash';
+            const safeNotes = (p.notes || '').replace(/"/g, '&quot;');
+            return `
+                <tr data-payment-id="${p.id}" data-max-editable="${limitInfo.maxEditable}" data-current-due="${limitInfo.currentDue}">
+                    <td><strong>${billRef}</strong><div class="small text-muted">#${p.id}</div></td>
+                    <td>
+                        <select class="form-control form-control-sm bulk-row-method">
+                            <option value="cash" ${p.payment_method === 'cash' ? 'selected' : ''}>Cash</option>
+                            <option value="card" ${p.payment_method === 'card' ? 'selected' : ''}>Card</option>
+                            <option value="cheque" ${p.payment_method === 'cheque' ? 'selected' : ''}>Cheque</option>
+                            <option value="bank_transfer" ${p.payment_method === 'bank_transfer' ? 'selected' : ''}>Bank Transfer</option>
+                        </select>
+                        <div class="small text-muted mt-1">Current due: Rs. ${limitInfo.currentDue.toFixed(2)}<br>Max editable: Rs. ${limitInfo.maxEditable.toFixed(2)}</div>
+                    </td>
+                    <td>
+                        <input type="number" class="form-control form-control-sm bulk-row-amount" step="0.01" min="0.01" max="${limitInfo.maxEditable.toFixed(2)}" value="${parseFloat(p.amount || 0).toFixed(2)}">
+                        <div class="small text-muted mt-1 bulk-row-amount-hint">
+                            <div>Remaining due now: <span class="bulk-row-current-due-preview">Rs. ${limitInfo.currentDue.toFixed(2)}</span></div>
+                            <div>New due after edit: <span class="bulk-row-new-due-preview">Rs. ${limitInfo.currentDue.toFixed(2)}</span></div>
+                            <div class="bulk-row-limit-hint">Enter payment amount for this invoice only. Max editable: Rs. ${limitInfo.maxEditable.toFixed(2)}</div>
+                        </div>
+                        <div class="bulk-row-amount-error small text-danger mt-1" style="display:none;"></div>
+                    </td>
+                    <td><input type="date" class="form-control form-control-sm bulk-row-date" value="${formatDateInputValue(p.payment_date || '')}"></td>
+                    <td><input type="text" class="form-control form-control-sm bulk-row-notes" value="${safeNotes}"></td>
+                </tr>
+                <tr class="bulk-row-extra-row">
+                    <td colspan="5" class="bg-light">
+                        <div class="bulk-specific-block" data-method="cheque" style="${currentMethod === 'cheque' ? '' : 'display:none;'}">
+                            <div class="row g-2">
+                                <div class="col-md-3"><input type="text" class="form-control form-control-sm bulk-row-cheque-number" placeholder="Cheque Number" value="${p.cheque_number || ''}"></div>
+                                <div class="col-md-3"><input type="text" class="form-control form-control-sm bulk-row-cheque-bank-branch" placeholder="Bank & Branch" value="${p.cheque_bank_branch || ''}"></div>
+                                <div class="col-md-2"><input type="date" class="form-control form-control-sm bulk-row-cheque-received-date" value="${formatDateInputValue(p.cheque_received_date || '')}"></div>
+                                <div class="col-md-2"><input type="date" class="form-control form-control-sm bulk-row-cheque-valid-date" value="${formatDateInputValue(p.cheque_valid_date || '')}"></div>
+                                <div class="col-md-2"><input type="text" class="form-control form-control-sm bulk-row-cheque-given-by" placeholder="Given By" value="${p.cheque_given_by || ''}"></div>
+                            </div>
+                        </div>
+                        <div class="bulk-specific-block" data-method="card" style="${currentMethod === 'card' ? '' : 'display:none;'}">
+                            <div class="row g-2">
+                                <div class="col-md-3"><input type="text" class="form-control form-control-sm bulk-row-card-number" placeholder="Card Number" value="${p.card_number || ''}"></div>
+                                <div class="col-md-3"><input type="text" class="form-control form-control-sm bulk-row-card-holder-name" placeholder="Card Holder" value="${p.card_holder_name || ''}"></div>
+                                <div class="col-md-2"><input type="text" class="form-control form-control-sm bulk-row-card-expiry-month" placeholder="MM" value="${p.card_expiry_month || ''}"></div>
+                                <div class="col-md-2"><input type="text" class="form-control form-control-sm bulk-row-card-expiry-year" placeholder="YYYY" value="${p.card_expiry_year || ''}"></div>
+                                <div class="col-md-2"><input type="text" class="form-control form-control-sm bulk-row-card-security-code" placeholder="CVV" value="${p.card_security_code || ''}"></div>
+                            </div>
+                        </div>
+                        <div class="bulk-specific-block" data-method="bank_transfer" style="${currentMethod === 'bank_transfer' ? '' : 'display:none;'}">
+                            <div class="row g-2">
+                                <div class="col-md-4"><input type="text" class="form-control form-control-sm bulk-row-bank-account-number" placeholder="Bank Account Number" value="${p.bank_account_number || ''}"></div>
+                            </div>
+                        </div>
+                        <div class="bulk-specific-block" data-method="cash" style="${currentMethod === 'cash' ? '' : 'display:none;'}">
+                            <small class="text-muted">Cash payment selected - no extra fields needed.</small>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        $('#bulkEditRowsBody').html(rowsHtml);
+
+        const refreshBulkRowMethodFields = () => {
+            $('#bulkEditRowsBody .bulk-row-method').each(function() {
+                const $row = $(this).closest('tr');
+                const $detailRow = $row.next('.bulk-row-extra-row');
+                toggleBulkRowSpecificFields($detailRow, $(this).val());
+            });
+        };
+
+        $('#bulkEditRowsBody').off('input', '.bulk-row-amount').on('input', '.bulk-row-amount', function() {
+            syncBulkRowAmountState($(this).closest('tr'));
+        });
+
+        $('#bulkEditRowsBody').off('focus', '.bulk-row-amount').on('focus', '.bulk-row-amount', function() {
+            const $input = $(this);
+            const raw = parseAmountValue($input.val());
+
+            if ($input.val() !== '') {
+                $input.val(raw ? String(raw) : '');
+            }
+        });
+
+        $('#bulkEditRowsBody').off('blur', '.bulk-row-amount').on('blur', '.bulk-row-amount', function() {
+            const $row = $(this).closest('tr');
+            const state = syncBulkRowAmountState($row, { clamp: true });
+
+            if ($row.find('.bulk-row-amount').val() !== '' && state.amount <= state.maxEditable) {
+                $row.find('.bulk-row-amount').val(formatAmountValue(state.amount));
+            }
+        });
+
+        $('#bulkEditRowsBody').off('change', '.bulk-row-method').on('change', '.bulk-row-method', function() {
+            const $row = $(this).closest('tr');
+            const $detailRow = $row.next('.bulk-row-extra-row');
+            toggleBulkRowSpecificFields($detailRow, $(this).val());
+        });
+
+        refreshBulkRowMethodFields();
+        $('#bulkEditRowsBody .bulk-row-amount').each(function() {
+            syncBulkRowAmountState($(this).closest('tr'));
+        });
+        new bootstrap.Modal(document.getElementById('bulkGroupEditModal')).show();
+    });
+
+    $('#bulkGroupEditForm').on('submit', async function(e) {
+        e.preventDefault();
+        const referenceNo = $('#bulk_edit_reference_no').val();
+        const reason = $('#bulk_edit_reason').val().trim();
+
+        if (!reason) {
+            toastr.error('Reason for bulk edit is required');
+            return;
+        }
+
+        const groupPayments = paymentsByReference[referenceNo] || [];
+        if (!groupPayments.length) {
+            toastr.error('No rows found to update');
+            return;
+        }
+
+        const rows = $('#bulkEditRowsBody tr[data-payment-id]');
+        const payloadRows = [];
+
+        try {
+            toastr.info('Updating bulk group...', 'Please Wait');
+
+            for (const rowEl of rows.toArray()) {
+                const $row = $(rowEl);
+                const paymentId = parseInt($row.data('payment-id'), 10);
+                const rowValues = getBulkRowValues($row);
+
+                if (!Number.isInteger(paymentId) || paymentId <= 0) {
+                    throw new Error('Invalid payment row detected. Please reopen bulk edit and try again.');
+                }
+
+                if (!rowValues.payment_date || rowValues.amount <= 0) {
+                    throw new Error('Each row must have valid amount and payment date.');
+                }
+
+                payloadRows.push({
+                    payment_id: paymentId,
+                    ...rowValues,
+                });
+            }
+
+            await ajaxPromise({
+                url: `/bulk-payment/reference/${encodeURIComponent(referenceNo)}`,
+                method: 'PUT',
+                data: {
+                    reason,
+                    rows: payloadRows
+                }
+            });
+
+            const modal = bootstrap.Modal.getInstance(document.getElementById('bulkGroupEditModal'));
+            modal.hide();
+            toastr.success(`Bulk reference ${referenceNo} updated successfully`);
+            loadPayments();
+        } catch (xhr) {
+            let msg = 'Bulk update failed';
+            if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
+                msg = xhr.responseJSON.message;
+            } else if (xhr && xhr.message) {
+                msg = xhr.message;
+            }
+            toastr.error(msg);
+        }
+    });
+
+    $(document).on('click', '.delete-bulk-group-btn', function(e) {
+        e.stopPropagation();
+        const referenceNo = $(this).data('reference');
+        const groupPayments = paymentsByReference[referenceNo] || [];
+
+        if (!groupPayments.length) {
+            toastr.error('No payments found for this bulk reference');
+            return;
+        }
+
+        if (!groupPayments.every(p => !!p.is_today)) {
+            toastr.error('Bulk delete is allowed only when all rows are from today.');
+            return;
+        }
+
+        $('#bulk_delete_reference_no').val(referenceNo);
+        $('#bulkDeleteReferenceLabel').text(referenceNo);
+        $('#bulk_delete_reason').val('');
+        new bootstrap.Modal(document.getElementById('bulkGroupDeleteModal')).show();
+    });
+
+    $('#bulkGroupDeleteForm').on('submit', async function(e) {
+        e.preventDefault();
+        const referenceNo = $('#bulk_delete_reference_no').val();
+        const reason = $('#bulk_delete_reason').val().trim();
+
+        if (!reason) {
+            toastr.error('Reason for bulk delete is required');
+            return;
+        }
+
+        const groupPayments = paymentsByReference[referenceNo] || [];
+        if (!groupPayments.length) {
+            toastr.error('No rows found to delete');
+            return;
+        }
+
+        try {
+            toastr.info('Deleting bulk group...', 'Please Wait');
+
+            await ajaxPromise({
+                url: `/bulk-payment/reference/${encodeURIComponent(referenceNo)}`,
+                method: 'DELETE',
+                data: { reason }
+            });
+
+            const modal = bootstrap.Modal.getInstance(document.getElementById('bulkGroupDeleteModal'));
+            modal.hide();
+            toastr.success(`Bulk reference ${referenceNo} deleted successfully`);
+            loadPayments();
+        } catch (xhr) {
+            let msg = 'Bulk delete failed';
+            if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
+                msg = xhr.responseJSON.message;
+            } else if (xhr && xhr.message) {
+                msg = xhr.message;
+            }
+            toastr.error(msg);
+        }
+    });
 
     // Quick search functionality (removed since DataTable has search)
 
@@ -759,7 +1280,7 @@ $(document).ready(function() {
         $('#edit_amount').val(payment.amount);
 
         // Use the backend-provided datetime in Asia/Colombo (Carbon formatted)
-        let paymentDateTime = payment.display_datetime_input || '';
+        let paymentDateTime = formatDateTimeLocalValue(payment.display_datetime_input || payment.payment_date || '');
         $('#edit_payment_date').val(paymentDateTime);
 
         $('#edit_payment_method').val(payment.payment_method);
@@ -775,8 +1296,8 @@ $(document).ready(function() {
         // Populate cheque details
         $('#edit_cheque_number').val(payment.cheque_number || '');
         $('#edit_cheque_bank_branch').val(payment.cheque_bank_branch || '');
-        $('#edit_cheque_received_date').val(payment.cheque_received_date || '');
-        $('#edit_cheque_valid_date').val(payment.cheque_valid_date || '');
+        $('#edit_cheque_received_date').val(formatDateInputValue(payment.cheque_received_date || ''));
+        $('#edit_cheque_valid_date').val(formatDateInputValue(payment.cheque_valid_date || ''));
         $('#edit_cheque_given_by').val(payment.cheque_given_by || '');
 
         // Reset advance payment checkbox

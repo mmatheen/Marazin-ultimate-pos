@@ -155,7 +155,7 @@ class UserController extends Controller
         $validator = Validator::make(
             $request->all(),
             [
-                'name_title' => 'required|string|max:10',
+                'name_title' => 'nullable|string|max:10',
                 'full_name' => 'required|string',
                 'user_name' => 'required|string|max:50|unique:users,user_name',
                 'email' => 'required|email|unique:users,email',
@@ -174,7 +174,7 @@ class UserController extends Controller
         }
 
         $user = User::create([
-            'name_title' => $request->name_title,
+            'name_title' => $request->input('name_title') ?: null,
             'full_name' => $request->full_name,
             'user_name' => $request->user_name,
             'email' => $request->email,
@@ -376,7 +376,7 @@ class UserController extends Controller
 
         // Set up validation rules
         $validationRules = [
-            'name_title' => 'required|string|max:10',
+            'name_title' => 'nullable|string|max:10',
             'full_name' => 'required|string',
             'user_name' => 'required|string|max:50|unique:users,user_name,' . $user->id,
             'email' => 'required|email|unique:users,email,' . $user->id,
@@ -403,7 +403,7 @@ class UserController extends Controller
         }
 
         $data = [
-            'name_title' => $request->name_title,
+            'name_title' => $request->input('name_title') ?: null,
             'full_name' => $request->full_name,
             'user_name' => $request->user_name,
             'email' => $request->email,

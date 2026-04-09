@@ -9,10 +9,14 @@ use Illuminate\Support\Facades\DB;
 use App\Models\ChequeStatusHistory;
 use App\Models\ChequeReminder;
 use App\Models\ChequeValidDateExtension;
+use Spatie\Activitylog\Traits\LogsActivity;
+use App\Traits\CustomLogsActivity;
 
 class Payment extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity, CustomLogsActivity;
+
+    protected $customLogName = 'payment';
 
     protected $fillable = [
         'payment_date',
@@ -293,40 +297,6 @@ class Payment extends Model
         $this->refresh();
 
         return $this;
-    }
-
-    /**
-     * Update sale totals for non-bounced status changes
-     */
-    private function updateRelatedSaleTotals()
-    {
-        if (!$this->sale) return;
-
-        $sale = $this->sale;
-
-        // Calculate new totals excluding bounced cheques
-        $totalReceived = $sale->payments()->sum('amount');
-        $bouncedCheques = $sale->payments()
-            ->where('payment_method', 'cheque')
-            ->where('cheque_status', 'bounced')
-            ->sum('amount');
-        $newTotalPaid = $totalReceived - $bouncedCheques;
-
-        // Update payment status
-        $paymentStatus = 'Due';
-        if ($newTotalPaid >= $sale->final_total) {
-            $paymentStatus = 'Paid';
-        } elseif ($newTotalPaid > 0) {
-            $paymentStatus = 'Partial';
-        }
-
-        // Force update the sale using direct DB update
-        DB::table('sales')
-            ->where('id', $sale->id)
-            ->update([
-                'total_paid' => $newTotalPaid,
-                'payment_status' => $paymentStatus
-            ]);
     }
 
     public function getStatusBadgeAttribute()

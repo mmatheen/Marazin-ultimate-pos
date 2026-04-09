@@ -25,26 +25,33 @@ class FlexibleBulkSalePaymentService
     /**
      * Process a flexible, multi-method bulk sale payment for a customer.
      *
-     * @return array{bulk_reference: string, total_amount: float}
+     * @return array{bulk_reference: string, total_amount: float, created_payment_ids: array<int>, affected_sale_ids: array<int>}
      * @throws \Exception
      */
     public function process(Request $request): array
     {
         $bulkReference = null;
         $totalAmount   = 0.0;
+        $createdPaymentIds = [];
+        $affectedSaleIdsList = [];
 
-        DB::transaction(function () use ($request, &$bulkReference, &$totalAmount) {
+        DB::transaction(function () use ($request, &$bulkReference, &$totalAmount, &$createdPaymentIds, &$affectedSaleIdsList) {
 
             $bulkReference  = $this->generateMeaningfulBulkReference($request);
             $totalAmount    = 0.0;
             $processedGroups = [];
+
+            $paymentGroupsInput = $request->input('payment_groups', []);
+            if (! is_array($paymentGroupsInput)) {
+                $paymentGroupsInput = [];
+            }
 
             // ── Step 1: tally OB vs sale payment totals ──────────────────────────
             $totalOBPayment      = 0.0;
             $totalSalePayment    = 0.0;
             $totalPaymentAmount  = 0.0;
 
-            foreach ($request->payment_groups as $paymentGroup) {
+            foreach ($paymentGroupsInput as $paymentGroup) {
                 if (isset($paymentGroup['bills']) && is_array($paymentGroup['bills'])) {
                     foreach ($paymentGroup['bills'] as $bill) {
                         $totalPaymentAmount += $bill['amount'];
@@ -78,7 +85,7 @@ class FlexibleBulkSalePaymentService
                     throw new \Exception('Opening balance payment already exists for this customer. Cannot create duplicate opening balance payments.');
                 }
 
-                foreach ($request->payment_groups as $paymentGroup) {
+                foreach ($paymentGroupsInput as $paymentGroup) {
                     $obAmount = floatval($paymentGroup['ob_amount'] ?? 0);
                     if ($obAmount <= 0) continue;
 
@@ -95,6 +102,7 @@ class FlexibleBulkSalePaymentService
                     $this->addMethodSpecificFields($paymentData, $paymentGroup);
 
                     $payment = Payment::create($paymentData);
+                    $createdPaymentIds[] = (int) $payment->id;
                     $this->unifiedLedgerService->recordOpeningBalancePayment($payment, 'customer');
 
                     $obAlreadyAllocated += $obAmount;
@@ -147,6 +155,7 @@ class FlexibleBulkSalePaymentService
                             'customer_id'    => $request->customer_id,
                             'notes'          => 'Cash refund for return: ' . $salesReturn->invoice_number,
                         ]);
+                        $createdPaymentIds[] = (int) $returnPayment->id;
 
                         if ($register) {
                             $this->cashRegisterService->recordRefundCash(
@@ -190,12 +199,16 @@ class FlexibleBulkSalePaymentService
                     'customer_id'    => $request->customer_id,
                     'notes'          => 'Advance credit applied to bills (from previous overpayments)',
                 ]);
+                $createdPaymentIds[] = (int) $advancePayment->id;
 
                 $this->unifiedLedgerService->recordAdvanceCreditUsage($advancePayment, 'customer', auth()->id());
             }
 
+            // Sale IDs for which updateSaleTable() already ran with bill_return_allocations (Step 5).
+            $saleIdsReturnCreditAppliedInGroups = [];
+
             // ── Step 5: process payment groups ───────────────────────────────────
-            foreach ($request->payment_groups as $groupIndex => $paymentGroup) {
+            foreach ($paymentGroupsInput as $groupIndex => $paymentGroup) {
                 $groupTotal    = 0.0;
                 $groupPayments = [];
 
@@ -255,6 +268,7 @@ class FlexibleBulkSalePaymentService
                         $this->addMethodSpecificFields($paymentData, $paymentGroup);
 
                         $payment = Payment::create($paymentData);
+                        $createdPaymentIds[] = (int) $payment->id;
                         $this->unifiedLedgerService->recordSalePayment($payment);
 
                         // Apply any return credit allocation for this bill
@@ -265,6 +279,7 @@ class FlexibleBulkSalePaymentService
 
                         $this->updateSaleTable($bill['sale_id'], $returnCreditForBill);
                         $affectedSaleIds[$bill['sale_id']] = true;
+                        $saleIdsReturnCreditAppliedInGroups[(int) $bill['sale_id']] = true;
 
                         $groupTotal      += $bill['amount'];
                         $groupPayments[] = [
@@ -291,6 +306,7 @@ class FlexibleBulkSalePaymentService
                         $this->addMethodSpecificFields($advanceData, $paymentGroup);
 
                         $advancePayment = Payment::create($advanceData);
+                        $createdPaymentIds[] = (int) $advancePayment->id;
                         $this->unifiedLedgerService->recordAdvancePayment($advancePayment, 'customer');
 
                         $groupTotal      += $advanceAmount;
@@ -309,35 +325,53 @@ class FlexibleBulkSalePaymentService
                 $totalAmount += $groupTotal;
             }
 
-            // ── Step 6: apply any remaining return-credit allocations to sales ───
-            if ($request->has('bill_return_allocations') && !empty($request->bill_return_allocations)) {
-                foreach ($request->bill_return_allocations as $saleId => $creditAmount) {
-                    if ($creditAmount > 0) {
-                        $sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
-                                   ->where('id', $saleId)
-                                   ->where('customer_id', $request->customer_id)
-                                   ->first();
-
-                        if (!$sale) {
-                            throw new \Exception("Sale {$saleId} not found for customer");
-                        }
-
-                        $affectedSaleIds[$saleId] = true;
-                    }
+            // ── Step 6: apply return-credit allocations for sales not updated in Step 5 ───
+            // (Return-only settlement: no cash payment_groups; sale.total_paid must include return credit.)
+            $billReturnAllocations = $request->input('bill_return_allocations', []);
+            if (! is_array($billReturnAllocations)) {
+                $billReturnAllocations = [];
+            }
+            foreach ($billReturnAllocations as $saleId => $creditAmount) {
+                $creditAmount = floatval($creditAmount);
+                if ($creditAmount <= 0.01) {
+                    continue;
                 }
+
+                $saleId = (int) $saleId;
+                $sale   = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
+                    ->where('id', $saleId)
+                    ->where('customer_id', $request->customer_id)
+                    ->first();
+
+                if (! $sale) {
+                    throw new \Exception("Sale {$saleId} not found for customer");
+                }
+
+                if (isset($saleIdsReturnCreditAppliedInGroups[$saleId])) {
+                    continue;
+                }
+
+                if ($creditAmount > (float) $sale->total_due + 0.02) {
+                    throw new \Exception(
+                        "Return credit Rs.".number_format($creditAmount, 2)." for invoice {$sale->invoice_no} exceeds sale due Rs.".number_format((float) $sale->total_due, 2)
+                    );
+                }
+
+                $this->updateSaleTable($saleId, $creditAmount);
+                $affectedSaleIds[$saleId] = true;
             }
 
             // ── Step 7: excess amount → advance payments for 'both' type ─────────
             if ($request->payment_type === 'both') {
                 $totalEntered = array_sum(array_column(
-                    array_map(fn ($pg) => ['t' => floatval($pg['totalAmount'] ?? 0)], $request->payment_groups),
+                    array_map(fn ($pg) => ['t' => floatval($pg['totalAmount'] ?? 0)], $paymentGroupsInput),
                     't'
                 ));
 
                 $advanceAmount = $totalEntered - ($totalOBPayment + $totalSalePayment);
 
                 if ($advanceAmount > 0.01) {
-                    foreach ($request->payment_groups as $paymentGroup) {
+                    foreach ($paymentGroupsInput as $paymentGroup) {
                         $groupTotal = floatval($paymentGroup['totalAmount'] ?? 0);
                         if ($groupTotal <= 0 || $totalEntered <= 0) continue;
 
@@ -357,17 +391,22 @@ class FlexibleBulkSalePaymentService
                         $this->addMethodSpecificFields($advanceData, $paymentGroup);
 
                         $advancePayment = Payment::create($advanceData);
+                        $createdPaymentIds[] = (int) $advancePayment->id;
                         $this->unifiedLedgerService->recordAdvancePayment($advancePayment, 'customer');
 
                         $totalAmount += $advanceForMethod;
                     }
                 }
             }
+
+            $affectedSaleIdsList = array_values(array_map('intval', array_keys($affectedSaleIds)));
         });
 
         return [
             'bulk_reference' => $bulkReference,
             'total_amount'   => $totalAmount,
+            'created_payment_ids' => array_values(array_unique(array_map('intval', $createdPaymentIds))),
+            'affected_sale_ids' => $affectedSaleIdsList,
         ];
     }
 
@@ -382,17 +421,36 @@ class FlexibleBulkSalePaymentService
             ->where('payment_type', 'sale')
             ->sum('amount');
 
-        $sale->total_paid = $totalCashPayments + $returnCreditForThisSale;
-        $sale->touch();
-        $sale->save();
-        $sale->refresh();
+        $existingNonCashCredit = max(0, (float) $sale->total_paid - (float) $totalCashPayments);
+        $linkedReturnCredit = $this->getAppliedReturnCreditForSale((int) $sale->id);
+        $effectiveReturnCredit = max(
+            $existingNonCashCredit,
+            (float) $returnCreditForThisSale,
+            $linkedReturnCredit
+        );
 
-        $sale->payment_status = match (true) {
-            $sale->total_due <= 0 => 'Paid',
-            $sale->total_paid > 0 => 'Partial',
-            default               => 'Due',
-        };
+        $sale->total_paid = $totalCashPayments + $effectiveReturnCredit;
+        $sale->touch();
+        // Sale::saving syncs payment_status from final_total / total_paid
         $sale->save();
+    }
+
+    private function getAppliedReturnCreditForSale(int $saleId): float
+    {
+        $returns = SalesReturn::where('sale_id', $saleId)->get(['id', 'total_paid']);
+        if ($returns->isEmpty()) {
+            return 0.0;
+        }
+
+        $totalReturnPaid = (float) $returns->sum(function ($return) {
+            return (float) $return->total_paid;
+        });
+
+        $cashRefunded = Payment::whereIn('reference_id', $returns->pluck('id')->all())
+            ->where('payment_type', 'sale_return_with_bill')
+            ->sum('amount');
+
+        return max(0.0, $totalReturnPaid - (float) $cashRefunded);
     }
 
     /** Customer balance is maintained automatically by the ledger system. */

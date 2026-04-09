@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendSmsJob;
 use Illuminate\Http\Request;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Storage;
@@ -15,6 +16,8 @@ class SettingController extends Controller
     {
         $this->middleware('permission:view settings', ['only' => ['index']]);
         $this->middleware('permission:edit business-settings', ['only' => ['update', 'updatePriceValidation', 'updateFreeQty']]);
+        $this->middleware('permission:edit sms-settings', ['only' => ['updateSmsSettings']]);
+        $this->middleware('permission:sms.send', ['only' => ['sendSms']]);
     }
 
     /**
@@ -109,6 +112,67 @@ class SettingController extends Controller
             'status' => true,
             'message' => 'Free quantity setting updated.',
             'data' => ['enable_free_qty' => (int) $validated['enable_free_qty']],
+        ]);
+    }
+
+    /**
+     * Update SMS gateway settings.
+     */
+    public function updateSmsSettings(Request $request)
+    {
+        $validated = $request->validate([
+            'sms_user_id' => 'nullable|string|max:255',
+            'sms_api_key' => 'nullable|string|max:255',
+            'sms_sender_id' => 'nullable|string|max:255',
+        ]);
+
+        $setting = Setting::firstOrFail();
+
+        $payload = [
+            'sms_user_id' => $validated['sms_user_id'] ?? null,
+            'sms_sender_id' => $validated['sms_sender_id'] ?? null,
+        ];
+
+        if ($request->filled('sms_api_key')) {
+            $payload['sms_api_key'] = $validated['sms_api_key'];
+        }
+
+        $setting->update($payload);
+
+        Cache::forget('active_setting');
+
+        return response()->json([
+            'status' => true,
+            'message' => 'SMS settings updated successfully.',
+            'data' => $setting,
+        ]);
+    }
+
+    /**
+     * Send manual SMS to one or many recipients.
+     */
+    public function sendSms(Request $request)
+    {
+        $validated = $request->validate([
+            'phones' => 'required|string|max:2000',
+            'message' => 'required|string|max:1600',
+        ]);
+
+        $phones = preg_split('/[\r\n,;]+/', $validated['phones']) ?: [];
+        $phones = array_values(array_filter(array_map('trim', $phones)));
+
+        if (empty($phones)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Please enter at least one valid phone number.',
+            ], 422);
+        }
+
+        SendSmsJob::dispatch($phones, $validated['message'])->afterCommit();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'SMS request submitted successfully.',
         ]);
     }
 

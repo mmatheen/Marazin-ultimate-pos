@@ -485,9 +485,11 @@ function loadSuppliersForBulkPayment() {
                     if (currentBalance > 0) {
                         var lastName = supplier.last_name ? supplier.last_name : '';
                         var fullName = supplier.first_name + (lastName ? ' ' + lastName : '');
+                        var mobileRaw = supplier.mobile_no != null ? String(supplier.mobile_no).trim() : '';
+                        var mobileSeg = mobileRaw ? ' · ' + mobileRaw : '';
 
-                        // Build display text
-                        var displayText = fullName + ' [Total Due: Rs. ' + currentBalance.toFixed(2) + ']';
+                        // Build display text (name + mobile for Select2 search)
+                        var displayText = fullName + mobileSeg + ' [Total Due: Rs. ' + currentBalance.toFixed(2) + ']';
 
                         // Show breakdown if available
                         if (openingBalance > 0 && purchaseDue > 0) {
@@ -803,9 +805,8 @@ $(document).on('change', '#customerSelect', function() {
         $('#advanceCreditAmountSection').hide();
     }
 
-    // Set amount to pay
-    $('#netCustomerDue').text('Rs. ' + totalDue.toFixed(2));
-    window.netSupplierDue = totalDue;
+    // Amount to pay uses gross purchases + OB − returns (see updateNetSupplierDue); ledger net alone would double-deduct returns.
+    updateNetSupplierDue();
 
     // Reset and clear previous validation errors
     $('#globalPaymentAmount').removeClass('is-invalid').next('.invalid-feedback').remove();
@@ -1289,16 +1290,14 @@ function autoAllocateReturnCreditsToPurchases(returnCreditAmount) {
     // Update existing bill allocations in payment methods
     updateExistingPurchaseAllocationsForReturnCredits();
 
-    // Show info message (single notification only)
+    // Show info message (single compact line — avoid large multi-line toast)
     if (returnCreditAmount > 0) {
         const allocated = returnCreditAmount - remainingCredit;
-        toastr.info(
-            `Rs.${allocated.toFixed(2)} return credit auto-allocated (FIFO). ` +
-            (remainingCredit > 0 ? `Remaining: Rs.${remainingCredit.toFixed(2)}. ` : '') +
-            `<br><strong>💡 To change:</strong> Click <strong>"Reallocate"</strong> button or edit/remove buttons on bills.`,
-            'Return Credit Applied',
-            {timeOut: 6000, progressBar: true, closeButton: true, escapeHtml: false}
-        );
+        const msg =
+            `Rs.${allocated.toFixed(2)} return credit FIFO-applied` +
+            (remainingCredit > 0 ? ` (Rs.${remainingCredit.toFixed(2)} unused)` : '') +
+            `. Use Reallocate or bill rows to change.`;
+        toastr.info(msg, '', {timeOut: 4000, progressBar: true, closeButton: true});
     }
 }
 
@@ -1408,14 +1407,15 @@ function updateNetSupplierDue() {
         advanceCreditToApply = parseFloat($('#advanceCreditAmountInput').val()) || 0;
     }
 
-    var netDue = totalDue - returnsToApply - advanceCreditToApply;
-    if (netDue < 0) netDue = 0; // Can't be negative
+    var grossPayable = openingBalance + purchaseDue;
+    var netDue = grossPayable - returnsToApply - advanceCreditToApply;
+    if (netDue < 0) netDue = 0;
 
     $('#netCustomerDue').text('Rs. ' + netDue.toFixed(2));
 
     // Update calculation display
     var calculationParts = [];
-    calculationParts.push('Rs.' + totalDue.toFixed(2));
+    calculationParts.push('Rs.' + grossPayable.toFixed(2) + ' (OB + purchases)');
 
     if (returnsToApply > 0) {
         calculationParts.push('- Rs.' + returnsToApply.toFixed(2) + ' (Returns)');
@@ -1428,16 +1428,16 @@ function updateNetSupplierDue() {
     if (calculationParts.length > 1) {
         $('#netCalculation').html('<i class="fas fa-calculator"></i> ' + calculationParts.join(' '));
     } else {
-        $('#netCalculation').text('Purchase Due - Returns - Advance');
+        $('#netCalculation').text('Opening + purchase due − returns − advance');
     }
 
     // Store for later use
     window.netSupplierDue = netDue;
 
-    console.log('Net customer due updated:', {
+    console.log('Net supplier due updated:', {
         openingBalance: openingBalance,
         purchaseDue: purchaseDue,
-        totalDue: totalDue,
+        totalDueLedger: totalDue,
         returnsToApply: returnsToApply,
         advanceCreditToApply: advanceCreditToApply,
         netDue: netDue

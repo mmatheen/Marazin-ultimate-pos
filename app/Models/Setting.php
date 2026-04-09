@@ -18,10 +18,16 @@ class Setting extends Model
         'enable_free_qty',
         'default_tax_percent',
         'default_selling_price_tax_type',
+        'sms_user_id',
+        'sms_api_key',
+        'sms_sender_id',
     ];
 
     protected $casts = [
         'default_tax_percent' => 'float',
+        'sms_api_key' => 'encrypted',
+        'enable_price_validation' => 'boolean',
+        'enable_free_qty' => 'boolean',
     ];
 
     // Accessor: Full URL for logo

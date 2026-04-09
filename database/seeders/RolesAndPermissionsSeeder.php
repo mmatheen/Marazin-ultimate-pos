@@ -372,6 +372,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'edit tax-settings',
                 'edit email-settings',
                 'edit sms-settings',
+                'sms.send',
                 'backup database',
                 'restore database',
                 'manage currencies',

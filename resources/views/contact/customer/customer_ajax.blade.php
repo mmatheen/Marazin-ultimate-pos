@@ -1,4 +1,24 @@
 <script type="text/javascript">
+    /** Slug for view-contact URLs (ASCII); server redirects to canonical Laravel Str::slug. */
+    function slugifyContactNameForUrl(row) {
+        var raw = (row.full_name || '').trim();
+        if (!raw) {
+            var parts = [];
+            if (row.first_name) {
+                parts.push(String(row.first_name).trim());
+            }
+            if (row.last_name) {
+                parts.push(String(row.last_name).trim());
+            }
+            raw = parts.join(' ').trim();
+        }
+        if (!raw) {
+            return 'customer';
+        }
+        var slug = raw.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+        return slug || 'customer';
+    }
+
     $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
 
@@ -136,6 +156,8 @@
             // Set default customer type to retailer
             $('#edit_customer_type').val('retailer').trigger('change');
 
+            $('#edit_credit_limit').val('0');
+
             // Show helpful message for non-sales rep users
             if (!isSalesRep) {
                 // Add a subtle info banner at the top of the modal
@@ -196,6 +218,7 @@
                         data: null,
                         title: 'Action',
                         render: function(data, type, row) {
+                            const contactSlug = slugifyContactNameForUrl(row);
                             let actions = '<div class="btn-group" role="group">';
 
                             // Main dropdown for all actions
@@ -215,7 +238,7 @@
                                         <li><hr class="dropdown-divider"></li>
                                         <li><h6 class="dropdown-header">Customer Actions</h6></li>
                                         @can('view customer')
-                                            <li><a class="dropdown-item" href="{{ route('customer.view-contact', ['id' => '__ID__']) }}" target="_blank" data-customer-view-contact-link="1">
+                                            <li><a class="dropdown-item" href="{{ url('/customer/view-contact') }}/${row.id}/${contactSlug}" target="_blank" data-customer-view-contact-link="1">
                                                 <i class="feather-user text-success"></i> View Contact
                                             </a></li>
                                             <li><a class="dropdown-item ledger_btn" href="#" data-id="${row.id}">
@@ -237,8 +260,7 @@
                             `;
 
                             actions += '</div>';
-                            // Replace placeholder __ID__ with real row id
-                            return actions.replaceAll('__ID__', row.id) + '';
+                            return actions;
                         },
                         orderable: false
                     },
@@ -249,14 +271,6 @@
                         },
                         title: 'ID',
                         orderable: false
-                    },
-                    {
-                        data: 'prefix',
-                        title: 'Prefix',
-                        defaultContent: '',
-                        render: function(data, type, row) {
-                            return data || '';
-                        }
                     },
                     {
                         data: 'first_name',
@@ -755,8 +769,6 @@
                         };
                         toastr.error(response.message, 'Error');
                     } else if (response.status == 200 && response.customer) {
-                        $('#edit_prefix').val(response.customer.prefix || '').trigger(
-                            'change');
                         $('#edit_first_name').val(response.customer.first_name || '');
                         $('#edit_last_name').val(response.customer.last_name || '');
                         $('#edit_mobile_no').val(response.customer.mobile_no || '');
@@ -764,7 +776,10 @@
                         $('#edit_address').val(response.customer.address || '');
                         $('#edit_opening_balance').val(response.customer.opening_balance ||
                             '');
-                        $('#edit_credit_limit').val(response.customer.credit_limit || '');
+                        var cl = response.customer.credit_limit;
+                        $('#edit_credit_limit').val(
+                            cl === null || cl === undefined || cl === '' ? '0' : cl
+                        );
                         // Set city value using custom function
                         const cityId = response.customer.city_id || '';
                         const cityName = response.customer.city_name || '';
@@ -774,6 +789,7 @@
 
                         $('#edit_customer_type').val(response.customer.customer_type || '')
                             .trigger('change');
+                        $('#edit_allow_sms').prop('checked', !!response.customer.allow_sms);
 
                         // Show modal
                         $('#addAndEditCustomerModal').modal('show');

@@ -33,9 +33,16 @@ class Customer extends Model
         'credit_limit',
         'city_id',
         'customer_type',
+        'allow_sms',
     ];
 
     protected $appends = ['full_name', 'total_sale_due', 'total_return_due', 'current_due', 'current_balance', 'available_credit'];
+
+    protected $casts = [
+        'allow_sms' => 'boolean',
+        'opening_balance' => 'decimal:2',
+        'credit_limit' => 'decimal:2',
+    ];
 
     /* ============================
      * Boot events

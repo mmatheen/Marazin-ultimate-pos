@@ -40,7 +40,8 @@ class VerifyPermissions extends Command
             'view cheque',
             'approve cheque',
             'reject cheque',
-            'view cheque-management'
+            'view cheque-management',
+            'sms.send'
         ];
 
         $this->info('🔍 Checking for New Permissions:');
@@ -119,6 +120,12 @@ class VerifyPermissions extends Command
                 $this->line("    {$status} {$perm}");
             }
 
+            $this->line('  SMS:');
+            foreach (['sms.send'] as $perm) {
+                $status = in_array($perm, $rolePerms) ? '✅' : '❌';
+                $this->line("    {$status} {$perm}");
+            }
+
             $this->newLine();
         }
 
@@ -137,9 +144,14 @@ class VerifyPermissions extends Command
             return $role->hasPermissionTo('view cheque-management');
         })->count();
 
+        $rolesWithSms = $roles->filter(function($role) {
+            return $role->hasPermissionTo('sms.send');
+        })->count();
+
         $this->info("  Total Roles: {$totalRoles}");
         $this->info("  Roles with Sale Order Access: {$rolesWithSaleOrder}");
         $this->info("  Roles with Cheque Management Access: {$rolesWithCheque}");
+        $this->info("  Roles with SMS Access: {$rolesWithSms}");
         $this->newLine();
 
         $this->info('✅ Verification Complete!');

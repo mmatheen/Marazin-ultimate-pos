@@ -162,20 +162,7 @@
                     <form id="addAndUpdateForm">
                         <div class="row">
                             <input type="hidden" name="edit_id" id="edit_id">
-
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label>Prefix</label>
-                                    <select class="form-control form-select selectBox" id="edit_prefix" name="prefix">
-                                        <option selected disabled>Mr / Mrs / Miss</option>
-                                        <option>Mr</option>
-                                        <option>Mrs</option>
-                                        <option>Ms</option>
-                                        <option>Miss</option>
-                                    </select>
-                                    <span class="text-danger" id="prefix_error"></span>
-                                </div>
-                            </div>
+                            <input type="hidden" name="prefix" value="">
 
                             <div class="col-md-4">
                                 <div class="mb-3">
@@ -266,7 +253,7 @@
                                     <label>Credit Limit</label>
                                     <div class="input-group">
                                         <input type="text" class="form-control" id="edit_credit_limit"
-                                            name="credit_limit" placeholder="Credit Limit">
+                                            name="credit_limit" value="0" placeholder="0" inputmode="decimal" autocomplete="off">
                                     </div>
                                     <span class="text-danger" id="credit_limit_error"></span>
                                 </div>
@@ -282,6 +269,17 @@
                                         <option value="retailer" selected>Retailer</option>
                                     </select>
                                     <span class="text-danger" id="customer_type_error"></span>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4 d-flex align-items-end">
+                                <div class="mb-3 form-check">
+                                    <input class="form-check-input" type="checkbox" id="edit_allow_sms"
+                                        name="allow_sms" value="1">
+                                    <label class="form-check-label" for="edit_allow_sms">
+                                        Allow SMS
+                                    </label>
+                                    <div><small class="text-muted">Only opted-in customers will receive automated SMS.</small></div>
                                 </div>
                             </div>
 

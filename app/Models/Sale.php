@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Jobs\SendSmsJob;
 use App\Traits\LocationTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Spatie\Activitylog\Traits\LogsActivity;
 use App\Traits\CustomLogsActivity;
+use App\Models\Setting;
 
 class Sale extends Model
 {
@@ -67,7 +70,99 @@ class Sale extends Model
                 // New record with no payment yet — full amount is due
                 $sale->total_due = $sale->final_total;
             }
+            // 3. Keep payment_status aligned with amounts (DB total_due = final_total - total_paid).
+            //    Some flows used to set "Paid" without updating total_paid, causing Paid + total_due > 0.
+            $sale->syncPaymentStatusForInvoiceTotals();
         });
+
+        static::created(function (Sale $sale) {
+            static::dispatchSmsNotification($sale);
+        });
+    }
+
+    protected static function dispatchSmsNotification(Sale $sale): void
+    {
+        if (! $sale->customer_id || (int) $sale->customer_id === 1) {
+            return;
+        }
+
+        $customer = $sale->customer;
+
+        if (! $customer || blank($customer->mobile_no)) {
+            return;
+        }
+
+        if (! $customer->allow_sms) {
+            return;
+        }
+
+        $setting = Setting::first();
+
+        if (! $setting) {
+            return;
+        }
+
+        $reference = $sale->order_number ?: $sale->invoice_no ?: ('Sale #' . $sale->id);
+        $customerName = trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
+        if ($customerName === '') {
+            $customerName = $customer->full_name ?? 'Customer';
+        }
+
+        $totalAmount = number_format((float) ($sale->final_total ?? 0), 2);
+        $dueAmount = number_format((float) ($sale->total_due ?? 0), 2);
+        $ledgerBalance = (float) $customer->calculateBalanceFromLedger();
+        $outstandingAmount = number_format(max(0, $ledgerBalance), 2);
+        $ledgerBalanceAmount = number_format($ledgerBalance, 2);
+
+        if ((float) ($sale->total_due ?? 0) > 0) {
+            $message = "Dear {$customerName}, invoice {$reference} created. Total LKR {$totalAmount}. Sale Due LKR {$dueAmount}.  Outstanding LKR {$outstandingAmount}. Please settle the balance at your convenience.";
+        } else {
+            $message = "Dear {$customerName}, invoice {$reference} created. Total LKR {$totalAmount}. Outstanding LKR {$outstandingAmount}. Thank you for your payment.";
+        }
+
+        SendSmsJob::dispatch([$customer->mobile_no], $message)->afterCommit();
+    }
+
+    /**
+     * Derive payment_status from final_total / total_paid (same rule as stored total_due).
+     * Used on save and by the repair command.
+     */
+    public static function derivePaymentStatusForInvoice(float $finalTotal, ?float $totalPaid): string
+    {
+        if ($totalPaid === null) {
+            $due = $finalTotal;
+            $paid = 0.0;
+        } else {
+            $paid = (float) $totalPaid;
+            $due  = max(0.0, $finalTotal - $paid);
+        }
+
+        if ($due <= 0.005) {
+            return 'Paid';
+        }
+        if ($paid > 0.005) {
+            return 'Partial';
+        }
+
+        return 'Due';
+    }
+
+    /**
+     * For final/suspend invoices only: force payment_status to match monetary reality.
+     */
+    protected function syncPaymentStatusForInvoiceTotals(): void
+    {
+        if (! in_array($this->status, ['final', 'suspend'], true)) {
+            return;
+        }
+
+        $final = (float) ($this->final_total ?? 0);
+        $paidAttr = $this->total_paid;
+
+        $this->payment_status = static::derivePaymentStatusForInvoice(
+            $final,
+            $paidAttr !== null ? (float) $paidAttr : null
+        );
     }
 
 

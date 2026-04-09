@@ -1922,7 +1922,7 @@ function initializeDataTable() {
     try {
     chequesDataTable = $('#chequesTable').DataTable({
         // Customer-wise grouping; columns: 0 chk, 1 customer (hidden), 2 chq, 3 amt, 4 due, 5 status, 6 bank, 7 actions
-        order: [[1, 'asc'], [4, 'asc'], [2, 'asc']],
+        order: [[1, 'asc'], [4, 'desc'], [2, 'desc']],
         pageLength: 10,
         lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
         lengthChange: true,

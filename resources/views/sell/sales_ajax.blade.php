@@ -4,6 +4,15 @@
         return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    /**
+     * Paid column for list/export: always `sales.total_paid` only.
+     * Do not merge with sum(payments): when those differ (e.g. cheque bounce / bulk return credit),
+     * max() showed "Paid" equal to invoice total while DB total_paid stayed 0 and total_due stayed high — misleading.
+     */
+    function getSalePaidAmountDisplay(row) {
+        return parseFloat(row.total_paid || 0);
+    }
+
     function formatSalesExportRow(row) {
         var customerName = '';
         if (row.customer) {
@@ -26,15 +35,7 @@
                 paymentMethod = row.payments[0].method || 'N/A';
             }
         }
-        var totalPaid = 0;
-        if (row.payments && row.payments.length > 0) {
-            totalPaid = row.payments.reduce(function(sum, payment) {
-                var amount = typeof payment.amount === 'string' ?
-                    parseFloat(String(payment.amount).replace(/,/g, '')) :
-                    parseFloat(payment.amount || 0);
-                return sum + amount;
-            }, 0);
-        }
+        var totalPaid = getSalePaidAmountDisplay(row);
         var dueAmount = Math.max(0, parseFloat(row.total_due || 0));
         var finalTotal = typeof row.final_total === 'string' ?
             row.final_total :
@@ -514,15 +515,7 @@
                     searchable: false,
                     title: 'Paid Amount',
                     render: function(data, type, row) {
-                        let totalPaid = 0;
-                        if (row.payments && row.payments.length > 0) {
-                            totalPaid = row.payments.reduce((sum, payment) => {
-                                let amount = typeof payment.amount === 'string' ?
-                                    parseFloat(payment.amount.replace(/,/g, '')) :
-                                    parseFloat(payment.amount || 0);
-                                return sum + amount;
-                            }, 0);
-                        }
+                        const totalPaid = getSalePaidAmountDisplay(row);
                         return totalPaid.toFixed(2);
                     }
                 },
@@ -1197,7 +1190,9 @@
                                     '';
                                 var fullName = (customer.first_name || '') + (lastName ?
                                     ' ' + lastName : '');
-                                var displayText = fullName + ' (Due: Rs. ' + currentDue
+                                var mobileRaw = customer.mobile_no != null ? String(customer.mobile_no).trim() : '';
+                                var mobileSeg = mobileRaw ? ' · ' + mobileRaw : '';
+                                var displayText = fullName + mobileSeg + ' (Due: Rs. ' + currentDue
                                     .toFixed(2) + ')';
                                 if (openingBalance > 0) {
                                     displayText += ' [Opening: Rs. ' + openingBalance

@@ -13,7 +13,7 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule)
     {
 
-       
+
         // Daily backup at 11:00 PM
         $schedule->command('backup:run')->dailyAt('23:00')->timezone('Asia/Colombo');
 
@@ -22,6 +22,9 @@ class Kernel extends ConsoleKernel
 
         // Update sales rep assignment statuses based on dates (runs every hour)
         $schedule->command('sales-rep:update-status')->hourly()->timezone('Asia/Colombo');
+
+        // Send payment reminder SMS once daily
+        $schedule->command('sms:send-payment-reminders')->dailyAt('09:00')->timezone('Asia/Colombo');
 
         // Alternative: run it every day at midnight
         // $schedule->command('sales-rep:update-status')->dailyAt('00:01')->timezone('Asia/Colombo');

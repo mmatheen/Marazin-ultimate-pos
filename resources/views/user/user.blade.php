@@ -43,7 +43,6 @@
                                 <thead>
                                     <tr>
                                         <th>ID</th>
-                                        <th>Name Title</th>
                                         <th>Full Name</th>
                                         <th>User Name</th>
                                         <th>Role</th>
@@ -76,23 +75,7 @@
                             <div class="modal-body">
                                 <div class="row">
                                     <input type="hidden" name="edit_id" id="edit_id">
-
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <div class="input-group local-forms">
-                                                <label>Name Title <span class="login-danger">*</span></label>
-                                                <select class="form-control form-select" id="edit_name_title"
-                                                    name="name_title">
-                                                    <option selected disabled>Mr / Mrs / Miss</option>
-                                                    <option value="Mr">Mr</option>
-                                                    <option value="Mrs">Mrs</option>
-                                                    <option value="Ms">Ms</option>
-                                                    <option value="Miss">Miss</option>
-                                                </select>
-                                                <span class="text-danger" id="name_title_error"></span>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <input type="hidden" name="name_title" id="edit_name_title" value="">
 
                                     <div class="col-md-6">
                                         <div class="mb-3">

@@ -60,34 +60,19 @@ $(document).ready(function() {
         console.log('✅ Aggressive clearing completed');
     }
 
-    // Check for URL parameters and auto-load data
+    // URL deep-link: select contact only after options are loaded (async), not via fixed timeouts
     const urlParams = new URLSearchParams(window.location.search);
     const customerIdParam = urlParams.get('customer_id');
     const supplierIdParam = urlParams.get('supplier_id');
     const contactIdParam = urlParams.get('contact_id');
 
+    let pendingCustomerIdFromUrl = null;
+    let pendingSupplierIdFromUrl = null;
+
     // Load locations on page load
     loadLocations();
 
-    // Auto-select ledger type and contact based on URL parameters
-    if (customerIdParam) {
-        $('#ledger_type').val('customer').trigger('change');
-        setTimeout(() => {
-            $('#contact_id').val(customerIdParam).trigger('change');
-            showAutoSelectedNotification('Customer automatically selected from customer list.');
-            setTimeout(() => loadLedger(), 500);
-        }, 1000);
-    } else if (supplierIdParam) {
-        $('#ledger_type').val('supplier').trigger('change');
-        setTimeout(() => {
-            $('#contact_id').val(supplierIdParam).trigger('change');
-            showAutoSelectedNotification('Supplier automatically selected from supplier list.');
-            setTimeout(() => loadLedger(), 500);
-        }, 1000);
-    } else if (contactIdParam) {
-        // Try to determine type based on contact_id by checking both lists
-        loadBothContactLists(contactIdParam);
-    }
+    // URL params are applied at end of this $(document).ready (after #ledger_type change handler exists)
 
     function showAutoSelectedNotification(message) {
         $('#autoSelectedMessage').text(message);
@@ -98,39 +83,39 @@ $(document).ready(function() {
     }
 
     function loadBothContactLists(contactId) {
-        // Load customers first and check if contact exists
+        const cid = String(contactId);
         $.ajax({
             url: '/customer-get-all',
             type: 'GET',
             dataType: 'json',
             success: function(response) {
-                const customer = response.find(c => c.id == contactId);
+                const customers = response.data || response.message || [];
+                const customer = Array.isArray(customers) ? customers.find(function(c) {
+                    return String(c.id) === cid;
+                }) : null;
                 if (customer) {
+                    pendingCustomerIdFromUrl = cid;
                     $('#ledger_type').val('customer').trigger('change');
-                    setTimeout(() => {
-                        $('#contact_id').val(contactId).trigger('change');
-                        showAutoSelectedNotification(`Customer "${customer.first_name} ${customer.last_name}" automatically selected.`);
-                        setTimeout(() => loadLedger(), 500);
-                    }, 1000);
-                } else {
-                    // Check suppliers if not found in customers
-                    $.ajax({
-                        url: '/supplier-get-all',
-                        type: 'GET',
-                        dataType: 'json',
-                        success: function(response) {
-                            const supplier = response.find(s => s.id == contactId);
-                            if (supplier) {
-                                $('#ledger_type').val('supplier').trigger('change');
-                                setTimeout(() => {
-                                    $('#contact_id').val(contactId).trigger('change');
-                                    showAutoSelectedNotification(`Supplier "${supplier.business_name || supplier.first_name + ' ' + supplier.last_name}" automatically selected.`);
-                                    setTimeout(() => loadLedger(), 500);
-                                }, 1000);
-                            }
-                        }
-                    });
+                    return;
                 }
+                $.ajax({
+                    url: '/supplier-get-all',
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(supResponse) {
+                        let suppliers = [];
+                        if (supResponse.status === 200 && supResponse.message) {
+                            suppliers = supResponse.message;
+                        }
+                        const supplier = Array.isArray(suppliers) ? suppliers.find(function(s) {
+                            return String(s.id) === cid;
+                        }) : null;
+                        if (supplier) {
+                            pendingSupplierIdFromUrl = cid;
+                            $('#ledger_type').val('supplier').trigger('change');
+                        }
+                    }
+                });
             }
         });
     }
@@ -262,6 +247,9 @@ $(document).ready(function() {
                 console.log('Customer API Response:', response); // Debug log
 
                 const customerSelect = $('#contact_id');
+                if (customerSelect.hasClass('select2-hidden-accessible')) {
+                    customerSelect.select2('destroy');
+                }
                 customerSelect.empty().append('<option value="">Select Customer</option>');
 
                 // Handle both response formats: status=true with data array OR status=200 with message array
@@ -288,6 +276,23 @@ $(document).ready(function() {
                     console.log('No customers found or API returned empty result');
                     if (!isSuccess) {
                         console.error('API returned unsuccessful status:', response.status);
+                    }
+                    if (pendingCustomerIdFromUrl) {
+                        console.warn('Account Ledger: cannot pre-select customer — list empty or API error:', pendingCustomerIdFromUrl);
+                        pendingCustomerIdFromUrl = null;
+                    }
+                }
+
+                customerSelect.select2();
+
+                if (pendingCustomerIdFromUrl) {
+                    const pid = pendingCustomerIdFromUrl;
+                    pendingCustomerIdFromUrl = null;
+                    if (customerSelect.find('option[value="' + pid + '"]').length) {
+                        customerSelect.val(pid).trigger('change');
+                        showAutoSelectedNotification('Customer automatically selected from customer list.');
+                    } else {
+                        console.warn('Account Ledger: customer id not in list (route/city filter):', pid);
                     }
                 }
             },
@@ -343,8 +348,27 @@ $(document).ready(function() {
                         supplierSelect.select2('destroy');
                     }
                     supplierSelect.select2();
+
+                    if (pendingSupplierIdFromUrl) {
+                        const pid = pendingSupplierIdFromUrl;
+                        pendingSupplierIdFromUrl = null;
+                        if (supplierSelect.find('option[value="' + pid + '"]').length) {
+                            supplierSelect.val(pid).trigger('change');
+                            showAutoSelectedNotification('Supplier automatically selected from supplier list.');
+                        } else {
+                            console.warn('Account Ledger: supplier id not in list:', pid);
+                        }
+                    }
                 } else {
                     console.log('No suppliers found in response');
+                    if (pendingSupplierIdFromUrl) {
+                        console.warn('Account Ledger: cannot pre-select supplier — list empty:', pendingSupplierIdFromUrl);
+                        pendingSupplierIdFromUrl = null;
+                    }
+                    if (supplierSelect.hasClass('select2-hidden-accessible')) {
+                        supplierSelect.select2('destroy');
+                    }
+                    supplierSelect.select2();
                 }
             },
             error: function(xhr, status, error) {
@@ -1180,38 +1204,19 @@ $(document).ready(function() {
         }
     }
 
-    // URL parameter handling for auto-selection
-    function checkUrlParameters() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const customerIdParam = urlParams.get('customer_id');
-        const supplierIdParam = urlParams.get('supplier_id');
-
+    /** Must run after ledger_type / contact_id handlers are bound — otherwise trigger('change') does nothing */
+    function applyUrlParamsToLedger() {
         if (customerIdParam) {
+            pendingCustomerIdFromUrl = String(customerIdParam);
             $('#ledger_type').val('customer').trigger('change');
-            setTimeout(function() {
-                if ($('#contact_id option[value="' + customerIdParam + '"]').length) {
-                    $('#contact_id').val(customerIdParam).trigger('change');
-                    setTimeout(function() {
-                        loadLedger();
-                    }, 500);
-                }
-            }, 1000);
         } else if (supplierIdParam) {
+            pendingSupplierIdFromUrl = String(supplierIdParam);
             $('#ledger_type').val('supplier').trigger('change');
-            setTimeout(function() {
-                if ($('#contact_id option[value="' + supplierIdParam + '"]').length) {
-                    $('#contact_id').val(supplierIdParam).trigger('change');
-                    setTimeout(function() {
-                        loadLedger();
-                    }, 500);
-                }
-            }, 1000);
+        } else if (contactIdParam) {
+            loadBothContactLists(String(contactIdParam));
         }
     }
+    applyUrlParamsToLedger();
 
-    // Initialize URL parameter checking
-    $(document).ready(function() {
-        setTimeout(checkUrlParameters, 1500);
-    });
 });
 </script>

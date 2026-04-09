@@ -11,20 +11,7 @@
                     <form id="addAndUpdateSupplierForm">
                         <div class="row">
                             <input type="hidden" name="edit_id" id="edit_id">
-
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label>Prefix</label>
-                                    <select class="form-control form-select" id="edit_prefix" name="prefix">
-                                        <option selected disabled>Mr / Mrs / Miss</option>
-                                        <option>Mr</option>
-                                        <option>Mrs</option>
-                                        <option>Ms</option>
-                                        <option>Miss</option>
-                                    </select>
-                                    <span class="text-danger" id="prefix_error"></span>
-                                </div>
-                            </div>
+                            <input type="hidden" name="prefix" value="">
 
                             <div class="col-md-4">
                                 <div class="mb-3">

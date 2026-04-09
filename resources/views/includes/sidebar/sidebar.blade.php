@@ -389,7 +389,7 @@
                     <li class="menu-title">
                         <span>Reports</span>
                     </li>
-                    <li class="submenu {{ set_active(['sales-report', 'purchase-report', 'stock-report', 'daily-report', 'profit-loss.report', 'payment.report', 'due-report']) }}">
+                    <li class="submenu {{ set_active(['sales-report', 'purchase-report', 'stock-report', 'daily-report', 'profit-loss.report', 'payment.report', 'due-report', 'activity-log']) }}">
                         <a href="#">
                             <i class="fas fa-chart-line"></i>
                             <span class="sidebar-text">Business Reports</span>
@@ -413,6 +413,8 @@
                             @endcan
 
                             <li><a href="{{ route('due.report') }}" class="{{ set_active(['due-report']) }}">Due Report</a></li>
+
+                            <li><a href="{{ route('activity-log.activityLogPage') }}" class="{{ set_active(['activity-log']) }}">Activity Log</a></li>
                         </ul>
                     </li>
                 @endcanany

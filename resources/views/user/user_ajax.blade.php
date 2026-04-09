@@ -5,9 +5,6 @@
         // add form and update validation rules code start
         var addAndUpdateValidationOptions = {
             rules: {
-                name_title: {
-                    required: true,
-                },
                 full_name: {
                     required: true,
                 },
@@ -38,10 +35,6 @@
 
             },
             messages: {
-
-                name_title: {
-                    required: "Name Title is required",
-                },
 
                 full_name: {
                     required: "Full Name is required",
@@ -155,7 +148,6 @@
                     response.message.forEach(function(item) {
                         let row = $('<tr>');
                         row.append('<td>' + counter + '</td>');
-                        row.append('<td>' + item.name_title + '</td>');
                         row.append('<td>' + item.full_name + '</td>');
                         row.append('<td>' + item.user_name + '</td>');
                         row.append('<td><span class="badge rounded-pill bg-dark me-1">' +
@@ -224,7 +216,6 @@
                     } else if (response.status == 200) {
                         // Populate locations first, then set values
                         populateLocationDropdown(function() {
-                            $('#edit_name_title').val(response.message.name_title);
                             $('#edit_full_name').val(response.message.full_name);
                             $('#edit_user_name').val(response.message.user_name);
                             $('#edit_email').val(response.message.email);
