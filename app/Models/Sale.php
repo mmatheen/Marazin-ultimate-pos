@@ -8,9 +8,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Spatie\Activitylog\Traits\LogsActivity;
 use App\Traits\CustomLogsActivity;
 use App\Models\Setting;
+use App\Services\Invoice\InvoiceShortUrlService;
 
 class Sale extends Model
 {
@@ -52,6 +54,7 @@ class Sale extends Model
         'shipping_status',
         'delivered_to',
         'delivery_person',
+        'invoice_token',
     ];
 
 
@@ -75,6 +78,18 @@ class Sale extends Model
             $sale->syncPaymentStatusForInvoiceTotals();
         });
 
+        static::creating(function (Sale $sale) {
+            if (
+                blank($sale->invoice_token)
+                && (
+                    $sale->transaction_type === 'invoice'
+                    || blank($sale->transaction_type)
+                )
+            ) {
+                $sale->invoice_token = (string) Str::uuid();
+            }
+        });
+
         static::created(function (Sale $sale) {
             static::dispatchSmsNotification($sale);
         });
@@ -82,6 +97,10 @@ class Sale extends Model
 
     protected static function dispatchSmsNotification(Sale $sale): void
     {
+        if ($sale->transaction_type !== 'invoice') {
+            return;
+        }
+
         if (! $sale->customer_id || (int) $sale->customer_id === 1) {
             return;
         }
@@ -108,16 +127,36 @@ class Sale extends Model
             $customerName = $customer->full_name ?? 'Customer';
         }
 
+        if (blank($sale->invoice_token)) {
+            $sale->forceFill(['invoice_token' => (string) Str::uuid()])->saveQuietly();
+            $sale->refresh();
+        }
+
+        $invoiceLink = '';
+        try {
+            /** @var InvoiceShortUrlService $shortUrlService */
+            $shortUrlService = app(InvoiceShortUrlService::class);
+            $invoiceLink = $shortUrlService->getOrCreateForSale($sale);
+        } catch (\Throwable $e) {
+            Log::warning('Invoice short URL generation failed for SMS dispatch.', [
+                'sale_id' => $sale->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         $totalAmount = number_format((float) ($sale->final_total ?? 0), 2);
         $dueAmount = number_format((float) ($sale->total_due ?? 0), 2);
         $ledgerBalance = (float) $customer->calculateBalanceFromLedger();
         $outstandingAmount = number_format(max(0, $ledgerBalance), 2);
-        $ledgerBalanceAmount = number_format($ledgerBalance, 2);
 
         if ((float) ($sale->total_due ?? 0) > 0) {
-            $message = "Dear {$customerName}, invoice {$reference} created. Total LKR {$totalAmount}. Sale Due LKR {$dueAmount}.  Outstanding LKR {$outstandingAmount}. Please settle the balance at your convenience.";
+            $message = "Dear {$customerName}, Invoice No: {$reference}. Total LKR {$totalAmount}. Sale Due LKR {$dueAmount}. Outstanding LKR {$outstandingAmount}.";
         } else {
-            $message = "Dear {$customerName}, invoice {$reference} created. Total LKR {$totalAmount}. Outstanding LKR {$outstandingAmount}. Thank you for your payment.";
+            $message = "Dear {$customerName}, Invoice No: {$reference}. Total LKR {$totalAmount}. Outstanding LKR {$outstandingAmount}. Thank you for your payment.";
+        }
+
+        if ($invoiceLink !== '') {
+            $message .= " View: {$invoiceLink}";
         }
 
         SendSmsJob::dispatch([$customer->mobile_no], $message)->afterCommit();

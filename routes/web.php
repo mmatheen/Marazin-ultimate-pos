@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\View;
+use App\Http\Controllers\PublicInvoiceController;
 use App\Http\Controllers\{
     CashRegisterController,
     SaleController,
@@ -686,3 +687,12 @@ Route::middleware(['auth'])->group(function () {
 });
 
 // REMOVED: Duplicate ledger routes - Ledger functionality is handled by UnifiedLedgerService
+
+// -------------------- Public Invoice Sharing Routes (No Auth) --------------------
+Route::get('/invoice/{token}', [PublicInvoiceController::class, 'showInvoice'])
+    ->name('public.invoice.show')
+    ->where('token', '[0-9a-fA-F\-]{36}');
+
+Route::get('/{code}', [PublicInvoiceController::class, 'redirectByCode'])
+    ->name('public.short-url.redirect')
+    ->where('code', '[A-Za-z0-9]{6,12}');
