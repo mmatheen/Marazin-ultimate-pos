@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\View;
 use App\Models\Setting;
+use App\Models\Sale;
+use App\Observers\SaleObserver;
 use Illuminate\Support\Facades\Cache;
 use Darryldecode\Cart\Cart;
 
@@ -36,6 +38,7 @@ class AppServiceProvider extends ServiceProvider
    public function boot(): void
         {
             Schema::defaultStringLength(191);
+            Sale::observe(SaleObserver::class);
             $this->DbBackup();
 
             View::composer('*', function ($view) {
@@ -75,5 +78,5 @@ class AppServiceProvider extends ServiceProvider
     }
 
 
-    
+
 }

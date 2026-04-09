@@ -34,6 +34,8 @@ return [
     'invoice' => [
         // Use a dedicated short-link domain when configured; otherwise fall back to APP_URL.
         'short_url_base' => env('INVOICE_SHORT_URL_BASE', env('APP_URL')),
+        // Short code path prefix, e.g. https://sale.billshop.lk/i/abc123xyz789
+        'short_url_path' => env('INVOICE_SHORT_URL_PATH', 'i'),
     ],
 
 ];

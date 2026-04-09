@@ -6,6 +6,7 @@ use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\SalesReturn;
 use App\Services\PaymentService;
+use App\Services\Sale\SalePaymentStatusService;
 use Illuminate\Console\Command;
 
 class SyncSalePaymentStatuses extends Command
@@ -73,10 +74,12 @@ class SyncSalePaymentStatuses extends Command
         $mismatch = 0;
         $fixed = 0;
 
+        $paymentStatusService = app(SalePaymentStatusService::class);
+
         $salesToProcess = clone $salesQuery;
-        $salesToProcess->orderBy('id')->chunkById(500, function ($sales) use ($dry, &$mismatch, &$fixed) {
+        $salesToProcess->orderBy('id')->chunkById(500, function ($sales) use ($dry, &$mismatch, &$fixed, $paymentStatusService) {
             foreach ($sales as $sale) {
-                $expected = Sale::derivePaymentStatusForInvoice(
+                $expected = $paymentStatusService->deriveForInvoice(
                     (float) ($sale->final_total ?? 0),
                     $sale->total_paid !== null ? (float) $sale->total_paid : null
                 );

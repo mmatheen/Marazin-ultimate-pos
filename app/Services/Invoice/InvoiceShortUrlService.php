@@ -4,8 +4,6 @@ namespace App\Services\Invoice;
 
 use App\Models\Sale;
 use App\Models\ShortUrl;
-use Illuminate\Support\Str;
-
 class InvoiceShortUrlService
 {
     private const DEFAULT_CODE_LENGTH = 12;
@@ -36,6 +34,8 @@ class InvoiceShortUrlService
         // Try to use dedicated short URL base first
         $base = config('services.invoice.short_url_base');
 
+        $pathPrefix = trim((string) config('services.invoice.short_url_path', 'i'), '/');
+
         // Fall back to APP_URL if not set
         if (! filled($base)) {
             $base = config('app.url');
@@ -45,7 +45,9 @@ class InvoiceShortUrlService
             throw new \RuntimeException('Short URL base not configured. Set INVOICE_SHORT_URL_BASE or check APP_URL.');
         }
 
-        return rtrim((string) $base, '/') . '/' . $code;
+        $prefix = $pathPrefix !== '' ? $pathPrefix . '/' : '';
+
+        return rtrim((string) $base, '/') . '/' . $prefix . $code;
     }
 
     private function generateUniqueCode(int $length = self::DEFAULT_CODE_LENGTH): string

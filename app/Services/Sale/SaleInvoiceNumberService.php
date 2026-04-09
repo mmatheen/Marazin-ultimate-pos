@@ -7,6 +7,10 @@ use Illuminate\Support\Facades\Log;
 
 class SaleInvoiceNumberService
 {
+    public function __construct(private readonly SaleNumberingService $saleNumberingService)
+    {
+    }
+
     /**
      * Generate a unique sale reference number (used before any invoice number is assigned).
      * Format: SALE-YYYYMMDD
@@ -108,7 +112,7 @@ class SaleInvoiceNumberService
             $orderNumber = $sale->order_number;
         } else {
             // Generate a new order number for a new sale order
-            $orderNumber = Sale::generateOrderNumber($locationId);
+            $orderNumber = $this->saleNumberingService->generateOrderNumber($locationId);
         }
 
         return [
@@ -124,7 +128,7 @@ class SaleInvoiceNumberService
      */
     private function forSaleOrderToInvoiceConversion(Sale $sale, int $locationId): array
     {
-        $invoiceNo = Sale::generateInvoiceNo($locationId);
+        $invoiceNo = $this->saleNumberingService->generateInvoiceNo($locationId);
 
         Log::info('🔄 Converting Sale Order to Invoice', [
             'sale_id'        => $sale->id,
@@ -146,7 +150,7 @@ class SaleInvoiceNumberService
     private function forJobticketConversion(int $locationId): array
     {
         return [
-            'invoice_no'   => Sale::generateInvoiceNo($locationId),
+            'invoice_no'   => $this->saleNumberingService->generateInvoiceNo($locationId),
             'order_number' => null,
             'order_status' => null,
         ];
@@ -198,7 +202,7 @@ class SaleInvoiceNumberService
             $number    = $last ? ((int) substr($last->invoice_no, -4)) + 1 : 1;
             $invoiceNo = "{$prefix}{$year}/" . str_pad($number, 4, '0', STR_PAD_LEFT);
         } else {
-            $invoiceNo = Sale::generateInvoiceNo($locationId);
+            $invoiceNo = $this->saleNumberingService->generateInvoiceNo($locationId);
         }
 
         return [
@@ -221,7 +225,7 @@ class SaleInvoiceNumberService
             in_array($newStatus, ['final', 'suspend']) &&
             !preg_match('/^\d+$/', $sale->invoice_no)
         ) {
-            $invoiceNo = Sale::generateInvoiceNo($locationId);
+            $invoiceNo = $this->saleNumberingService->generateInvoiceNo($locationId);
         } else {
             $invoiceNo = $sale->invoice_no;
         }

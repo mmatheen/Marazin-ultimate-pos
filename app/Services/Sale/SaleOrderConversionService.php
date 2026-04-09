@@ -23,13 +23,16 @@ class SaleOrderConversionService
 {
     protected SaleProductProcessor $saleProductProcessor;
     protected UnifiedLedgerService $unifiedLedgerService;
+    protected SaleNumberingService $saleNumberingService;
 
     public function __construct(
         SaleProductProcessor $saleProductProcessor,
-        UnifiedLedgerService $unifiedLedgerService
+        UnifiedLedgerService $unifiedLedgerService,
+        SaleNumberingService $saleNumberingService
     ) {
         $this->saleProductProcessor = $saleProductProcessor;
         $this->unifiedLedgerService = $unifiedLedgerService;
+        $this->saleNumberingService = $saleNumberingService;
     }
 
     // -------------------------------------------------------------------------
@@ -83,7 +86,7 @@ class SaleOrderConversionService
 
         return DB::transaction(function () use ($sale) {
             // Generate invoice number
-            $invoiceNo = Sale::generateInvoiceNo($sale->location_id);
+            $invoiceNo = $this->saleNumberingService->generateInvoiceNo((int) $sale->location_id);
 
             // Recalculate subtotal precisely from line items
             $correctSubtotal = $sale->products->sum(fn ($p) => $p->quantity * $p->price);

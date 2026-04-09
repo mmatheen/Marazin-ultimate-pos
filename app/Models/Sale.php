@@ -2,17 +2,14 @@
 
 namespace App\Models;
 
-use App\Jobs\SendSmsJob;
 use App\Traits\LocationTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Spatie\Activitylog\Traits\LogsActivity;
 use App\Traits\CustomLogsActivity;
-use App\Models\Setting;
-use App\Services\Invoice\InvoiceShortUrlService;
+use App\Services\Sale\SaleCalculationService;
+use App\Services\Sale\SaleNumberingService;
+use App\Services\Sale\SalePaymentStatusService;
 
 class Sale extends Model
 {
@@ -61,159 +58,17 @@ class Sale extends Model
     protected static function booted()
     {
         static::addGlobalScope(new \App\Scopes\LocationScope);
-
-        static::saving(function ($sale) {
-            // 1. Recalculate final_total from subtotal/discount/shipping
-            $sale->final_total = $sale->calculateFinalTotal();
-            // 2. Derive total_due — use null-coalescing so a 0 total_paid still triggers this
-            //    (isset() returns false when total_paid is null, so we check !== null instead)
-            if ($sale->total_paid !== null) {
-                $sale->total_due = $sale->final_total - $sale->total_paid;
-            } else {
-                // New record with no payment yet — full amount is due
-                $sale->total_due = $sale->final_total;
-            }
-            // 3. Keep payment_status aligned with amounts (DB total_due = final_total - total_paid).
-            //    Some flows used to set "Paid" without updating total_paid, causing Paid + total_due > 0.
-            $sale->syncPaymentStatusForInvoiceTotals();
-        });
-
-        static::creating(function (Sale $sale) {
-            if (
-                blank($sale->invoice_token)
-                && (
-                    $sale->transaction_type === 'invoice'
-                    || blank($sale->transaction_type)
-                )
-            ) {
-                $sale->invoice_token = (string) Str::uuid();
-            }
-        });
-
-        static::created(function (Sale $sale) {
-            static::dispatchSmsNotification($sale);
-        });
-    }
-
-    protected static function dispatchSmsNotification(Sale $sale): void
-    {
-        if ($sale->transaction_type !== 'invoice') {
-            return;
-        }
-
-        if (! $sale->customer_id || (int) $sale->customer_id === 1) {
-            return;
-        }
-
-        $customer = $sale->customer;
-
-        if (! $customer || blank($customer->mobile_no)) {
-            return;
-        }
-
-        if (! $customer->allow_sms) {
-            return;
-        }
-
-        $setting = Setting::first();
-
-        if (! $setting) {
-            return;
-        }
-
-        $reference = $sale->order_number ?: $sale->invoice_no ?: ('Sale #' . $sale->id);
-        $customerName = trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
-        if ($customerName === '') {
-            $customerName = $customer->full_name ?? 'Customer';
-        }
-
-        if (blank($sale->invoice_token)) {
-            $sale->forceFill(['invoice_token' => (string) Str::uuid()])->saveQuietly();
-            $sale->refresh();
-        }
-
-        $invoiceLink = '';
-        try {
-            /** @var InvoiceShortUrlService $shortUrlService */
-            $shortUrlService = app(InvoiceShortUrlService::class);
-            $invoiceLink = $shortUrlService->getOrCreateForSale($sale);
-        } catch (\Throwable $e) {
-            Log::warning('Invoice short URL generation failed for SMS dispatch.', [
-                'sale_id' => $sale->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            // Fallback to direct public invoice URL so SMS still contains a link.
-            try {
-                $invoiceLink = route('public.invoice.show', ['token' => $sale->invoice_token]);
-            } catch (\Throwable $routeException) {
-                Log::warning('Invoice fallback URL generation also failed for SMS dispatch.', [
-                    'sale_id' => $sale->id,
-                    'error' => $routeException->getMessage(),
-                ]);
-            }
-        }
-
-        $totalAmount = number_format((float) ($sale->final_total ?? 0), 2);
-        $dueAmount = number_format((float) ($sale->total_due ?? 0), 2);
-        $ledgerBalance = (float) $customer->calculateBalanceFromLedger();
-        $outstandingAmount = number_format(max(0, $ledgerBalance), 2);
-
-        if ((float) ($sale->total_due ?? 0) > 0) {
-            $message = "Dear {$customerName}, Invoice No: {$reference}. Total LKR {$totalAmount}. Sale Due LKR {$dueAmount}. Outstanding LKR {$outstandingAmount}.";
-        } else {
-            $message = "Dear {$customerName}, Invoice No: {$reference}. Total LKR {$totalAmount}. Outstanding LKR {$outstandingAmount}. Thank you for your payment.";
-        }
-
-        if ($invoiceLink !== '') {
-            $message .= " View: {$invoiceLink}";
-        }
-
-        SendSmsJob::dispatch([$customer->mobile_no], $message)->afterCommit();
     }
 
     /**
-     * Derive payment_status from final_total / total_paid (same rule as stored total_due).
-     * Used on save and by the repair command.
+     * Compatibility wrapper for the extracted payment-status service.
+     *
+     * @deprecated Use App\Services\Sale\SalePaymentStatusService directly.
      */
     public static function derivePaymentStatusForInvoice(float $finalTotal, ?float $totalPaid): string
     {
-        if ($totalPaid === null) {
-            $due = $finalTotal;
-            $paid = 0.0;
-        } else {
-            $paid = (float) $totalPaid;
-            $due  = max(0.0, $finalTotal - $paid);
-        }
-
-        if ($due <= 0.005) {
-            return 'Paid';
-        }
-        if ($paid > 0.005) {
-            return 'Partial';
-        }
-
-        return 'Due';
+        return app(SalePaymentStatusService::class)->deriveForInvoice($finalTotal, $totalPaid);
     }
-
-    /**
-     * For final/suspend invoices only: force payment_status to match monetary reality.
-     */
-    protected function syncPaymentStatusForInvoiceTotals(): void
-    {
-        if (! in_array($this->status, ['final', 'suspend'], true)) {
-            return;
-        }
-
-        $final = (float) ($this->final_total ?? 0);
-        $paidAttr = $this->total_paid;
-
-        $this->payment_status = static::derivePaymentStatusForInvoice(
-            $final,
-            $paidAttr !== null ? (float) $paidAttr : null
-        );
-    }
-
 
     // Add this method to your Sale model
     public function user()
@@ -372,50 +227,13 @@ class Sale extends Model
     }
 
     /**
-     * Generate unique Sale Order number
+     * Compatibility wrapper for the extracted numbering service.
+     *
+     * @deprecated Use App\Services\Sale\SaleNumberingService directly.
      */
     public static function generateOrderNumber($locationId)
     {
-        return DB::transaction(function () use ($locationId) {
-            $location = Location::findOrFail($locationId);
-            $prefix = !empty($location->invoice_prefix) ? strtoupper($location->invoice_prefix) : 'SO';
-            $pattern = "{$prefix}-SO-";
-
-            // Find the highest numeric suffix already used for this prefix
-            // (order by the extracted integer — not by id or string — so it's always accurate
-            //  even when the location prefix changed mid-use or records were deleted)
-            // IMPORTANT: withoutGlobalScopes() ensures we check ALL locations,
-            // not just the current user's location (LocationScope would hide other locations' orders).
-            $lastNumber = self::withoutGlobalScopes()->where('order_number', 'like', $pattern . '%')
-                ->lockForUpdate()
-                ->get(['order_number'])
-                ->map(function ($row) use ($pattern) {
-                    if (preg_match('/^' . preg_quote($pattern, '/') . '(\d+)$/', $row->order_number, $m)) {
-                        return (int) $m[1];
-                    }
-                    return 0;
-                })
-                ->max() ?? 0;
-
-            $nextNumber  = $lastNumber + 1;
-            $orderNumber = $pattern . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
-
-            // Final uniqueness guard (handles edge cases under heavy concurrency)
-            // IMPORTANT: withoutGlobalScopes() to check ALL locations for uniqueness.
-            $attempts    = 0;
-            $maxAttempts = 50;
-            while (self::withoutGlobalScopes()->where('order_number', $orderNumber)->exists() && $attempts < $maxAttempts) {
-                $nextNumber++;
-                $orderNumber = $pattern . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
-                $attempts++;
-            }
-
-            if ($attempts >= $maxAttempts) {
-                throw new \RuntimeException("Could not generate a unique order number after {$maxAttempts} attempts.");
-            }
-
-            return $orderNumber;
-        });
+        return app(SaleNumberingService::class)->generateOrderNumber((int) $locationId);
     }
 
     // convertToInvoice(), revertToSaleOrder(), validateStockAvailability(), and
@@ -424,57 +242,14 @@ class Sale extends Model
     // getAvailableStock() moved to SaleValidationService::getAvailableStock().
     // getBatchQuantityPlusSold() removed — no callers.
 
+    /**
+     * Compatibility wrapper for the extracted numbering service.
+     *
+     * @deprecated Use App\Services\Sale\SaleNumberingService directly.
+     */
     public static function generateInvoiceNo($locationId)
     {
-        return DB::transaction(function () use ($locationId) {
-            // Ensure the counter row exists before locking.
-            // firstOrCreate alone inside lockForUpdate() is unsafe: on the very first
-            // call for a location, no row exists so lockForUpdate acquires no lock,
-            // letting two concurrent threads both INSERT and causing a unique-key crash.
-            \App\Models\InvoiceCounter::firstOrCreate(
-                ['location_id' => $locationId],
-                ['next_invoice_number' => 1]
-            );
-
-            // Now the row is guaranteed to exist — lock it safely.
-            $counter = \App\Models\InvoiceCounter::lockForUpdate()
-                ->where('location_id', $locationId)
-                ->first();
-
-            // Get prefix from this location only — each location has its own prefix
-            $location = \App\Models\Location::findOrFail($locationId);
-            $prefix = !empty($location->invoice_prefix) ? strtoupper($location->invoice_prefix) : 'INV';
-
-            // Legacy: "AFX" was a typo — normalize to "AFS"
-            if (strtoupper($prefix) === 'AFX') {
-                $prefix = 'AFS';
-            }
-
-            // Generate invoice number with current counter
-            $invoiceNo = "{$prefix}-" . str_pad($counter->next_invoice_number, 3, '0', STR_PAD_LEFT);
-
-            // Check if this invoice number already exists (safety check)
-            // IMPORTANT: withoutGlobalScopes() bypasses LocationScope so we check
-            // ALL locations — prevents duplicate invoice numbers across locations.
-            $attempts    = 0;
-            $maxAttempts = 50;
-
-            while (self::withoutGlobalScopes()->where('invoice_no', $invoiceNo)->exists() && $attempts < $maxAttempts) {
-                $counter->next_invoice_number++;
-                $invoiceNo = "{$prefix}-" . str_pad($counter->next_invoice_number, 3, '0', STR_PAD_LEFT);
-                $attempts++;
-            }
-
-            if ($attempts >= $maxAttempts) {
-                throw new \RuntimeException("Could not generate a unique invoice number after {$maxAttempts} attempts for location {$locationId}.");
-            }
-
-            // Increment counter so the NEXT call starts after the one we just issued
-            $counter->next_invoice_number++;
-            $counter->save();
-
-            return $invoiceNo;
-        });
+        return app(SaleNumberingService::class)->generateInvoiceNo((int) $locationId);
     }
     public function payments()
     {
@@ -487,20 +262,14 @@ class Sale extends Model
     // updateTotalDue() removed — dead code (no callers).
     // boot() merged into booted() above.
 
+    /**
+     * Compatibility wrapper for the extracted calculation service.
+     *
+     * @deprecated Use App\Services\Sale\SaleCalculationService directly.
+     */
     public function calculateFinalTotal()
     {
-        $subtotal        = (float) ($this->subtotal        ?? 0);
-        $discountAmount  = (float) ($this->discount_amount ?? 0);
-        $shippingCharges = (float) ($this->shipping_charges ?? 0);
-
-        if ($this->discount_type === 'percentage') {
-            $discountAmount = $subtotal * $discountAmount / 100;
-        }
-
-        // Ensure discount cannot exceed subtotal (no negative base total)
-        $baseTotal = max(0.0, $subtotal - $discountAmount);
-
-        return $baseTotal + $shippingCharges;
+        return app(SaleCalculationService::class)->calculateFinalTotal($this);
     }
 
     public function imeis()

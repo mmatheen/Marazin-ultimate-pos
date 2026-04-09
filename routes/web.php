@@ -693,6 +693,10 @@ Route::get('/invoice/{token}', [PublicInvoiceController::class, 'showInvoice'])
     ->name('public.invoice.show')
     ->where('token', '[0-9a-fA-F\-]{36}');
 
+Route::get('/i/{code}', [PublicInvoiceController::class, 'redirectByCode'])
+    ->name('public.short-url.redirect.prefixed')
+    ->where('code', '[A-Za-z0-9]{6,12}');
+
 Route::get('/{code}', [PublicInvoiceController::class, 'redirectByCode'])
     ->name('public.short-url.redirect')
     ->where('code', '[A-Za-z0-9]{6,12}');
