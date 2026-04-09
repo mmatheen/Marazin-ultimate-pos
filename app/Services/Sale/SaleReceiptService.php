@@ -7,6 +7,7 @@ use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\SalesProduct;
 use App\Models\User;
+use Illuminate\Contracts\Auth\Access\Authorizable as AuthorizableContract;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class SaleReceiptService
@@ -26,12 +27,20 @@ class SaleReceiptService
      *
      * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
      */
-    public function getHtml(int $saleId, ?string $layout): string
+    public function getHtml(int $saleId, ?string $layout, bool $bypassLocationScope = false): string
     {
-        $sale = Sale::findOrFail($saleId);
+        $saleQuery = $bypassLocationScope
+            ? Sale::withoutLocationScope()
+            : Sale::query();
+
+        $sale = $saleQuery->findOrFail($saleId);
 
         $authUser = auth()->user();
-        if ($authUser && $authUser->can('view own sales') && ! $authUser->can('view all sales')) {
+        if (
+            $authUser instanceof AuthorizableContract
+            && $authUser->can('view own sales')
+            && ! $authUser->can('view all sales')
+        ) {
             if ((int) $sale->user_id !== (int) $authUser->id) {
                 throw (new ModelNotFoundException)->setModel(Sale::class, [$saleId]);
             }

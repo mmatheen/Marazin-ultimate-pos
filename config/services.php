@@ -32,8 +32,8 @@ return [
     ],
 
     'invoice' => [
-        // Short URL base - uses env variable if available, otherwise empty (service will use APP_URL)
-        'short_url_base' => env('APP_URL'),
+        // Use a dedicated short-link domain when configured; otherwise fall back to APP_URL.
+        'short_url_base' => env('INVOICE_SHORT_URL_BASE', env('APP_URL')),
     ],
 
 ];
