@@ -389,7 +389,7 @@
                     <li class="menu-title">
                         <span>Reports</span>
                     </li>
-                    <li class="submenu {{ set_active(['sales-report', 'purchase-report', 'stock-report', 'daily-report', 'profit-loss.report', 'payment.report', 'due-report', 'activity-log']) }}">
+                    <li class="submenu {{ set_active(['sales-report', 'purchase-report', 'stock-report', 'backorder.report', 'daily-report', 'profit-loss.report', 'payment.report', 'due-report', 'activity-log']) }}">
                         <a href="#">
                             <i class="fas fa-chart-line"></i>
                             <span class="sidebar-text">Business Reports</span>
@@ -402,6 +402,7 @@
 
                             @can('view stock-report')
                                 <li><a href="{{ route('stock.report') }}" class="{{ set_active(['stock-report']) }}">Stock Report</a></li>
+                                <li><a href="{{ route('backorder.report') }}" class="{{ set_active(['backorder.report']) }}">Stock Shortage Report</a></li>
                             @endcan
 
                             @can('view profit-loss-report')

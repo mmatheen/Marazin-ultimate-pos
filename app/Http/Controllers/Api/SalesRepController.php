@@ -7,6 +7,7 @@ use App\Models\SalesRep;
 use App\Models\Route;
 use App\Models\User;
 use App\Models\Location;
+use App\Services\User\UserAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,13 @@ use Illuminate\Support\Facades\Log;
 
 class SalesRepController extends Controller
 {
+    private UserAccessService $userAccessService;
+
+    public function __construct(UserAccessService $userAccessService)
+    {
+        $this->userAccessService = $userAccessService;
+    }
+
     /**
      * Display a listing of sales representatives with grouped routes.
      *
@@ -141,7 +149,7 @@ class SalesRepController extends Controller
 
         // Get current user (the one making the request) for permission checking
         $currentUser = auth()->user();
-        $isAdminOrManager = $currentUser && ($currentUser->is_admin || $currentUser->roles->whereIn('name', ['admin', 'manager'])->count() > 0);
+        $isAdminOrManager = $this->canAutoAssignUserLocations($currentUser);
 
         // Validate locations and prepare for auto-assignment if needed
         $locationsToAssign = [];
@@ -324,7 +332,7 @@ class SalesRepController extends Controller
 
         // Get current user (the one making the request) for permission checking
         $currentUser = auth()->user();
-        $isAdminOrManager = $currentUser && ($currentUser->is_admin || $currentUser->roles->whereIn('name', ['admin', 'manager'])->count() > 0);
+        $isAdminOrManager = $this->canAutoAssignUserLocations($currentUser);
 
         // Validate that the sub-location is actually a sub-location (has parent)
         $subLocation = Location::with('parent')->find($requestData['sub_location_id']);
@@ -632,14 +640,43 @@ class SalesRepController extends Controller
     public function getAvailableUsers()
     {
         try {
-            $salesRepUsers = User::with(['locations' => function($query) {
+            $currentUser = auth()->user();
+            if (!$currentUser) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Authentication required.',
+                ], 401);
+            }
+
+            $currentUserCanViewAllLocations = $this->userAccessService->isMasterSuperAdmin($currentUser)
+                || $this->userAccessService->hasLocationBypassPermission($currentUser);
+            $currentUserLocationIds = $this->userAccessService->getUserLocationIds($currentUser);
+
+            if (!$currentUserCanViewAllLocations && empty($currentUserLocationIds)) {
+                return response()->json([
+                    'status' => true,
+                    'message' => 'Sales rep users retrieved successfully.',
+                    'data' => [],
+                ], 200);
+            }
+
+            $salesRepUsers = User::with(['locations' => function($query) use ($currentUserCanViewAllLocations, $currentUserLocationIds) {
                 $query->whereNotNull('parent_id'); // Only sub-locations
+                if (!$currentUserCanViewAllLocations) {
+                    $query->whereIn('locations.id', $currentUserLocationIds);
+                }
                 $query->with('parent:id,name');
             }, 'roles'])
             ->whereHas('roles', function($query) {
                 $query->where('name', 'Sales Rep')
                       ->orWhere('name', 'sales rep')
                       ->orWhere('key', 'sales_rep');
+            })
+            ->when(!$currentUserCanViewAllLocations, function ($query) use ($currentUserLocationIds) {
+                $query->whereHas('locations', function ($locationQuery) use ($currentUserLocationIds) {
+                    $locationQuery->whereIn('locations.id', $currentUserLocationIds)
+                        ->whereNotNull('locations.parent_id');
+                });
             })
             ->get(['id', 'user_name', 'full_name', 'email'])
             ->map(function($user) {
@@ -675,6 +712,81 @@ class SalesRepController extends Controller
     }
 
     /**
+     * Get accessible sub-locations for a specific sales rep user.
+     */
+    public function getUserAccessibleLocations($userId)
+    {
+        try {
+            $currentUser = auth()->user();
+            if (!$currentUser) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Authentication required.',
+                ], 401);
+            }
+
+            $user = User::with(['locations' => function ($query) {
+                $query->whereNotNull('parent_id');
+                $query->with('parent:id,name');
+            }, 'roles'])->find($userId);
+
+            if (!$user) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'User not found.',
+                ], 404);
+            }
+
+            if (!$this->validateSalesRepRole($user)) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'User must have sales rep role.',
+                ], 422);
+            }
+
+            $currentUserCanViewAllLocations = $this->userAccessService->isMasterSuperAdmin($currentUser)
+                || $this->userAccessService->hasLocationBypassPermission($currentUser);
+
+            if (!$currentUserCanViewAllLocations
+                && $currentUser->id !== $user->id
+                && !$this->userAccessService->hasSharedLocationAccess($currentUser, $user)) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'You do not have permission to view this user locations.',
+                ], 403);
+            }
+
+            $visibleLocations = $user->locations;
+            if (!$currentUserCanViewAllLocations) {
+                $viewerLocationIds = $this->userAccessService->getUserLocationIds($currentUser);
+                $visibleLocations = $user->locations->whereIn('id', $viewerLocationIds)->values();
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'User accessible locations retrieved successfully.',
+                'data' => [
+                    'user_id' => $user->id,
+                    'locations' => $visibleLocations->map(function ($location) {
+                        return [
+                            'id' => $location->id,
+                            'name' => $location->name,
+                            'parent_name' => $location->parent?->name,
+                            'full_name' => ($location->parent?->name ? $location->parent->name . ' -> ' : '') . $location->name,
+                        ];
+                    })->values(),
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to retrieve user locations.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Assign a user to specific locations (Admin/Manager only)
      */
     public function assignUserToLocations(Request $request)
@@ -695,7 +807,7 @@ class SalesRepController extends Controller
 
         // Check permissions
         $currentUser = auth()->user();
-        $isAdminOrManager = $currentUser && ($currentUser->is_admin || $currentUser->roles->whereIn('name', ['admin', 'manager'])->count() > 0);
+        $isAdminOrManager = $this->canAutoAssignUserLocations($currentUser);
 
         if (!$isAdminOrManager) {
             return response()->json([
@@ -776,6 +888,24 @@ class SalesRepController extends Controller
         ];
     }
 
+
+    /**
+     * Determine whether current user can auto-assign locations to other users.
+     */
+    private function canAutoAssignUserLocations(?User $currentUser): bool
+    {
+        if (!$currentUser) {
+            return false;
+        }
+
+        if ($this->userAccessService->isSuperAdmin($currentUser) || $this->userAccessService->isAdmin($currentUser)) {
+            return true;
+        }
+
+        return $this->userAccessService->userHasPermission($currentUser, 'edit user')
+            || $this->userAccessService->userHasPermission($currentUser, 'manage all locations')
+            || $this->userAccessService->userHasPermission($currentUser, 'assign routes');
+    }
     /**
      * Check if user has sales rep role (supports both name and key)
      */

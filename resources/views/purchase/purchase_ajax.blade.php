@@ -3279,7 +3279,7 @@
                                         '<a class="dropdown-item" href="#" onclick="printPurchase(' + row.id + ', \'a4\')"><i class="fas fa-print"></i>&nbsp;&nbsp;Print A4</a>' +
                                         '<a class="dropdown-item" href="/purchase/edit/' + row.id + '"><i class="far fa-edit me-2"></i>&nbsp;&nbsp;Edit</a>' +
                                         '<a class="dropdown-item" href="#" onclick="openImeiManagementModal(' + row.id + ')"><i class="fas fa-barcode"></i>&nbsp;&nbsp;Manage IMEI</a>' +
-                                        '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-trash"></i>&nbsp;&nbsp;Delete</a>' +
+                                        '<a class="dropdown-item text-danger" href="#" onclick="deletePurchase(event, ' + row.id + ')"><i class="fas fa-trash"></i>&nbsp;&nbsp;Delete</a>' +
                                         '<a class="dropdown-item" href="#" onclick="openPaymentModal(event, ' + row.id + ')"><i class="fas fa-money-bill-alt"></i>&nbsp;&nbsp;Add payments</a>' +
                                         '<a class="dropdown-item" href="#" onclick="openViewPaymentModal(event, ' + row.id + ')"><i class="fas fa-money-bill-alt"></i>&nbsp;&nbsp;View payments</a>' +
                                         (claimLink ? '<div class="dropdown-divider"></div>' + claimLink : '') +
@@ -3670,7 +3670,7 @@
                         toastr.success(response.message, 'Payment Submitted');
                         $('#bulkPaymentModal').modal('hide');
                         $('#bulkPaymentForm')[0].reset(); // Reset the form
-                        fetchPurchases();
+                        loadPurchaseTable();
                     },
                     error: function(xhr, status, error) {
                         console.error("AJAX error: ", status, error);
@@ -3814,7 +3814,7 @@
                                 alert('Payment deleted successfully.');
                             }
                             $('#viewPaymentModal').modal('hide');
-                            if (typeof fetchPurchases === 'function') fetchPurchases();
+                            loadPurchaseTable();
                         },
                         error: function(xhr) {
                             var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Failed to delete payment.';
@@ -3824,6 +3824,61 @@
                 }
             }
             window.deletePayment = deletePayment;
+
+            function deletePurchase(event, purchaseId) {
+                if (event) {
+                    event.preventDefault();
+                }
+
+                if (!purchaseId) {
+                    toastr.error('Invalid purchase selected.', 'Delete Failed');
+                    return;
+                }
+
+                const executeDelete = function() {
+                    $.ajax({
+                        url: '/purchases/delete/' + purchaseId,
+                        type: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                        },
+                        success: function(response) {
+                            toastr.success(response.message || 'Purchase deleted successfully.', 'Deleted');
+                            loadPurchaseTable();
+                        },
+                        error: function(xhr) {
+                            const errorMsg = xhr.responseJSON?.message || 'Failed to delete purchase.';
+                            toastr.error(errorMsg, 'Delete Failed');
+                        }
+                    });
+                };
+
+                // Prefer SweetAlert confirmation dialog (project standard).
+                if (typeof swal === 'function') {
+                    swal({
+                        title: 'Are you sure?',
+                        text: 'This will permanently delete the purchase record.',
+                        type: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        confirmButtonText: 'Yes, delete it',
+                        cancelButtonText: 'Cancel',
+                        closeOnConfirm: true,
+                        closeOnCancel: true
+                    }, function(isConfirm) {
+                        if (isConfirm) {
+                            executeDelete();
+                        }
+                    });
+                    return;
+                }
+
+                // Fallback only if SweetAlert is not available.
+                if (confirm('Are you sure you want to delete this purchase?')) {
+                    executeDelete();
+                }
+            }
+            window.deletePurchase = deletePurchase;
 
             // Reset the payment form when the modal is closed
             $('#paymentModal').on('hidden.bs.modal', function() {
@@ -3841,7 +3896,7 @@
                     processData: false,
                     success: function(response) {
                         $('#paymentModal').modal('hide');
-                        fetchPurchases();
+                        loadPurchaseTable();
                         document.getElementsByClassName('successSound')[0].play();
                         toastr.success(response.message, 'Payment Added');
                     },

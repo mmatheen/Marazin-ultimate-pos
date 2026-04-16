@@ -4,7 +4,6 @@ namespace App\Traits;
 
 use App\Scopes\LocationScope;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Auth;
 
 trait LocationTrait
 {

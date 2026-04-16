@@ -2,6 +2,29 @@
     $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
         showFetchData();
+
+        $.validator.addMethod('profileImageType', function(value, element) {
+            if (!element.files || element.files.length === 0) {
+                return true;
+            }
+
+            var file = element.files[0];
+            var fileName = (file.name || '').toLowerCase();
+            var extension = fileName.split('.').pop();
+            var allowedExtensions = ['jpg', 'jpeg', 'png'];
+            var allowedMimeTypes = ['image/jpeg', 'image/png'];
+
+            return allowedExtensions.indexOf(extension) !== -1 || allowedMimeTypes.indexOf(file.type) !== -1;
+        }, 'Only JPG and PNG images are allowed.');
+
+        $.validator.addMethod('fileSizeMax', function(value, element, maxBytes) {
+            if (!element.files || element.files.length === 0) {
+                return true;
+            }
+
+            return element.files[0].size <= maxBytes;
+        }, 'File size must be within the allowed limit.');
+
         // add form and update validation rules code start
         var addAndUpdateValidationOptions = {
             rules: {
@@ -32,6 +55,10 @@
                     minlength: 6 // Minimum password length validation
 
                 },
+                profile_image: {
+                    profileImageType: true,
+                    fileSizeMax: 5 * 1024 * 1024
+                },
 
             },
             messages: {
@@ -53,6 +80,10 @@
                 password: {
                     required: "Password is required",
                     minlength: "Password must be at least 5 characters long",
+                },
+                profile_image: {
+                    profileImageType: 'Only JPG and PNG images are allowed.',
+                    fileSizeMax: 'Profile photo must be 5MB or less.'
                 },
 
 
@@ -88,6 +119,10 @@
 
         // Apply validation to both forms
         $('#addAndUserUpdateForm').validate(addAndUpdateValidationOptions);
+
+        $('#edit_profile_image').on('change', function() {
+            $(this).valid();
+        });
 
         // add form and update validation rules code end
 
@@ -147,7 +182,15 @@
                     var counter = 1;
                     response.message.forEach(function(item) {
                         let row = $('<tr>');
+
+                        const profileImageUrl = item.profile_image_url || '/assets/img/profiles/default-avatar.svg';
+                        const fullName = item.full_name || 'User';
+                        const safeFullName = $('<div>').text(fullName).html();
                         row.append('<td>' + counter + '</td>');
+                        row.append('<td><a href="#" class="profile-image-preview-link" data-image-url="' + profileImageUrl +
+                            '" data-full-name="' + safeFullName +
+                            '" title="View profile image"><img src="' + profileImageUrl +
+                            '" alt="User Image" class="rounded-circle" style="width:36px;height:36px;object-fit:cover;" onerror="this.src=\'/assets/img/profiles/default-avatar.svg\'"></a></td>');
                         row.append('<td>' + item.full_name + '</td>');
                         row.append('<td>' + item.user_name + '</td>');
                         row.append('<td><span class="badge rounded-pill bg-dark me-1">' +
@@ -468,6 +511,25 @@
 
             // Show the modal
             $('#locationsModal').modal('show');
+        });
+
+        // Handle profile image preview click
+        $(document).on('click', '.profile-image-preview-link', function(e) {
+            e.preventDefault();
+
+            const imageUrl = $(this).data('image-url') || '/assets/img/profiles/default-avatar.svg';
+            const fullName = $(this).data('full-name') || 'User';
+
+            $('#profileImageModalName').text(fullName);
+            $('#profileImageModalPreview')
+                .attr('src', imageUrl)
+                .attr('alt', fullName + ' Profile Image')
+                .off('error')
+                .on('error', function() {
+                    $(this).attr('src', '/assets/img/profiles/default-avatar.svg');
+                });
+
+            $('#profileImageModal').modal('show');
         });
     });
 </script>

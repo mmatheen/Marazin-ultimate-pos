@@ -74,7 +74,7 @@
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <span>🚛 Live Vehicle Tracking</span>
                         <span class="badge bg-info">
-                            {{ ucfirst(Auth::user()->role_name ?? 'User') }}
+                            {{ ucfirst(Auth::user()?->getRoleName() ?? 'User') }}
                         </span>
                     </div>
                     <div class="card-body p-0">
@@ -100,7 +100,7 @@
 
     <script>
         // Normalize role name from server
-        const rawUserRole = "{{ Auth::user()->role_name ?? 'Guest' }}".trim();
+        const rawUserRole = "{{ Auth::user()?->getRoleName() ?? 'Guest' }}".trim();
         const userRole = rawUserRole.toLowerCase();
 
         // Role checks (case-insensitive)

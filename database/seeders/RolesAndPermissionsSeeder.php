@@ -9,6 +9,9 @@ use Spatie\Permission\Models\Permission;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
+    private const ROLE_KEY_MASTER_SUPER_ADMIN = 'master_super_admin';
+    private const ROLE_KEY_SUPER_ADMIN = 'super_admin';
+
     /**
      * Run the database seeds.
      */
@@ -42,7 +45,9 @@ class RolesAndPermissionsSeeder extends Seeder
                 'create role',
                 'edit role',
                 'view role',
-                'delete role'
+                'delete role',
+                'manage all roles',
+                'manage role hierarchy'
             ],
 
             '3. role-permission-management' => [
@@ -420,6 +425,8 @@ class RolesAndPermissionsSeeder extends Seeder
             '39. master-admin-management' => [
                 'access master admin panel',
                 'manage all locations',
+                'manage all roles',
+                'manage role hierarchy',
                 'create super admin',
                 'edit super admin',
                 'delete super admin',
@@ -475,6 +482,8 @@ class RolesAndPermissionsSeeder extends Seeder
                 $masterAdminPermissions = [
                     'access master admin panel',
                     'manage all locations',
+                    'manage all roles',
+                    'manage role hierarchy',
                     'create super admin',
                     'edit super admin',
                     'delete super admin',
@@ -551,9 +560,11 @@ class RolesAndPermissionsSeeder extends Seeder
 
         // Now assign roles after all permissions exist
         foreach ($roles as $roleName => $rolePermissions) {
-            // Generate role key from name
-            $roleKey = strtolower(str_replace(' ', '_', $roleName));
+            // Resolve canonical role key from role name (supports aliases/synonyms)
+            $roleKey = $this->resolveCanonicalRoleKey($roleName);
 
+            // Important: create/update by role name, not by key.
+            // Multiple role names are allowed to share the same canonical key family.
             $role = Role::firstOrCreate(
                 ['name' => $roleName, 'guard_name' => 'web'],
                 ['key' => $roleKey]
@@ -567,7 +578,7 @@ class RolesAndPermissionsSeeder extends Seeder
             }
 
             // Set special flags for Master Super Admin
-            if ($roleName === 'Master Super Admin') {
+            if ($roleKey === self::ROLE_KEY_MASTER_SUPER_ADMIN) {
                 $role->update([
                     'key' => $roleKey,
                     'is_system_role' => true,
@@ -580,7 +591,7 @@ class RolesAndPermissionsSeeder extends Seeder
             }
 
             // Set flags for regular Super Admin (can be restricted per location)
-            if ($roleName === 'Super Admin') {
+            if ($roleKey === self::ROLE_KEY_SUPER_ADMIN) {
                 $role->update([
                     'key' => $roleKey,
                     'is_system_role' => false,
@@ -620,7 +631,14 @@ class RolesAndPermissionsSeeder extends Seeder
 
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        $masterRole = Role::where('name', 'Master Super Admin')->first();
+        $masterRole = Role::where('guard_name', 'web')
+            ->where('key', self::ROLE_KEY_MASTER_SUPER_ADMIN)
+            ->first();
+
+        if (!$masterRole) {
+            $masterRole = Role::where('name', 'Master Super Admin')->first();
+        }
+
         if (!$masterRole) {
             $this->command->warn('Master Super Admin role not found. Skipping safety-net check.');
             return;
@@ -685,7 +703,13 @@ class RolesAndPermissionsSeeder extends Seeder
         foreach ($allRoles as $role) {
             // Skip Master Super Admin (always gets ALL permissions via syncPermissions above)
             // Skip Super Admin (Master Admin will manually decide which new permissions to grant)
-            if (in_array($role->name, ['Master Super Admin', 'Super Admin'])) {
+            $roleKey = $role->key;
+            if (in_array($roleKey, [self::ROLE_KEY_MASTER_SUPER_ADMIN, self::ROLE_KEY_SUPER_ADMIN], true)) {
+                continue;
+            }
+
+            // Backward-safe fallback for records without key.
+            if (in_array($role->name, ['Master Super Admin', 'Super Admin'], true)) {
                 continue;
             }
 
@@ -765,6 +789,31 @@ class RolesAndPermissionsSeeder extends Seeder
 
         // Clean up old permission group names
         $this->cleanupOldPermissions();
+    }
+
+    /**
+     * Resolve canonical role key from role name using alias mapping.
+     */
+    private function resolveCanonicalRoleKey(string $roleName): string
+    {
+        $normalized = strtolower(trim(preg_replace('/\s+/', ' ', $roleName)));
+
+        $aliases = [
+            'master super admin' => self::ROLE_KEY_MASTER_SUPER_ADMIN,
+            'super admin' => self::ROLE_KEY_SUPER_ADMIN,
+            'sales rep' => 'sales_rep',
+            'sales representative' => 'sales_rep',
+            'sales executive' => 'sales_rep',
+            'sales reperesntive' => 'sales_rep',
+            'sales excutive' => 'sales_rep',
+        ];
+
+        if (isset($aliases[$normalized])) {
+            return $aliases[$normalized];
+        }
+
+        $slug = preg_replace('/[^a-z0-9]+/', '_', $normalized);
+        return trim($slug, '_');
     }
 
     /**

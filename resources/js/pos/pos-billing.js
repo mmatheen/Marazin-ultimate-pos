@@ -441,6 +441,7 @@ async function addProductToBillingBody(
     const row = document.createElement('tr');
     row.setAttribute('data-product-id', product.id);
     row.setAttribute('data-batch-id', batchId);
+    row.setAttribute('data-unlimited-stock', String(product.stock_alert === 0 ? 1 : 0));
     // Track whether cashier explicitly chose a batch (vs auto/restored in edit mode)
     row.setAttribute('data-user-selected-batch', '0');
     row.setAttribute('data-unit-price', finalPrice);

@@ -37,6 +37,7 @@ class StockHistory extends Model
     const STOCK_TYPE_TRANSFER_IN = 'transfer_in';
     const STOCK_TYPE_TRANSFER_OUT = 'transfer_out';
     const STOCK_TYPE_ADJUSTMENT = 'adjustment';
+    const STOCK_TYPE_DELIVERY_FULFILLMENT = 'delivery_fulfillment';
 
     public function locationBatch()
     {

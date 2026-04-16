@@ -31,6 +31,7 @@ use App\Models\Discount;
 use App\Models\ImeiNumber;
 use Illuminate\Http\JsonResponse;
 use App\Services\TaxConfigurationService;
+use App\Services\User\UserAccessService;
 
 class ProductController extends Controller
 {
@@ -635,31 +636,9 @@ class ProductController extends Controller
             return collect([]); // Return empty collection if no user
         }
 
-        // Load user roles if not already loaded
-        if (!$user->relationLoaded('roles')) {
-            $user->load('roles');
-        }
-
-        // Check if user is Master Super Admin or has bypass permission
-        $isMasterSuperAdmin = $user->roles->pluck('name')->contains('Master Super Admin') ||
-                              $user->roles->pluck('key')->contains('master_super_admin');
-
-        $hasBypassPermission = false;
-        foreach ($user->roles as $role) {
-            if ($role->bypass_location_scope ?? false) {
-                $hasBypassPermission = true;
-                break;
-            }
-        }
-
-        if (!$hasBypassPermission) {
-            try {
-                $hasBypassPermission = $user->hasPermissionTo('override location scope');
-            } catch (\Exception $e) {
-                // Permission doesn't exist, continue without bypass
-                $hasBypassPermission = false;
-            }
-        }
+        $userAccessService = app(UserAccessService::class);
+        $isMasterSuperAdmin = $userAccessService->isMasterSuperAdmin($user);
+        $hasBypassPermission = $userAccessService->hasLocationBypassPermission($user);
 
         Log::info('API Location access check', [
             'user_id' => $user->id,

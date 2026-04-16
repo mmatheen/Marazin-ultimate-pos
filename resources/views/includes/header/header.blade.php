@@ -1,4 +1,56 @@
 <div>
+    <style>
+        .profile-hover-wrap {
+            position: relative;
+        }
+
+        .profile-hover-preview {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 180px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 8px;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(6px);
+            transition: all 0.16s ease;
+            pointer-events: none;
+            z-index: 1090;
+        }
+
+        .profile-hover-wrap:hover .profile-hover-preview,
+        .profile-hover-wrap:focus-within .profile-hover-preview {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .profile-hover-preview img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+
+        .profile-hover-preview .name {
+            margin-top: 8px;
+            text-align: center;
+            font-weight: 600;
+            color: #111827;
+            font-size: 14px;
+        }
+
+        @media (hover: none) {
+            .profile-hover-preview {
+                display: none;
+            }
+        }
+    </style>
+
     <div class="header">
 
         <div class="header-left">
@@ -41,6 +93,28 @@
             @php
                 $locations = Auth::user()->locations->pluck('name')->toArray();
                 $locationText = implode(', ', $locations);
+
+                $defaultProfileImage = asset('assets/img/profiles/default-avatar.svg');
+                $rawProfileImage = trim((string) (Auth::user()->profile_image ?? ''));
+                $profileImage = $defaultProfileImage;
+
+                if ($rawProfileImage !== '') {
+                    if (preg_match('/^https?:\/\//i', $rawProfileImage)) {
+                        $profileImage = $rawProfileImage;
+                    } else {
+                        if (str_starts_with($rawProfileImage, '/')) {
+                            $publicRelativePath = ltrim($rawProfileImage, '/');
+                        } elseif (str_starts_with($rawProfileImage, 'assets/')) {
+                            $publicRelativePath = $rawProfileImage;
+                        } else {
+                            $publicRelativePath = 'assets/img/profiles/' . $rawProfileImage;
+                        }
+
+                        if (file_exists(public_path($publicRelativePath))) {
+                            $profileImage = asset($publicRelativePath);
+                        }
+                    }
+                }
             @endphp
 
             <!-- Tooltip Button -->
@@ -81,22 +155,27 @@
 
             <li class="nav-item dropdown has-arrow new-user-menus">
                 <a href="#" class="dropdown-toggle nav-link" data-bs-toggle="dropdown">
-                    <span class="user-img">
-                        <img class="rounded-circle" src="{{ asset('assets/img/profiles/default-avatar.svg') }}"
+                    <span class="user-img profile-hover-wrap">
+                        <img class="rounded-circle" src="{{ $profileImage }}"
                             width="31" alt="{{ Auth::user()->user_name }}"
-                            onerror="this.src='{{ asset('assets/img/profiles/avatar-01.svg') }}'">
+                            onerror="this.src='{{ asset('assets/img/profiles/default-avatar.svg') }}'">
                         <div class="user-text">
                             <h6>{{ Auth::user()->user_name }}</h6>
                             <p class="text-muted mb-0">{{ Auth::user()->getRoleName() ?? 'No Role' }}</p>
+                        </div>
+                        <div class="profile-hover-preview">
+                            <img src="{{ $profileImage }}" alt="{{ Auth::user()->user_name }}"
+                                onerror="this.src='{{ asset('assets/img/profiles/default-avatar.svg') }}'">
+                            <div class="name">{{ Auth::user()->full_name ?? Auth::user()->user_name }}</div>
                         </div>
                     </span>
                 </a>
                 <div class="dropdown-menu">
                     <div class="user-header">
                         <div class="avatar avatar-sm">
-                            <img src="{{ asset('assets/img/profiles/default-avatar.svg') }}" alt="{{ Auth::user()->user_name }}"
+                            <img src="{{ $profileImage }}" alt="{{ Auth::user()->user_name }}"
                                 class="avatar-img rounded-circle"
-                                onerror="this.src='{{ asset('assets/img/profiles/avatar-01.svg') }}'">
+                                onerror="this.src='{{ asset('assets/img/profiles/default-avatar.svg') }}'">
                         </div>
                         <div class="user-text">
                             <h6>{{ Auth::user()->user_name }}</h6>

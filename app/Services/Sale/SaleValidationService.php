@@ -4,6 +4,7 @@ namespace App\Services\Sale;
 
 use App\Models\Product;
 use App\Models\Sale;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -353,6 +354,10 @@ class SaleValidationService
      */
     public function validateStockForUpdate(array $productData, int $locationId, array $originalProducts): void
     {
+        if ((bool) (Setting::value('enable_backorders') ?? 0)) {
+            return;
+        }
+
         $freeQuantity  = floatval($productData['free_quantity'] ?? 0);
         $totalQuantity = $productData['quantity'] + $freeQuantity;
         $productId     = $productData['product_id'];

@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 use Spatie\Activitylog\Models\Activity;
 use Yajra\DataTables\DataTables;
 use App\Services\ProfitLossService;
+use App\Services\Report\BackorderReportService;
 use App\Models\Sale;
 use App\Models\SalesReturn;
 use App\Models\Product;
@@ -27,24 +28,27 @@ use Illuminate\Http\Request;
 class ReportController extends Controller
 {
     protected $profitLossService;
+    protected BackorderReportService $backorderReportService;
     protected StockHistoryService $stockHistoryService;
     protected DueReportService $dueReportService;
     protected PaymentReportService $paymentReportService;
 
     function __construct(
         ProfitLossService $profitLossService,
+        BackorderReportService $backorderReportService,
         StockHistoryService $stockHistoryService,
         DueReportService $dueReportService,
         PaymentReportService $paymentReportService
     ) {
         $this->profitLossService    = $profitLossService;
+        $this->backorderReportService = $backorderReportService;
         $this->stockHistoryService  = $stockHistoryService;
         $this->dueReportService     = $dueReportService;
         $this->paymentReportService = $paymentReportService;
         $this->middleware('permission:view daily-report', ['only' => ['saleDailyReport', 'dailyReport']]);
         $this->middleware('permission:view sales-report', ['only' => ['salesReport']]);
         $this->middleware('permission:view purchase-report', ['only' => ['purchaseReport']]);
-        $this->middleware('permission:view stock-report', ['only' => ['stockHistory', 'stockReport']]);
+        $this->middleware('permission:view stock-report', ['only' => ['stockHistory', 'stockReport', 'backorderReport', 'backorderReportData']]);
         $this->middleware('permission:view profit-loss-report', ['only' => ['profitLossReport', 'profitLossData', 'profitLossExport']]);
         $this->middleware('permission:view payment-report', ['only' => ['paymentReport']]);
         $this->middleware('permission:view customer-report', ['only' => ['customerReport']]);
@@ -63,6 +67,35 @@ class ReportController extends Controller
         $canUseFreeQty = Gate::allows('use free quantity');
 
         return view('reports.stock_report', array_merge($filters, compact('summaryData', 'canUseFreeQty')));
+    }
+
+    public function backorderReport(Request $request)
+    {
+        $filters = $this->backorderReportService->getFilters();
+        $startDate = $request->start_date ?? Carbon::now()->startOfMonth()->format('Y-m-d');
+        $endDate = $request->end_date ?? Carbon::now()->endOfMonth()->format('Y-m-d');
+        $locationId = $request->location_id ?? '';
+        $status = $request->status ?? '';
+
+        if ($request->ajax()) {
+            return $this->backorderReportData($request);
+        }
+
+        $summaryData = $this->backorderReportService->calculateSummary($request);
+
+        return view('reports.backorder_report', array_merge($filters, compact('summaryData', 'startDate', 'endDate', 'locationId', 'status')));
+    }
+
+    public function backorderReportData(Request $request)
+    {
+        $filters = $this->backorderReportService->getRequestFilters($request);
+        $summary = $this->backorderReportService->calculateSummary($request);
+        $data = $this->backorderReportService->getDataForDataTables($request);
+
+        return response()->json([
+            'summary' => $summary,
+            'data' => $data,
+        ]);
     }
 
     /**
@@ -318,9 +351,10 @@ public function fetchActivityLog(Request $request)
     public function profitLossExportExcel(Request $request)
     {
         $filters = $this->getFilters($request);
+        $reportData = $this->profitLossService->generateReport($filters);
         $filename = 'profit-loss-report-' . date('Y-m-d-H-i-s') . '.xlsx';
 
-        return Excel::download(new ProfitLossExport($filters), $filename);
+        return Excel::download(new ProfitLossExport($reportData, $filters['report_type'] ?? 'overall', $filters), $filename);
     }
 
     /**
@@ -329,9 +363,10 @@ public function fetchActivityLog(Request $request)
     public function profitLossExportCsv(Request $request)
     {
         $filters = $this->getFilters($request);
+        $reportData = $this->profitLossService->generateReport($filters);
         $filename = 'profit-loss-report-' . date('Y-m-d-H-i-s') . '.csv';
 
-        return Excel::download(new ProfitLossExport($filters), $filename, \Maatwebsite\Excel\Excel::CSV);
+        return Excel::download(new ProfitLossExport($reportData, $filters['report_type'] ?? 'overall', $filters), $filename, \Maatwebsite\Excel\Excel::CSV);
     }
 
     /**

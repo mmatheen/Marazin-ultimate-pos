@@ -3,19 +3,16 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use App\Traits\LocationTrait;
 use App\Traits\RolePermissionHelper;
 
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
-use Spatie\Permission\Models\Role;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
@@ -23,13 +20,12 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property string $name_title
  * @property string $full_name
  * @property string $user_name
- * @property string $role_name
+ * @property-read string|null $role_name
  * @property int|null $location_id
  * @property bool $is_admin
  * @property string $email
  * @property string $password
  * @method BelongsToMany locations()
- * @method BelongsTo vehicle()
  * @method HasOne salesRep()
  */
 class User extends Authenticatable
@@ -45,10 +41,10 @@ class User extends Authenticatable
         'name_title',
         'full_name',
         'user_name',
-        'role_name',
         'location_id',
         'is_admin',
         'email',
+        'profile_image',
         'password',
     ];
 
@@ -84,7 +80,7 @@ class User extends Authenticatable
             ->setDescriptionForEvent(fn(string $eventName) => "User has been {$eventName}");
     }
 
-    
+
     public function salesRep(): HasOne
     {
         return $this->hasOne(SalesRep::class, 'user_id');
@@ -141,14 +137,8 @@ class User extends Authenticatable
         return $this->canBypassLocationScope();
     }
 
-    /**
-     * Sync the legacy role_name field with Spatie role
-     */
-    public function syncRoleName(): void
+    public function getRoleNameAttribute(): ?string
     {
-        $role = $this->roles->first();
-        if ($role) {
-            $this->update(['role_name' => $role->name]);
-        }
+        return $this->getRoleName();
     }
 }

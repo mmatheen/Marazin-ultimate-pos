@@ -68,6 +68,12 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 /** Maximum cache entries before LRU eviction. */
 const CACHE_MAX_SIZE = 200;
 
+/**
+ * POS stock must be real-time accurate; stale client cache can show old qty
+ * until a full page refresh. Keep cache disabled for stock search results.
+ */
+const ENABLE_SEARCH_CACHE = false;
+
 /** Auto-add delay after exact SKU/IMEI or single-result match (shorter = snappier). */
 const AUTO_ADD_DELAY_MS = 280;
 
@@ -140,6 +146,8 @@ const searchCache = new Map();
  * @returns {Object|null}
  */
 function getCachedEntry(locationId, term) {
+    if (!ENABLE_SEARCH_CACHE) return null;
+
     const key   = `${locationId}_${term.toLowerCase()}`;
     const entry = searchCache.get(key);
     if (!entry) return null;
@@ -159,6 +167,8 @@ function getCachedEntry(locationId, term) {
  * @param {Array}   rawData   - raw stock array from server (for cascade)
  */
 function storeCacheEntry(locationId, term, results, rawData) {
+    if (!ENABLE_SEARCH_CACHE) return;
+
     if (searchCache.size >= CACHE_MAX_SIZE) {
         searchCache.delete(searchCache.keys().next().value); // evict oldest
     }
@@ -179,6 +189,8 @@ function storeCacheEntry(locationId, term, results, rawData) {
  * @returns {Array|null}
  */
 function getCascadeResults(locationId, term) {
+    if (!ENABLE_SEARCH_CACHE) return null;
+
     const termLower = term.toLowerCase();
 
     for (let len = termLower.length - 1; len >= 1; len--) {
@@ -199,6 +211,8 @@ function getCascadeResults(locationId, term) {
 
 /** Discard all cached entries for a specific location. */
 function clearCacheForLocation(locationId) {
+    if (!ENABLE_SEARCH_CACHE) return;
+
     for (const key of searchCache.keys()) {
         if (key.startsWith(`${locationId}_`)) searchCache.delete(key);
     }
@@ -359,11 +373,20 @@ function findImeiMatch(stock, term) {
  */
 function createProductLabel(stock, imeiMatch) {
     const product = stock.product;
-    const stockDisplay = (product.stock_alert == 0)
+    const stockValue = (product.stock_alert == 0)
         ? 'Unlimited'
         : (parseFloat(stock.total_stock) || 0) + (parseFloat(stock.total_free_stock) || 0);
+    const showBackorderHint = window.PosConfig?.features?.enableBackorders
+        && Number(stockValue) === 0;
+    const stockDisplay = showBackorderHint
+        ? `${stockValue} | Backorder`
+        : stockValue;
 
     return `${product.product_name} (${product.sku || ''})${imeiMatch} [Stock: ${stockDisplay}]`;
+}
+
+function shouldAllowBackorderSearch() {
+    return !!window.PosConfig?.features?.enableBackorders;
 }
 
 /*
@@ -387,6 +410,7 @@ function createProductSearchRequest(term, response) {
             search:      term,
             per_page:    AUTOCOMPLETE_PER_PAGE,
             context:     'pos',
+            allow_backorder_search: shouldAllowBackorderSearch() ? 1 : 0,
         },
         cache:   false,
         timeout: 10000,
@@ -410,7 +434,9 @@ function createProductSearchRequest(term, response) {
  *
  * @param {string} searchTerm  - full barcode / SKU string
  */
-function searchForExactMatch(searchTerm) {
+function searchForExactMatch(searchTerm, options = {}) {
+    const requireExact = !!options.requireExact;
+
     if (!window.selectedLocationId) return;
 
     showSearchIndicator(' Scanner searching...', '#17a2b8');
@@ -421,6 +447,8 @@ function searchForExactMatch(searchTerm) {
             location_id: window.selectedLocationId,
             search:      searchTerm,
             per_page:    15,
+            context:     'pos',
+            allow_backorder_search: shouldAllowBackorderSearch() ? 1 : 0,
         },
         cache:   false,
         timeout: 5000,
@@ -439,8 +467,11 @@ function searchForExactMatch(searchTerm) {
                 return (r.product.sku && r.product.sku.toLowerCase() === searchTerm.toLowerCase())
                     || r.exactImeiMatch;
             });
-            // Scanner: add on exact SKU/IMEI OR when exactly one result (unambiguous barcode)
-            const toAdd = exactSkuImei || (results.length === 1 && results[0].product ? results[0] : null);
+            // Scanner path may allow single unambiguous result.
+            // Manual Enter strict path requires exact SKU/IMEI only.
+            const toAdd = requireExact
+                ? exactSkuImei
+                : (exactSkuImei || (results.length === 1 && results[0].product ? results[0] : null));
 
             if (toAdd) {
                 if (autocompleteState.autoAddTimer) {
@@ -678,9 +709,8 @@ function checkForAutoAdd(results, term) {
         return skuMatch || r.exactImeiMatch;
     });
 
-    // Auto-add: exact SKU/IMEI match OR single unambiguous result (e.g. search "0100" → one product)
-    const exactMatch = exactSkuOrImei ||
-        (results.length === 1 && results[0].product ? results[0] : null);
+    // Auto-add must be exact SKU/IMEI only; never auto-add from single partial match.
+    const exactMatch = exactSkuOrImei;
 
     if (!exactMatch || autocompleteState.adding) return;
 
@@ -772,24 +802,39 @@ function addProductFromAutocomplete(item, searchTerm = '', matchType = '') {
 
 /**
  * Handle Enter when no autocomplete item is explicitly selected.
- * Adds the focused item, or the first result if nothing is highlighted.
+ * Adds only the focused item (or exact SKU/IMEI match) to avoid accidental adds.
  * @param {jQuery} $input
  */
 function handleManualEnter($input) {
     const focused    = $input.autocomplete('widget').find('.ui-state-focus');
     const term       = $input.val().trim();
-    let itemToAdd    = getSelectedItem(focused) || getFirstResult();
+    let itemToAdd    = getSelectedItem(focused);
+
+    if (!itemToAdd) {
+        itemToAdd = getExactMatchResult(term);
+    }
+
+    // Fast path: exact SKU/IMEI from local stockData for instant add under heavy load.
+    if (!itemToAdd) {
+        itemToAdd = findExactLocalMatch(term);
+    }
 
     if (itemToAdd && itemToAdd.product && shouldAddProduct(itemToAdd)) {
         autocompleteState.lastProduct = itemToAdd.product;
-        addProductFromAutocomplete(itemToAdd, term, itemToAdd.imeiMatch ? 'IMEI' : 'MANUAL_ENTER');
+        const termLower = term.toLowerCase();
+        const skuLower = (itemToAdd.product.sku || '').toLowerCase();
+        const matchType = itemToAdd.exactImeiMatch
+            ? 'IMEI'
+            : (skuLower && skuLower === termLower ? 'SKU' : 'MANUAL_ENTER');
+
+        addProductFromAutocomplete(itemToAdd, term, matchType);
         $input.autocomplete('close').val('');
         return;
     }
-    // No selection but input has value (e.g. paste or scanner without Enter): run one search and add if single result
+    // No explicit selection/exact match: strict exact server check only, no partial auto add.
     if (term.length >= 2) {
         $input.autocomplete('close');
-        searchForExactMatch(term);
+        searchForExactMatch(term, { requireExact: true });
         return;
     }
     $input.autocomplete('close').val('');
@@ -809,11 +854,78 @@ function getSelectedItem(focused) {
         : null;
 }
 
-/** Return the first item from the last result set, or null. */
-function getFirstResult() {
-    return autocompleteState.lastResults.length > 0
-        ? autocompleteState.lastResults[0]
-        : null;
+/**
+ * Return exact SKU/IMEI match from the current result set.
+ * @param {string} term
+ * @returns {Object|null}
+ */
+function getExactMatchResult(term) {
+    if (!term) return null;
+    const needle = term.toLowerCase();
+
+    const exact = autocompleteState.lastResults.find(item => {
+        if (!item || !item.product) return false;
+        const sku = (item.product.sku || '').toLowerCase();
+        return (sku && sku === needle) || !!item.exactImeiMatch;
+    });
+
+    return exact || null;
+}
+
+/**
+ * Find exact SKU/IMEI directly from local stockData for low-latency Enter adds.
+ * Returns null if no exact local match.
+ * @param {string} term
+ * @returns {Object|null}
+ */
+function findExactLocalMatch(term) {
+    if (!term) return null;
+
+    const needle = term.toLowerCase();
+    const stocks = Array.isArray(window.stockData) ? window.stockData : [];
+
+    // Priority 1: exact SKU match
+    for (const stock of stocks) {
+        const product = stock?.product;
+        if (!product) continue;
+
+        const sku = (product.sku || '').toLowerCase();
+        if (sku && sku === needle) {
+            return {
+                label: createProductLabel(stock, ''),
+                value: product.product_name,
+                product,
+                stockData: stock,
+                imeiMatch: false,
+                exactImeiMatch: false,
+            };
+        }
+    }
+
+    // Priority 2: exact IMEI match (available only)
+    for (const stock of stocks) {
+        const product = stock?.product;
+        if (!product || !Array.isArray(stock.imei_numbers)) continue;
+
+        const hit = stock.imei_numbers.find(imei => {
+            if (!imei || !imei.imei_number) return false;
+            const statusOk = imei.status === 'available' || imei.status === undefined;
+            return statusOk && imei.imei_number.toLowerCase() === needle;
+        });
+
+        if (hit) {
+            return {
+                label: createProductLabel(stock, `  IMEI: ${hit.imei_number}`),
+                value: product.product_name,
+                product,
+                stockData: stock,
+                imeiMatch: true,
+                exactImeiMatch: true,
+            };
+        }
+    }
+
+    return null;
 }
 
 /**
@@ -823,7 +935,7 @@ function getFirstResult() {
  * @returns {boolean}
  */
 function shouldAddProduct(item) {
-    return !autocompleteState.lastProduct;
+    return !autocompleteState.lastProduct ||
            autocompleteState.lastProduct.id !== item.product.id;
 }
 
@@ -1119,8 +1231,7 @@ function setupKeyboardEvents() {
                 event.preventDefault();
                 const value          = $(this).val().trim();
                 const isScannerEnter = scannerActive ||
-                                       scannerBuffer.length > 0 ||
-                                       (value.length > 0 && interKeyDiff < 100);
+                                       scannerBuffer.length > 0;
 
                 if (scannerFallbackTimer) {
                     clearTimeout(scannerFallbackTimer);

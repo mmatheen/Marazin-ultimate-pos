@@ -16,6 +16,7 @@ class Setting extends Model
         'favicon',
         'enable_price_validation',
         'enable_free_qty',
+        'enable_backorders',
         'default_tax_percent',
         'default_selling_price_tax_type',
         'sms_user_id',
@@ -28,6 +29,7 @@ class Setting extends Model
         'sms_api_key' => 'encrypted',
         'enable_price_validation' => 'boolean',
         'enable_free_qty' => 'boolean',
+        'enable_backorders' => 'boolean',
     ];
 
     // Accessor: Full URL for logo

@@ -17,6 +17,11 @@ class SalesProduct extends Model
         'location_id',
         'quantity',
         'free_quantity',     // Free items given to customer (promotions)
+        'fulfilled_quantity',
+        'fulfilled_free_quantity',
+        'backordered_quantity',
+        'backordered_free_quantity',
+        'fulfillment_status',
         'price_type',
         'price', // Unit price (quantity × price = subtotal)
         'discount_amount',
@@ -48,5 +53,10 @@ class SalesProduct extends Model
     public function imeis()
     {
         return $this->hasMany(SaleImei::class, 'sale_product_id');
+    }
+
+    public function backorders()
+    {
+        return $this->hasMany(StockBackorder::class, 'sale_product_id');
     }
 }

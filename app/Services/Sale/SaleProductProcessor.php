@@ -11,6 +11,7 @@ use App\Models\Sale;
 use App\Models\SaleImei;
 use App\Models\SalesProduct;
 use App\Models\StockHistory;
+use App\Services\Inventory\BackorderService;
 use App\Services\PosVatCalculatorService;
 use App\Services\TaxConfigurationService;
 use Illuminate\Http\Request;
@@ -23,10 +24,12 @@ class SaleProductProcessor
     private const EPSILON = 0.0001;
 
     protected $saleValidationService;
+    protected $backorderService;
 
-    public function __construct(SaleValidationService $saleValidationService)
+    public function __construct(SaleValidationService $saleValidationService, BackorderService $backorderService)
     {
         $this->saleValidationService = $saleValidationService;
+        $this->backorderService = $backorderService;
     }
 
     /**
@@ -163,12 +166,38 @@ class SaleProductProcessor
     private function processProductSale($productData, $saleId, $locationId, $stockType, $newStatus, ?Product $product = null)
     {
         $freeQuantity = $this->f($productData['free_quantity'] ?? 0);
-        $batchDeductions = $this->allocateStock($productData, $saleId, $locationId, $stockType, $newStatus, $freeQuantity, $product);
+        $allocationResult = $this->allocateStock($productData, $saleId, $locationId, $stockType, $newStatus, $freeQuantity, $product);
+        $batchDeductions = $allocationResult['deductions'];
+        $shortagePaidQty = $this->f($allocationResult['shortage_paid'] ?? 0);
+        $shortageFreeQty = $this->f($allocationResult['shortage_free'] ?? 0);
 
         $remainingImeis = $this->normalizeImeiNumbers($productData['imei_numbers'] ?? []);
         foreach ($batchDeductions as $deduction) {
             $saleProduct = $this->createSalesProduct($saleId, $locationId, $productData, $deduction);
             $this->handleImeis($saleId, $locationId, $productData, $deduction, $saleProduct, $remainingImeis, $product);
+        }
+
+        if ($shortagePaidQty > 0 || $shortageFreeQty > 0) {
+            $backorderLine = [
+                'batch_id' => null,
+                'quantity' => $shortagePaidQty,
+                'paid_qty' => $shortagePaidQty,
+                'free_qty' => $shortageFreeQty,
+                'fulfilled_paid_qty' => 0,
+                'fulfilled_free_qty' => 0,
+                'backordered_paid_qty' => $shortagePaidQty,
+                'backordered_free_qty' => $shortageFreeQty,
+                'fulfillment_status' => 'pending',
+            ];
+
+            $saleProduct = $this->createSalesProduct($saleId, $locationId, $productData, $backorderLine);
+
+            $this->backorderService->recordShortage(
+                (int) $saleProduct->id,
+                (int) $locationId,
+                $shortagePaidQty,
+                $shortageFreeQty
+            );
         }
     }
 
@@ -176,6 +205,11 @@ class SaleProductProcessor
     {
         $totalQuantity = $this->f(($productData['quantity'] ?? 0) + $freeQuantity);
         $batchDeductions = [];
+        $shortagePaidQty = 0;
+        $shortageFreeQty = 0;
+        $backorderAllowed = $this->backorderService->canBackorderProduct($product);
+        // Business rule: only sale_order can create shortage backorders.
+        $allowsShortageBackorder = ($newStatus === 'sale_order');
 
         if (!empty($productData['batch_id']) && $productData['batch_id'] != 'all') {
             $selectedBatchId = (int) $productData['batch_id'];
@@ -194,6 +228,52 @@ class SaleProductProcessor
             // Allow cross-pool usage for sellability:
             // paid qty can fallback to free pool, free qty can fallback to paid pool.
             if ($totalAvailable < $this->f($requiredPaid + $requiredFree)) {
+                if ($backorderAllowed && $allowsShortageBackorder) {
+                    $remainingPaidQty = $requiredPaid;
+                    $remainingFreeQty = $requiredFree;
+
+                    $paidFromPaid = min($availablePaidStock, $remainingPaidQty);
+                    $remainingPaidQty = $this->f($remainingPaidQty - $paidFromPaid);
+
+                    $paidFromFree = min($availableFreeStock, $remainingPaidQty);
+                    $remainingPaidQty = $this->f($remainingPaidQty - $paidFromFree);
+
+                    $remainingFreePool = $this->f(max(0, $availableFreeStock - $paidFromFree));
+                    $freeFromFree = min($remainingFreePool, $remainingFreeQty);
+                    $remainingFreeQty = $this->f($remainingFreeQty - $freeFromFree);
+
+                    $remainingPaidPool = $this->f(max(0, $availablePaidStock - $paidFromPaid));
+                    $freeFromPaid = min($remainingPaidPool, $remainingFreeQty);
+                    $remainingFreeQty = $this->f($remainingFreeQty - $freeFromPaid);
+
+                    $paidUsedQty = $this->f($requiredPaid - $remainingPaidQty);
+                    $freeUsedQty = $this->f($requiredFree - $remainingFreeQty);
+
+                    if ($paidUsedQty > self::EPSILON || $freeUsedQty > self::EPSILON) {
+                        $this->deductBatchStock(
+                            $productData['batch_id'],
+                            $locationId,
+                            $this->f($paidUsedQty + $freeUsedQty),
+                            $stockType,
+                            $paidUsedQty,
+                            $freeUsedQty
+                        );
+
+                        $batchDeductions[] = [
+                            'batch_id' => $batch->id,
+                            'quantity' => $paidUsedQty,
+                            'paid_qty' => $paidUsedQty,
+                            'free_qty' => $freeUsedQty,
+                        ];
+                    }
+
+                    return [
+                        'deductions' => $batchDeductions,
+                        'shortage_paid' => $remainingPaidQty,
+                        'shortage_free' => $remainingFreeQty,
+                    ];
+                }
+
                 $productLabel = $product
                     ? trim(($product->product_name ?? 'Unknown Product') . ($product->sku ? " (SKU: {$product->sku})" : ''))
                     : "Product ID {$productData['product_id']}";
@@ -211,7 +291,11 @@ class SaleProductProcessor
                 'free_qty' => $freeQuantity,
             ];
 
-            return $batchDeductions;
+            return [
+                'deductions' => $batchDeductions,
+                'shortage_paid' => 0,
+                'shortage_free' => 0,
+            ];
         }
 
         $remainingPaidQty = $this->f($productData['quantity']);
@@ -302,9 +386,21 @@ class SaleProductProcessor
             ];
         }
 
-        if (in_array($newStatus, ['final', 'suspend'])) {
-            $totalShortage = $this->f($remainingPaidQty + $remainingFreeQty);
-            if ($totalShortage > 0) {
+        $totalShortage = $this->f($remainingPaidQty + $remainingFreeQty);
+        if ($totalShortage > 0) {
+            if (!$allowsShortageBackorder) {
+                $productLabel = $product
+                    ? trim(($product->product_name ?? 'Unknown Product') . ($product->sku ? " (SKU: {$product->sku})" : ''))
+                    : "Product ID {$productData['product_id']}";
+
+                throw new \Exception(
+                    "{$productLabel} does not have enough stock across all batches. " .
+                    "Requested: " . $this->f($productData['quantity'] + $freeQuantity) . ", " .
+                    "Short: {$totalShortage}"
+                );
+            }
+
+            if ($allowsShortageBackorder) {
                 Log::error("❌ INSUFFICIENT TOTAL STOCK across all batches", [
                     'sale_id' => $saleId,
                     'product_id' => $productData['product_id'],
@@ -316,17 +412,32 @@ class SaleProductProcessor
                     'total_shortage' => $totalShortage,
                     'batches_checked' => $batches->count()
                 ]);
-                throw new \Exception("Not enough stock across all batches to fulfill the sale. Product ID: {$productData['product_id']}, Total Required: " . ($productData['quantity'] + $freeQuantity) . ", Short: {$totalShortage}");
+
+                if (!$backorderAllowed) {
+                    throw new \Exception("Not enough stock across all batches to fulfill the sale. Product ID: {$productData['product_id']}, Total Required: " . ($productData['quantity'] + $freeQuantity) . ", Short: {$totalShortage}");
+                }
+
+                $shortagePaidQty = $remainingPaidQty;
+                $shortageFreeQty = $remainingFreeQty;
             }
         }
 
-        return $batchDeductions;
+        return [
+            'deductions' => $batchDeductions,
+            'shortage_paid' => $shortagePaidQty,
+            'shortage_free' => $shortageFreeQty,
+        ];
     }
 
     private function createSalesProduct($saleId, $locationId, $productData, $deduction): SalesProduct
     {
         $freeQtyForBatch = $deduction['free_qty'];
         $paidQtyForBatch = $deduction['paid_qty'];
+        $fulfilledPaidQty = $this->f($deduction['fulfilled_paid_qty'] ?? $paidQtyForBatch);
+        $fulfilledFreeQty = $this->f($deduction['fulfilled_free_qty'] ?? $freeQtyForBatch);
+        $backorderedPaidQty = $this->f($deduction['backordered_paid_qty'] ?? 0);
+        $backorderedFreeQty = $this->f($deduction['backordered_free_qty'] ?? 0);
+        $fulfillmentStatus = $deduction['fulfillment_status'] ?? (($backorderedPaidQty > 0 || $backorderedFreeQty > 0) ? 'partial' : 'fulfilled');
 
         return SalesProduct::create([
             'sale_id' => $saleId,
@@ -342,6 +453,11 @@ class SaleProductProcessor
             'discount_type' => $productData['discount_type'] ?? 'fixed',
             'tax' => $productData['tax'] ?? 0,
             'tax_percent' => $productData['tax_percent'] ?? 0,
+            'fulfilled_quantity' => $fulfilledPaidQty,
+            'fulfilled_free_quantity' => $fulfilledFreeQty,
+            'backordered_quantity' => $backorderedPaidQty,
+            'backordered_free_quantity' => $backorderedFreeQty,
+            'fulfillment_status' => $fulfillmentStatus,
             'vat_per_unit' => $productData['sale_vat_per_unit'] ?? 0,
             'vat_total' => round(($productData['sale_vat_per_unit'] ?? 0) * $paidQtyForBatch, 2),
             'sale_excl_vat_per_unit' => $productData['sale_excl_vat_per_unit'] ?? 0,
@@ -665,6 +781,26 @@ class SaleProductProcessor
     {
         $paidQuantity = $this->f($product->quantity ?? 0);
         $freeQuantity = $this->f($product->free_quantity ?? 0);
+
+        // Sale-order cancellation must restore only actually fulfilled quantities
+        // for partially allocated backorder lines. Otherwise a line like 7 ordered,
+        // 6 fulfilled would incorrectly restore 7.
+        if ($stockType === StockHistory::STOCK_TYPE_SALE_ORDER_REVERSAL) {
+            $fulfilledPaid = $this->f($product->fulfilled_quantity ?? 0);
+            $fulfilledFree = $this->f($product->fulfilled_free_quantity ?? 0);
+            $backorderedPaid = $this->f($product->backordered_quantity ?? 0);
+            $backorderedFree = $this->f($product->backordered_free_quantity ?? 0);
+
+            $isPartiallyFulfilledBackorder =
+                ($backorderedPaid > 0 || $backorderedFree > 0)
+                && ($fulfilledPaid < $paidQuantity || $fulfilledFree < $freeQuantity);
+
+            if ($isPartiallyFulfilledBackorder) {
+                $paidQuantity = $fulfilledPaid;
+                $freeQuantity = $fulfilledFree;
+            }
+        }
+
         $totalQuantityToRestore = $this->f($paidQuantity + $freeQuantity);
 
         // Unlimited stock products have no batch — skip stock update

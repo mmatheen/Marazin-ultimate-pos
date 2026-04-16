@@ -5,14 +5,18 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Location;
 use App\Models\User;
+use App\Services\User\UserAccessService;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class LocationController extends Controller
 {
+    private UserAccessService $userAccessService;
+
     public function __construct()
     {
+        $this->userAccessService = app(UserAccessService::class);
         $this->middleware('permission:view location', ['only' => ['index', 'show', 'location']]);
         $this->middleware('permission:create location', ['only' => ['store']]);
         $this->middleware('permission:edit location', ['only' => ['edit', 'update']]);
@@ -303,7 +307,7 @@ class LocationController extends Controller
 
             /** @var User $authUser */
             $authUser = Auth::user();
-            if ($authUser->is_admin && method_exists($authUser, 'locations')) {
+            if (($this->userAccessService->isAdmin($authUser) || $this->userAccessService->isSuperAdmin($authUser)) && method_exists($authUser, 'locations')) {
                 $authUser->locations()->attach($location->id);
             }
 
@@ -785,12 +789,7 @@ class LocationController extends Controller
      */
     private function isMasterSuperAdmin($user): bool
     {
-        if (!$user->relationLoaded('roles')) {
-            $user->load('roles');
-        }
-
-        return $user->roles->pluck('name')->contains('Master Super Admin') ||
-               $user->roles->pluck('key')->contains('master_super_admin');
+        return $this->userAccessService->isMasterSuperAdmin($user);
     }
 
     /**
@@ -798,18 +797,6 @@ class LocationController extends Controller
      */
     private function hasLocationBypassPermission($user): bool
     {
-        if (!$user->relationLoaded('roles')) {
-            $user->load('roles');
-        }
-
-        // Check if any role has bypass_location_scope flag
-        foreach ($user->roles as $role) {
-            if ($role->bypass_location_scope ?? false) {
-                return true;
-            }
-        }
-
-        // Check for specific permissions
-        return $user->hasPermissionTo('override location scope');
+        return $this->userAccessService->hasLocationBypassPermission($user);
     }
 }

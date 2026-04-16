@@ -189,9 +189,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/location', [LocationController::class, 'location']);
     Route::get('/location-edit/{id}', [LocationController::class, 'edit']);
     Route::get('/location-get-all', [LocationController::class, 'index']);
-    Route::post('/location-store', [LocationController::class, 'store']);
-    Route::post('/location-update/{id}', [LocationController::class, 'update']);
-    Route::delete('/location-delete/{id}', [LocationController::class, 'destroy']);
+    Route::post('/location-store', [LocationController::class, 'store'])->middleware('location.access');
+    Route::post('/location-update/{id}', [LocationController::class, 'update'])->middleware('location.access');
+    Route::delete('/location-delete/{id}', [LocationController::class, 'destroy'])->middleware('location.access');
 
     // ========================================
     // CUSTOMER MANAGEMENT

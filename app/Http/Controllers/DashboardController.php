@@ -4,19 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Models\SalesRep;
 use App\Models\User;
+use App\Services\User\UserAccessService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
-    function __construct()
+    private UserAccessService $userAccessService;
+
+    public function __construct(UserAccessService $userAccessService)
     {
+        $this->userAccessService = $userAccessService;
         $this->middleware('permission:view dashboard', ['only' => ['index', 'getDashboardData']]);
-        $this->middleware('permission:view sales-analytics', ['only' => ['getSalesAnalytics']]);
-        $this->middleware('permission:view purchase-analytics', ['only' => ['getPurchaseAnalytics']]);
-        $this->middleware('permission:view stock-analytics', ['only' => ['getStockAnalytics']]);
-        $this->middleware('permission:view financial-overview', ['only' => ['getFinancialOverview']]);
     }
 
 
@@ -379,27 +379,12 @@ class DashboardController extends Controller
 
     private function isDashboardMasterSuperAdmin(User $user): bool
     {
-        if (!$user->relationLoaded('roles')) {
-            $user->load('roles');
-        }
-
-        return $user->roles->pluck('name')->contains('Master Super Admin')
-            || $user->roles->pluck('key')->contains('master_super_admin');
+        return $this->userAccessService->isMasterSuperAdmin($user);
     }
 
     private function hasDashboardLocationBypass(User $user): bool
     {
-        if (!$user->relationLoaded('roles')) {
-            $user->load('roles');
-        }
-
-        foreach ($user->roles as $role) {
-            if ($role->bypass_location_scope ?? false) {
-                return true;
-            }
-        }
-
-        return $user->hasPermissionTo('override location scope');
+        return $this->userAccessService->hasLocationBypassPermission($user);
     }
 
     private function getSalesRepPermittedLocationIds(User $user): array
@@ -430,9 +415,6 @@ class DashboardController extends Controller
     // Clear cache when sales, purchases, or products are updated
     public function clearDashboardCache()
     {
-        $userId = auth()->id();
-        $pattern = "dashboard_data_{$userId}_*";
-
         // Clear all dashboard cache for this user
         Cache::flush(); // Or use more specific cache clearing based on your cache driver
 

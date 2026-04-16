@@ -29,8 +29,10 @@ use Carbon\Carbon;
 use App\Events\StockUpdated;
 use App\Models\Discount;
 use App\Models\ImeiNumber;
+use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
 use App\Services\TaxConfigurationService;
+use App\Services\User\UserAccessService;
 
 class ProductController extends Controller
 {
@@ -549,31 +551,9 @@ class ProductController extends Controller
             return collect([]);
         }
 
-        // Load user roles if not already loaded
-        if (!$user->relationLoaded('roles')) {
-            $user->load('roles');
-        }
-
-        // Check if user is Master Super Admin or has bypass permission
-        $isMasterSuperAdmin = $user->roles->pluck('name')->contains('Master Super Admin') ||
-                              $user->roles->pluck('key')->contains('master_super_admin');
-
-        $hasBypassPermission = false;
-        foreach ($user->roles as $role) {
-            if ($role->bypass_location_scope ?? false) {
-                $hasBypassPermission = true;
-                break;
-            }
-        }
-
-        if (!$hasBypassPermission) {
-            try {
-                $hasBypassPermission = $user->hasPermissionTo('override location scope');
-            } catch (\Exception $e) {
-                // Permission doesn't exist, continue without bypass
-                $hasBypassPermission = false;
-            }
-        }
+        $userAccessService = app(UserAccessService::class);
+        $isMasterSuperAdmin = $userAccessService->isMasterSuperAdmin($user);
+        $hasBypassPermission = $userAccessService->hasLocationBypassPermission($user);
 
         if ($isMasterSuperAdmin || $hasBypassPermission) {
             // Master Super Admin or users with bypass permission see all locations
@@ -2762,6 +2742,10 @@ class ProductController extends Controller
         $locationId = $request->input('location_id');
         $search = $request->input('search');
         $context = $request->input('context', 'pos');
+        $backordersEnabled = (bool) (Setting::value('enable_backorders') ?? 0);
+        $allowBackorderSearch = $context === 'pos'
+            && $backordersEnabled
+            && $request->boolean('allow_backorder_search');
         // POS: small page for desktop-like speed; purchase/others can pass per_page
         $perPage = (int) $request->input('per_page', $context === 'pos' ? 15 : 100);
 
@@ -2794,21 +2778,29 @@ class ProductController extends Controller
         ])
         // Only show active products in POS/autocomplete
         ->where('is_active', true)
-        // For POS: filter by location and show only products with stock > 0.
+        // For POS: by default show only products with stock > 0.
+        // If backorder search is explicitly enabled, also include 0-stock items
+        // that are mapped at the selected location so sale-order backorder flow
+        // can search and add them.
         // For purchase context: skip the qty>0 filter so all products (including 0 stock) are searchable.
-        ->when($locationId && $context !== 'purchase', function ($query) use ($locationId) {
-            return $query->where(function ($q) use ($locationId) {
+        ->when($locationId && $context !== 'purchase', function ($query) use ($locationId, $allowBackorderSearch) {
+            return $query->where(function ($q) use ($locationId, $allowBackorderSearch) {
                 // Unlimited stock products are always visible regardless of location
                 $q->where('stock_alert', 0)
-                  // OR products that have paid qty > 0 at the selected location
-                  ->orWhereHas('batches.locationBatches', function ($inner) use ($locationId) {
-                      $inner->where('location_id', $locationId)
-                            ->where('qty', '>', 0);
-                  })
-                  // ✅ FIX: OR products that have free qty > 0 at the selected location
-                  ->orWhereHas('batches.locationBatches', function ($inner) use ($locationId) {
-                      $inner->where('location_id', $locationId)
-                            ->where('free_qty', '>', 0);
+                  // Backorder-enabled POS can search 0-stock items mapped to this location.
+                  ->when($allowBackorderSearch, function ($qb) use ($locationId) {
+                      $qb->orWhereHas('batches.locationBatches', function ($inner) use ($locationId) {
+                          $inner->where('location_id', $locationId);
+                      });
+                  }, function ($qb) use ($locationId) {
+                      // Otherwise keep strict visibility: only positive paid/free stock.
+                      $qb->orWhereHas('batches.locationBatches', function ($inner) use ($locationId) {
+                          $inner->where('location_id', $locationId)
+                                ->where('qty', '>', 0);
+                      })->orWhereHas('batches.locationBatches', function ($inner) use ($locationId) {
+                          $inner->where('location_id', $locationId)
+                                ->where('free_qty', '>', 0);
+                      });
                   });
             });
         });

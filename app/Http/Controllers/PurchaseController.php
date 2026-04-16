@@ -9,6 +9,7 @@ use App\Models\Ledger;
 use App\Models\ImeiNumber;
 use App\Services\UnifiedLedgerService;
 use App\Services\PaymentService;
+use App\Services\Inventory\BackorderService;
 use App\Services\PosVatCalculatorService;
 use App\Services\TaxConfigurationService;
 use Illuminate\Http\Request;
@@ -25,11 +26,13 @@ class PurchaseController extends Controller
 {
     protected $unifiedLedgerService;
     protected $paymentService;
+    protected $backorderService;
 
-    function __construct(UnifiedLedgerService $unifiedLedgerService, PaymentService $paymentService)
+    function __construct(UnifiedLedgerService $unifiedLedgerService, PaymentService $paymentService, BackorderService $backorderService)
     {
         $this->unifiedLedgerService = $unifiedLedgerService;
         $this->paymentService = $paymentService;
+        $this->backorderService = $backorderService;
         $this->middleware('permission:view purchase', ['only' => ['listPurchase', 'index', 'show', 'getAllPurchase', 'getAllPurchasesProduct', 'getPurchase', 'getPurchaseProductsBySupplier', 'getPurchaseImeiProducts']]);
         $this->middleware('permission:create purchase', ['only' => ['AddPurchase', 'store', 'storeOrUpdate']]);
         $this->middleware('permission:edit purchase', ['only' => ['editPurchase', 'update', 'storeOrUpdate']]);
@@ -481,7 +484,12 @@ class PurchaseController extends Controller
 
                         // ONLY update stock if there's actually a quantity change
                         if ($quantityDifference != 0 || $freeQuantityDifference != 0) {
-                            $this->updateProductStock($existingProduct, $quantityDifference, $freeQuantityDifference, $request->location_id);
+                            $this->updateProductStock(
+                                $existingProduct,
+                                $quantityDifference,
+                                $freeQuantityDifference,
+                                (int) ($existingProduct->location_id ?: $request->location_id)
+                            );
                         }
 
                         // Update purchase product record with all new data
@@ -564,7 +572,7 @@ class PurchaseController extends Controller
                     'purchase_id' => $purchase->id
                 ]);
 
-                $this->removeProductFromPurchase($productToRemove, $request->location_id);
+                $this->removeProductFromPurchase($productToRemove, (int) ($productToRemove->location_id ?: $request->location_id));
             }
         });
     }
@@ -662,6 +670,29 @@ class PurchaseController extends Controller
             ['qty' => 0, 'free_qty' => 0]
         );
 
+        // Roll back reservation-linked fulfillment for any quantity reductions.
+        // Those quantities were already consumed at purchase time by backorder auto-fulfill.
+        $released = ['paid_qty' => 0.0, 'free_qty' => 0.0];
+        $paidReduction = max(0, (float) -$quantityDifference);
+        $freeReduction = max(0, (float) -$freeQuantityDifference);
+
+        if ($paidReduction > 0 || $freeReduction > 0) {
+            $released = $this->backorderService->releasePurchaseReservationsForPurchaseProduct(
+                (int) $existingProduct->purchase_id,
+                (int) $existingProduct->id,
+                (int) $existingProduct->product_id,
+                (int) $locationId,
+                (int) $existingProduct->batch_id,
+                (float) $paidReduction,
+                (float) $freeReduction,
+                true
+            );
+        }
+
+        // Only decrement inventory for the net reduction not already consumed via reservation fulfillment.
+        $effectiveQuantityDifference = $quantityDifference + (float) ($released['paid_qty'] ?? 0);
+        $effectiveFreeQuantityDifference = $freeQuantityDifference + (float) ($released['free_qty'] ?? 0);
+
         // Store original quantities for logging
         $originalLocationPaidQty = $locationBatch->qty;
         $originalLocationFreeQty = $locationBatch->free_qty ?? 0;
@@ -669,35 +700,35 @@ class PurchaseController extends Controller
         $originalBatchFreeQty = $batch->free_qty ?? 0;
 
         // Validate stock reduction for paid quantities
-        if ($originalLocationPaidQty + $quantityDifference < 0) {
-            throw new \Exception("Paid stock quantity cannot be reduced below zero. Location paid stock: {$originalLocationPaidQty}, trying to change by: {$quantityDifference}");
+        if ($originalLocationPaidQty + $effectiveQuantityDifference < 0) {
+            throw new \Exception("Paid stock quantity cannot be reduced below zero. Location paid stock: {$originalLocationPaidQty}, trying to change by: {$effectiveQuantityDifference}");
         }
 
-        if ($originalBatchPaidQty + $quantityDifference < 0) {
-            throw new \Exception("Batch paid stock quantity cannot be reduced below zero. Batch paid stock: {$originalBatchPaidQty}, trying to change by: {$quantityDifference}");
+        if ($originalBatchPaidQty + $effectiveQuantityDifference < 0) {
+            throw new \Exception("Batch paid stock quantity cannot be reduced below zero. Batch paid stock: {$originalBatchPaidQty}, trying to change by: {$effectiveQuantityDifference}");
         }
 
         // Validate stock reduction for free quantities
-        if ($originalLocationFreeQty + $freeQuantityDifference < 0) {
-            throw new \Exception("Free stock quantity cannot be reduced below zero. Location free stock: {$originalLocationFreeQty}, trying to change by: {$freeQuantityDifference}");
+        if ($originalLocationFreeQty + $effectiveFreeQuantityDifference < 0) {
+            throw new \Exception("Free stock quantity cannot be reduced below zero. Location free stock: {$originalLocationFreeQty}, trying to change by: {$effectiveFreeQuantityDifference}");
         }
 
-        if ($originalBatchFreeQty + $freeQuantityDifference < 0) {
-            throw new \Exception("Batch free stock quantity cannot be reduced below zero. Batch free stock: {$originalBatchFreeQty}, trying to change by: {$freeQuantityDifference}");
+        if ($originalBatchFreeQty + $effectiveFreeQuantityDifference < 0) {
+            throw new \Exception("Batch free stock quantity cannot be reduced below zero. Batch free stock: {$originalBatchFreeQty}, trying to change by: {$effectiveFreeQuantityDifference}");
         }
 
         // CRITICAL: Use DB transaction to ensure atomicity
-        DB::transaction(function () use ($locationBatch, $batch, $quantityDifference, $freeQuantityDifference, $existingProduct) {
+        DB::transaction(function () use ($locationBatch, $batch, $effectiveQuantityDifference, $effectiveFreeQuantityDifference, $existingProduct) {
             // Update location batch paid and free quantities separately
-            $locationBatch->increment('qty', $quantityDifference); // Paid qty
-            $locationBatch->increment('free_qty', $freeQuantityDifference); // Free qty
+            $locationBatch->increment('qty', $effectiveQuantityDifference); // Paid qty
+            $locationBatch->increment('free_qty', $effectiveFreeQuantityDifference); // Free qty
 
             // Update batch paid and free quantities separately
-            $batch->increment('qty', $quantityDifference); // Paid qty
-            $batch->increment('free_qty', $freeQuantityDifference); // Free qty
+            $batch->increment('qty', $effectiveQuantityDifference); // Paid qty
+            $batch->increment('free_qty', $effectiveFreeQuantityDifference); // Free qty
 
             // Create stock history record for total change
-            $totalQuantityDifference = $quantityDifference + $freeQuantityDifference;
+            $totalQuantityDifference = $effectiveQuantityDifference + $effectiveFreeQuantityDifference;
             StockHistory::create([
                 'loc_batch_id' => $locationBatch->id,
                 'quantity' => $totalQuantityDifference,
@@ -706,7 +737,33 @@ class PurchaseController extends Controller
                 'reference_type' => 'purchase_edit'
             ]);
 
+            $positivePaidQty = max(0, $effectiveQuantityDifference);
+            $positiveFreeQty = max(0, $effectiveFreeQuantityDifference);
+
+            if ($positivePaidQty > 0 || $positiveFreeQty > 0) {
+                $this->backorderService->reserveFromPurchase(
+                    (int) $existingProduct->purchase_id,
+                    (int) $existingProduct->id,
+                    (int) $existingProduct->product_id,
+                    (int) $locationBatch->location_id,
+                    (int) $batch->id,
+                    (float) $positivePaidQty,
+                    (float) $positiveFreeQty
+                );
+            }
+
         });
+
+        Log::info('Applied purchase stock update with reservation-aware deltas', [
+            'purchase_product_id' => $existingProduct->id,
+            'product_id' => $existingProduct->product_id,
+            'requested_qty_diff' => $quantityDifference,
+            'requested_free_qty_diff' => $freeQuantityDifference,
+            'released_reserved_paid_qty' => $released['paid_qty'] ?? 0,
+            'released_reserved_free_qty' => $released['free_qty'] ?? 0,
+            'effective_qty_diff' => $effectiveQuantityDifference,
+            'effective_free_qty_diff' => $effectiveFreeQuantityDifference,
+        ]);
     }
 
     private function addNewProductToPurchase($purchase, $productData, $locationId, $purchaseType = 'regular', float $taxPercent = 0.0)
@@ -788,7 +845,7 @@ class PurchaseController extends Controller
         $locationBatch->increment('free_qty', $freeQuantity); // Free quantity
 
         // Create purchase product record with both quantities tracked
-        $purchase->purchaseProducts()->updateOrCreate(
+        $purchaseProduct = $purchase->purchaseProducts()->updateOrCreate(
             ['product_id' => $productData['product_id'], 'batch_id' => $batch->id, 'purchase_id' => $purchase->id],
             [
                 'quantity' => $productData['quantity'], // Keep original quantity for record-keeping
@@ -817,6 +874,16 @@ class PurchaseController extends Controller
             'stock_type' => StockHistory::STOCK_TYPE_PURCHASE,
         ]);
 
+        $this->backorderService->reserveFromPurchase(
+            (int) $purchase->id,
+            (int) $purchaseProduct->id,
+            (int) $productData['product_id'],
+            (int) $locationId,
+            (int) $batch->id,
+            (float) $paidQuantity,
+            (float) $freeQuantity
+        );
+
         // Handle IMEI numbers if provided
         if (isset($productData['imei_numbers']) && !empty($productData['imei_numbers'])) {
             $this->processImeiNumbers($productData, $batch->id, $locationId);
@@ -838,25 +905,62 @@ class PurchaseController extends Controller
             throw new \Exception("Location batch not found while removing purchase product. Batch ID: {$batch->id}, Location ID: {$locationId}");
         }
 
-        // Remove paid and free quantities separately
-        $paidQuantityToRemove = $productToRemove->quantity;
-        $freeQuantityToRemove = $productToRemove->free_quantity ?? 0;
+        // Roll back backorder reservations created from this purchase-product row.
+        // Reserved quantities were already consumed during auto-fulfill, so do not decrement them again.
+        $released = $this->backorderService->releasePurchaseReservationsForPurchaseProduct(
+            (int) $productToRemove->purchase_id,
+            (int) $productToRemove->id,
+            (int) $productToRemove->product_id,
+            (int) $locationId,
+            (int) $batch->id,
+            null,
+            null,
+            true
+        );
+
+        // Remove only the remaining (non-reserved) stock from inventory.
+        $paidQuantityToRemove = max(0, (float) $productToRemove->quantity - (float) ($released['paid_qty'] ?? 0));
+        $freeQuantityToRemove = max(0, (float) ($productToRemove->free_quantity ?? 0) - (float) ($released['free_qty'] ?? 0));
         $totalQuantityToRemove = $paidQuantityToRemove + $freeQuantityToRemove;
 
-        $locationBatch->decrement('qty', $paidQuantityToRemove); // Paid qty
-        $locationBatch->decrement('free_qty', $freeQuantityToRemove); // Free qty
+        if ($paidQuantityToRemove > (float) $locationBatch->qty + 0.0001 || $freeQuantityToRemove > (float) ($locationBatch->free_qty ?? 0) + 0.0001) {
+            throw new \Exception(
+                "Cannot remove purchase product due to insufficient location stock after backorder release. " .
+                "Need paid/free {$paidQuantityToRemove}/{$freeQuantityToRemove}, " .
+                "available paid/free {$locationBatch->qty}/" . ($locationBatch->free_qty ?? 0) . "."
+            );
+        }
 
-        $batch->decrement('qty', $paidQuantityToRemove); // Paid qty
-        $batch->decrement('free_qty', $freeQuantityToRemove); // Free qty
+        if ($paidQuantityToRemove > (float) $batch->qty + 0.0001 || $freeQuantityToRemove > (float) ($batch->free_qty ?? 0) + 0.0001) {
+            throw new \Exception(
+                "Cannot remove purchase product due to insufficient batch stock after backorder release. " .
+                "Need paid/free {$paidQuantityToRemove}/{$freeQuantityToRemove}, " .
+                "available paid/free {$batch->qty}/" . ($batch->free_qty ?? 0) . "."
+            );
+        }
 
-        StockHistory::create([
-            'loc_batch_id' => $locationBatch->id,
-            'quantity' => -$totalQuantityToRemove,
-            'stock_type' => StockHistory::STOCK_TYPE_PURCHASE,
-        ]);
+        if ($paidQuantityToRemove > 0) {
+            $locationBatch->decrement('qty', $paidQuantityToRemove); // Paid qty
+            $batch->decrement('qty', $paidQuantityToRemove); // Paid qty
+        }
+
+        if ($freeQuantityToRemove > 0) {
+            $locationBatch->decrement('free_qty', $freeQuantityToRemove); // Free qty
+            $batch->decrement('free_qty', $freeQuantityToRemove); // Free qty
+        }
+
+        if ($totalQuantityToRemove > 0) {
+            StockHistory::create([
+                'loc_batch_id' => $locationBatch->id,
+                'quantity' => -$totalQuantityToRemove,
+                'stock_type' => StockHistory::STOCK_TYPE_PURCHASE,
+            ]);
+        }
 
         Log::info('Removed product from purchase with paid and free quantities separately', [
             'product_id' => $productToRemove->product_id,
+            'released_reserved_paid_qty' => $released['paid_qty'] ?? 0,
+            'released_reserved_free_qty' => $released['free_qty'] ?? 0,
             'paid_quantity_removed' => $paidQuantityToRemove,
             'free_quantity_removed' => $freeQuantityToRemove,
             'total_quantity_removed' => $totalQuantityToRemove,
@@ -1050,6 +1154,80 @@ class PurchaseController extends Controller
         }
 
         return response()->json($purchase);
+    }
+
+    public function destroy($id)
+    {
+        try {
+            $purchase = Purchase::with(['purchaseProducts', 'payments'])->find($id);
+
+            if (!$purchase) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => 'Purchase not found.'
+                ], 404);
+            }
+
+            if ($purchase->payments->isNotEmpty()) {
+                return response()->json([
+                    'status' => 422,
+                    'message' => 'Cannot delete purchase because payments exist. Please remove purchase payments first.'
+                ], 422);
+            }
+
+            if ($purchase->claimReceipts()->exists()) {
+                return response()->json([
+                    'status' => 422,
+                    'message' => 'Cannot delete purchase because free-claim receipt records exist for this purchase.'
+                ], 422);
+            }
+
+            DB::transaction(function () use ($purchase) {
+                // Remove each purchase line with reservation-aware rollback and stock safety checks.
+                foreach ($purchase->purchaseProducts as $purchaseProduct) {
+                    $this->removeProductFromPurchase(
+                        $purchaseProduct,
+                        (int) ($purchaseProduct->location_id ?: $purchase->location_id)
+                    );
+                }
+
+                // If this purchase is a free-claim receipt, sync the original purchase claim status.
+                $originalClaimId = $purchase->claim_reference_id;
+
+                $purchase->delete();
+
+                if ($originalClaimId) {
+                    $this->syncClaimStatus((int) $originalClaimId);
+                }
+            });
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Purchase deleted successfully.'
+            ]);
+        } catch (\Exception $e) {
+            $message = $e->getMessage();
+
+            // Surface clear business messages for stock-consumption related blocks.
+            if (str_contains($message, 'insufficient location stock after backorder release') ||
+                str_contains($message, 'insufficient batch stock after backorder release')) {
+                return response()->json([
+                    'status' => 422,
+                    'message' => 'Cannot delete this purchase because some purchased stock is already consumed by sales/stock movements.'
+                ], 422);
+            }
+
+            Log::error('Purchase delete failed', [
+                'purchase_id' => $id,
+                'error' => $message,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to delete purchase: ' . $message,
+            ], 500);
+        }
     }
 
     public function getPurchaseProductsBySupplier($supplierId, Request $request)

@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\User\UserAccessService;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -10,6 +11,10 @@ use Symfony\Component\HttpFoundation\Response;
 
 class ValidateLocationAccess
 {
+    public function __construct(private readonly UserAccessService $userAccessService)
+    {
+    }
+
     /**
      * Handle an incoming request.
      *
@@ -36,7 +41,10 @@ class ValidateLocationAccess
         }
 
         // Validate location access from various request parameters
-        $this->validateLocationParameters($request, $user);
+        $validationResponse = $this->validateLocationParameters($request, $user);
+        if ($validationResponse instanceof Response) {
+            return $validationResponse;
+        }
 
         return $next($request);
     }
@@ -44,34 +52,59 @@ class ValidateLocationAccess
     /**
      * Validate location parameters in the request
      */
-    private function validateLocationParameters(Request $request, $user)
+    private function validateLocationParameters(Request $request, $user): ?Response
     {
-        $locationFields = ['location_id', 'selected_location'];
-        $userLocationIds = $this->getUserLocationIds($user);
+        $locationFields = ['location_id', 'selected_location', 'selectedLocation'];
+        $userLocationIds = array_map('intval', $this->getUserLocationIds($user));
 
         foreach ($locationFields as $field) {
-            $locationId = $request->input($field) ?? $request->header('X-Selected-Location');
-            
-            if ($locationId && !empty($userLocationIds)) {
-                if (!in_array($locationId, $userLocationIds)) {
+            $rawLocationValue = $request->input($field);
+            if ($rawLocationValue === null && $field === 'selected_location') {
+                $rawLocationValue = $request->header('X-Selected-Location');
+            }
+
+            $locationValues = is_array($rawLocationValue) ? $rawLocationValue : [$rawLocationValue];
+
+            foreach ($locationValues as $locationValue) {
+                if ($locationValue === null || $locationValue === '') {
+                    continue;
+                }
+
+                // Some forms use a non-numeric `location_id` code (e.g., LOC0001).
+                // Only validate numeric values that represent real location IDs.
+                if (!is_numeric($locationValue)) {
+                    continue;
+                }
+
+                $locationId = (int) $locationValue;
+
+                if (!empty($userLocationIds) && !in_array($locationId, $userLocationIds, true)) {
                     Log::warning("LocationAccessMiddleware: User {$user->id} attempted to access unauthorized location {$locationId}");
-                    
-                    // For web requests, redirect with error
+
                     if ($request->expectsJson()) {
-                        abort(403, 'You do not have access to this location.');
-                    } else {
-                        return redirect()->back()->with('error', 'You do not have access to the requested location.');
+                        return response()->json([
+                            'status' => 403,
+                            'message' => 'You do not have access to this location.'
+                        ], 403);
                     }
+
+                    return redirect()->back()->with('error', 'You do not have access to the requested location.');
                 }
             }
         }
 
         // Validate location selection in session
         $selectedLocation = session('selected_location');
-        if ($selectedLocation && !empty($userLocationIds) && !in_array($selectedLocation, $userLocationIds)) {
-            Log::warning("LocationAccessMiddleware: User {$user->id} has unauthorized location in session {$selectedLocation}");
-            session()->forget('selected_location');
+        if ($selectedLocation && is_numeric($selectedLocation) && !empty($userLocationIds)) {
+            $selectedLocationId = (int) $selectedLocation;
+            if (!in_array($selectedLocationId, $userLocationIds, true)) {
+                Log::warning("LocationAccessMiddleware: User {$user->id} has unauthorized location in session {$selectedLocationId}");
+                session()->forget('selected_location');
+                session()->forget('selectedLocation');
+            }
         }
+
+        return null;
     }
 
     /**
@@ -79,12 +112,7 @@ class ValidateLocationAccess
      */
     private function isMasterSuperAdmin($user): bool
     {
-        if (!$user->relationLoaded('roles')) {
-            $user->load('roles');
-        }
-
-        return $user->roles->pluck('name')->contains('Master Super Admin') || 
-               $user->roles->pluck('key')->contains('master_super_admin');
+        return $this->userAccessService->isMasterSuperAdmin($user);
     }
 
     /**
@@ -92,19 +120,7 @@ class ValidateLocationAccess
      */
     private function hasLocationBypassPermission($user): bool
     {
-        if (!$user->relationLoaded('roles')) {
-            $user->load('roles');
-        }
-
-        // Check if any role has bypass_location_scope flag
-        foreach ($user->roles as $role) {
-            if ($role->bypass_location_scope ?? false) {
-                return true;
-            }
-        }
-
-        // Check for specific permissions
-        return $user->hasPermissionTo('override location scope');
+        return $this->userAccessService->hasLocationBypassPermission($user);
     }
 
     /**
@@ -113,11 +129,7 @@ class ValidateLocationAccess
     private function getUserLocationIds($user): array
     {
         try {
-            if (!$user->relationLoaded('locations')) {
-                $user->load('locations');
-            }
-
-            return $user->locations->pluck('id')->toArray();
+            return $this->userAccessService->getUserLocationIds($user);
         } catch (\Exception $e) {
             Log::warning("LocationAccessMiddleware: Failed to load user locations: " . $e->getMessage());
             return [];

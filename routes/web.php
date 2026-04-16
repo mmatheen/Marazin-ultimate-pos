@@ -87,7 +87,7 @@ Route::middleware(['auth'])->group(function () {
 
     // -------------------- Dynamic Role Middleware --------------------
     Route::group(['middleware' => function ($request, $next) {
-        $role = Auth::user()->role_name ?? null;
+        $role = Auth::user()?->getRoleName();
         if ($role) {
             $request->route()->middleware("role:$role");
         }
@@ -106,9 +106,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/user', [UserController::class, 'user'])->name('user');
         Route::get('/user-edit/{id}', [UserController::class, 'edit']);
         Route::get('/user-get-all', [UserController::class, 'index']);
-        Route::post('/user-store', [UserController::class, 'store']);
-        Route::post('/user-update/{id}', [UserController::class, 'update']);
-        Route::delete('/user-delete/{id}', [UserController::class, 'destroy']);
+        Route::post('/user-store', [UserController::class, 'store'])->middleware('location.access');
+        Route::post('/user-update/{id}', [UserController::class, 'update'])->middleware('location.access');
+        Route::delete('/user-delete/{id}', [UserController::class, 'destroy'])->middleware('location.access');
 
          // -------------------- RoleController Routes --------------------
         Route::get('/role', [RoleController::class, 'role'])->name('role');
@@ -133,9 +133,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/supplier', [SupplierController::class, 'supplier'])->name('supplier');
         Route::get('/supplier-edit/{id}', [SupplierController::class, 'edit']);
         Route::get('/supplier-get-all', [SupplierController::class, 'index']);
-        Route::post('/supplier-store', [SupplierController::class, 'store']);
-        Route::post('/supplier-update/{id}', [SupplierController::class, 'update']);
-        Route::delete('/supplier-delete/{id}', [SupplierController::class, 'destroy']);
+        Route::post('/supplier-store', [SupplierController::class, 'store'])->middleware('location.access');
+        Route::post('/supplier-update/{id}', [SupplierController::class, 'update'])->middleware('location.access');
+        Route::delete('/supplier-delete/{id}', [SupplierController::class, 'destroy'])->middleware('location.access');
 
         // -------------------- CustomerController Routes --------------------
         Route::get('/customer', [CustomerController::class, 'customer'])->name('customer');
@@ -144,9 +144,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/customers-with-bounced-cheques', [CustomerController::class, 'getCustomersWithBouncedCheques']);
         Route::get('/customer-get-by-route/{routeId}', [CustomerController::class, 'getCustomersByRoute']);
         Route::post('/customers/filter-by-cities', [CustomerController::class, 'filterByCities']);
-        Route::post('/customer-store', [CustomerController::class, 'store']);
-        Route::post('/customer-update/{id}', [CustomerController::class, 'update']);
-        Route::delete('/customer-delete/{id}', [CustomerController::class, 'destroy']);
+        Route::post('/customer-store', [CustomerController::class, 'store'])->middleware('location.access');
+        Route::post('/customer-update/{id}', [CustomerController::class, 'update'])->middleware('location.access');
+        Route::delete('/customer-delete/{id}', [CustomerController::class, 'destroy'])->middleware('location.access');
         Route::get('/customer-get-by-id/{id}', [CustomerController::class, 'show']);
         Route::get('/customer/view-contact/{id}/{slug?}', [CustomerController::class, 'viewContact'])->name('customer.view-contact');
         Route::get('/customer-export', [CustomerController::class, 'export'])->name('customer.export');
@@ -325,6 +325,7 @@ Route::middleware(['auth'])->group(function () {
         // -------------------- end Supplier Free Claim Routes --------------------
         Route::post('/purchases/store', [PurchaseController::class, 'storeOrUpdate']);
         Route::post('/purchases/update/{id}', [PurchaseController::class, 'storeOrUpdate']);
+        Route::delete('/purchases/delete/{id}', [PurchaseController::class, 'destroy'])->name('purchases.destroy');
         Route::get('/get-all-purchases', [PurchaseController::class, 'getAllPurchase']);
         Route::get('/get-purchase/{id}', [PurchaseController::class, 'getPurchase']);
         Route::get('/get-all-purchases-product/{id}', [PurchaseController::class, 'getAllPurchasesProduct']);
@@ -547,6 +548,8 @@ Route::middleware(['auth'])->group(function () {
 
         // -------------------- ReportController Routes --------------------
         Route::get('/stock-report', [ReportController::class, 'stockHistory'])->name('stock.report');
+        Route::get('/backorder-report', [ReportController::class, 'backorderReport'])->name('backorder.report');
+        Route::post('/backorder-report-data', [ReportController::class, 'backorderReportData'])->name('backorder.report.data');
         Route::get('/account-ledger', [ReportController::class, 'accountLedger'])->name('account.ledger');
         Route::get('/account_ledger', function () {
             $qs = request()->getQueryString();
@@ -581,9 +584,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/location', [LocationController::class, 'location'])->name('location');
         Route::get('/location-edit/{id}', [LocationController::class, 'edit']);
         Route::get('/location-get-all', [LocationController::class, 'index']);
-        Route::post('/location-store', [LocationController::class, 'store']);
-        Route::post('/location-update/{id}', [LocationController::class, 'update']);
-        Route::delete('/location-delete/{id}', [LocationController::class, 'destroy']);
+        Route::post('/location-store', [LocationController::class, 'store'])->middleware('location.access');
+        Route::post('/location-update/{id}', [LocationController::class, 'update'])->middleware('location.access');
+        Route::delete('/location-delete/{id}', [LocationController::class, 'destroy'])->middleware('location.access');
 
         // Receipt Settings Routes
         Route::get('/receipt-settings/{locationId}', [ReceiptSettingsController::class, 'show'])->name('receipt.settings.show');
@@ -604,6 +607,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/site-settings/update', [SettingController::class, 'update'])->name('settings.update');
         Route::post('/site-settings/update-price-validation', [SettingController::class, 'updatePriceValidation'])->name('settings.update-price-validation');
         Route::post('/site-settings/update-free-qty', [SettingController::class, 'updateFreeQty'])->name('settings.update-free-qty');
+        Route::post('/site-settings/update-backorders', [SettingController::class, 'updateBackorders'])->name('settings.update-backorders');
         Route::post('/site-settings/update-sms-settings', [SettingController::class, 'updateSmsSettings'])->name('settings.update-sms-settings');
         Route::post('/site-settings/send-sms', [SettingController::class, 'sendSms'])->name('settings.send-sms');
         Route::post('/site-settings/backup-now', [SettingController::class, 'backupNow'])->name('settings.backup-now');

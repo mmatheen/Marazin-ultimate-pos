@@ -15,7 +15,7 @@ class SettingController extends Controller
     function __construct()
     {
         $this->middleware('permission:view settings', ['only' => ['index']]);
-        $this->middleware('permission:edit business-settings', ['only' => ['update', 'updatePriceValidation', 'updateFreeQty']]);
+        $this->middleware('permission:edit business-settings', ['only' => ['update', 'updatePriceValidation', 'updateFreeQty', 'updateBackorders']]);
         $this->middleware('permission:edit sms-settings', ['only' => ['updateSmsSettings']]);
         $this->middleware('permission:sms.send', ['only' => ['sendSms']]);
     }
@@ -112,6 +112,25 @@ class SettingController extends Controller
             'status' => true,
             'message' => 'Free quantity setting updated.',
             'data' => ['enable_free_qty' => (int) $validated['enable_free_qty']],
+        ]);
+    }
+
+    /**
+     * Update only Backorders toggle (individual card save)
+     * 1 = Allow sale-order shortage as backorder, 0 = Strict stock only
+     */
+    public function updateBackorders(Request $request)
+    {
+        $validated = $request->validate([
+            'enable_backorders' => 'required|in:0,1',
+        ]);
+        $setting = Setting::first();
+        $setting->update($validated);
+        Cache::forget('active_setting');
+        return response()->json([
+            'status' => true,
+            'message' => 'Backorder setting updated.',
+            'data' => ['enable_backorders' => (int) $validated['enable_backorders']],
         ]);
     }
 

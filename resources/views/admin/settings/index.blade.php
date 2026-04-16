@@ -158,6 +158,38 @@
             </div>
             @endif
 
+            {{-- Card 4: Backorders — saves to DB on toggle change --}}
+            @if(auth()->user()->hasRole('Master Super Admin'))
+            <div class="card shadow-sm rounded-4 border-0 mt-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0 text-dark">Backorder Feature</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                        <div>
+                            <h6 class="mb-1">Enable Backorders (Sale Order Shortage)</h6>
+                            <p class="text-muted small mb-0">
+                                <strong>ON:</strong> Sale orders can capture shortage as pending backorder<br>
+                                <strong>OFF:</strong> Strict stock enforcement; no shortage backorder is created
+                            </p>
+                        </div>
+                        <div class="form-check form-switch" style="transform: scale(1.5);">
+                            <input class="form-check-input" type="checkbox" role="switch"
+                                name="enable_backorders" id="enable_backorders"
+                                data-save-url="{{ route('settings.update-backorders') }}"
+                                {{ old('enable_backorders', $setting->enable_backorders ?? 0) ? 'checked' : '' }}>
+                        </div>
+                    </div>
+                    <div class="alert alert-info mt-3 mb-0 small">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <small>
+                            Applies to <strong>sale order</strong> flow. Normal final POS billing remains strict.
+                        </small>
+                    </div>
+                </div>
+            </div>
+            @endif
+
             @can('edit sms-settings')
             <div class="card shadow-sm rounded-4 border-0 mt-4">
                 <div class="card-header bg-light d-flex justify-content-between align-items-center">
@@ -344,6 +376,24 @@ $('#enable_free_qty').on('change', function () {
         url: url,
         type: 'POST',
         data: { enable_free_qty: value, _token: $('meta[name="csrf-token"]').attr('content') },
+        success: function (res) {
+            if (res.status) toastr.success(res.message);
+            else toastr.error(res.message || 'Failed.');
+        },
+        error: function (xhr) {
+            toastr.error(xhr.responseJSON?.message || 'Please fix the errors.');
+        }
+    });
+});
+
+// Card 4: save backorders on toggle change
+$('#enable_backorders').on('change', function () {
+    var url = $(this).data('save-url');
+    var value = $(this).prop('checked') ? 1 : 0;
+    $.ajax({
+        url: url,
+        type: 'POST',
+        data: { enable_backorders: value, _token: $('meta[name="csrf-token"]').attr('content') },
         success: function (res) {
             if (res.status) toastr.success(res.message);
             else toastr.error(res.message || 'Failed.');

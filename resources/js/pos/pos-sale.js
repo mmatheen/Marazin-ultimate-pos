@@ -367,7 +367,9 @@ function buildSaleBasePayload(status) {
 }
 
 /** @returns {{ valid: boolean, message?: string }} */
-function validateBillingRow(productRow) {
+function validateBillingRow(productRow, options = {}) {
+    const allowStockOverflow = !!options.allowStockOverflow;
+    const isUnlimitedStock = String(productRow.attr('data-unlimited-stock') || '0') === '1';
     const rowLocationId = productRow.find('.location-id').text().trim();
     if (!rowLocationId) return { valid: false, message: 'Location ID is missing for a product.' };
 
@@ -379,11 +381,15 @@ function validateBillingRow(productRow) {
     const totalQuantity = quantity + freeQuantity;
     const maxStock = parseFloat(productRow.find('.quantity-input').attr('max')) || 0;
 
-    if (totalQuantity > maxStock && maxStock > 0) {
+    if (!allowStockOverflow && !isUnlimitedStock && totalQuantity > maxStock) {
         const productName = productRow.find('.product-name').text().trim();
         return { valid: false, message: `Product "${productName}": Total quantity (${quantity} + ${freeQuantity} free = ${totalQuantity}) exceeds available stock (${maxStock}). Please reduce the quantity.` };
     }
     return { valid: true };
+}
+
+function canUseSaleOrderBackorderValidationBypass() {
+    return !!window.PosConfig?.features?.enableBackorders;
 }
 
 function buildProductPayloadFromRow(productRow) {
@@ -478,7 +484,7 @@ function buildProductPayloadFromRow(productRow) {
 // ================================================================
 //  gatherSaleData
 // ================================================================
-function gatherSaleData(status) {
+function gatherSaleData(status, options = {}) {
     // Use locationId from dropdown (synced in pos-init) so sale works when location is selected
     const locationId = window.locationId || window.selectedLocationId;
     if (!locationId) {
@@ -496,7 +502,7 @@ function gatherSaleData(status) {
 
     for (let i = 0; i < productRows.length; i++) {
         const productRow = $(productRows[i]);
-        const validation = validateBillingRow(productRow);
+        const validation = validateBillingRow(productRow, options);
         if (!validation.valid) {
             toastr.error(validation.message);
             return null;
@@ -2089,7 +2095,9 @@ $(document).ready(function() {
                 return;
             }
 
-            const saleData = gatherSaleData('final');
+            const saleData = gatherSaleData('final', {
+                allowStockOverflow: canUseSaleOrderBackorderValidationBypass(),
+            });
             if (!saleData) return;
 
             saleData.transaction_type = 'sale_order';

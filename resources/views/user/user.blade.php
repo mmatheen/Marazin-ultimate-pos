@@ -43,6 +43,7 @@
                                 <thead>
                                     <tr>
                                         <th>ID</th>
+                                        <th>Profile</th>
                                         <th>Full Name</th>
                                         <th>User Name</th>
                                         <th>Role</th>
@@ -163,6 +164,15 @@
 
                                     <div class="col-md-6">
                                         <div class="form-group local-forms">
+                                            <label>Profile Photo (Optional)</label>
+                                            <input class="form-control" id="edit_profile_image" name="profile_image"
+                                                type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png">
+                                            <span class="text-danger" id="profile_image_error"></span>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <div class="form-group local-forms">
                                             <label>Password <span class="login-danger">*</span></label>
                                             <input class="form-control pass-input1" id="edit_password" name="password"
                                                 type="password" placeholder="Enter Password">
@@ -181,6 +191,7 @@
                                             <span class="text-danger" id="confirm_password_error"></span>
                                         </div>
                                     </div>
+
                                 </div>
                             </div>
                             <div class="modal-footer">
@@ -209,6 +220,24 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Profile Image Preview Modal --}}
+        <div id="profileImageModal" class="modal fade" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="profileImageModalTitle">Profile Image Preview</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-center">
+                        <p id="profileImageModalName" class="mb-3 fw-semibold"></p>
+                        <img id="profileImageModalPreview" src="{{ asset('assets/img/profiles/default-avatar.svg') }}"
+                            alt="Profile Image" class="img-fluid rounded"
+                            style="max-height: 50vh; max-width: 80%; object-fit: contain;">
                     </div>
                 </div>
             </div>

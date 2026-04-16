@@ -4,9 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Warranty;
 use Illuminate\Http\Request;
-use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
+use Spatie\Permission\Models\Permission;
 
 class WarrantyController extends Controller
 {
@@ -30,11 +31,16 @@ class WarrantyController extends Controller
     {
         $getValue = Warranty::all();
 
-        //it will getting the login role and geting permission for role code start
-        $role = Auth::user()->role_name;
-        $adminRole = Role::findByName($role); // Or 'Super Admin', 'Manager', 'Cashier' as appropriate
-        $permissions=$adminRole->permissions->pluck('name');
-        //it will getting the login role and geting permission for role code end
+        $user = Auth::user();
+        $permissions = [];
+
+        if ($user) {
+            $permissions = Permission::query()
+                ->pluck('name')
+                ->filter(fn ($permissionName) => Gate::forUser($user)->check($permissionName))
+                ->values()
+                ->all();
+        }
 
         // $getValue = Warranty::withTrashed()->get(); // it will get all record with soft deleted records also
         if ($getValue->count() > 0) {

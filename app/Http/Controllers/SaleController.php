@@ -22,6 +22,7 @@ use App\Services\Sale\SaleEditDataBuilder;
 use App\Services\Sale\SaleReceiptService;
 use App\Services\Sale\SaleOrderConversionService;
 use App\Services\Sale\SaleQueryService;
+use App\Services\User\UserAccessService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -48,6 +49,7 @@ class SaleController extends Controller
     protected $customerPriceHistoryService;
     protected $saleOrderConversionService;
     protected $saleQueryService;
+    protected $userAccessService;
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -85,6 +87,7 @@ class SaleController extends Controller
         $this->customerPriceHistoryService = $customerPriceHistoryService;
         $this->saleOrderConversionService  = $saleOrderConversionService;
         $this->saleQueryService            = $saleQueryService;
+        $this->userAccessService           = app(UserAccessService::class);
 
         $this->middleware('permission:view all sales|view own sales', ['only' => ['listSale', 'index', 'show', 'getDataTableSales', 'salesDetails', 'fetchSuspendedSales', 'getSaleByInvoiceNo', 'searchSales']]);
         $this->middleware('permission:create sale',        ['only' => ['storeOrUpdate']]);
@@ -132,12 +135,13 @@ class SaleController extends Controller
         $locations = Location::select('id', 'name')->get();
         $customers = Customer::select('id', 'first_name', 'last_name')->get();
 
-        $isMasterSuperAdmin = $currentUser->roles->where('name', 'Master Super Admin')->count() > 0;
+        $isMasterSuperAdmin = $this->userAccessService->isMasterSuperAdmin($currentUser);
+        $masterRoleName = $this->userAccessService->masterSuperAdminRoleName();
 
         $usersQuery = User::select('id', 'full_name');
         if (!$isMasterSuperAdmin) {
-            $usersQuery->whereDoesntHave('roles', function ($roleQuery) {
-                $roleQuery->where('name', 'Master Super Admin');
+            $usersQuery->whereDoesntHave('roles', function ($roleQuery) use ($masterRoleName) {
+                $roleQuery->where('name', $masterRoleName);
             });
         }
         $users = $usersQuery->get();

@@ -29,33 +29,45 @@ class ProfitLossExport implements WithMultipleSheets
     public function sheets(): array
     {
         $sheets = [];
+        $normalized = $this->normalizeData($this->data);
 
         // Overall Summary Sheet
-        if (isset($this->data['overall'])) {
-            $sheets[] = new ProfitLossOverallSheet($this->data['overall'], $this->filters);
+        if (!empty($normalized['overall'])) {
+            $sheets[] = new ProfitLossOverallSheet($normalized['overall'], $this->filters);
         }
 
         // Product-wise Sheet
-        if (isset($this->data['products']) && count($this->data['products']) > 0) {
-            $sheets[] = new ProfitLossProductSheet($this->data['products']);
+        if (!empty($normalized['products'])) {
+            $sheets[] = new ProfitLossProductSheet($normalized['products']);
         }
 
         // Batch-wise Sheet
-        if (isset($this->data['batches']) && count($this->data['batches']) > 0) {
-            $sheets[] = new ProfitLossBatchSheet($this->data['batches']);
+        if (!empty($normalized['batches'])) {
+            $sheets[] = new ProfitLossBatchSheet($normalized['batches']);
         }
 
         // Brand-wise Sheet
-        if (isset($this->data['brands']) && count($this->data['brands']) > 0) {
-            $sheets[] = new ProfitLossBrandSheet($this->data['brands']);
+        if (!empty($normalized['brands'])) {
+            $sheets[] = new ProfitLossBrandSheet($normalized['brands']);
         }
 
         // Location-wise Sheet
-        if (isset($this->data['locations']) && count($this->data['locations']) > 0) {
-            $sheets[] = new ProfitLossLocationSheet($this->data['locations']);
+        if (!empty($normalized['locations'])) {
+            $sheets[] = new ProfitLossLocationSheet($normalized['locations']);
         }
 
         return $sheets;
+    }
+
+    private function normalizeData(array $data): array
+    {
+        return [
+            'overall' => $data['overall_summary'] ?? $data['overall'] ?? [],
+            'products' => $data['product_wise'] ?? $data['products'] ?? [],
+            'batches' => $data['batch_wise'] ?? $data['batches'] ?? [],
+            'brands' => $data['brand_wise'] ?? $data['brands'] ?? [],
+            'locations' => $data['location_wise'] ?? $data['locations'] ?? [],
+        ];
     }
 }
 
@@ -86,16 +98,29 @@ class ProfitLossOverallSheet implements FromArray, WithTitle, WithHeadings, With
 
     public function array(): array
     {
+        $totalSales = (float) ($this->data['total_sales'] ?? 0);
+        $totalCost = (float) ($this->data['total_cost'] ?? 0);
+        $grossProfit = (float) ($this->data['gross_profit'] ?? 0);
+        $profitMargin = (float) ($this->data['profit_margin'] ?? 0);
+        $totalExpenses = (float) ($this->data['total_expenses'] ?? 0);
+        $netProfit = (float) ($this->data['net_profit'] ?? 0);
+        $netProfitMargin = (float) ($this->data['net_profit_margin'] ?? 0);
+        $totalTransactions = (int) ($this->data['total_transactions'] ?? 0);
+        $averageOrderValue = (float) ($this->data['average_order_value'] ?? 0);
+        $averageQuantityPerOrder = (float) ($this->data['average_quantity_per_order'] ?? 0);
+        $averageProfitPerOrder = (float) ($this->data['average_profit_per_order'] ?? 0);
+
         return [
-            ['Total Sales', number_format($this->data['total_sales'], 2), '100.00%'],
-            ['Total Cost', number_format($this->data['total_cost'], 2), number_format(($this->data['total_cost'] / $this->data['total_sales']) * 100, 2) . '%'],
-            ['Gross Profit', number_format($this->data['gross_profit'], 2), number_format($this->data['gross_profit_margin'], 2) . '%'],
-            ['Total Expenses', number_format($this->data['total_expenses'], 2), number_format(($this->data['total_expenses'] / $this->data['total_sales']) * 100, 2) . '%'],
-            ['Net Profit', number_format($this->data['net_profit'], 2), number_format($this->data['net_profit_margin'], 2) . '%'],
+            ['Total Sales', number_format($totalSales, 2), '100.00%'],
+            ['Total Cost', number_format($totalCost, 2), $totalSales > 0 ? number_format(($totalCost / $totalSales) * 100, 2) . '%' : '0.00%'],
+            ['Gross Profit', number_format($grossProfit, 2), number_format($profitMargin, 2) . '%'],
+            ['Total Expenses', number_format($totalExpenses, 2), $totalSales > 0 ? number_format(($totalExpenses / $totalSales) * 100, 2) . '%' : '0.00%'],
+            ['Net Profit', number_format($netProfit, 2), number_format($netProfitMargin, 2) . '%'],
             [],
-            ['Products Sold', $this->data['products_sold'], ''],
-            ['Total Quantity', $this->data['total_quantity'], ''],
-            ['Average Sale Value', number_format($this->data['avg_sale_value'], 2), '']
+            ['Transactions', $totalTransactions, ''],
+            ['Average Order Value', number_format($averageOrderValue, 2), ''],
+            ['Average Quantity Per Order', number_format($averageQuantityPerOrder, 2), ''],
+            ['Average Profit Per Order', number_format($averageProfitPerOrder, 2), '']
         ];
     }
 
@@ -156,10 +181,10 @@ class ProfitLossProductSheet implements FromArray, WithTitle, WithHeadings, With
                 $product['total_quantity'],
                 number_format($product['total_sales'], 2),
                 number_format($product['total_cost'], 2),
-                number_format($product['gross_profit'] ?? $product['profit_loss'], 2),
+                number_format($product['gross_profit'] ?? $product['profit_loss'] ?? 0, 2),
                 number_format($product['profit_margin'], 2),
-                number_format($product['avg_selling_price'], 2),
-                number_format($product['avg_cost_price'] ?? $product['cost_per_unit'], 2)
+                number_format($product['avg_selling_price'] ?? 0, 2),
+                number_format($product['avg_cost_price'] ?? $product['cost_per_unit'] ?? 0, 2)
             ];
         }
         return $rows;
@@ -219,7 +244,7 @@ class ProfitLossBatchSheet implements FromArray, WithTitle, WithHeadings, WithSt
                 $batch['total_quantity'] ?? $batch['quantity_sold'],
                 number_format($batch['total_sales'], 2),
                 number_format($batch['total_cost'], 2),
-                number_format($batch['gross_profit'] ?? $batch['profit_loss'], 2),
+                number_format($batch['gross_profit'] ?? $batch['profit_loss'] ?? 0, 2),
                 number_format($batch['profit_margin'], 2),
                 $batch['expiry_date'] ?? 'N/A'
             ];
@@ -274,7 +299,7 @@ class ProfitLossBrandSheet implements FromArray, WithTitle, WithHeadings, WithSt
                 $brand['total_quantity'],
                 number_format($brand['total_sales'], 2),
                 number_format($brand['total_cost'], 2),
-                number_format($brand['profit_loss'], 2),
+                number_format($brand['gross_profit'] ?? $brand['profit_loss'] ?? 0, 2),
                 number_format($brand['profit_margin'], 2),
                 number_format($brand['avg_selling_price'], 2),
                 number_format($brand['sales_per_product'], 2)
@@ -333,7 +358,7 @@ class ProfitLossLocationSheet implements FromArray, WithTitle, WithHeadings, Wit
                 $location['total_quantity'],
                 number_format($location['total_sales'], 2),
                 number_format($location['total_cost'], 2),
-                number_format($location['profit_loss'], 2),
+                number_format($location['gross_profit'] ?? $location['profit_loss'] ?? 0, 2),
                 number_format($location['profit_margin'], 2),
                 number_format($revenueShare, 2),
                 number_format($location['avg_transaction'], 2)

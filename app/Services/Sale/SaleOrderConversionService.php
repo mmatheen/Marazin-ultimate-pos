@@ -5,6 +5,7 @@ namespace App\Services\Sale;
 use App\Models\LocationBatch;
 use App\Models\Sale;
 use App\Models\StockHistory;
+use App\Services\Inventory\BackorderService;
 use App\Services\UnifiedLedgerService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -24,15 +25,18 @@ class SaleOrderConversionService
     protected SaleProductProcessor $saleProductProcessor;
     protected UnifiedLedgerService $unifiedLedgerService;
     protected SaleNumberingService $saleNumberingService;
+    protected BackorderService $backorderService;
 
     public function __construct(
         SaleProductProcessor $saleProductProcessor,
         UnifiedLedgerService $unifiedLedgerService,
-        SaleNumberingService $saleNumberingService
+        SaleNumberingService $saleNumberingService,
+        BackorderService $backorderService
     ) {
         $this->saleProductProcessor = $saleProductProcessor;
         $this->unifiedLedgerService = $unifiedLedgerService;
         $this->saleNumberingService = $saleNumberingService;
+        $this->backorderService = $backorderService;
     }
 
     // -------------------------------------------------------------------------
@@ -163,6 +167,7 @@ class SaleOrderConversionService
                     $product,
                     StockHistory::STOCK_TYPE_SALE_ORDER_REVERSAL
                 );
+                $this->backorderService->cancelSaleBackordersForSaleProduct($product);
             }
 
             $saleOrder->order_status = 'cancelled';

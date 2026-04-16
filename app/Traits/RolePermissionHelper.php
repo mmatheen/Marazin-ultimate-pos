@@ -2,6 +2,7 @@
 
 namespace App\Traits;
 
+use App\Services\User\UserAccessService;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 use App\Models\User;
@@ -13,7 +14,7 @@ trait RolePermissionHelper
      */
     public function isMasterSuperAdmin()
     {
-        return $this->hasRole('Master Super Admin');
+        return $this->getUserAccessService()->isMasterSuperAdmin($this);
     }
 
     /**
@@ -21,7 +22,7 @@ trait RolePermissionHelper
      */
     public function isSuperAdmin()
     {
-        return $this->hasRole(['Master Super Admin', 'Super Admin']);
+        return $this->getUserAccessService()->isSuperAdmin($this);
     }
 
     /**
@@ -29,7 +30,12 @@ trait RolePermissionHelper
      */
     public function isRegularSuperAdmin()
     {
-        return $this->hasRole('Super Admin') && !$this->hasRole('Master Super Admin');
+        return $this->isSuperAdmin() && !$this->isMasterSuperAdmin();
+    }
+
+    private function getUserAccessService(): UserAccessService
+    {
+        return app(UserAccessService::class);
     }
 
     /**
@@ -129,7 +135,7 @@ trait RolePermissionHelper
         }
 
         // Master Super Admin role can only be managed by Master Super Admin
-        if ($roleName === 'Master Super Admin') {
+        if ($roleName === $this->getUserAccessService()->masterSuperAdminRoleName()) {
             return false;
         }
 
@@ -151,19 +157,7 @@ trait RolePermissionHelper
         }
 
         // Master admin permissions can only be assigned by Master Super Admin
-        $masterAdminPermissions = [
-            'access master admin panel',
-            'manage all locations',
-            'create super admin',
-            'edit super admin',
-            'delete super admin',
-            'view all shops data',
-            'system wide reports',
-            'global settings',
-            'manage system backups',
-            'view system logs',
-            'manage master permissions'
-        ];
+        $masterAdminPermissions = $this->getUserAccessService()->getMasterAdminAssignmentBlockedPermissions();
 
         if (is_string($permission) && in_array($permission, $masterAdminPermissions)) {
             return false;
@@ -181,16 +175,7 @@ trait RolePermissionHelper
      */
     public function getVisibleRoles()
     {
-        if ($this->isMasterSuperAdmin()) {
-            // Master Super Admin can see all roles
-            return Role::all();
-        } elseif ($this->isSuperAdmin()) {
-            // Super Admin can see all roles EXCEPT Master Super Admin
-            return Role::where('name', '!=', 'Master Super Admin')->get();
-        } else {
-            // Other users cannot see Super Admin or Master Super Admin roles
-            return Role::whereNotIn('name', ['Master Super Admin', 'Super Admin'])->get();
-        }
+        return $this->getUserAccessService()->getVisibleRolesQuery($this)->get();
     }
 
     /**
@@ -198,16 +183,7 @@ trait RolePermissionHelper
      */
     public function getVisibleRolesQuery()
     {
-        if ($this->isMasterSuperAdmin()) {
-            // Master Super Admin can see all roles
-            return Role::query();
-        } elseif ($this->isSuperAdmin()) {
-            // Super Admin can see all roles EXCEPT Master Super Admin
-            return Role::where('name', '!=', 'Master Super Admin');
-        } else {
-            // Other users cannot see Super Admin or Master Super Admin roles
-            return Role::whereNotIn('name', ['Master Super Admin', 'Super Admin']);
-        }
+        return $this->getUserAccessService()->getVisibleRolesQuery($this);
     }
 
     /**
@@ -215,16 +191,7 @@ trait RolePermissionHelper
      */
     public function getAssignableRoles()
     {
-        if ($this->isMasterSuperAdmin()) {
-            // Master Super Admin can assign all roles including other Master Super Admin
-            return Role::all();
-        } elseif ($this->isSuperAdmin()) {
-            // Super Admin can assign all roles EXCEPT Master Super Admin
-            return Role::where('name', '!=', 'Master Super Admin')->get();
-        } else {
-            // Other users can only assign non-admin roles
-            return Role::whereNotIn('name', ['Master Super Admin', 'Super Admin'])->get();
-        }
+        return $this->getVisibleRoles();
     }
 
     /**
@@ -232,13 +199,7 @@ trait RolePermissionHelper
      */
     public function canViewRole($roleName)
     {
-        if ($this->isMasterSuperAdmin()) {
-            return true; // Can view all roles
-        } elseif ($this->isSuperAdmin()) {
-            return $roleName !== 'Master Super Admin'; // Cannot view Master Super Admin
-        } else {
-            return !in_array($roleName, ['Master Super Admin', 'Super Admin']); // Cannot view admin roles
-        }
+        return $this->getUserAccessService()->canViewRoleName($this, (string) $roleName);
     }
 
     /**
@@ -254,20 +215,7 @@ trait RolePermissionHelper
      */
     public function getVisibleUsers()
     {
-        if ($this->isMasterSuperAdmin()) {
-            // Master Super Admin can see all users including other Master Super Admins
-            return User::query();
-        } elseif ($this->isSuperAdmin()) {
-            // Super Admin can see all users EXCEPT Master Super Admin users
-            return User::whereDoesntHave('roles', function($query) {
-                $query->where('name', 'Master Super Admin');
-            });
-        } else {
-            // Other users cannot see admin users
-            return User::whereDoesntHave('roles', function($query) {
-                $query->whereIn('name', ['Master Super Admin', 'Super Admin']);
-            });
-        }
+        return $this->getUserAccessService()->getHierarchyVisibleUsersQuery($this);
     }
 
     /**
@@ -312,7 +260,7 @@ trait RolePermissionHelper
         if ($this->isMasterSuperAdmin()) {
             return true; // Master Super Admin can assign any permission
         }
-        
+
         // Other users can only assign permissions they themselves have
         return $this->hasPermissionTo($permissionName);
     }
@@ -325,19 +273,8 @@ trait RolePermissionHelper
         $visiblePermissions = $this->getVisiblePermissions();
 
         // If assigning to Super Admin role, exclude Master Super Admin only permissions
-        if ($roleName === 'Super Admin' && !$this->isMasterSuperAdmin()) {
-            $masterOnlyPermissions = [
-                'access master admin panel',
-                'manage all locations', 
-                'create super admin',
-                'edit super admin',
-                'delete super admin',
-                'override location scope',
-                'manage master permissions',
-                'manage system roles',
-                'access production database',
-                'manage system maintenance'
-            ];
+        if ($roleName === $this->getUserAccessService()->superAdminRoleName() && !$this->isMasterSuperAdmin()) {
+            $masterOnlyPermissions = $this->getUserAccessService()->getSuperAdminAssignmentExcludedPermissions();
 
             return $visiblePermissions->reject(function($permission) use ($masterOnlyPermissions) {
                 return in_array($permission->name, $masterOnlyPermissions);
@@ -361,7 +298,7 @@ trait RolePermissionHelper
         $menuItems['locations'] = $this->hasPermissionTo('view location') || $this->isMasterSuperAdmin();
         $menuItems['create_location'] = $this->hasPermissionTo('create location') || $this->isMasterSuperAdmin();
 
-        // User Management  
+        // User Management
         $menuItems['users'] = $this->hasPermissionTo('view user');
         $menuItems['create_user'] = $this->hasPermissionTo('create user');
 

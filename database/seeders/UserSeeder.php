@@ -41,13 +41,13 @@ class UserSeeder extends Seeder
                 'role' => 'Super Admin',
                 'locations' => ['Main Location']
             ],
-           
+
         ];
 
         foreach ($users as $userData) {
             // Check if user already exists to prevent duplicates
             $existingUser = User::where('email', $userData['email'])->first();
-            
+
             if ($existingUser) {
                 $this->command->info("User {$userData['email']} already exists, skipping to preserve existing data...");
                 $user = $existingUser;
@@ -73,8 +73,6 @@ class UserSeeder extends Seeder
                 if ($role) {
                     // Assign role to new user
                     $user->syncRoles([$userData['role']]);
-                    // Manually sync the role_name field
-                    $user->syncRoleName();
                     $this->command->info("Assigned role '{$userData['role']}' to new user {$userData['email']}");
                 } else {
                     $this->command->error("Role '{$userData['role']}' not found! Please run RolesAndPermissionsSeeder first.");
@@ -112,7 +110,7 @@ class UserSeeder extends Seeder
                 $this->command->info("Existing user {$userData['email']} - preserving current roles and locations");
             }
         }
-        
+
         $this->command->info("User seeding completed successfully!");
     }
 }

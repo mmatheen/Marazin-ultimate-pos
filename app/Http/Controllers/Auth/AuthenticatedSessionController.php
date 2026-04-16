@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Services\User\UserAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -13,6 +14,10 @@ use App\Providers\RouteServiceProvider;
 
 class AuthenticatedSessionController extends Controller
 {
+    public function __construct(private readonly UserAccessService $userAccessService)
+    {
+    }
+
     /**
      * Show login form.
      */
@@ -61,29 +66,43 @@ class AuthenticatedSessionController extends Controller
         if (!$isApi) {
             Auth::login($user, $request->boolean('remember'));
 
-            // Store default location in session
-            if ($user->role_name) {
-                $selectedLocation = Location::first();
-                if ($selectedLocation) {
-                    session()->put('selectedLocation', $selectedLocation->id);
-                }
+            // Store default selected location in session using a single canonical key.
+            // Use first assigned location for regular users; bypass users can default to first location in system.
+            $selectedLocationId = null;
+
+            if ($user->canBypassLocationScope()) {
+                $selectedLocationId = Location::query()->orderBy('id')->value('id');
+            } else {
+                $selectedLocationId = $user->locations()->orderBy('locations.id')->value('locations.id');
             }
+
+            if ($selectedLocationId) {
+                session()->put('selected_location', $selectedLocationId);
+            } else {
+                session()->forget('selected_location');
+            }
+
+            // Cleanup legacy key to avoid conflicting reads.
+            session()->forget('selectedLocation');
 
             session()->regenerate();
 
             return redirect()->intended(RouteServiceProvider::HOME)
-                ->with('toastr-success', "Welcome back, {$user->user_name}! You're logged in as {$user->role_name}.");
+                ->with('toastr-success', "Welcome back, {$user->user_name}! You're logged in as {$user->getRoleName()}.");
         }
 
         // Load user relationships for API response
         $user->load(['roles', 'locations']);
-        
+
         $token = $user->createToken('mobile_token')->plainTextToken;
-        
+
         // Get role information from Spatie roles
         $role = $user->roles->first();
         $roleName = $role?->name ?? null;
         $roleKey = $role?->key ?? null;
+        $isMasterSuperAdmin = $this->userAccessService->isMasterSuperAdmin($user);
+        $isSuperAdmin = $this->userAccessService->isSuperAdmin($user);
+        $canBypassLocationScope = $this->userAccessService->hasLocationBypassPermission($user);
 
         return response()->json([
             'status' => 'success',
@@ -98,9 +117,9 @@ class AuthenticatedSessionController extends Controller
                 'role' => $roleName,
                 'role_key' => $roleKey,
                 'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
-                'can_bypass_location_scope' => $role?->bypass_location_scope ?? false,
-                'is_master_super_admin' => $roleName === 'Master Super Admin',
-                'is_super_admin' => $roleKey === 'super_admin',
+                'can_bypass_location_scope' => $canBypassLocationScope,
+                'is_master_super_admin' => $isMasterSuperAdmin,
+                'is_super_admin' => $isSuperAdmin,
                 'locations' => $user->locations->map(function ($loc) {
                     return [
                         'id' => $loc->id,

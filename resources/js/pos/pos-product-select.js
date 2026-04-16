@@ -77,6 +77,7 @@ function addProductToTable(product, searchTermOrQty = '', matchType = '') {
     const currentCustomer = window.Pos.Customer.getCurrentCustomer();
 
     const selectedLocationId = window.selectedLocationId;
+    const allowBackorderOutOfStock = !!window.PosConfig?.features?.enableBackorders;
 
     // If product is unlimited stock (stock_alert === 0), allow sale even if quantity is 0
     if (product.stock_alert === 0) {
@@ -171,7 +172,7 @@ function addProductToTable(product, searchTermOrQty = '', matchType = '') {
 
     // If no IMEI required, proceed normally
     if ((totalQuantity === 0 || totalQuantity === "0" || totalQuantity === "0.00") && product
-        .stock_alert !== 0) {
+        .stock_alert !== 0 && !allowBackorderOutOfStock) {
         toastr.error(`Sorry, ${product.product_name} is out of stock!`, 'Warning');
         return;
     }
@@ -189,6 +190,46 @@ function addProductToTable(product, searchTermOrQty = '', matchType = '') {
     );
 
     if (batchesArray.length === 0) {
+        // Backorder-enabled POS: allow 0-stock products as sale-order candidates
+        // if the product is mapped to this location via any batch.
+        if (allowBackorderOutOfStock) {
+            const mappedBatches = normalizeBatches(stockEntry).filter(batch =>
+                Array.isArray(batch.location_batches) &&
+                batch.location_batches.some(lb =>
+                    String(lb.location_id) == String(selectedLocationId)
+                )
+            ).sort((a, b) => parseInt(b.id) - parseInt(a.id));
+
+            if (mappedBatches.length > 0) {
+                const latestBatch = mappedBatches[0];
+                const priceResult = window.Pos.Customer.getCustomerTypePrice(latestBatch, product, currentCustomer.customer_type);
+
+                if (priceResult.hasError) {
+                    toastr.error(
+                        `This product has no valid price configured for ${currentCustomer.customer_type} customers. Please contact admin to fix pricing.`,
+                        'Pricing Error');
+                    return;
+                }
+
+                window.locationId = selectedLocationId;
+                const autoPriceType = resolveAutoPriceType(currentCustomer.customer_type, latestBatch, product);
+                window.Pos.Billing.addProductToBillingBody(
+                    product,
+                    stockEntry,
+                    priceResult.price,
+                    "all",
+                    0,
+                    autoPriceType,
+                    mobileQty || 1,
+                    [],
+                    null,
+                    null,
+                    latestBatch
+                );
+                return;
+            }
+        }
+
         toastr.error('No batches with available quantity found in this location', 'Error');
         return;
     }

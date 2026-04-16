@@ -26,6 +26,11 @@
             canUse:  {!! json_encode((bool)($canUseFreeQty ?? false)) !!},
         },
 
+        // --- Feature flags ---
+        features: {
+            enableBackorders: {!! json_encode((bool)(\App\Models\Setting::value('enable_backorders') ?? 0)) !!},
+        },
+
         // --- Auth ---
         auth: {
             userId:         {!! json_encode(auth()->user()->id ?? null) !!},

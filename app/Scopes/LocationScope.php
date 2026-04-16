@@ -268,6 +268,10 @@ class LocationScope implements Scope
                     $location = Session::get('selected_location');
                 } elseif (Session::has('selectedLocation')) {
                     $location = Session::get('selectedLocation');
+
+                    // Migrate legacy session key to canonical key for consistency.
+                    Session::put('selected_location', $location);
+                    Session::forget('selectedLocation');
                 }
             }
 

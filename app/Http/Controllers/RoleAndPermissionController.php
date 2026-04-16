@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\User\UserAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Spatie\Permission\Models\Role;
@@ -10,6 +11,8 @@ use Spatie\Permission\Models\Permission;
 
 class RoleAndPermissionController extends Controller
 {
+    private UserAccessService $userAccessService;
+
     function __construct()
     {
         $this->middleware('permission:view role-permission', ['only' => ['groupRoleAndPermissionView', 'groupRoleAndPermissionList', 'groupRoleAndPermission']]);
@@ -17,6 +20,7 @@ class RoleAndPermissionController extends Controller
         $this->middleware('permission:edit role-permission', ['only' => ['edit', 'update']]);
         $this->middleware('permission:delete role-permission', ['only' => ['destroy']]);
         $this->middleware('role.security', ['only' => ['edit', 'update', 'store', 'destroy']]);
+        $this->userAccessService = app(UserAccessService::class);
     }
 
     public function groupRoleAndPermissionView()
@@ -28,17 +32,17 @@ class RoleAndPermissionController extends Controller
     public function groupRoleAndPermission()
     {
         $user = auth()->user();
-        
+
         // Check if user is Master Super Admin
-        $isMasterSuperAdmin = $user->roles->where('name', 'Master Super Admin')->count() > 0;
-        
+        $isMasterSuperAdmin = $this->userAccessService->isMasterSuperAdmin($user);
+
         // Get roles that current user can see
         if ($isMasterSuperAdmin) {
             $roles = Role::all();
         } else {
-            $roles = Role::where('name', '!=', 'Master Super Admin')->get();
+            $roles = Role::where('name', '!=', $this->userAccessService->masterSuperAdminRoleName())->get();
         }
-        
+
         // Filter permissions based on user role and their actual permissions
         if ($isMasterSuperAdmin) {
             // Master Super Admin sees all permissions
@@ -48,24 +52,23 @@ class RoleAndPermissionController extends Controller
             // Get both direct permissions and permissions through roles
             $directPermissions = $user->permissions;
             $rolePermissions = collect();
-            
             foreach ($user->roles as $role) {
                 $rolePermissions = $rolePermissions->merge($role->permissions);
             }
-            
+
             // Merge and remove duplicates
             $allPermissions = $directPermissions->merge($rolePermissions)->unique('id');
         }
-        
+
         $permissionsData = $allPermissions->groupBy('group_name');
-        
+
         return view('role_and_permission.role_and_permission', compact('roles', 'permissionsData'));
     }
 
     public function groupRoleAndPermissionList()
     {
         $user = auth()->user();
-        
+
         // Get roles that current user can see based on their actual permissions
         $roles = $this->getUserAccessibleRoles($user)->with('permissions')->get();
 
@@ -124,9 +127,9 @@ class RoleAndPermissionController extends Controller
 
         // Check if current user can assign to this role
         $currentUser = auth()->user();
-        $isMasterSuperAdmin = $currentUser->roles->where('name', 'Master Super Admin')->count() > 0;
-        
-        if (!$isMasterSuperAdmin && $role->name === 'Master Super Admin') {
+        $isMasterSuperAdmin = $this->userAccessService->isMasterSuperAdmin($currentUser);
+
+        if (!$isMasterSuperAdmin && $this->userAccessService->isMasterSuperAdminRoleName($role->name)) {
             return response()->json([
                 'status' => 403,
                 'message' => 'You do not have permission to modify Master Super Admin role.'
@@ -144,22 +147,22 @@ class RoleAndPermissionController extends Controller
 
         // Get selected permissions
         $selectedPermissions = Permission::whereIn('id', $request->permission_id)->get();
-        
+
         // For non-Master Super Admin and non-Super Admin users, validate they can only assign permissions they have
-        $isSuperAdmin = $currentUser->roles->where('key', 'super_admin')->count() > 0;
-        
+        $isSuperAdmin = $this->userAccessService->isSuperAdmin($currentUser);
+
         if (!$isMasterSuperAdmin && !$isSuperAdmin) {
             // Get all permissions the current user has (direct + via roles)
             $userDirectPermissions = $currentUser->permissions;
             $userRolePermissions = collect();
-            
+
             foreach ($currentUser->roles as $userRole) {
                 $userRolePermissions = $userRolePermissions->merge($userRole->permissions);
             }
-            
+
             $allUserPermissions = $userDirectPermissions->merge($userRolePermissions)->unique('id');
             $userPermissionIds = $allUserPermissions->pluck('id')->toArray();
-            
+
             $invalidPermissions = $selectedPermissions->filter(function($permission) use ($userPermissionIds) {
                 return !in_array($permission->id, $userPermissionIds);
             });
@@ -178,8 +181,8 @@ class RoleAndPermissionController extends Controller
         $currentPermissions = $role->permissions->pluck('name')->toArray();
 
         // Check if user is authorized to assign permissions (Master Super Admin or Super Admin)
-        $isSuperAdmin = $currentUser->roles->where('key', 'super_admin')->count() > 0;
-        
+        $isSuperAdmin = $this->userAccessService->isSuperAdmin($currentUser);
+
         // Both Master Super Admin and Super Admin can update role permissions
         if (!$isMasterSuperAdmin && !$isSuperAdmin) {
             return response()->json([
@@ -228,12 +231,12 @@ class RoleAndPermissionController extends Controller
         }
 
         $user = auth()->user();
-        
+
         // Check if user is Master Super Admin
-        $isMasterSuperAdmin = $user->roles->where('name', 'Master Super Admin')->count() > 0;
-        
+        $isMasterSuperAdmin = $this->userAccessService->isMasterSuperAdmin($user);
+
         // Prevent non-Master Super Admin users from editing Master Super Admin role
-        if (!$isMasterSuperAdmin && $role->name === 'Master Super Admin') {
+        if (!$isMasterSuperAdmin && $this->userAccessService->isMasterSuperAdminRoleName($role->name)) {
             // For AJAX requests, return JSON response for toastr
             if (request()->expectsJson()) {
                 return response()->json([
@@ -266,7 +269,7 @@ class RoleAndPermissionController extends Controller
                 'show_toastr' => true
             ], 403);
         }
-        
+
         // Filter permissions based on user role and their actual permissions
         if ($isMasterSuperAdmin) {
             // Master Super Admin sees all permissions
@@ -276,11 +279,11 @@ class RoleAndPermissionController extends Controller
             // Get both direct permissions and permissions through roles
             $directPermissions = $user->permissions;
             $rolePermissions = collect();
-            
+
             foreach ($user->roles as $userRole) {
                 $rolePermissions = $rolePermissions->merge($userRole->permissions);
             }
-            
+
             // Merge and remove duplicates
             $allPermissions = $directPermissions->merge($rolePermissions)->unique('id');
         }
@@ -325,10 +328,10 @@ class RoleAndPermissionController extends Controller
         }
 
         $currentUser = auth()->user();
-        $isMasterSuperAdmin = $currentUser->roles->where('name', 'Master Super Admin')->count() > 0;
-        
+        $isMasterSuperAdmin = $this->userAccessService->isMasterSuperAdmin($currentUser);
+
         // Prevent non-Master Super Admin users from editing Master Super Admin role
-        if (!$isMasterSuperAdmin && $role->name === 'Master Super Admin') {
+        if (!$isMasterSuperAdmin && $this->userAccessService->isMasterSuperAdminRoleName($role->name)) {
             return response()->json([
                 'status' => 403,
                 'message' => 'You do not have permission to modify Master Super Admin role.'
@@ -346,22 +349,22 @@ class RoleAndPermissionController extends Controller
 
         // Get selected permissions
         $selectedPermissions = Permission::whereIn('id', $request->permission_id)->get();
-        
+
         // For non-Master Super Admin and non-Super Admin users, validate they can only assign permissions they have
-        $isSuperAdmin = $currentUser->roles->where('key', 'super_admin')->count() > 0;
-        
+        $isSuperAdmin = $this->userAccessService->isSuperAdmin($currentUser);
+
         if (!$isMasterSuperAdmin && !$isSuperAdmin) {
             // Get all permissions the current user has (direct + via roles)
             $userDirectPermissions = $currentUser->permissions;
             $userRolePermissions = collect();
-            
+
             foreach ($currentUser->roles as $userRole) {
                 $userRolePermissions = $userRolePermissions->merge($userRole->permissions);
             }
-            
+
             $allUserPermissions = $userDirectPermissions->merge($userRolePermissions)->unique('id');
             $userPermissionIds = $allUserPermissions->pluck('id')->toArray();
-            
+
             $invalidPermissions = $selectedPermissions->filter(function($permission) use ($userPermissionIds) {
                 return !in_array($permission->id, $userPermissionIds);
             });
@@ -399,11 +402,11 @@ class RoleAndPermissionController extends Controller
             ], 404);
         }
 
-        $currentUserIsMasterSuperAdmin = $currentUser->roles->where('name', 'Master Super Admin')->count() > 0;
-        $currentUserIsSuperAdmin = $currentUser->roles->where('key', 'super_admin')->count() > 0;
+        $currentUserIsMasterSuperAdmin = $this->userAccessService->isMasterSuperAdmin($currentUser);
+        $currentUserIsSuperAdmin = $this->userAccessService->isSuperAdmin($currentUser);
 
         // Prevent deletion of Master Super Admin role by anyone, including Master Super Admin
-        if ($roleToDelete->name === 'Master Super Admin') {
+        if ($this->userAccessService->isMasterSuperAdminRoleName($roleToDelete->name)) {
             return response()->json([
                 'status' => 403,
                 'message' => "Master Super Admin role cannot be deleted. This role is essential for system operation and security."
@@ -411,8 +414,7 @@ class RoleAndPermissionController extends Controller
         }
 
         // Prevent deletion of other critical system roles
-        $criticalRoles = ['Super Admin'];
-        if (in_array($roleToDelete->name, $criticalRoles)) {
+        if ($this->userAccessService->isSuperAdminRoleName($roleToDelete->name)) {
             return response()->json([
                 'status' => 403,
                 'message' => "Cannot delete critical system role '{$roleToDelete->name}'. This role is essential for system operation."
@@ -475,10 +477,10 @@ class RoleAndPermissionController extends Controller
         }
 
         $user = auth()->user();
-        $isMasterSuperAdmin = $user->roles->where('name', 'Master Super Admin')->count() > 0;
-        
+        $isMasterSuperAdmin = $this->userAccessService->isMasterSuperAdmin($user);
+
         // Prevent non-Master Super Admin users from accessing Master Super Admin role
-        if (!$isMasterSuperAdmin && $role->name === 'Master Super Admin') {
+        if (!$isMasterSuperAdmin && $this->userAccessService->isMasterSuperAdminRoleName($role->name)) {
             return response()->json([
                 'status' => 403,
                 'message' => 'Access denied! You do not have permission to view Master Super Admin role permissions.',
@@ -518,18 +520,16 @@ class RoleAndPermissionController extends Controller
     private function getUserAccessibleRoles($user)
     {
         $rolesQuery = Role::query();
-        
+
         // If user is not Master Super Admin, exclude Master Super Admin role
-        if (!$user->roles->where('name', 'Master Super Admin')->count() > 0) {
-            $rolesQuery->where('name', '!=', 'Master Super Admin');
-            
+        if (!$this->userAccessService->isMasterSuperAdmin($user)) {
+            $rolesQuery->where('name', '!=', $this->userAccessService->masterSuperAdminRoleName());
+
             // If user is not Super Admin, further restrict access
-            if (!$user->roles->where('name', 'Super Admin')->count() > 0 && 
-                !$user->roles->where('key', 'super_admin')->count() > 0) {
-                
+            if (!$this->userAccessService->isSuperAdmin($user)) {
+
                 // If user is Admin, only show Admin and Sales Rep
-                if ($user->roles->where('name', 'Admin')->count() > 0 || 
-                    $user->roles->where('key', 'admin')->count() > 0) {
+                if ($this->userAccessService->isAdmin($user)) {
                     $rolesQuery->whereIn('name', ['Admin', 'Sales Rep'])
                               ->orWhereIn('key', ['admin', 'sales_rep']);
                 } else {
@@ -539,7 +539,7 @@ class RoleAndPermissionController extends Controller
                 }
             }
         }
-        
+
         return $rolesQuery;
     }
 }
