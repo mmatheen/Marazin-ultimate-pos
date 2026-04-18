@@ -137,7 +137,7 @@ window.refreshLocationCache = function () {
     locationCacheExpiry = null;
     window.cachedLocations = null;
     window.locationCacheExpiry = null;
-        fetchAllLocations(true);
+    fetchAllLocations(true);
     toastr.info('Location cache refreshed!', 'Cache Refresh');
 };
 

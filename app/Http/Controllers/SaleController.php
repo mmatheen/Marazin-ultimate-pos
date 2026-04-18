@@ -6,7 +6,7 @@ use App\Models\Customer;
 use App\Models\Location;
 use App\Models\Sale;
 use App\Models\Setting;
-use App\Http\Controllers\Web\ProductController as ProductManager;
+use App\Services\Product\ProductReadService;
 use App\Services\Sale\SaleValidationService;
 use App\Services\Sale\SaleDeleteService;
 use App\Services\Sale\SaleInvoiceNumberService;
@@ -597,7 +597,7 @@ class SaleController extends Controller
 
         $miscItemProductId = 0;
         try {
-            $miscItemProductId = ProductManager::resolveCashItemProductId();
+            $miscItemProductId = app(ProductReadService::class)->resolveCashItemProductId();
         } catch (\Throwable $e) {
             Log::warning('POS: Could not resolve cash item product ID. Quick price-entry cash item will be disabled.', [
                 'message' => $e->getMessage(),

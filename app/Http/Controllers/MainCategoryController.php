@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\MainCategory;
 use Illuminate\Support\Facades\Validator;
-use App\Http\Controllers\Web\ProductController;
+use App\Services\Product\ProductCacheService;
 
 class MainCategoryController extends Controller
 {
@@ -80,7 +80,7 @@ class MainCategoryController extends Controller
 
             if ($getValue) {
                 // Clear product details cache for all users
-                ProductController::clearProductDetailsCache();
+                app(ProductCacheService::class)->clearProductDetailsCache();
 
                 return response()->json([
                     'status' => 200,
@@ -173,7 +173,7 @@ class MainCategoryController extends Controller
                 ]);
 
                 // Clear product details cache for all users
-                ProductController::clearProductDetailsCache();
+                app(ProductCacheService::class)->clearProductDetailsCache();
 
                 return response()->json([
                     'status' => 200,
@@ -202,7 +202,7 @@ class MainCategoryController extends Controller
             $getValue->delete();
 
             // Clear product details cache for all users
-            ProductController::clearProductDetailsCache();
+            app(ProductCacheService::class)->clearProductDetailsCache();
 
             return response()->json([
                 'status' => 200,

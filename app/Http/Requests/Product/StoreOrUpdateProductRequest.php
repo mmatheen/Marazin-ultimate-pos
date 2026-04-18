@@ -1,0 +1,35 @@
+<?php
+
+namespace App\Http\Requests\Product;
+
+use App\Services\Product\ProductWriteService;
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
+
+class StoreOrUpdateProductRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        $id = $this->route('id');
+        $productId = $id !== null ? (int) $id : null;
+
+        /** @var ProductWriteService $service */
+        $service = app(ProductWriteService::class);
+
+        return $service->productRules($productId);
+    }
+
+    protected function failedValidation(Validator $validator): void
+    {
+        throw new HttpResponseException(
+            response()->json(['status' => 400, 'errors' => $validator->errors()])
+        );
+    }
+}
+

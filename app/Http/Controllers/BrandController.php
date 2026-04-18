@@ -7,7 +7,7 @@ use App\Models\Brand;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
-use App\Http\Controllers\Web\ProductController;
+use App\Services\Product\ProductCacheService;
 
 class BrandController extends Controller
 {
@@ -87,7 +87,7 @@ class BrandController extends Controller
 
         if ($getValue) {
             // Clear product details cache for all users
-            ProductController::clearProductDetailsCache();
+            app(ProductCacheService::class)->clearProductDetailsCache();
 
             return response()->json([
                 'status' => 200,
@@ -182,7 +182,7 @@ class BrandController extends Controller
                 ]);
 
                 // Clear product details cache for all users
-                ProductController::clearProductDetailsCache();
+                app(ProductCacheService::class)->clearProductDetailsCache();
 
                 return response()->json([
                     'status' => 200,
@@ -211,7 +211,7 @@ class BrandController extends Controller
             $getValue->delete();
 
             // Clear product details cache for all users
-            ProductController::clearProductDetailsCache();
+            app(ProductCacheService::class)->clearProductDetailsCache();
 
             return response()->json([
                 'status' => 200,

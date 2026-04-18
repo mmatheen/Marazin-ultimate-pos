@@ -16,20 +16,24 @@ use App\Models\MainCategory;
 use App\Models\StockHistory;
 use Illuminate\Http\Request;
 use App\Models\LocationBatch;
-use App\Imports\importProduct;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
-use Maatwebsite\Excel\Facades\Excel;
-use App\Exports\ExportProductTemplate;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 use App\Events\StockUpdated;
 use App\Models\Discount;
 use App\Models\ImeiNumber;
 use Illuminate\Http\JsonResponse;
+use App\Http\Requests\Product\ImportProductsExcelRequest;
+use App\Http\Requests\Product\ApplyDiscountRequest;
+use App\Http\Requests\Product\SaveProductLocationsRequest;
+use App\Http\Requests\Product\CheckSkuUniquenessRequest;
+use App\Services\Product\ProductCacheService;
+use App\Services\Product\ProductExportService;
+use App\Services\Product\ProductReadService;
+use App\Services\Product\ProductWriteService;
 use App\Services\TaxConfigurationService;
 use App\Services\User\UserAccessService;
 
@@ -616,14 +620,9 @@ class ProductController extends Controller
      */
     public static function clearProductDetailsCache($userId = null)
     {
-        if ($userId) {
-            // Clear cache for specific user (both web and api)
-            Cache::forget("initial_product_details_user_{$userId}");
-            Cache::forget("initial_product_details_api_user_{$userId}");
-        } else {
-            // Clear cache for all users (use when master data changes)
-            Cache::flush(); // Or use a more targeted pattern if needed
-        }
+        app(ProductCacheService::class)->clearProductDetailsCache(
+            $userId !== null && $userId !== '' ? (int) $userId : null
+        );
     }
 
     /**
@@ -964,26 +963,9 @@ class ProductController extends Controller
     /**
      * Check if SKU is unique (for real-time validation) - API version
      */
-    public function checkSkuUniqueness(Request $request)
+    public function checkSkuUniqueness(CheckSkuUniquenessRequest $request)
     {
-        $sku = $request->input('sku');
-        $productId = $request->input('product_id'); // Product ID if editing (to exclude from check)
-
-        if (!$sku) {
-            return response()->json(['exists' => false]);
-        }
-
-        // Query for existing SKU
-        $query = Product::where('sku', $sku);
-
-        // Exclude current product if editing
-        if ($productId) {
-            $query->where('id', '!=', $productId);
-        }
-
-        $exists = $query->exists();
-
-        return response()->json(['exists' => $exists]);
+        return app(ProductReadService::class)->respondCheckSkuUniqueness($request);
     }
 
     public function showOpeningStock($productId)
@@ -2708,379 +2690,40 @@ class ProductController extends Controller
 
     public function destroy(int $id)
     {
-        try {
-            $result = DB::transaction(function () use ($id) {
-                $product = Product::with([
-                    'batches.salesProducts',
-                    'batches.purchaseProducts',
-                    'batches.purchaseReturns',
-                    'batches.saleReturns',
-                    'batches.stockAdjustments',
-                    'batches.stockTransfers'
-                ])->find($id);
-
-                if (!$product) {
-                    return [
-                        'status' => 404,
-                        'message' => "No Such Product Found!"
-                    ];
-                }
-
-                // Check if product is used in any important tables
-                $hasTransactions = false;
-                $usedInTables = [];
-
-                if ($product->batches->isNotEmpty()) {
-                    foreach ($product->batches as $batch) {
-                        if ($batch->salesProducts->isNotEmpty()) {
-                            $hasTransactions = true;
-                            $usedInTables[] = 'Sales';
-                        }
-                        if ($batch->purchaseProducts->isNotEmpty()) {
-                            $hasTransactions = true;
-                            $usedInTables[] = 'Purchases';
-                        }
-                        if ($batch->purchaseReturns->isNotEmpty()) {
-                            $hasTransactions = true;
-                            $usedInTables[] = 'Purchase Returns';
-                        }
-                        if ($batch->saleReturns->isNotEmpty()) {
-                            $hasTransactions = true;
-                            $usedInTables[] = 'Sale Returns';
-                        }
-                        if ($batch->stockAdjustments->isNotEmpty()) {
-                            $hasTransactions = true;
-                            $usedInTables[] = 'Stock Adjustments';
-                        }
-                        if ($batch->stockTransfers->isNotEmpty()) {
-                            $hasTransactions = true;
-                            $usedInTables[] = 'Stock Transfers';
-                        }
-                    }
-                }
-
-                // If product is used in any transaction, prevent deletion
-                if ($hasTransactions) {
-                    $usedInTables = array_unique($usedInTables);
-                    return [
-                        'status' => 403,
-                        'can_delete' => false,
-                        'message' => "Cannot delete this product! It is being used in: " . implode(', ', $usedInTables) . ". Please deactivate the product instead.",
-                        'used_in' => $usedInTables,
-                        'product_status' => $product->is_active ? 'active' : 'inactive'
-                    ];
-                }
-
-                // Product is safe to delete - only exists in product_locations
-                // Delete location_product pivot records
-                DB::table('location_product')->where('product_id', $id)->delete();
-
-                // Delete all related batches and their location batches
-                if ($product->batches->isNotEmpty()) {
-                    $batchIds = $product->batches->pluck('id')->toArray();
-
-                    // Delete location batches first
-                    LocationBatch::whereIn('batch_id', $batchIds)->delete();
-
-                    // Then delete the batches
-                    Batch::whereIn('id', $batchIds)->delete();
-                }
-
-                // Delete IMEI numbers if any
-                DB::table('imei_numbers')->where('product_id', $id)->delete();
-
-                // Delete discount associations
-                DB::table('discount_product')->where('product_id', $id)->delete();
-
-                // Finally delete the product
-                $product->delete();
-
-                return [
-                    'status' => 200,
-                    'can_delete' => true,
-                    'message' => "Product deleted successfully!"
-                ];
-            });
-
-            return response()->json($result, $result['status']);
-        } catch (\Exception $e) {
-            Log::error('Product deletion error: ' . $e->getMessage(), [
-                'product_id' => $id,
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
-                'status' => 500,
-                'message' => "Error deleting product: " . $e->getMessage()
-            ], 500);
-        }
+        return app(ProductWriteService::class)->respondDestroyProduct($id);
     }
 
     public function exportBlankTemplate()
     {
-        return Excel::download(new ExportProductTemplate(true), 'Import_Product_Template.xlsx');
+        return app(ProductExportService::class)->downloadBlankImportTemplate();
     }
 
     public function exportProducts()
     {
-        return Excel::download(new ExportProductTemplate(), 'Products_Export_' . date('Y-m-d') . '.xlsx');
+        return app(ProductExportService::class)->downloadProductsExport();
     }
 
-    public function importProductStore(Request $request)
+    public function importProductStore(ImportProductsExcelRequest $request)
     {
-        // Validate the request file and location
-        $validator = Validator::make($request->all(), [
-            'file' => 'required|mimes:xlsx,xls',
-            'import_location' => 'required|integer|exists:locations,id',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => 400,
-                'errors' => $validator->messages()
-            ]);
-        }
-
-        // Verify that the selected location is assigned to the current user
-        $user = auth()->user();
-        $selectedLocationId = $request->input('import_location');
-
-        // Check user access to the selected location
-        $userLocationIds = $user->locations->pluck('id')->toArray();
-        if (!in_array($selectedLocationId, $userLocationIds)) {
-            return response()->json([
-                'status' => 403,
-                'message' => 'You do not have access to the selected location.'
-            ]);
-        }
-
-        // Store the selected location in session for the import process
-        session(['selected_location' => $selectedLocationId]);
-
-        // Check if the file is present in the request
-        if ($request->hasFile('file')) {
-            $file = $request->file('file');
-
-            // Check if file upload was successful
-            if ($file->isValid()) {
-                // Create an instance of the import class
-                $import = new importProduct();
-
-                // Process the Excel file
-                Excel::import($import, $file);
-
-                // Get validation errors from the import process
-                $validationErrors = $import->getValidationErrors();
-                $records = $import->getData();
-                $successCount = count($records);
-
-                // If there are validation errors, return them in the response
-                if (!empty($validationErrors)) {
-                    return response()->json([
-                        'status' => 401,
-                        'validation_errors' => $validationErrors, // Return specific error messages
-                        'success_count' => $successCount,
-                        'error_count' => count($validationErrors)
-                    ]);
-                }
-
-                // Check if no products were actually imported
-                if ($successCount === 0) {
-                    return response()->json([
-                        'status' => 401,
-                        'validation_errors' => ['No valid rows found in the Excel file. Please check that your file has data and follows the correct format.'],
-                        'success_count' => 0,
-                        'error_count' => 1
-                    ]);
-                }
-
-                return response()->json([
-                    'status' => 200,
-                    'data' => $records,
-                    'message' => "Import successful! {$successCount} products imported successfully!",
-                    'success_count' => $successCount,
-                    'error_count' => 0
-                ]);
-            } else {
-                return response()->json([
-                    'status' => 500,
-                    'message' => "File upload failed. Please try again."
-                ]);
-            }
-        }
-
-        return response()->json([
-            'status' => 400,
-            'message' => "No file uploaded or file is invalid."
-        ]);
+        return app(ProductWriteService::class)->respondImportProductsFromExcel($request, true);
     }
 
 
     public function getProductLocations(Request $request)
     {
-        $productIds = $request->input('product_ids', []);
-
-        if (empty($productIds)) {
-            return response()->json(['status' => 'error', 'message' => 'No products selected.'], 400);
-        }
-
-        try {
-            $products = Product::with(['locations' => function($query) {
-                $query->select('locations.id', 'locations.name');
-            }])
-            ->whereIn('id', $productIds)
-            ->get(['id', 'product_name'])
-            ->map(function($product) {
-                return [
-                    'id' => $product->id,
-                    'name' => $product->product_name,
-                    'locations' => $product->locations->map(function($location) {
-                        return [
-                            'id' => $location->id,
-                            'name' => $location->name
-                        ];
-                    })
-                ];
-            });
-
-            return response()->json(['status' => 'success', 'data' => $products]);
-        } catch (\Exception $e) {
-            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
-        }
+        return app(ProductReadService::class)->getProductLocationsPayload(
+            $request->input('product_ids', [])
+        );
     }
 
-    public function saveChanges(Request $request)
+    public function saveChanges(SaveProductLocationsRequest $request)
     {
-        $productIds = $request->input('product_ids', []);
-        $locationIds = $request->input('location_ids', []);
-        $now = now();
-
-        if (empty($productIds) || empty($locationIds)) {
-            return response()->json(['status' => 'error', 'message' => 'Please select at least one product and one location.'], 400);
-        }
-
-        DB::beginTransaction();
-
-        try {
-            foreach ($productIds as $productId) {
-                // 1. Get existing locations with their current stock
-                $existingLocationData = DB::table('location_product')
-                    ->where('product_id', $productId)
-                    ->get()
-                    ->keyBy('location_id');
-
-                // 2. Only remove locations that have zero stock and are not in the new selection
-                $locationsToRemove = [];
-                foreach ($existingLocationData as $locationId => $locationData) {
-                    if (!in_array($locationId, $locationIds) && $locationData->qty == 0) {
-                        $locationsToRemove[] = $locationId;
-                    }
-                }
-
-                // Remove only zero-stock locations that are not selected
-                if (!empty($locationsToRemove)) {
-                    DB::table('location_product')
-                        ->where('product_id', $productId)
-                        ->whereIn('location_id', $locationsToRemove)
-                        ->delete();
-                }
-
-                // 3. Add new locations (only if they don't already exist)
-                foreach ($locationIds as $locationId) {
-                    if (!isset($existingLocationData[$locationId])) {
-                        // This is a new location for this product
-                        DB::table('location_product')->insert([
-                            'product_id' => $productId,
-                            'location_id' => $locationId,
-                            'qty' => 0,
-                            'updated_at' => $now,
-                            'created_at' => $now,
-                        ]);
-                    }
-                    // If location already exists, keep it unchanged (preserve stock)
-                }
-
-                // 4. Handle batches for new locations only
-                $batchIds = DB::table('batches')
-                    ->where('product_id', $productId)
-                    ->pluck('id')
-                    ->toArray();
-
-                foreach ($batchIds as $batchId) {
-                    // Get existing batch locations
-                    $existingBatchLocations = DB::table('location_batches')
-                        ->where('batch_id', $batchId)
-                        ->pluck('location_id')
-                        ->toArray();
-
-                    // Add batch entries for new locations only
-                    foreach ($locationIds as $locationId) {
-                        if (!in_array($locationId, $existingBatchLocations) && !isset($existingLocationData[$locationId])) {
-                            // This is a completely new location for this product
-                            DB::table('location_batches')->insert([
-                                'batch_id' => $batchId,
-                                'location_id' => $locationId,
-                                'qty' => 0,
-                                'created_at' => $now,
-                                'updated_at' => $now,
-                            ]);
-                        }
-                    }
-                }
-            }
-
-            DB::commit();
-            return response()->json(['status' => 'success', 'message' => 'Locations added successfully. Existing location stock preserved.']);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
-        }
+        return app(ProductWriteService::class)->respondSaveChanges($request);
     }
 
-    public function applyDiscount(Request $request)
+    public function applyDiscount(ApplyDiscountRequest $request)
     {
-        $request->merge([
-            'product_ids' => array_unique($request->product_ids)
-        ]);
-
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'type' => 'required|in:fixed,percentage',
-            'amount' => 'required|numeric|min:0',
-            'start_date' => 'required|date',
-            'end_date' => 'nullable|date|after:start_date',
-            'is_active' => 'required|boolean',  // Changed to required|boolean
-            'product_ids' => 'required|array',
-            'product_ids.*' => 'exists:products,id'
-        ]);
-
-        try {
-            // Create the discount
-            $discount = Discount::create([
-                'name' => $validated['name'],
-                'description' => $validated['description'],
-                'type' => $validated['type'],
-                'amount' => $validated['amount'],
-                'start_date' => $validated['start_date'],
-                'end_date' => $validated['end_date'],
-                'is_active' => (bool)$validated['is_active'],  // Explicit cast to boolean
-                'apply_to_all' => false
-            ]);
-
-            // Attach products to the discount
-            $discount->products()->attach($validated['product_ids']);
-
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Discount applied successfully to selected products'
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to apply discount: ' . $e->getMessage()
-            ], 500);
-        }
+        return app(ProductWriteService::class)->respondApplyDiscount($request);
     }
 
     /**
@@ -3088,25 +2731,6 @@ class ProductController extends Controller
      */
     public function toggleStatus(int $id): JsonResponse
     {
-        try {
-            $product = Product::findOrFail($id);
-
-            // Toggle the is_active status
-            $product->is_active = !$product->is_active;
-            $product->save();
-
-            $statusText = $product->is_active ? 'activated' : 'deactivated';
-
-            return response()->json([
-                'success' => true,
-                'message' => "Product has been {$statusText} successfully!",
-                'is_active' => $product->is_active
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
-            ], 500);
-        }
+        return app(ProductWriteService::class)->respondToggleStatusForApi($id);
     }
 }
