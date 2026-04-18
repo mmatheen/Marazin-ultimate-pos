@@ -8,6 +8,7 @@ use App\Services\Product\Concerns\ProductStockImei;
 use App\Services\Product\Concerns\ProductStockListing;
 use App\Services\Product\Concerns\ProductStockOpening;
 use App\Services\Product\Concerns\ProductStockNotifications;
+use App\Services\Product\Concerns\ProductStockReconcile;
 
 class ProductStockService
 {
@@ -17,4 +18,5 @@ class ProductStockService
     use ProductStockHistory;
     use ProductStockAutocomplete;
     use ProductStockListing;
+    use ProductStockReconcile;
 }

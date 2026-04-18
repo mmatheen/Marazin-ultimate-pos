@@ -50,7 +50,7 @@ class ProductReadService
             ->orderBy('name')
             ->get();
 
-        $units = Unit::select('id', 'name')
+        $units = Unit::select('id', 'name', 'short_name', 'allow_decimal')
             ->orderBy('name')
             ->get();
 
@@ -154,7 +154,7 @@ class ProductReadService
             'locations:id,name',
             'mainCategory:id,mainCategoryName',
             'brand:id,name',
-            'unit:id,name',
+            'unit:id,name,short_name,allow_decimal',
         ])->find($id);
     }
 
