@@ -57,6 +57,7 @@ trait ProductStockListing
             $locationId = $request->input('location_id');
             $stockStatus = $request->input('stock_status');
             $withStock = $request->input('with_stock');
+            $strictPosSale = $request->input('context') === 'pos';
 
             if ($locationId && is_numeric($locationId)) {
                 $locationId = (int) $locationId;
@@ -138,7 +139,8 @@ trait ProductStockListing
                 ])
                 ->when(!$request->has('show_all'), function ($query) {
                     return $query->where('is_active', true);
-                });
+                })
+                ->when($strictPosSale, fn ($q) => $q->whereSellableOnPos());
 
             if (!empty($locationId)) {
                 $query->where(function ($q) use ($locationId) {

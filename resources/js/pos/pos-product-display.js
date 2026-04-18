@@ -337,7 +337,7 @@ function fetchPaginatedProducts(reset = false, attemptNumber = 0) {
         showLoaderSmall();
     }
 
-    const url = `/products/stocks?location_id=${selectedLocationId}&page=${window.currentProductsPage}&per_page=${perPage}&with_stock=1`;
+    const url = `/products/stocks?location_id=${selectedLocationId}&page=${window.currentProductsPage}&per_page=${perPage}&with_stock=1&context=pos`;
 
     const fetchOptions = {
         method: 'GET',
@@ -987,7 +987,7 @@ function fetchFilteredProducts(filterType, filterId, reset = true) {
         showLoaderSmall();
     }
 
-    let url = `/products/stocks?location_id=${window.selectedLocationId}&page=${window.currentProductsPage}&per_page=${perPage}`;
+    let url = `/products/stocks?location_id=${window.selectedLocationId}&page=${window.currentProductsPage}&per_page=${perPage}&context=pos`;
 
     switch (filterType) {
         case 'category':    url += `&main_category_id=${filterId}`;  break;

@@ -562,7 +562,7 @@ function showImeiSelectionModal(product, stockEntry, imeis, searchTerm = '', mat
     // Force refresh stock data for IMEI products to get latest status
     if (!isEditing) {
         const autocompleteUrl = (window.PosConfig && window.PosConfig.routes && window.PosConfig.routes.productAutocomplete) || '/products/stocks/autocomplete';
-        fetch(`${autocompleteUrl}?search=${encodeURIComponent(product.product_name)}&location_id=${selectedLocationId}`, {
+        fetch(`${autocompleteUrl}?search=${encodeURIComponent(product.product_name)}&location_id=${selectedLocationId}&context=pos`, {
                 cache: 'no-store', // ✅ Prevent browser caching - always fetch fresh IMEI data
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',

@@ -585,7 +585,7 @@ function checkProductExistsBeforeQuickAdd(term, response, isScanner = false) {
  * @param {string} matchType
  */
 function fetchProductStock(productId, searchTerm, matchType) {
-    const url = `/products/stocks?location_id=${window.selectedLocationId}&product_id=${productId}`;
+    const url = `/products/stocks?location_id=${window.selectedLocationId}&product_id=${productId}&context=pos`;
 
     window.safeFetchJson(url)
         .then(data => {

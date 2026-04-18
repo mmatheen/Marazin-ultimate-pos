@@ -141,7 +141,7 @@ class ProductWriteService
                 'main_category_id' => $mainCategory->id,
                 'stock_alert' => $isLimitedStock ? 1 : 0,
                 'alert_quantity' => $isLimitedStock ? max(1, $quantity * 0.2) : null,
-                'is_for_selling' => 1,
+                'is_for_selling' => 0,
                 'is_active' => 1,
                 'retail_price' => $price,
                 'whole_sale_price' => $price,

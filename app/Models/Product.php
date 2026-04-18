@@ -117,4 +117,16 @@ class Product extends Model
     {
         return $this->hasManyThrough(StockHistory::class, LocationBatch::class);
     }
+
+    /**
+     * Products allowed on the POS sale grid / POS product search.
+     * "Not for selling" is stored as is_for_selling = 1 (see import template / product form).
+     */
+    public function scopeWhereSellableOnPos(Builder $query): Builder
+    {
+        return $query->where(function (Builder $q) {
+            $q->whereNull('is_for_selling')
+                ->orWhereIn('is_for_selling', [0, '0', '']);
+        });
+    }
 }

@@ -16,7 +16,11 @@ trait ProductStockAutocomplete
        
         $locationId = $request->input('location_id');
         $search = $request->input('search');
-        $context = $request->input('context', 'pos');
+        $contextParam = $request->input('context');
+        // Preserve legacy behaviour when `context` is omitted; only explicit `context=pos`
+        // applies POS sale rules (e.g. hide "not for selling" products).
+        $context = $contextParam ?? 'pos';
+        $strictPosSale = $contextParam === 'pos';
         $backordersEnabled = (bool) (Setting::value('enable_backorders') ?? 0);
         $allowBackorderSearch = $context === 'pos'
             && $backordersEnabled
@@ -53,6 +57,7 @@ trait ProductStockAutocomplete
         ])
             // Only show active products in POS/autocomplete
             ->where('is_active', true)
+            ->when($strictPosSale, fn ($q) => $q->whereSellableOnPos())
             // For POS: by default show only products with stock > 0.
             // If backorder search is explicitly enabled, also include 0-stock items
             // that are mapped at the selected location so sale-order backorder flow
