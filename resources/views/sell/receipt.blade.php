@@ -479,9 +479,11 @@
                                 ];
                             }
                         } else {
-                            // Group by product_id + batch_id + price + custom_name so different batches
-                            // (and differently-named cash items at same price) always show as separate lines.
-                            $groupKey = $product->product_id . '-' . ($product->batch_id ?? 'null') . '-' . $product->price . '-' . ($product->custom_name ?? '');
+                            // Merge same product at same unit rate (batch ignored). Split lines only when
+                            // selling price or price type differs; custom_name still separates misc lines.
+                            $priceKey = sprintf('%.4f', (float) $product->price);
+                            $ptype = $product->price_type ?? 'retail';
+                            $groupKey = $product->product_id . '|' . $ptype . '|' . $priceKey . '|' . ($product->custom_name ?? '');
                             if (!isset($nonImeiGroups[$groupKey])) {
                                 $nonImeiGroups[$groupKey] = [
                                     'type' => 'grouped',
@@ -489,11 +491,13 @@
                                     'quantity' => 0,
                                     'free_quantity' => 0,
                                     'amount' => 0,
+                                    'vat_total' => 0.0,
                                 ];
                             }
                             $nonImeiGroups[$groupKey]['quantity'] += $product->quantity;
                             $nonImeiGroups[$groupKey]['free_quantity'] += ($product->free_quantity ?? 0);
                             $nonImeiGroups[$groupKey]['amount'] += $product->price * $product->quantity;
+                            $nonImeiGroups[$groupKey]['vat_total'] += (float) ($product->vat_total ?? 0);
                         }
                     }
 
@@ -556,7 +560,7 @@
 
                     {{-- Show VAT per product if applicable --}}
                     @php
-                        $productVatTotal = (float) ($item['product']->vat_total ?? 0);
+                        $productVatTotal = (float) ($item['vat_total'] ?? $item['product']->vat_total ?? 0);
                         $productTaxPercent = (float) ($item['product']->tax_percent ?? 0);
                     @endphp
                     @if ($productVatTotal > 0)
@@ -700,7 +704,7 @@
         @if($showStatsSection)
         <section class="stats-section">
             <div class="stat-box">
-                <span class="stat-number">{{ count($products) }}</span>
+                <span class="stat-number">{{ isset($displayItems) ? count($displayItems) : count($products) }}</span>
                 <span class="stat-label">TOTAL ITEMS</span>
             </div>
             <div class="stat-box">

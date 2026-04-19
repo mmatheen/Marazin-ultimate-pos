@@ -439,9 +439,10 @@ function showBatchPriceSelectionModal(product, stockEntry, batches, currentCusto
         if (e.target.classList.contains('select-batch-btn')) {
             const batchJson = e.target.dataset.batchJson;
             const selectedBatch = JSON.parse(batchJson);
-            const locationBatch = selectedBatch.location_batches.find(lb => lb.location_id ==
-                selectedLocationId);
-            const qty = locationBatch?.quantity || 0;
+            const locationBatch = selectedBatch.location_batches.find(lb =>
+                String(lb.location_id) === String(selectedLocationId));
+            const qty = (parseFloat(locationBatch?.quantity) || 0)
+                + (parseFloat(locationBatch?.free_quantity ?? locationBatch?.free_qty) || 0);
 
             // Get customer-type-based price for the selected batch
             const priceResult = window.Pos.Customer.getCustomerTypePrice(selectedBatch, product, currentCustomer
@@ -1488,6 +1489,8 @@ function showProductModal(product, stockEntry, row) {
             // Calculate paid and free quantities
             const paidQty = batch.batch_quantity || 0;
             const freeQty = batch.batch_free_quantity || 0;
+            // Total sellable at this location (paid + free) — must match billing row max / validation
+            const totalSellableBatchQty = (parseFloat(paidQty) || 0) + (parseFloat(freeQty) || 0);
             // Only show free quantity if it's greater than 0
             const qtyDisplay = freeQty > 0
                 ? `Paid: ${formatAmountWithSeparators(paidQty)} | Free: ${formatAmountWithSeparators(freeQty)}`
@@ -1499,7 +1502,7 @@ function showProductModal(product, stockEntry, row) {
                 data-wholesale-price="${batch.wholesale_price}"
                 data-special-price="${batch.special_price}"
                 data-max-retail-price="${batch.max_retail_price}"
-                data-quantity="${batch.batch_quantity}" ${selectedBatchId === batch.batch_id ? 'selected' : ''}>
+                data-quantity="${totalSellableBatchQty}" ${selectedBatchId === batch.batch_id ? 'selected' : ''}>
                 ${batch.batch_no} - ${qtyDisplay} - ${priceDisplay}
                 </option>
             `;
@@ -1874,6 +1877,29 @@ function showProductModal(product, stockEntry, row) {
                     selectedRow.setAttribute('data-batch-id', selection.batchId);
                     // Mark that user explicitly selected a batch in the modal
                     selectedRow.setAttribute('data-user-selected-batch', '1');
+                }
+
+                // Sync max sellable qty (paid + free) — critical for free-only claim batches
+                if (selection.maxQty != null && !isNaN(selection.maxQty)) {
+                    const qtyInput = selectedRow.querySelector('.quantity-input');
+                    const priceInputRow = selectedRow.querySelector('.price-input.unit-price');
+                    const freeQtyInputRow = selectedRow.querySelector('.free-quantity-input');
+                    if (qtyInput) {
+                        qtyInput.setAttribute('max', selection.maxQty);
+                        qtyInput.setAttribute('title', `Available: ${selection.maxQty}`);
+                    }
+                    if (priceInputRow) {
+                        priceInputRow.setAttribute('data-quantity', String(selection.maxQty));
+                    }
+                    if (freeQtyInputRow) {
+                        freeQtyInputRow.setAttribute('max', selection.maxQty);
+                        freeQtyInputRow.setAttribute('data-max-stock', selection.maxQty);
+                    }
+                    selectedRow.setAttribute('data-max-quantity', String(selection.maxQty));
+                    const qtyDisp = selectedRow.querySelector('.quantity-display');
+                    if (qtyDisp) {
+                        qtyDisp.setAttribute('data-stock-quantity', String(selection.maxQty));
+                    }
                 }
 
                 // Apply chosen tax to this cart line.

@@ -539,7 +539,7 @@
             <div class="container-fluid p-1">
                 <div class="row">
                     <div class="col-md-12" id="mainContent">
-                        <div class="card bg-white p-2"
+                        <div class="card bg-white p-2 pos-main-billing-card"
                             style="height: calc(100vh - 215px); overflow: hidden; display: flex; flex-direction: column;">
                             <div class="row">
                                 <div class="col-12">
@@ -668,7 +668,7 @@
                             <!-- Item Counter Section - Fixed at bottom of billing card (desktop) -->
                             <div class="row d-none d-md-flex pos-desktop-item-counter"
                                 style="margin: 0; border-top: 2px solid #ddd; background-color: #f8f9fa;">
-                                <div class="col-md-12" style="padding: 4px 8px;">
+                                <div class="col-md-12" style="padding: 2px 6px;">
                                     <div class="d-flex align-items-center justify-content-between">
                                         <div class="d-flex align-items-center">
                                             <i class="fas fa-shopping-cart me-2 text-primary"></i>
@@ -684,8 +684,8 @@
                             </div>
 
                             <!-- Total, Discount, Final Total Section - Desktop only (hidden below 992px; use Order Summary card on mobile/tablet) -->
-                            <div class="row align-items-end pos-order-summary-row d-none d-lg-flex"
-                                style="margin: 0; border-top: 2px solid #ddd; background-color: #fff; padding: 10px;">
+                            <div class="row align-items-center pos-order-summary-row d-none d-lg-flex"
+                                style="margin: 0; border-top: 2px solid #ddd; background-color: #fff; padding: 4px 6px;">
                                 <div class="col-md-2">
                                     <div class="form-group mb-0">
                                         <label
@@ -693,7 +693,7 @@
                                         <p id="total-amount" class="form-control form-control-sm mb-0"
                                             style="height: 30px; line-height: 20px; font-size: 13px; font-weight: 600;">
                                             0.00</p>
-                                        <small class="text-muted d-block mt-1">VAT: Rs <span id="vat-total-amount">0.00</span></small>
+                                        <small class="text-muted d-block pos-billing-vat-hint">VAT: Rs <span id="vat-total-amount">0.00</span></small>
                                     </div>
                                 </div>
                                 <div class="col-md-2">
@@ -763,7 +763,7 @@
                             </div>
 
                             <!-- Sale Notes Section (desktop only; on mobile/tablet use Internal Notes in Order Summary card) -->
-                            <div class="row mt-1 pos-desktop-sale-notes-row d-none d-lg-flex" style="margin: 0; background-color: #fff; padding: 4px 8px;">
+                            <div class="row mt-0 pos-desktop-sale-notes-row d-none d-lg-flex" style="margin: 0; background-color: #fff; padding: 2px 6px 4px;">
                                 <div class="col-md-12">
                                     <div class="form-group mb-0">
                                         <label for="sale-notes-textarea"
@@ -773,7 +773,7 @@
                                         <textarea id="sale-notes-textarea" class="form-control form-control-sm"
                                             placeholder="Add notes, reference, or description for this sale..."
                                             rows="1"
-                                            style="font-size: 12px; resize: vertical; min-height: 32px !important; max-height: 50px !important; padding: 4px 6px !important;"></textarea>
+                                            style="font-size: 11px; resize: vertical; min-height: 28px !important; max-height: 44px !important; padding: 2px 6px !important;"></textarea>
                                     </div>
                                 </div>
                             </div>

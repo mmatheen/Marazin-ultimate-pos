@@ -17,7 +17,7 @@ trait ProductStockListing
     public function getAllProductStocks(Request $request): JsonResponse
     {
         try {
-           
+
 
             if (ob_get_level()) {
                 ob_clean();

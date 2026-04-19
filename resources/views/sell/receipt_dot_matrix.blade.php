@@ -551,10 +551,10 @@
                                 ];
                             }
                         } else {
-                            // Group non-IMEI products by product_id and batch_id
-                            // Group by product_id + batch_id + price so different batches always show as
-                            // separate lines. FIFO rows for the exact same batch still merge correctly.
-                            $groupKey = $product->product_id . '-' . ($product->batch_id ?? 'null') . '-' . $product->price . '-' . ($product->custom_name ?? '');
+                            // Merge same product + same unit rate (ignore batch). Separate rows when rate/type differs.
+                            $priceKey = sprintf('%.4f', (float) $product->price);
+                            $ptype = $product->price_type ?? 'retail';
+                            $groupKey = $product->product_id . '|' . $ptype . '|' . $priceKey . '|' . ($product->custom_name ?? '');
                             if (!isset($nonImeiGroups[$groupKey])) {
                                 $nonImeiGroups[$groupKey] = [
                                     'type' => 'grouped',
@@ -562,6 +562,7 @@
                                     'quantity' => 0,
                                     'free_quantity' => 0,
                                     'amount' => 0,
+                                    'vat_total' => 0.0,
                                     'discount' => ($mrp - $product->price),
                                     'discount_percent' => ($product->discount_type === 'percentage') ? (float) ($product->discount_amount ?? 0) : null,
                                     'unitPrice' => $mrp,
@@ -573,6 +574,7 @@
                             $nonImeiGroups[$groupKey]['quantity'] += $product->quantity;
                             $nonImeiGroups[$groupKey]['free_quantity'] += ($product->free_quantity ?? 0);
                             $nonImeiGroups[$groupKey]['amount'] += $product->price * $product->quantity;
+                            $nonImeiGroups[$groupKey]['vat_total'] += (float) ($product->vat_total ?? 0);
                         }
                     }
 
@@ -624,7 +626,7 @@
 
                     {{-- Show VAT per product if applicable --}}
                     @php
-                        $productVatTotal = (float) ($item['product']->vat_total ?? 0);
+                        $productVatTotal = (float) ($item['vat_total'] ?? $item['product']->vat_total ?? 0);
                         $productTaxPercent = (float) ($item['product']->tax_percent ?? 0);
                     @endphp
                     @if ($productVatTotal > 0)

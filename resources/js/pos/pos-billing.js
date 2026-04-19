@@ -347,10 +347,13 @@ async function addProductToBillingBody(
         adjustedBatchQuantity = (parseFloat(stockEntry.total_stock) || 0)
             + (parseFloat(stockEntry.total_free_stock) || 0);
     } else if (batch && batch.location_batches) {
-        const locationBatch = batch.location_batches.find(lb => lb.location_id === locationId);
+        // String-compare location ids (select value is often string; API may return int)
+        const locationBatch = batch.location_batches.find(lb =>
+            String(lb.location_id) === String(locationId));
         if (locationBatch) {
-            adjustedBatchQuantity = (parseFloat(locationBatch.quantity) || 0)
-                + (parseFloat(locationBatch.free_quantity) || 0);
+            const paid = parseFloat(locationBatch.quantity) || 0;
+            const free = parseFloat(locationBatch.free_quantity ?? locationBatch.free_qty) || 0;
+            adjustedBatchQuantity = paid + free;
         }
     }
 
