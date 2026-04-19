@@ -65,9 +65,6 @@ use App\Http\Controllers\Api\{
 // Authentication Routes
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
 
-// Authentication Routes
-Route::post('/login', [AuthenticatedSessionController::class, 'store']);
-
 // Public Product Routes (might be needed for mobile apps without auth)
 Route::get('/get-brand', [BrandController::class, 'brandDropdown']);
 
@@ -277,16 +274,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/imei/delete', [ProductController::class, 'deleteImei']);
     Route::get('/imei/get/{productId}', [ProductController::class, 'getImeis'])->name('api.getImeis');
 
-    // Product Miscellaneous
-    Route::post('/save-changes', [ProductController::class, 'saveChanges']);
-    Route::post('/get-product-locations', [ProductController::class, 'getProductLocations']);
-    Route::post('/apply-discount', [ProductController::class, 'applyDiscount'])->name('products.applyDiscount');
-
-      // IMEI Management (moved to web middleware for session-based auth)
+    // Legacy aliases (same handlers as /imei/*) — kept for older mobile clients that mirror web paths.
     Route::post('/save-or-update-imei', [ProductController::class, 'saveOrUpdateImei']);
     Route::post('/update-imei', [ProductController::class, 'updateSingleImei']);
     Route::post('/delete-imei', [ProductController::class, 'deleteImei']);
     Route::get('/get-imeis/{productId}', [ProductController::class, 'getImeis'])->name('getImeis');
+
+    Route::post('/save-changes', [ProductController::class, 'saveChanges']);
+    Route::post('/get-product-locations', [ProductController::class, 'getProductLocations']);
+    Route::post('/apply-discount', [ProductController::class, 'applyDiscount'])->name('products.applyDiscount');
 
     // ========================================
     // SALES MANAGEMENT

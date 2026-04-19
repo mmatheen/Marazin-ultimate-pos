@@ -11,7 +11,8 @@ class StoreOrUpdateProductRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        // Matches Web ProductController: storeOrUpdate is gated by create product (create + update).
+        return (bool) $this->user()?->can('create product');
     }
 
     public function rules(): array

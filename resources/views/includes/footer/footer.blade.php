@@ -1,3 +1,3 @@
 <footer>
-    <p>Copyright © 2025 Marazin Pvt Ltd.</p>
+    <p>Copyright © {{ date('Y') }} Marazin Pvt Ltd.</p>
 </footer>

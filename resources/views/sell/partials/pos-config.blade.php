@@ -18,6 +18,14 @@
             canDeleteSale:          {!! json_encode(auth()->check() && auth()->user()->can('delete sale')) !!},
             canEditProduct:         {!! json_encode(auth()->check() && auth()->user()->can('edit product')) !!},
             canDeleteProduct:       {!! json_encode(auth()->check() && auth()->user()->can('delete product')) !!},
+            cashRegister: {
+                canPollCurrent: {!! json_encode(auth()->check() && (auth()->user()->can('view cash register') || auth()->user()->can('open register'))) !!},
+                canOpen:        {!! json_encode(auth()->check() && auth()->user()->can('open register')) !!},
+                canClose:       {!! json_encode(auth()->check() && auth()->user()->can('close register')) !!},
+                canPayIn:       {!! json_encode(auth()->check() && auth()->user()->can('pay in')) !!},
+                canPayOut:      {!! json_encode(auth()->check() && auth()->user()->can('pay out')) !!},
+                canAddExpense:  {!! json_encode(auth()->check() && auth()->user()->can('add expense from pos')) !!},
+            },
         },
 
         // --- Free Quantity feature flags ---

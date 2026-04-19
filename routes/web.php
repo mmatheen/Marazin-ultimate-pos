@@ -198,7 +198,7 @@ Route::middleware(['auth'])->group(function () {
         // Product CRUD
         Route::get('/list-product', [ProductController::class, 'product'])->name('list-product');
         Route::get('/add-product', [ProductController::class, 'addProduct'])->name('add-product');
-        Route::get('/edit-product/{id}', [ProductController::class, 'EditProduct'])->name('edit-product');
+        Route::get('/edit-product/{id}', [ProductController::class, 'editProduct'])->name('edit-product');
         Route::post('/toggle-product-status/{id}', [ProductController::class, 'toggleStatus']);
         Route::delete('/product-delete/{id}', [ProductController::class, 'destroy'])->name('product.delete');
         // Product Details & Stock

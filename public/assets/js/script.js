@@ -36,7 +36,7 @@
         $("html").addClass("menu-opened");
         return false;
     });
-    
+
     // .toggle-password1
     if ($(".toggle-password1").length > 0) {
         $(document).on("click", ".toggle-password1", function () {
@@ -93,7 +93,11 @@
         }
     });
     if ($(".select").length > 0) {
-        $(".select").select2({ minimumResultsForSearch: -1, width: "100%" });
+        $(".select").select2({
+            minimumResultsForSearch: -1,
+            width: "100%",
+            dropdownParent: $("body"),
+        });
     }
     if ($("#editor").length > 0) {
         ClassicEditor.create(document.querySelector("#editor"), {
@@ -230,14 +234,24 @@
             wheelStep: 10,
             touchScrollStep: 100,
         });
-        var wHeight = $(window).height() - 60;
-        $slimScrolls.height(wHeight);
-        $(".sidebar .slimScrollDiv").height(wHeight);
-        $(window).resize(function () {
-            var rHeight = $(window).height() - 60;
-            $slimScrolls.height(rHeight);
-            $(".sidebar .slimScrollDiv").height(rHeight);
-        });
+        function syncSidebarSlimscrollHeights() {
+            var $side = $(".sidebar");
+            if ($side.length === 0) {
+                return;
+            }
+            var h = Math.round($side.innerHeight());
+            if (!h || h < 80) {
+                h = Math.max(0, $(window).height() - 60);
+            }
+            $slimScrolls.height(h);
+            $(".sidebar .slimScrollDiv").height(h);
+        }
+        syncSidebarSlimscrollHeights();
+        requestAnimationFrame(syncSidebarSlimscrollHeights);
+        $(window).on("resize orientationchange", syncSidebarSlimscrollHeights);
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener("resize", syncSidebarSlimscrollHeights);
+        }
     }
     $(document).on("click", "#toggle_btn", function () {
         if ($("body").hasClass("mini-sidebar")) {

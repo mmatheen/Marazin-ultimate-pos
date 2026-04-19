@@ -12,8 +12,7 @@ class UpdateReceiptConfigRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Check if user has permission to update location settings
-        return true; // Add your authorization logic here
+        return (bool) $this->user()?->can('edit location');
     }
 
     /**

@@ -39,6 +39,7 @@
     <link rel="stylesheet" href="{{ URL::to('assets/plugins/fontawesome/css/all.min.css') }}">
     <link rel="stylesheet" href="assets/plugins/toastr/toatr.css">
     <link rel="stylesheet" href="{{ URL::to('assets/css/style.css') }}">
+    <link rel="stylesheet" href="{{ URL::to('assets/css/app-ui-density.css') }}">
     <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 

@@ -11,23 +11,10 @@
     <link rel="icon" href="{{ $activeSetting?->favicon_url }}" type="image/x-icon">
     <link rel="shortcut icon" href="{{ $activeSetting?->favicon_url }}" type="image/x-icon">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <link rel="stylesheet" href="{{ asset('vendor/font-awesome/css/all.min.css') }}">
     <link
         href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;0,900;1,400;1,500;1,700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="{{ asset('assets/plugins/bootstrap/css/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/plugins/feather/feather.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/plugins/icons/flags/flags.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/css/bootstrap-datetimepicker.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/plugins/fontawesome/css/fontawesome.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/plugins/fontawesome/css/all.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/plugins/select2/css/select2.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/plugins/datatables/datatables.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/plugins/toastr/toatr.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/plugins/summernote/summernote-bs4.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
-    <link rel="stylesheet" href="{{ asset('vendor/sweetalert/css/sweetalert.min.css') }}">
-
+    @include('layout.partials.head-styles-core', ['withAdminAssets' => false])
     <link rel="stylesheet" href="{{ asset('assets/css/pos_page_style/pos-main.css') }}">
 
     <!-- Sales Rep Payment Button Control CSS -->
@@ -209,24 +196,38 @@
                                     <i class="fas fa-backward"></i>
                                 </button>
 
-                                <!-- Cash Register: Drawer balance + actions -->
+                                {{-- Cash Register: needs view/open to poll current; actions gated per Spatie permission --}}
+                                @canany(['view cash register', 'open register'])
                                 <div class="pos-cash-drawer-wrap d-none d-md-flex align-items-center gap-2 me-2">
                                     <span class="text-nowrap fw-semibold" style="font-size: 0.9rem;">
                                         <i class="fas fa-cash-register me-1"></i> Drawer: <span id="posCashDrawerBalance">Rs. 0.00</span>
                                     </span>
+                                    @canany(['pay in', 'pay out', 'add expense from pos', 'close register'])
                                     <div class="dropdown">
                                         <button class="btn btn-success btn-sm dropdown-toggle" id="posCashRegisterDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Cash register">
                                             <i class="fas fa-wallet"></i>
                                         </button>
                                         <ul class="dropdown-menu dropdown-menu-end">
+                                            @can('pay in')
                                             <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#posPayInModal"><i class="fas fa-plus-circle text-success me-2"></i> Pay In</button></li>
+                                            @endcan
+                                            @can('pay out')
                                             <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#posPayOutModal"><i class="fas fa-minus-circle text-warning me-2"></i> Pay Out</button></li>
+                                            @endcan
+                                            @can('add expense from pos')
                                             <li><button type="button" class="dropdown-item" id="posAddExpenseBtn"><i class="fas fa-receipt text-info me-2"></i> Add Expense</button></li>
+                                            @endcan
+                                            @if(auth()->user()->can('close register') && (auth()->user()->can('pay in') || auth()->user()->can('pay out') || auth()->user()->can('add expense from pos')))
                                             <li><hr class="dropdown-divider"></li>
+                                            @endif
+                                            @can('close register')
                                             <li><button type="button" class="dropdown-item text-danger" id="posCloseRegisterBtn"><i class="fas fa-lock me-2"></i> Close Register</button></li>
+                                            @endcan
                                         </ul>
                                     </div>
+                                    @endcanany
                                 </div>
+                                @endcanany
 
                                 <!-- Calculator Button with Dropdown -->
                                 <div class="dropdown">
@@ -1895,7 +1896,8 @@
         </div>
     </div>
 
-    <!-- Cash Register Modals -->
+    <!-- Cash Register Modals (only render modals the user may use; API still enforces) -->
+    @can('open register')
     <div class="modal fade" id="posOpenRegisterModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -1912,6 +1914,8 @@
             </div>
         </div>
     </div>
+    @endcan
+    @can('pay in')
     <div class="modal fade" id="posPayInModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -1929,6 +1933,8 @@
             </div>
         </div>
     </div>
+    @endcan
+    @can('pay out')
     <div class="modal fade" id="posPayOutModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -1946,6 +1952,8 @@
             </div>
         </div>
     </div>
+    @endcan
+    @can('close register')
     <div class="modal fade" id="posCloseRegisterModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -1964,6 +1972,8 @@
             </div>
         </div>
     </div>
+    @endcan
+    @can('add expense from pos')
     <div class="modal fade" id="posExpenseModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -1999,6 +2009,7 @@
             </div>
         </div>
     </div>
+    @endcan
 
     <!-- POS Configuration (Blade-to-JS bridge) is in @include('sell.partials.pos-config') below -->
 
@@ -2008,11 +2019,11 @@
 
     {{--
         POS JavaScript load order (do not change lightly):
-        1) Vendor scripts      → @include('sell.partials.pos-vendor-scripts')
-        2) Notifications       → @include('sell.partials.pos-notifications')
-        3) Config bridge       → @include('sell.partials.pos-config') exposes window.PosConfig + globals
-        4) POS modules (Vite)  → @vite('resources/js/pos/*.js') – all page logic lives here
-        5) Customer includes   → contact.* partials (AJAX + modals)
+        1) Vendor scripts → pos-vendor-scripts (jQuery + layout/partials/vendor-scripts-shared-stack + admin-suffix + POS CDN extras)
+        2) Notifications → pos-notifications
+        3) Config bridge → pos-config (window.PosConfig + globals)
+        4) POS modules (Vite) → resources/js/pos/*.js
+        5) Customer includes → contact.* partials (AJAX + modals)
     --}}
 
     <!-- POS JS Modules -->

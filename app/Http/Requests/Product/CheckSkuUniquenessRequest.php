@@ -10,7 +10,7 @@ class CheckSkuUniquenessRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return (bool) $this->user()?->can('view product');
     }
 
     public function rules(): array

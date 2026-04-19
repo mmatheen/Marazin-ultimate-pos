@@ -10,7 +10,7 @@ class ImportProductsExcelRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return (bool) $this->user()?->can('import product');
     }
 
     public function rules(): array

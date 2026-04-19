@@ -40,10 +40,12 @@ class ProductController extends Controller
         $this->productReadService = $productReadService;
         $this->productStockService = $productStockService;
 
-        $this->middleware('permission:view product', ['only' => ['product', 'index', 'getProductDetails', 'getLastProduct', 'getProductsByCategory', 'initialProductDetails', 'getStockHistory', 'getAllProductStocks', 'autocompleteStock', 'getNotifications', 'OpeningStockGetAll', 'getImeis', 'showSubCategoryDetailsUsingByMainCategoryId', 'updatePrice']]);
+        $this->middleware('permission:view product', ['only' => ['product', 'getProductDetails', 'getLastProduct', 'getProductsByCategory', 'initialProductDetails', 'getStockHistory', 'getAllProductStocks', 'autocompleteStock', 'checkSkuUniqueness', 'getNotifications', 'markNotificationsAsSeen', 'OpeningStockGetAll', 'getProductLocations', 'getImeis', 'showSubCategoryDetailsUsingByMainCategoryId', 'updatePrice']]);
         $this->middleware('permission:create product', ['only' => ['addProduct', 'storeOrUpdate', 'quickAdd']]);
-        $this->middleware('permission:edit product', ['only' => ['editProduct']]);
-        $this->middleware('permission:delete product', ['only' => ['deleteImei']]);
+        $this->middleware('permission:edit product', ['only' => ['editProduct', 'toggleStatus', 'saveChanges', 'applyDiscount']]);
+        $this->middleware('permission:manage opening stock', ['only' => ['showOpeningStock', 'editOpeningStock', 'storeOrUpdateOpeningStock', 'deleteOpeningStock']]);
+        $this->middleware('permission:imei management', ['only' => ['saveOrUpdateImei', 'updateSingleImei']]);
+        $this->middleware('permission:delete product', ['only' => ['deleteImei', 'destroy']]);
         $this->middleware('permission:import product', ['only' => ['importProduct', 'importProductStore']]);
         $this->middleware('permission:export product', ['only' => ['exportBlankTemplate', 'exportProducts']]);
         $this->middleware('permission:edit batch prices', ['only' => ['getProductBatches', 'updateBatchPrices']]);

@@ -15,9 +15,11 @@ class SettingController extends Controller
     function __construct()
     {
         $this->middleware('permission:view settings', ['only' => ['index']]);
-        $this->middleware('permission:edit business-settings', ['only' => ['update', 'updatePriceValidation', 'updateFreeQty', 'updateBackorders']]);
+        $this->middleware('permission:edit business-settings', ['only' => ['update', 'updatePriceValidation', 'updateFreeQty']]);
+        $this->middleware('permission:edit backorder-settings', ['only' => ['updateBackorders']]);
         $this->middleware('permission:edit sms-settings', ['only' => ['updateSmsSettings']]);
         $this->middleware('permission:sms.send', ['only' => ['sendSms']]);
+        $this->middleware('permission:backup database', ['only' => ['backupNow']]);
     }
 
     /**

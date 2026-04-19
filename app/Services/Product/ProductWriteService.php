@@ -612,10 +612,15 @@ class ProductWriteService
                 'message' => "Product has been {$statusText} successfully!",
                 'is_active' => $product->is_active,
             ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Product not found!',
+            ], 404);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage(),
+                'message' => 'Failed to update product status: ' . $e->getMessage(),
             ], 500);
         }
     }

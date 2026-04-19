@@ -10,7 +10,7 @@ class SaveProductLocationsRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return (bool) $this->user()?->can('edit product');
     }
 
     public function rules(): array

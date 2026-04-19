@@ -36,6 +36,37 @@ class ProductController extends Controller
         $this->productExportService = $productExportService;
         $this->productReadService = $productReadService;
         $this->productStockService = $productStockService;
+
+        $this->middleware('permission:view product')->only([
+            'getStockHistory',
+            'reconcileStock',
+            'initialProductDetails',
+            'index',
+            'getProductDetails',
+            'getLastProduct',
+            'getProductsByCategory',
+            'checkSkuUniqueness',
+            'getAllProductStocks',
+            'autocompleteStock',
+            'getNotifications',
+            'markNotificationsAsSeen',
+            'OpeningStockGetAll',
+            'getProductLocations',
+            'getImeis',
+            'showSubCategoryDetailsUsingByMainCategoryId',
+        ]);
+        $this->middleware('permission:create product')->only(['storeOrUpdate']);
+        $this->middleware('permission:edit product')->only(['editProduct', 'toggleStatus', 'saveChanges', 'applyDiscount']);
+        $this->middleware('permission:delete product')->only(['destroy', 'deleteImei']);
+        $this->middleware('permission:manage opening stock')->only([
+            'showOpeningStock',
+            'editOpeningStock',
+            'storeOrUpdateOpeningStock',
+            'deleteOpeningStock',
+        ]);
+        $this->middleware('permission:imei management')->only(['saveOrUpdateImei', 'updateSingleImei']);
+        $this->middleware('permission:import product')->only(['importProduct', 'importProductStore']);
+        $this->middleware('permission:export product')->only(['exportBlankTemplate', 'exportProducts']);
     }
 
     public function getStockHistory($productId)

@@ -23,23 +23,7 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         }
     </style>
-    <link rel="stylesheet" href="{{ asset('assets/plugins/bootstrap/css/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/plugins/feather/feather.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/plugins/icons/flags/flags.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/css/bootstrap-datetimepicker.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/plugins/fontawesome/css/fontawesome.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/plugins/fontawesome/css/all.min.css') }}">
-    {{-- <link rel="stylesheet" href="{{ asset('assets/plugins/select2/css/select2.min.css') }}"> --}}
-    <link href="{{ asset('vendor/select2/dist/css/select2.min.css') }}" rel="stylesheet" />
-    <link rel="stylesheet" href="{{ asset('assets/plugins/datatables/datatables.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('vendor/datatables-buttons/css/buttons.dataTables.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/plugins/toastr/toatr.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/plugins/summernote/summernote-bs4.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
-    <link rel="stylesheet" href="{{ asset('vendor/jquery-ui/themes/base/jquery-ui.css') }}">
-    <link rel="stylesheet" type="text/css" href="{{ asset('vendor/daterangepicker/daterangepicker.css') }}" />
-    <link href="{{ asset('vendor/tom-select/dist/css/tom-select.css') }}" rel="stylesheet">
-    <link rel="stylesheet" href="{{ asset('vendor/sweetalert/css/sweetalert.min.css') }}">
+    @include('layout.partials.head-styles-core', ['withAdminAssets' => true])
 
 
 
@@ -148,53 +132,9 @@
             @include('includes.footer.footer')
         </div>
     </div>
-    <script src="{{ asset('vendor/jquery-ui/js/jquery-ui.js') }}"></script>
-    <script src="{{ asset('vendor/tom-select/dist/js/tom-select.complete.min.js') }}"></script>
-    <script src="{{ asset('vendor/inputmask/inputmask.min.js') }}"></script>
-    <script type="text/javascript" src="{{ asset('vendor/moment/moment.min.js') }}"></script>
-    <script type="text/javascript" src="{{ asset('vendor/daterangepicker/daterangepicker.min.js') }}"></script>
-    <script src="{{ asset('assets/plugins/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
-    <script src="{{ asset('assets/js/feather.min.js') }}"></script>
-    <script src="{{ asset('assets/plugins/slimscroll/jquery.slimscroll.min.js') }}"></script>
-    <script src="{{ asset('assets/plugins/summernote/summernote-bs4.min.js') }}"></script>
-    {{-- <script src="{{ asset('assets/plugins/select2/js/select2.min.js') }}"></script> --}}
-    <script src="{{ asset('vendor/select2/dist/js/select2.min.js') }}"></script>
-    <script src="{{ asset('assets/plugins/moment/moment.min.js') }}"></script>
-    <script src="{{ asset('assets/js/bootstrap-datetimepicker.min.js') }}"></script>
-    <script src="{{ asset('assets/plugins/apexchart/apexcharts.min.js') }}"></script>
-    <script src="{{ asset('assets/plugins/apexchart/chart-data.js') }}"></script>
-    <script src="{{ asset('vendor/chartjs/chart.min.js') }}"></script>
-    <script src="{{ asset('vendor/date-fns/date-fns.min.js') }}"></script>
-    <script src="{{ asset('vendor/chartjs-adapter-date-fns/chartjs-adapter-date-fns.bundle.min.js') }}">
-    </script>
-
-
-    <!-- DataTables -->
-    <script src="{{ asset('assets/plugins/datatables/jquery.dataTables.min.js') }}"></script>
-    <script src="{{ asset('assets/plugins/datatables/datatables.min.js') }}"></script>
-
-    <!-- Buttons extension for DataTables -->
-    <script src="{{ asset('vendor/datatables-buttons/js/dataTables.buttons.min.js') }}"></script>
-    <script src="{{ asset('vendor/datatables-buttons/js/buttons.bootstrap5.min.js') }}"></script>
-    <script src="{{ asset('vendor/datatables-buttons/js/buttons.html5.min.js') }}"></script>
-    <script src="{{ asset('vendor/datatables-buttons/js/buttons.print.min.js') }}"></script>
-    <script src="{{ asset('vendor/datatables-buttons/js/buttons.colVis.min.js') }}"></script>
-
-    <!-- JSZip and PDFMake for Excel/PDF export -->
-    <script src="{{ asset('vendor/jszip/jszip.min.js') }}"></script>
-    <script src="{{ asset('vendor/pdfmake/pdfmake.min.js') }}"></script>
-    <script src="{{ asset('vendor/pdfmake/vfs_fonts.js') }}"></script>
-
-
-    <script src="{{ asset('assets/plugins/toastr/toastr.min.js') }}"></script>
-    <script src="{{ asset('assets/plugins/toastr/toastr.js') }}"></script>
-    <script src="{{ asset('assets/js/jquery-ui.min.js') }}"></script>
-    <script src="{{ asset('assets/plugins/bootstrap-tagsinput/js/bootstrap-tagsinput.js') }}"></script>
-    <script src="{{ asset('assets/js/script.js') }}"></script>
-
-    <!-- jQuery Validation Plugin -->
-    <script src="{{ asset('vendor/jquery-validate/jquery.validate.min.js') }}"></script>
-    <script src="{{ asset('vendor/sweetalert/js/sweetalert.min.js') }}"></script>
+    @include('layout.partials.vendor-scripts-admin-prefix')
+    @include('layout.partials.vendor-scripts-shared-stack', ['loadMoment' => false])
+    @include('layout.partials.vendor-scripts-admin-suffix')
 
     <script>
         // Load CSRF cookie once

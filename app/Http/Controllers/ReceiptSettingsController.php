@@ -14,6 +14,12 @@ use Carbon\Carbon;
 
 class ReceiptSettingsController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:view location', ['only' => ['show', 'preview']]);
+        $this->middleware('permission:edit location', ['only' => ['update', 'reset', 'applyPreset']]);
+    }
+
     /**
      * Show receipt settings for a location
      *

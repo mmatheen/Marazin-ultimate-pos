@@ -6,6 +6,7 @@
     'use strict';
 
     const routes = window.PosConfig?.routes?.cashRegister || {};
+    const cashRegisterPerms = window.PosConfig?.permissions?.cashRegister || {};
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
     function getCsrfHeaders() {
@@ -21,6 +22,9 @@
     let currentBalance = 0;
 
     function getCurrentRegister(locationId) {
+        if (!cashRegisterPerms.canPollCurrent) {
+            return Promise.resolve({ success: true, open: false, register: null, balance: 0 });
+        }
         if (!locationId) return Promise.resolve({ open: false, register: null, balance: 0 });
         const url = routes.current + '?location_id=' + encodeURIComponent(locationId);
         return fetch(url, { headers: getCsrfHeaders() })
@@ -130,6 +134,7 @@
     }
 
     function updateBalanceDisplay() {
+        if (!cashRegisterPerms.canPollCurrent) return;
         const el = document.getElementById('posCashDrawerBalance');
         if (!el) return;
         if (currentRegister) {
@@ -165,14 +170,15 @@
 
         $(document).on('pos:location-changed pos:register-refresh', function () {
             const locId = getSelectedLocationId();
-            if (locId && window.PosCashRegister.getCurrentRegister) {
-                window.PosCashRegister.getCurrentRegister(locId).then(function (data) {
-                    window.PosCashRegister.updateBalanceDisplay();
-                    if (data.open === false && data.success) {
-                        $('#posOpenRegisterModal').modal('show');
-                    }
-                });
+            if (!cashRegisterPerms.canPollCurrent || !locId || !window.PosCashRegister.getCurrentRegister) {
+                return;
             }
+            window.PosCashRegister.getCurrentRegister(locId).then(function (data) {
+                window.PosCashRegister.updateBalanceDisplay();
+                if (cashRegisterPerms.canOpen && data.open === false && data.success && document.getElementById('posOpenRegisterModal')) {
+                    $('#posOpenRegisterModal').modal('show');
+                }
+            });
         });
 
         $('#posOpenRegisterBtn').on('click', function () {

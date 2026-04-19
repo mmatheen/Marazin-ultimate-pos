@@ -10,7 +10,7 @@ class UpdateBatchPricesRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return (bool) $this->user()?->can('edit batch prices');
     }
 
     public function rules(): array
