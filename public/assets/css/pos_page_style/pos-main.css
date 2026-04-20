@@ -1192,9 +1192,6 @@
             .subcategory-card {
                 width: calc(33.33% - 8px);
             }
-        }
-
-        @media (min-width: 768px) and (max-width: 1023px) {
             .category-card,
             .brand-card,
             .subcategory-card {
