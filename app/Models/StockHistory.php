@@ -17,6 +17,9 @@ class StockHistory extends Model
         'free_qty',
         'source_pool',
         'movement_type',
+        // Optional linkage to originating CRUD action (when present in schema)
+        'reference_id',
+        'reference_type',
     ];
 
     // Append computed attributes to JSON/array output
