@@ -64,7 +64,7 @@
                     </div>
                     <div class="col-12 col-lg-5">
                         <div class="amount-to-pay-highlight border border-primary rounded-3 p-1 bg-white text-start h-100">
-                            <div class="text-uppercase text-muted fw-semibold mb-1" style="font-size:11px;letter-spacing:.04em;">Pay now (cash)</div>
+                            <div class="text-uppercase text-muted fw-semibold mb-1" style="font-size:11px;letter-spacing:.04em;">Sales due (invoices)</div>
                             <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
                                 <div class="h4 fw-bold text-primary mb-0" id="netCustomerDue">Rs. 0.00</div>
                                 <button type="button" class="btn btn-sm btn-light border rounded-circle p-1 lh-1" id="whyAmountLink" title="Why this amount?" aria-label="Why this amount?">
@@ -550,14 +550,14 @@
                         });
 
                         // Only show customers who have due amounts
-                        if (currentDue > 0) {
+                            if (currentDue > 0) {
                             var lastName = customer.last_name ? customer.last_name : '';
                             var fullName = customer.first_name + (lastName ? ' ' + lastName : '');
                             var mobileRaw = customer.mobile_no != null ? String(customer.mobile_no).trim() : '';
                             var mobileSeg = mobileRaw ? ' · ' + mobileRaw : '';
 
-                            // Build clear display text (name + mobile for Select2 search) with total due prominent
-                            var displayText = fullName + mobileSeg + ' [Total Due: Rs. ' + currentDue.toFixed(2) + ']';
+                            // Build clear display text (name + mobile for Select2 search) with ledger/account due prominent
+                            var displayText = fullName + mobileSeg + ' [Account Due: Rs. ' + currentDue.toFixed(2) + ']';
 
                             // Show breakdown if available
                             if (openingBalance > 0 && saleDue > 0) {
@@ -737,7 +737,7 @@
             if (!$h.data('why-filled')) {
                 $h.html(
                     '<i class="fas fa-info-circle me-1"></i>' +
-                    'Your account balance and invoice total may differ. The amount to pay in cash is shown above.'
+                    'Account Due (ledger) and Sales Due (invoices) can differ. The sales invoice due is shown above.'
                 );
                 $h.data('why-filled', true);
             }

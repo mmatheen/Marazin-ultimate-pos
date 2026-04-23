@@ -380,8 +380,18 @@ class Ledger extends Model
                 $amount = abs($data['amount']); // Work with positive amount
                 $isReversal = $data['amount'] < 0; // Check if this is a reversal
 
-                // Check if this is a return payment based on notes
-                if (isset($data['notes']) && strpos(strtolower($data['notes']), 'return') !== false) {
+                // Return/refund payments MUST NOT be detected via generic substring matching on notes.
+                // Example bug: a normal customer payment with notes like "damage return" was treated as
+                // a cash refund and recorded as DEBIT (increasing due) instead of CREDIT.
+                //
+                // We only treat as return payment when the notes are explicitly written in return-payment format.
+                $notesLower = isset($data['notes']) ? strtolower((string) $data['notes']) : '';
+                $isExplicitReturnPaymentNote =
+                    str_starts_with($notesLower, 'return payment -') ||
+                    str_starts_with($notesLower, 'cash refund');
+
+                // Check if this is a return payment based on explicit note format
+                if ($isExplicitReturnPaymentNote) {
                     // Return payment: when we pay customer for returns, it's a debit (money flowing out to customer)
                     if ($data['contact_type'] === 'customer') {
                         if ($isReversal) {
