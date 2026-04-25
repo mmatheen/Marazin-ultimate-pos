@@ -766,7 +766,9 @@ $(document).ready(function() {
 
             // Format payment method
             let methodBadge = '';
-            switch(payment.payment_method) {
+            if (payment.payment_type === 'advance_credit_usage' || payment.payment_method === 'advance_credit') {
+                methodBadge = '<span class="badge bg-success">Credit Applied (no cash)</span>';
+            } else switch(payment.payment_method) {
                 case 'cash':
                     methodBadge = '<span class="badge bg-primary">Cash</span>';
                     break;
@@ -1019,6 +1021,7 @@ $(document).ready(function() {
                             <option value="card" ${p.payment_method === 'card' ? 'selected' : ''}>Card</option>
                             <option value="cheque" ${p.payment_method === 'cheque' ? 'selected' : ''}>Cheque</option>
                             <option value="bank_transfer" ${p.payment_method === 'bank_transfer' ? 'selected' : ''}>Bank Transfer</option>
+                            <option value="advance_credit" ${p.payment_method === 'advance_credit' ? 'selected' : ''}>Credit Applied (no cash)</option>
                         </select>
                         <div class="small text-muted mt-1">Current due: Rs. ${limitInfo.currentDue.toFixed(2)}<br>Max editable: Rs. ${limitInfo.maxEditable.toFixed(2)}</div>
                     </td>

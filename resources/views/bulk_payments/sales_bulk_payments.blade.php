@@ -54,8 +54,9 @@
                                 <div class="d-flex flex-wrap gap-1 align-items-baseline">
                                     <span class="text-muted me-1">Opening Balance: <strong class="text-dark">Rs. <span id="openingBalance">0.00</span></strong></span>
                                     <span class="text-muted border-start border-light ps-2">Sales unpaid (invoices): <strong class="text-dark">Rs. <span id="totalDueAmount">0.00</span></strong></span>
+                                    <span class="text-muted border-start border-light ps-2">Account due (ledger): <strong class="text-dark">Rs. <span id="accountDueAmount">0.00</span></strong></span>
                                     <span id="returnCount" class="text-info" style="display: none;">(<span id="returnCountNumber">0</span> returns available)</span>
-                                    <span id="advanceCount" class="text-success" style="display: none;">(Advance: Rs. <span id="advanceAmount">0.00</span>)</span>
+                                    <span id="advanceCount" class="text-success" style="display: none;">(Credit available: Rs. <span id="advanceAmount">0.00</span>)</span>
                                 </div>
                                 <div id="returnCreditAppliedSummary" class="mt-1 text-muted small" style="display: none;"></div>
                                 <div id="netCalculation" class="mt-1" style="display:none !important"></div>
@@ -173,12 +174,12 @@
                     </div>
                 </div>
 
-                <!-- Advance Credit Section - Similar to Returns -->
+                <!-- Credit / Advance Section - Similar to Returns -->
                 <div id="customerAdvanceSection" class="mb-3" style="display: none;">
                     <div class="border rounded p-2 bg-white">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <h6 class="mb-0 text-success">
-                                <i class="fas fa-piggy-bank"></i> Advance Credit (Rs. <span id="advanceToApplyToBills">0.00</span> available)
+                                <i class="fas fa-piggy-bank"></i> Credit available (Rs. <span id="advanceToApplyToBills">0.00</span> available)
                             </h6>
                             <button type="button" class="btn btn-sm btn-outline-secondary" id="hideAdvanceBtn">
                                 <i class="fas fa-times"></i> Hide
@@ -187,7 +188,7 @@
                         <div class="form-check mb-2">
                             <input class="form-check-input" type="checkbox" id="applyAdvanceCreditCheckbox">
                             <label class="form-check-label" for="applyAdvanceCreditCheckbox">
-                                Apply advance credit to this payment
+                                Apply credit to reduce cash to collect
                             </label>
                         </div>
                         <div id="advanceCreditAmountSection" style="display: none;">
@@ -492,1414 +493,51 @@
 
 
 
+@vite('resources/js/bulk-payments/common.js')
+@vite('resources/js/bulk-payments/sales.js')
+
 <script>
-    function parseAmountValue(value) {
-        if (value === null || value === undefined) return 0;
-        const clean = String(value).replace(/,/g, '').replace(/[^\d.-]/g, '');
-        const num = parseFloat(clean);
-        return Number.isFinite(num) ? num : 0;
-    }
+    // Most page handlers moved into `resources/js/bulk-payments/sales.js`.
+    // Returns selection logic moved into `resources/js/bulk-payments/sales.js`.
 
-    function formatAmountValue(value) {
-        const num = Number(value || 0);
-        return num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-
-    function formatRs(value) {
-        return 'Rs. ' + formatAmountValue(value);
-    }
-
-    // Define the customer loading function directly here for the separate page
-    function loadCustomersForBulkPayment() {
-        console.log('Loading customers for bulk payment (separate page version)...');
-        console.log('CSRF Token:', $('meta[name="csrf-token"]').attr('content'));
-        console.log('Current user authenticated:', $('meta[name="csrf-token"]').length > 0);
-
-        $.ajax({
-            url: '/customer-get-all',
-            method: 'GET',
-            dataType: 'json',
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            success: function(response) {
-                console.log('Customer response for bulk payment:', response);
-                var customerSelect = $('#customerSelect');
-                customerSelect.empty();
-                customerSelect.append('<option value="" selected disabled>Select Customer</option>');
-
-                if (response.status === 200 && response.message && response.message.length > 0) {
-                    window.bulkPaymentShowRepDue = !!response.show_rep_invoice_due;
-                    response.message.forEach(function(customer) {
-                        // Skip walk-in customer (customer ID 1)
-                        if (customer.id === 1) {
-                            return;
-                        }
-
-                        // Calculate total due amount
-                        var openingBalance = parseFloat(customer.opening_balance) || 0;
-                        var saleDue = parseFloat(customer.total_sale_due) || 0;
-                        var currentDue = parseFloat(customer.current_due) || 0;
-                        var advanceCredit = parseFloat(customer.total_advance_credit) || 0;
-
-                        console.log('Customer data received:', {
-                            name: customer.first_name,
-                            advance_credit: customer.total_advance_credit,
-                            parsed_advance: advanceCredit
-                        });
-
-                        // Only show customers who have due amounts
-                            if (currentDue > 0) {
-                            var lastName = customer.last_name ? customer.last_name : '';
-                            var fullName = customer.first_name + (lastName ? ' ' + lastName : '');
-                            var mobileRaw = customer.mobile_no != null ? String(customer.mobile_no).trim() : '';
-                            var mobileSeg = mobileRaw ? ' · ' + mobileRaw : '';
-
-                            // Build clear display text (name + mobile for Select2 search) with ledger/account due prominent
-                            var displayText = fullName + mobileSeg + ' [Account Due: Rs. ' + currentDue.toFixed(2) + ']';
-
-                            // Show breakdown if available
-                            if (openingBalance > 0 && saleDue > 0) {
-                                displayText += ' (Opening: Rs. ' + openingBalance.toFixed(2) + ', Sales: Rs. ' + saleDue.toFixed(2) + ')';
-                            } else if (openingBalance > 0) {
-                                displayText += ' (Opening Balance)';
-                            } else if (saleDue > 0) {
-                                displayText += ' (Sales Due)';
-                            }
-
-                            var myInv = parseFloat(customer.my_invoice_due) || 0;
-                            customerSelect.append(
-                                '<option value="' + customer.id +
-                                '" data-opening-balance="' + openingBalance +
-                                '" data-sale-due="' + saleDue +
-                                '" data-total-due="' + currentDue +
-                                '" data-advance-credit="' + advanceCredit +
-                                '" data-my-invoice-due="' + myInv +
-                                '">' + displayText + '</option>'
-                            );
-                        }
-                    });
-                } else {
-                    console.error("Failed to fetch customer data or no customers found.", response);
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error("AJAX error loading customers:", {
-                    status: status,
-                    error: error,
-                    responseText: xhr.responseText,
-                    statusCode: xhr.status
-                });
-
-                // Show user-friendly error message
-                var errorMessage = 'Failed to load customers.';
-                if (xhr.status === 401) {
-                    errorMessage = 'Authentication required. Please refresh the page and login again.';
-                } else if (xhr.status === 403) {
-                    errorMessage = 'Permission denied to access customer data.';
-                }
-
-                $('#customerSelect').append('<option value="" disabled>Error: ' + errorMessage + '</option>');
-            }
-        });
-    }
-
-    // Additional initialization for the separate bulk payment page
-    $(document).ready(function() {
-        console.log('Bulk payment page specific initialization...');
-
-        // Initialize select2 with proper settings for standalone page
-        if (typeof $.fn.select2 !== 'undefined') {
-            $('#customerSelect').select2({
-                placeholder: "Select Customer",
-                allowClear: true,
-                width: '100%'
-            });
-            console.log('Select2 initialized on bulk payment page');
-
-            // Add event listener to ensure search input gets focus when dropdown opens
-            $('#customerSelect').on('select2:open', function() {
-                setTimeout(function() {
-                    var searchField = document.querySelector('.select2-search__field');
-                    if (searchField) {
-                        searchField.focus();
-                    }
-                }, 100);
-            });
-        }
-
-        // Set today's date as default for "Paid On" field in YYYY-MM-DD format
-        var today = new Date();
-        var todayFormatted = today.getFullYear() + '-' +
-            String(today.getMonth() + 1).padStart(2, '0') + '-' +
-            String(today.getDate()).padStart(2, '0');
-        $('#paidOn').val(todayFormatted);
-        $('input[name="payment_date"]').val(todayFormatted);
-        console.log('Set default date to today (YYYY-MM-DD):', todayFormatted);
-
-        // Load customers immediately
-        setTimeout(function() {
-            console.log('Loading customers for separate page...');
-            loadCustomersForBulkPayment();
-        }, 1000);
-
-        // Initialize Multiple Methods mode by default
-        setTimeout(function() {
-            console.log('Initializing Multiple Methods mode as default...');
-            $('#paymentMethod').val('multiple').trigger('change');
-            togglePaymentFields();
-            // Show payment method section
-            $('#paymentMethodSection').show();
-            $('#notesSection').show();
-            $('#submitButtonSection').show();
-
-            // Trigger payment type change to set proper defaults
-            $('input[name="paymentType"]:checked').trigger('change');
-        }, 1500);
-
-        $(document).on('click', '#toggleReturnsTable', function(e) {
-            e.preventDefault();
-            const $w = $('#returnsTableWrapper');
-            const isVisible = $w.is(':visible');
-            $w.slideToggle(150);
-            $(this).text(isVisible ? '▼ show' : '▲ hide');
-        });
-
-        // Progressive Disclosure: Hide Advance Credit Button
-        $(document).on('click', '#hideAdvanceBtn', function() {
-            $('#customerAdvanceSection').slideUp();
-        });
-
-        // Advance Credit Checkbox Handler
-        $(document).on('change', '#applyAdvanceCreditCheckbox', function() {
-            if ($(this).is(':checked')) {
-                $('#advanceCreditAmountSection').slideDown();
-                // Set default to full advance amount
-                var maxAdvance = window.customerAdvanceCredit || 0;
-                var totalDue = window.totalCustomerDue || 0;
-                var suggestedAmount = Math.min(maxAdvance, totalDue);
-                $('#advanceCreditAmountInput').val(suggestedAmount.toFixed(2));
-                $('#advanceCreditAmountInput').attr('max', maxAdvance);
-                updateNetCustomerDue();
-            } else {
-                $('#advanceCreditAmountSection').slideUp();
-                $('#advanceCreditAmountInput').val('');
-                updateNetCustomerDue();
-            }
-        });
-
-        // Advance Credit Amount Input Handler
-        $(document).on('input', '#advanceCreditAmountInput', function() {
-            var maxAdvance = window.customerAdvanceCredit || 0;
-            var inputAmount = parseFloat($(this).val()) || 0;
-
-            if (inputAmount > maxAdvance) {
-                $(this).val(maxAdvance.toFixed(2));
-                toastr.warning('Amount cannot exceed available advance credit of Rs. ' + maxAdvance.toFixed(2));
-            }
-
-            updateNetCustomerDue();
-        });
-
-        // Progressive Disclosure: Customize Payment Link - Toggle functionality
-        $(document).on('click', '#customizePaymentLink', function(e) {
-            e.preventDefault();
-            var $section = $('#paymentTypeSection');
-            if ($section.is(':visible')) {
-                $section.slideUp();
-                $(this).text('Payment options');
-            } else {
-                $section.slideDown();
-                $(this).text('Hide payment options');
-            }
-        });
-
-        // Progressive Disclosure: Show Advanced Options
-        $(document).on('click', '#showAdvancedOptions', function(e) {
-            e.preventDefault();
-            $('#advancedOptionsContainer').slideDown();
-            $(this).html('<i class="fas fa-chevron-up"></i> Hide outstanding bills & payment allocation');
-            $(this).attr('id', 'hideAdvancedOptions');
-        });
-
-        // Progressive Disclosure: Hide Advanced Options
-        $(document).on('click', '#hideAdvancedOptions', function(e) {
-            e.preventDefault();
-            $('#advancedOptionsContainer').slideUp();
-            $(this).html('<i class="fas fa-chevron-down"></i> Show outstanding bills & payment allocation');
-            $(this).attr('id', 'showAdvancedOptions');
-        });
-
-        $(document).on('click', '#whyAmountLink', function(e) {
-            e.preventDefault();
-            var $h = $('#ledgerVsSalesHint');
-            if (!$h.data('why-filled')) {
-                $h.html(
-                    '<i class="fas fa-info-circle me-1"></i>' +
-                    'Account Due (ledger) and Sales Due (invoices) can differ. The sales invoice due is shown above.'
-                );
-                $h.data('why-filled', true);
-            }
-            $h.toggle();
-        });
-
-        // Handle Payment Type changes to update payment method dropdown and helper text
-        $('input[name="paymentType"]').on('change', function() {
-            const selectedType = $(this).val();
-            const $paymentMethod = $('#paymentMethod');
-            const $helpText = $('#paymentTypeHelp');
-
-            // Update helper text based on selection
-            const helpTexts = {
-                'sale_dues': '<i class="fas fa-info-circle"></i> Pay sale bills (invoices) for this customer',
-                'opening_balance': '<i class="fas fa-info-circle"></i> Pay only the opening balance amount',
-                'both': '<i class="fas fa-info-circle"></i> Pay both opening balance and sale bills together'
-            };
-            $helpText.html(helpTexts[selectedType] || '');
-
-            if (selectedType === 'opening_balance') {
-                // Opening Balance: Disable Multiple Methods, enable only cash/card/cheque/bank_transfer
-                $paymentMethod.find('option').prop('disabled', false);
-                $paymentMethod.find('option[value="multiple"]').prop('disabled', true);
-
-                // If currently on multiple, switch to cash
-                if ($paymentMethod.val() === 'multiple' || $paymentMethod.val() === null) {
-                    $paymentMethod.val('cash');
-                }
-
-                // Force update the UI
-                if (typeof togglePaymentFields === 'function') {
-                    togglePaymentFields();
-                }
-
-                $('#bothPaymentTypeInfo').hide();
-                $('.both-payment-hint').hide();
-                $('.both-payment-breakdown').hide();
-            } else if (selectedType === 'both') {
-                // Both: Select Multiple Methods by default and disable other options
-                $paymentMethod.find('option').prop('disabled', true);
-                $paymentMethod.find('option[value="multiple"]').prop('disabled', false);
-                $paymentMethod.val('multiple');
-
-                // Force update the UI
-                if (typeof togglePaymentFields === 'function') {
-                    togglePaymentFields();
-                }
-
-                // Show info banner with OB amount
-                var selectedOption = $('#customerSelect').find(':selected');
-                var customerOpeningBalance = parseFloat(selectedOption.data('opening-balance')) || 0;
-                $('#obInfoAmount').text(customerOpeningBalance.toFixed(2));
-                $('#bothPaymentTypeInfo').show();
-
-                // Show hints for both payment type
-                $('.both-payment-hint').show();
-            } else {
-                // Pay Sale Dues: Select Multiple Methods by default and disable other options
-                $paymentMethod.find('option').prop('disabled', true);
-                $paymentMethod.find('option[value="multiple"]').prop('disabled', false);
-                $paymentMethod.val('multiple');
-
-                // Force update the UI
-                if (typeof togglePaymentFields === 'function') {
-                    togglePaymentFields();
-                }
-
-                $('#bothPaymentTypeInfo').hide();
-                $('.both-payment-hint').hide();
-                $('.both-payment-breakdown').hide();
-            }
-        });
-    });
-
-    // Customer selection change handler for separate page
-    $(document).on('change', '#customerSelect', function() {
-        console.log('Customer selected on separate page...');
-
-        var selectedOption = $(this).find(':selected');
-        var customerId = $(this).val();
-
-        if (!customerId) {
-            console.log('No customer selected - hiding sections');
-            $('#customerSummarySection').hide();
-            $('#paymentMethodSection').hide();
-            $('#notesSection').hide();
-            $('#submitButtonSection').hide();
-            $('#workflowStepsBar').hide();
-            window.lastReturnSelectionSignature = null;
-            window.lastLoadedSalesCustomerId = null;
-            return;
-        }
-
-        console.log('Selected customer ID:', customerId);
-
-        // Show customer summary and payment method section
-        $('#customerSummarySection').show();
-        $('#paymentMethodSection').show();
-        $('#notesSection').show();
-        $('#submitButtonSection').show();
-        $('#workflowStepsBar').show();
-        $('#customerBalanceDetails').prop('open', true);
-
-        // Get customer data from the selected option
-        var customerOpeningBalance = parseFloat(selectedOption.data('opening-balance')) || 0;
-        var saleDue = parseFloat(selectedOption.data('sale-due')) || 0;
-        var totalDue = parseFloat(selectedOption.data('total-due')) || 0;
-        var advanceCredit = parseFloat(selectedOption.data('advance-credit')) || 0;
-
-        // DEBUG: Log all data attributes from selected option
-        console.log('Selected option attributes:', selectedOption[0].attributes);
-        console.log('Data attributes parsed:', {
-            'data-opening-balance': selectedOption.data('opening-balance'),
-            'data-sale-due': selectedOption.data('sale-due'),
-            'data-total-due': selectedOption.data('total-due'),
-            'data-advance-credit': selectedOption.data('advance-credit')
-        });
-
-        // Trigger payment type change to set proper payment method options
-        $('input[name="paymentType"]:checked').trigger('change');
-
-        console.log('Customer balances:', {
-            openingBalance: customerOpeningBalance,
-            saleDue: saleDue,
-            totalDue: totalDue,
-            advanceCredit: advanceCredit
-        });
-
-        // Update balance displays (text-based, no cards)
-        $('#openingBalance').text(customerOpeningBalance.toFixed(2));
-        $('#totalDueAmount').text(saleDue.toFixed(2));
-
-        // No auto message here; optional short note only via (why?) — reset when customer changes.
-        $('#ledgerVsSalesHint').text('').hide().removeData('why-filled');
-        window.lastReturnSelectionSignature = null;
-
-        // Store values globally
-        window.originalOpeningBalance = customerOpeningBalance;
-        window.saleDueAmount = saleDue;
-        window.totalCustomerDue = totalDue;
-        window.customerAdvanceCredit = advanceCredit;
-
-        // Show advance credit if available
-        if (advanceCredit > 0) {
-            $('#advanceAmount').text(advanceCredit.toFixed(2));
-            $('#advanceCount').show();
-
-            // Show advance credit application section
-            $('#advanceToApplyToBills').text(advanceCredit.toFixed(2));
-            $('#maxAdvanceCredit').text(advanceCredit.toFixed(2));
-            $('#customerAdvanceSection').show();
-        } else {
-            $('#advanceCount').hide();
-            $('#customerAdvanceSection').hide();
-            $('#applyAdvanceCreditCheckbox').prop('checked', false);
-            $('#advanceCreditAmountSection').hide();
-        }
-
-        // Amount to Pay (cash): derived in updateNetCustomerDue from gross sales + OB − returns (do not use ledger net alone — avoids double-deducting return).
-        updateNetCustomerDue();
-
-        var myInvDueBulk = parseFloat(selectedOption.data('my-invoice-due')) || 0;
-        if (window.bulkPaymentShowRepDue) {
-            $('#bulkRepMyInvoicesAmount').text(myInvDueBulk.toFixed(2));
-        }
-
-        // Reset and clear previous validation errors
-        $('#globalPaymentAmount').removeClass('is-invalid').next('.invalid-feedback').remove();
-        $('#globalPaymentAmount').val('');
-
-        // Load customer bills via paginated endpoint path only (avoid duplicate /sales call)
-        loadCustomerReturns(customerId);
-        setTimeout(updateWorkflowProgress, 0);
-    });
-
-    // Global variables for returns handling
-    var availableCustomerReturns = [];
-    var selectedReturns = [];
-
-    // Function to load customer returns
-    function loadCustomerReturns(customerId) {
-        console.log('Loading returns for customer:', customerId);
-
-        $.ajax({
-            url: '/customer-returns/' + customerId,
-            method: 'GET',
-            dataType: 'json',
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name=\"csrf-token\"]').attr('content'),
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            success: function(response) {
-                console.log('Returns response:', response);
-
-                if (response.returns && response.returns.length > 0) {
-                    availableCustomerReturns = response.returns.filter(ret => {
-                        return parseFloat(ret.total_due) > 0 && ret.payment_status !== 'Paid';
-                    });
-
-                    console.log('Unpaid returns found:', availableCustomerReturns.length);
-
-                    if (availableCustomerReturns.length > 0) {
-                        populateReturnsTable();
-                        $('#returnsTableWrapper').show();
-                        $('#toggleReturnsTable').text('▲ hide');
-
-                        // Update return credits in summary (text-based, no cards)
-                        var totalReturnCredits = availableCustomerReturns.reduce((sum, ret) => sum + parseFloat(ret.total_due), 0);
-                        $('#totalReturnCredits').text(totalReturnCredits.toFixed(2));
-                        $('#returnsToApplyToSales').text(totalReturnCredits.toFixed(2));
-                        $('#returnCountNumber').text(availableCustomerReturns.length);
-                        $('#returnCount').show();
-
-                        // Always show returns section when returns are available
-                        $('#customerReturnsSection').show();
-
-                        // Update Net Customer Due
-                        updateNetCustomerDue();
-                    } else {
-                        hideReturnsUI();
-                    }
-                } else {
-                    console.log('No returns found for customer');
-                    hideReturnsUI();
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error loading customer returns:', error);
-                hideReturnsUI();
-                if (xhr.status === 404) {
-                    console.log('Returns endpoint not found - feature may not be implemented yet');
-                }
-            }
-        });
-    }
-
-    // Helper function to hide returns UI
-    function hideReturnsUI() {
-        $('#customerReturnsSection').hide();
-        $('#totalReturnCredits').text('0.00');
-        $('#returnCount').hide();
-        window.lastReturnSelectionSignature = null;
-        updateNetCustomerDue();
-    }
-
-    // Populate returns table
-    function populateReturnsTable() {
-        var tableBody = $('#customerReturnsTableBody');
-        tableBody.empty();
-
-        availableCustomerReturns.forEach(function(returnBill) {
-            var totalDue = parseFloat(returnBill.total_due) || 0;
-            var returnDate = returnBill.return_date ? new Date(returnBill.return_date).toLocaleDateString('en-GB') : 'N/A';
-
-            var row = '<tr class="return-row" data-return-id="' + returnBill.id + '" style="cursor: pointer;">' +
-                '<td class="return-checkbox-cell" onclick="event.stopPropagation();">' +
-                '<input type="checkbox" class="return-checkbox" data-return-id="' + returnBill.id + '" data-amount="' + totalDue + '">' +
-                '</td>' +
-                '<td><strong>' + returnBill.invoice_number + '</strong></td>' +
-                '<td>' + returnDate + '</td>' +
-                '<td class="text-danger fw-bold">Rs. ' + totalDue.toFixed(2) + '</td>' +
-                '<td onclick="event.stopPropagation();">' +
-                '<select class="form-select form-select-sm return-action" data-return-id="' + returnBill.id + '" style="font-size: 0.8rem;">' +
-                '<option value="apply_to_sales" selected title="Reduces your payable amount">Apply to invoice</option>' +
-                '<option value="cash_refund" title="Refund cash to customer">Cash refund</option>' +
-                '</select>' +
-                '<span class="text-muted small ms-2 return-applied-to-hint" id="returnAppliedTo_' + returnBill.id + '" style="display: none;"></span>' +
-                '</td>' +
-                '</tr>';
-
-            tableBody.append(row);
-        });
-    }
-
-    // Handle select all returns checkbox
-    // Handle select all returns checkbox
-    $(document).on('change', '#selectAllReturns', function() {
-        var isChecked = $(this).prop('checked');
-        $('.return-checkbox').prop('checked', isChecked).trigger('change');
-    });
-
-    // Handle return row click to toggle checkbox
-    $(document).on('click', '.return-row', function(e) {
-        // Don't toggle if clicking on checkbox or action dropdown
-        if ($(e.target).hasClass('return-checkbox') || $(e.target).hasClass('return-action')) {
-            return;
-        }
-
-        const returnId = $(this).data('return-id');
-        const $checkbox = $(this).find('.return-checkbox');
-
-        // Toggle checkbox
-        $checkbox.prop('checked', !$checkbox.prop('checked')).trigger('change');
-
-        // Visual feedback
-        if ($checkbox.prop('checked')) {
-            $(this).addClass('table-active');
-        } else {
-            $(this).removeClass('table-active');
-        }
-    });
-
-    // Handle individual return checkbox
-    $(document).on('change', '.return-checkbox', function() {
-        const $row = $(this).closest('.return-row');
-        if ($(this).prop('checked')) {
-            $row.addClass('table-active');
-        } else {
-            $row.removeClass('table-active');
-        }
-        updateSelectedReturns();
-    });
-
-    // Common function to show adjust credit dialog (eliminates duplication)
-    function showAdjustCreditDialog(saleId) {
-        const sale = availableCustomerSales.find(s => s.id == saleId);
-        if (!sale) return;
-
-        const currentCredit = window.billReturnCreditAllocations[saleId] || 0;
-
-        // Get total return credit available
-        let totalReturnCredit = 0;
-        $('.return-checkbox:checked').each(function() {
-            const action = $('.return-action[data-return-id="' + $(this).data('return-id') + '"]').val();
-            if (action === 'apply_to_sales') {
-                totalReturnCredit += parseFloat($(this).data('amount'));
-            }
-        });
-
-        // Calculate already allocated to other bills
-        let otherAllocations = 0;
-        Object.keys(window.billReturnCreditAllocations).forEach(key => {
-            if (key != saleId) {
-                otherAllocations += window.billReturnCreditAllocations[key];
-            }
-        });
-
-        // Available credit = total return credit - what's allocated to other bills
-        const availableCredit = totalReturnCredit - otherAllocations;
-        // Max allowable = minimum of available credit OR bill due (can't pay more than bill due)
-        const maxAllowable = Math.min(availableCredit, sale.total_due);
-
-        Swal.fire({
-            title: `Adjust Return Credit`,
-            html: `
-                <div class="text-start">
-                    <p><strong>Bill:</strong> ${sale.invoice_no}</p>
-                    <p><strong>Bill Due:</strong> Rs.${sale.total_due.toFixed(2)}</p>
-                    <p><strong>Current Allocated:</strong> Rs.${currentCredit.toFixed(2)}</p>
-                    <p><strong>Total Return Credit:</strong> Rs.${totalReturnCredit.toFixed(2)}</p>
-                    <p><strong>Available to Allocate:</strong> Rs.${availableCredit.toFixed(2)}</p>
-                    <hr>
-                    <label class="form-label">Enter amount (0 to remove):</label>
-                    <input type="number" id="creditAmount" class="form-control"
-                        value="${currentCredit}" min="0" max="${maxAllowable}" step="0.01">
-                    <small class="text-muted">Max: Rs.${maxAllowable.toFixed(2)}</small>
-                </div>
-            `,
-            showCancelButton: true,
-            confirmButtonText: 'Apply',
-            cancelButtonText: 'Cancel',
-            preConfirm: () => {
-                const amount = parseFloat(document.getElementById('creditAmount').value) || 0;
-                if (amount < 0 || amount > maxAllowable) {
-                    Swal.showValidationMessage(`Amount must be between 0 and ${maxAllowable.toFixed(2)}`);
-                    return false;
-                }
-                return amount;
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                const newAmount = result.value;
-                if (newAmount > 0) {
-                    window.billReturnCreditAllocations[saleId] = newAmount;
-                } else {
-                    delete window.billReturnCreditAllocations[saleId];
-                }
-                populateFlexibleBillsList();
-                updateExistingBillAllocationsForReturnCredits();
-                updateReturnAppliedToHintsFromAllocations();
-                toastr.success(`Return credit updated to Rs.${newAmount.toFixed(2)}`, 'Updated');
-            }
-        });
-    }
-
-    // Handle click on return credit badge to manually adjust allocation
-    $(document).on('click', '.return-credit-badge', function(e) {
-        e.stopPropagation();
-        showAdjustCreditDialog($(this).data('sale-id'));
-    });
-
-    // Handle return action change
-    $(document).on('change', '.return-action', function() {
-        const returnId = $(this).data('return-id');
-        const action = $(this).val();
-        const $checkbox = $(`.return-checkbox[data-return-id="${returnId}"]`);
-        const isChecked = $checkbox.prop('checked');
-
-        // Show feedback about the action change
-        if (isChecked) {
-            if (action === 'apply_to_sales') {
-                toastr.info('Return credit will reduce your payable amount on invoices.', 'Apply to invoice', { timeOut: 2500 });
-            } else if (action === 'cash_refund') {
-                toastr.info('Cash refund will be processed for this return', 'Action Changed', {timeOut: 2000});
-            }
-        }
-
-        updateSelectedReturns();
-    });
-
-    // Quick remove return credit from a bill
-    $(document).on('click', '.quick-remove-credit', function(e) {
-        e.stopPropagation();
-        const saleId = $(this).data('sale-id');
-        const currentCredit = window.billReturnCreditAllocations[saleId] || 0;
-
-        if (currentCredit > 0) {
-            delete window.billReturnCreditAllocations[saleId];
-            populateFlexibleBillsList();
-            updateExistingBillAllocationsForReturnCredits();
-            toastr.success(`Return credit Rs.${currentCredit.toFixed(2)} removed from bill`, 'Credit Removed');
-        }
-    });
-
-    // Quick adjust return credit for a bill (reuses common function)
-    $(document).on('click', '.quick-adjust-credit', function(e) {
-        e.stopPropagation();
-        showAdjustCreditDialog($(this).data('sale-id'));
-    });
-
-    // Reallocate All Credits button - shows modal with all bills
-    $(document).on('click', '#reallocateAllCreditsBtn', function() {
-        // Get total return credit available
-        let totalReturnCredit = 0;
-        $('.return-checkbox:checked').each(function() {
-            const action = $('.return-action[data-return-id="' + $(this).data('return-id') + '"]').val();
-            if (action === 'apply_to_sales') {
-                totalReturnCredit += parseFloat($(this).data('amount'));
-            }
-        });
-
-        if (totalReturnCredit === 0) {
-            toastr.warning('No return credits selected for Apply to invoice', 'No credits');
-            return;
-        }
-
-        // Build bills table
-        let billsHTML = '<div style="max-height: 400px; overflow-y: auto;"><table class="table table-sm table-hover"><thead class="sticky-top bg-light"><tr><th>Bill #</th><th>Due</th><th>Credit</th><th>Action</th></tr></thead><tbody>';
-
-        availableCustomerSales.forEach(sale => {
-            const currentCredit = window.billReturnCreditAllocations[sale.id] || 0;
-            billsHTML += `
-                <tr>
-                    <td><small>${sale.invoice_no}</small></td>
-                    <td><small>Rs.${sale.total_due.toFixed(2)}</small></td>
-                    <td><small class="${currentCredit > 0 ? 'text-info fw-bold' : 'text-muted'}">Rs.${currentCredit.toFixed(2)}</small></td>
-                    <td>
-                        <button class="btn btn-xs btn-primary realloc-set-credit" data-sale-id="${sale.id}" data-invoice="${sale.invoice_no}" data-due="${sale.total_due}">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
-        });
-        billsHTML += '</tbody></table></div>';
-
-        Swal.fire({
-            title: 'Reallocate Return Credits',
-            html: `
-                <div class="text-start">
-                    <div class="alert alert-info p-2 mb-2">
-                        <small><strong>Total Available:</strong> Rs.${totalReturnCredit.toFixed(2)}</small>
-                    </div>
-                    ${billsHTML}
-                    <div class="mt-2 text-center">
-                        <button class="btn btn-sm btn-warning" id="clearAllAllocations">
-                            <i class="fas fa-eraser"></i> Clear All
-                        </button>
-                        <button class="btn btn-sm btn-success" id="autoFifoAllocate">
-                            <i class="fas fa-magic"></i> Auto FIFO
-                        </button>
-                    </div>
-                </div>
-            `,
-            width: '600px',
-            showCancelButton: true,
-            showConfirmButton: false,
-            cancelButtonText: 'Close',
-            didOpen: () => {
-                // Bind events only once when modal opens
-                $('#clearAllAllocations').off('click').on('click', function() {
-                    window.billReturnCreditAllocations = {};
-                    updateReturnAppliedToHintsFromAllocations();
-                    populateFlexibleBillsList();
-                    updateExistingBillAllocationsForReturnCredits();
-                    toastr.success('All credits cleared!', 'Success');
-                    Swal.close();
-                    setTimeout(() => $('#reallocateAllCreditsBtn').click(), 100);
-                });
-
-                $('#autoFifoAllocate').off('click').on('click', function() {
-                    autoAllocateReturnCreditsToSales(totalReturnCredit);
-                    toastr.success('FIFO allocation applied!', 'Success');
-                    Swal.close();
-                });
-            }
-        });
-
-        // Handle individual set credit button (bind once per modal open)
-        $(document).off('click', '.realloc-set-credit').on('click', '.realloc-set-credit', function() {
-            const saleId = $(this).data('sale-id');
-            const invoice = $(this).data('invoice');
-            const due = parseFloat($(this).data('due'));
-            const currentCredit = window.billReturnCreditAllocations[saleId] || 0;
-
-            // Calculate available
-            let allocated = 0;
-            Object.keys(window.billReturnCreditAllocations).forEach(key => {
-                if (key != saleId) {
-                    allocated += window.billReturnCreditAllocations[key];
-                }
-            });
-            const available = totalReturnCredit - allocated;
-            const maxAllowable = Math.min(available, due);
-
-            Swal.fire({
-                title: `Set Credit for ${invoice}`,
-                html: `
-                    <div class="text-start">
-                        <p><small><strong>Current:</strong> Rs.${currentCredit.toFixed(2)}</small></p>
-                        <p><small><strong>Total Return Credit:</strong> Rs.${totalReturnCredit.toFixed(2)}</small></p>
-                        <p><small><strong>Available:</strong> Rs.${available.toFixed(2)}</small></p>
-                        <p><small><strong>Max Allowable:</strong> Rs.${maxAllowable.toFixed(2)}</small></p>
-                        <input type="number" id="setCreditAmount" class="form-control" value="${currentCredit}" min="0" max="${maxAllowable}" step="0.01">
-                    </div>
-                `,
-                showCancelButton: true,
-                confirmButtonText: 'Set',
-                preConfirm: () => {
-                    const amount = parseFloat($('#setCreditAmount').val()) || 0;
-                    if (amount < 0 || amount > maxAllowable) {
-                        Swal.showValidationMessage(`Between 0 and ${maxAllowable.toFixed(2)}`);
-                        return false;
-                    }
-                    return amount;
-                }
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    if (result.value > 0) {
-                        window.billReturnCreditAllocations[saleId] = result.value;
-                    } else {
-                        delete window.billReturnCreditAllocations[saleId];
-                    }
-                    populateFlexibleBillsList();
-                    updateExistingBillAllocationsForReturnCredits();
-                    toastr.success('Credit updated!', 'Success');
-                    // Reopen main modal
-                    $('#reallocateAllCreditsBtn').click();
-                }
-            });
-        });
-    });
-
-    // Net sales outstanding after return credits allocated to bills (matches bill list "Left" totals)
-    function getNetOutstandingSalesDueFromAllocations() {
-        if (!availableCustomerSales || !availableCustomerSales.length) {
-            return null;
-        }
-        const alloc = window.billReturnCreditAllocations || {};
-        return availableCustomerSales.reduce((sum, sale) => {
-            const ret = parseFloat(alloc[sale.id]) || 0;
-            return sum + Math.max(0, parseFloat(sale.total_due || 0) - ret);
-        }, 0);
-    }
-
-    // Update selected returns and totals
-    function updateSelectedReturns() {
-        const currentSelectionSignature = $('.return-checkbox:checked').map(function() {
-            const returnId = $(this).data('return-id');
-            const action = $('.return-action[data-return-id="' + returnId + '"]').val() || '';
-            const amount = parseFloat($(this).data('amount')) || 0;
-            return returnId + ':' + action + ':' + amount.toFixed(2);
-        }).get().sort().join('|');
-
-        if (window.lastReturnSelectionSignature === currentSelectionSignature) {
-            return;
-        }
-        window.lastReturnSelectionSignature = currentSelectionSignature;
-
-        selectedReturns = [];
-        var totalToApply = 0;
-        var totalCashRefund = 0;
-
-        $('.return-checkbox:checked').each(function() {
-            var returnId = $(this).data('return-id');
-            var amount = parseFloat($(this).data('amount'));
-            var action = $('.return-action[data-return-id="' + returnId + '"]').val();
-
-            selectedReturns.push({
-                return_id: returnId,
-                amount: amount,
-                action: action
-            });
-
-            if (action === 'apply_to_sales') {
-                totalToApply += amount;
-            } else if (action === 'cash_refund') {
-                totalCashRefund += amount;
-            }
-        });
-
-        // Update footer totals
-        $('#selectedReturnsCount').text(selectedReturns.length + ' selected');
-        $('#selectedReturnsTotal').text('Rs. ' + (totalToApply + totalCashRefund).toFixed(2));
-        $('#returnsToApplyToSales').text(totalToApply.toFixed(2));
-        $('#returnsCashRefund').text('Rs. ' + totalCashRefund.toFixed(2));
-
-        if (totalToApply > 0) {
-            $('#returnCreditAppliedSummary').html(
-                'Return credit used: <strong class="text-dark">Rs. ' + totalToApply.toFixed(2) + '</strong>'
-            ).show();
-            $('#returnCount').hide();
-        } else {
-            $('#returnCreditAppliedSummary').empty().hide();
-            if (availableCustomerReturns && availableCustomerReturns.length > 0) {
-                $('#returnCount').show();
-            }
-        }
-
-        // Auto-allocate return credits to bills in flexible payment system (must run before net / summary)
-        if (totalToApply > 0 && availableCustomerSales && availableCustomerSales.length > 0) {
-            autoAllocateReturnCreditsToSales(totalToApply);
-        } else {
-            // Clear return credit allocations if no returns selected for "apply to sales"
-            if (!window.billReturnCreditAllocations) {
-                window.billReturnCreditAllocations = {};
-            }
-            window.billReturnCreditAllocations = {};
-            window.lastReturnSelectionSignature = currentSelectionSignature;
-
-            updateReturnAppliedToHintsFromAllocations();
-
-            // Refresh bills list to remove credit badges
-            populateFlexibleBillsList();
-
-            // Update existing bill allocations
-            updateExistingBillAllocationsForReturnCredits();
-        }
-
-        // After allocations match checkboxes / FIFO, sync Amount to Pay + "Sales unpaid" line
-        updateNetCustomerDue();
-
-        console.log('Selected returns updated:', selectedReturns);
-        updateSummaryTotals();
-    }
-
-    // Map combined FIFO return-credit allocation to per-return "Applied to" labels (display only)
-    function updateReturnAppliedToHintsFromAllocations() {
-        $('[id^="returnAppliedTo_"]').text('').hide();
-
-        if (!window.billReturnCreditAllocations || Object.keys(window.billReturnCreditAllocations).length === 0) {
-            return;
-        }
-
-        const sortedSales = [...availableCustomerSales].sort((a, b) => {
-            return new Date(a.sales_date) - new Date(b.sales_date);
-        });
-
-        const remainingAlloc = {};
-        Object.keys(window.billReturnCreditAllocations).forEach(k => {
-            remainingAlloc[String(k)] = parseFloat(window.billReturnCreditAllocations[k]) || 0;
-        });
-
-        const returnsOrdered = [];
-        $('.return-checkbox:checked').each(function() {
-            const rid = $(this).data('return-id');
-            if ($('.return-action[data-return-id="' + rid + '"]').val() === 'apply_to_sales') {
-                returnsOrdered.push({
-                    id: rid,
-                    amount: parseFloat($(this).data('amount')) || 0
-                });
-            }
-        });
-
-        returnsOrdered.sort((a, b) => {
-            const ra = availableCustomerReturns.find(r => String(r.id) === String(a.id));
-            const rb = availableCustomerReturns.find(r => String(r.id) === String(b.id));
-            if (!ra || !rb) return 0;
-            return new Date(ra.return_date) - new Date(rb.return_date);
-        });
-
-        returnsOrdered.forEach(ret => {
-            let credit = ret.amount;
-            const applied = [];
-            for (const sale of sortedSales) {
-                if (credit <= 0.001) break;
-                const bid = String(sale.id);
-                const room = remainingAlloc[bid] || 0;
-                if (room <= 0.001) continue;
-                const take = Math.min(credit, room);
-                if (take > 0.001) {
-                    applied.push(sale.invoice_no);
-                }
-                remainingAlloc[bid] = room - take;
-                credit -= take;
-            }
-            const $span = $('#returnAppliedTo_' + ret.id);
-            if (applied.length) {
-                $span.text('→ Applied Rs. ' + ret.amount.toFixed(2) + ' to: ' + [...new Set(applied)].join(', ')).show();
-            }
-        });
-
-        $('.return-row').each(function() {
-            const rid = $(this).data('return-id');
-            const checked = $(this).find('.return-checkbox').prop('checked');
-            const action = $('.return-action[data-return-id="' + rid + '"]').val();
-            if (!checked || action !== 'apply_to_sales') {
-                $('#returnAppliedTo_' + rid).text('').hide();
-            }
-        });
-    }
-
-    // Auto-allocate return credits to sales bills (FIFO - oldest first)
-    function autoAllocateReturnCreditsToSales(returnCreditAmount) {
-        console.log('Auto-allocating return credits to sales:', returnCreditAmount);
-
-        // Reset any previous return credit allocations
-        if (!window.billReturnCreditAllocations) {
-            window.billReturnCreditAllocations = {};
-        }
-        window.billReturnCreditAllocations = {};
-
-        let remainingCredit = returnCreditAmount;
-
-        // Sort sales by date (oldest first) for FIFO allocation
-        let sortedSales = [...availableCustomerSales].sort((a, b) => {
-            return new Date(a.sales_date) - new Date(b.sales_date);
-        });
-
-        // Allocate credit to bills
-        for (let sale of sortedSales) {
-            if (remainingCredit <= 0) break;
-
-            const saleDue = parseFloat(sale.total_due) || 0;
-            const allocatedAmount = Math.min(remainingCredit, saleDue);
-
-            if (allocatedAmount > 0) {
-                window.billReturnCreditAllocations[sale.id] = allocatedAmount;
-                remainingCredit -= allocatedAmount;
-
-                console.log(`Allocated Rs.${allocatedAmount.toFixed(2)} from returns to Sale #${sale.id}`);
-            }
-        }
-
-        updateReturnAppliedToHintsFromAllocations();
-
-        // Update the bills list to show allocations
-        populateFlexibleBillsList();
-
-        // Update existing bill allocations in payment methods
-        updateExistingBillAllocationsForReturnCredits();
-
-        // Show info message (single compact line — avoid large multi-line toast)
-        if (returnCreditAmount > 0) {
-            const allocated = returnCreditAmount - remainingCredit;
-            const msg =
-                `Rs.${allocated.toFixed(2)} return credit FIFO-applied` +
-                (remainingCredit > 0 ? ` (Rs.${remainingCredit.toFixed(2)} unused)` : '') +
-                `. Use Reallocate or bill rows to change.`;
-            toastr.info(msg, '', {timeOut: 4000, progressBar: true, closeButton: true});
-        }
-    }
-
-    // Keep bill allocation UI normalized: one row per bill per payment method.
+    // Normalization + return-credit bill-allocation updates moved into `resources/js/bulk-payments/sales.js`.
     function normalizeAllBillAllocationRows() {
-        $('.payment-method-item').each(function() {
-            const $paymentContainer = $(this);
-            const rowsByBill = {};
-
-            $paymentContainer.find('.bill-allocation-row').each(function() {
-                const $row = $(this);
-                const billId = $row.find('.bill-select').val();
-                const amount = parseAmountValue($row.find('.allocation-amount').val());
-
-                // Remove only truly empty rows. Keep selected rows even if amount is not typed yet.
-                if (!billId) {
-                    $row.remove();
-                    return;
-                }
-
-                if (amount <= 0.001) {
-                    $row.find('.allocation-amount').data('prev-amount', 0);
-                    return;
-                }
-
-                if (!rowsByBill[billId]) rowsByBill[billId] = [];
-                rowsByBill[billId].push($row);
-            });
-
-            Object.keys(rowsByBill).forEach(billId => {
-                const rows = rowsByBill[billId];
-                if (!rows.length) return;
-
-                const bill = availableCustomerSales.find(s => String(s.id) === String(billId));
-                const returnCreditApplied = window.billReturnCreditAllocations ? (window.billReturnCreditAllocations[billId] || 0) : 0;
-                const billDue = bill ? parseAmountValue(bill.total_due) : 0;
-                const maxForBill = Math.max(0, billDue - returnCreditApplied);
-
-                let mergedAmount = rows.reduce((sum, $row) => {
-                    return sum + parseAmountValue($row.find('.allocation-amount').val());
-                }, 0);
-                mergedAmount = Math.max(0, Math.min(mergedAmount, maxForBill));
-
-                const $keep = rows[0];
-                const $keepInput = $keep.find('.allocation-amount');
-                const $keepHint = $keep.find('.bill-amount-hint');
-                const $keepSelect = $keep.find('.bill-select');
-
-                $keepInput.val(formatAmountValue(mergedAmount));
-                $keepInput.data('prev-amount', mergedAmount);
-
-                if (bill) {
-                    const selectedText = `${bill.invoice_no} · Pay now Rs.${formatAmountValue(maxForBill)}`;
-                    $keepSelect.find('option:selected').text(selectedText);
-                }
-
-                const after = Math.max(0, maxForBill - mergedAmount);
-                if (after <= 0.01) {
-                    $keepHint.text(returnCreditApplied > 0 ? 'Settled (credit applied)' : 'Settled').removeClass('text-muted').addClass('text-success').show();
-                } else {
-                    $keepHint.text(`Pay now after this: Rs. ${formatAmountValue(after)}`).removeClass('text-success').addClass('text-muted').show();
-                }
-
-                for (let i = 1; i < rows.length; i++) {
-                    rows[i].remove();
-                }
-            });
-
-            const paymentId = $paymentContainer.data('payment-id');
-            if (paymentId) {
-                updatePaymentMethodTotal(paymentId);
-            }
-        });
-
-        recalcBillPaymentAllocationsFromUI();
+        if (typeof window.normalizeAllBillAllocationRows === 'function' && window.normalizeAllBillAllocationRows !== normalizeAllBillAllocationRows) {
+            return window.normalizeAllBillAllocationRows();
+        }
     }
+    window.normalizeAllBillAllocationRowsLegacy = normalizeAllBillAllocationRows;
 
-    // Update existing bill allocations when return credits are applied
     function updateExistingBillAllocationsForReturnCredits() {
-        // Loop through all bill allocations in payment methods
-        $('.bill-allocation-row').each(function() {
-            const $row = $(this);
-            const $billSelect = $row.find('.bill-select');
-            const $amountInput = $row.find('.allocation-amount');
-            const billId = $billSelect.val();
-
-            if (!billId) return; // Skip if no bill selected
-
-            // Find the bill data
-            const bill = availableCustomerSales.find(s => s.id == billId);
-            if (!bill) return;
-
-            // Get current allocations
-            const currentAllocationAmount = parseAmountValue($amountInput.val());
-            const returnCreditApplied = window.billReturnCreditAllocations ? (window.billReturnCreditAllocations[billId] || 0) : 0;
-
-            // Get the previous allocation from tracking to calculate how much was allocated before
-            const prevAmount = $amountInput.data('prev-amount') || 0;
-
-            // Calculate what was allocated to OTHER payment methods for this bill
-            const otherPaymentAllocations = (billPaymentAllocations[billId] || 0) - prevAmount;
-
-            // Calculate bill's remaining due after return credits and other allocations
-            const billRemainingDue = parseAmountValue(bill.total_due) - returnCreditApplied - otherPaymentAllocations;
-
-            // Update the amount if needed
-            let needsUpdate = false;
-            let newAmount = currentAllocationAmount;
-
-            // If current allocation exceeds the new remaining due, reduce it
-            if (currentAllocationAmount > billRemainingDue) {
-                newAmount = Math.max(0, billRemainingDue);
-                needsUpdate = true;
-            }
-            // If return credit was removed and there's more available, increase back to what it was or max available
-            else if (returnCreditApplied === 0 && prevAmount > currentAllocationAmount && billRemainingDue > currentAllocationAmount) {
-                newAmount = Math.min(prevAmount, billRemainingDue);
-                needsUpdate = true;
-            }
-
-            if (needsUpdate) {
-                // Update the input value with system update flag to prevent recursion
-                $amountInput.data('system-update', true);
-                $amountInput.val(formatAmountValue(newAmount));
-
-                // Update global tracking
-                billPaymentAllocations[billId] = otherPaymentAllocations + newAmount;
-                $amountInput.data('prev-amount', newAmount);
-
-                // Update hint
-                const $hint = $row.find('.bill-amount-hint');
-                const remainingAfterPayment = billRemainingDue - newAmount;
-
-                if (returnCreditApplied > 0) {
-                    $hint.text(`Pay now: Rs. ${formatAmountValue(billRemainingDue)}`).removeClass('text-success').addClass('text-muted');
-                } else if (remainingAfterPayment <= 0.01) {
-                    $hint.text('Settled').removeClass('text-muted').addClass('text-success');
-                } else {
-                    $hint.text(`Pay now after this: Rs. ${formatAmountValue(remainingAfterPayment)}`).removeClass('text-success').addClass('text-muted');
-                }
-
-                // Update tracking
-                const paymentId = $row.closest('.payment-method-item').data('payment-id');
-                if (paymentId && paymentMethodAllocations[paymentId]) {
-                    // Recalculate this payment method's total
-                    updatePaymentMethodTotal(paymentId);
-                }
-
-                // Remove system update flag after a delay
-                setTimeout(() => {
-                    $amountInput.data('system-update', false);
-                }, 200);
-
-                console.log(`Updated bill ${billId} allocation from ${currentAllocationAmount.toFixed(2)} to ${newAmount.toFixed(2)} due to return credit change`);
-            }
-        });
-
-        normalizeAllBillAllocationRows();
-
-        updateNetCustomerDue();
-        updateSummaryTotals();
+        if (typeof window.updateExistingBillAllocationsForReturnCredits === 'function' &&
+            window.updateExistingBillAllocationsForReturnCredits !== updateExistingBillAllocationsForReturnCredits) {
+            return window.updateExistingBillAllocationsForReturnCredits();
+        }
     }
+    window.updateExistingBillAllocationsForReturnCreditsLegacy = updateExistingBillAllocationsForReturnCredits;
 
     // Update net customer due (after return credits)
     function updateNetCustomerDue() {
-        var openingBalance = window.originalOpeningBalance || 0;
-        var saleDue = window.saleDueAmount || 0;
-        var totalDue = window.totalCustomerDue || 0; // Use actual total from backend (ledger)
-
-        // Get return credits to apply to sales
-        var returnsToApply = 0;
-        $('.return-checkbox:checked').each(function() {
-            var returnId = $(this).data('return-id');
-            var action = $('.return-action[data-return-id="' + returnId + '"]').val();
-            if (action === 'apply_to_sales') {
-                returnsToApply += parseFloat($(this).data('amount')) || 0;
-            }
-        });
-
-        // Get advance credit to apply
-        var advanceCreditToApply = 0;
-        if ($('#applyAdvanceCreditCheckbox').is(':checked')) {
-            advanceCreditToApply = parseFloat($('#advanceCreditAmountInput').val()) || 0;
+        // Forward to the Vite module implementation (keeps any remaining inline calls working).
+        if (typeof window.updateNetCustomerDue === 'function' && window.updateNetCustomerDue !== updateNetCustomerDue) {
+            return window.updateNetCustomerDue();
         }
-
-        // "Sales unpaid" row: show net invoice outstanding after allocated return credit (aligns with ledger / bill list)
-        var netFromBills = getNetOutstandingSalesDueFromAllocations();
-        var displaySalesUnpaid = netFromBills !== null ? netFromBills : Math.max(0, saleDue - returnsToApply);
-        $('#totalDueAmount').text(formatAmountValue(displaySalesUnpaid));
-        if (saleDue > displaySalesUnpaid + 0.02) {
-            $('#salesDueGrossAmount').text(formatAmountValue(saleDue));
-        }
-
-        // Cash to pay: gross sales invoices + opening balance owed − return credits you select − advance applied.
-        // Do NOT use totalCustomerDue (ledger current_due) here — it often already nets return credit; subtracting returnsToApply again double-deducts.
-        var netDue = openingBalance + saleDue - returnsToApply - advanceCreditToApply;
-        if (netDue < 0) netDue = 0;
-
-        $('#netCustomerDue').text(formatRs(netDue));
-
-        // Keep the summary compact: don't show the extra breakdown lines by default.
-        $('#returnCreditBreakdownLine').empty().hide();
-        $('#totalSettledBreakdownLine').empty().hide();
-
-        // Store for later use
-        window.netCustomerDue = netDue;
-
-        console.log('Net customer due updated:', {
-            openingBalance: openingBalance,
-            saleDue: saleDue,
-            totalDueLedger: totalDue,
-            returnsToApply: returnsToApply,
-            advanceCreditToApply: advanceCreditToApply,
-            netDue: netDue
-        });
-
-        updateReturnApplyHint();
     }
 
-    // Function to update individual payment total
+    // Expose for any legacy code still calling it.
+    window.updateNetCustomerDueLegacy = updateNetCustomerDue;
+
+    // Individual payment totals moved into `resources/js/bulk-payments/sales.js`.
     function updateIndividualPaymentTotal() {
-        var total = 0;
-        $('.reference-amount').each(function() {
-            var amount = parseFloat($(this).val()) || 0;
-            total += amount;
-        });
-
-        $('#individualPaymentTotal').text('Rs. ' + total.toFixed(2));
-        return total;
+        if (typeof window.updateIndividualPaymentTotal === 'function' && window.updateIndividualPaymentTotal !== updateIndividualPaymentTotal) {
+            return window.updateIndividualPaymentTotal();
+        }
     }
+    window.updateIndividualPaymentTotalLegacy = updateIndividualPaymentTotal;
 
-    // Handle individual payment input changes
-    $(document).on('input', '.reference-amount', function() {
-        var referenceDue = parseFloat($(this).attr('max'));
-        var paymentAmount = parseFloat($(this).val()) || 0;
+    // Global amount auto-apply moved into `resources/js/bulk-payments/sales.js`.
 
-        // Clear existing validation feedback first
-        $(this).removeClass('is-invalid');
-        $(this).next('.invalid-feedback').remove();
-
-        if (paymentAmount > referenceDue) {
-            $(this).addClass('is-invalid').after(
-                '<span class="invalid-feedback d-block">Amount exceeds total due.</span>'
-            );
-        }
-
-        // Update individual payment total whenever amount changes
-        updateIndividualPaymentTotal();
-    });
-
-    // Handle payment type selection change - auto-apply global amount
-    $('input[name="paymentType"]').change(function() {
-        var paymentType = $(this).val();
-        var customerId = $('#customerSelect').val();
-        console.log('Payment type changed to:', paymentType);
-
-        if (!customerId) {
-            return;
-        }
-
-        // Show/hide sales list based on payment type
-        if (paymentType === 'opening_balance') {
-            $('#salesListContainer').hide();
-        } else {
-            $('#salesListContainer').show();
-        }
-
-        // Update max amount and placeholder for global payment input
-        var customerOpeningBalance = window.originalOpeningBalance || 0;
-        var saleDueAmount = window.saleDueAmount || 0;
-        var totalDueAmount = parseFloat($('#totalCustomerDue').text().replace('Rs. ', '')) || 0;
-
-        if (paymentType === 'opening_balance') {
-            $('#globalPaymentAmount').attr('max', customerOpeningBalance);
-            $('#globalPaymentAmount').attr('placeholder', 'Max: Rs. ' + customerOpeningBalance.toFixed(2));
-        } else if (paymentType === 'sale_dues') {
-            $('#globalPaymentAmount').attr('max', saleDueAmount);
-            $('#globalPaymentAmount').attr('placeholder', 'Max: Rs. ' + saleDueAmount.toFixed(2));
-        } else if (paymentType === 'both') {
-            $('#globalPaymentAmount').attr('max', totalDueAmount);
-            $('#globalPaymentAmount').attr('placeholder', 'Max: Rs. ' + totalDueAmount.toFixed(2));
-        }
-
-        // Reset and re-apply global amount if any
-        var globalAmount = parseAmountValue($('#globalPaymentAmount').val());
-        if (globalAmount > 0) {
-            $('#globalPaymentAmount').trigger('input');
-        }
-    });
-
-    // Handle global payment amount input - AUTO-APPLY to sales
-    $(document).on('input', '#globalPaymentAmount', function() {
-        var globalAmount = parseAmountValue($(this).val());
-        var customerOpeningBalance = window.originalOpeningBalance || 0;
-        var remainingAmount = globalAmount;
-        var paymentType = $('input[name="paymentType"]:checked').val();
-
-        console.log('Global amount changed:', globalAmount, 'Payment type:', paymentType);
-
-        // Validate global amount based on payment type
-        var totalCustomerDue = parseFloat($('#totalCustomerDue').text().replace('Rs. ', '')) || 0;
-        var maxAmount = 0;
-        if (paymentType === 'opening_balance') {
-            maxAmount = customerOpeningBalance;
-        } else if (paymentType === 'sale_dues') {
-            maxAmount = totalCustomerDue;
-        } else if (paymentType === 'both') {
-            maxAmount = totalCustomerDue;
-        }
-
-        // Clear existing validation feedback
-        $(this).removeClass('is-invalid');
-        $(this).next('.invalid-feedback').remove();
-
-        if (globalAmount > maxAmount) {
-            $(this).addClass('is-invalid').after(
-                '<span class="invalid-feedback d-block">Global amount exceeds total due amount.</span>'
-            );
-            return;
-        }
-
-        // AUTO-APPLY: Distribute payment based on payment type
-        if (paymentType === 'opening_balance') {
-            // Only apply to opening balance
-            let newOpeningBalance = Math.max(0, customerOpeningBalance - remainingAmount);
-            $('#openingBalance').text('Rs. ' + newOpeningBalance.toFixed(2));
-
-            // Clear all sales payment inputs
-            $('.reference-amount').val(0);
-
-        } else if (paymentType === 'sale_dues') {
-            // Only apply to sales dues in order
-            $('.reference-amount').each(function() {
-                var referenceDue = parseFloat($(this).closest('tr').find('td:eq(3)').text()) || 0;
-                if (remainingAmount > 0 && referenceDue > 0) {
-                    var paymentAmount = Math.min(remainingAmount, referenceDue);
-                    $(this).val(paymentAmount.toFixed(2));
-                    remainingAmount -= paymentAmount;
-                } else {
-                    $(this).val(0);
-                }
-            });
-
-            // Don't change opening balance
-            $('#openingBalance').text('Rs. ' + customerOpeningBalance.toFixed(2));
-
-        } else if (paymentType === 'both') {
-            // First deduct from opening balance
-            let newOpeningBalance = customerOpeningBalance;
-            if (newOpeningBalance > 0 && remainingAmount > 0) {
-                if (remainingAmount <= newOpeningBalance) {
-                    newOpeningBalance -= remainingAmount;
-                    remainingAmount = 0;
-                } else {
-                    remainingAmount -= newOpeningBalance;
-                    newOpeningBalance = 0;
-                }
-            }
-            $('#openingBalance').text('Rs. ' + newOpeningBalance.toFixed(2));
-
-            // Then apply remaining amount to sales in order
-            $('.reference-amount').each(function() {
-                var referenceDue = parseFloat($(this).closest('tr').find('td:eq(3)').text()) || 0;
-                if (remainingAmount > 0 && referenceDue > 0) {
-                    var paymentAmount = Math.min(remainingAmount, referenceDue);
-                    $(this).val(paymentAmount.toFixed(2));
-                    remainingAmount -= paymentAmount;
-                } else {
-                    $(this).val(0);
-                }
-            });
-        }
-
-        // Update the individual payment total display
-        updateIndividualPaymentTotal();
-    });
-
-    // Amount formatting UX: edit plain number, display with separators
-    $(document).on('focus', '#globalPaymentAmount, .payment-total-amount, .allocation-amount', function() {
-        const raw = parseAmountValue($(this).val());
-        if ($(this).val() !== '') {
-            $(this).val(raw ? String(raw) : '');
-        }
-    });
-
-    $(document).on('blur', '#globalPaymentAmount, .payment-total-amount, .allocation-amount', function() {
-        const val = $(this).val();
-        if (val === '') return;
-        const num = parseAmountValue(val);
-        $(this).val(formatAmountValue(num));
-    });
+    // Amount formatting UX moved into `resources/js/bulk-payments/sales.js`.
 
     // Handle bulk payment submission for separate page
     $(document).on('click', '#submitBulkPayment', function() {
@@ -2160,73 +798,17 @@
         });
     });
 
-    // Multi-Method Payment Functions for Enhanced UI
+    // Payment method UI toggling moved into `resources/js/bulk-payments/sales.js`.
     function togglePaymentFields() {
-        const paymentMethod = $('#paymentMethod').val();
-        const isMultiMethod = paymentMethod === 'multiple';
-
-        console.log('Payment method changed to:', paymentMethod);
-
-        // Hide all conditional fields first
-        $('#cardFields, #chequeFields, #bankTransferFields').addClass('d-none');
-        $('#multiMethodContainer').toggleClass('d-none', !isMultiMethod);
-
-        // Update mode indicator
-        const modeIndicator = $('#methodModeIndicator');
-        if (isMultiMethod) {
-            modeIndicator.text('Multi Mode').removeClass('bg-info').addClass('bg-success');
-            $('#globalPaymentAmount').addClass('d-none').prop('disabled', true).val('');
-            $('label[for="globalPaymentAmount"]').addClass('d-none');
-            $('#calculatedAmountMultipleWrap').removeClass('d-none').show();
-            syncPaymentMethodsEmptyState();
-            updateCalculatedAmountDisplay();
-            $('#advancedOptionsContainer').show();
-            $('#showAdvancedOptions, #hideAdvancedOptions').first()
-                .html('<i class="fas fa-chevron-up"></i> Hide outstanding bills & payment allocation')
-                .attr('id', 'hideAdvancedOptions');
-            const customerId = $('#customerSelect').val();
-            if (customerId) {
-                const hasLoadedForSameCustomer = window.lastLoadedSalesCustomerId == customerId;
-                const hasSalesCache = Array.isArray(availableCustomerSales) && availableCustomerSales.length > 0;
-                if (!hasLoadedForSameCustomer || !hasSalesCache) {
-                    loadCustomerSalesForMultiMethod(customerId);
-                }
-            } else {
-                $('#billsPaymentTableBody').html('<tr><td colspan="6" class="text-center text-muted">Please select a customer first</td></tr>');
-            }
-        } else {
-            modeIndicator.text('Single Mode').removeClass('bg-success').addClass('bg-info');
-            $('#globalPaymentAmount').removeClass('d-none').prop('disabled', false).attr('placeholder', '0.00');
-            $('label[for="globalPaymentAmount"]').removeClass('d-none');
-            $('#calculatedAmountMultipleWrap').addClass('d-none').hide();
-
-            // Show appropriate conditional fields for single method
-            switch (paymentMethod) {
-                case 'card':
-                    $('#cardFields').removeClass('d-none');
-                    break;
-                case 'cheque':
-                    $('#chequeFields').removeClass('d-none');
-                    break;
-                case 'bank_transfer':
-                    $('#bankTransferFields').removeClass('d-none');
-                    break;
-            }
-        }
-
-        // Show submit button if payment method is selected and customer is chosen
-        if ($('#customerSelect').val() && paymentMethod !== '') {
-            $('#notesSection').show();
-            $('#submitButtonSection').show();
-        } else {
-            $('#notesSection').hide();
-            $('#submitButtonSection').hide();
+        if (typeof window.togglePaymentFields === 'function' && window.togglePaymentFields !== togglePaymentFields) {
+            return window.togglePaymentFields();
         }
     }
+    window.togglePaymentFieldsLegacy = togglePaymentFields;
 
     // Multi-Method Group Management
     let methodGroupCounter = 0;
-    let availableCustomerSales = [];
+    window.availableCustomerSales = window.availableCustomerSales || [];
 
     function addNewMethodGroup() {
         const customerId = $('#customerSelect').val();
@@ -2236,7 +818,7 @@
         }
 
         // Check if bills are available
-        if (!availableCustomerSales || availableCustomerSales.length === 0) {
+        if (!window.availableCustomerSales || window.availableCustomerSales.length === 0) {
             // Only load bills if we haven't tried loading them already
             if (!window.isLoadingCustomerSales) {
                 window.isLoadingCustomerSales = true;
@@ -2249,9 +831,9 @@
         }
 
         const groupIndex = methodGroupCounter++;
-        console.log('Creating group with', availableCustomerSales.length, 'available sales');
+        console.log('Creating group with', window.availableCustomerSales.length, 'available sales');
 
-        const salesOptions = availableCustomerSales.map(sale =>
+        const salesOptions = window.availableCustomerSales.map(sale =>
             `<option value="${sale.id}" data-due="${sale.total_due}" data-invoice="${sale.invoice_no}">
                 ${sale.invoice_no} - Due: Rs.${parseFloat(sale.total_due).toFixed(2)}
             </option>`
@@ -2342,17 +924,6 @@
 
     // Event Handlers for Multi-Method
     $(document).ready(function() {
-        // Toggle multi-method button
-        $('#toggleMultiMode').click(function() {
-            const currentMethod = $('#paymentMethod').val();
-            if (currentMethod === 'multiple') {
-                $('#paymentMethod').val('cash');
-            } else {
-                $('#paymentMethod').val('multiple');
-            }
-            togglePaymentFields();
-        });
-
         // Add method group
         $(document).on('click', '#addMethodGroup', addNewMethodGroup);
 
@@ -2612,34 +1183,24 @@
             const paymentMethod = $('#paymentMethod').val();
 
             if (customerId && paymentMethod === 'multiple') {
-                // CLEAR ALL OLD CUSTOMER DATA
-                // 1. Clear bill allocations tracking
-                billPaymentAllocations = {};
-                paymentMethodAllocations = {};
-
-                // 2. Clear return credit allocations
-                if (window.billReturnCreditAllocations) {
-                    window.billReturnCreditAllocations = {};
+                // CLEAR ALL OLD CUSTOMER DATA (centralized helper)
+                if (typeof window.resetFlexiblePaymentSystem === 'function') {
+                    window.resetFlexiblePaymentSystem();
+                } else {
+                    window.billPaymentAllocations = {};
+                    window.paymentMethodAllocations = {};
+                    if (window.billReturnCreditAllocations) window.billReturnCreditAllocations = {};
+                    $('#flexiblePaymentsList').html(window.FLEXIBLE_PAYMENTS_EMPTY_HTML);
+                    window.syncPaymentMethodsEmptyState();
+                    $('#billsPaymentTableBody').empty();
+                    updateSummaryTotals();
                 }
 
-                // 3. Clear all payment method cards — restore empty-state panel
-                $('#flexiblePaymentsList').html(FLEXIBLE_PAYMENTS_EMPTY_HTML);
+                // Page-specific state
                 flexiblePaymentCounter = 0;
-                syncPaymentMethodsEmptyState();
-
-                // 4. Clear simple table
-                $('#billsPaymentTableBody').empty();
-
-                // 5. Clear available sales
-                availableCustomerSales = [];
+                window.availableCustomerSales = [];
                 window.lastLoadedSalesCustomerId = null;
-
-                // 6. Clear selected returns
-                selectedReturns = [];
-                $('.return-checkbox').prop('checked', false);
-
-                // 7. Reset summary
-                updateSummaryTotals();
+                window.selectedReturns = [];
 
                 // 8. Load new customer bills
                 console.log('Customer changed - all old data cleared');
@@ -2673,18 +1234,23 @@
                     // Filter for outstanding bills
                     // Use total_due only: payment_status can be stale (e.g. "Paid" while total_due > 0 after
                     // return credit / cheque bounce flows), which would hide bills if we required Due|Partial.
-                    availableCustomerSales = response.data.filter(sale => {
+                    window.availableCustomerSales = response.data.filter(sale => {
                         const due = parseFloat(sale.total_due) || 0;
                         return due > 0.005;
                     });
 
-                    console.log('Outstanding bills for flexible UI:', availableCustomerSales.length);
+                    console.log('Outstanding bills for flexible UI:', window.availableCustomerSales.length);
 
                     // Populate the bills list (UI will show appropriate message if empty)
                     populateFlexibleBillsList();
 
                     if ($('.return-checkbox:checked').length > 0) {
-                        updateSelectedReturns();
+                        if (typeof window.updateSelectedReturns === 'function') {
+                            window.updateSelectedReturns();
+                        } else {
+                            updateNetCustomerDue();
+                            updateSummaryTotals();
+                        }
                     } else {
                         updateNetCustomerDue();
                         updateSummaryTotals();
@@ -2708,112 +1274,40 @@
         });
     }
 
+    window.loadCustomerSalesForMultiMethod = loadCustomerSalesForMultiMethod;
+
     // Global variables for flexible system
     let flexiblePaymentCounter = 0;
-    let billPaymentAllocations = {}; // Track allocations per bill
-    let paymentMethodAllocations = {}; // Track allocations per payment method
+    window.billPaymentAllocations = window.billPaymentAllocations || {}; // Track allocations per bill (shared with common.js)
+    window.paymentMethodAllocations = window.paymentMethodAllocations || {}; // Track allocations per payment method (shared for modules)
 
     // Initialize system safety check
     function initializeFlexiblePaymentSystem() {
         if (typeof flexiblePaymentCounter === 'undefined') flexiblePaymentCounter = 0;
-        if (typeof billPaymentAllocations === 'undefined') billPaymentAllocations = {};
-        if (typeof paymentMethodAllocations === 'undefined') paymentMethodAllocations = {};
-        if (typeof availableCustomerSales === 'undefined') availableCustomerSales = [];
+        if (typeof window.billPaymentAllocations === 'undefined') window.billPaymentAllocations = {};
+        if (typeof window.paymentMethodAllocations === 'undefined') window.paymentMethodAllocations = {};
+        if (typeof window.availableCustomerSales === 'undefined') window.availableCustomerSales = [];
 
         console.log('Flexible payment system initialized');
     }
 
-    // Helper function to escape HTML special characters
-    function escapeHtml(text) {
-        if (!text) return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
+    // escapeHtml → `resources/js/bulk-payments/common.js`; FLEXIBLE_PAYMENTS_EMPTY_HTML + syncPaymentMethodsEmptyState → `sales.js`
 
-    /** HTML for empty payment-methods panel (restored after customer change / clear) */
-    var FLEXIBLE_PAYMENTS_EMPTY_HTML = `
-        <div id="flexiblePaymentsEmptyState" class="p-3 text-center text-muted small h-100 d-flex flex-column justify-content-center align-items-center">
-            <i class="fas fa-wallet fa-2x mb-2 text-secondary opacity-75"></i>
-            <div class="fw-semibold text-dark mb-1" id="emptyPaymentTitle">Add payment method</div>
-            <div class="mb-3" id="emptyPaymentHint">Cash, card, or other — then allocate to bills on the left.</div>
-        </div>`;
+    // updatePaymentMethodHints moved to `resources/js/bulk-payments/sales.js`
 
-    function syncPaymentMethodsEmptyState() {
-        const $list = $('#flexiblePaymentsList');
-        if (!$list.length) return;
-        const count = $list.find('.payment-method-item').length;
-        let $empty = $('#flexiblePaymentsEmptyState');
-        if (count === 0) {
-            if (!$empty.length) {
-                $list.html(FLEXIBLE_PAYMENTS_EMPTY_HTML);
-                $empty = $('#flexiblePaymentsEmptyState');
-            }
-            $empty.removeClass('d-none').addClass('d-flex');
-            $list.addClass('payment-methods-container--empty');
-        } else {
-            $empty.removeClass('d-flex').addClass('d-none');
-            $list.removeClass('payment-methods-container--empty');
-        }
-    }
+    // updateReturnApplyHint → `resources/js/bulk-payments/sales.js`
 
-    function updatePaymentMethodHints(cashDueAmount) {
-        const due = Math.max(0, parseAmountValue(cashDueAmount));
-        const $addBtn = $('#addFlexiblePayment');
-        const $title = $('#emptyPaymentTitle');
-        const $hint = $('#emptyPaymentHint');
-
-        $addBtn.html('<i class="fas fa-plus"></i> Add payment method');
-
-        if (due <= 0.01) {
-            $title.text('No cash collection needed');
-            $hint.text('Return credit already covers this selection. Add method only if you collect additional amount.');
-        } else {
-            $title.text('Collect remaining cash: Rs. ' + formatAmountValue(due));
-            $hint.text('Add cash, card, or other payment and allocate it to bills on the left.');
-        }
-    }
-
-    /** Show hint under Amount to Pay when returns exist but none applied to sales */
-    function updateReturnApplyHint() {
-        const $hint = $('#amountToPayReturnHint');
-        if (!$hint.length) return;
-        let hasApply = false;
-        $('.return-checkbox:checked').each(function() {
-            const rid = $(this).data('return-id');
-            if ($('.return-action[data-return-id="' + rid + '"]').val() === 'apply_to_sales') {
-                hasApply = true;
-            }
-        });
-        const show = $('#customerReturnsSection').is(':visible') && availableCustomerReturns && availableCustomerReturns.length > 0 && !hasApply;
-        $hint.toggle(!!show);
-    }
-
-    // Populate flexible bills list (left side)
-    function recalcBillPaymentAllocationsFromUI() {
-        const newAllocations = {};
-
-        $('.bill-allocation-row').each(function() {
-            const billId = $(this).find('.bill-select').val();
-            const amount = parseAmountValue($(this).find('.allocation-amount').val());
-
-            if (billId && amount > 0) {
-                newAllocations[billId] = (newAllocations[billId] || 0) + amount;
-            }
-        });
-
-        billPaymentAllocations = newAllocations;
-    }
+    // recalcBillPaymentAllocationsFromUI → `resources/js/bulk-payments/common.js`
 
     function populateFlexibleBillsList(searchTerm = '') {
-        recalcBillPaymentAllocationsFromUI();
+        window.recalcBillPaymentAllocationsFromUI();
         let billsHTML = '';
 
         // Filter bills based on search term (invoice number or notes)
-        let filteredSales = availableCustomerSales;
+        let filteredSales = window.availableCustomerSales;
         if (searchTerm && searchTerm.trim() !== '') {
             const searchLower = searchTerm.toLowerCase().trim();
-            filteredSales = availableCustomerSales.filter(sale => {
+            filteredSales = window.availableCustomerSales.filter(sale => {
                 const invoiceMatch = sale.invoice_no && sale.invoice_no.toLowerCase().includes(searchLower);
                 const notesMatch = sale.sale_notes && sale.sale_notes.toLowerCase().includes(searchLower);
                 const billIdMatch = sale.id && sale.id.toString().includes(searchLower);
@@ -2823,26 +1317,26 @@
 
         if (filteredSales.length === 0) {
             if (searchTerm && searchTerm.trim() !== '') {
-                billsHTML = '<div class="alert alert-info text-center"><i class="fas fa-search"></i> No bills found matching "' + escapeHtml(searchTerm) + '"</div>';
+                billsHTML = '<div class="alert alert-info text-center"><i class="fas fa-search"></i> No bills found matching "' + window.escapeHtml(searchTerm) + '"</div>';
             } else {
                 billsHTML = '<div class="alert alert-warning text-center">No outstanding bills found</div>';
             }
         } else {
             filteredSales.forEach((sale) => {
-                const allocatedAmount = billPaymentAllocations[sale.id] || 0;
+                const allocatedAmount = window.billPaymentAllocations[sale.id] || 0;
                 const returnCreditApplied = window.billReturnCreditAllocations ? (window.billReturnCreditAllocations[sale.id] || 0) : 0;
                 const totalAllocated = allocatedAmount + returnCreditApplied;
                 const remainingAmount = sale.total_due - totalAllocated;
                 const isFullyPaid = remainingAmount <= 0.01; // Small threshold for floating point
                 const isPartiallyAllocated = allocatedAmount > 0.01 && remainingAmount > 0.01;
-                const escapedNotes = escapeHtml(sale.sale_notes || '');
+                const escapedNotes = window.escapeHtml(sale.sale_notes || '');
 
                 billsHTML += `
-                    <div class="bill-item border rounded p-2 mb-2 ${isFullyPaid ? 'bg-light' : 'bg-white'}" data-bill-id="${sale.id}" data-invoice="${escapeHtml(sale.invoice_no)}" data-notes="${escapedNotes}">
+                    <div class="bill-item border rounded p-2 mb-2 ${isFullyPaid ? 'bg-light' : 'bg-white'}" data-bill-id="${sale.id}" data-invoice="${window.escapeHtml(sale.invoice_no)}" data-notes="${escapedNotes}">
                         <div class="d-flex justify-content-between align-items-start">
                             <div class="flex-grow-1">
                                 <h6 class="mb-1 small ${isFullyPaid ? 'text-muted' : 'text-primary'}">
-                                    ${escapeHtml(sale.invoice_no)}
+                                    ${window.escapeHtml(sale.invoice_no)}
                                     ${isFullyPaid ? '<span class="badge bg-light text-dark border ms-1" style="font-size: 0.6rem;">Allocated</span>' : ''}
                                     ${isPartiallyAllocated ? '<span class="badge bg-light text-dark border ms-1" style="font-size: 0.6rem;">Partially Allocated</span>' : ''}
                                     ${returnCreditApplied > 0 ? '<span class="badge bg-secondary ms-1" style="font-size: 0.6rem;">Credit Applied</span>' : ''}
@@ -2880,6 +1374,9 @@
         $('#availableBillsList').html(billsHTML);
         updateSummaryTotals();
     }
+
+    // Expose for shared helpers (e.g. common.js credit sync)
+    window.populateFlexibleBillsList = populateFlexibleBillsList;
 
     // Add new flexible payment method
     function addFlexiblePayment() {
@@ -2947,10 +1444,10 @@
         `;
 
         $('#flexiblePaymentsList').prepend(paymentHTML);
-        syncPaymentMethodsEmptyState();
+        window.syncPaymentMethodsEmptyState();
 
         // Initialize payment method allocations
-        paymentMethodAllocations[paymentId] = {
+        window.paymentMethodAllocations[paymentId] = {
             method: '',
             totalAmount: 0,
             billAllocations: {}
@@ -2962,8 +1459,8 @@
     // Add bill allocation to a payment method (ENHANCED WITH BILL STATUS TRACKING AND NOTES)
     function addBillAllocation(paymentId) {
         // Filter bills - exclude fully paid (including return credit) and show remaining amounts
-        const availableBills = availableCustomerSales.filter(sale => {
-            const allocatedAmount = billPaymentAllocations[sale.id] || 0;
+        const availableBills = window.availableCustomerSales.filter(sale => {
+            const allocatedAmount = window.billPaymentAllocations[sale.id] || 0;
             const returnCreditApplied = window.billReturnCreditAllocations ? (window.billReturnCreditAllocations[sale.id] || 0) : 0;
             const remainingAmount = sale.total_due - allocatedAmount - returnCreditApplied;
             return remainingAmount > 0.01; // Avoid tiny remaining amounts
@@ -2978,10 +1475,10 @@
 
         // Create enhanced bill options with status indicators and notes
         const billOptions = availableBills.map(sale => {
-            const allocatedAmount = billPaymentAllocations[sale.id] || 0;
+            const allocatedAmount = window.billPaymentAllocations[sale.id] || 0;
             const returnCreditApplied = window.billReturnCreditAllocations ? (window.billReturnCreditAllocations[sale.id] || 0) : 0;
             const remainingAmount = sale.total_due - allocatedAmount - returnCreditApplied;
-            return `<option value="${sale.id}" data-due="${sale.total_due}" data-invoice="${escapeHtml(sale.invoice_no)}" data-remaining="${Math.max(0, remainingAmount)}" data-notes="${escapeHtml(sale.sale_notes || '')}">${escapeHtml(sale.invoice_no)} · Pay now Rs.${formatAmountValue(Math.max(0, remainingAmount))}</option>`;
+            return `<option value="${sale.id}" data-due="${sale.total_due}" data-invoice="${window.escapeHtml(sale.invoice_no)}" data-remaining="${Math.max(0, remainingAmount)}" data-notes="${window.escapeHtml(sale.sale_notes || '')}">${window.escapeHtml(sale.invoice_no)} · Pay now Rs.${formatAmountValue(Math.max(0, remainingAmount))}</option>`;
         }).join('');
 
         const allocationHTML = `
@@ -3107,156 +1604,11 @@
         }
     }
 
-    /** Highlight workflow steps (1–4) based on customer, payment methods, allocations, balance */
-    function updateWorkflowProgress() {
-        const $steps = $('.order-flow-step');
-        if (!$('#customerSelect').val()) {
-            $steps.removeClass('text-primary fw-bold text-success').addClass('text-muted');
-            return;
-        }
-        $steps.removeClass('text-primary fw-bold text-success');
-        $steps.eq(0).addClass('text-primary fw-bold');
-        const hasPm = $('.payment-method-item').length > 0;
-        let allocSum = 0;
-        if (typeof billPaymentAllocations === 'object' && billPaymentAllocations !== null) {
-            allocSum = Object.values(billPaymentAllocations).reduce((s, v) => s + (parseFloat(v) || 0), 0);
-        }
-        if (hasPm) {
-            $steps.eq(1).addClass('text-primary fw-bold');
-        } else {
-            $steps.eq(1).addClass('text-muted');
-        }
-        if (allocSum > 0.01) {
-            $steps.eq(2).addClass('text-primary fw-bold');
-        } else {
-            $steps.eq(2).addClass('text-muted');
-        }
-        const balTxt = $('#balanceAmount').text().replace(/[^\d.-]/g, '');
-        const bal = parseFloat(balTxt) || 0;
-        if (hasPm && Math.abs(bal) < 0.02 && allocSum > 0.01) {
-            $steps.eq(3).addClass('text-success fw-bold');
-        } else {
-            $steps.eq(3).addClass('text-muted');
-        }
-    }
+    window.updateCalculatedAmountDisplay = updateCalculatedAmountDisplay;
 
-    // Update summary totals
-    function updateSummaryTotals() {
-        try {
-            // Calculate bill totals
-            let totalBills = availableCustomerSales.length || 0;
-            const retAlloc = window.billReturnCreditAllocations || {};
-            let totalDueAmount = availableCustomerSales.reduce((sum, sale) => {
-                const ret = parseFloat(retAlloc[sale.id]) || 0;
-                return sum + Math.max(0, parseFloat(sale.total_due || 0) - ret);
-            }, 0);
+    // updateWorkflowProgress moved to `resources/js/bulk-payments/sales.js`
 
-            // Calculate payment totals
-            let totalPaymentAmount = 0;
-            if (paymentMethodAllocations && Object.keys(paymentMethodAllocations).length > 0) {
-                Object.values(paymentMethodAllocations).forEach(payment => {
-                    totalPaymentAmount += payment.totalAmount || 0;
-                });
-            }
-
-            // Balance vs ledger totalCustomerDue caused false "advance" when return was not selected:
-            // user pays full cash to bills (e.g. 17500) but ledger "Amount to pay" was lower (e.g. 11500).
-            // Compare payment to (1) sum of cash allocated to bills, or (2) sum of bill dues minus only CHECKED returns.
-            let totalCashAllocatedToBills = 0;
-            if (typeof billPaymentAllocations === 'object' && billPaymentAllocations !== null) {
-                Object.values(billPaymentAllocations).forEach(v => {
-                    totalCashAllocatedToBills += parseFloat(v) || 0;
-                });
-            }
-
-            let expectedSettlement = totalCashAllocatedToBills;
-            if (expectedSettlement < 0.01) {
-                expectedSettlement = availableCustomerSales.reduce((sum, sale) => sum + parseFloat(sale.total_due || 0), 0);
-                let returnsChecked = 0;
-                $('.return-checkbox:checked').each(function() {
-                    const rid = $(this).data('return-id');
-                    const action = $('.return-action[data-return-id="' + rid + '"]').val();
-                    if (action === 'apply_to_sales') {
-                        returnsChecked += parseFloat($(this).data('amount')) || 0;
-                    }
-                });
-                let advanceApply = 0;
-                if ($('#applyAdvanceCreditCheckbox').is(':checked')) {
-                    advanceApply = parseFloat($('#advanceCreditAmountInput').val()) || 0;
-                }
-                expectedSettlement = Math.max(0, expectedSettlement - returnsChecked - advanceApply);
-            }
-
-            // Summary "Balance due" must match Total due (net) minus Cash collected — not
-            // (allocation target − payment). When allocations sum to the payment, expectedSettlement
-            // equals totalPaymentAmount and would wrongly show 0 while net due remains.
-            let balanceAmount = totalDueAmount - totalPaymentAmount;
-
-            const hasAppliedReturnCredits = selectedReturns.some(r => r.action === 'apply_to_sales');
-            const hasPaymentMethods = $('.payment-method-item').length > 0;
-            const showReturnAdjustedState = hasAppliedReturnCredits && !hasPaymentMethods && totalPaymentAmount < 0.01;
-            if (showReturnAdjustedState) {
-                // Avoid misleading "remaining to allocate" before user adds a cash method.
-                balanceAmount = 0;
-            }
-
-            // Update UI elements if they exist
-            const $totalBillsCount = $('#totalBillsCount');
-            const $summaryDueAmount = $('#summaryDueAmount');
-            const $totalPaymentAmount = $('#totalPaymentAmount');
-            const $balanceAmount = $('#balanceAmount');
-
-            if ($totalBillsCount.length) $totalBillsCount.text(totalBills);
-            if ($summaryDueAmount.length) $summaryDueAmount.text(`Rs. ${formatAmountValue(totalDueAmount)}`);
-
-            if ($totalPaymentAmount.length) {
-                $totalPaymentAmount.text(`Rs. ${formatAmountValue(totalPaymentAmount)}`);
-                // Update color based on amount
-                if (totalPaymentAmount > 0) {
-                    $totalPaymentAmount.removeClass('text-muted').addClass('text-success');
-                } else {
-                    $totalPaymentAmount.removeClass('text-success').addClass('text-muted');
-                }
-            }
-
-            const $balanceLabel = $('#balanceLabel');
-            if ($balanceLabel.length) {
-                $balanceLabel.text(showReturnAdjustedState ? 'Return credit adjusted' : 'Balance due');
-            }
-
-            if ($balanceAmount.length) {
-                if (balanceAmount > 0) {
-                    $balanceAmount.text(`Rs. ${formatAmountValue(balanceAmount)}`).removeClass('text-success text-danger text-warning').addClass('text-primary');
-                } else if (balanceAmount < 0) {
-                    $balanceAmount.text(`Rs. ${formatAmountValue(balanceAmount)}`).removeClass('text-warning text-success text-primary').addClass('text-danger');
-                } else {
-                    $balanceAmount.text(`Rs. ${formatAmountValue(balanceAmount)}`).removeClass('text-warning text-danger text-primary').addClass('text-success');
-                }
-            }
-
-            updatePaymentMethodHints(balanceAmount);
-
-            updateWorkflowProgress();
-
-            // Submit: show whenever a customer is selected (validation on click). Avoid hiding after load when payment total is still 0.
-            const $submitSection = $('#submitButtonSection');
-            if ($submitSection.length) {
-                const customerId = $('#customerSelect').val();
-                if (customerId) {
-                    $submitSection.fadeIn();
-                } else {
-                    $submitSection.fadeOut();
-                }
-            }
-
-            console.log('Summary totals updated:', { totalBills, totalDueAmount, totalPaymentAmount, expectedSettlement, balanceAmount });
-
-            updateCalculatedAmountDisplay();
-
-        } catch (error) {
-            console.error('Error in updateSummaryTotals:', error);
-        }
-    }
+    // updateSummaryTotals moved to `resources/js/bulk-payments/sales.js`
 
     // Auto-distribute amount to bills (for "both" payment type)
     function autoDistributeToBills(paymentId, amountToDistribute) {
@@ -3269,7 +1621,7 @@
             const billId = $row.find('.bill-select').val();
             const amount = parseAmountValue($row.find('.allocation-amount').val());
             if (billId && amount > 0) {
-                billPaymentAllocations[billId] = Math.max(0, (billPaymentAllocations[billId] || 0) - amount);
+                window.billPaymentAllocations[billId] = Math.max(0, (window.billPaymentAllocations[billId] || 0) - amount);
             }
         });
         $billAllocationsList.empty();
@@ -3278,7 +1630,7 @@
         let billIndex = 0;
 
         // Sort bills by date (FIFO - oldest first)
-        const sortedBills = [...availableCustomerSales].sort((a, b) => {
+        const sortedBills = [...window.availableCustomerSales].sort((a, b) => {
             return new Date(a.sales_date) - new Date(b.sales_date);
         });
 
@@ -3286,7 +1638,7 @@
         for (const bill of sortedBills) {
             if (remainingAmount <= 0.01) break;
 
-            const allocatedAmount = billPaymentAllocations[bill.id] || 0;
+            const allocatedAmount = window.billPaymentAllocations[bill.id] || 0;
             const returnCreditApplied = window.billReturnCreditAllocations ? (window.billReturnCreditAllocations[bill.id] || 0) : 0;
             const remainingDue = bill.total_due - allocatedAmount - returnCreditApplied;
 
@@ -3325,7 +1677,7 @@
                 $billAllocationsList.prepend(allocationHTML);
 
                 // Update tracking
-                billPaymentAllocations[bill.id] = (billPaymentAllocations[bill.id] || 0) + amountForThisBill;
+                window.billPaymentAllocations[bill.id] = (window.billPaymentAllocations[bill.id] || 0) + amountForThisBill;
 
                 remainingAmount -= amountForThisBill;
                 billIndex++;
@@ -3350,13 +1702,13 @@
 
         if (paymentType === 'both') {
             const totalAmount = parseAmountValue($totalInput.val());
-            if (paymentMethodAllocations[paymentId]) {
-                paymentMethodAllocations[paymentId].totalAmount = totalAmount;
+            if (window.paymentMethodAllocations[paymentId]) {
+                window.paymentMethodAllocations[paymentId].totalAmount = totalAmount;
             }
             updateSummaryTotals();
         } else {
-            if (paymentMethodAllocations[paymentId]) {
-                paymentMethodAllocations[paymentId].totalAmount = billsTotal;
+            if (window.paymentMethodAllocations[paymentId]) {
+                window.paymentMethodAllocations[paymentId].totalAmount = billsTotal;
             }
 
             $totalInput.data('system-update', true);
@@ -3389,323 +1741,10 @@
         }
     }
 
-    // Submit flexible many-to-many payment
-    function submitMultiMethodPayment() {
-        const customerId = $('#customerSelect').val();
-        const paymentDate = $('#paidOn').val() || $('[name="payment_date"]').val();
-        const paymentType = $('input[name="paymentType"]:checked').val();
+    // Expose for shared helpers (e.g. common.js credit sync)
+    window.updatePaymentMethodTotal = updatePaymentMethodTotal;
 
-        if (!customerId) {
-            toastr.error('Please select a customer');
-            return false;
-        }
-
-        if (!paymentDate) {
-            toastr.error('Please select payment date');
-            return false;
-        }
-
-        // Collect flexible payment groups
-        const paymentGroups = [];
-        let hasValidPayments = false;
-        let validationFailed = false;
-        let groupIndex = 0;
-
-        // Initialize bill return allocations BEFORE collecting payment groups
-        let billReturnAllocations = {};
-        const hasApplyToSalesReturns = selectedReturns.some(r => r.action === 'apply_to_sales');
-        if (hasApplyToSalesReturns && window.billReturnCreditAllocations) {
-            billReturnAllocations = window.billReturnCreditAllocations;
-            console.log('Bill return allocations available:', billReturnAllocations);
-        }
-
-        $('.payment-method-item').each(function() {
-            const $payment = $(this);
-            const paymentId = $payment.data('payment-id');
-            const method = $payment.find('.payment-method-select').val();
-            const totalAmount = parseAmountValue($payment.find('.payment-total-amount').val());
-
-            if (!method || totalAmount <= 0) return;
-
-            groupIndex++; // Increment counter for validation messages
-
-            const groupData = {
-                method: method,
-                totalAmount: totalAmount,
-                bills: [],
-                details: {}
-            };
-
-            // Collect method-specific details (WITH DEBUG LOGGING)
-            switch (method) {
-                case 'cheque':
-                    const $chequeNumberField = $payment.find(`[name="cheque_number_${paymentId}"]`);
-                    const $chequeBankField = $payment.find(`[name="cheque_bank_${paymentId}"]`);
-                    const $chequeDateField = $payment.find(`[name="cheque_date_${paymentId}"]`);
-                    const $chequeGivenByField = $payment.find(`[name="cheque_given_by_${paymentId}"]`);
-
-                    console.log('Cheque field elements found for payment', paymentId, ':', {
-                        cheque_number_element: $chequeNumberField.length,
-                        cheque_bank_element: $chequeBankField.length,
-                        cheque_date_element: $chequeDateField.length,
-                        cheque_given_by_element: $chequeGivenByField.length
-                    });
-
-                    const chequeNumber = $chequeNumberField.val() || '';
-                    const chequeBank = $chequeBankField.val() || '';
-                    const chequeDate = $chequeDateField.val() || '';
-                    const chequeGivenBy = $chequeGivenByField.val() || '';
-
-                    console.log('Cheque field values for payment', paymentId, ':', {
-                        cheque_number: chequeNumber,
-                        cheque_bank: chequeBank,
-                        cheque_date: chequeDate,
-                        cheque_given_by: chequeGivenBy
-                    });
-
-                    // Validate required cheque fields
-                    if (!chequeNumber || chequeNumber.trim() === '') {
-                        toastr.error(`Payment ${groupIndex}: Cheque Number is required`);
-                        $('#submitBulkPayment').prop('disabled', false).html('<i class="fas fa-paper-plane"></i> Submit Payment');
-                        validationFailed = true;
-                        return false;
-                    }
-                    if (!chequeBank || chequeBank.trim() === '') {
-                        toastr.error(`Payment ${groupIndex}: Bank & Branch is required for cheque payments`);
-                        $('#submitBulkPayment').prop('disabled', false).html('<i class="fas fa-paper-plane"></i> Submit Payment');
-                        validationFailed = true;
-                        return false;
-                    }
-                    if (!chequeDate || chequeDate.trim() === '') {
-                        toastr.error(`Payment ${groupIndex}: Cheque Date is required`);
-                        $('#submitBulkPayment').prop('disabled', false).html('<i class="fas fa-paper-plane"></i> Submit Payment');
-                        validationFailed = true;
-                        return false;
-                    }
-
-                    groupData.cheque_number = chequeNumber;
-                    groupData.cheque_bank_branch = chequeBank;
-                    groupData.cheque_valid_date = chequeDate;
-                    groupData.cheque_given_by = chequeGivenBy;
-                    break;
-                case 'card':
-                    groupData.card_number = $payment.find(`[name="card_number_${paymentId}"]`).val();
-                    groupData.card_holder = $payment.find(`[name="card_holder_${paymentId}"]`).val();
-                    break;
-                case 'bank_transfer':
-                    groupData.bank_account_number = $payment.find(`[name="account_number_${paymentId}"]`).val();
-                    break;
-            }
-
-            // Collect bill allocations from this payment method only
-            $payment.find('.bill-allocation-row').each(function() {
-                const $allocation = $(this);
-                const billId = $allocation.find('.bill-select').val();
-                const amount = parseAmountValue($allocation.find('.allocation-amount').val());
-
-                if (billId && amount > 0) {
-                    groupData.bills.push({
-                        sale_id: parseInt(billId),
-                        amount: amount
-                    });
-                }
-            });
-
-            // Include advance amount if user selected "Keep as Advance Payment"
-            let totalBillsAllocated = 0;
-            groupData.bills.forEach(bill => {
-                totalBillsAllocated += bill.amount;
-            });
-            const advancePaymentAmount = totalAmount - totalBillsAllocated;
-            const selectedAdvanceOption = $payment.find(`input[name="excess_${paymentId}"]:checked`).val();
-            if (advancePaymentAmount > 0.01 && selectedAdvanceOption === 'advance') {
-                groupData.advance_amount = advancePaymentAmount;
-            }
-
-            // For "both" payment type, include OB portion from breakdown
-            if (paymentType === 'both') {
-                const obPortionText = $payment.find('.ob-portion').text();
-                groupData.ob_amount = parseAmountValue(obPortionText);
-            }
-
-            // For opening balance payments, use the total amount even if no bills
-            if (paymentType === 'opening_balance') {
-                groupData.totalAmount = totalAmount;
-                paymentGroups.push(groupData);
-                hasValidPayments = true;
-            } else if (paymentType === 'both' && (groupData.bills.length > 0 || groupData.ob_amount > 0)) {
-                // For "both" type, valid if has bills OR OB amount
-                groupData.totalAmount = totalAmount;
-                paymentGroups.push(groupData);
-                hasValidPayments = true;
-            } else if (groupData.bills.length > 0) {
-                groupData.totalAmount = totalAmount;
-                paymentGroups.push(groupData);
-                hasValidPayments = true;
-            }
-        });
-
-        if (validationFailed) {
-            return false;
-        }
-
-        const canSubmitReturnOnlyWithoutCash = () => {
-            if (paymentGroups.length > 0) return false;
-            if (!selectedReturns || selectedReturns.length === 0) return false;
-            const hasApply = selectedReturns.some(r => r.action === 'apply_to_sales');
-            const hasRefund = selectedReturns.some(r => r.action === 'cash_refund');
-            if (hasApply) {
-                let allocSum = 0;
-                if (billReturnAllocations && typeof billReturnAllocations === 'object') {
-                    Object.values(billReturnAllocations).forEach(v => {
-                        allocSum += parseFloat(v) || 0;
-                    });
-                }
-                if (allocSum < 0.01) return false;
-            }
-            return hasApply || hasRefund;
-        };
-
-        if (!hasValidPayments && !canSubmitReturnOnlyWithoutCash()) {
-            const hasApplyOnly = selectedReturns && selectedReturns.some(r => r.action === 'apply_to_sales');
-            let allocSum = 0;
-            if (billReturnAllocations && typeof billReturnAllocations === 'object') {
-                Object.values(billReturnAllocations).forEach(v => {
-                    allocSum += parseFloat(v) || 0;
-                });
-            }
-
-            if (hasApplyOnly && allocSum < 0.01) {
-                toastr.warning('Allocation missing: choose bill-wise return credit via Change Allocation, then submit.', 'Allocation Required', { timeOut: 5000 });
-                setTimeout(() => {
-                    $('#reallocateAllCreditsBtn').trigger('click');
-                }, 120);
-                return false;
-            }
-
-            toastr.error('Please add at least one payment method with bill allocations, or submit returns only (apply to sales with credit allocated / cash refund).');
-            return false;
-        }
-
-        // Validate allocations don't exceed bill amounts
-        const billTotals = {};
-        paymentGroups.forEach(group => {
-            group.bills.forEach(bill => {
-                billTotals[bill.sale_id] = (billTotals[bill.sale_id] || 0) + bill.amount;
-            });
-        });
-
-        for (const [billId, totalAllocated] of Object.entries(billTotals)) {
-            const bill = availableCustomerSales.find(s => s.id == billId);
-            if (bill && totalAllocated > bill.total_due) {
-                toastr.error(`Total allocation for ${bill.invoice_no} exceeds bill amount`);
-                return false;
-            }
-        }
-
-        // Show loading
-        $('#submitBulkPayment').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Processing...');
-
-        // Collect advance credit application if checked
-        let advanceCreditApplied = 0;
-        if ($('#applyAdvanceCreditCheckbox').is(':checked')) {
-            advanceCreditApplied = parseFloat($('#advanceCreditAmountInput').val()) || 0;
-        }
-
-        console.log('Submitting payment with:', {
-            selected_returns: selectedReturns,
-            hasApplyToSalesReturns: hasApplyToSalesReturns,
-            bill_return_allocations: billReturnAllocations,
-            advance_credit_applied: advanceCreditApplied,
-            payment_groups: paymentGroups
-        });
-
-        // Validate: Bills in payment_groups should not include amounts already covered by return credits
-        if (hasApplyToSalesReturns && Object.keys(billReturnAllocations).length > 0) {
-            paymentGroups.forEach(group => {
-                group.bills.forEach(bill => {
-                    const returnCredit = billReturnAllocations[bill.sale_id] || 0;
-                    if (returnCredit > 0) {
-                        console.log(`Bill ${bill.sale_id}: Payment amount = ${bill.amount}, Return credit = ${returnCredit}`);
-                    }
-                });
-            });
-        }
-
-        // Submit flexible payment (JSON body so empty payment_groups [] is sent; jQuery form encoding omits empty arrays)
-        const csrfToken = $('meta[name="csrf-token"]').attr('content');
-        $.ajax({
-            url: '/submit-flexible-bulk-payment',
-            method: 'POST',
-            contentType: 'application/json; charset=UTF-8',
-            dataType: 'json',
-            data: JSON.stringify({
-                customer_id: customerId,
-                payment_date: paymentDate,
-                payment_type: paymentType,
-                payment_groups: paymentGroups,
-                selected_returns: selectedReturns,
-                bill_return_allocations: billReturnAllocations,
-                advance_credit_applied: advanceCreditApplied,
-                notes: $('#notes').val() || '',
-                _token: csrfToken
-            }),
-            headers: {
-                'X-CSRF-TOKEN': csrfToken,
-                'Accept': 'application/json'
-            },
-            success: function(response) {
-                if (response.status === 200) {
-                    const total = parseFloat(response.total_amount || 0);
-                    const allocationOnly = response.allocation_only === true || total <= 0.01;
-
-                    $('#receiptReferenceNo').text(response.bulk_reference || 'N/A');
-                    $('#receiptTotalAmount').text(total.toFixed(2));
-
-                    if (allocationOnly) {
-                        $('#receiptModalTitle').html('<i class="fas fa-exchange-alt"></i> Allocation Successful');
-                        $('#receiptModalIcon').attr('class', 'fas fa-balance-scale fa-3x text-success mb-3');
-                        $('#receiptModalSubtitle').text('Return credit settlement completed');
-                        $('#receiptAmountLabel').text('Cash collected:');
-                        $('#receiptModalFootnote').text(
-                            'No payment row was created: return credit was applied to the sale. ' +
-                            'Sales and returns balances were updated; ledger for cash did not change.'
-                        );
-                        $('#receiptReferenceWrap, #receiptCopyWrap').hide();
-                    } else {
-                        $('#receiptModalTitle').html('<i class="fas fa-check-circle"></i> Payment Successful');
-                        $('#receiptModalIcon').attr('class', 'fas fa-receipt fa-3x text-success mb-3');
-                        $('#receiptModalSubtitle').text('Payment Reference Number');
-                        $('#receiptAmountLabel').text('Total Amount:');
-                        $('#receiptModalFootnote').text('Save this reference number for future payment tracking and verification.');
-                        $('#receiptReferenceWrap, #receiptCopyWrap').show();
-                    }
-
-                    $('#submitBulkPayment').prop('disabled', false).html('<i class="fas fa-credit-card"></i> Submit Payment');
-                    $('#paymentReceiptModal').modal('show');
-
-                    if (response.message && typeof toastr !== 'undefined') {
-                        toastr.success(response.message, allocationOnly ? 'Allocation' : 'Payment', { timeOut: 6000 });
-                    }
-                }
-            },
-            error: function(xhr) {
-                const error = xhr.responseJSON;
-                if (error && error.errors) {
-                    const firstKey = Object.keys(error.errors)[0];
-                    const msgs = error.errors[firstKey];
-                    toastr.error(Array.isArray(msgs) ? msgs[0] : String(msgs));
-                } else {
-                    toastr.error(error?.message || 'Flexible payment submission failed');
-                }
-            },
-            complete: function() {
-                $('#submitBulkPayment').prop('disabled', false).html('<i class="fas fa-credit-card"></i> Submit Payment');
-            }
-        });
-
-        return false;
-    }
+    // submitMultiMethodPayment moved to `resources/js/bulk-payments/sales.js`
 
     // Initialize flexible many-to-many payment system
     $(document).ready(function() {
@@ -3752,21 +1791,21 @@
 
                 if (billId && amount > 0) {
                     // Remove from global tracking
-                    billPaymentAllocations[billId] = (billPaymentAllocations[billId] || 0) - amount;
-                    if (billPaymentAllocations[billId] <= 0) {
-                        delete billPaymentAllocations[billId];
+                    window.billPaymentAllocations[billId] = (window.billPaymentAllocations[billId] || 0) - amount;
+                    if (window.billPaymentAllocations[billId] <= 0) {
+                        delete window.billPaymentAllocations[billId];
                     }
                 }
             });
 
             // Remove from payment method allocations
-            if (paymentMethodAllocations[paymentId]) {
-                delete paymentMethodAllocations[paymentId];
+            if (window.paymentMethodAllocations[paymentId]) {
+                delete window.paymentMethodAllocations[paymentId];
             }
 
             $paymentContainer.fadeOut(300, function() {
                 $(this).remove();
-                syncPaymentMethodsEmptyState();
+                window.syncPaymentMethodsEmptyState();
                 populateFlexibleBillsList();
                 updateSummaryTotals();
             });
@@ -3780,15 +1819,15 @@
                 const $container = $(this).closest('.payment-method-item');
 
                 // Ensure allocation object exists
-                if (!paymentMethodAllocations[paymentId]) {
-                    paymentMethodAllocations[paymentId] = {
+                if (!window.paymentMethodAllocations[paymentId]) {
+                    window.paymentMethodAllocations[paymentId] = {
                         method: '',
                         totalAmount: 0,
                         billAllocations: {}
                     };
                 }
 
-                paymentMethodAllocations[paymentId].method = method;
+                window.paymentMethodAllocations[paymentId].method = method;
 
                 if (method) {
                     const fieldsHTML = getPaymentMethodFields(method, paymentId);
@@ -3830,9 +1869,9 @@
 
             // Update tracking
             if (billId && amount > 0) {
-                billPaymentAllocations[billId] = (billPaymentAllocations[billId] || 0) - amount;
-                if (billPaymentAllocations[billId] <= 0) {
-                    delete billPaymentAllocations[billId];
+                window.billPaymentAllocations[billId] = (window.billPaymentAllocations[billId] || 0) - amount;
+                if (window.billPaymentAllocations[billId] <= 0) {
+                    delete window.billPaymentAllocations[billId];
                 }
             }
 
@@ -3868,7 +1907,7 @@
                 }
 
                 // CRITICAL FIX: Update payment method total after removing bill
-                // This ensures paymentMethodAllocations[paymentId].totalAmount is recalculated
+                // This ensures window.paymentMethodAllocations[paymentId].totalAmount is recalculated
                 if (paymentId) {
                     updatePaymentMethodTotal(paymentId);
                 }
@@ -3900,8 +1939,8 @@
             }
 
             if (billId) {
-                const bill = availableCustomerSales.find(s => s.id == billId);
-                const allocatedAmount = billPaymentAllocations[billId] || 0;
+                const bill = window.availableCustomerSales.find(s => s.id == billId);
+                const allocatedAmount = window.billPaymentAllocations[billId] || 0;
                 const returnCreditApplied = window.billReturnCreditAllocations ? (window.billReturnCreditAllocations[billId] || 0) : 0;
                 const remainingAmount = bill.total_due - allocatedAmount - returnCreditApplied;
 
@@ -3937,12 +1976,12 @@
 
             if (!billId) return;
 
-            const bill = availableCustomerSales.find(s => s.id == billId);
+            const bill = window.availableCustomerSales.find(s => s.id == billId);
             if (!bill) return;
 
             // Calculate available amount for this bill (including return credits)
             const prevAmount = $(this).data('prev-amount') || 0;
-            const currentAllocation = billPaymentAllocations[billId] || 0;
+            const currentAllocation = window.billPaymentAllocations[billId] || 0;
             const returnCreditApplied = window.billReturnCreditAllocations ? (window.billReturnCreditAllocations[billId] || 0) : 0;
             const maxAmount = bill.total_due - (currentAllocation - prevAmount) - returnCreditApplied;
 
@@ -3955,11 +1994,11 @@
             }
 
             // Update bill payment tracking
-            billPaymentAllocations[billId] = (currentAllocation - prevAmount) + amount;
+            window.billPaymentAllocations[billId] = (currentAllocation - prevAmount) + amount;
             $(this).data('prev-amount', amount);
 
             // If bill becomes fully paid, remove from available bills
-            const remainingAfterPayment = bill.total_due - billPaymentAllocations[billId] - returnCreditApplied;
+            const remainingAfterPayment = bill.total_due - window.billPaymentAllocations[billId] - returnCreditApplied;
 
             // Update hint with payment status
             if (remainingAfterPayment <= 0.01) {
@@ -3980,8 +2019,8 @@
 
             // Clean up zero allocations
             if (amount <= 0) {
-                if (billPaymentAllocations[billId] <= 0) {
-                    delete billPaymentAllocations[billId];
+                if (window.billPaymentAllocations[billId] <= 0) {
+                    delete window.billPaymentAllocations[billId];
                 }
             }
         });
@@ -3995,8 +2034,8 @@
                 const paymentType = $('input[name="paymentType"]:checked').val();
 
                 // Ensure allocation object exists
-                if (!paymentMethodAllocations[paymentId]) {
-                    paymentMethodAllocations[paymentId] = {
+                if (!window.paymentMethodAllocations[paymentId]) {
+                    window.paymentMethodAllocations[paymentId] = {
                         method: '',
                         totalAmount: 0,
                         billAllocations: {}
@@ -4007,7 +2046,7 @@
                 const isSystemUpdate = $(this).data('system-update');
 
                 if (!isSystemUpdate) {
-                    paymentMethodAllocations[paymentId].totalAmount = totalAmount;
+                    window.paymentMethodAllocations[paymentId].totalAmount = totalAmount;
 
                     // FOR "BOTH" TYPE: Auto-distribute to OB + Bills
                     if (paymentType === 'both') {
@@ -4076,9 +2115,9 @@
                                 const amount = parseAmountValue($row.find('.allocation-amount').val());
 
                                 if (billId && amount > 0) {
-                                    billPaymentAllocations[billId] = (billPaymentAllocations[billId] || 0) - amount;
-                                    if (billPaymentAllocations[billId] <= 0) {
-                                        delete billPaymentAllocations[billId];
+                                    window.billPaymentAllocations[billId] = (window.billPaymentAllocations[billId] || 0) - amount;
+                                    if (window.billPaymentAllocations[billId] <= 0) {
+                                        delete window.billPaymentAllocations[billId];
                                     }
                                 }
                             });
@@ -4119,8 +2158,8 @@
                                 }
                             });
 
-                            // Step 2: Set billPaymentAllocations to only include OTHER payment methods
-                            billPaymentAllocations = otherPaymentsAllocations;
+                            // Step 2: Set window.billPaymentAllocations to only include OTHER payment methods
+                            window.billPaymentAllocations = otherPaymentsAllocations;
 
                             // Step 3: Clear existing allocations for THIS payment method
                             $paymentContainer.find('.bill-allocation-row').each(function() {
@@ -4128,7 +2167,7 @@
                                 const billId = $row.find('.bill-select').val();
                                 const amount = parseAmountValue($row.find('.allocation-amount').val());
                                 if (billId && amount > 0.01) {
-                                    // Already removed by setting billPaymentAllocations = otherPaymentsAllocations above
+                                    // Already removed by setting window.billPaymentAllocations = otherPaymentsAllocations above
                                 }
                             });
 
@@ -4136,7 +2175,7 @@
                             $paymentContainer.find('.bill-allocations-list').empty();
 
                             // Step 5: Auto-distribute to bills in FIFO order
-                            // At this point, billPaymentAllocations contains ONLY OTHER payment methods
+                            // At this point, window.billPaymentAllocations contains ONLY OTHER payment methods
                             const returnedAmount = autoDistributeToBills(paymentId, totalAmount);
 
                             // Step 6: Get actual allocated amount from newly created rows
@@ -4196,8 +2235,8 @@
                                 $paymentContainer.find('.excess-options').remove();
                             }
 
-                            // Recalculate billPaymentAllocations from UI to include the newly created allocations
-                            recalcBillPaymentAllocationsFromUI();
+                            // Recalculate window.billPaymentAllocations from UI to include the newly created allocations
+                            window.recalcBillPaymentAllocationsFromUI();
 
                             populateFlexibleBillsList();
                             updateSummaryTotals();
@@ -4209,9 +2248,9 @@
                                 const amount = parseAmountValue($row.find('.allocation-amount').val());
 
                                 if (billId && amount > 0) {
-                                    billPaymentAllocations[billId] = (billPaymentAllocations[billId] || 0) - amount;
-                                    if (billPaymentAllocations[billId] <= 0) {
-                                        delete billPaymentAllocations[billId];
+                                    window.billPaymentAllocations[billId] = (window.billPaymentAllocations[billId] || 0) - amount;
+                                    if (window.billPaymentAllocations[billId] <= 0) {
+                                        delete window.billPaymentAllocations[billId];
                                     }
                                 }
                             });
@@ -4241,9 +2280,9 @@
                             const billId = $billSelect.val();
 
                             if (billId) {
-                                const bill = availableCustomerSales.find(s => s.id == billId);
+                                const bill = window.availableCustomerSales.find(s => s.id == billId);
                                 if (bill) {
-                                    const previousAllocated = billPaymentAllocations[billId] || 0;
+                                    const previousAllocated = window.billPaymentAllocations[billId] || 0;
                                     const returnCreditApplied = window.billReturnCreditAllocations ? (window.billReturnCreditAllocations[billId] || 0) : 0;
                                     const availableAmount = bill.total_due - previousAllocated - returnCreditApplied;
 
@@ -4268,9 +2307,9 @@
 
                             if (billId && prevAmount > 0) {
                                 // Remove the previous amount from global tracking
-                                billPaymentAllocations[billId] = (billPaymentAllocations[billId] || 0) - prevAmount;
-                                if (billPaymentAllocations[billId] <= 0) {
-                                    delete billPaymentAllocations[billId];
+                                window.billPaymentAllocations[billId] = (window.billPaymentAllocations[billId] || 0) - prevAmount;
+                                if (window.billPaymentAllocations[billId] <= 0) {
+                                    delete window.billPaymentAllocations[billId];
                                 }
                                 $amountInput.data('prev-amount', 0);
                             }
@@ -4278,9 +2317,9 @@
 
                         // Recalculate available amounts after clearing previous allocations
                         billsToUpdate.forEach(billInfo => {
-                            const bill = availableCustomerSales.find(s => s.id == billInfo.billId);
+                            const bill = window.availableCustomerSales.find(s => s.id == billInfo.billId);
                             if (bill) {
-                                const currentAllocated = billPaymentAllocations[billInfo.billId] || 0;
+                                const currentAllocated = window.billPaymentAllocations[billInfo.billId] || 0;
                                 const returnCreditApplied = window.billReturnCreditAllocations ? (window.billReturnCreditAllocations[billInfo.billId] || 0) : 0;
                                 billInfo.availableAmount = bill.total_due - currentAllocated - returnCreditApplied;
                             }
@@ -4300,7 +2339,7 @@
                                 $amountInput.val(formatAmountValue(amountToAllocate));
 
                                 // Update tracking
-                                billPaymentAllocations[billInfo.billId] = (billPaymentAllocations[billInfo.billId] || 0) + amountToAllocate;
+                                window.billPaymentAllocations[billInfo.billId] = (window.billPaymentAllocations[billInfo.billId] || 0) + amountToAllocate;
                                 $amountInput.data('prev-amount', amountToAllocate);
 
                                 // Update hint
@@ -4416,7 +2455,7 @@
                 $totalInput.val(formatAmountValue(actualAllocated));
 
                 // Update tracking
-                paymentMethodAllocations[paymentId].totalAmount = actualAllocated;
+                window.paymentMethodAllocations[paymentId].totalAmount = actualAllocated;
 
                 // Remove excess options
                 $paymentContainer.find('.excess-options').remove();
@@ -4441,7 +2480,7 @@
         // Add to Payment from Bill (Quick Add) - FIXED: Prevent triggering auto-allocation
         $(document).on('click', '.add-to-payment-btn', function() {
             const billId = $(this).data('bill-id');
-            const bill = availableCustomerSales.find(s => s.id == billId);
+            const bill = window.availableCustomerSales.find(s => s.id == billId);
 
             if (!bill) {
                 toastr.error('Bill not found');
@@ -4457,7 +2496,7 @@
             const paymentId = $firstPayment.data('payment-id');
 
             // Calculate remaining amount BEFORE add/update
-            const allocatedAmount = billPaymentAllocations[billId] || 0;
+            const allocatedAmount = window.billPaymentAllocations[billId] || 0;
             const returnCreditApplied = window.billReturnCreditAllocations ? (window.billReturnCreditAllocations[billId] || 0) : 0;
             const remainingAmount = bill.total_due - allocatedAmount - returnCreditApplied;
 
@@ -4477,7 +2516,7 @@
                 const currentAmount = parseAmountValue($existingInput.val());
 
                 // Max allowed for this row considering other rows/allocations for same bill.
-                const otherAllocations = Math.max(0, (billPaymentAllocations[billId] || 0) - currentAmount);
+                const otherAllocations = Math.max(0, (window.billPaymentAllocations[billId] || 0) - currentAmount);
                 const maxForRow = Math.max(0, parseAmountValue(bill.total_due) - returnCreditApplied - otherAllocations);
                 const newAmount = Math.min(maxForRow, currentAmount + remainingAmount);
 
@@ -4485,7 +2524,7 @@
                 $existingInput.val(formatAmountValue(newAmount));
                 $existingInput.data('prev-amount', newAmount);
 
-                billPaymentAllocations[billId] = otherAllocations + newAmount;
+                window.billPaymentAllocations[billId] = otherAllocations + newAmount;
 
                 const remainingAfterThis = Math.max(0, maxForRow - newAmount);
                 if (remainingAfterThis <= 0.01) {
@@ -4540,7 +2579,7 @@
             $amountInput.data('prev-amount', amountValue);
 
             // Update tracking
-            billPaymentAllocations[billId] = (billPaymentAllocations[billId] || 0) + amountValue;
+            window.billPaymentAllocations[billId] = (window.billPaymentAllocations[billId] || 0) + amountValue;
 
             // Update hint
             if (returnCreditApplied > 0) {

@@ -48,9 +48,23 @@ class Product extends Model
         if ($value === null || $value === '' || !is_string($value)) {
             return null;
         }
-        $filename = basename($value);
-        $path = public_path('assets/images/' . $filename);
-        return file_exists($path) ? $filename : null;
+
+        // Allow stored values like:
+        // - "1766294682.png" (legacy)
+        // - "products/abc.jpg" (new)
+        $relative = ltrim($value, '/');
+        $relative = str_replace('\\', '/', $relative);
+        $relative = preg_replace('#^assets/images/#', '', $relative);
+
+        $path = public_path('assets/images/' . $relative);
+        if (file_exists($path)) {
+            return $relative;
+        }
+
+        // Back-compat: if DB stored only filename but file is inside products/
+        $filename = basename($relative);
+        $fallback = public_path('assets/images/products/' . $filename);
+        return file_exists($fallback) ? ('products/' . $filename) : null;
     }
 
     public function locations()

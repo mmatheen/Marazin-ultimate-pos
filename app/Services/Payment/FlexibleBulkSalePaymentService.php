@@ -175,35 +175,6 @@ class FlexibleBulkSalePaymentService
                 }
             }
 
-            // ── Step 4: advance credit application ───────────────────────────────
-            if ($request->has('advance_credit_applied') && $request->advance_credit_applied > 0) {
-                $advanceCreditAmount = floatval($request->advance_credit_applied);
-
-                $customerBalance = BalanceHelper::getCustomerBalance($request->customer_id);
-                if ($customerBalance >= 0) {
-                    throw new \Exception('Customer does not have any advance credit available.');
-                }
-
-                $availableAdvanceCredit = abs($customerBalance);
-                if ($advanceCreditAmount > $availableAdvanceCredit) {
-                    throw new \Exception("Advance credit amount Rs.{$advanceCreditAmount} exceeds available advance credit Rs.{$availableAdvanceCredit}");
-                }
-
-                $advancePayment = Payment::create([
-                    'payment_date'   => $request->payment_date,
-                    'amount'         => $advanceCreditAmount,
-                    'payment_method' => 'advance_credit',
-                    'payment_type'   => 'advance_credit_usage',
-                    'reference_id'   => null,
-                    'reference_no'   => $bulkReference,
-                    'customer_id'    => $request->customer_id,
-                    'notes'          => 'Advance credit applied to bills (from previous overpayments)',
-                ]);
-                $createdPaymentIds[] = (int) $advancePayment->id;
-
-                $this->unifiedLedgerService->recordAdvanceCreditUsage($advancePayment, 'customer', auth()->id());
-            }
-
             // Sale IDs for which updateSaleTable() already ran with bill_return_allocations (Step 5).
             $saleIdsReturnCreditAppliedInGroups = [];
 
@@ -325,7 +296,85 @@ class FlexibleBulkSalePaymentService
                 $totalAmount += $groupTotal;
             }
 
-            // ── Step 6: apply return-credit allocations for sales not updated in Step 5 ───
+            // ── Step 6: apply credit (advance/unallocated) to sales ───────────────
+            // This links existing customer credit to invoices WITHOUT creating a new ledger credit entry
+            // (ledger already contains that credit as previous payment/overpayment).
+            if ($request->has('advance_credit_applied') && $request->advance_credit_applied > 0) {
+                $creditToApply = floatval($request->advance_credit_applied);
+
+                // Available credit is when ledger/account due is lower than invoice due OR customer has negative balance.
+                // Use: availableCredit = max(0, saleDue - ledgerBalance)
+                $ledgerBalance = (float) BalanceHelper::getCustomerBalance((int) $request->customer_id);
+                $saleDue = (float) Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
+                    ->where('customer_id', (int) $request->customer_id)
+                    ->whereIn('status', ['final', 'suspend'])
+                    ->sum('total_due');
+                $availableCredit = max(0.0, $saleDue - max(0.0, $ledgerBalance)) + max(0.0, abs(min(0.0, $ledgerBalance)));
+
+                if ($availableCredit <= 0.01) {
+                    throw new \Exception('Customer does not have any credit available to apply.');
+                }
+                if ($creditToApply > $availableCredit + 0.02) {
+                    throw new \Exception("Credit amount Rs.{$creditToApply} exceeds available credit Rs." . number_format($availableCredit, 2));
+                }
+
+                // Allocate credit FIFO across outstanding sales (after cash and return credits)
+                $sales = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
+                    ->where('customer_id', (int) $request->customer_id)
+                    ->whereIn('status', ['final', 'suspend'])
+                    ->where('total_due', '>', 0)
+                    ->orderBy('sales_date')
+                    ->orderBy('id')
+                    ->get(['id', 'invoice_no', 'total_due']);
+
+                $remainingCredit = $creditToApply;
+                foreach ($sales as $sale) {
+                    if ($remainingCredit <= 0.01) break;
+
+                    $cashPaid = (float) Payment::where('reference_id', $sale->id)
+                        ->where('payment_type', 'sale')
+                        ->sum('amount');
+                    $creditAppliedAlready = (float) Payment::where('reference_id', $sale->id)
+                        ->where('payment_type', 'advance_credit_usage')
+                        ->sum('amount');
+                    $returnCredit = (float) $this->getAppliedReturnCreditForSale((int) $sale->id);
+
+                    // IMPORTANT:
+                    // In this codebase, Sale::saving typically keeps total_due in sync with final_total - total_paid.
+                    // That means $sale->total_due is already net of cash payments we just created in Step 5.
+                    // Do not subtract $cashPaid again here (double-deduct), otherwise allocation can become impossible
+                    // and we'd throw "Credit allocation incomplete" even though credit is valid.
+                    $remainingDue = (float) $sale->total_due - $creditAppliedAlready - $returnCredit;
+                    if ($remainingDue <= 0.01) continue;
+
+                    $apply = min($remainingCredit, $remainingDue);
+                    if ($apply <= 0.01) continue;
+
+                    $creditPayment = Payment::create([
+                        'payment_date'   => $request->payment_date,
+                        'amount'         => $apply,
+                        'payment_method' => 'advance_credit',
+                        'payment_type'   => 'advance_credit_usage',
+                        'reference_id'   => $sale->id,
+                        'reference_no'   => $bulkReference,
+                        'customer_id'    => $request->customer_id,
+                        'notes'          => 'Credit applied to invoice ' . $sale->invoice_no,
+                    ]);
+                    $createdPaymentIds[] = (int) $creditPayment->id;
+
+                    // IMPORTANT: no ledger entry here (credit already exists in ledger)
+                    $this->updateSaleTable((int) $sale->id, 0.0);
+                    $affectedSaleIds[(int) $sale->id] = true;
+
+                    $remainingCredit -= $apply;
+                }
+
+                if ($remainingCredit > 0.02) {
+                    throw new \Exception('Credit allocation incomplete. Please try again or contact support.');
+                }
+            }
+
+            // ── Step 7: apply return-credit allocations for sales not updated in Step 5 ───
             // (Return-only settlement: no cash payment_groups; sale.total_paid must include return credit.)
             $billReturnAllocations = $request->input('bill_return_allocations', []);
             if (! is_array($billReturnAllocations)) {
@@ -361,7 +410,7 @@ class FlexibleBulkSalePaymentService
                 $affectedSaleIds[$saleId] = true;
             }
 
-            // ── Step 7: excess amount → advance payments for 'both' type ─────────
+            // ── Step 8: excess amount → advance payments for 'both' type ─────────
             if ($request->payment_type === 'both') {
                 $totalEntered = array_sum(array_column(
                     array_map(fn ($pg) => ['t' => floatval($pg['totalAmount'] ?? 0)], $paymentGroupsInput),
@@ -421,15 +470,14 @@ class FlexibleBulkSalePaymentService
             ->where('payment_type', 'sale')
             ->sum('amount');
 
-        $existingNonCashCredit = max(0, (float) $sale->total_paid - (float) $totalCashPayments);
+        $totalAppliedCredit = Payment::where('reference_id', $sale->id)
+            ->where('payment_type', 'advance_credit_usage')
+            ->sum('amount');
         $linkedReturnCredit = $this->getAppliedReturnCreditForSale((int) $sale->id);
-        $effectiveReturnCredit = max(
-            $existingNonCashCredit,
-            (float) $returnCreditForThisSale,
-            $linkedReturnCredit
-        );
 
-        $sale->total_paid = $totalCashPayments + $effectiveReturnCredit;
+        // total_paid reflects: cash payments + linked return credits + applied credit (advance/unallocated)
+        // returnCreditForThisSale is handled via SalesReturn total_paid; keep it only for backward compatibility.
+        $sale->total_paid = $totalCashPayments + $totalAppliedCredit + max($linkedReturnCredit, (float) $returnCreditForThisSale);
         $sale->touch();
         // Sale::saving syncs payment_status from final_total / total_paid
         $sale->save();

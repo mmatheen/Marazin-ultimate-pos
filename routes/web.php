@@ -93,8 +93,6 @@ Route::middleware(['auth'])->group(function () {
         }
         return $next($request);
     }], function () {
-
-
          // -------------------- DashboardController Routes --------------------
         Route::get('/dashboard-data', [DashboardController::class, 'getDashboardData']);
 

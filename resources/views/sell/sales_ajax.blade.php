@@ -1649,6 +1649,13 @@
                         // Populate payment info table
                         const paymentInfoTableBody = $('#paymentInfoTable tbody');
                         paymentInfoTableBody.empty();
+                        const displayPaymentMethod = (payment) => {
+                            if (payment.payment_type === 'advance_credit_usage' || payment.payment_method === 'advance_credit') {
+                                return 'Credit Applied (no cash)';
+                            }
+                            return payment.payment_method || 'N/A';
+                        };
+
                         if (saleDetails.payments && Array.isArray(saleDetails.payments)) {
                             saleDetails.payments.forEach((payment) => {
                                 const paymentRow = $('<tr>');
@@ -1658,7 +1665,7 @@
                                     '</td>');
                                 paymentRow.append('<td>' + payment.amount +
                                     '</td>');
-                                paymentRow.append('<td>' + payment.payment_method +
+                                paymentRow.append('<td>' + displayPaymentMethod(payment) +
                                     '</td>');
                                 paymentRow.append('<td>' + payment.notes + '</td>');
                                 paymentInfoTableBody.append(paymentRow);
@@ -1776,6 +1783,13 @@
 
                         const paymentsTableBody = $('#viewPaymentModal table tbody');
                         paymentsTableBody.empty();
+                        const displayPaymentMethod = (payment) => {
+                            if (payment.payment_type === 'advance_credit_usage' || payment.payment_method === 'advance_credit') {
+                                return 'Credit Applied (no cash)';
+                            }
+                            return payment.payment_method || 'N/A';
+                        };
+
                         if (saleDetails.payments && Array.isArray(saleDetails.payments)) {
                             saleDetails.payments.forEach((payment) => {
                                 const paymentRow = $('<tr>');
@@ -1785,7 +1799,7 @@
                                     '</td>');
                                 paymentRow.append('<td>' + payment.amount +
                                     '</td>');
-                                paymentRow.append('<td>' + payment.payment_method +
+                                paymentRow.append('<td>' + displayPaymentMethod(payment) +
                                     '</td>');
                                 paymentRow.append('<td>' + payment.notes + '</td>');
                                 paymentRow.append('<td>' + 'Account Name' +

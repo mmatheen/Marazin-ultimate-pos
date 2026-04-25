@@ -15,6 +15,7 @@ use App\Models\Product;
 use App\Models\Discount;
 use App\Models\StockHistory;
 use App\Models\Unit;
+use App\Services\Images\OptimizedImageUploader;
 use App\Services\TaxConfigurationService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -89,6 +90,7 @@ class ProductWriteService
                 throw new ModelNotFoundException('Product not found!');
             }
 
+            $oldImage = $id ? (string) ($product->product_image ?? '') : '';
             $fileName = $this->storeProductImage($request);
             $data = $this->buildProductData($request, $product, $fileName);
 
@@ -101,6 +103,11 @@ class ProductWriteService
             }
 
             $product->locations()->sync($request->input('locations', []));
+
+            // If a new image was uploaded, delete the old one only when unused by other products.
+            if ($fileName && $oldImage && $oldImage !== $fileName) {
+                $this->deleteProductImageIfUnused($oldImage, $product->id);
+            }
 
             return $product;
         });
@@ -300,10 +307,17 @@ class ProductWriteService
         }
 
         $file = $request->file('product_image');
-        $fileName = time() . '.' . $file->getClientOriginalExtension();
-        $file->move(public_path('/assets/images'), $fileName);
 
-        return $fileName;
+        $result = app(OptimizedImageUploader::class)->storeOptimized(
+            file: $file,
+            category: 'products',
+            alsoWebp: false
+        );
+
+        // Store a relative path (supports /assets/images/products/... while still working in UI)
+        $rel = ltrim((string) $result['path'], '/'); // e.g. assets/images/products/x.jpg
+        $rel = str_replace('assets/images/', '', $rel); // products/x.jpg
+        return $rel;
     }
 
     private function buildProductData(Request $request, Product $product, ?string $fileName): array
@@ -330,6 +344,29 @@ class ProductWriteService
             'selling_price_tax_type' => TaxConfigurationService::resolveSellingPriceTaxType($request->input('selling_price_tax_type')),
             'max_retail_price' => $request->input('max_retail_price'),
         ];
+    }
+
+    private function deleteProductImageIfUnused(string $fileName, int $currentProductId): void
+    {
+        $fileName = trim($fileName);
+        if ($fileName === '') {
+            return;
+        }
+
+        // If any other product still references this filename, do NOT delete.
+        $inUse = Product::query()
+            ->where('product_image', $fileName)
+            ->where('id', '!=', $currentProductId)
+            ->exists();
+
+        if ($inUse) {
+            return;
+        }
+
+        $path = public_path('assets/images/' . ltrim($fileName, '/'));
+        if (is_file($path)) {
+            @unlink($path);
+        }
     }
 
     private function persistWithGeneratedSku(Product $product, array $data): Product
