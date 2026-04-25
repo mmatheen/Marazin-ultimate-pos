@@ -15,10 +15,16 @@ class Kernel extends ConsoleKernel
 
 
         // Daily backup at 11:00 PM
-        $schedule->command('backup:run')->dailyAt('23:00')->timezone('Asia/Colombo');
+        $schedule->command('backup:run')
+            ->dailyAt('23:00')
+            ->timezone('Asia/Colombo')
+            ->withoutOverlapping(180);
 
         // Clean old backups (keep only 5 latest backups) at 11:30 PM
-        $schedule->command('backup:clean --disable-notifications')->dailyAt('23:30')->timezone('Asia/Colombo');
+        $schedule->command('backup:clean --disable-notifications')
+            ->dailyAt('23:30')
+            ->timezone('Asia/Colombo')
+            ->withoutOverlapping(60);
 
         // Update sales rep assignment statuses based on dates (runs every hour)
         $schedule->command('sales-rep:update-status')->hourly()->timezone('Asia/Colombo');
