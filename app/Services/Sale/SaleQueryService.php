@@ -3,6 +3,7 @@
 namespace App\Services\Sale;
 
 use App\Models\Sale;
+use App\Scopes\LocationScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -207,13 +208,31 @@ class SaleQueryService
 
     private function recentTransactions(): Collection
     {
-        $query = Sale::with(self::withFullListing())
+        // Ignore session "selected_location" so managers with multiple locations
+        // see recent bills from every outlet they are assigned to (same as list-sale).
+        $query = Sale::withoutGlobalScope(LocationScope::class)
+            ->with(self::withFullListing())
             ->where(fn ($q) => $q->where('transaction_type', 'invoice')->orWhereNull('transaction_type'))
             ->whereIn('status', ['final', 'quotation', 'draft', 'jobticket', 'suspend'])
             ->where('payment_status', '!=', 'Cancelled')
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->limit(200);
+
+        $user = auth()->user();
+        if (! LocationScope::userBypassesLocationScope($user)) {
+            if (! $user) {
+                $query->whereRaw('0 = 1');
+            } else {
+                $user->loadMissing('locations');
+                $locationIds = $user->locations->pluck('id')->all();
+                if ($locationIds === []) {
+                    $query->whereRaw('0 = 1');
+                } else {
+                    $query->whereIn($query->getModel()->getTable() . '.location_id', $locationIds);
+                }
+            }
+        }
 
         $this->applyViewOwnSalesRestriction($query);
 

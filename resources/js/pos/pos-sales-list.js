@@ -100,6 +100,7 @@ function loadTableData(status) {
             '',
             '',
             '',
+            '',
             ''
         ]);
     } else {
@@ -157,10 +158,15 @@ function loadTableData(status) {
             }
 
             const fmt = window.formatAmountWithSeparators || (v => v);
+            const locationName = sale.location && sale.location.name
+                ? String(sale.location.name).trim()
+                : (sale.location_id ? `#${sale.location_id}` : '—');
+
             table.row.add([
                 index + 1,
                 sale.invoice_no || 'N/A',
                 customerName,
+                locationName,
                 sale.sales_date || 'N/A',
                 `Rs. ${fmt(finalTotal)}`,
                 actionButtons
@@ -359,8 +365,8 @@ document.addEventListener('DOMContentLoaded', function() {
         pageLength: 10,
         order: [], // Disable initial ordering since we handle it manually
         columnDefs: [
-            { orderable: true, targets: [0, 1, 2, 3, 4] }, // Enable sorting on data columns
-            { orderable: false, targets: [5] } // Disable sorting on Actions column
+            { orderable: true, targets: [0, 1, 2, 3, 4, 5] },
+            { orderable: false, targets: [6] }
         ]
     });
 

@@ -107,6 +107,19 @@ class LocationScope implements Scope
         return $canBypass;
     }
 
+    /**
+     * Same bypass rules as the global Sale scope, for queries that intentionally
+     * remove LocationScope (e.g. POS Recent Transactions across all assigned locations).
+     */
+    public static function userBypassesLocationScope($user): bool
+    {
+        if (! $user instanceof User) {
+            return false;
+        }
+
+        return (new self)->canBypassLocationScope($user);
+    }
+
     // ── Role helper ────────────────────────────────────────────────────
 
     private function getUserRoles($user): array

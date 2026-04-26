@@ -1192,7 +1192,7 @@
 
     <!-- Bootstrap Modal with Tabs and Dynamic Table -->
     <div class="modal fade" id="recentTransactionsModal" tabindex="-1" aria-labelledby="recentTransactionsLabel">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="recentTransactionsLabel">Recent Transactions</h5>
@@ -1229,6 +1229,7 @@
                                         <th>#</th>
                                         <th>Invoice No</th>
                                         <th>Customer</th>
+                                        <th>Location</th>
                                         <th>Sales Date</th>
                                         <th>Amount</th>
                                         <th>Actions</th>

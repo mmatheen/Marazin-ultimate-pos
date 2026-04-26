@@ -370,8 +370,8 @@
 
     <script>
         $(function() {
-            const start = moment(); // Default start date is today
-            const end = moment(); // Default end date is also today
+            const start = moment();
+            const end = moment();
 
             function setDateRange(start, end) {
                 $('#reportrange span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));
@@ -392,9 +392,7 @@
             }, setDateRange);
 
             setDateRange(start, end);
-        });
 
-        document.addEventListener('DOMContentLoaded', () => {
             const customerFilter = document.getElementById('customerFilter');
             const userFilter = document.getElementById('userFilter');
             const locationFilter = document.getElementById('locationFilter');
@@ -409,20 +407,28 @@
                 filterTimeout = setTimeout(fetchAllSalesData, 300);
             };
 
+            function getReportRangeIsoDates() {
+                const drp = $('#reportrange').data('daterangepicker');
+                if (drp && drp.startDate && drp.endDate) {
+                    return {
+                        startDate: drp.startDate.format('YYYY-MM-DD'),
+                        endDate: drp.endDate.format('YYYY-MM-DD'),
+                    };
+                }
+                return {
+                    startDate: moment().format('YYYY-MM-DD'),
+                    endDate: moment().format('YYYY-MM-DD'),
+                };
+            }
+
             fetchAllSalesData();
 
             async function fetchAllSalesData() {
                 try {
-                    const dateRange = $('#reportrange span').text().split(' - ');
-                    let startDate = null,
-                        endDate = null;
-                    if (dateRange.length === 2) {
-                        startDate = moment(dateRange[0], 'MMMM D, YYYY').format('YYYY-MM-DD');
-                        endDate = moment(dateRange[1], 'MMMM D, YYYY').format('YYYY-MM-DD');
-                    }
+                    const { startDate, endDate } = getReportRangeIsoDates();
                     const params = new URLSearchParams();
-                    if (startDate) params.append('start_date', startDate);
-                    if (endDate) params.append('end_date', endDate);
+                    params.append('start_date', startDate);
+                    params.append('end_date', endDate);
                     if (customerFilter?.value) params.append('customer_id', customerFilter.value);
                     if (userFilter?.value) params.append('user_id', userFilter.value);
                     if (locationFilter?.value) params.append('location_id', locationFilter.value);

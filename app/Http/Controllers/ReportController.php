@@ -17,7 +17,6 @@ use App\Exports\ProfitLossExport;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 use App\Services\Report\StockHistoryService;
@@ -665,17 +664,12 @@ public function fetchActivityLog(Request $request)
             $startDate = Carbon::parse($request->input('start_date', Carbon::today()->startOfDay()))->startOfDay();
             $endDate   = Carbon::parse($request->input('end_date',   Carbon::today()->endOfDay()))->endOfDay();
 
-            // Final invoices within the date range
+            // Final invoices within the date range (match All Sales / SaleDataTable: invoice or null, not sale_order)
             $salesQuery = Sale::with(['customer', 'location', 'user', 'payments', 'products'])
                 ->where('status', 'final')
-                ->where('transaction_type', 'invoice')
-                ->where(function ($q) use ($startDate, $endDate) {
-                    $q->whereBetween('sales_date', [$startDate, $endDate])
-                      ->orWhereBetween(
-                          DB::raw("CONVERT_TZ(created_at, '+00:00', '+05:30')"),
-                          [$startDate, $endDate]
-                      );
-                });
+                ->where('transaction_type', '!=', 'sale_order')
+                ->where(fn ($q) => $q->where('transaction_type', 'invoice')->orWhereNull('transaction_type'))
+                ->whereBetween('sales_date', [$startDate, $endDate]);
 
             if ($request->filled('customer_id')) $salesQuery->where('customer_id', $request->customer_id);
             if ($request->filled('user_id'))     $salesQuery->where('user_id', $request->user_id);
@@ -698,15 +692,9 @@ public function fetchActivityLog(Request $request)
                 $creditTotal += $sale->total_due;
             }
 
-            // Returns within the same date range
+            // Returns within the same date range (indexed on return_date; avoids heavy CONVERT_TZ OR scans)
             $allReturnsQuery = SalesReturn::with(['customer', 'location', 'returnProducts', 'sale'])
-                ->where(function ($q) use ($startDate, $endDate) {
-                    $q->whereBetween('return_date', [$startDate, $endDate])
-                      ->orWhereBetween(
-                          DB::raw("CONVERT_TZ(created_at, '+00:00', '+05:30')"),
-                          [$startDate, $endDate]
-                      );
-                });
+                ->whereBetween('return_date', [$startDate, $endDate]);
 
             if ($request->filled('customer_id')) $allReturnsQuery->where('customer_id', $request->customer_id);
             if ($request->filled('location_id')) $allReturnsQuery->where('location_id', $request->location_id);

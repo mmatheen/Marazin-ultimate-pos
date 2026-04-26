@@ -1096,6 +1096,53 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
+      // Sticky submit bar metrics + enable/disable logic (UI only)
+      const fmt = (n) => `Rs. ${window.formatAmountValue ? window.formatAmountValue(n) : n}`;
+      $('#stickyDueAmount').text(fmt(totalDueAmount));
+      $('#stickyCollectedAmount').text(fmt(totalPaymentAmount));
+      $('#stickyBalanceAmount').text(fmt(balanceAmount));
+
+      const allocSum = typeof window.billPaymentAllocations === 'object' && window.billPaymentAllocations !== null
+        ? Object.values(window.billPaymentAllocations).reduce((s, v) => s + (parseFloat(v) || 0), 0)
+        : 0;
+
+      // IMPORTANT: Allow partial payments. Do not gate submit by balance == 0.
+      const isBalanced = Math.abs(balanceAmount) < 0.02;
+      const hasSomethingToSubmit = showReturnAdjustedState || (hasPaymentMethods && allocSum > 0.01);
+      const canSubmit = $('#customerSelect').val() && hasSomethingToSubmit;
+
+      const $hint = $('#stickyStatusHint');
+      if (!$('#customerSelect').val()) {
+        $hint.addClass('d-none');
+      } else if (!hasSomethingToSubmit) {
+        $hint
+          .removeClass('d-none bulk-sticky-hint--success bulk-sticky-hint--danger')
+          .addClass('bulk-sticky-hint--warning')
+          .text('Add payment method & allocate');
+      } else {
+        if (isBalanced || showReturnAdjustedState) {
+          $hint
+            .removeClass('d-none bulk-sticky-hint--warning bulk-sticky-hint--danger')
+            .addClass('bulk-sticky-hint--success')
+            .text('Ready to submit');
+        } else if (balanceAmount > 0) {
+          $hint
+            .removeClass('d-none bulk-sticky-hint--success bulk-sticky-hint--danger')
+            .addClass('bulk-sticky-hint--warning')
+            .text('Partial payment — remaining due exists');
+        } else {
+          $hint
+            .removeClass('d-none bulk-sticky-hint--success bulk-sticky-hint--warning')
+            .addClass('bulk-sticky-hint--danger')
+            .text('Overpayment — please verify amount');
+        }
+      }
+
+      const $submitBtn = $('#submitBulkPayment');
+      if ($submitBtn.length) {
+        $submitBtn.prop('disabled', !canSubmit);
+      }
+
       updatePaymentMethodHints(balanceAmount);
       updateWorkflowProgress();
 

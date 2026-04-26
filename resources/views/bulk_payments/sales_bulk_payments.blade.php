@@ -33,9 +33,9 @@
         </div>
 
         <!-- Step 1: Customer Selection - Clean & Simple -->
-        <div class="mb-1">
+        <div class="bulk-section-card mb-3">
             <!-- Customer Selection -->
-            <div class="mb-1">
+            <div class="mb-2">
                 <label for="customerSelect" class="form-label">Customer</label>
                 <select id="customerSelect" class="form-control selectBox">
                     <option value="">🔄 Loading customers...</option>
@@ -43,15 +43,15 @@
             </div>
 
             <!-- Customer Summary: primary = cash to pay; rest in collapsible details -->
-            <div id="customerSummarySection" class="border rounded-3 p-1 mb-2 bg-white shadow-sm" style="display: none;">
-                <div class="row g-1 align-items-start customer-summary-grid">
+            <div id="customerSummarySection" class="border rounded-3 p-2 mb-3 bg-white shadow-sm" style="display: none;">
+                <div class="row g-2 align-items-start customer-summary-grid">
                     <div class="col-12 col-lg-7 min-w-0">
                         <details id="customerBalanceDetails" class="customer-balance-details border-0" open>
                             <summary class="customer-balance-summary text-muted small user-select-none">
                                 <i class="fas fa-list-ul me-1 text-secondary"></i>Balance
                             </summary>
-                            <div class="mt-1 pt-1 border-top border-light small">
-                                <div class="d-flex flex-wrap gap-1 align-items-baseline">
+                            <div class="mt-2 pt-2 border-top border-light small">
+                                <div class="d-flex flex-wrap gap-2 align-items-baseline">
                                     <span class="text-muted me-1">Opening Balance: <strong class="text-dark">Rs. <span id="openingBalance">0.00</span></strong></span>
                                     <span class="text-muted border-start border-light ps-2">Sales unpaid (invoices): <strong class="text-dark">Rs. <span id="totalDueAmount">0.00</span></strong></span>
                                     <span class="text-muted border-start border-light ps-2">Account due (ledger): <strong class="text-dark">Rs. <span id="accountDueAmount">0.00</span></strong></span>
@@ -64,7 +64,7 @@
                         </details>
                     </div>
                     <div class="col-12 col-lg-5">
-                        <div class="amount-to-pay-highlight border border-primary rounded-3 p-1 bg-white text-start h-100">
+                        <div class="amount-to-pay-highlight border border-primary rounded-3 p-2 bg-white text-start h-100">
                             <div class="text-uppercase text-muted fw-semibold mb-1" style="font-size:11px;letter-spacing:.04em;">Sales due (invoices)</div>
                             <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
                                 <div class="h4 fw-bold text-primary mb-0" id="netCustomerDue">Rs. 0.00</div>
@@ -78,7 +78,7 @@
                 </div>
             </div>
 
-            <div class="small text-muted mb-1 d-flex flex-wrap align-items-center gap-2">
+            <div class="small text-muted mb-2 d-flex flex-wrap align-items-center gap-2">
                 <a href="#" class="link-secondary text-decoration-underline" id="customizePaymentLink">Payment options</a>
             </div>
 
@@ -103,9 +103,9 @@
 
         <!-- Step 2: Payment Section - Clean & Fast -->
         <div id="paymentMethodSection" style="display: none;">
-            <div class="mb-3">
+            <div class="bulk-section-card mb-3">
                 <!-- Quick Payment Input -->
-                <div class="row g-2 mb-1 align-items-start">
+                <div class="row g-3 mb-2 align-items-start">
                     <div class="col-md-4">
                         <label for="globalPaymentAmount" class="form-label mb-1">Amount Received</label>
                         <input type="text" class="form-control" id="globalPaymentAmount" name="amount" placeholder="Max: Rs. 0.00">
@@ -327,10 +327,30 @@
                 </div>
 
                 <!-- Submit Button (sticky) -->
-                <div id="submitButtonSection" class="bulk-payment-submit-bar text-center py-3 px-2" style="display: none;">
-                    <button type="button" id="submitBulkPayment" class="btn btn-primary btn-lg px-5 shadow">
-                        <i class="fas fa-check"></i> Submit Payment
-                    </button>
+                <div id="submitButtonSection" class="bulk-payment-submit-bar text-center py-2 px-2" style="display: none;">
+                    <div class="container-fluid">
+                        <div class="row g-2 align-items-center justify-content-center">
+                            <div class="col-12 col-lg-7">
+                                <div class="bulk-sticky-inline d-flex flex-wrap justify-content-center justify-content-lg-start gap-2">
+                                    <div class="bulk-sticky-inline__metrics">
+                                        <span class="text-muted">Due:</span> <strong id="stickyDueAmount">Rs. 0.00</strong>
+                                        <span class="text-muted mx-2">|</span>
+                                        <span class="text-muted">Collected:</span> <strong id="stickyCollectedAmount">Rs. 0.00</strong>
+                                        <span class="text-muted mx-2">|</span>
+                                        <span class="text-muted">Balance:</span> <strong id="stickyBalanceAmount">Rs. 0.00</strong>
+                                    </div>
+                                    <span id="stickyStatusHint" class="d-none bulk-sticky-hint bulk-sticky-hint--warning">
+                                        Allocate to match due
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="col-12 col-lg-5 text-center text-lg-end">
+                                <button type="button" id="submitBulkPayment" class="btn btn-primary btn-lg px-5 shadow">
+                                    <i class="fas fa-check"></i> Submit Payment
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1332,37 +1352,40 @@
                 const escapedNotes = window.escapeHtml(sale.sale_notes || '');
 
                 billsHTML += `
-                    <div class="bill-item border rounded p-2 mb-2 ${isFullyPaid ? 'bg-light' : 'bg-white'}" data-bill-id="${sale.id}" data-invoice="${window.escapeHtml(sale.invoice_no)}" data-notes="${escapedNotes}">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div class="flex-grow-1">
-                                <h6 class="mb-1 small ${isFullyPaid ? 'text-muted' : 'text-primary'}">
-                                    ${window.escapeHtml(sale.invoice_no)}
-                                    ${isFullyPaid ? '<span class="badge bg-light text-dark border ms-1" style="font-size: 0.6rem;">Allocated</span>' : ''}
-                                    ${isPartiallyAllocated ? '<span class="badge bg-light text-dark border ms-1" style="font-size: 0.6rem;">Partially Allocated</span>' : ''}
-                                    ${returnCreditApplied > 0 ? '<span class="badge bg-secondary ms-1" style="font-size: 0.6rem;">Credit Applied</span>' : ''}
-                                </h6>
-                                <div class="small" style="font-size: 0.75rem;">
-                                    <div style="font-size:11px;color:var(--bs-secondary)">
-                                        ${remainingAmount > 0.01
-        ? (isPartiallyAllocated
-            ? `Added: <strong>Rs.${formatAmountValue(allocatedAmount)}</strong> · Remaining amount: <strong>Rs.${formatAmountValue(Math.max(0, remainingAmount))}</strong>`
-            : `Remaining amount: <strong>Rs.${formatAmountValue(Math.max(0, remainingAmount))}</strong>`)
-        : 'Settled'}
-                                        ${returnCreditApplied > 0
-        ? ` <span class="text-muted">(after credit Rs.${formatAmountValue(returnCreditApplied)})</span>`
-        : ''}
+                    <div class="bill-item bill-card border rounded-3 p-2 mb-2 ${isFullyPaid ? 'bill-card--settled' : ''}"
+                         data-bill-id="${sale.id}"
+                         data-invoice="${window.escapeHtml(sale.invoice_no)}"
+                         data-notes="${escapedNotes}">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div class="min-w-0 flex-grow-1">
+                                <div class="d-flex flex-wrap align-items-center gap-1">
+                                    <div class="fw-semibold bill-card__title text-truncate ${isFullyPaid ? 'text-muted' : 'text-dark'}">
+                                        ${window.escapeHtml(sale.invoice_no)}
                                     </div>
+                                    ${isFullyPaid ? '<span class="badge rounded-pill border bill-badge bill-badge--muted">Allocated</span>' : ''}
+                                    ${isPartiallyAllocated ? '<span class="badge rounded-pill border bill-badge bill-badge--muted">Partial</span>' : ''}
+                                    ${returnCreditApplied > 0 ? '<span class="badge rounded-pill border bill-badge bill-badge--secondary">Credit</span>' : ''}
                                 </div>
+
+                                <div class="d-flex flex-wrap gap-2 mt-1 bill-card__meta">
+                                    <span class="text-muted">Due: <strong class="text-dark">Rs.${formatAmountValue(Number(sale.total_due || 0))}</strong></span>
+                                    <span class="text-muted">Remaining: <strong class="${remainingAmount > 0.01 ? 'text-primary' : 'text-success'}">Rs.${formatAmountValue(Math.max(0, remainingAmount))}</strong></span>
+                                    ${allocatedAmount > 0.01 ? `<span class="text-muted">Added: <strong class="text-dark">Rs.${formatAmountValue(allocatedAmount)}</strong></span>` : ''}
+                                    ${returnCreditApplied > 0 ? `<span class="text-muted">Credit: <strong class="text-dark">Rs.${formatAmountValue(returnCreditApplied)}</strong></span>` : ''}
+                                </div>
+
+                                ${escapedNotes ? `<div class="text-muted small mt-1 text-truncate bill-card__notes" title="${escapedNotes}">${escapedNotes}</div>` : ''}
                             </div>
-                            <div class="ms-2">
+
+                            <div class="flex-shrink-0">
                                 ${!isFullyPaid ? `
-                                    <button type="button" class="btn btn-outline-primary btn-sm add-to-payment-btn" data-bill-id="${sale.id}" title="Allocate this bill to a payment method">
+                                    <button type="button" class="btn btn-primary btn-sm add-to-payment-btn bill-card__cta" data-bill-id="${sale.id}" title="Allocate this bill to a payment method">
                                         Allocate
                                     </button>
                                 ` : `
-                                    <button class="btn btn-success btn-sm" disabled style="font-size: 0.7rem; padding: 0.25rem 0.4rem;">
+                                    <span class="btn btn-success btn-sm disabled bill-card__done" aria-disabled="true" title="Settled">
                                         <i class="fas fa-check"></i>
-                                    </button>
+                                    </span>
                                 `}
                             </div>
                         </div>
@@ -1378,15 +1401,28 @@
     // Expose for shared helpers (e.g. common.js credit sync)
     window.populateFlexibleBillsList = populateFlexibleBillsList;
 
+    function getNextPaymentMethodIndex() {
+        const used = new Set();
+        $('#flexiblePaymentsList .pm-index-badge').each(function () {
+            const n = parseInt($(this).text(), 10);
+            if (Number.isFinite(n) && n > 0) used.add(n);
+        });
+        let next = 1;
+        while (used.has(next)) next++;
+        return next;
+    }
+
     // Add new flexible payment method
     function addFlexiblePayment() {
         flexiblePaymentCounter++;
         const paymentId = `payment_${flexiblePaymentCounter}`;
+        const paymentIndex = getNextPaymentMethodIndex();
 
         const paymentHTML = `
-            <div class="payment-method-item border rounded p-2 mb-2 bg-white" data-payment-id="${paymentId}">
+            <div class="payment-method-item border rounded p-2 mb-2 bg-white" data-payment-id="${paymentId}" data-payment-index="${paymentIndex}">
                 <div class="d-flex justify-content-between align-items-start mb-2">
                     <h6 class="text-dark mb-0">
+                        <span class="pm-index-badge me-2" aria-hidden="true">${paymentIndex}</span>
                         <i class="fas fa-credit-card"></i> Payment Method
                     </h6>
                     <button type="button" class="btn btn-outline-secondary btn-sm remove-payment-btn" data-payment-id="${paymentId}">
@@ -2628,26 +2664,49 @@
 
     <!-- Clean UI Styling -->
     <style>
-    #bulkPaymentForm, #bulkPaymentForm * {
-        font-size: 13px !important;
+    /* Keep Bootstrap defaults; only lightly tune density */
+    .bulk-payment-page {
+        background: #f7f8fa;
+        min-height: 100vh;
+        font-size: 0.95rem;
     }
-    #bulkPaymentForm h6 { font-size: 13px !important; }
-    #bulkPaymentForm .form-label { margin-bottom: 0.2rem !important; font-weight: 500; }
+
+    /* Reduce "grey empty space" by grouping into white cards */
+    .bulk-section-card {
+        background: #fff;
+        border: 1px solid #e6e9ee;
+        border-radius: 12px;
+        padding: 12px;
+    }
+
+    @media (min-width: 992px) {
+        .bulk-section-card {
+            padding: 14px;
+        }
+    }
+
+    #bulkPaymentForm .form-label {
+        margin-bottom: 0.25rem;
+        font-weight: 600;
+    }
+
     #bulkPaymentForm .form-control,
     #bulkPaymentForm .form-select {
-        padding: 4px 8px !important;
-        height: 30px !important;
-        font-size: 13px !important;
+        min-height: 38px;
     }
+
     #bulkPaymentForm textarea.form-control {
-        height: auto !important;
-        min-height: 30px;
+        min-height: 38px;
     }
-    #bulkPaymentForm .btn-lg {
-        font-size: 14px !important;
-        padding: 8px 28px !important;
+
+    #bulkPaymentForm h6 {
+        font-size: 0.95rem;
     }
-    #netCustomerDue { font-size: 1.2rem !important; }
+
+    #netCustomerDue {
+        font-size: 1.5rem !important;
+        letter-spacing: -0.01em;
+    }
 
     #customerSummarySection,
     #customerReturnsSection,
@@ -2716,21 +2775,14 @@
         overflow-y: auto;
     }
 
-    .bulk-payment-page {
-        background: #f7f8fa;
-        min-height: 100vh;
-    }
-
     #customerReturnsSection .table th,
     #customerReturnsSection .table td {
         padding-top: 0.3rem;
         padding-bottom: 0.3rem;
     }
 
-    #customerReturnsSection h6,
-    #customerReturnsSection .btn,
-    #customerReturnsSection .table {
-        font-size: 12px !important;
+    #customerReturnsSection h6 {
+        font-size: 0.9rem;
     }
 
     .bulk-workflow-steps .order-flow-num {
@@ -2763,6 +2815,110 @@
         border-top: 1px solid #dee2e6;
         box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.04);
         margin-top: 1rem;
+    }
+
+    .bulk-sticky-inline {
+        font-size: 0.9rem;
+        line-height: 1.2;
+    }
+
+    .bulk-sticky-inline__metrics {
+        padding: 0.35rem 0.55rem;
+        border: 1px solid #e5e7eb;
+        background: #f8fafc;
+        border-radius: 0.6rem;
+        color: #111827;
+        white-space: nowrap;
+    }
+
+    .bulk-sticky-hint {
+        padding: 0.35rem 0.55rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.6rem;
+        font-weight: 600;
+        white-space: nowrap;
+        color: #111827;
+    }
+
+    .bulk-payment-submit-bar {
+        backdrop-filter: blur(6px);
+    }
+
+    .bulk-payment-submit-bar .btn.btn-lg {
+        padding-top: 0.6rem;
+        padding-bottom: 0.6rem;
+    }
+
+    /* hint backgrounds */
+
+    .bulk-sticky-hint--warning {
+        background: #fffbeb;
+    }
+    .bulk-sticky-hint--success {
+        background: #ecfdf5;
+    }
+    .bulk-sticky-hint--danger {
+        background: #fef2f2;
+    }
+
+    /* Bills list: modern cards */
+    .bill-card {
+        transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+        border-color: #e6e9ee !important;
+        background: #fff;
+    }
+
+    .bill-card:hover {
+        border-color: #cfd6df !important;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+        transform: translateY(-1px);
+    }
+
+    .bill-card--settled {
+        background: #fbfcfd;
+        opacity: 0.92;
+    }
+
+    .bill-card__title {
+        display: inline-block;
+        max-width: 100%;
+        font-size: 0.95rem;
+    }
+
+    .bill-card__meta {
+        font-size: 0.85rem;
+        line-height: 1.2;
+    }
+
+    .bill-card__notes {
+        max-width: 48ch;
+    }
+
+    .bill-badge {
+        font-size: 0.72rem;
+        padding: 0.25rem 0.55rem;
+    }
+
+    .bill-badge--muted {
+        background: #f8fafc;
+        color: #111827;
+        border-color: #e5e7eb !important;
+    }
+
+    .bill-badge--secondary {
+        background: #f3f4f6;
+        color: #111827;
+        border-color: #e5e7eb !important;
+    }
+
+    .bill-card__cta {
+        border-radius: 0.6rem;
+        padding: 0.45rem 0.75rem;
+    }
+
+    .bill-card__done {
+        border-radius: 0.6rem;
+        padding: 0.45rem 0.6rem;
     }
 
     .allocation-summary-grid .allocation-summary-metric {
@@ -2812,13 +2968,6 @@
         box-shadow: none !important;
     }
 
-    #advancedOptionsContainer .text-primary,
-    #advancedOptionsContainer .text-info,
-    #advancedOptionsContainer .text-success,
-    #advancedOptionsContainer .text-danger {
-        color: #4b5563 !important;
-    }
-
     .payment-method-item,
     .bill-allocation-row {
         border-color: #e6e9ee !important;
@@ -2854,6 +3003,21 @@
 
     .payment-method-item .btn {
         border-radius: 6px;
+    }
+
+    .pm-index-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.4rem;
+        height: 1.4rem;
+        border-radius: 999px;
+        background: #111827;
+        color: #fff;
+        font-size: 0.8rem;
+        font-weight: 700;
+        line-height: 1;
+        flex: 0 0 auto;
     }
 
     .border-bottom {
@@ -2898,9 +3062,9 @@
         background: #a8a8a8;
     }
 
-    /* Clean hover effects */
-    a:hover {
-        opacity: 0.8;
+    /* Don't globally fade all links; keep hover specific */
+    .bulk-payment-page a:hover {
+        text-decoration-thickness: 2px;
     }
 
     .form-control:focus,
