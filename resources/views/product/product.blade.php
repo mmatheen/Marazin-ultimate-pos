@@ -2,6 +2,15 @@
 
 @section('title', 'List Product')
 @section('content')
+    <style>
+        /* Compact filter layout */
+        #collapseExample .local-forms label {
+            margin-bottom: 0.35rem;
+        }
+        #collapseExample .local-forms {
+            margin-bottom: 0;
+        }
+    </style>
     <div class="content container-fluid">
 
         <div class="row">
@@ -32,9 +41,9 @@
             </div>
 
             <div class="collapse" id="collapseExample">
-                <div class="card card-body mb-4">
+                <div class="card card-body mb-4 p-3">
                     <div class="student-group-form">
-                        <div class="row g-3 align-items-end">
+                        <div class="row g-2 align-items-end">
                             <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
                                 <div class="form-group local-forms">
                                     <label>Product <span class="login-danger"></span></label>
