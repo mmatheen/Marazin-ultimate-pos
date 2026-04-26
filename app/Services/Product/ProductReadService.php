@@ -250,9 +250,10 @@ class ProductReadService
 
     public function getSubCategoriesByMainCategoryId(string $mainCategoryId): Collection
     {
-        return SubCategory::where('main_category_id', $mainCategoryId)
+        return SubCategory::withoutGlobalScope(\App\Scopes\LocationScope::class)
+            ->where('main_category_id', $mainCategoryId)
             ->select('id', 'subCategoryname', 'main_category_id', 'subCategoryCode', 'description')
-            ->orderBy('main_category_id', 'asc')
+            ->orderBy('subCategoryname', 'asc')
             ->get();
     }
 

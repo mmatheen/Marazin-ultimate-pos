@@ -1496,6 +1496,13 @@
         if (stock && stock !== 'All Products') {
             parts.push(stock);
         }
+        const subId = $('#subCategoryFilter').val();
+        if (subId) {
+            const subLabel = $('#subCategoryFilter option:selected').text() || '';
+            if (subLabel) {
+                parts.push(subLabel);
+            }
+        }
         return parts.join(' — ');
     }
 
@@ -1511,6 +1518,7 @@
             'columns': d.columns,
             product_name: $('#productNameFilter').val(),
             main_category_id: $('#categoryFilter').val(),
+            sub_category_id: $('#subCategoryFilter').val(),
             brand_id: $('#brandFilter').val(),
             location_id: locationId,
             stock_status: $('#stockStatusFilter').val(),
@@ -2473,9 +2481,46 @@
         });
     }
 
+    function loadSubcategoryFilterOptions(mainCategoryId) {
+        const $sub = $('#subCategoryFilter');
+        if (!$sub.length) {
+            return;
+        }
+        $sub.val('').empty().append('<option value="">Select Subcategory</option>');
+        if (!mainCategoryId) {
+            $sub.prop('disabled', true);
+            return;
+        }
+        $sub.prop('disabled', false);
+        $.ajax({
+            url: '/sub_category-details-get-by-main-category-id/' + encodeURIComponent(mainCategoryId),
+            type: 'GET',
+            dataType: 'json',
+            cache: false
+        }).done(function(response) {
+            $sub.empty().append('<option value="">Select Subcategory</option>');
+            const list = (response && response.message && Array.isArray(response.message)) ? response.message : [];
+            list.forEach(function(sc) {
+                if (sc && sc.id != null) {
+                    const label = sc.subCategoryname || sc.sub_category_name || ('#' + sc.id);
+                    $sub.append(new Option(label, String(sc.id)));
+                }
+            });
+        }).fail(function() {
+            toastr.error('Could not load subcategories for this category.');
+            $sub.prop('disabled', true);
+        });
+    }
+
+    if ($('#subCategoryFilter').length && $('#categoryFilter').length) {
+        $('#categoryFilter').on('change', function() {
+            loadSubcategoryFilterOptions($(this).val() || '');
+        });
+    }
+
     // Debounce filter reloads so rapid Select2 changes issue one request (faster, less server load)
     let productListFilterReloadTimer = null;
-    $('#productNameFilter, #categoryFilter, #brandFilter, #locationFilter, #stockStatusFilter').on('change', function() {
+    $('#productNameFilter, #categoryFilter, #subCategoryFilter, #brandFilter, #locationFilter, #stockStatusFilter').on('change', function() {
         clearTimeout(productListFilterReloadTimer);
         productListFilterReloadTimer = setTimeout(function() {
             if ($.fn.DataTable.isDataTable('#productTable')) {
@@ -2496,13 +2541,16 @@
         // Clear all filter dropdowns to their default "Select..." options
         $('#productNameFilter').val('').trigger('change');
         $('#categoryFilter').val('').trigger('change');
+        $('#subCategoryFilter').val('').empty().append('<option value="">Select Subcategory</option>').prop('disabled', true).trigger('change');
         $('#brandFilter').val('').trigger('change');
         $('#locationFilter').val('').trigger('change');
         $('#stockStatusFilter').val('').trigger('change');
 
         // If using Select2, also trigger Select2 events for proper clearing
         if (typeof $.fn.select2 !== 'undefined') {
-            $('#productNameFilter, #categoryFilter, #brandFilter, #locationFilter, #stockStatusFilter').select2();
+            $('#productNameFilter, #categoryFilter, #subCategoryFilter, #brandFilter, #locationFilter, #stockStatusFilter').select2({
+                width: 'resolve'
+            });
         }
 
         // Reload DataTable to show all products (no filters applied)

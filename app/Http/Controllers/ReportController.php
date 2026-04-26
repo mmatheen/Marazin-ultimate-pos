@@ -12,6 +12,7 @@ use App\Models\Customer;
 use App\Models\Brand;
 use App\Models\Location;
 use App\Models\Setting;
+use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ProfitLossExport;
@@ -667,8 +668,16 @@ public function fetchActivityLog(Request $request)
 
             // Same idea as POS Recent Transactions: do not narrow to session "selected_location" only.
             // Managers with multiple locations must see (and filter) all assigned outlets in this report.
+            // Customer model has LocationScope too — session outlet can hide customers from other shops
+            // on the relation, leaving names blank in the report (same fix as SaleQueryService / POS).
             $salesQuery = Sale::withoutGlobalScope(LocationScope::class)
-                ->with(['customer', 'location', 'user', 'payments', 'products'])
+                ->with([
+                    'customer' => fn ($q) => $q->withoutGlobalScope(LocationScope::class),
+                    'location',
+                    'user',
+                    'payments',
+                    'products',
+                ])
                 ->where('status', 'final')
                 ->where('transaction_type', '!=', 'sale_order')
                 ->where(fn ($q) => $q->where('transaction_type', 'invoice')->orWhereNull('transaction_type'))
@@ -698,7 +707,12 @@ public function fetchActivityLog(Request $request)
             }
 
             // Returns within the same date range (match sale visibility: user's locations, not session-only)
-            $allReturnsQuery = SalesReturn::with(['customer', 'location', 'returnProducts', 'sale'])
+            $allReturnsQuery = SalesReturn::with([
+                'customer' => fn ($q) => $q->withoutGlobalScope(LocationScope::class),
+                'location',
+                'returnProducts',
+                'sale',
+            ])
                 ->whereBetween('return_date', [$startDate, $endDate]);
 
             $this->restrictQueryToUserAccessibleLocations($allReturnsQuery);
@@ -725,14 +739,14 @@ public function fetchActivityLog(Request $request)
 
             $authUser             = auth()->user();
             $accessibleLocations = [];
-            if ($authUser && LocationScope::userBypassesLocationScope($authUser)) {
+            if ($authUser instanceof User && LocationScope::userBypassesLocationScope($authUser)) {
                 $accessibleLocations = Location::query()
                     ->orderBy('name')
                     ->get(['id', 'name'])
                     ->map(fn ($l) => ['id' => $l->id, 'name' => $l->name])
                     ->values()
                     ->all();
-            } elseif ($authUser) {
+            } elseif ($authUser instanceof User) {
                 $authUser->loadMissing('locations');
                 $accessibleLocations = $authUser->locations
                     ->sortBy('name')
@@ -779,11 +793,11 @@ public function fetchActivityLog(Request $request)
     {
         $user = auth()->user();
 
-        if (LocationScope::userBypassesLocationScope($user)) {
+        if ($user instanceof User && LocationScope::userBypassesLocationScope($user)) {
             return;
         }
 
-        if (! $user) {
+        if (! $user instanceof User) {
             $query->whereRaw('0 = 1');
 
             return;
