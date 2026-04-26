@@ -6,6 +6,7 @@ use App\Services\ProfitLossService;
 use App\Services\Report\BackorderReportService;
 use App\Models\Sale;
 use App\Models\SalesReturn;
+use App\Scopes\LocationScope;
 use App\Models\Product;
 use App\Models\Customer;
 use App\Models\Brand;
@@ -664,12 +665,16 @@ public function fetchActivityLog(Request $request)
             $startDate = Carbon::parse($request->input('start_date', Carbon::today()->startOfDay()))->startOfDay();
             $endDate   = Carbon::parse($request->input('end_date',   Carbon::today()->endOfDay()))->endOfDay();
 
-            // Final invoices within the date range (match All Sales / SaleDataTable: invoice or null, not sale_order)
-            $salesQuery = Sale::with(['customer', 'location', 'user', 'payments', 'products'])
+            // Same idea as POS Recent Transactions: do not narrow to session "selected_location" only.
+            // Managers with multiple locations must see (and filter) all assigned outlets in this report.
+            $salesQuery = Sale::withoutGlobalScope(LocationScope::class)
+                ->with(['customer', 'location', 'user', 'payments', 'products'])
                 ->where('status', 'final')
                 ->where('transaction_type', '!=', 'sale_order')
                 ->where(fn ($q) => $q->where('transaction_type', 'invoice')->orWhereNull('transaction_type'))
                 ->whereBetween('sales_date', [$startDate, $endDate]);
+
+            $this->restrictQueryToUserAccessibleLocations($salesQuery);
 
             if ($request->filled('customer_id')) $salesQuery->where('customer_id', $request->customer_id);
             if ($request->filled('user_id'))     $salesQuery->where('user_id', $request->user_id);
@@ -692,9 +697,11 @@ public function fetchActivityLog(Request $request)
                 $creditTotal += $sale->total_due;
             }
 
-            // Returns within the same date range (indexed on return_date; avoids heavy CONVERT_TZ OR scans)
+            // Returns within the same date range (match sale visibility: user's locations, not session-only)
             $allReturnsQuery = SalesReturn::with(['customer', 'location', 'returnProducts', 'sale'])
                 ->whereBetween('return_date', [$startDate, $endDate]);
+
+            $this->restrictQueryToUserAccessibleLocations($allReturnsQuery);
 
             if ($request->filled('customer_id')) $allReturnsQuery->where('customer_id', $request->customer_id);
             if ($request->filled('location_id')) $allReturnsQuery->where('location_id', $request->location_id);
@@ -716,7 +723,26 @@ public function fetchActivityLog(Request $request)
                     : $sale->discount_amount;
             });
 
+            $authUser             = auth()->user();
+            $accessibleLocations = [];
+            if ($authUser && LocationScope::userBypassesLocationScope($authUser)) {
+                $accessibleLocations = Location::query()
+                    ->orderBy('name')
+                    ->get(['id', 'name'])
+                    ->map(fn ($l) => ['id' => $l->id, 'name' => $l->name])
+                    ->values()
+                    ->all();
+            } elseif ($authUser) {
+                $authUser->loadMissing('locations');
+                $accessibleLocations = $authUser->locations
+                    ->sortBy('name')
+                    ->map(fn ($l) => ['id' => $l->id, 'name' => $l->name])
+                    ->values()
+                    ->all();
+            }
+
             return response()->json([
+                'accessible_locations' => $accessibleLocations,
                 'sales'             => $sales,
                 'summaries'         => [
                     'billTotal'          => $billTotal,
@@ -743,5 +769,36 @@ public function fetchActivityLog(Request $request)
                 'details' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Limit a query to locations the authenticated user may access (ignores session-selected outlet).
+     * Skipped for users who bypass location scope (same rules as {@see LocationScope}).
+     */
+    private function restrictQueryToUserAccessibleLocations(\Illuminate\Database\Eloquent\Builder $query): void
+    {
+        $user = auth()->user();
+
+        if (LocationScope::userBypassesLocationScope($user)) {
+            return;
+        }
+
+        if (! $user) {
+            $query->whereRaw('0 = 1');
+
+            return;
+        }
+
+        $user->loadMissing('locations');
+        $locationIds = $user->locations->pluck('id')->all();
+
+        if ($locationIds === []) {
+            $query->whereRaw('0 = 1');
+
+            return;
+        }
+
+        $column = $query->getModel()->getTable() . '.location_id';
+        $query->whereIn($column, $locationIds);
     }
 }

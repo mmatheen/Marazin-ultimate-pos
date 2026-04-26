@@ -454,24 +454,32 @@
 
                     allSummaries.salesReturns = (parseFloat(allSummaries.salesReturns || 0) + oldReturnsTotal);
 
-                    populateDropdowns(allSales);
+                    populateDropdowns(allSales, data.accessible_locations || []);
                     populateTable(allSales, allSalesReturns);
                     populateOldSaleReturnsTable(allOldSaleReturns);
                     updateSummaries(allSummaries);
 
                 } catch (error) {
                     console.error('Error fetching sales data:', error);
-                    populateDropdowns([]);
+                    populateDropdowns([], []);
                     populateTable([], []);
                     populateOldSaleReturnsTable([]);
                     updateSummaries({});
                 }
             }
 
-            function populateDropdowns(sales) {
+            function populateDropdowns(sales, accessibleLocations = []) {
                 const customerMap = new Map();
                 const userMap = new Map();
                 const locationMap = new Map();
+
+                if (Array.isArray(accessibleLocations)) {
+                    accessibleLocations.forEach(loc => {
+                        if (loc && loc.id != null && loc.name) {
+                            locationMap.set(Number(loc.id), String(loc.name).trim());
+                        }
+                    });
+                }
 
                 sales.forEach(sale => {
                     if (sale.customer) {
