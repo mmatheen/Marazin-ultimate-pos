@@ -7,6 +7,7 @@ use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\SalesProduct;
 use App\Models\User;
+use App\Scopes\LocationScope;
 use Illuminate\Contracts\Auth\Access\Authorizable as AuthorizableContract;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
@@ -36,6 +37,21 @@ class SaleReceiptService
         $sale = $saleQuery->findOrFail($saleId);
 
         $authUser = auth()->user();
+
+        // When bypassing the session-selected location scope (used by POS recent-transactions),
+        // still restrict the receipt to locations the current user can access.
+        if ($bypassLocationScope && ! LocationScope::userBypassesLocationScope($authUser)) {
+            if (! $authUser instanceof User) {
+                throw (new ModelNotFoundException)->setModel(Sale::class, [$saleId]);
+            }
+
+            $authUser->loadMissing('locations');
+            $locationIds = $authUser->locations->pluck('id')->all();
+            if ($locationIds === [] || !in_array((int) $sale->location_id, array_map('intval', $locationIds), true)) {
+                throw (new ModelNotFoundException)->setModel(Sale::class, [$saleId]);
+            }
+        }
+
         if (
             $authUser instanceof AuthorizableContract
             && $authUser->can('view own sales')

@@ -515,7 +515,9 @@ class SaleController extends Controller
     public function printRecentTransaction($id, Request $request)
     {
         try {
-            $html = $this->saleReceiptService->getHtml((int) $id, $request->query('layout'));
+            // Recent Transactions can show invoices from any outlet the user is assigned to.
+            // Bypass session-selected location scope for printing too (authorization is enforced in SaleReceiptService).
+            $html = $this->saleReceiptService->getHtml((int) $id, $request->query('layout'), true);
             return response()->json(['invoice_html' => $html], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 400);
