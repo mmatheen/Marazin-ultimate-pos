@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /**
  * SaleQueryService
@@ -92,8 +93,20 @@ class SaleQueryService
      */
     public function getByInvoiceNo(string $invoiceNo): array
     {
-        $query = Sale::with(['products.product.unit', 'salesReturns'])
+        $query = Sale::withoutGlobalScope(LocationScope::class)
+            ->with(['products.product.unit', 'salesReturns'])
             ->where('invoice_no', $invoiceNo);
+
+        $user = auth()->user();
+        if ($user && ! LocationScope::userBypassesLocationScope($user)) {
+            $locationIds = $this->getAccessibleLocationIds($user->id);
+
+            if ($locationIds === []) {
+                throw new ModelNotFoundException('Sale not found');
+            }
+
+            $query->whereIn('location_id', $locationIds);
+        }
 
         $this->applyViewOwnSalesRestriction($query);
 
@@ -153,10 +166,22 @@ class SaleQueryService
      */
     public function search(string $term): Collection
     {
-        $query = Sale::where(function ($q) use ($term) {
-            $q->where('invoice_no', 'LIKE', '%' . $term . '%')
-                ->orWhere('id', 'LIKE', '%' . $term . '%');
-        });
+        $query = Sale::withoutGlobalScope(LocationScope::class)
+            ->where(function ($q) use ($term) {
+                $q->where('invoice_no', 'LIKE', '%' . $term . '%')
+                    ->orWhere('id', 'LIKE', '%' . $term . '%');
+            });
+
+        $user = auth()->user();
+        if ($user && ! LocationScope::userBypassesLocationScope($user)) {
+            $locationIds = $this->getAccessibleLocationIds($user->id);
+
+            if ($locationIds === []) {
+                return new \Illuminate\Database\Eloquent\Collection();
+            }
+
+            $query->whereIn('location_id', $locationIds);
+        }
 
         $this->applyViewOwnSalesRestriction($query);
 
@@ -200,7 +225,7 @@ class SaleQueryService
     private function applyViewOwnSalesRestriction(Builder $query): void
     {
         $user = auth()->user();
-        if ($user && $user->can('view own sales') && ! $user->can('view all sales')) {
+        if ($user && method_exists($user, 'can') && $user->can('view own sales') && ! $user->can('view all sales')) {
             $table = $query->getModel()->getTable();
             $query->where($table . '.user_id', $user->id);
         }
@@ -224,8 +249,7 @@ class SaleQueryService
             if (! $user) {
                 $query->whereRaw('0 = 1');
             } else {
-                $user->loadMissing('locations');
-                $locationIds = $user->locations->pluck('id')->all();
+                $locationIds = $this->getAccessibleLocationIds($user->id);
                 if ($locationIds === []) {
                     $query->whereRaw('0 = 1');
                 } else {
@@ -237,6 +261,14 @@ class SaleQueryService
         $this->applyViewOwnSalesRestriction($query);
 
         return $query->get();
+    }
+
+    private function getAccessibleLocationIds(int $userId): array
+    {
+        return DB::table('location_user')
+            ->where('user_id', $userId)
+            ->pluck('location_id')
+            ->all();
     }
 
     private function saleOrders(): Collection
