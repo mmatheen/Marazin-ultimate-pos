@@ -159,25 +159,24 @@ document.addEventListener('DOMContentLoaded', function () {
         var invoiceNo = invoiceInput.value.trim();
         if (!invoiceNo) { toastr.warning('Please enter an invoice number'); return; }
 
+        // Use direct invoice lookup to avoid pagination/location filters on list endpoint
         $.ajax({
-            url: '/sales',
+            url: '/sales/' + encodeURIComponent(invoiceNo),
             method: 'GET',
             success: function (data) {
-                if (!data.sales || !Array.isArray(data.sales)) {
-                    toastr.error('Invalid sales data received.');
-                    return;
-                }
-                var sale = data.sales.find(function (s) {
-                    return s.invoice_no.toLowerCase() === invoiceNo.toLowerCase();
-                });
-                if (sale) {
+                // Expected response contains 'products' when sale exists
+                if (data && (data.products || data.sale_id || data.sale_details)) {
                     window.location.href = '/sale-return/add?invoiceNo=' + encodeURIComponent(invoiceNo);
                 } else {
                     toastr.error('Sale not found. Please enter a valid invoice number.');
                 }
             },
-            error: function () {
-                toastr.error('An error occurred while fetching sales data.');
+            error: function (xhr) {
+                if (xhr && xhr.status === 404) {
+                    toastr.error('Sale not found. Please enter a valid invoice number.');
+                } else {
+                    toastr.error('An error occurred while fetching sale data.');
+                }
             }
         });
     }
