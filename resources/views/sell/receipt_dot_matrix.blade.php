@@ -451,12 +451,27 @@
 
         <div class="company-address">
             @php
-                $addrParts = [];
-                if ($location && $location->address) $addrParts[] = strtoupper($location->address);
-                if ($location && $location->mobile)  $addrParts[] = 'Mobile: ' . $location->mobile . '/  ' .($location->telephone_no ?? '');
-                if ($location && $location->email)   $addrParts[] = 'Email: ' . $location->email;
+            $address = $location && $location->address ? strtoupper($location->address) : '';
+            $mobileEmailParts = [];
+            if ($location && $location->mobile) {
+                $tel = $location->telephone_no ?? '';
+                $mobileEmailParts[] = 'Mobile: ' . $location->mobile . ($tel ? ' / ' . $tel : '');
+            }
+            if ($location && $location->email) {
+                $mobileEmailParts[] = 'Email: ' . $location->email;
+            }
+            $mobileEmailLine = implode('  |  ', $mobileEmailParts);
             @endphp
-            {{ implode(' | ', $addrParts) }}
+
+            @if($address)
+            <div style="text-align:center;">{{ $address }}</div>
+            @endif
+
+            @if($mobileEmailLine)
+            <div style="text-align:center; font-weight:600; margin-top:3px;">
+                {{ $mobileEmailLine }}
+            </div>
+            @endif
         </div>
 
         <div class="customer-invoice-row">
