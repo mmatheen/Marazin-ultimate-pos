@@ -4922,11 +4922,15 @@
                 }
             }
 
-            // Format expiry date
-            let expiryDate = batch.expiry_date || '-';
+            // Format expiry date for date input (YYYY-MM-DD format)
+            let expiryDateForInput = '';
             if (batch.expiry_date) {
-                expiryDate = new Date(batch.expiry_date).toLocaleDateString();
+                const date = new Date(batch.expiry_date);
+                expiryDateForInput = date.getFullYear() + '-' +
+                    String(date.getMonth() + 1).padStart(2, '0') + '-' +
+                    String(date.getDate()).padStart(2, '0');
             }
+            let expiryDateDisplay = batch.expiry_date ? new Date(batch.expiry_date).toLocaleDateString() : '-';
 
             // Desktop table row (hidden on mobile)
             const row = `
@@ -4938,7 +4942,7 @@
                     <td><input type="number" class="form-control form-control-sm price-input" name="special_price" value="${parseFloat(batch.special_price || 0).toFixed(2)}" min="0" step="0.01" placeholder="0.00"></td>
                     <td><input type="number" class="form-control form-control-sm price-input" name="retail_price" value="${parseFloat(batch.retail_price || 0).toFixed(2)}" min="0" step="0.01" placeholder="0.00"></td>
                     <td><input type="number" class="form-control form-control-sm price-input" name="max_retail_price" value="${parseFloat(batch.max_retail_price || 0).toFixed(2)}" min="0" step="0.01" placeholder="0.00"></td>
-                    <td class="d-none d-lg-table-cell">${expiryDate}</td>
+                    <td class="d-none d-lg-table-cell"><input type="date" class="form-control form-control-sm" name="expiry_date" value="${expiryDateForInput}"></td>
                     <td class="d-none d-lg-table-cell"><small class="text-muted">${locationsDisplay}</small></td>
                 </tr>
             `;
@@ -4982,12 +4986,11 @@
                             </div>
                         </div>
                         <div class="row mt-2">
-                            <div class="col-12">
-                                <small class="text-muted">
-                                    <strong>Expiry:</strong> ${expiryDate}
-                                </small>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">Expiry Date</label>
+                                <input type="date" class="form-control form-control-sm" name="expiry_date" value="${expiryDateForInput}">
                             </div>
-                            <div class="col-12 mt-1">
+                            <div class="col-12 mt-2">
                                 <small class="text-muted">
                                     <strong>Locations:</strong> ${locationsDisplay}
                                 </small>
@@ -5020,6 +5023,7 @@
                     const specialPrice = $(this).find('input[name="special_price"]').val();
                     const retailPrice = $(this).find('input[name="retail_price"]').val();
                     const maxRetailPrice = $(this).find('input[name="max_retail_price"]').val();
+                    const expiryDate = $(this).find('input[name="expiry_date"]').val();
 
                     const batchData = {
                         id: batchId,
@@ -5027,7 +5031,8 @@
                         wholesale_price: parseFloat(wholesalePrice) || 0,
                         special_price: parseFloat(specialPrice) || 0,
                         retail_price: parseFloat(retailPrice) || 0,
-                        max_retail_price: parseFloat(maxRetailPrice) || 0
+                        max_retail_price: parseFloat(maxRetailPrice) || 0,
+                        expiry_date: expiryDate || null
                     };
 
                     batches.push(batchData);
@@ -5047,6 +5052,7 @@
                     const specialPrice = $(this).find('input[name="special_price"]').val();
                     const retailPrice = $(this).find('input[name="retail_price"]').val();
                     const maxRetailPrice = $(this).find('input[name="max_retail_price"]').val();
+                    const expiryDate = $(this).find('input[name="expiry_date"]').val();
 
                     const batchData = {
                         id: batchId,
@@ -5054,7 +5060,8 @@
                         wholesale_price: parseFloat(wholesalePrice) || 0,
                         special_price: parseFloat(specialPrice) || 0,
                         retail_price: parseFloat(retailPrice) || 0,
-                        max_retail_price: parseFloat(maxRetailPrice) || 0
+                        max_retail_price: parseFloat(maxRetailPrice) || 0,
+                        expiry_date: expiryDate || null
                     };
 
                     batches.push(batchData);

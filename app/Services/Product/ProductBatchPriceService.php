@@ -95,13 +95,20 @@ class ProductBatchPriceService
             foreach ($batches as $batchData) {
                 $batch = Batch::findOrFail($batchData['id']);
 
-                $batch->update([
+                $updateData = [
                     'unit_cost' => $batchData['unit_cost'],
                     'wholesale_price' => $batchData['wholesale_price'],
                     'special_price' => $batchData['special_price'],
                     'retail_price' => $batchData['retail_price'],
                     'max_retail_price' => $batchData['max_retail_price'],
-                ]);
+                ];
+
+                // Update expiry_date if provided
+                if (isset($batchData['expiry_date']) && $batchData['expiry_date']) {
+                    $updateData['expiry_date'] = $batchData['expiry_date'];
+                }
+
+                $batch->update($updateData);
 
                 $productIds[$batch->product_id] = true;
             }

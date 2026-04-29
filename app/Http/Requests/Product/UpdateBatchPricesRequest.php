@@ -23,6 +23,7 @@ class UpdateBatchPricesRequest extends FormRequest
             'batches.*.special_price' => 'required|numeric|min:0',
             'batches.*.retail_price' => 'required|numeric|min:0',
             'batches.*.max_retail_price' => 'required|numeric|min:0',
+            'batches.*.expiry_date' => 'nullable|date_format:Y-m-d',
         ];
     }
 
