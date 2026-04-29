@@ -59,6 +59,7 @@
                                     <span id="advanceCount" class="text-success" style="display: none;">(Credit available: Rs. <span id="advanceAmount">0.00</span>)</span>
                                 </div>
                                 <div id="returnCreditAppliedSummary" class="mt-1 text-muted small" style="display: none;"></div>
+                                <div id="advanceCreditAppliedSummary" class="mt-1 text-muted small" style="display: none;"></div>
                                 <div id="netCalculation" class="mt-1" style="display:none !important"></div>
                             </div>
                         </details>
@@ -192,9 +193,12 @@
                             </label>
                         </div>
                         <div id="advanceCreditAmountSection" style="display: none;">
-                            <label for="advanceCreditAmountInput" class="form-label small">Amount to apply (max: Rs. <span id="maxAdvanceCredit">0.00</span>)</label>
-                            <input type="number" class="form-control form-control-sm" id="advanceCreditAmountInput" placeholder="Enter amount" step="0.01" min="0">
-                            <small class="text-muted">This will reduce the amount you need to pay</small>
+                            <label for="advanceCreditAmountInput" class="form-label small">Amount to apply (Auto-allocated via FIFO)</label>
+                            <input type="number" class="form-control form-control-sm" id="advanceCreditAmountInput" placeholder="Enter amount" step="0.01" min="0" readonly>
+                            <small class="text-muted">Automatically allocated across unpaid bills</small>
+                            <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="reallocateAdvanceCreditsBtn" style="display:none;">
+                                <i class="fas fa-exchange-alt"></i> Change Allocation
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1210,6 +1214,7 @@
                     window.billPaymentAllocations = {};
                     window.paymentMethodAllocations = {};
                     if (window.billReturnCreditAllocations) window.billReturnCreditAllocations = {};
+                    if (window.billAdvanceCreditAllocations) window.billAdvanceCreditAllocations = {};
                     $('#flexiblePaymentsList').html(window.FLEXIBLE_PAYMENTS_EMPTY_HTML);
                     window.syncPaymentMethodsEmptyState();
                     $('#billsPaymentTableBody').empty();
@@ -1300,6 +1305,11 @@
     let flexiblePaymentCounter = 0;
     window.billPaymentAllocations = window.billPaymentAllocations || {}; // Track allocations per bill (shared with common.js)
     window.paymentMethodAllocations = window.paymentMethodAllocations || {}; // Track allocations per payment method (shared for modules)
+    window.billAdvanceCreditAllocations = window.billAdvanceCreditAllocations || {};
+
+    function getAdvanceCreditAppliedForBill(billId) {
+        return window.billAdvanceCreditAllocations ? (window.billAdvanceCreditAllocations[billId] || 0) : 0;
+    }
 
     // Initialize system safety check
     function initializeFlexiblePaymentSystem() {
@@ -1345,7 +1355,8 @@
             filteredSales.forEach((sale) => {
                 const allocatedAmount = window.billPaymentAllocations[sale.id] || 0;
                 const returnCreditApplied = window.billReturnCreditAllocations ? (window.billReturnCreditAllocations[sale.id] || 0) : 0;
-                const totalAllocated = allocatedAmount + returnCreditApplied;
+                const advanceCreditApplied = getAdvanceCreditAppliedForBill(sale.id);
+                const totalAllocated = allocatedAmount + returnCreditApplied + advanceCreditApplied;
                 const remainingAmount = sale.total_due - totalAllocated;
                 const isFullyPaid = remainingAmount <= 0.01; // Small threshold for floating point
                 const isPartiallyAllocated = allocatedAmount > 0.01 && remainingAmount > 0.01;
@@ -1365,6 +1376,7 @@
                                     ${isFullyPaid ? '<span class="badge rounded-pill border bill-badge bill-badge--muted">Allocated</span>' : ''}
                                     ${isPartiallyAllocated ? '<span class="badge rounded-pill border bill-badge bill-badge--muted">Partial</span>' : ''}
                                     ${returnCreditApplied > 0 ? '<span class="badge rounded-pill border bill-badge bill-badge--secondary">Credit</span>' : ''}
+                                    ${advanceCreditApplied > 0 ? '<span class="badge rounded-pill border bill-badge bill-badge--secondary">Advance</span>' : ''}
                                 </div>
 
                                 <div class="d-flex flex-wrap gap-2 mt-1 bill-card__meta">
@@ -1372,6 +1384,7 @@
                                     <span class="text-muted">Remaining: <strong class="${remainingAmount > 0.01 ? 'text-primary' : 'text-success'}">Rs.${formatAmountValue(Math.max(0, remainingAmount))}</strong></span>
                                     ${allocatedAmount > 0.01 ? `<span class="text-muted">Added: <strong class="text-dark">Rs.${formatAmountValue(allocatedAmount)}</strong></span>` : ''}
                                     ${returnCreditApplied > 0 ? `<span class="text-muted">Credit: <strong class="text-dark">Rs.${formatAmountValue(returnCreditApplied)}</strong></span>` : ''}
+                                    ${advanceCreditApplied > 0 ? `<span class="text-muted">Advance: <strong class="text-dark">Rs.${formatAmountValue(advanceCreditApplied)}</strong></span>` : ''}
                                 </div>
 
                                 ${escapedNotes ? `<div class="text-muted small mt-1 text-truncate bill-card__notes" title="${escapedNotes}">${escapedNotes}</div>` : ''}
@@ -1498,7 +1511,8 @@
         const availableBills = window.availableCustomerSales.filter(sale => {
             const allocatedAmount = window.billPaymentAllocations[sale.id] || 0;
             const returnCreditApplied = window.billReturnCreditAllocations ? (window.billReturnCreditAllocations[sale.id] || 0) : 0;
-            const remainingAmount = sale.total_due - allocatedAmount - returnCreditApplied;
+            const advanceCreditApplied = getAdvanceCreditAppliedForBill(sale.id);
+            const remainingAmount = sale.total_due - allocatedAmount - returnCreditApplied - advanceCreditApplied;
             return remainingAmount > 0.01; // Avoid tiny remaining amounts
         });
 
@@ -1513,7 +1527,8 @@
         const billOptions = availableBills.map(sale => {
             const allocatedAmount = window.billPaymentAllocations[sale.id] || 0;
             const returnCreditApplied = window.billReturnCreditAllocations ? (window.billReturnCreditAllocations[sale.id] || 0) : 0;
-            const remainingAmount = sale.total_due - allocatedAmount - returnCreditApplied;
+            const advanceCreditApplied = getAdvanceCreditAppliedForBill(sale.id);
+            const remainingAmount = sale.total_due - allocatedAmount - returnCreditApplied - advanceCreditApplied;
             return `<option value="${sale.id}" data-due="${sale.total_due}" data-invoice="${window.escapeHtml(sale.invoice_no)}" data-remaining="${Math.max(0, remainingAmount)}" data-notes="${window.escapeHtml(sale.sale_notes || '')}">${window.escapeHtml(sale.invoice_no)} · Pay now Rs.${formatAmountValue(Math.max(0, remainingAmount))}</option>`;
         }).join('');
 
@@ -1676,7 +1691,8 @@
 
             const allocatedAmount = window.billPaymentAllocations[bill.id] || 0;
             const returnCreditApplied = window.billReturnCreditAllocations ? (window.billReturnCreditAllocations[bill.id] || 0) : 0;
-            const remainingDue = bill.total_due - allocatedAmount - returnCreditApplied;
+            const advanceCreditApplied = getAdvanceCreditAppliedForBill(bill.id);
+            const remainingDue = bill.total_due - allocatedAmount - returnCreditApplied - advanceCreditApplied;
 
             if (remainingDue > 0.01) {
                 const amountForThisBill = Math.min(remainingAmount, remainingDue);
@@ -1978,7 +1994,8 @@
                 const bill = window.availableCustomerSales.find(s => s.id == billId);
                 const allocatedAmount = window.billPaymentAllocations[billId] || 0;
                 const returnCreditApplied = window.billReturnCreditAllocations ? (window.billReturnCreditAllocations[billId] || 0) : 0;
-                const remainingAmount = bill.total_due - allocatedAmount - returnCreditApplied;
+                const advanceCreditApplied = getAdvanceCreditAppliedForBill(billId);
+                const remainingAmount = bill.total_due - allocatedAmount - returnCreditApplied - advanceCreditApplied;
 
                 // Enable amount input but DON'T auto-fill
                 $amountInput.attr('max', remainingAmount.toFixed(2)).prop('disabled', false);
@@ -2019,7 +2036,8 @@
             const prevAmount = $(this).data('prev-amount') || 0;
             const currentAllocation = window.billPaymentAllocations[billId] || 0;
             const returnCreditApplied = window.billReturnCreditAllocations ? (window.billReturnCreditAllocations[billId] || 0) : 0;
-            const maxAmount = bill.total_due - (currentAllocation - prevAmount) - returnCreditApplied;
+            const advanceCreditApplied = getAdvanceCreditAppliedForBill(billId);
+            const maxAmount = bill.total_due - (currentAllocation - prevAmount) - returnCreditApplied - advanceCreditApplied;
 
             // Validate amount doesn't exceed remaining balance
             if (amount > maxAmount) {
@@ -2034,7 +2052,7 @@
             $(this).data('prev-amount', amount);
 
             // If bill becomes fully paid, remove from available bills
-            const remainingAfterPayment = bill.total_due - window.billPaymentAllocations[billId] - returnCreditApplied;
+            const remainingAfterPayment = bill.total_due - window.billPaymentAllocations[billId] - returnCreditApplied - advanceCreditApplied;
 
             // Update hint with payment status
             if (remainingAfterPayment <= 0.01) {
@@ -2320,7 +2338,8 @@
                                 if (bill) {
                                     const previousAllocated = window.billPaymentAllocations[billId] || 0;
                                     const returnCreditApplied = window.billReturnCreditAllocations ? (window.billReturnCreditAllocations[billId] || 0) : 0;
-                                    const availableAmount = bill.total_due - previousAllocated - returnCreditApplied;
+                                    const advanceCreditApplied = getAdvanceCreditAppliedForBill(billId);
+                                    const availableAmount = bill.total_due - previousAllocated - returnCreditApplied - advanceCreditApplied;
 
                                     billsToUpdate.push({
                                         row: $row,
@@ -2357,7 +2376,8 @@
                             if (bill) {
                                 const currentAllocated = window.billPaymentAllocations[billInfo.billId] || 0;
                                 const returnCreditApplied = window.billReturnCreditAllocations ? (window.billReturnCreditAllocations[billInfo.billId] || 0) : 0;
-                                billInfo.availableAmount = bill.total_due - currentAllocated - returnCreditApplied;
+                                const advanceCreditApplied = getAdvanceCreditAppliedForBill(billInfo.billId);
+                                billInfo.availableAmount = bill.total_due - currentAllocated - returnCreditApplied - advanceCreditApplied;
                             }
                         });
 

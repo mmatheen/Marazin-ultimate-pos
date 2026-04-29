@@ -48,12 +48,21 @@ class CustomerListingService
         $returnDues = collect();
 
         if (!empty($customerIds)) {
-            $salesDues = DB::table('sales')
+            $salesDueQuery = DB::table('sales')
                 ->whereIn('customer_id', $customerIds)
-                ->whereIn('status', ['final', 'suspend'])
+                ->where('status', 'final')
+                ->where(function ($query) {
+                    $query->where('transaction_type', 'invoice')
+                        ->orWhereNull('transaction_type');
+                })
                 ->select('customer_id', DB::raw('SUM(total_due) as total_sale_due'))
-                ->groupBy('customer_id')
-                ->pluck('total_sale_due', 'customer_id');
+                ->groupBy('customer_id');
+
+            if ($user && $user->can('view own sales') && ! $user->can('view all sales')) {
+                $salesDueQuery->where('user_id', $user->id);
+            }
+
+            $salesDues = $salesDueQuery->pluck('total_sale_due', 'customer_id');
 
             $returnDues = DB::table('sales_returns')
                 ->whereIn('customer_id', $customerIds)

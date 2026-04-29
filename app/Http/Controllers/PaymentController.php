@@ -1131,6 +1131,8 @@ class PaymentController extends Controller
             'selected_returns.*.amount'            => 'required|numeric|min:0.01',
             'selected_returns.*.action'            => 'required|in:apply_to_sales,cash_refund',
             'advance_credit_applied'               => 'nullable|numeric|min:0',
+            'bill_advance_credit_allocations'      => 'nullable|array',
+            'bill_advance_credit_allocations.*'    => 'nullable|numeric|min:0',
             'payment_groups.*.cheque_number'       => 'required_if:payment_groups.*.method,cheque',
             'payment_groups.*.cheque_bank_branch'  => 'required_if:payment_groups.*.method,cheque',
             'payment_groups.*.cheque_valid_date'   => 'required_if:payment_groups.*.method,cheque|date',

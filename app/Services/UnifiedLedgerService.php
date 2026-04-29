@@ -478,175 +478,265 @@ class UnifiedLedgerService
      * Edit sale with proper ledger management - FIXED LOGIC
      * When editing a sale amount, we should only have the final amount count
      */
-    public function editSale($sale, $oldFinalTotal, $editReason = null)
-    {
-        Log::info('🔧 EditSale called', [
-            'sale_id' => $sale->id ?? 'N/A',
-            'invoice_no' => $sale->invoice_no ?? 'N/A',
-            'customer_id' => $sale->customer_id ?? 'N/A',
-            'status' => $sale->status ?? 'N/A',
-            'oldFinalTotal' => $oldFinalTotal,
-            'newFinalTotal' => $sale->final_total ?? 'N/A',
-            'editReason' => $editReason ?? 'N/A'
+    // public function editSale($sale, $oldFinalTotal, $editReason = null)
+    // {
+    //     Log::info('🔧 EditSale called', [
+    //         'sale_id' => $sale->id ?? 'N/A',
+    //         'invoice_no' => $sale->invoice_no ?? 'N/A',
+    //         'customer_id' => $sale->customer_id ?? 'N/A',
+    //         'status' => $sale->status ?? 'N/A',
+    //         'oldFinalTotal' => $oldFinalTotal,
+    //         'newFinalTotal' => $sale->final_total ?? 'N/A',
+    //         'editReason' => $editReason ?? 'N/A'
+    //     ]);
+
+    //     return DB::transaction(function () use ($sale, $oldFinalTotal, $editReason) {
+    //         $newFinalTotal = $sale->final_total;
+    //         $difference = $newFinalTotal - $oldFinalTotal;
+
+    //         // Skip ledger entries for Walk-In customers
+    //         if ($sale->customer_id == 1) {
+    //             Log::info('⏭️ EditSale skipped - Walk-In customer', ['sale_id' => $sale->id]);
+    //             return null;
+    //         }
+
+    //         // ✅ FIX: Check if original sale had a ledger entry (may not exist if it was a draft)
+    //         $originalSaleEntry = Ledger::where('reference_no', $sale->invoice_no)
+    //             ->where('contact_id', $sale->customer_id)
+    //             ->where('contact_type', 'customer')
+    //             ->where('transaction_type', 'sale')
+    //             ->where('status', 'active')
+    //             ->first();
+
+    //         Log::info('🔍 Checking for original sale ledger entry', [
+    //             'sale_id' => $sale->id,
+    //             'invoice_no' => $sale->invoice_no,
+    //             'original_entry_found' => $originalSaleEntry ? 'YES (ID: ' . $originalSaleEntry->id . ')' : 'NO',
+    //             'oldFinalTotal' => $oldFinalTotal,
+    //             'newFinalTotal' => $newFinalTotal,
+    //             'difference' => $difference
+    //         ]);
+
+    //         // ✅ FIX: If no original entry exists (draft conversion), just create new entry
+    //         if (!$originalSaleEntry) {
+    //             Log::info('🆕 No original sale ledger entry found - creating new entry (likely draft conversion)', [
+    //                 'sale_id' => $sale->id,
+    //                 'invoice_no' => $sale->invoice_no,
+    //                 'customer_id' => $sale->customer_id,
+    //                 'final_total' => $newFinalTotal
+    //             ]);
+
+    //             $newSaleEntry = Ledger::createEntry([
+    //                 'contact_id' => $sale->customer_id,
+    //                 'contact_type' => 'customer',
+    //                 'transaction_date' => $sale->created_at ? Carbon::parse($sale->created_at) : Carbon::now('Asia/Colombo'),
+    //                 'reference_no' => $sale->invoice_no,
+    //                 'transaction_type' => 'sale',
+    //                 'amount' => $newFinalTotal,
+    //                 'status' => 'active',
+    //                 'notes' => 'Sale invoice #' . $sale->invoice_no . ($editReason ? ' | ' . $editReason : '')
+    //             ]);
+
+    //             Log::info('✅ Created sale ledger entry for draft conversion', [
+    //                 'ledger_id' => $newSaleEntry->id,
+    //                 'sale_id' => $sale->id,
+    //                 'amount' => $newFinalTotal
+    //             ]);
+
+    //             return ['new_sale_entry' => $newSaleEntry];
+    //         }
+
+    //         // Skip if amounts are identical
+    //         if ($difference == 0) {
+    //             return null;
+    //         }
+
+    //         // 🔥 PERFECT REVERSAL ACCOUNTING APPROACH:
+    //         // 1. Mark original sale entry as REVERSED (for audit trail)
+    //         // 2. Create CREDIT entry to reverse the old DEBIT amount
+    //         // 3. Create NEW DEBIT entry for the correct amount
+    //         // Example: Edit 5800 → 4000: +5800(reversed), -5800(reversal), +4000(new) = +4000 ✅
+
+    //         $reversalNote = '[REVERSED: Sale edited on ' . now()->format('Y-m-d H:i:s') . ']';
+
+    //         // Step 1: Mark original sale entry as reversed
+    //         Ledger::where('reference_no', $sale->invoice_no)
+    //             ->where('contact_id', $sale->customer_id)
+    //             ->where('contact_type', 'customer')
+    //             ->where('transaction_type', 'sale')
+    //             ->where('status', 'active')
+    //             ->update([
+    //                 'status' => 'reversed',
+    //                 'notes' => DB::raw("CONCAT(notes, ' " . addslashes($reversalNote) . "')")
+    //             ]);
+
+    //         // Step 2: Create REVERSAL entry (CREDIT to cancel old DEBIT) - STATUS = 'reversed'
+    //         $reversalEntry = Ledger::createEntry([
+    //             'contact_id' => $sale->customer_id,
+    //             'contact_type' => 'customer',
+    //             'transaction_date' => Carbon::now('Asia/Colombo'),
+    //             'reference_no' => $sale->invoice_no . '-REV-' . time(),
+    //             'transaction_type' => 'sale_adjustment',
+    //             'amount' => -$oldFinalTotal, // Negative amount creates CREDIT to reverse old DEBIT
+    //             'status' => 'reversed', // ✅ CRITICAL FIX: Reversal entries should have status='reversed'
+    //             'notes' => 'REVERSAL: Sale Edit - Cancel previous amount Rs.' . number_format($oldFinalTotal, 2) . ($editReason ? ' | Reason: ' . $editReason : '')
+    //         ]);
+
+    //         // ✅ CRITICAL FIX: Ensure reversal entry has correct status
+    //         if ($reversalEntry->status !== 'reversed') {
+    //             $reversalEntry->status = 'reversed';
+    //             $reversalEntry->save();
+    //         }
+
+    //         // Step 3: Create NEW sale entry with correct amount
+    //         // ✅ CRITICAL FIX: Check for existing active sale entry to prevent duplicates
+    //         $existingNewSaleEntry = Ledger::where('contact_id', $sale->customer_id)
+    //             ->where('contact_type', 'customer')
+    //             ->where('reference_no', $sale->invoice_no)
+    //             ->where('transaction_type', 'sale')
+    //             ->where('status', 'active')
+    //             ->where('debit', $newFinalTotal)
+    //             ->first();
+
+    //         if ($existingNewSaleEntry) {
+    //             Log::info("Active sale entry already exists, skipping creation", [
+    //                 'sale_id' => $sale->id,
+    //                 'existing_entry_id' => $existingNewSaleEntry->id,
+    //                 'amount' => $newFinalTotal
+    //             ]);
+    //             $newSaleEntry = $existingNewSaleEntry;
+    //         } else {
+    //             $newSaleEntry = Ledger::createEntry([
+    //                 'contact_id' => $sale->customer_id,
+    //                 'contact_type' => 'customer',
+    //                 'transaction_date' => Carbon::now('Asia/Colombo'),
+    //                 'reference_no' => $sale->invoice_no,
+    //                 'transaction_type' => 'sale',
+    //                 'amount' => $newFinalTotal,
+    //                 'status' => 'active', // ✅ ENSURE new sale entry is active
+    //                 'notes' => 'Sale Edit - New Amount Rs.' . number_format($newFinalTotal, 2) .
+    //                           ($difference >= 0 ? ' | Increase: +Rs' . number_format($difference, 2) : ' | Decrease: Rs' . number_format(abs($difference), 2)) .
+    //                           ($editReason ? ' | Reason: ' . $editReason : '')
+    //             ]);
+    //         }
+
+    //         // ✅ CRITICAL FIX: Ensure new sale entry has correct status
+    //         if ($newSaleEntry->status !== 'active') {
+    //             $newSaleEntry->status = 'active';
+    //             $newSaleEntry->save();
+    //         }
+
+    //         Log::info("Perfect reversal accounting completed for sale edit", [
+    //             'sale_id' => $sale->id,
+    //             'customer_id' => $sale->customer_id,
+    //             'reference_no' => $sale->invoice_no,
+    //             'old_amount' => $oldFinalTotal,
+    //             'new_amount' => $newFinalTotal,
+    //             'difference' => $difference,
+    //             'reversal_entry_id' => $reversalEntry->id,
+    //             'new_entry_id' => $newSaleEntry->id
+    //         ]);
+
+    //         return [
+    //             'reversal_entry' => $reversalEntry,
+    //             'new_entry' => $newSaleEntry,
+    //             'old_amount' => $oldFinalTotal,
+    //             'new_amount' => $newFinalTotal,
+    //             'amount_difference' => $difference,
+    //             'method' => 'perfect_reversal_accounting'
+    //         ];
+    //     });
+    // }
+
+
+public function editSale($sale, $oldFinalTotal, $editReason = null)
+{
+    Log::info('🔧 editSale() called', [
+        'sale_id'     => $sale->id ?? 'N/A',
+        'invoice_no'  => $sale->invoice_no ?? 'N/A',
+        'customer_id' => $sale->customer_id ?? 'N/A',
+        'old_amount'  => $oldFinalTotal,
+        'new_amount'  => $sale->final_total ?? 'N/A',
+        'edit_reason' => $editReason
+    ]);
+
+    return DB::transaction(function () use ($sale, $oldFinalTotal, $editReason) {
+
+        $newFinalTotal = (float) ($sale->final_total ?? 0);
+        $difference    = $newFinalTotal - $oldFinalTotal;
+        $referenceNo   = $sale->invoice_no ?: 'INV-' . $sale->id;
+
+        // Skip unnecessary cases
+        if ($sale->customer_id == 1 || $difference == 0) {
+            Log::info('⏭️ editSale skipped', [
+                'sale_id' => $sale->id,
+                'reason'  => $sale->customer_id == 1 ? 'Walk-In Customer' : 'No amount change'
+            ]);
+            return null;
+        }
+
+        // === STEP 1: Mark ALL existing ACTIVE sale entries as REVERSED ===
+        Ledger::where('reference_no', $referenceNo)
+            ->where('contact_id', $sale->customer_id)
+            ->where('contact_type', 'customer')
+            ->where('transaction_type', 'sale')
+            ->where('status', 'active')
+            ->update([
+                'status' => 'reversed',
+                'notes'  => DB::raw("COALESCE(notes, '') + ' [REVERSED: Sale edited on " .
+                            now()->format('Y-m-d H:i:s') . "]'")
+            ]);
+
+        // === STEP 2: Create REVERSAL Entry (Cancel old amount) ===
+        $reversalEntry = Ledger::createEntry([
+            'contact_id'       => $sale->customer_id,
+            'contact_type'     => 'customer',
+            'transaction_date' => Carbon::now('Asia/Colombo'),
+            'reference_no'     => $referenceNo . '-REV-' . time(),
+            'transaction_type' => 'sale',                    // Use 'sale' (not sale_adjustment)
+            'amount'           => -$oldFinalTotal,           // Negative = Credit reversal
+            'status'           => 'reversed',
+            'notes'            => 'REVERSAL: Sale Edit - Cancel previous amount Rs.' .
+                                  number_format($oldFinalTotal, 2) .
+                                  ($editReason ? ' | Reason: ' . $editReason : '')
         ]);
 
-        return DB::transaction(function () use ($sale, $oldFinalTotal, $editReason) {
-            $newFinalTotal = $sale->final_total;
-            $difference = $newFinalTotal - $oldFinalTotal;
+        // === STEP 3: Create NEW Active Sale Entry ===
+        $newSaleEntry = Ledger::createEntry([
+            'contact_id'       => $sale->customer_id,
+            'contact_type'     => 'customer',
+            'transaction_date' => $sale->created_at
+                                  ? Carbon::parse($sale->created_at, 'Asia/Colombo')
+                                  : Carbon::now('Asia/Colombo'),
+            'reference_no'     => $referenceNo,
+            'transaction_type' => 'sale',
+            'amount'           => $newFinalTotal,
+            'status'           => 'active',
+            'notes'            => 'Sale invoice #' . $referenceNo .
+                                  ' (Edited) - New Amount Rs.' . number_format($newFinalTotal, 2) .
+                                  ($editReason ? ' | Reason: ' . $editReason : '')
+        ]);
 
-            // Skip ledger entries for Walk-In customers
-            if ($sale->customer_id == 1) {
-                Log::info('⏭️ EditSale skipped - Walk-In customer', ['sale_id' => $sale->id]);
-                return null;
-            }
+        Log::info('✅ editSale completed with clean reversal accounting', [
+            'sale_id'           => $sale->id,
+            'invoice_no'        => $referenceNo,
+            'old_amount'        => $oldFinalTotal,
+            'new_amount'        => $newFinalTotal,
+            'difference'        => $difference,
+            'reversal_entry_id' => $reversalEntry->id ?? null,
+            'new_entry_id'      => $newSaleEntry->id,
+        ]);
 
-            // ✅ FIX: Check if original sale had a ledger entry (may not exist if it was a draft)
-            $originalSaleEntry = Ledger::where('reference_no', $sale->invoice_no)
-                ->where('contact_id', $sale->customer_id)
-                ->where('contact_type', 'customer')
-                ->where('transaction_type', 'sale')
-                ->where('status', 'active')
-                ->first();
-
-            Log::info('🔍 Checking for original sale ledger entry', [
-                'sale_id' => $sale->id,
-                'invoice_no' => $sale->invoice_no,
-                'original_entry_found' => $originalSaleEntry ? 'YES (ID: ' . $originalSaleEntry->id . ')' : 'NO',
-                'oldFinalTotal' => $oldFinalTotal,
-                'newFinalTotal' => $newFinalTotal,
-                'difference' => $difference
-            ]);
-
-            // ✅ FIX: If no original entry exists (draft conversion), just create new entry
-            if (!$originalSaleEntry) {
-                Log::info('🆕 No original sale ledger entry found - creating new entry (likely draft conversion)', [
-                    'sale_id' => $sale->id,
-                    'invoice_no' => $sale->invoice_no,
-                    'customer_id' => $sale->customer_id,
-                    'final_total' => $newFinalTotal
-                ]);
-
-                $newSaleEntry = Ledger::createEntry([
-                    'contact_id' => $sale->customer_id,
-                    'contact_type' => 'customer',
-                    'transaction_date' => $sale->created_at ? Carbon::parse($sale->created_at) : Carbon::now('Asia/Colombo'),
-                    'reference_no' => $sale->invoice_no,
-                    'transaction_type' => 'sale',
-                    'amount' => $newFinalTotal,
-                    'status' => 'active',
-                    'notes' => 'Sale invoice #' . $sale->invoice_no . ($editReason ? ' | ' . $editReason : '')
-                ]);
-
-                Log::info('✅ Created sale ledger entry for draft conversion', [
-                    'ledger_id' => $newSaleEntry->id,
-                    'sale_id' => $sale->id,
-                    'amount' => $newFinalTotal
-                ]);
-
-                return ['new_sale_entry' => $newSaleEntry];
-            }
-
-            // Skip if amounts are identical
-            if ($difference == 0) {
-                return null;
-            }
-
-            // 🔥 PERFECT REVERSAL ACCOUNTING APPROACH:
-            // 1. Mark original sale entry as REVERSED (for audit trail)
-            // 2. Create CREDIT entry to reverse the old DEBIT amount
-            // 3. Create NEW DEBIT entry for the correct amount
-            // Example: Edit 5800 → 4000: +5800(reversed), -5800(reversal), +4000(new) = +4000 ✅
-
-            $reversalNote = '[REVERSED: Sale edited on ' . now()->format('Y-m-d H:i:s') . ']';
-
-            // Step 1: Mark original sale entry as reversed
-            Ledger::where('reference_no', $sale->invoice_no)
-                ->where('contact_id', $sale->customer_id)
-                ->where('contact_type', 'customer')
-                ->where('transaction_type', 'sale')
-                ->where('status', 'active')
-                ->update([
-                    'status' => 'reversed',
-                    'notes' => DB::raw("CONCAT(notes, ' " . addslashes($reversalNote) . "')")
-                ]);
-
-            // Step 2: Create REVERSAL entry (CREDIT to cancel old DEBIT) - STATUS = 'reversed'
-            $reversalEntry = Ledger::createEntry([
-                'contact_id' => $sale->customer_id,
-                'contact_type' => 'customer',
-                'transaction_date' => Carbon::now('Asia/Colombo'),
-                'reference_no' => $sale->invoice_no . '-REV-' . time(),
-                'transaction_type' => 'sale_adjustment',
-                'amount' => -$oldFinalTotal, // Negative amount creates CREDIT to reverse old DEBIT
-                'status' => 'reversed', // ✅ CRITICAL FIX: Reversal entries should have status='reversed'
-                'notes' => 'REVERSAL: Sale Edit - Cancel previous amount Rs.' . number_format($oldFinalTotal, 2) . ($editReason ? ' | Reason: ' . $editReason : '')
-            ]);
-
-            // ✅ CRITICAL FIX: Ensure reversal entry has correct status
-            if ($reversalEntry->status !== 'reversed') {
-                $reversalEntry->status = 'reversed';
-                $reversalEntry->save();
-            }
-
-            // Step 3: Create NEW sale entry with correct amount
-            // ✅ CRITICAL FIX: Check for existing active sale entry to prevent duplicates
-            $existingNewSaleEntry = Ledger::where('contact_id', $sale->customer_id)
-                ->where('contact_type', 'customer')
-                ->where('reference_no', $sale->invoice_no)
-                ->where('transaction_type', 'sale')
-                ->where('status', 'active')
-                ->where('debit', $newFinalTotal)
-                ->first();
-
-            if ($existingNewSaleEntry) {
-                Log::info("Active sale entry already exists, skipping creation", [
-                    'sale_id' => $sale->id,
-                    'existing_entry_id' => $existingNewSaleEntry->id,
-                    'amount' => $newFinalTotal
-                ]);
-                $newSaleEntry = $existingNewSaleEntry;
-            } else {
-                $newSaleEntry = Ledger::createEntry([
-                    'contact_id' => $sale->customer_id,
-                    'contact_type' => 'customer',
-                    'transaction_date' => Carbon::now('Asia/Colombo'),
-                    'reference_no' => $sale->invoice_no,
-                    'transaction_type' => 'sale',
-                    'amount' => $newFinalTotal,
-                    'status' => 'active', // ✅ ENSURE new sale entry is active
-                    'notes' => 'Sale Edit - New Amount Rs.' . number_format($newFinalTotal, 2) .
-                              ($difference >= 0 ? ' | Increase: +Rs' . number_format($difference, 2) : ' | Decrease: Rs' . number_format(abs($difference), 2)) .
-                              ($editReason ? ' | Reason: ' . $editReason : '')
-                ]);
-            }
-
-            // ✅ CRITICAL FIX: Ensure new sale entry has correct status
-            if ($newSaleEntry->status !== 'active') {
-                $newSaleEntry->status = 'active';
-                $newSaleEntry->save();
-            }
-
-            Log::info("Perfect reversal accounting completed for sale edit", [
-                'sale_id' => $sale->id,
-                'customer_id' => $sale->customer_id,
-                'reference_no' => $sale->invoice_no,
-                'old_amount' => $oldFinalTotal,
-                'new_amount' => $newFinalTotal,
-                'difference' => $difference,
-                'reversal_entry_id' => $reversalEntry->id,
-                'new_entry_id' => $newSaleEntry->id
-            ]);
-
-            return [
-                'reversal_entry' => $reversalEntry,
-                'new_entry' => $newSaleEntry,
-                'old_amount' => $oldFinalTotal,
-                'new_amount' => $newFinalTotal,
-                'amount_difference' => $difference,
-                'method' => 'perfect_reversal_accounting'
-            ];
-        });
-    }
+        return [
+            'reversal_entry' => $reversalEntry,
+            'new_entry'      => $newSaleEntry,
+            'old_amount'     => $oldFinalTotal,
+            'new_amount'     => $newFinalTotal,
+            'difference'     => $difference,
+            'method'         => 'clean_reversal_accounting_v2'
+        ];
+    });
+} 
 
     /**
      * Get customer balance summary for reporting

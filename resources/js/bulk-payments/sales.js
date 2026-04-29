@@ -154,8 +154,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const totalDue = parseFloat(selectedOption.data('total-due')) || 0;
     const advanceCredit = parseFloat(selectedOption.data('advance-credit')) || 0;
 
-    const ledgerCreditAvailable = Math.max(0, saleDue - totalDue);
-    const combinedCredit = advanceCredit + ledgerCreditAvailable;
+  // Only use actual advance credit from database (no phantom calculations)
+  const combinedCredit = advanceCredit;
 
     $('input[name="paymentType"]:checked').trigger('change');
 
@@ -513,13 +513,29 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Returns module (safe Step 3 refactor) ───────────────────────────────────
   window.availableCustomerReturns = window.availableCustomerReturns || [];
   window.selectedReturns = window.selectedReturns || [];
+  window.billAdvanceCreditAllocations = window.billAdvanceCreditAllocations || {};
+
+  function getTotalAdvanceAllocatedFromBills() {
+    if (!window.billAdvanceCreditAllocations || typeof window.billAdvanceCreditAllocations !== 'object') return 0;
+    return Object.values(window.billAdvanceCreditAllocations).reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
+  }
+
+  function getBillAdvanceCreditApplied(saleId) {
+    if (!window.billAdvanceCreditAllocations || typeof window.billAdvanceCreditAllocations !== 'object') return 0;
+    return parseFloat(window.billAdvanceCreditAllocations[saleId]) || 0;
+  }
+
+  function getRemainingDueAfterCredits(sale) {
+    const totalDue = parseFloat(sale?.total_due || 0) || 0;
+    const returnCredit = window.billReturnCreditAllocations ? parseFloat(window.billReturnCreditAllocations[sale?.id] || 0) || 0 : 0;
+    const advanceCredit = getBillAdvanceCreditApplied(sale?.id);
+    return Math.max(0, totalDue - returnCredit - advanceCredit);
+  }
 
   function getNetOutstandingSalesDueFromAllocations() {
     if (!window.availableCustomerSales || !window.availableCustomerSales.length) return null;
-    const alloc = window.billReturnCreditAllocations || {};
     return window.availableCustomerSales.reduce((sum, sale) => {
-      const ret = parseFloat(alloc[sale.id]) || 0;
-      return sum + Math.max(0, parseFloat(sale.total_due || 0) - ret);
+      return sum + getRemainingDueAfterCredits(sale);
     }, 0);
   }
 
@@ -611,7 +627,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let advanceCreditToApply = 0;
     if ($('#applyAdvanceCreditCheckbox').is(':checked')) {
-      advanceCreditToApply = parseFloat($('#advanceCreditAmountInput').val()) || 0;
+      advanceCreditToApply = getTotalAdvanceAllocatedFromBills();
     }
 
     const netFromBills =
@@ -1012,11 +1028,13 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const sales = window.availableCustomerSales || [];
       const retAlloc = window.billReturnCreditAllocations || {};
+      const advAlloc = window.billAdvanceCreditAllocations || {};
 
       const totalBills = sales.length || 0;
       const totalDueAmount = sales.reduce((sum, sale) => {
         const ret = parseFloat(retAlloc[sale.id]) || 0;
-        return sum + Math.max(0, parseFloat(sale.total_due || 0) - ret);
+        const adv = parseFloat(advAlloc[sale.id]) || 0;
+        return sum + Math.max(0, parseFloat(sale.total_due || 0) - ret - adv);
       }, 0);
 
       let totalPaymentAmount = 0;
@@ -1047,7 +1065,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         let advanceApply = 0;
         if ($('#applyAdvanceCreditCheckbox').is(':checked')) {
-          advanceApply = parseFloat($('#advanceCreditAmountInput').val()) || 0;
+          advanceApply = getTotalAdvanceAllocatedFromBills();
         }
         expectedSettlement = Math.max(0, expectedSettlement - returnsChecked - advanceApply);
       }
@@ -1056,8 +1074,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const selected = window.selectedReturns || [];
       const hasAppliedReturnCredits = selected.some((r) => r.action === 'apply_to_sales');
+      const hasAppliedAdvanceCredits = getTotalAdvanceAllocatedFromBills() > 0.01;
       const hasPaymentMethods = $('.payment-method-item').length > 0;
-      const showReturnAdjustedState = hasAppliedReturnCredits && !hasPaymentMethods && totalPaymentAmount < 0.01;
+      const showReturnAdjustedState = (hasAppliedReturnCredits || hasAppliedAdvanceCredits) && !hasPaymentMethods && totalPaymentAmount < 0.01;
       if (showReturnAdjustedState) balanceAmount = 0;
 
       const $totalBillsCount = $('#totalBillsCount');
@@ -1404,6 +1423,13 @@ document.addEventListener('DOMContentLoaded', () => {
       billReturnAllocations = window.billReturnCreditAllocations;
     }
 
+    let billAdvanceCreditAllocations = {};
+    if ($('#applyAdvanceCreditCheckbox').is(':checked') && window.billAdvanceCreditAllocations) {
+      billAdvanceCreditAllocations = Object.fromEntries(
+        Object.entries(window.billAdvanceCreditAllocations).filter(([, v]) => (parseFloat(v) || 0) > 0.01)
+      );
+    }
+
     $('.payment-method-item').each(function () {
       const $payment = $(this);
       const paymentId = $payment.data('payment-id');
@@ -1555,7 +1581,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     for (const [billId, totalAllocated] of Object.entries(billTotals)) {
       const bill = availableCustomerSales.find((s) => s.id == billId);
-      if (bill && totalAllocated > bill.total_due) {
+      const ret = parseFloat(billReturnAllocations?.[billId] || 0) || 0;
+      const adv = parseFloat(billAdvanceCreditAllocations?.[billId] || 0) || 0;
+      const maxCashAllowed = Math.max(0, (parseFloat(bill?.total_due || 0) || 0) - ret - adv);
+      if (bill && totalAllocated > maxCashAllowed + 0.01) {
         if (window.toastr) window.toastr.error(`Total allocation for ${bill.invoice_no} exceeds bill amount`);
         return false;
       }
@@ -1565,7 +1594,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let advanceCreditApplied = 0;
     if ($('#applyAdvanceCreditCheckbox').is(':checked')) {
-      advanceCreditApplied = parseFloat($('#advanceCreditAmountInput').val()) || 0;
+      advanceCreditApplied = Object.values(billAdvanceCreditAllocations).reduce((s, v) => s + (parseFloat(v) || 0), 0);
     }
 
     const csrfToken = $('meta[name="csrf-token"]').attr('content');
@@ -1581,6 +1610,7 @@ document.addEventListener('DOMContentLoaded', () => {
         payment_groups: paymentGroups,
         selected_returns: selectedReturns,
         bill_return_allocations: billReturnAllocations,
+        bill_advance_credit_allocations: billAdvanceCreditAllocations,
         advance_credit_applied: advanceCreditApplied,
         notes: $('#notes').val() || '',
         _token: csrfToken,
@@ -1643,6 +1673,185 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.submitMultiMethodPayment = submitMultiMethodPayment;
+
+  function autoAllocateAdvanceCreditsToSales(advanceCreditAmount) {
+    if (!window.billAdvanceCreditAllocations) window.billAdvanceCreditAllocations = {};
+    window.billAdvanceCreditAllocations = {};
+
+    let remainingCredit = parseFloat(advanceCreditAmount) || 0;
+    const sales = window.availableCustomerSales || [];
+    const sortedSales = [...sales].sort((a, b) => new Date(a.sales_date) - new Date(b.sales_date));
+
+    for (const sale of sortedSales) {
+      if (remainingCredit <= 0.001) break;
+      const remainingDue = getRemainingDueAfterCredits(sale);
+      if (remainingDue <= 0.001) continue;
+      const allocatedAmount = Math.min(remainingCredit, remainingDue);
+      if (allocatedAmount > 0.001) {
+        window.billAdvanceCreditAllocations[sale.id] = allocatedAmount;
+        remainingCredit -= allocatedAmount;
+      }
+    }
+
+    // Update summary line in customer section
+    const totalApplied = getTotalAdvanceAllocatedFromBills();
+    if (totalApplied > 0.01) {
+      $('#advanceCreditAppliedSummary')
+        .html('Advance applied: <strong class="text-dark">Rs. ' + totalApplied.toFixed(2) + '</strong> (Bill-wise)')
+        .show();
+    } else {
+      $('#advanceCreditAppliedSummary').empty().hide();
+    }
+
+    if (typeof window.populateFlexibleBillsList === 'function') window.populateFlexibleBillsList();
+    if (typeof window.updateExistingBillAllocationsForReturnCredits === 'function') window.updateExistingBillAllocationsForReturnCredits();
+    if (typeof window.updateNetCustomerDue === 'function') window.updateNetCustomerDue();
+    if (typeof window.updateSummaryTotals === 'function') window.updateSummaryTotals();
+  }
+
+  function showAdvanceCreditAllocationDialog() {
+    const totalAdvanceCredit = parseFloat(window.customerAdvanceCredit || 0) || 0;
+    if (totalAdvanceCredit <= 0.01) {
+      if (window.toastr) window.toastr.warning('No advance credit available for allocation');
+      return;
+    }
+
+    const sales = window.availableCustomerSales || [];
+    let billsHTML =
+      '<div style="max-height: 400px; overflow-y: auto;"><table class="table table-sm table-hover"><thead class="sticky-top bg-light"><tr><th>Bill #</th><th>Due</th><th>Advance</th><th>Action</th></tr></thead><tbody>';
+    sales.forEach((sale) => {
+      const currentCredit = getBillAdvanceCreditApplied(sale.id);
+      const remainingDue = getRemainingDueAfterCredits({ ...sale, total_due: (parseFloat(sale.total_due || 0) || 0) + currentCredit });
+      billsHTML += `
+        <tr>
+          <td><small>${sale.invoice_no}</small></td>
+          <td><small>Rs.${Number(remainingDue).toFixed(2)}</small></td>
+          <td><small class="${currentCredit > 0 ? 'text-success fw-bold' : 'text-muted'}">Rs.${Number(currentCredit).toFixed(2)}</small></td>
+          <td>
+            <button class="btn btn-xs btn-primary realloc-set-advance" data-sale-id="${sale.id}" data-invoice="${sale.invoice_no}">
+              <i class="fas fa-edit"></i>
+            </button>
+          </td>
+        </tr>
+      `;
+    });
+    billsHTML += '</tbody></table></div>';
+
+    if (!window.Swal) return;
+    window.Swal.fire({
+      title: 'Reallocate Advance Credit',
+      html: `
+        <div class="text-start">
+          <div class="alert alert-success p-2 mb-2">
+            <small><strong>Total Available:</strong> Rs.${Number(totalAdvanceCredit).toFixed(2)}</small>
+          </div>
+          ${billsHTML}
+          <div class="mt-2 text-center">
+            <button class="btn btn-sm btn-warning" id="clearAllAdvanceAllocations">
+              <i class="fas fa-eraser"></i> Clear All
+            </button>
+            <button class="btn btn-sm btn-success" id="autoFifoAdvanceAllocate">
+              <i class="fas fa-magic"></i> Auto FIFO
+            </button>
+          </div>
+        </div>
+      `,
+      width: '600px',
+      showCancelButton: true,
+      showConfirmButton: false,
+      cancelButtonText: 'Close',
+      didOpen: () => {
+        $('#clearAllAdvanceAllocations')
+          .off('click')
+          .on('click', function () {
+            window.billAdvanceCreditAllocations = {};
+            if (typeof window.populateFlexibleBillsList === 'function') window.populateFlexibleBillsList();
+            if (typeof window.updateExistingBillAllocationsForReturnCredits === 'function') window.updateExistingBillAllocationsForReturnCredits();
+            if (typeof window.updateNetCustomerDue === 'function') window.updateNetCustomerDue();
+            if (typeof window.updateSummaryTotals === 'function') window.updateSummaryTotals();
+            $('#advanceCreditAmountInput').val('0.00');
+            if (window.toastr) window.toastr.success('Advance allocations cleared', 'Success');
+            window.Swal.close();
+          });
+
+        $('#autoFifoAdvanceAllocate')
+          .off('click')
+          .on('click', function () {
+            const val = parseFloat($('#advanceCreditAmountInput').val()) || 0;
+            autoAllocateAdvanceCreditsToSales(val > 0 ? val : totalAdvanceCredit);
+            if (window.toastr) window.toastr.success('Advance FIFO allocation applied!', 'Success');
+            window.Swal.close();
+          });
+      },
+    });
+
+    $(document)
+      .off('click', '.realloc-set-advance')
+      .on('click', '.realloc-set-advance', function () {
+        const saleId = $(this).data('sale-id');
+        const invoice = $(this).data('invoice');
+        const sale = (window.availableCustomerSales || []).find((s) => String(s.id) === String(saleId));
+        if (!sale) return;
+
+        const currentCredit = getBillAdvanceCreditApplied(saleId);
+        let allocatedOther = 0;
+        Object.entries(window.billAdvanceCreditAllocations || {}).forEach(([k, v]) => {
+          if (String(k) !== String(saleId)) allocatedOther += parseFloat(v) || 0;
+        });
+
+        const available = Math.max(0, totalAdvanceCredit - allocatedOther);
+        const ret = window.billReturnCreditAllocations ? parseFloat(window.billReturnCreditAllocations[saleId] || 0) || 0 : 0;
+        const saleDue = parseFloat(sale.total_due || 0) || 0;
+        const maxAllowable = Math.min(available, Math.max(0, saleDue - ret));
+
+        window.Swal.fire({
+          title: `Set Advance for ${invoice}`,
+          html: `
+            <div class="text-start">
+              <p><small><strong>Current:</strong> Rs.${Number(currentCredit).toFixed(2)}</small></p>
+              <p><small><strong>Available:</strong> Rs.${Number(available).toFixed(2)}</small></p>
+              <p><small><strong>Max Allowable:</strong> Rs.${Number(maxAllowable).toFixed(2)}</small></p>
+              <input type="number" id="setAdvanceAmount" class="form-control" value="${currentCredit}" min="0" max="${maxAllowable}" step="0.01">
+            </div>
+          `,
+          showCancelButton: true,
+          confirmButtonText: 'Set',
+          preConfirm: () => {
+            const amount = parseFloat($('#setAdvanceAmount').val()) || 0;
+            if (amount < 0 || amount > maxAllowable) {
+              window.Swal.showValidationMessage(`Between 0 and ${maxAllowable.toFixed(2)}`);
+              return false;
+            }
+            return amount;
+          },
+        }).then((result) => {
+          if (result.isConfirmed) {
+            if (!window.billAdvanceCreditAllocations) window.billAdvanceCreditAllocations = {};
+            if (result.value > 0.01) window.billAdvanceCreditAllocations[saleId] = result.value;
+            else delete window.billAdvanceCreditAllocations[saleId];
+
+            const totalApplied = getTotalAdvanceAllocatedFromBills();
+            $('#advanceCreditAmountInput').val((Math.round(totalApplied * 100) / 100).toFixed(2));
+            if (totalApplied > 0.01) {
+              $('#advanceCreditAppliedSummary')
+                .html('Advance applied: <strong class="text-dark">Rs. ' + totalApplied.toFixed(2) + '</strong> (Bill-wise)')
+                .show();
+            } else {
+              $('#advanceCreditAppliedSummary').empty().hide();
+            }
+            if (typeof window.populateFlexibleBillsList === 'function') window.populateFlexibleBillsList();
+            if (typeof window.updateExistingBillAllocationsForReturnCredits === 'function') window.updateExistingBillAllocationsForReturnCredits();
+            if (typeof window.updateNetCustomerDue === 'function') window.updateNetCustomerDue();
+            if (typeof window.updateSummaryTotals === 'function') window.updateSummaryTotals();
+            if (window.toastr) window.toastr.success('Advance credit updated!', 'Success');
+            showAdvanceCreditAllocationDialog();
+          }
+        });
+      });
+  }
+
+  window.autoAllocateAdvanceCreditsToSales = autoAllocateAdvanceCreditsToSales;
+  window.showAdvanceCreditAllocationDialog = showAdvanceCreditAllocationDialog;
 
   $(document).on('click', '.return-credit-badge', function (e) {
     e.stopPropagation();
@@ -1794,6 +2003,35 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         });
       });
+  });
+
+  $(document).on('change', '#applyAdvanceCreditCheckbox', function () {
+    if ($(this).is(':checked')) {
+      $('#reallocateAdvanceCreditsBtn').show();
+      const inputAmount = parseFloat($('#advanceCreditAmountInput').val()) || 0;
+      autoAllocateAdvanceCreditsToSales(inputAmount);
+    } else {
+      $('#reallocateAdvanceCreditsBtn').hide();
+      window.billAdvanceCreditAllocations = {};
+      $('#advanceCreditAppliedSummary').empty().hide();
+      if (typeof window.populateFlexibleBillsList === 'function') window.populateFlexibleBillsList();
+      if (typeof window.updateExistingBillAllocationsForReturnCredits === 'function') window.updateExistingBillAllocationsForReturnCredits();
+      if (typeof window.updateNetCustomerDue === 'function') window.updateNetCustomerDue();
+      if (typeof window.updateSummaryTotals === 'function') window.updateSummaryTotals();
+    }
+  });
+
+  $(document).on('input', '#advanceCreditAmountInput', function () {
+    if (!$('#applyAdvanceCreditCheckbox').is(':checked')) return;
+    autoAllocateAdvanceCreditsToSales(parseFloat($(this).val()) || 0);
+  });
+
+  $(document).on('click', '#reallocateAdvanceCreditsBtn', function () {
+    if (!$('#applyAdvanceCreditCheckbox').is(':checked')) {
+      if (window.toastr) window.toastr.warning('Enable advance credit first');
+      return;
+    }
+    showAdvanceCreditAllocationDialog();
   });
 });
 

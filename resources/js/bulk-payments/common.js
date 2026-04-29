@@ -57,6 +57,17 @@ function resetFlexiblePaymentSystem() {
 
     // Return-credit allocations (if that module is present on page)
     if (window.billReturnCreditAllocations) window.billReturnCreditAllocations = {};
+    if (window.billAdvanceCreditAllocations) window.billAdvanceCreditAllocations = {};
+
+    // Clear allocation summaries and inputs
+    if ($('#advanceCreditAppliedSummary').length) {
+      $('#advanceCreditAppliedSummary').empty().hide();
+      $('#advanceCreditAmountInput').val('');
+      $('#applyAdvanceCreditCheckbox').prop('checked', false);
+    }
+    if ($('#returnCreditAppliedSummary').length) {
+      $('#returnCreditAppliedSummary').empty().hide();
+    }
 
     // Clear allocations UI if present
     const $paymentsList = $('#flexiblePaymentsList');
