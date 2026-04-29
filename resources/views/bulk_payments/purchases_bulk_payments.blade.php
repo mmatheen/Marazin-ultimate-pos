@@ -1449,8 +1449,14 @@ function loadPurchasesForSupplier(supplierId) {
             window.isLoadingPurchases = false;
 
             if (response.purchases && response.purchases.length > 0) {
+                const sortedPurchases = [...response.purchases].sort((a, b) => {
+                    const dateDiff = new Date(a.purchase_date) - new Date(b.purchase_date);
+                    if (dateDiff !== 0) return dateDiff;
+                    return (parseInt(a.id, 10) || 0) - (parseInt(b.id, 10) || 0);
+                });
+
                 // --- Populate flexible bill list (many-to-many system) ---
-                availableSupplierPurchases = response.purchases.filter(purchase => {
+                availableSupplierPurchases = sortedPurchases.filter(purchase => {
                     const isDue = parseFloat(purchase.total_due) > 0;
                     const isOutstanding = purchase.payment_status === 'Due' || purchase.payment_status === 'Partial';
                     return isDue && isOutstanding;
@@ -1466,7 +1472,7 @@ function loadPurchasesForSupplier(supplierId) {
                     totalPaidAmount = 0,
                     totalDueAmount = 0;
 
-                response.purchases.forEach(function(purchase) {
+                sortedPurchases.forEach(function(purchase) {
                     var finalTotal = parseFloat(purchase.final_total) || 0;
                     var totalDue = parseFloat(purchase.total_due) || 0;
                     var totalPaid = finalTotal - totalDue;

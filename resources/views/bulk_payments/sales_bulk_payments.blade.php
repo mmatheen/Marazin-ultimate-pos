@@ -1259,9 +1259,17 @@
                     // Filter for outstanding bills
                     // Use total_due only: payment_status can be stale (e.g. "Paid" while total_due > 0 after
                     // return credit / cheque bounce flows), which would hide bills if we required Due|Partial.
-                    window.availableCustomerSales = response.data.filter(sale => {
+                    const outstandingSales = response.data.filter(sale => {
                         const due = parseFloat(sale.total_due) || 0;
                         return due > 0.005;
+                    });
+
+                    // Display oldest bills first in bulk payment UI.
+                    // Keep FIFO allocation behavior unchanged.
+                    window.availableCustomerSales = outstandingSales.sort((a, b) => {
+                        const dateDiff = new Date(a.sales_date) - new Date(b.sales_date);
+                        if (dateDiff !== 0) return dateDiff;
+                        return (parseInt(a.id, 10) || 0) - (parseInt(b.id, 10) || 0);
                     });
 
                     console.log('Outstanding bills for flexible UI:', window.availableCustomerSales.length);
