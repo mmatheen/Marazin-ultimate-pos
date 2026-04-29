@@ -40,7 +40,7 @@
         @media print {
             @page {
                 size: {{ $pageWidth }} {{ $pageHeight }} portrait;
-                margin: 0.2in 0.25in 0.12in 0.12in;
+                margin: 0in 0.25in 0.12in 0.12in;
             }
 
             html,
@@ -62,7 +62,7 @@
                 max-width: {{ $pageWidth }};
                 min-height: {{ $minHeight }};
                 margin: 0;
-                padding: 0.18in 0.25in 0.1in 0.12in;
+                padding: 0in 0.25in 0.1in 0.12in;
                 background: white !important;
                 box-shadow: none;
                 display: flex;
@@ -123,9 +123,10 @@
         }
 
         .company-logo {
-            font-family: Arial, sans-serif;
+            font-family: Arial, Helvetica, sans-serif;
             font-size: 28px;
-            font-weight: bold;
+            font-weight: 900;
+            color: #000;
             letter-spacing: 1px;
             margin-bottom: 4px;
             text-transform: uppercase;

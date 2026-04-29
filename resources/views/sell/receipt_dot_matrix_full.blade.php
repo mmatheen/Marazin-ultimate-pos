@@ -50,7 +50,7 @@
             .invoice-page {
                 width: 8.0in;
                 margin: 0.2in auto;
-                padding: 0.3in 0.2in 0.3in 0.2in;
+                padding: 0in 0.2in 0.3in 0.2in;
                 background: white !important;
                 box-shadow: none;
                 page-break-inside: avoid;
@@ -81,7 +81,7 @@
             margin: 0 auto;
             background-color: white;
             position: relative;
-            padding: 0.3in 0.2in 0.3in 0.2in;
+            padding: 0in 0.2in 0.3in 0.2in;
             display: flex;
             flex-direction: column;
         }
@@ -119,9 +119,10 @@
         }
 
         .company-logo {
-            font-family: Arial, 'Courier New', monospace;
+            font-family: Arial, Helvetica, sans-serif;
             font-size: 30px;
-            font-weight: bold;
+            font-weight: 900;
+            color: #000;
             letter-spacing: 2px;
             margin-bottom: 8px;
             text-transform: uppercase;
