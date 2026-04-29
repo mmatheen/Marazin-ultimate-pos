@@ -899,9 +899,9 @@
                         { "targets": 9, "width": "8%" },  // Status
                         { "targets": 10, "width": "5%" }   // Days
                     ],
-                    // Keep all bills grouped together by hidden Party column, then oldest date first
+                    // Keep all bills grouped together by hidden Party column; backend already sorts by date ascending (Jan->Dec)
                     "orderFixed": [[2, 'asc']],
-                    "order": [[2, 'asc'], [3, 'asc']],
+                    "order": [[2, 'asc']],
                     "dom": '<"dt-top"B><"dt-controls"<"dt-length"l><"dt-search"f>>rtip',
                     "drawCallback": function() {
                         try {

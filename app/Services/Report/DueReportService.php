@@ -79,7 +79,8 @@ class DueReportService
             }
         }
 
-        $sales = $query->orderBy('sales_date', 'desc')->get();
+        // Sort by date oldest first (Jan → Dec), then group by customer
+        $sales = $query->orderBy('sales_date', 'asc')->orderBy('customer_id', 'asc')->get();
         if ($sales->isEmpty()) {
             return [];
         }
@@ -183,7 +184,8 @@ class DueReportService
                 Carbon::now()->subDays((int) $request->due_days_to)->format('Y-m-d'));
         }
 
-        $purchases = $query->orderBy('purchase_date', 'desc')->get();
+        // Sort by date oldest first (Jan → Dec), then group by supplier
+        $purchases = $query->orderBy('purchase_date', 'asc')->orderBy('supplier_id', 'asc')->get();
         if ($purchases->isEmpty()) {
             return [];
         }
