@@ -12,6 +12,7 @@
         $fontSizeBase = $config['font_size_base'] ?? 12;
         $lineSpacing = $config['line_spacing'] ?? 5;
         $spacingMode = $config['spacing_mode'] ?? 'compact';
+        $showBatchRowWise = $config['show_batch_row_wise'] ?? false;
         $spacingMultiplier = $spacingMode === 'spacious' ? 1.5 : 1.0;
         $lineSpacingFactor = $lineSpacing / 5;
         $finalLineHeight = round(1.2 * $spacingMultiplier * $lineSpacingFactor, 2);
@@ -567,10 +568,12 @@
                                 ];
                             }
                         } else {
-                            // Merge same product + same unit rate (ignore batch). Separate rows when rate/type differs.
+                            // Merge same product + same unit rate.
+                            // When enabled in receipt settings, keep different batches on separate rows.
                             $priceKey = sprintf('%.4f', (float) $product->price);
                             $ptype = $product->price_type ?? 'retail';
-                            $groupKey = $product->product_id . '|' . $ptype . '|' . $priceKey . '|' . ($product->custom_name ?? '');
+                            $batchKey = $showBatchRowWise ? '|' . (($product->batch->id ?? null) ?: 'no-batch') : '';
+                            $groupKey = $product->product_id . '|' . $ptype . '|' . $priceKey . '|' . ($product->custom_name ?? '') . $batchKey;
                             if (!isset($nonImeiGroups[$groupKey])) {
                                 $nonImeiGroups[$groupKey] = [
                                     'type' => 'grouped',

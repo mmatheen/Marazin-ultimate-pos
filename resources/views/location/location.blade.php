@@ -508,6 +508,10 @@
                                                 <input class="form-check-input" type="checkbox" id="receipt_show_footer_note">
                                                 <label class="form-check-label" for="receipt_show_footer_note">Show Footer Note</label>
                                             </div>
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" id="receipt_show_batch_row_wise">
+                                                <label class="form-check-label" for="receipt_show_batch_row_wise">Show Same Product by Batch in Dot Matrix Receipt</label>
+                                            </div>
                                         </div>
                                     </div>
 

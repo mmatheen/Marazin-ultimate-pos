@@ -55,7 +55,7 @@ class ReceiptSettingsManager {
         const checkboxFields = [
             'show_logo', 'show_customer_phone', 'show_mrp_strikethrough',
             'show_imei', 'show_discount_breakdown', 'show_payment_method',
-            'show_outstanding_due', 'show_stats_section', 'show_footer_note'
+            'show_outstanding_due', 'show_stats_section', 'show_footer_note', 'show_batch_row_wise'
         ];
 
         checkboxFields.forEach(field => {
@@ -213,6 +213,7 @@ class ReceiptSettingsManager {
             show_outstanding_due: document.getElementById('receipt_show_outstanding_due')?.checked || false,
             show_stats_section: document.getElementById('receipt_show_stats_section')?.checked || false,
             show_footer_note: document.getElementById('receipt_show_footer_note')?.checked || false,
+            show_batch_row_wise: document.getElementById('receipt_show_batch_row_wise')?.checked || false,
             spacing_mode: document.querySelector('input[name="spacing_mode"]:checked')?.value || 'compact',
             font_size_base: parseInt(document.getElementById('receipt_font_size_base')?.value) || 11,
             line_spacing: parseInt(document.getElementById('receipt_line_spacing')?.value) || 5,

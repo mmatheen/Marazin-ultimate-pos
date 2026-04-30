@@ -39,6 +39,7 @@ class ReceiptConfig
             'show_outstanding_due' => true,
             'show_stats_section' => true,
             'show_footer_note' => true,
+            'show_batch_row_wise' => false,
 
             // Layout settings
             'spacing_mode' => self::SPACING_COMPACT,
@@ -80,6 +81,7 @@ class ReceiptConfig
             'show_outstanding_due' => 'boolean',
             'show_stats_section' => 'boolean',
             'show_footer_note' => 'boolean',
+            'show_batch_row_wise' => 'boolean',
             'spacing_mode' => 'required|in:' . self::SPACING_COMPACT . ',' . self::SPACING_SPACIOUS,
             'font_size_base' => 'required|integer|min:' . self::FONT_SIZE_MIN . '|max:' . self::FONT_SIZE_MAX,
             'line_spacing' => 'required|integer|min:' . self::LINE_SPACING_MIN . '|max:' . self::LINE_SPACING_MAX,
@@ -138,6 +140,7 @@ class ReceiptConfig
                     'show_outstanding_due' => false,
                     'show_stats_section' => false,
                     'show_footer_note' => false,
+                    'show_batch_row_wise' => false,
                     'spacing_mode' => self::SPACING_COMPACT,
                     'font_size_base' => 10,
                     'line_spacing' => 3,
@@ -160,6 +163,7 @@ class ReceiptConfig
                     'show_outstanding_due' => true,
                     'show_stats_section' => true,
                     'show_footer_note' => true,
+                    'show_batch_row_wise' => false,
                     'spacing_mode' => self::SPACING_SPACIOUS,
                     'font_size_base' => 12,
                     'line_spacing' => 7,
