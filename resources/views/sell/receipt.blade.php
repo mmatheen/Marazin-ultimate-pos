@@ -25,6 +25,9 @@
         $spacingMultiplier = $spacingMode === 'spacious' ? 1.5 : 1;
         $lineSpacingFactor = $lineSpacing / 5; // 5 is default, creates 0.2 to 2.0 range
         $finalSpacing = $spacingMultiplier * $lineSpacingFactor;
+        $advance_used_amount = (float) ($advance_used_amount ?? 0);
+        $customer_paid_amount = (float) ($customer_paid_amount ?? ($sale->total_paid ?? 0));
+        $remaining_advance_amount = (float) ($remaining_advance_amount ?? 0);
     @endphp
     <style>
         * {

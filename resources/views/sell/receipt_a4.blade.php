@@ -3,6 +3,11 @@
 <head>
     <meta charset="utf-8">
     <title>A4 RECEIPT</title>
+    @php
+        $advance_used_amount = (float) ($advance_used_amount ?? 0);
+        $customer_paid_amount = (float) ($customer_paid_amount ?? ($sale->total_paid ?? 0));
+        $remaining_advance_amount = (float) ($remaining_advance_amount ?? 0);
+    @endphp
     <style>
         @page {
             margin: 12mm 15mm;
