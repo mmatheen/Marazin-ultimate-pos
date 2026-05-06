@@ -178,6 +178,8 @@ class UnifiedLedgerService
             throw new \Exception("Cannot record purchase in ledger: purchase id is missing.");
         }
 
+        $purchaseAmount = $purchase->final_total ?? $purchase->grand_total;
+
         // Generate a proper reference number for the purchase
         $referenceNo = $purchase->reference_no ?: 'PUR-' . $purchase->id;
 
@@ -193,7 +195,7 @@ class UnifiedLedgerService
             'reference_no' => $referenceNo,
 
             'transaction_type' => 'purchase',
-            'amount' => $purchase->final_total,
+            'amount' => $purchaseAmount,
             'notes' => "Purchase invoice #{$referenceNo}",
             'created_by' => $createdBy
         ]);
@@ -687,8 +689,9 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
             ->where('status', 'active')
             ->update([
                 'status' => 'reversed',
-                'notes'  => DB::raw("COALESCE(notes, '') + ' [REVERSED: Sale edited on " .
-                            now()->format('Y-m-d H:i:s') . "]'")
+                // MySQL: use CONCAT — '+' would coerce notes to a number and corrupt data
+                'notes'  => DB::raw("CONCAT(COALESCE(notes, ''), ' [REVERSED: Sale edited on " .
+                            now()->format('Y-m-d H:i:s') . "]')")
             ]);
 
         // === STEP 2: Create REVERSAL Entry (Cancel old amount) ===
@@ -1182,6 +1185,7 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
             'payment',                  // Generic payment for sales
             'payments',                 // Original payment type for sales
             'sale_payment',            // Sale-specific payment only
+            'discount_given',         // Reduces receivable like a payment
         ])->sum('credit');
 
         $totalReturns = $activeTransactions->whereIn('transaction_type', ['sale_return'])->sum('credit');
@@ -1189,16 +1193,13 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
         // Get current balance using BalanceHelper (SINGLE SOURCE OF TRUTH)
         $currentBalance = BalanceHelper::getCustomerBalance($customerId);
 
-        // Get opening balance (balance before start date)
+        // Opening balance for the period = net of active ledger rows strictly before start date
         if ($startDate) {
-            $openingBalanceLedger = Ledger::where('contact_id', $customerId)
+            $openingBalance = (float) Ledger::where('contact_id', $customerId)
                 ->where('contact_type', 'customer')
-                ->where('transaction_date', '<', $startDate)
-                ->orderBy('transaction_date', 'desc')
-                ->orderBy('id', 'desc')
-                ->first();
-
-            $openingBalance = $openingBalanceLedger ? $openingBalanceLedger->balance : $customer->opening_balance;
+                ->where('transaction_date', '<', Carbon::parse($startDate)->startOfDay())
+                ->where('status', 'active')
+                ->sum(DB::raw('debit - credit'));
         } else {
             // If no start date, use customer's original opening balance
             $openingBalance = $customer->opening_balance;
@@ -1455,7 +1456,7 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
     {
         return match($ledger->transaction_type) {
             'sale', 'purchase' => 'Due',
-            'sale_payment', 'opening_balance_payment', 'payments' => 'Paid',
+            'sale_payment', 'opening_balance_payment', 'payments', 'purchase_payment', 'discount_given' => 'Paid',
             'sale_return', 'purchase_return' => 'Returned',
             'return_payment' => 'Refunded',
             'opening_balance' => 'Due',
@@ -1468,8 +1469,12 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
      */
     private function extractPaymentMethod($ledger)
     {
+        if ($ledger->transaction_type === 'discount_given') {
+            return 'Discount';
+        }
+
         // For payment transactions, try to get actual payment method from Payment table first
-        if (in_array($ledger->transaction_type, ['payments', 'sale_payment'])) {
+        if (in_array($ledger->transaction_type, ['payments', 'sale_payment', 'purchase_payment'])) {
             try {
                 // Try to find the actual Payment record by reference number
                 $referenceNo = $ledger->reference_no;
@@ -1479,6 +1484,11 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
 
                 // Try direct reference match first
                 $payment = \App\Models\Payment::where('reference_no', $referenceNo)->first();
+
+                // Bulk payments: reference often ends with -PAY{id}
+                if (!$payment && preg_match('/-PAY(\d+)$/', (string) $referenceNo, $m)) {
+                    $payment = \App\Models\Payment::find($m[1]);
+                }
 
                 // If not found, try to extract payment ID from reference
                 if (!$payment && strpos($referenceNo, 'PAY-') === 0) {
@@ -1619,10 +1629,14 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
             }
 
             // For payment transactions, try to find the related sale/purchase through payment table
-            if (in_array($ledger->transaction_type, ['payments'])) {
-                $payment = Payment::where('reference_no', $referenceNo)
-                    ->orWhere('id', str_replace('PAY-', '', $referenceNo))
-                    ->first();
+            if (in_array($ledger->transaction_type, ['payments', 'purchase_payment'])) {
+                $payment = Payment::where('reference_no', $referenceNo)->first();
+                if (!$payment && preg_match('/-PAY(\d+)$/', (string) $referenceNo, $m)) {
+                    $payment = Payment::find($m[1]);
+                }
+                if (!$payment && strpos($referenceNo, 'PAY-') === 0) {
+                    $payment = Payment::find(str_replace('PAY-', '', $referenceNo));
+                }
 
                 if ($payment) {
                     // If it's a sale payment, get location from sale

@@ -150,7 +150,9 @@
             $('#modalTitle').text('New Customer');
             $('#modalButton').text('Save');
             $('#addAndUpdateForm')[0].reset();
-            $('.text-danger').text(''); // Clear all error messages
+            // Only clear validation/errors inside the customer modal — never global $('.text-danger'),
+            // which would wipe POS credit strip (#total-due-amount, available credit HTML, etc.)
+            $('#addAndEditCustomerModal').find('.text-danger').text('');
             $('#edit_id').val(''); // Clear the edit_id to ensure it's not considered an update
 
             // Set default customer type to retailer
@@ -755,7 +757,7 @@
             $('#modalTitle').text('Edit Customer');
             $('#modalButton').text('Update');
             $('#addAndUpdateForm')[0].reset();
-            $('.text-danger').text('');
+            $('#addAndEditCustomerModal').find('.text-danger').text('');
             $('#edit_id').val(id);
 
             $.ajax({
@@ -838,8 +840,10 @@
                 success: function(response) {
                     if (response.status == 200) {
                         $('#addAndEditCustomerModal').modal('hide');
-                        // Clear validation error messages
-                        $('#customer').DataTable().ajax.reload();
+                        // Customer list table exists only on the contacts page — POS has no #customer DataTable
+                        if ($.fn.DataTable && $.fn.DataTable.isDataTable('#customer')) {
+                            $('#customer').DataTable().ajax.reload();
+                        }
                         fetchCustomerData();
                         document.getElementsByClassName('successSound')[0]
                             .play(); //for sound
@@ -997,6 +1001,42 @@
         });
 
 
+        /**
+         * POS customer dropdown: advance pool for applying to current bill.
+         * Prefer total_advance_credit from API; if absent/zero, use negative current_balance
+         * (debit − credit < 0 ⇔ customer prepaid — same rule as account ledger advance).
+         */
+        function posLedgerAdvanceFromCustomerPayload(customer) {
+            if (!customer || customer.id == 1) {
+                return 0;
+            }
+            const rawAdv = parseFloat(customer.total_advance_credit);
+            const adv = Number.isFinite(rawAdv) ? rawAdv : 0;
+            if (adv > 0.005) {
+                return adv;
+            }
+            const rawBal = parseFloat(customer.current_balance);
+            if (Number.isFinite(rawBal) && rawBal < -0.005) {
+                return Math.abs(rawBal);
+            }
+            return 0;
+        }
+
+        function posApplyLedgerFieldsToOption(option, customer) {
+            if (!option || !customer) {
+                return;
+            }
+            const lb = parseFloat(customer.current_balance);
+            const ledgerBalance = Number.isFinite(lb) ? lb : 0;
+            const adv = posLedgerAdvanceFromCustomerPayload(customer);
+            option.attr('data-ledger-balance', ledgerBalance);
+            option.attr('data-ledger-advance', adv);
+            option.data('ledger_balance', ledgerBalance);
+            option.data('ledger_advance', adv);
+        }
+
+        window.posLedgerAdvanceFromCustomerPayload = posLedgerAdvanceFromCustomerPayload;
+
         function fetchCustomerData() {
             // Prevent multiple simultaneous loads
             if (window.customerDataLoading) {
@@ -1024,6 +1064,7 @@
 
                     if (data && data.status === 200 && Array.isArray(data.message)) {
                         window.posShowRepInvoiceDue = !!data.show_rep_invoice_due;
+                        window.posCustomerLedgerMap = {};
                         const sortedCustomers = data.message.sort((a, b) => {
                             if (a.first_name === 'Walk-in') return -1;
                             if (b.first_name === 'Walk-in') return 1;
@@ -1054,6 +1095,16 @@
                             option.data('credit_limit', customer.credit_limit ||
                                 0); // Add credit limit data
                             option.data('myInvoiceDue', parseFloat(customer.my_invoice_due) || 0);
+                            posApplyLedgerFieldsToOption(option, customer);
+                            const cid = String(customer.id || '');
+                            if (cid) {
+                                const lb = parseFloat(customer.current_balance);
+                                const advEff = posLedgerAdvanceFromCustomerPayload(customer);
+                                window.posCustomerLedgerMap[cid] = {
+                                    lb: Number.isFinite(lb) ? lb : 0,
+                                    adv: Number.isFinite(advEff) ? advEff : 0
+                                };
+                            }
                             customerSelect.append(option);
                         });
 
@@ -1065,6 +1116,7 @@
                             updateDueAmount(walkingCustomer.current_due || 0);
                             updateCreditLimit(walkingCustomer.credit_limit || 0, walkingCustomer
                                 .current_due || 0, true); // true for isWalkIn
+                            customerSelect.trigger('change');
                         }
                     } else {
                         console.error('Failed to fetch customer data:', data ? data.message :
@@ -1137,7 +1189,7 @@
             }
         }
 
-        $('#customer-id').on('change', function() {
+        $('#customer-id').off('change.posAdvanceUi').on('change.posAdvanceUi', function() {
             const selectedOption = $(this).find('option:selected');
             const customerId = selectedOption.val();
             const customerText = selectedOption.text().toLowerCase();
@@ -1159,6 +1211,14 @@
             updateDueAmount(dueAmount);
             updateCreditLimit(creditLimit, dueAmount, isWalkIn);
             updateRepInvoiceDueRow(myInvoiceDue, !isWalkIn);
+            if (typeof window.posRefreshAdvanceApplyUi === 'function') {
+                window.posRefreshAdvanceApplyUi();
+                setTimeout(function() {
+                    if (typeof window.posRefreshAdvanceApplyUi === 'function') {
+                        window.posRefreshAdvanceApplyUi();
+                    }
+                }, 60);
+            }
         });
 
         // City filter change event
@@ -1190,6 +1250,260 @@
             fetchCustomerData: fetchCustomerData,
             // other functions NOT exposed unless added here
         };
+
+        function getPosBillFinalTotal() {
+            if (typeof window.getPosLiveFinalTotalFromCart === 'function') {
+                const live = window.getPosLiveFinalTotalFromCart();
+                if (typeof live === 'number' && !Number.isNaN(live)) {
+                    return Math.max(0, live);
+                }
+            }
+
+            const parse = window.Pos && window.Pos.Utils && typeof window.Pos.Utils.parseFormattedAmount === 'function'
+                ? window.Pos.Utils.parseFormattedAmount
+                : function (s) {
+                    return parseFloat(String(s || '').replace(/[\s\u00a0\u202f]/g, '').replace(/,/g, '').replace(/[^0-9.-]/g, '')) || 0;
+                };
+
+            const tryEl = (el) => {
+                if (!el) return 0;
+                const raw = (el.textContent || el.innerText || '').trim();
+                return parse(raw) || 0;
+            };
+
+            let v = tryEl(document.getElementById('final-total-amount'));
+            if (v > 0.005) return v;
+
+            const footerAmt = document.querySelector('#total .pos-footer-amount-value');
+            v = tryEl(footerAmt);
+            if (v > 0.005) return v;
+
+            v = tryEl(document.getElementById('modal-total-payable'));
+            if (v > 0.005) return v;
+
+            v = tryEl(document.getElementById('mobile-final-total-inline'));
+            if (v > 0.005) return v;
+
+            v = tryEl(document.getElementById('mobile-final-total'));
+            if (v > 0.005) return v;
+
+            v = tryEl(document.getElementById('modal-final-total'));
+            if (v > 0.005) return v;
+
+            // Last-resort fallback: derive directly from billing rows (subtotal or qty*price).
+            const billingBody = document.getElementById('billing-body');
+            if (billingBody) {
+                let sum = 0;
+                billingBody.querySelectorAll('tr').forEach(function (row) {
+                    const subtotalEl = row.querySelector('.subtotal');
+                    let line = parse(
+                        subtotalEl && subtotalEl.getAttribute('data-total')
+                            ? subtotalEl.getAttribute('data-total')
+                            : (subtotalEl ? subtotalEl.textContent : '')
+                    ) || 0;
+                    if (line <= 0.005) {
+                        const qtyEl = row.querySelector('.quantity-input');
+                        const priceEl = row.querySelector('.price-input');
+                        const qty = parseFloat(qtyEl && qtyEl.value ? qtyEl.value : 0) || 0;
+                        const price = parseFloat(priceEl && priceEl.value ? priceEl.value : 0) || 0;
+                        line = qty * price;
+                    }
+                    if (line > 0) sum += line;
+                });
+                if (sum > 0.005) return sum;
+            }
+
+            return 0;
+        }
+
+        function posReadSelectedCustomerLedger(opt, customerId) {
+            let lb = parseFloat(opt.data('ledger_balance'));
+            if (!Number.isFinite(lb)) {
+                lb = parseFloat(opt.attr('data-ledger-balance'));
+            }
+            if (!Number.isFinite(lb)) {
+                lb = 0;
+            }
+            let adv = parseFloat(opt.data('ledger_advance'));
+            if (!Number.isFinite(adv)) {
+                adv = parseFloat(opt.attr('data-ledger-advance'));
+            }
+            if (!Number.isFinite(adv)) {
+                adv = 0;
+            }
+            const cid = String(customerId || '');
+            const map = window.posCustomerLedgerMap || {};
+            if (cid && map[cid]) {
+                if ((Math.abs(lb) <= 0.005) && Number.isFinite(map[cid].lb)) {
+                    lb = map[cid].lb;
+                }
+                if ((adv <= 0.005) && Number.isFinite(map[cid].adv)) {
+                    adv = map[cid].adv;
+                }
+            }
+            if (adv <= 0.005 && lb < -0.005) {
+                adv = Math.abs(lb);
+            }
+            return { lb: lb, adv: adv };
+        }
+
+        function posRefreshAdvanceApplyUi() {
+            const row = $('#pos-advance-apply-row');
+            if (!row.length) return;
+            const $chk = $('#pos-use-advance-checkbox');
+            const $amt = $('#pos-apply-advance-amount');
+
+            function posUpdatePayablePreview(baseTotal) {
+                let base = Number.isFinite(baseTotal) ? baseTotal : getPosBillFinalTotal();
+                if (!Number.isFinite(base) || base < 0) base = 0;
+                const use = $chk.is(':checked') && !$chk.prop('disabled');
+                const maxA = parseFloat($amt.attr('data-max-advance') || $amt.attr('max') || '0') || 0;
+                let adv = use ? (parseFloat($amt.val()) || 0) : 0;
+                adv = Math.max(0, Math.min(adv, maxA, base));
+                const net = Math.max(0, Math.round((base - adv) * 100) / 100);
+
+                window.posAdvancePayablePreview = {
+                    base_total: Math.round(base * 100) / 100,
+                    advance_amount: Math.round(adv * 100) / 100,
+                    net_payable: net
+                };
+
+                const footerAmt = document.querySelector('#total .pos-footer-amount-value');
+                if (footerAmt) footerAmt.textContent = net.toFixed(2);
+                const payAmt = document.getElementById('payment-amount');
+                if (payAmt) payAmt.textContent = 'Rs ' + net.toFixed(2);
+                const mobileInline = document.getElementById('mobile-final-total-inline');
+                if (mobileInline) mobileInline.textContent = 'Rs. ' + net.toFixed(2);
+                const mobileFooter = document.getElementById('mobile-final-total');
+                if (mobileFooter) mobileFooter.textContent = 'Rs. ' + net.toFixed(2);
+            }
+
+            const customerId = $('#customer-id').val();
+            const opt = $('#customer-id option:selected');
+            const text = (opt.text() || '').toLowerCase();
+            const isWalkIn = customerId === '1' || customerId === 1 || text.includes('walk-in');
+
+            function posAdvanceClearHints() {
+                $('#pos-advance-combined-hint').text('');
+                $('#pos-advance-hint-cell').attr('title', '');
+            }
+
+            function posAdvanceSetHint(visibleLine, titleExtra) {
+                $('#pos-advance-combined-hint').text(visibleLine || '');
+                const full = [visibleLine, titleExtra].filter(function (x) { return x && String(x).trim(); }).join(' — ');
+                $('#pos-advance-hint-cell').attr('title', full);
+            }
+
+            if (!customerId || isWalkIn) {
+                row.addClass('d-none').removeClass('d-flex');
+                $chk.prop('checked', false).prop('disabled', false);
+                $amt.val('0').prop('disabled', true).attr('max', '0').attr('data-max-advance', '0');
+                posAdvanceClearHints();
+                posUpdatePayablePreview(0);
+                return;
+            }
+
+            const finalTotal = getPosBillFinalTotal();
+
+            const { lb, adv } = posReadSelectedCustomerLedger(opt, customerId);
+            const hasAdvanceSignal = (!Number.isNaN(adv) && adv > 0.005) || (!Number.isNaN(lb) && lb < -0.005);
+
+            if (!hasAdvanceSignal) {
+                row.addClass('d-none').removeClass('d-flex');
+                $chk.prop('checked', false).prop('disabled', false);
+                $amt.val('0').prop('disabled', true).attr('max', '0').attr('data-max-advance', '0');
+                posAdvanceClearHints();
+                posUpdatePayablePreview(finalTotal);
+                return;
+            }
+
+            let maxA = 0;
+            if (finalTotal > 0.005) {
+                if (!Number.isNaN(lb) && lb < -0.005) {
+                    maxA = Math.min(finalTotal, -lb);
+                } else if (!Number.isNaN(lb) && lb > 0.005) {
+                    maxA = Math.min(finalTotal, Math.max(0, finalTotal - lb));
+                } else {
+                    maxA = finalTotal;
+                }
+                if (!Number.isNaN(adv) && adv > 0.005) {
+                    maxA = Math.min(maxA, adv);
+                }
+            }
+
+            let balHint = '';
+            if (!Number.isNaN(adv) && adv > 0.005) {
+                balHint = 'Pool Rs. ' + adv.toFixed(2);
+            }
+            if (!Number.isNaN(lb) && lb < -0.005) {
+                const creditAmt = -lb;
+                balHint = balHint
+                    ? (balHint + ' · Credit Rs. ' + creditAmt.toFixed(2))
+                    : ('Credit Rs. ' + creditAmt.toFixed(2));
+            }
+
+            row.removeClass('d-none').addClass('d-flex');
+
+            if (finalTotal <= 0.005) {
+                $chk.prop('checked', false).prop('disabled', true);
+                $amt.val('0').prop('disabled', true).attr('max', '0').attr('data-max-advance', '0');
+                posAdvanceSetHint('Add items first.', balHint);
+                posUpdatePayablePreview(finalTotal);
+                return;
+            }
+
+            if (maxA <= 0.005) {
+                $chk.prop('checked', false).prop('disabled', true);
+                $amt.val('0').prop('disabled', true).attr('max', '0').attr('data-max-advance', '0');
+                posAdvanceSetHint('No advance for this bill.', balHint);
+                posUpdatePayablePreview(finalTotal);
+                return;
+            }
+
+            $chk.prop('disabled', false);
+            posAdvanceSetHint('Bill Rs. ' + finalTotal.toFixed(2) + ' · max Rs. ' + maxA.toFixed(2), balHint);
+            const maxStr = maxA.toFixed(2);
+            const chk = $chk.is(':checked');
+            $amt.attr('max', maxStr).attr('data-max-advance', maxStr).prop('disabled', !chk);
+
+            // UX: if user enabled checkbox, auto-fill best amount (max applicable for this bill).
+            if (chk) {
+                $amt.val(maxStr);
+            } else {
+                $amt.val('0');
+            }
+            posUpdatePayablePreview(finalTotal);
+        }
+        window.posRefreshAdvanceApplyUi = posRefreshAdvanceApplyUi;
+
+        $(document).off('change.posAdvanceCheckbox', '#pos-use-advance-checkbox')
+            .on('change.posAdvanceCheckbox', '#pos-use-advance-checkbox', function() {
+            const on = $(this).is(':checked');
+            const $amt = $('#pos-apply-advance-amount');
+            const maxA = parseFloat($amt.attr('data-max-advance') || $amt.attr('max') || '0') || 0;
+            $amt.prop('disabled', !on);
+            if (!on) {
+                $amt.val('0');
+            } else {
+                // Auto-fetch to input: min(bill total, available advance)
+                $amt.val(maxA.toFixed(2));
+                if (typeof window.posRefreshAdvanceApplyUi === 'function') window.posRefreshAdvanceApplyUi();
+            }
+            if (typeof window.posRefreshAdvanceApplyUi === 'function') window.posRefreshAdvanceApplyUi();
+        });
+
+        // Prevent entering more than max advance (or negative values).
+        $(document).off('input.posAdvanceAmount', '#pos-apply-advance-amount')
+            .on('input.posAdvanceAmount', '#pos-apply-advance-amount', function() {
+            const $el = $(this);
+            const maxA = parseFloat($el.attr('data-max-advance') || $el.attr('max') || '0') || 0;
+            let v = parseFloat($el.val());
+            if (!Number.isFinite(v)) return;
+            if (v < 0) v = 0;
+            if (v > maxA) v = maxA;
+            $el.val(v);
+            if (typeof window.posRefreshAdvanceApplyUi === 'function') window.posRefreshAdvanceApplyUi();
+        });
 
     });
 </script>

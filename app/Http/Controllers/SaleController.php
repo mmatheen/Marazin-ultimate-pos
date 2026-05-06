@@ -216,7 +216,8 @@ class SaleController extends Controller
 
                 try {
                     $this->saleValidationService->validateCreditLimit(
-                        $customer, $estimated, $request->payments ?? [], $request->status
+                        $customer, $estimated, $request->payments ?? [], $request->status,
+                        (float) $request->input('pos_apply_advance_amount', 0)
                     );
                 } catch (\Exception $e) {
                     return response()->json([
@@ -251,7 +252,8 @@ class SaleController extends Controller
                 if ($request->customer_id != 1) {
                     $customer = Customer::withoutGlobalScopes()->findOrFail($request->customer_id);
                     $this->saleValidationService->validateCreditLimit(
-                        $customer, $amounts['final_total'], $request->payments ?? [], $newStatus
+                        $customer, $amounts['final_total'], $request->payments ?? [], $newStatus,
+                        (float) $request->input('pos_apply_advance_amount', 0)
                     );
                 }
 

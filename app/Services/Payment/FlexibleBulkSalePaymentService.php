@@ -324,14 +324,21 @@ class FlexibleBulkSalePaymentService
 
             if ($creditToApply > 0) {
 
-                // Available credit is when ledger/account due is lower than invoice due OR customer has negative balance.
-                // Use: availableCredit = max(0, saleDue - ledgerBalance)
+                // Cap for advance_credit_usage (no new ledger credit): piecewise is required.
+                // - ledgerBalance = debit - credit (BalanceHelper): >0 customer owes, <0 customer has credit.
+                // - When LB >= 0: bills may exceed receivable; applicable gap = max(0, saleDue - LB).
+                // - When LB < 0: only "pure" advance -LB exists; cannot apply more than min(saleDue, -LB)
+                //   (old formula saleDue + |LB| over-counted in this branch).
                 $ledgerBalance = (float) BalanceHelper::getCustomerBalance((int) $request->customer_id);
                 $saleDue = (float) Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
                     ->where('customer_id', (int) $request->customer_id)
                     ->whereIn('status', ['final', 'suspend'])
                     ->sum('total_due');
-                $availableCredit = max(0.0, $saleDue - max(0.0, $ledgerBalance)) + max(0.0, abs(min(0.0, $ledgerBalance)));
+                if ($ledgerBalance >= 0) {
+                    $availableCredit = max(0.0, $saleDue - $ledgerBalance);
+                } else {
+                    $availableCredit = min($saleDue, -$ledgerBalance);
+                }
 
                 if ($availableCredit <= 0.01) {
                     throw new \Exception('Customer does not have any credit available to apply.');

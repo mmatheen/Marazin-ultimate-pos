@@ -90,7 +90,11 @@ function parseFormattedAmount(formattedAmount) {
     if (typeof formattedAmount !== 'string' && typeof formattedAmount !== 'number') {
         return 0;
     }
-    const cleaned = String(formattedAmount).replace(/[^0-9.-]/g, '');
+    // Strip spaces & common grouping separators (commas, narrow no-break space) before digits
+    const cleaned = String(formattedAmount)
+        .replace(/[\s\u00a0\u202f]/g, '')
+        .replace(/,/g, '')
+        .replace(/[^0-9.-]/g, '');
     const parsed = parseFloat(cleaned);
     return isNaN(parsed) ? 0 : parsed;
 }

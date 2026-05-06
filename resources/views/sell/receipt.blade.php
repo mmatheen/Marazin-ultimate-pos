@@ -641,17 +641,33 @@
 
                 {{-- Only show payment details for final sales --}}
                 @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))
-                    @if (!is_null($amount_given) && $amount_given > 0)
+                    @if (!is_null($advance_used_amount) && $advance_used_amount > 0)
+                        <tr>
+                            <td class="label">ADVANCE USED</td>
+                            <td class="value">{{ number_format($advance_used_amount, 2, '.', ',') }}</td>
+                        </tr>
+                    @endif
+
+                    @if (!is_null($customer_paid_amount) && $customer_paid_amount > 0)
+                        <tr>
+                            <td class="label">CUSTOMER PAID</td>
+                            <td class="value">{{ number_format($customer_paid_amount, 2, '.', ',') }}</td>
+                        </tr>
+                    @endif
+
+                    @if ((!is_null($amount_given) && $amount_given > 0) && (is_null($advance_used_amount) || $advance_used_amount <= 0))
                         <tr>
                             <td class="label">AMOUNT GIVEN</td>
                             <td class="value">{{ number_format($amount_given, 2, '.', ',') }}</td>
                         </tr>
                     @endif
 
-                    <tr>
-                        <td class="label">PAID</td>
-                        <td class="value">{{ number_format($sale->total_paid, 2, '.', ',') }}</td>
-                    </tr>
+                    @if (is_null($advance_used_amount) || $advance_used_amount <= 0)
+                        <tr>
+                            <td class="label">PAID</td>
+                            <td class="value">{{ number_format($sale->total_paid, 2, '.', ',') }}</td>
+                        </tr>
+                    @endif
 
                     @if (!is_null($balance_amount) && $balance_amount > 0)
                         <tr>
@@ -681,6 +697,13 @@
                                 <td class="value outstanding-due">RS {{ number_format($customer_outstanding, 2, '.', ',') }}</td>
                             </tr>
                         @endif
+                    @endif
+
+                    @if (!is_null($remaining_advance_amount) && $remaining_advance_amount > 0)
+                        <tr>
+                            <td class="label">ADVANCE BALANCE</td>
+                            <td class="value">{{ number_format($remaining_advance_amount, 2, '.', ',') }}</td>
+                        </tr>
                     @endif
                 @endif
             </table>

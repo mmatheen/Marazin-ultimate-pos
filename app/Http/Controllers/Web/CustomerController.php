@@ -406,12 +406,14 @@ class CustomerController extends Controller
         $customers = $customers->orderBy('first_name')->get();
         $filteredIds = $customers->pluck('id')->toArray();
         $balances = BalanceHelper::getBulkCustomerBalances($filteredIds);
+        $advances = BalanceHelper::getBulkCustomerAdvances($filteredIds);
         $repInvoiceDues = ($user && $isSalesRep)
             ? BalanceHelper::getBulkSalesRepOpenInvoiceDues($filteredIds, (int) $user->id)
             : collect();
 
-        $customers = $customers->map(function ($customer) use ($balances, $repInvoiceDues, $isSalesRep) {
+        $customers = $customers->map(function ($customer) use ($balances, $advances, $repInvoiceDues, $isSalesRep) {
             $currentBalance = (float) $balances->get($customer->id, (float) $customer->opening_balance);
+            $advanceCredit = (float) $advances->get($customer->id, 0);
 
             return [
                 'id' => $customer->id,
@@ -428,6 +430,7 @@ class CustomerController extends Controller
                 'credit_limit' => (float) $customer->credit_limit,
                 'current_balance' => $currentBalance,
                 'current_due' => (float) max(0, $currentBalance),
+                'total_advance_credit' => $advanceCredit,
                 'my_invoice_due' => $isSalesRep ? (float) $repInvoiceDues->get($customer->id, 0.0) : 0.0,
             ];
         });

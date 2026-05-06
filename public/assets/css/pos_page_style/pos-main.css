@@ -556,6 +556,61 @@
             overflow: hidden;
         }
 
+        /* POS: advance / credit on bill (row 2, right column) */
+        .pos-advance-under-search {
+            background: #f8f9fa !important;
+            border-color: #dee2e6 !important;
+            min-height: 0;
+        }
+        .pos-advance-under-search .pos-advance-rsinp {
+            flex: 0 0 auto;
+        }
+        .pos-advance-under-search .pos-advance-rsinp .input-group-text,
+        .pos-advance-under-search .pos-advance-amt-input {
+            min-height: 28px !important;
+            height: 28px !important;
+            padding-top: 2px !important;
+            padding-bottom: 2px !important;
+            font-size: 12px !important;
+        }
+
+        /* Billing header: customer dropdown + search same height (40px = .pos-search-row) — desktop only */
+        @media (min-width: 992px) {
+            .pos-customer-search-header .pos-customer-row .select2-container--default .select2-selection--single {
+                height: 40px !important;
+                display: flex !important;
+                align-items: center !important;
+            }
+            .pos-customer-search-header .pos-customer-row .select2-container--default .select2-selection--single .select2-selection__rendered {
+                line-height: 40px !important;
+            }
+            .pos-customer-search-header .pos-customer-row .select2-container--default .select2-selection--single .select2-selection__arrow {
+                height: 40px !important;
+            }
+            .pos-customer-search-header .pos-customer-row .pos-add-customer-btn {
+                height: 40px !important;
+                min-width: 40px !important;
+                padding: 0 10px !important;
+                border-radius: 0 10px 10px 0 !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                align-self: stretch !important;
+            }
+            .pos-customer-search-header .pos-customer-select-wrap .select2-container--default .select2-selection--single {
+                border-radius: 10px 0 0 10px !important;
+            }
+        }
+
+        /* Row 2: credit strip + advance strip align to same baseline */
+        .pos-header-meta-row > [class*="col-"] {
+            min-width: 0;
+        }
+
+        .pos-credit-strip-compact {
+            box-sizing: border-box;
+        }
+
         /* ========== 2. SALES REP, HEADER, LOCATION, DATE/TIME ========== */
         /* Header card styling */
         .card.bg-white.p-1 {
@@ -3302,6 +3357,22 @@
             .pos-add-customer-btn:hover {
                 background: #1d6ef0 !important;
                 color: #fff !important;
+            }
+            /* Same section: align billing customer strip with 40px product search */
+            .pos-customer-search-header .pos-customer-row {
+                padding: 3px 8px !important;
+                margin-bottom: 0 !important;
+                align-items: center !important;
+            }
+            .pos-customer-search-header .pos-customer-row .select2-container--default .select2-selection--single {
+                height: 34px !important;
+                min-height: 34px !important;
+            }
+            .pos-customer-search-header .pos-customer-row .select2-container--default .select2-selection--single .select2-selection__rendered {
+                line-height: 34px !important;
+            }
+            .pos-customer-search-header .pos-customer-row .select2-container--default .select2-selection--single .select2-selection__arrow {
+                height: 34px !important;
             }
             .pos-order-summary-row .form-group label[style*="font-size: 11px"] {
                 font-size: 12px !important;

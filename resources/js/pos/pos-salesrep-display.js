@@ -653,6 +653,10 @@ function populateFilteredCustomers(customers, routeName) {
         const walkInOption = $('<option value="1" data-customer-type="retailer">Walk-in Customer (Walk-in Customer)</option>');
         walkInOption.data('due', 0);
         walkInOption.data('credit_limit', 0);
+        walkInOption.attr('data-ledger-balance', 0);
+        walkInOption.attr('data-ledger-advance', 0);
+        walkInOption.data('ledger_balance', 0);
+        walkInOption.data('ledger_advance', 0);
         customerSelect.append(walkInOption);
     }
 
@@ -673,9 +677,21 @@ function populateFilteredCustomers(customers, routeName) {
         const cityInfo      = ` [${customer.city_name}]`;
         const displayText   = `${customerName}${customerType}${cityInfo} (${customer.mobile || 'No mobile'})`;
         const option = $(`<option value="${customer.id}" data-customer-type="${customer.customer_type || 'retailer'}">${displayText}</option>`);
-        option.data('due', customer.current_due || customer.current_balance || 0);
+        const dueVal = parseFloat(customer.current_due);
+        option.data('due', Number.isFinite(dueVal) ? dueVal : 0);
         option.data('credit_limit', customer.credit_limit || 0);
         option.data('myInvoiceDue', parseFloat(customer.my_invoice_due) || 0);
+        const lb = parseFloat(customer.current_balance);
+        const ledgerBalance = Number.isFinite(lb) ? lb : 0;
+        const advEff = typeof window.posLedgerAdvanceFromCustomerPayload === 'function'
+            ? window.posLedgerAdvanceFromCustomerPayload(customer)
+            : ((parseFloat(customer.total_advance_credit) || 0) > 0.005
+                ? (parseFloat(customer.total_advance_credit) || 0)
+                : (ledgerBalance < -0.005 ? Math.abs(ledgerBalance) : 0));
+        option.attr('data-ledger-balance', ledgerBalance);
+        option.attr('data-ledger-advance', advEff);
+        option.data('ledger_balance', ledgerBalance);
+        option.data('ledger_advance', advEff);
         customerSelect.append(option);
     });
 
@@ -691,9 +707,21 @@ function populateFilteredCustomers(customers, routeName) {
         const cityInfo      = ' [No City]';
         const displayText   = `${customerName}${customerType}${cityInfo} (${customer.mobile || 'No mobile'})`;
         const option = $(`<option value="${customer.id}" data-customer-type="${customer.customer_type || 'retailer'}">${displayText}</option>`);
-        option.data('due', customer.current_due || customer.current_balance || 0);
+        const dueValNc = parseFloat(customer.current_due);
+        option.data('due', Number.isFinite(dueValNc) ? dueValNc : 0);
         option.data('credit_limit', customer.credit_limit || 0);
         option.data('myInvoiceDue', parseFloat(customer.my_invoice_due) || 0);
+        const lbNc = parseFloat(customer.current_balance);
+        const ledgerBalanceNc = Number.isFinite(lbNc) ? lbNc : 0;
+        const advEffNc = typeof window.posLedgerAdvanceFromCustomerPayload === 'function'
+            ? window.posLedgerAdvanceFromCustomerPayload(customer)
+            : ((parseFloat(customer.total_advance_credit) || 0) > 0.005
+                ? (parseFloat(customer.total_advance_credit) || 0)
+                : (ledgerBalanceNc < -0.005 ? Math.abs(ledgerBalanceNc) : 0));
+        option.attr('data-ledger-balance', ledgerBalanceNc);
+        option.attr('data-ledger-advance', advEffNc);
+        option.data('ledger_balance', ledgerBalanceNc);
+        option.data('ledger_advance', advEffNc);
         customerSelect.append(option);
     });
 

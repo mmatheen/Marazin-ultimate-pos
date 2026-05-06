@@ -740,7 +740,19 @@
                         <span>{{ number_format($sale->final_total, 2) }}</span>
                     </div>
                     @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))
-                        @if ($sale->total_due == 0)
+                        @if (!is_null($advance_used_amount) && $advance_used_amount > 0)
+                            <div class="summary-row">
+                                <span>Advance Used:</span>
+                                <span>{{ number_format($advance_used_amount, 2) }}</span>
+                            </div>
+                        @endif
+                        @if (!is_null($customer_paid_amount) && $customer_paid_amount > 0)
+                            <div class="summary-row">
+                                <span>Customer Paid:</span>
+                                <span>{{ number_format($customer_paid_amount, 2) }}</span>
+                            </div>
+                        @endif
+                        @if ($sale->total_due == 0 && (is_null($advance_used_amount) || $advance_used_amount <= 0))
                             <div class="summary-row">
                                 <span>Amount Paid:</span>
                                 <span>{{ number_format($amount_paid, 2) }}</span>
@@ -748,6 +760,12 @@
                             <div class="summary-row">
                                 <span>Balance:</span>
                                 <span>{{ number_format($balance, 2) }}</span>
+                            </div>
+                        @endif
+                        @if (!is_null($remaining_advance_amount) && $remaining_advance_amount > 0)
+                            <div class="summary-row">
+                                <span>Advance Balance:</span>
+                                <span>{{ number_format($remaining_advance_amount, 2) }}</span>
                             </div>
                         @endif
                     @endif

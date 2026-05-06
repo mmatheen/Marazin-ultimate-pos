@@ -64,7 +64,10 @@ class SaleReceiptService
 
         $customer = Customer::withoutLocationScope()->findOrFail($sale->customer_id);
         $products = SalesProduct::with(['product', 'imeis', 'batch'])->where('sale_id', $saleId)->get();
-        $payments = Payment::where('reference_id', $saleId)->where('payment_type', 'sale')->get();
+        $allPayments = Payment::where('reference_id', $saleId)
+            ->whereIn('payment_type', ['sale', 'advance_credit_usage'])
+            ->get();
+        $payments = $allPayments->where('payment_type', 'sale')->values();
         $user     = User::find($sale->user_id);
         $location = $sale->location;
 
@@ -72,6 +75,13 @@ class SaleReceiptService
         if ($customer && $customer->id != 1) {
             $customerOutstandingBalance = $customer->calculateBalanceFromLedger();
         }
+        $advanceUsedAmount = (float) $allPayments
+            ->where('payment_type', 'advance_credit_usage')
+            ->sum('amount');
+        $customerPaidAmount = (float) $payments->sum('amount');
+        $remainingAdvanceAmount = $customerOutstandingBalance < 0
+            ? abs((float) $customerOutstandingBalance)
+            : 0.0;
 
         $viewData = [
             'sale'                         => $sale,
@@ -81,6 +91,9 @@ class SaleReceiptService
             'total_discount'               => 0,
             'amount_given'                 => $sale->amount_given,
             'balance_amount'               => $sale->balance_amount,
+            'advance_used_amount'          => $advanceUsedAmount,
+            'customer_paid_amount'         => $customerPaidAmount,
+            'remaining_advance_amount'     => $remainingAdvanceAmount,
             'customer_outstanding_balance' => $customerOutstandingBalance,
             'user'                         => $user,
             'location'                     => $location,

@@ -871,9 +871,73 @@ function handleSaleSuccessResponse(response, saleData, saleId, onComplete) {
 // ================================================================
 //  sendSaleData
 // ================================================================
+function appendPosAdvanceToSaleData(saleData) {
+    if (!saleData) return;
+    const st = saleData.status;
+    if (st === 'jobticket' || st === 'suspend' || st === 'draft' || st === 'quotation') {
+        saleData.pos_apply_advance_amount = 0;
+        return;
+    }
+    if (saleData.transaction_type === 'sale_order') {
+        saleData.pos_apply_advance_amount = 0;
+        return;
+    }
+    const cid = String($('#customer-id').val() || '');
+    if (!cid || cid === '1') {
+        saleData.pos_apply_advance_amount = 0;
+        return;
+    }
+    const use = $('#pos-use-advance-checkbox').is(':checked');
+    let amt = use ? (parseFloat($('#pos-apply-advance-amount').val()) || 0) : 0;
+    if (amt < 0) amt = 0;
+    saleData.pos_apply_advance_amount = Math.round(amt * 100) / 100;
+}
+
+/**
+ * When the customer pays enough cash/card/cheque to cover the full invoice, reduce those payment
+ * rows by the POS advance amount so the backend still has invoice remainder for advance_credit_usage.
+ * Partial payment (sum < final total) is unchanged; advance then applies to the remaining due only.
+ */
+function adjustPosSalePaymentsForAdvance(saleData) {
+    const adv = Math.round((parseFloat(saleData.pos_apply_advance_amount) || 0) * 100) / 100;
+    if (adv <= 0.02 || !saleData.payments || saleData.payments.length === 0) return;
+
+    const finalT = Math.round((parseFloat(saleData.final_total) || 0) * 100) / 100;
+    if (finalT <= 0) return;
+
+    let paySum = saleData.payments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+    paySum = Math.round(paySum * 100) / 100;
+
+    if (paySum < finalT - 0.02) return;
+
+    const excess = Math.max(0, Math.round((paySum - finalT) * 100) / 100);
+    const targetSum = Math.max(0, Math.round((finalT - adv + excess) * 100) / 100);
+    let cut = Math.round((paySum - targetSum) * 100) / 100;
+    if (cut <= 0.02) return;
+
+    let remaining = cut;
+    for (let i = 0; i < saleData.payments.length; i++) {
+        if (remaining <= 0.02) break;
+        const p = saleData.payments[i];
+        const a = parseFloat(p.amount) || 0;
+        const sub = Math.min(a, remaining);
+        p.amount = Math.round((a - sub) * 100) / 100;
+        remaining = Math.round((remaining - sub) * 100) / 100;
+    }
+
+    const newSum = saleData.payments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+    const ag = parseFloat(saleData.amount_given);
+    if (!Number.isNaN(ag) && ag >= finalT - 0.02) {
+        saleData.amount_given = Math.round(newSum * 100) / 100;
+    }
+}
+
 function sendSaleData(saleData, saleId = null, onComplete = () => {}) {
     if (!window.checkSalesAccess()) { onComplete(); return; }
     if (!validateWalkInCheque(saleData)) { onComplete(); return; }
+
+    appendPosAdvanceToSaleData(saleData);
+    adjustPosSalePaymentsForAdvance(saleData);
 
     saleId = resolveSaleIdFromUrl(saleId);
     const url = saleId ? `/sales/update/${saleId}` : '/sales/store';
@@ -897,7 +961,11 @@ function sendSaleData(saleData, saleId = null, onComplete = () => {}) {
 //  Payment data gatherers
 // ================================================================
 function gatherCashPaymentData() {
-    const totalAmount = parseFormattedAmount($('#final-total-amount').text().trim());
+    const baseTotal = parseFormattedAmount($('#final-total-amount').text().trim());
+    const netPreview = window.posAdvancePayablePreview && Number.isFinite(window.posAdvancePayablePreview.net_payable)
+        ? window.posAdvancePayablePreview.net_payable
+        : baseTotal;
+    const totalAmount = Math.max(0, parseFloat(netPreview) || 0);
     const today = new Date().toISOString().slice(0, 10);
     return [{
         payment_method: 'cash',
@@ -912,7 +980,11 @@ function gatherCardPaymentData() {
     const cardExpiryMonth = $('#card_expiry_month').val().trim();
     const cardExpiryYear = $('#card_expiry_year').val().trim();
     const cardSecurityCode = $('#card_security_code').val().trim();
-    const totalAmount = parseFormattedAmount($('#final-total-amount').text().trim());
+    const baseTotal = parseFormattedAmount($('#final-total-amount').text().trim());
+    const netPreview = window.posAdvancePayablePreview && Number.isFinite(window.posAdvancePayablePreview.net_payable)
+        ? window.posAdvancePayablePreview.net_payable
+        : baseTotal;
+    const totalAmount = Math.max(0, parseFloat(netPreview) || 0);
     const today = new Date().toISOString().slice(0, 10);
 
     return [{
@@ -933,7 +1005,11 @@ function gatherChequePaymentData() {
     const chequeReceivedDate = $('#cheque_received_date').val().trim();
     const chequeValidDate = $('#cheque_valid_date').val().trim();
     const chequeGivenBy = $('#cheque_given_by').val().trim();
-    const totalAmount = parseFormattedAmount($('#final-total-amount').text().trim());
+    const baseTotal = parseFormattedAmount($('#final-total-amount').text().trim());
+    const netPreview = window.posAdvancePayablePreview && Number.isFinite(window.posAdvancePayablePreview.net_payable)
+        ? window.posAdvancePayablePreview.net_payable
+        : baseTotal;
+    const totalAmount = Math.max(0, parseFloat(netPreview) || 0);
     const today = new Date().toISOString().slice(0, 10);
 
     return [{
@@ -1342,6 +1418,14 @@ function resetForm() {
     });
 
     document.getElementById('amount-given').value = '';
+
+    const posAdvChk = document.getElementById('pos-use-advance-checkbox');
+    if (posAdvChk) posAdvChk.checked = false;
+    const posAdvAmt = document.getElementById('pos-apply-advance-amount');
+    if (posAdvAmt) {
+        posAdvAmt.value = '0';
+        posAdvAmt.disabled = true;
+    }
 
     // Reset discount fields
     document.getElementById('global-discount').value = '';

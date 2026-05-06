@@ -2,6 +2,7 @@
 
 namespace App\Services\Sale;
 
+use App\Helpers\BalanceHelper;
 use App\Models\JobTicket;
 use App\Models\Payment;
 use App\Models\Sale;
@@ -117,9 +118,83 @@ class SalePaymentProcessor
             }
         }
 
+        // ── POS: apply customer advance / ledger credit to this invoice (payment row only; no extra ledger credit)
+        $this->processPosAdvanceCreditOnSale($sale, $request, $transactionType);
+
         // ── Final Sync: Ensure sale totals match actual payments ────────────
         // After any path completes, recalculate from database to guarantee accuracy
         $this->syncSaleAmountsFromPayments($sale);
+    }
+
+    /**
+     * Apply existing customer credit toward this invoice (matches bulk payment advance_credit_usage: Payment only).
+     */
+    private function processPosAdvanceCreditOnSale(Sale $sale, Request $request, string $transactionType): void
+    {
+        if ($transactionType === 'sale_order' || $sale->status === 'jobticket') {
+            return;
+        }
+
+        Payment::where('reference_id', $sale->id)
+            ->where('payment_type', 'advance_credit_usage')
+            ->where('status', '!=', 'deleted')
+            ->update([
+                'status' => 'deleted',
+                'payment_status' => 'cancelled',
+                'notes' => DB::raw("CONCAT(COALESCE(notes, ''), ' | DELETED: POS sale save')"),
+            ]);
+
+        $amt = round((float) $request->input('pos_apply_advance_amount', 0), 2);
+        if ($amt <= 0.02 || (int) $sale->customer_id <= 1) {
+            return;
+        }
+
+        $finalTotal = (float) $sale->final_total;
+        $cashPaid = (float) Payment::where('reference_id', $sale->id)
+            ->where('payment_type', 'sale')
+            ->where('status', '!=', 'deleted')
+            ->sum('amount');
+        $remainingOnInvoice = max(0.0, $finalTotal - $cashPaid);
+
+        $lb = (float) BalanceHelper::getCustomerBalance((int) $sale->customer_id);
+
+        if ($remainingOnInvoice <= 0.02) {
+            throw new \Exception('No invoice remainder to apply advance to (invoice may already be fully paid).');
+        }
+
+        if ($lb < -0.02) {
+            $maxApply = min($remainingOnInvoice, -$lb);
+        } elseif ($lb <= 0.02) {
+            $maxApply = $remainingOnInvoice;
+        } else {
+            $maxApply = min($remainingOnInvoice, max(0.0, $remainingOnInvoice - $lb));
+        }
+
+        if ($maxApply <= 0.02) {
+            throw new \Exception('No customer advance or unallocated credit is available to apply on this sale.');
+        }
+
+        if ($amt > $maxApply + 0.02) {
+            throw new \Exception(
+                'Advance apply Rs.'.number_format($amt, 2).' exceeds allowed Rs.'.number_format($maxApply, 2).' for this invoice.'
+            );
+        }
+
+        $paymentDate = $request->sales_date
+            ? Carbon::parse($request->sales_date)->format('Y-m-d')
+            : Carbon::now('Asia/Colombo')->format('Y-m-d');
+
+        Payment::create([
+            'payment_date' => $paymentDate,
+            'amount' => $amt,
+            'payment_method' => 'advance_credit',
+            'payment_type' => 'advance_credit_usage',
+            'reference_id' => $sale->id,
+            'reference_no' => $sale->invoice_no,
+            'customer_id' => $sale->customer_id,
+            'notes' => 'POS: customer advance / credit applied to invoice '.$sale->invoice_no,
+            'payment_status' => 'completed',
+        ]);
     }
 
     // -------------------------------------------------------------------------
@@ -371,7 +446,7 @@ class SalePaymentProcessor
     private function syncSaleAmountsFromPayments(Sale $sale): void
     {
         $actualTotalPaid = (float) Payment::where('reference_id', $sale->id)
-            ->where('payment_type', 'sale')
+            ->whereIn('payment_type', ['sale', 'advance_credit_usage'])
             ->where('status', '!=', 'deleted')
             ->sum('amount');
 

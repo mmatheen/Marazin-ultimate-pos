@@ -546,70 +546,86 @@
                                     <p id="sale-invoice-no" class="text-info fw-bold mb-1"></p>
                                 </div>
                             </div>
-                            <div class="row pos-mobile-top-section pos-customer-search-header">
-                                <div class="col-md-5 pe-2">
-                                    <div class="d-flex align-items-center customer-select2 pos-customer-row">
-                                        <span class="d-inline d-md-none me-2 text-muted flex-shrink-0" aria-hidden="true"><i class="fas fa-user"></i></span>
-                                        <div class="pos-customer-select-wrap flex-grow-1 min-w-0">
-                                        <select class="form-control selectBox" id="customer-id">
-                                            <option selected disabled>Please Select</option>
-                                        </select>
+                            <div class="pos-mobile-top-section">
+                                {{-- Row 1: customer + product search — same visual height (40px desktop) --}}
+                                <div class="row pos-customer-search-header align-items-stretch g-0 gx-md-2 gy-2 gy-md-0">
+                                    <div class="col-md-5 pe-md-2 d-flex align-items-stretch">
+                                        <div class="d-flex align-items-stretch customer-select2 pos-customer-row w-100">
+                                            <span class="d-inline d-md-none me-2 text-muted flex-shrink-0 align-self-center" aria-hidden="true"><i class="fas fa-user"></i></span>
+                                            <div class="pos-customer-select-wrap flex-grow-1 min-w-0">
+                                                <select class="form-control selectBox" id="customer-id">
+                                                    <option selected disabled>Please Select</option>
+                                                </select>
+                                            </div>
+                                            <button type="button" class="btn btn-outline-info pos-add-customer-btn flex-shrink-0 align-self-stretch" id="addCustomerButton" title="Add customer">
+                                                <i class="fas fa-plus-circle d-none d-md-inline-block"></i>
+                                                <i class="fas fa-plus d-md-none"></i>
+                                            </button>
                                         </div>
-                                        <button type="button" class="btn btn-outline-info rounded-0 pos-add-customer-btn flex-shrink-0" id="addCustomerButton" title="Add customer">
-                                            <i class="fas fa-plus-circle d-none d-md-inline-block"></i>
-                                            <i class="fas fa-plus d-md-none"></i>
-                                        </button>
                                     </div>
-                                    <!-- Customer Credit Information Row -->
-                                    <div class="customer-credit-info mt-1 mt-md-2 border rounded small" style="display: none;">
-                                        <div class="d-flex flex-wrap">
-                                            <div class="flex-fill border-end p-1 p-md-2 text-center" style="min-width: 5.5rem;">
-                                                <small class="text-muted d-block text-truncate" title="Total due (all)">Total due (all)</small>
-                                                <span id="total-due-amount" class="fw-bold text-danger d-block text-nowrap">
-                                                    Rs. 0.00
-                                                </span>
-                                            </div>
-                                            <div class="flex-fill border-end p-1 p-md-2 text-center" style="min-width: 5.5rem;">
-                                                <small class="text-muted d-block text-truncate" title="Credit limit">Credit limit</small>
-                                                <span id="credit-limit-amount" class="fw-bold text-info d-block text-nowrap">
-                                                    Rs. 0.00
-                                                </span>
-                                            </div>
-                                            <div class="flex-fill p-1 p-md-2 text-center" style="min-width: 5.5rem;">
-                                                <small class="text-muted d-block text-truncate" title="Available">Available</small>
-                                                <span id="available-credit-amount"
-                                                    class="fw-bold text-success d-block text-nowrap">
-                                                    Rs. 0.00
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div id="rep-my-invoices-due-row"
-                                            class="border-top px-1 px-md-2 py-1 text-center"
-                                            style="display: none;">
-                                            <small class="text-muted d-block mb-0">My invoices due</small>
-                                            <span id="rep-my-invoices-due-amount"
-                                                class="fw-bold text-warning d-block">Rs. 0.00</span>
+                                    <div class="col-md-7 ps-md-2 d-flex align-items-stretch">
+                                        <div class="input-group pos-search-row w-100 align-self-stretch">
+                                            <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                                            <input type="text" class="form-control" id="productSearchInput"
+                                                placeholder="Enter Product name / SKU / Scan...">
+                                            <button type="button" class="btn btn-outline-secondary d-lg-none pos-search-grid-btn"
+                                                data-bs-toggle="modal" data-bs-target="#mobileProductModal"
+                                                title="Product list" aria-label="Product list">
+                                                <i class="fas fa-th-large text-muted"></i>
+                                            </button>
+                                            @if($canUseQuickPriceEntry)
+                                            <button id="cashEntryToggle" type="button"
+                                                class="btn btn-outline-secondary d-none d-md-inline-flex"
+                                                title="Quick price entry">
+                                                <i class="fas fa-tag"></i>
+                                            </button>
+                                            @endif
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-7 ps-2">
-                                    <div class="input-group pos-search-row">
-                                        <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
-                                        <input type="text" class="form-control" id="productSearchInput"
-                                            placeholder="Enter Product name / SKU / Scan...">
-                                        <!-- Product list button: show only on mobile + tablet (< 992px), hide on desktop -->
-                                        <button type="button" class="btn btn-outline-secondary d-lg-none pos-search-grid-btn"
-                                            data-bs-toggle="modal" data-bs-target="#mobileProductModal"
-                                            title="Product list" aria-label="Product list">
-                                            <i class="fas fa-th-large text-muted"></i>
-                                        </button>
-                                        @if($canUseQuickPriceEntry)
-                                        <button id="cashEntryToggle" type="button"
-                                            class="btn btn-outline-secondary d-none d-md-inline-flex"
-                                            title="Quick price entry">
-                                            <i class="fas fa-tag"></i>
-                                        </button>
-                                        @endif
+                                {{-- Row 2: credit summary (left) + advance on bill (right), equal column stretch --}}
+                                <div class="row pos-header-meta-row align-items-stretch g-0 gx-md-2 mt-1 mt-md-2">
+                                    <div class="col-md-5 pe-md-2 d-flex align-items-stretch">
+                                        <div class="customer-credit-info pos-credit-strip-compact border rounded small w-100 h-100" style="display: none;">
+                                            <div class="d-flex flex-wrap align-items-stretch">
+                                                <div class="flex-fill border-end text-center py-1 px-1" style="min-width: 4.5rem;">
+                                                    <span class="text-muted text-uppercase d-block" style="font-size: 8px; line-height: 1.1; letter-spacing: 0.02em;" title="Total due (all)">Due</span>
+                                                    <span id="total-due-amount" class="fw-bold text-danger text-nowrap d-block" style="font-size: 11px; line-height: 1.15;">Rs. 0.00</span>
+                                                </div>
+                                                <div class="flex-fill border-end text-center py-1 px-1" style="min-width: 4.5rem;">
+                                                    <span class="text-muted text-uppercase d-block" style="font-size: 8px; line-height: 1.1; letter-spacing: 0.02em;" title="Credit limit">Limit</span>
+                                                    <span id="credit-limit-amount" class="fw-bold text-info text-nowrap d-block" style="font-size: 11px; line-height: 1.15;">Rs. 0.00</span>
+                                                </div>
+                                                <div class="flex-fill text-center py-1 px-1" style="min-width: 4.5rem;">
+                                                    <span class="text-muted text-uppercase d-block" style="font-size: 8px; line-height: 1.1; letter-spacing: 0.02em;" title="Available credit">Avail</span>
+                                                    <span id="available-credit-amount" class="fw-bold text-success text-nowrap d-block" style="font-size: 11px; line-height: 1.15;">Rs. 0.00</span>
+                                                </div>
+                                            </div>
+                                            <div id="rep-my-invoices-due-row" class="border-top px-1 py-0 text-center text-nowrap" style="display: none;">
+                                                <small class="text-muted" style="font-size: 8px;">Rep due</small>
+                                                <span id="rep-my-invoices-due-amount" class="fw-bold text-warning" style="font-size: 11px;">Rs. 0.00</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-7 ps-md-2 d-flex align-items-stretch">
+                                        <div id="pos-advance-apply-row"
+                                            class="pos-advance-under-search d-none w-100 h-100 align-items-center flex-wrap gap-1 px-1 py-0 rounded border bg-light">
+                                            <span class="pos-advance-label fw-semibold text-secondary text-nowrap flex-shrink-0">Adv.</span>
+                                            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                                <input class="form-check-input m-0 pos-advance-checkbox-input flex-shrink-0"
+                                                    type="checkbox" id="pos-use-advance-checkbox" autocomplete="off"
+                                                    style="width: 15px; height: 15px;"
+                                                    title="Apply advance toward this bill">
+                                                <div class="input-group input-group-sm pos-advance-rsinp" style="width: 6.25rem; min-width: 5.25rem;">
+                                                    <span class="input-group-text py-0 px-1 small">Rs</span>
+                                                    <input type="number" class="form-control px-1 py-0 pos-advance-amt-input" id="pos-apply-advance-amount"
+                                                        min="0" step="0.01" value="0" disabled autocomplete="off" placeholder="0" inputmode="decimal">
+                                                </div>
+                                            </div>
+                                            <div id="pos-advance-hint-cell" class="min-w-0 flex-grow-1 align-self-center lh-sm" title="">
+                                                <span id="pos-advance-combined-hint" class="small text-muted text-truncate d-block" style="font-size: 10px;"></span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1188,6 +1204,7 @@
                 </div>
             </div>
         </div>
+
     </div>
 
     <!-- Bootstrap Modal with Tabs and Dynamic Table -->

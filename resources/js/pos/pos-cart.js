@@ -439,6 +439,9 @@ function updateTotals() {
     });
 
     updatePaymentButtonsState();
+    if (typeof window.posRefreshAdvanceApplyUi === 'function') {
+        window.posRefreshAdvanceApplyUi();
+    }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1045,12 +1048,25 @@ function setupGlobalDiscountListeners() {
     }
 }
 
+/**
+ * Same final-total math as updateTotals(), without touching the DOM.
+ * Used by POS advance UI so bill amount matches the cart even if display nodes parse badly (e.g. “Rs.” prefixes).
+ */
+function getLiveFinalTotalFromCart() {
+    const billingBody = document.getElementById('billing-body');
+    if (!billingBody) return 0;
+    const { totalAmount } = calculateRowTotals(billingBody);
+    const totalWithDisc = applyGlobalDiscount(totalAmount);
+    return computeFinalTotal(totalWithDisc);
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    §9  PUBLIC API
    Expose via namespaced API + backward-compatible globals for legacy code.
    ═══════════════════════════════════════════════════════════════════ */
 
 // Namespaced (preferred)
+window.Pos.Cart.getLiveFinalTotalFromCart     = getLiveFinalTotalFromCart;
 window.Pos.Cart.updateTotals                  = updateTotals;
 window.Pos.Cart.attachRowEventListeners       = attachRowEventListeners;
 window.Pos.Cart.handleDiscountToggle          = handleDiscountToggle;
@@ -1075,5 +1091,6 @@ window.updatePriceEditability        = updatePriceEditability;
 window.recalculateDiscountsFromPrice = recalculateDiscountsFromPrice;
 window.showQuantityLimitError        = showQuantityLimitError;
 window.validateAllQuantities         = validateAllQuantities;
+window.getPosLiveFinalTotalFromCart  = getLiveFinalTotalFromCart;
 window.updatePaymentButtonsState     = updatePaymentButtonsState;
 window.setupGlobalDiscountListeners  = setupGlobalDiscountListeners;

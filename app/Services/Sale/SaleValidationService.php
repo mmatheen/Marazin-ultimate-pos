@@ -108,6 +108,7 @@ class SaleValidationService
             'advance_amount'            => 'nullable|numeric|min:0',
             'jobticket_description'     => 'nullable|string',
             // Floating balance
+            'pos_apply_advance_amount'  => 'nullable|numeric|min:0',
             'use_floating_balance'      => 'nullable|boolean',
             'floating_balance_amount'   => 'nullable|numeric|min:0',
             // Shipping
@@ -137,6 +138,13 @@ class SaleValidationService
     {
         if ($request->customer_id != 1) {
             return null;
+        }
+
+        if ((float) ($request->input('pos_apply_advance_amount') ?? 0) > 0.02) {
+            return [
+                'message' => 'Customer advance cannot be applied for Walk-In Customer.',
+                'errors'  => ['pos_apply_advance_amount' => ['Not allowed for walk-in.']],
+            ];
         }
 
         if (!empty($request->payments)) {
@@ -180,8 +188,13 @@ class SaleValidationService
      *
      * Throws \Exception with a detailed message if limit exceeded.
      */
-    public function validateCreditLimit($customer, float $finalTotal, array $payments, string $saleStatus): bool
-    {
+    public function validateCreditLimit(
+        $customer,
+        float $finalTotal,
+        array $payments,
+        string $saleStatus,
+        float $posAdvanceApply = 0.0
+    ): bool {
         // Skip for Walk-In customers
         if ($customer->id == 1) {
             return true;
@@ -201,8 +214,10 @@ class SaleValidationService
         $hasCreditPayment    = false;
         $hasChequePayment    = false;
 
+        $posAdvanceApply = max(0.0, round($posAdvanceApply, 2));
+
         if (!empty($payments)) {
-            $actualPaymentAmount = array_sum(array_column($payments, 'amount'));
+            $actualPaymentAmount = array_sum(array_column($payments, 'amount')) + $posAdvanceApply;
 
             foreach ($payments as $payment) {
                 $paymentMethod = $payment['payment_method'] ?? '';
@@ -215,6 +230,8 @@ class SaleValidationService
                     $hasChequePayment = true;
                 }
             }
+        } elseif ($posAdvanceApply > 0.02) {
+            $actualPaymentAmount = $posAdvanceApply;
         }
 
         // Cheque payments bypass credit limit check
