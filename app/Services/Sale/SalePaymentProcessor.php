@@ -116,6 +116,10 @@ class SalePaymentProcessor
                 $this->processNoPaymentUpdate($sale, $request);
             }
         }
+
+        // ── Final Sync: Ensure sale totals match actual payments ────────────
+        // After any path completes, recalculate from database to guarantee accuracy
+        $this->syncSaleAmountsFromPayments($sale);
     }
 
     // -------------------------------------------------------------------------
@@ -179,30 +183,6 @@ class SalePaymentProcessor
         bool    $isUpdate,
         bool    $customerChanged
     ): void {
-        if ($isUpdate) {
-            $oldPayments = Payment::where('reference_id', $sale->id)
-                ->where('status', '!=', 'deleted')
-                ->get();
-
-            if ($oldPayments->count() > 0) {
-                if ($customerChanged) {
-                    // Ledger already transferred by SaleLedgerManager; soft-delete only
-                    Payment::where('reference_id', $sale->id)
-                        ->where('status', '!=', 'deleted')
-                        ->update([
-                            'status'         => 'deleted',
-                            'payment_status' => 'cancelled',
-                            'notes'          => DB::raw("CONCAT(COALESCE(notes, ''), ' | DELETED: Customer changed during sale edit')"),
-                        ]);
-                } else {
-                    // Same customer — PaymentService handles ledger reversal
-                    foreach ($oldPayments as $oldPayment) {
-                        $this->paymentService->deleteSalePayment($oldPayment, 'Payment updated during sale edit');
-                    }
-                }
-            }
-        }
-
         $paymentsToCreate = collect($request->payments)
             ->filter(fn($p) => !empty($p['amount']) && $p['amount'] > 0);
 
@@ -221,11 +201,94 @@ class SalePaymentProcessor
             })->filter(fn($p) => $p['amount'] > 0);
         }
 
-        foreach ($paymentsToCreate as $paymentData) {
-            $this->paymentService->recordSalePayment(
-                $this->buildServicePaymentData($paymentData, $sale),
-                $sale
-            );
+        $didInPlaceEdit = false;
+
+        if ($isUpdate) {
+            $oldPayments = Payment::where('reference_id', $sale->id)
+                ->where('payment_type', 'sale')
+                ->where('status', '!=', 'deleted')
+                ->get();
+
+            Log::info("🔍 processCreditCustomerPayments() CHECKING FOR IN-PLACE EDIT", [
+                'sale_id' => $sale->id,
+                'customer_changed' => $customerChanged,
+                'old_payments_count' => $oldPayments->count(),
+                'new_payments_count' => $paymentsToCreate->count(),
+                'should_edit_inplace' => !$customerChanged && $oldPayments->count() === 1 && $paymentsToCreate->count() === 1
+            ]);
+
+            // For a simple 1-to-1 payment edit, update the same payment row in-place.
+            // This avoids confusing old-deleted/new-active payment pairs.
+            if (
+                !$customerChanged &&
+                $oldPayments->count() === 1 &&
+                $paymentsToCreate->count() === 1
+            ) {
+                $oldPayment = $oldPayments->first();
+                $paymentData = $paymentsToCreate->first();
+                $incomingMethod = $paymentData['payment_method'] ?? $oldPayment->payment_method;
+
+                Log::info("✅ processCreditCustomerPayments() ATTEMPTING IN-PLACE EDIT", [
+                    'payment_id' => $oldPayment->id,
+                    'old_method' => $oldPayment->payment_method,
+                    'incoming_method' => $incomingMethod,
+                    'methods_match' => $oldPayment->payment_method === $incomingMethod
+                ]);
+
+                if ($oldPayment->payment_method === $incomingMethod) {
+                    Log::info("🔧 processCreditCustomerPayments() CALLING editSalePayment()", [
+                        'payment_id' => $oldPayment->id,
+                        'old_amount' => $oldPayment->amount,
+                        'new_amount' => $paymentData['amount']
+                    ]);
+
+                    $this->paymentService->editSalePayment(
+                        $oldPayment,
+                        $this->buildServicePaymentData($paymentData, $sale)
+                    );
+                    $didInPlaceEdit = true;
+
+                    Log::info("✅ processCreditCustomerPayments() editSalePayment() COMPLETED");
+                } else {
+                    Log::info("⏭️ processCreditCustomerPayments() SKIPPING IN-PLACE EDIT - payment methods differ");
+                }
+            } else {
+                if ($customerChanged) {
+                    Log::info("⏭️ processCreditCustomerPayments() SKIPPING IN-PLACE EDIT - customer changed");
+                } elseif ($oldPayments->count() !== 1 || $paymentsToCreate->count() !== 1) {
+                    Log::info("⏭️ processCreditCustomerPayments() SKIPPING IN-PLACE EDIT - payment count mismatch", [
+                        'old_count' => $oldPayments->count(),
+                        'new_count' => $paymentsToCreate->count()
+                    ]);
+                }
+            }
+
+            if (!$didInPlaceEdit && $oldPayments->count() > 0) {
+                if ($customerChanged) {
+                    // Ledger already transferred by SaleLedgerManager; soft-delete only
+                    Payment::where('reference_id', $sale->id)
+                        ->where('status', '!=', 'deleted')
+                        ->update([
+                            'status'         => 'deleted',
+                            'payment_status' => 'cancelled',
+                            'notes'          => DB::raw("CONCAT(COALESCE(notes, ''), ' | DELETED: Customer changed during sale edit')"),
+                        ]);
+                } else {
+                    // Same customer — PaymentService handles ledger reversal
+                    foreach ($oldPayments as $oldPayment) {
+                        $this->paymentService->deleteSalePayment($oldPayment, 'Payment updated during sale edit');
+                    }
+                }
+            }
+        }
+
+        if (!$didInPlaceEdit) {
+            foreach ($paymentsToCreate as $paymentData) {
+                $this->paymentService->recordSalePayment(
+                    $this->buildServicePaymentData($paymentData, $sale),
+                    $sale
+                );
+            }
         }
 
         // Cheque in-hand counts as received regardless of bank-clearing status.
@@ -270,7 +333,10 @@ class SalePaymentProcessor
      */
     private function processNoPaymentUpdate(Sale $sale, Request $request): void
     {
-        if ($request->has('payments') && empty($request->payments)) {
+        // Only clear existing payments if the client explicitly requested it via
+        // `clear_payments=true`. Previously an absent `payments` array on the
+        // update request could trigger an unintended deletion — guard that.
+        if ($request->boolean('clear_payments')) {
             Payment::where('reference_id', $sale->id)
                 ->where('payment_type', 'sale')
                 ->where('status', '!=', 'deleted')
@@ -291,6 +357,30 @@ class SalePaymentProcessor
             'total_paid'     => $actualTotalPaid,
             'amount_given'   => $amountGiven,
             'balance_amount' => max(0, $amountGiven - $sale->final_total),
+        ]);
+    }
+
+    /**
+     * Sync sale total_paid and total_due from actual active payments in the database.
+     *
+     * Called after payment processing to ensure the sale row always reflects
+     * the true payment total, regardless of which path was taken.
+     *
+     * Excludes deleted/cancelled payments; includes active and edited payments.
+     */
+    private function syncSaleAmountsFromPayments(Sale $sale): void
+    {
+        $actualTotalPaid = (float) Payment::where('reference_id', $sale->id)
+            ->where('payment_type', 'sale')
+            ->where('status', '!=', 'deleted')
+            ->sum('amount');
+
+        $totalDue = max(0.0, (float) $sale->final_total - $actualTotalPaid);
+
+
+        $sale->update([
+            'total_paid' => $actualTotalPaid,
+            'total_due'  => $totalDue,
         ]);
     }
 

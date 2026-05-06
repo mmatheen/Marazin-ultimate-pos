@@ -210,7 +210,6 @@ class SaleReturnController extends Controller
                     // Always recalculate from persisted return-product rows server-side.
                     'return_total' => 0,
                     'total_paid' => 0, // Ensure total_paid is set to 0
-                    'total_due' => 0,
                     'notes' => $request->notes,
                     'is_defective' => $request->is_defective,
                     'stock_type' => $stockType,
@@ -242,11 +241,11 @@ class SaleReturnController extends Controller
             // Recalculate authoritative totals from saved lines (prevents client-side tampering).
             $correctedReturnTotal = (float) SalesReturnProduct::where('sales_return_id', $salesReturn->id)->sum('subtotal');
             $salesReturn->return_total = $correctedReturnTotal;
-            $salesReturn->total_due = max(0, $correctedReturnTotal - (float) ($salesReturn->total_paid ?? 0));
             $salesReturn->save();
+            $salesReturn->refresh();
 
-            // No updateTotalDue() here — the saving hook already set total_due = return_total - 0
-            // on create. The real recalculation happens below after payments are recorded.
+            // No manual total_due write here — the database-generated column updates from return_total and total_paid.
+            // The final payment-status recalculation still happens after payments are recorded.
 
             // Use unified ledger service to record or update the sale return
             if ($id) {

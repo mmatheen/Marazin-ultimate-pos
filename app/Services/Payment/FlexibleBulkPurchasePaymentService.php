@@ -5,6 +5,7 @@ namespace App\Services\Payment;
 use App\Models\Payment;
 use App\Models\Purchase;
 use App\Services\UnifiedLedgerService;
+use App\Services\Sale\SalePaymentStatusService;
 use App\Traits\BulkPaymentHelpers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +16,8 @@ class FlexibleBulkPurchasePaymentService
     use BulkPaymentHelpers;
 
     public function __construct(
-        private readonly UnifiedLedgerService $unifiedLedgerService
+        private readonly UnifiedLedgerService $unifiedLedgerService,
+        private readonly SalePaymentStatusService $salePaymentStatusService
     ) {}
 
     /**
@@ -213,11 +215,10 @@ class FlexibleBulkPurchasePaymentService
         $purchase->save();
         $purchase->refresh();
 
-        $purchase->payment_status = match (true) {
-            $purchase->total_due <= 0 => 'Paid',
-            $purchase->total_paid > 0 => 'Partial',
-            default                   => 'Due',
-        };
+        $purchase->payment_status = $this->salePaymentStatusService->deriveForInvoice(
+            (float) $purchase->final_total,
+            (float) $purchase->total_paid
+        );
         $purchase->save();
     }
 

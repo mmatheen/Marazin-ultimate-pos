@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Shared\ReturnPaymentStatusService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -93,16 +94,8 @@ class SalesReturn extends Model
                 $model->total_paid = $model->payments()->sum('amount');
             }
 
-            $model->total_due = $model->return_total - $model->total_paid;
-
-            // Update payment status based on amounts
-            if ($model->total_paid <= 0) {
-                $model->payment_status = 'Due';
-            } elseif ($model->total_paid >= $model->return_total) {
-                $model->payment_status = 'Paid';
-            } else {
-                $model->payment_status = 'Partial';
-            }
+            $model->payment_status = app(ReturnPaymentStatusService::class)
+                ->derive((float) $model->return_total, (float) $model->total_paid);
         });
     }
 
@@ -123,8 +116,10 @@ class SalesReturn extends Model
     public function updateTotalDue()
     {
         $this->total_paid = $this->payments()->sum('amount');
-        $this->total_due = $this->return_total - $this->total_paid;
         $this->save();
+        $this->refresh();
+
+        return $this;
     }
 
     public function user()

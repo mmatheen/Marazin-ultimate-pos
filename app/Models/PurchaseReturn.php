@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Shared\ReturnPaymentStatusService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -29,13 +30,22 @@ class PurchaseReturn extends Model
     protected static function boot()
     {
         parent::boot();
-        
+
         static::creating(function ($model) {
-            $model->total_due = $model->return_total - $model->total_paid;
+            // total_due is a generated column in the database
         });
-        
+
         static::updating(function ($model) {
-            $model->total_due = $model->return_total - $model->total_paid;
+            // total_due is a generated column in the database
+        });
+
+        static::saving(function ($model) {
+            if (!$model->isDirty('total_paid')) {
+                $model->total_paid = $model->payments()->sum('amount');
+            }
+
+            $model->payment_status = app(ReturnPaymentStatusService::class)
+                ->derive((float) $model->return_total, (float) $model->total_paid);
         });
     }
 
@@ -67,8 +77,10 @@ class PurchaseReturn extends Model
     public function updateTotalDue()
     {
         $this->total_paid = $this->payments()->sum('amount');
-        $this->total_due = $this->return_total - $this->total_paid;
         $this->save();
+        $this->refresh();
+
+        return $this;
     }
 
 }

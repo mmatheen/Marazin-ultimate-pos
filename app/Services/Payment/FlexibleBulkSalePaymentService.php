@@ -6,6 +6,7 @@ use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\SalesReturn;
 use App\Services\CashRegisterService;
+use App\Services\Sale\SaleSettlementService;
 use App\Services\UnifiedLedgerService;
 use App\Helpers\BalanceHelper;
 use App\Traits\BulkPaymentHelpers;
@@ -19,7 +20,8 @@ class FlexibleBulkSalePaymentService
 
     public function __construct(
         private readonly UnifiedLedgerService $unifiedLedgerService,
-        private readonly CashRegisterService $cashRegisterService
+        private readonly CashRegisterService $cashRegisterService,
+        private readonly SaleSettlementService $saleSettlementService
     ) {}
 
     /**
@@ -240,7 +242,7 @@ class FlexibleBulkSalePaymentService
 
                         $payment = Payment::create($paymentData);
                         $createdPaymentIds[] = (int) $payment->id;
-                        $this->unifiedLedgerService->recordSalePayment($payment);
+                        $this->unifiedLedgerService->recordSalePayment($payment, $sale);
 
                         // Apply any return credit allocation for this bill
                         $returnCreditForBill = 0.0;
@@ -526,22 +528,7 @@ class FlexibleBulkSalePaymentService
     {
         $sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->find($saleId);
         if (!$sale) return;
-
-        $totalCashPayments = Payment::where('reference_id', $sale->id)
-            ->where('payment_type', 'sale')
-            ->sum('amount');
-
-        $totalAppliedCredit = Payment::where('reference_id', $sale->id)
-            ->where('payment_type', 'advance_credit_usage')
-            ->sum('amount');
-        $linkedReturnCredit = $this->getAppliedReturnCreditForSale((int) $sale->id);
-
-        // total_paid reflects: cash payments + linked return credits + applied credit (advance/unallocated)
-        // returnCreditForThisSale is handled via SalesReturn total_paid; keep it only for backward compatibility.
-        $sale->total_paid = $totalCashPayments + $totalAppliedCredit + max($linkedReturnCredit, (float) $returnCreditForThisSale);
-        $sale->touch();
-        // Sale::saving syncs payment_status from final_total / total_paid
-        $sale->save();
+        $this->saleSettlementService->syncSale($sale);
     }
 
     private function getAppliedReturnCreditForSale(int $saleId): float

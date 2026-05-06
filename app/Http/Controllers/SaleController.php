@@ -237,7 +237,8 @@ class SaleController extends Controller
                 $transactionType = $request->transaction_type ?? 'invoice';
 
                 // Calculate all monetary amounts and correct product subtotals
-                $amounts = $this->saleAmountCalculator->calculate($request->products, $request, $newStatus);
+                // Pass saleId when updating so payment calculator can account for existing payments
+                $amounts = $this->saleAmountCalculator->calculate($request->products, $request, $newStatus, $isUpdate ? (int) $id : null);
                 $request->merge(['products' => $amounts['corrected_products']]);
 
                 // Resolve invoice / order number

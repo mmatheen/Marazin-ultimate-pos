@@ -733,8 +733,6 @@ class PurchaseController extends Controller
                 'loc_batch_id' => $locationBatch->id,
                 'quantity' => $totalQuantityDifference,
                 'stock_type' => StockHistory::STOCK_TYPE_PURCHASE,
-                'reference_id' => $existingProduct->purchase_id,
-                'reference_type' => 'purchase_edit'
             ]);
 
             $positivePaidQty = max(0, $effectiveQuantityDifference);
@@ -1190,6 +1188,10 @@ class PurchaseController extends Controller
                         (int) ($purchaseProduct->location_id ?: $purchase->location_id)
                     );
                 }
+
+                // ✅ CRITICAL: Reverse all ledger entries BEFORE deleting purchase
+                // This ensures supplier account is properly credited back and audit trail is maintained
+                $this->unifiedLedgerService->deletePurchaseLedger($purchase);
 
                 // If this purchase is a free-claim receipt, sync the original purchase claim status.
                 $originalClaimId = $purchase->claim_reference_id;

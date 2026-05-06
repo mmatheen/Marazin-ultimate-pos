@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Log;
 use App\Services\CashRegisterService;
 use App\Services\PaymentService;
 use App\Services\UnifiedLedgerService;
+use App\Services\Sale\SaleSettlementService;
 use App\Services\ChequeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -37,19 +38,22 @@ class PaymentController extends Controller
     protected $cashRegisterService;
     protected $flexibleBulkSalePaymentService;
     protected $flexibleBulkPurchasePaymentService;
+    protected $saleSettlementService;
 
     function __construct(
         PaymentService $paymentService,
         UnifiedLedgerService $unifiedLedgerService,
         CashRegisterService $cashRegisterService,
         FlexibleBulkSalePaymentService $flexibleBulkSalePaymentService,
-        FlexibleBulkPurchasePaymentService $flexibleBulkPurchasePaymentService
+        FlexibleBulkPurchasePaymentService $flexibleBulkPurchasePaymentService,
+        SaleSettlementService $saleSettlementService
     ) {
         $this->paymentService = $paymentService;
         $this->unifiedLedgerService = $unifiedLedgerService;
         $this->cashRegisterService = $cashRegisterService;
         $this->flexibleBulkSalePaymentService = $flexibleBulkSalePaymentService;
         $this->flexibleBulkPurchasePaymentService = $flexibleBulkPurchasePaymentService;
+        $this->saleSettlementService = $saleSettlementService;
 
         // Standard payment permissions
         $this->middleware('permission:view payments', ['only' => ['index', 'show']]);
@@ -64,6 +68,17 @@ class PaymentController extends Controller
         // Cheque management methods are accessible to all authenticated users for now
         // Methods: chequeManagement, updateChequeStatus, bulkUpdateChequeStatus, chequeStatusHistory, getFloatingBalance
         // TODO: Add specific cheque management permissions later if needed
+    }
+
+    private function applyPaymentStatus($model): void
+    {
+        if ($model->total_due <= 0) {
+            $model->payment_status = 'Paid';
+        } elseif ($model->total_paid > 0) {
+            $model->payment_status = 'Partial';
+        } else {
+            $model->payment_status = 'Due';
+        }
     }
 
     public function index()
@@ -176,16 +191,9 @@ class PaymentController extends Controller
             // Only update total_paid - total_due is generated automatically
             $sale->total_paid += $appliedAmount;
 
-            // Calculate new total_due for payment status logic
-            $newTotalDue = $sale->final_total - $sale->total_paid;
-
-            // Update payment status
-            if ($newTotalDue <= 0) {
-                $sale->payment_status = 'Paid';
-            } elseif ($sale->total_paid > 0) {
-                $sale->payment_status = 'Partial';
-            }
-
+            $sale->save();
+            $sale->refresh();
+            $this->applyPaymentStatus($sale);
             $sale->save();
 
             // Create a payment record for the advance application
@@ -509,15 +517,7 @@ class PaymentController extends Controller
 
             $purchase->total_paid += $appliedAmount;
             // Don't update total_due directly as it might be a generated column
-
-            // Calculate new total_due
-            $newTotalDue = $purchase->final_total - $purchase->total_paid;
-
-            if ($newTotalDue <= 0) {
-                $purchase->payment_status = 'Paid';
-            } elseif ($purchase->total_paid > 0) {
-                $purchase->payment_status = 'Partial';
-            }
+            $this->applyPaymentStatus($purchase);
 
             $purchase->save();
 
@@ -679,7 +679,9 @@ class PaymentController extends Controller
             if (!$isUpdate) {
                 // For new payments, record normally
                 try {
-                    $this->unifiedLedgerService->recordSalePayment($payment);
+                    // ✅ FIX: Fetch Sale object if reference_id exists to show proper invoice number in ledger
+                    $sale = $payment->reference_id ? Sale::find($payment->reference_id) : null;
+                    $this->unifiedLedgerService->recordSalePayment($payment, $sale);
                 } catch (\Exception $e) {
                     Log::error('Failed to record sale payment in ledger', [
                         'payment_id' => $payment->id,
@@ -749,61 +751,6 @@ class PaymentController extends Controller
                 $this->updateSupplierBalance($payment->supplier_id);
             }
         }
-    }
-
-    private function updateSaleTable($saleId, $returnCreditForThisSale = 0)
-    {
-        // ✅ Bypass LocationScope: sale updates during payment should work across all locations
-        $sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->find($saleId);
-        if ($sale) {
-            // ✅ Calculate total CASH payments from payments table
-            $totalCashPayments = Payment::where('reference_id', $sale->id)
-                ->where('payment_type', 'sale')
-                ->sum('amount');
-
-            // Preserve already-applied non-cash credits and include linked return credits.
-            // This prevents later bulk payments from wiping previous return-credit settlement.
-            $existingNonCashCredit = max(0, (float) $sale->total_paid - (float) $totalCashPayments);
-            $linkedReturnCredit = $this->getAppliedReturnCreditForSale((int) $sale->id);
-            $effectiveReturnCredit = max(
-                $existingNonCashCredit,
-                (float) $returnCreditForThisSale,
-                $linkedReturnCredit
-            );
-            $sale->total_paid = $totalCashPayments + $effectiveReturnCredit;
-            $sale->save();
-
-            Log::info('Sale table updated', [
-                'sale_id' => $sale->id,
-                'invoice_no' => $sale->invoice_no,
-                'cash_payments' => $totalCashPayments,
-                'return_credit_this_txn' => $returnCreditForThisSale,
-                'linked_return_credit' => $linkedReturnCredit,
-                'effective_return_credit' => $effectiveReturnCredit,
-                'total_paid' => $sale->total_paid,
-                'total_due' => $sale->total_due,
-                'payment_status' => $sale->payment_status
-            ]);
-        }
-    }
-
-    private function getAppliedReturnCreditForSale(int $saleId): float
-    {
-        $returns = SalesReturn::where('sale_id', $saleId)->get(['id', 'total_paid']);
-        if ($returns->isEmpty()) {
-            return 0.0;
-        }
-
-        $totalReturnPaid = (float) $returns->sum(function ($return) {
-            return (float) $return->total_paid;
-        });
-
-        // Cash-refunded amounts are payment rows. The remaining paid portion is what settled invoices.
-        $cashRefunded = Payment::whereIn('reference_id', $returns->pluck('id')->all())
-            ->where('payment_type', 'sale_return_with_bill')
-            ->sum('amount');
-
-        return max(0.0, $totalReturnPaid - (float) $cashRefunded);
     }
 
     private function updateCustomerBalance($customerId)
@@ -927,6 +874,25 @@ class PaymentController extends Controller
             ], 500);
         }
     }
+    private function updateSaleTable($saleId, $returnCreditForThisSale = 0)
+    {
+        $sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->find($saleId);
+        if ($sale) {
+            $settlement = $this->saleSettlementService->syncSale($sale);
+
+            Log::info('Sale table updated', [
+                'sale_id' => $sale->id,
+                'invoice_no' => $sale->invoice_no,
+                'sale_payments' => $settlement['sale_payments'],
+                'advance_credit_usage' => $settlement['advance_credit_usage'],
+                'return_credit' => $settlement['return_credit'],
+                'total_paid' => $settlement['calculated_total_paid'],
+                'total_due' => $settlement['calculated_total_due'],
+                'payment_status' => $settlement['calculated_payment_status'],
+            ]);
+        }
+    }
+
     private function refreshSaleTableAfterDeletion(int $saleId): void
     {
         $sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->find($saleId);
@@ -934,180 +900,34 @@ class PaymentController extends Controller
             return;
         }
 
-        $totalCashPayments = Payment::where('reference_id', $sale->id)
-            ->where('payment_type', 'sale')
-            ->where('status', '!=', 'deleted')
-            ->where(function ($query) {
-                $query->whereNull('payment_status')
-                    ->orWhereNotIn('payment_status', ['cancelled']);
-            })
-            ->sum('amount');
-
-        $linkedReturnCredit = $this->getAppliedReturnCreditForSale((int) $sale->id);
-
-        $sale->total_paid = $totalCashPayments + $linkedReturnCredit;
-        $sale->save();
+        $settlement = $this->saleSettlementService->syncSale($sale);
 
         Log::info('Sale table refreshed after payment deletion', [
             'sale_id' => $sale->id,
             'invoice_no' => $sale->invoice_no,
-            'cash_payments' => $totalCashPayments,
-            'linked_return_credit' => $linkedReturnCredit,
-            'total_paid' => $sale->total_paid,
-            'total_due' => $sale->total_due,
-            'payment_status' => $sale->payment_status,
+            'sale_payments' => $settlement['sale_payments'],
+            'advance_credit_usage' => $settlement['advance_credit_usage'],
+            'return_credit' => $settlement['return_credit'],
+            'total_paid' => $settlement['calculated_total_paid'],
+            'total_due' => $settlement['calculated_total_due'],
+            'payment_status' => $settlement['calculated_payment_status'],
         ]);
     }
 
-    // Bulk payment functions for sales (customer) and purchases (supplier)
-    public function submitBulkPayment(Request $request)
-    {
-        $data = $request->validate($this->getBulkPaymentValidationRules($request));
-
-        $entity = $this->validateEntity($data['entity_type'], $data['entity_id']);
-        $paymentType = $data['payment_type'] ?? 'both';
-
-        // Calculate the appropriate maximum amount based on payment type
-        // Use current_balance (ledger-based) instead of opening_balance (table)
-        $maxAmount = $this->calculateMaxPaymentAmount($data['entity_type'], $entity->id, $entity->current_balance, $paymentType);
-
-        if ($data['global_amount'] > $maxAmount) {
-            return response()->json(['error' => 'Global amount exceeds total due amount'], 400);
-        }
-
-        DB::transaction(function () use ($entity, $data, $request) {
-            $paymentType = $data['payment_type'] ?? 'both';
-            $paymentMethod = $data['payment_method'] ?? 'cash';
-            $remainingAmount = $data['global_amount'] ?? 0;
-
-            if ($paymentType === 'opening_balance') {
-                // Only settle opening balance
-                $this->reduceEntityOpeningBalance($entity, $remainingAmount, $paymentMethod, $request);
-            } elseif ($paymentType === 'sale_dues' || $paymentType === 'purchase_dues') {
-                // Only pay against sales/purchases
-                $this->applyGlobalAmountToReferences($entity, $remainingAmount, $data, $request);
-                $this->handleIndividualPayments($entity, $data, $request);
-            } elseif ($paymentType === 'all') {
-                // All - process returns first, then opening balance, then sales
-                $this->processReturnRefunds($entity, $request);
-                $this->reduceEntityOpeningBalance($entity, $remainingAmount, $paymentMethod, $request);
-                $this->applyGlobalAmountToReferences($entity, $remainingAmount, $data, $request);
-                $this->handleIndividualPayments($entity, $data, $request);
-            } else {
-                // Both - opening balance first, then sales
-                $this->reduceEntityOpeningBalance($entity, $remainingAmount, $paymentMethod, $request);
-                $this->applyGlobalAmountToReferences($entity, $remainingAmount, $data, $request);
-                $this->handleIndividualPayments($entity, $data, $request);
-            }
-        });
-
-        return response()->json(['message' => 'Payments submitted successfully.']);
-    }
-
-    /**
-     * Process return refunds and apply credits to sales
-     */
-    private function processReturnRefunds($entity, $request)
-    {
-        $returns = $request->input('selected_returns', []);
-        if (empty($returns)) {
-            return;
-        }
-
-        foreach ($returns as $returnData) {
-            $returnId = $returnData['return_id'];
-            $returnAmount = $returnData['amount'];
-            $action = $returnData['action'] ?? 'apply_to_sales';
-
-            $salesReturn = SalesReturn::findOrFail($returnId);
-
-            if ($action === 'apply_to_sales') {
-                // Apply return credit to sales - just mark return as applied
-                // DO NOT create a Payment record here because it causes double counting
-                // The return credit is already included in sale's total_paid via updateSaleTable()
-
-                // Update return payment status to mark it as applied
-                $salesReturn->total_paid = ($salesReturn->total_paid ?? 0) + $returnAmount;
-                $salesReturn->payment_status = $salesReturn->total_due <= 0 ? 'Paid' : 'Partial';
-                $salesReturn->save();
-
-                Log::info('Return credit applied to sales', [
-                    'return_id' => $returnId,
-                    'customer_id' => $entity->id,
-                    'amount' => $returnAmount,
-                    'note' => 'No payment record created - credit tracked via return total_paid only'
-                ]);
-
-            } elseif ($action === 'cash_refund') {
-                $locationId = (int) $salesReturn->location_id;
-                $userId = (int) Auth::id();
-                $register = $this->cashRegisterService->getCurrentOpenRegister($locationId, $userId);
-                $cashRegisterId = $register?->id;
-
-                // Issue cash refund
-                $payment = new Payment();
-                $payment->payment_date = $request->input('paid_on', now());
-                $payment->amount = $returnAmount;
-                $payment->payment_method = $request->input('payment_method', 'cash');
-                $payment->payment_type = $salesReturn->stock_type === 'with_bill'
-                    ? 'sale_return_with_bill'
-                    : 'sale_return_without_bill';
-                $payment->reference_id = $salesReturn->id;
-                $payment->reference_no = $salesReturn->invoice_number;
-                $payment->cash_register_id = $cashRegisterId;
-                $payment->customer_id = $entity->id;
-                $payment->notes = 'Cash refund for return (Bulk Payment)';
-                $payment->created_by = Auth::id();
-
-                // Copy payment method specific fields if provided
-                $this->copyPaymentMethodFields($payment, $request);
-
-                $payment->save();
-
-                if ($register) {
-                    $this->cashRegisterService->recordRefundCash(
-                        $register,
-                        (int) $salesReturn->id,
-                        $returnAmount,
-                        (int) $payment->id
-                    );
-                }
-
-                // Update return payment status
-                $salesReturn->total_paid = ($salesReturn->total_paid ?? 0) + $returnAmount;
-                $salesReturn->payment_status = $salesReturn->total_due <= 0 ? 'Paid' : 'Partial';
-                $salesReturn->save();
-
-                // Record in ledger
-                $this->unifiedLedgerService->recordReturnPayment(
-                    $payment,
-                    'customer',
-                    $entity->id
-                );
-
-                Log::info('Cash refund issued for return', [
-                    'return_id' => $returnId,
-                    'customer_id' => $entity->id,
-                    'amount' => $returnAmount,
-                    'payment_method' => $payment->payment_method
-                ]);
-            }
-        }
-    }
-
-    /**
-     * Copy payment method specific fields from request to payment
-     */
     private function copyPaymentMethodFields($payment, $request)
     {
         if ($payment->payment_method === 'cheque') {
             $payment->cheque_number = $request->input('cheque_number');
             $payment->cheque_bank_branch = $request->input('cheque_bank_branch');
+            $payment->cheque_received_date = $request->input('cheque_received_date');
             $payment->cheque_valid_date = $request->input('cheque_valid_date');
             $payment->cheque_given_by = $request->input('cheque_given_by');
         } elseif ($payment->payment_method === 'card') {
             $payment->card_number = $request->input('card_number');
             $payment->card_holder = $request->input('card_holder');
+            $payment->card_expiry_month = $request->input('card_expiry_month');
+            $payment->card_expiry_year = $request->input('card_expiry_year');
+            $payment->card_security_code = $request->input('card_security_code');
         } elseif ($payment->payment_method === 'bank_transfer') {
             $payment->bank_account_number = $request->input('bank_account_number');
         }
@@ -1214,13 +1034,7 @@ class PaymentController extends Controller
 
                                 // Refresh and update payment status
                                 $sale->refresh();
-                                if ($sale->total_due <= 0) {
-                                    $sale->payment_status = 'Paid';
-                                } elseif ($sale->total_paid > 0) {
-                                    $sale->payment_status = 'Partial';
-                                } else {
-                                    $sale->payment_status = 'Due';
-                                }
+                                        $this->applyPaymentStatus($sale);
                                 $sale->save();
 
                                 $affectedSales[] = [
@@ -1594,7 +1408,8 @@ class PaymentController extends Controller
 
         // Use unified ledger service for bulk payment ledger entries
         if ($entityType === 'customer') {
-            $this->unifiedLedgerService->recordSalePayment($payment);
+            // ✅ FIX: Pass the actual Sale object so ledger shows specific invoice number
+            $this->unifiedLedgerService->recordSalePayment($payment, $reference);
             $this->updateSaleTable($reference->id);
             $this->updateCustomerBalance($entityId);
         } else {
@@ -1620,13 +1435,8 @@ class PaymentController extends Controller
             $purchase->refresh();
 
             // Calculate payment status based on the database generated total_due
-            if ($purchase->total_due <= 0) {
-                $purchase->payment_status = 'Paid';
-            } elseif ($purchase->total_paid > 0) {
-                $purchase->payment_status = 'Partial';
-            } else {
-                $purchase->payment_status = 'Due';
-            }
+            // total_due is generated by the database; do not assign it here.
+            $this->applyPaymentStatus($purchase);
 
             $purchase->save();
         }
@@ -1648,13 +1458,7 @@ class PaymentController extends Controller
             $purchaseReturn->refresh();
 
             // Calculate payment status based on the database generated total_due
-            if ($purchaseReturn->total_due <= 0) {
-                $purchaseReturn->payment_status = 'Paid';
-            } elseif ($purchaseReturn->total_paid > 0) {
-                $purchaseReturn->payment_status = 'Partial';
-            } else {
-                $purchaseReturn->payment_status = 'Due';
-            }
+            $this->applyPaymentStatus($purchaseReturn);
 
             $purchaseReturn->save();
         }
@@ -1676,13 +1480,7 @@ class PaymentController extends Controller
             $salesReturn->refresh();
 
             // Calculate payment status based on the database generated total_due
-            if ($salesReturn->total_due <= 0) {
-                $salesReturn->payment_status = 'Paid';
-            } elseif ($salesReturn->total_paid > 0) {
-                $salesReturn->payment_status = 'Partial';
-            } else {
-                $salesReturn->payment_status = 'Due';
-            }
+            $this->applyPaymentStatus($salesReturn);
 
             $salesReturn->save();
         }

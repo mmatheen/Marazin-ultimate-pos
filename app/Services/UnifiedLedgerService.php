@@ -214,16 +214,16 @@ class UnifiedLedgerService
             return null;
         }
 
-        // ✅ CRITICAL FIX: For bulk payments, append payment ID to reference to ensure unique ledger entries
-        // This prevents duplicate detection from incorrectly skipping legitimate payments
+        // ✅ CRITICAL FIX: For bulk payments, use actual invoice number in notes instead of bulk reference
+        // If a sale object is provided, use its invoice_no for clarity in ledger notes
+        // Otherwise, use the payment reference_no (e.g., BLK-S1422 for bulk payments)
+        $invoiceNumberForNotes = $sale ? $sale->invoice_no : $payment->reference_no;
         $baseReferenceNo = $payment->reference_no ?: ($sale ? $sale->invoice_no : 'PAY-' . $payment->id);
         $referenceNo = $this->resolvePaymentLedgerReference($payment, $sale ? $sale->invoice_no : null);
 
-        // Use the user-entered payment_date (not system created_at).
-        // payment_date is cast as 'date' — a plain Y-m-d already in Asia/Colombo time.
-        // Use Carbon::parse($date, $tz) to INTERPRET (no shift), NOT ->setTimezone() which CONVERTS from UTC.
-        $transactionDate = $payment->payment_date
-            ? Carbon::parse($payment->payment_date, 'Asia/Colombo')
+        // Use the actual creation timestamp so ledger ordering reflects the real edit/create time.
+        $transactionDate = $payment->created_at
+            ? Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo')
             : Carbon::now('Asia/Colombo');
 
         // ✅ SPECIAL HANDLING: Discount payment method should be recorded as 'discount_given', not 'payments'
@@ -240,7 +240,7 @@ class UnifiedLedgerService
             'reference_no' => $referenceNo,
             'transaction_type' => $transactionType,
             'amount' => $payment->amount,
-            'notes' => $payment->notes ?: "Payment for sale #{$baseReferenceNo}",
+            'notes' => $payment->notes ?: "Payment for sale #{$invoiceNumberForNotes}",
             'created_by' => $createdBy
         ]);
     }
@@ -345,20 +345,12 @@ class UnifiedLedgerService
      */
     public function recordReturnPayment($payment, $contactType)
     {
-        // Use the user-entered payment_date (cast as 'date', already Asia/Colombo — interpret not convert)
-        $transactionDate = $payment->payment_date
-            ? Carbon::parse($payment->payment_date, 'Asia/Colombo')
-            : Carbon::now('Asia/Colombo');
-
-        return Ledger::createEntry([
-            'contact_id' => $contactType === 'customer' ? $payment->customer_id : $payment->supplier_id,
-            'contact_type' => $contactType,
-            'transaction_date' => $transactionDate, // Use normalized date
-            'reference_no' => $payment->reference_no,
-            'transaction_type' => 'payments',
-            'amount' => $payment->amount,
-            'notes' => 'Return payment - ' . ($payment->notes ?: "Payment for returned items")
-        ]);
+        return $this->createReturnLedgerEntry(
+            $payment,
+            $contactType,
+            'payments',
+            'Return payment - ' . ($payment->notes ?: 'Payment for returned items')
+        );
     }
 
     /**
@@ -366,19 +358,30 @@ class UnifiedLedgerService
      */
     public function recordReturnCreditApplication($payment, $contactType)
     {
-        // Use the user-entered payment_date (cast as 'date', already Asia/Colombo — interpret not convert)
-        $transactionDate = $payment->payment_date
-            ? Carbon::parse($payment->payment_date, 'Asia/Colombo')
-            : Carbon::now('Asia/Colombo');
+        return $this->createReturnLedgerEntry(
+            $payment,
+            $contactType,
+            'payments',
+            $payment->notes ?: 'Credit adjustment applied to outstanding sales'
+        );
+    }
+
+    /**
+     * Build the shared ledger entry used by return payment flows.
+     */
+    private function createReturnLedgerEntry($payment, $contactType, $transactionType, $notes)
+    {
+        // Use the edit timestamp so reversal/new entries are ordered where the edit happened.
+        $transactionDate = Carbon::now('Asia/Colombo');
 
         return Ledger::createEntry([
             'contact_id' => $contactType === 'customer' ? $payment->customer_id : $payment->supplier_id,
             'contact_type' => $contactType,
             'transaction_date' => $transactionDate,
             'reference_no' => $payment->reference_no,
-            'transaction_type' => 'payments',
+            'transaction_type' => $transactionType,
             'amount' => $payment->amount,
-            'notes' => $payment->notes ?: 'Credit adjustment applied to outstanding sales'
+            'notes' => $notes,
         ]);
     }
 
@@ -410,13 +413,14 @@ class UnifiedLedgerService
     {
         // $bounceDate is user-entered — already Asia/Colombo. Interpret not convert.
         $transactionDate = Carbon::parse($bounceDate, 'Asia/Colombo');
+        $referenceNo = 'BOUNCE-' . $payment->cheque_number . '-' . $payment->id;
 
         return Ledger::createEntry([
             'contact_id' => $payment->customer_id ?? $payment->supplier_id,
             'contact_type' => $payment->customer_id ? 'customer' : 'supplier',
             'transaction_date' => $transactionDate,
             'transaction_type' => 'cheque_bounce',
-            'reference_no' => 'BOUNCE-' . $payment->cheque_number,
+            'reference_no' => $referenceNo,
             'amount' => $payment->amount,
             'notes' => "Cheque bounce: {$payment->cheque_number} - {$bounceReason}",
             'created_by' => $createdBy
@@ -736,7 +740,7 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
             'method'         => 'clean_reversal_accounting_v2'
         ];
     });
-} 
+}
 
     /**
      * Get customer balance summary for reporting
@@ -1095,6 +1099,10 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
                 return $ledger;
             });
 
+        if ($showFullHistory) {
+            $ledgerTransactions = $this->sortLedgerTransactionsForAuditTrail($ledgerTransactions);
+        }
+
         // Calculate running balance properly based on what entries are included
         $runningBalance = 0;
 
@@ -1315,6 +1323,10 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
             ->orderBy('created_at', 'asc') // Order by created_at ascending (chronological order)
             ->orderBy('id', 'asc') // Secondary sort by ID for same-date transactions (chronological)
             ->get();
+
+        if ($showFullHistory) {
+            $ledgerTransactions = $this->sortLedgerTransactionsForAuditTrail($ledgerTransactions);
+        }
 
         // For normal view, entries are already filtered by status in query
         // For full audit trail, show everything
@@ -2061,12 +2073,12 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
     public function updatePurchase($purchase, $oldReferenceNo = null)
     {
         return DB::transaction(function () use ($purchase, $oldReferenceNo) {
-            $referenceNo = $oldReferenceNo ?: ('PUR-' . $purchase->id);
+            $referenceNo = $oldReferenceNo ?: ($purchase->reference_no ?: ('PUR-' . $purchase->id));
 
             // ✅ ENHANCED: Handle supplier changes and payment reassignments in UnifiedLedgerService
             // First check if there are any existing ledger entries for this purchase
             $existingEntries = Ledger::where('reference_no', $referenceNo)
-                ->whereIn('transaction_type', ['purchase', 'payments'])
+                ->whereIn('transaction_type', ['purchase', 'purchase_payment'])
                 ->where('status', 'active')
                 ->get();
 
@@ -2092,7 +2104,7 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
 
                     // Reassign all payments to new supplier
                     $payments = Payment::where('reference_id', $purchase->id)
-                        ->where('payment_type', 'purchase')
+                        ->where('payment_type', 'purchase_payment')
                         ->where('supplier_id', $oldSupplierId)
                         ->get();
 
@@ -2127,20 +2139,26 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
                 ]);
 
                 // Create reversal entry to maintain audit trail
+                $reversalType = null;
                 $reversalAmount = 0;
+
                 if ($entry->transaction_type === 'purchase') {
-                    $reversalAmount = -$entry->credit; // Reverse the credit
-                } else if ($entry->transaction_type === 'payments') {
-                    $reversalAmount = $entry->debit; // Reverse the debit
+                    // Original purchase is CREDIT, so reversal must be DEBIT
+                    $reversalType = 'purchase_adjustment';
+                    $reversalAmount = $entry->credit;
+                } elseif ($entry->transaction_type === 'purchase_payment') {
+                    // Original purchase payment is DEBIT, so reversal must be CREDIT
+                    $reversalType = 'payment_adjustment';
+                    $reversalAmount = -$entry->debit;
                 }
 
-                if ($reversalAmount != 0) {
+                if ($reversalType && $reversalAmount != 0) {
                     Ledger::createEntry([
                         'contact_id' => $entry->contact_id, // Keep original supplier for reversal
                         'contact_type' => 'supplier',
                         'transaction_date' => Carbon::now('Asia/Colombo'),
                         'reference_no' => $referenceNo . '-REV-' . $entry->id . '-' . time(),
-                        'transaction_type' => $entry->transaction_type,
+                        'transaction_type' => $reversalType,
                         'amount' => $reversalAmount,
                         'status' => 'reversed',
                         'notes' => 'REVERSAL: Purchase Update - ' .
@@ -2391,13 +2409,16 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
     public function deletePurchaseLedger($purchase)
     {
         return DB::transaction(function () use ($purchase) {
-            $referenceNo = 'PUR-' . $purchase->id;
+            // ✅ CRITICAL: Use purchase->reference_no which has the correct format (PUR001, PUR002, etc)
+            // Not 'PUR-' . $purchase->id which would be PUR-1, PUR-2 (wrong format)
+            $referenceNo = $purchase->reference_no ?: ('PUR-' . $purchase->id);
 
             // ✅ FIXED: Proper reversal accounting for deletion
             // Step 1: Find and mark original entries as reversed
+            // CRITICAL: Use 'purchase_payment' not 'payments' - recordPurchasePayment() uses 'purchase_payment' type
             $originalEntries = Ledger::where('reference_no', $referenceNo)
                 ->where('contact_id', $purchase->supplier_id)
-                ->whereIn('transaction_type', ['purchase', 'payments'])
+                ->whereIn('transaction_type', ['purchase', 'purchase_payment'])
                 ->where('status', 'active')
                 ->get();
 
@@ -2813,6 +2834,73 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
     }
 
     /**
+     * Sort audit-trail entries into a human-readable edit sequence.
+     */
+    private function sortLedgerTransactionsForAuditTrail($transactions)
+    {
+        return $transactions->sortBy(function ($ledger) {
+            $groupKey = $this->getAuditTrailGroupKey($ledger);
+            $priority = $this->getAuditTrailSortPriority($ledger);
+            $timestamp = $ledger->created_at
+                ? Carbon::parse($ledger->created_at)->format('YmdHis')
+                : '00000000000000';
+            $id = str_pad((string) ($ledger->id ?? 0), 10, '0', STR_PAD_LEFT);
+
+            return $groupKey . '|' . str_pad((string) $priority, 2, '0', STR_PAD_LEFT) . '|' . $timestamp . '|' . $id;
+        })->values();
+    }
+
+    /**
+     * Group all audit rows that belong to the same invoice/payment edit chain.
+     */
+    private function getAuditTrailGroupKey($ledger): string
+    {
+        $referenceNo = (string) ($ledger->reference_no ?? '');
+        $groupKey = preg_replace('/-REV.*$/', '', $referenceNo) ?? $referenceNo;
+        $groupKey = str_replace(['-OLD', '-DELETED'], '', $groupKey);
+
+        return $groupKey;
+    }
+
+    /**
+     * Prioritize audit rows so each edit chain reads in the expected business order.
+     */
+    private function getAuditTrailSortPriority($ledger): int
+    {
+        $referenceNo = $ledger->reference_no ?? '';
+        $transactionType = $ledger->transaction_type ?? '';
+        $notes = $ledger->notes ?? '';
+        $status = $ledger->status ?? null;
+
+        // Original rows (before the edit chain) first.
+        if ($status === 'reversed' && !str_contains($referenceNo, '-REV')) {
+            return 10;
+        }
+
+        // Sale reversal row.
+        if (str_contains($referenceNo, '-REV') && str_starts_with($notes, 'REVERSAL: Sale Edit')) {
+            return 20;
+        }
+
+        // Payment reversal row.
+        if (str_contains($referenceNo, '-REV') && str_starts_with($notes, 'REVERSAL: Payment Edit')) {
+            return 30;
+        }
+
+        // New sale created after the edit.
+        if ($status === 'active' && $transactionType === 'sale') {
+            return 40;
+        }
+
+        // New payment created after the edit.
+        if ($status === 'active' && in_array($transactionType, ['payments', 'sale_payment', 'purchase_payment', 'discount_given'], true)) {
+            return 50;
+        }
+
+        return 60;
+    }
+
+    /**
      * Get enhanced transaction description for audit trail
      */
     private function getEnhancedTransactionDescription($ledger)
@@ -2857,6 +2945,16 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
             $contactType = $payment->customer_id ? 'customer' : 'supplier';
             $contactId = $payment->customer_id ?: $payment->supplier_id;
 
+            Log::info("🔧 editPayment() STARTED", [
+                'payment_id' => $payment->id,
+                'reference_no' => $referenceNo,
+                'contact_id' => $contactId,
+                'contact_type' => $contactType,
+                'old_amount' => $oldAmount,
+                'new_amount' => $newAmount,
+                'edit_reason' => $editReason
+            ]);
+
             // Step 1: Mark original payment entry as REVERSED
             $originalEntry = Ledger::where('reference_no', $referenceNo)
                 ->where('contact_id', $contactId)
@@ -2866,10 +2964,31 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
                 ->orderBy('created_at', 'desc')
                 ->first();
 
+            Log::info("🔍 editPayment() searching for original entry", [
+                'reference_no' => $referenceNo,
+                'contact_id' => $contactId,
+                'contact_type' => $contactType,
+                'payment_types' => $this->getPaymentLedgerTransactionTypes(),
+                'original_entry_found' => $originalEntry ? 'YES (ID: ' . $originalEntry->id . ')' : 'NO'
+            ]);
+
             if ($originalEntry) {
                 $originalEntry->update([
                     'status' => 'reversed',
                     'notes' => $originalEntry->notes . ' [REVERSED: Payment edited on ' . now()->format('Y-m-d H:i:s') . ']'
+                ]);
+
+                Log::info("✅ editPayment() marked original entry as REVERSED", [
+                    'entry_id' => $originalEntry->id,
+                    'old_status' => 'active',
+                    'new_status' => 'reversed'
+                ]);
+            } else {
+                Log::warning("❌ editPayment() FAILED: Original entry NOT FOUND", [
+                    'reference_no' => $referenceNo,
+                    'contact_id' => $contactId,
+                    'contact_type' => $contactType,
+                    'payment_id' => $payment->id
                 ]);
             }
 
@@ -2886,6 +3005,12 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
                 'created_by' => $editedBy
             ]);
 
+            Log::info("📝 editPayment() created reversal entry", [
+                'reversal_entry_id' => $reversalEntry->id,
+                'reference_no' => $reversalEntry->reference_no,
+                'amount' => $reversalEntry->amount
+            ]);
+
             // Step 3: Create NEW payment entry with correct amount
             $newPaymentEntry = Ledger::createEntry([
                 'contact_id' => $contactId,
@@ -2899,13 +3024,20 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
                 'created_by' => $editedBy
             ]);
 
-            Log::info("Perfect reversal accounting completed for payment edit", [
+            Log::info("📝 editPayment() created new payment entry", [
+                'new_entry_id' => $newPaymentEntry->id,
+                'reference_no' => $newPaymentEntry->reference_no,
+                'amount' => $newPaymentEntry->amount
+            ]);
+
+            Log::info("✅ Perfect reversal accounting completed for payment edit", [
                 'payment_id' => $payment->id,
                 'contact_id' => $contactId,
                 'contact_type' => $contactType,
                 'reference_no' => $referenceNo,
                 'old_amount' => $oldAmount,
                 'new_amount' => $newAmount,
+                'original_entry_id' => $originalEntry ? $originalEntry->id : null,
                 'reversal_entry_id' => $reversalEntry->id,
                 'new_entry_id' => $newPaymentEntry->id
             ]);

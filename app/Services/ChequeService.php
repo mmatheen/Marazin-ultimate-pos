@@ -508,30 +508,29 @@ class ChequeService
             return [];
         }
 
-        // 1. Create bounced cheque debit entry (increases customer floating balance)
+        // ✅ 1. Use UnifiedLedgerService to create bounced cheque entry (centralized ledger management)
         $invoiceReference = $payment->reference_no ?: ($payment->sale->invoice_no ?? 'N/A');
+        $bounceEntry = $this->unifiedLedgerService->recordChequeBounce(
+            $payment,
+            $transactionDate,
+            "Cheque bounce - {$payment->cheque_number} (Ref {$invoiceReference} remains settled)",
+            $userId
+        );
+        if ($bounceEntry) {
+            $ledgerEntries[] = $bounceEntry;
+        }
 
-        $bounceEntry = Ledger::createEntry([
-            'contact_id' => $payment->customer_id,  // ✅ FIX: Use contact_id instead of user_id
-            'contact_type' => 'customer',
-            'transaction_date' => $transactionDate,
-            'reference_no' => $referenceNo,
-            'transaction_type' => 'cheque_bounce',
-            'amount' => $payment->amount,
-            'notes' => "Cheque bounce - {$payment->cheque_number} (Ref {$invoiceReference} remains settled)"
-        ]);
-        $ledgerEntries[] = $bounceEntry;
-
-        // 2. Add bank charges as separate debit entry
+        // ✅ 2. Add bank charges as separate ledger entry (also through UnifiedLedgerService for consistency)
         if ($bankCharges > 0) {
             $chargesEntry = Ledger::createEntry([
-                'contact_id' => $payment->customer_id,  // ✅ FIX: Use contact_id instead of user_id
+                'contact_id' => $payment->customer_id,
                 'contact_type' => 'customer',
                 'transaction_date' => $transactionDate,
                 'reference_no' => $referenceNo . '-CHARGES',
                 'transaction_type' => 'bank_charges',
                 'amount' => $bankCharges,
-                'notes' => "Bank charges for bounced cheque - {$payment->cheque_number}"
+                'notes' => "Bank charges for bounced cheque - {$payment->cheque_number}",
+                'created_by' => $userId
             ]);
             $ledgerEntries[] = $chargesEntry;
         }
@@ -551,6 +550,7 @@ class ChequeService
 
     /**
      * Handle ledger entries when a recovery cheque is cleared
+     * TODO: Refactor to use UnifiedLedgerService when a recordRecoveryChequeClear method is added
      */
     private function handleRecoveryChequeClearedLedger($payment, $userId)
     {
@@ -593,15 +593,16 @@ class ChequeService
             return [];
         }
 
-        // Create recovery entry to reduce floating balance
+        // ✅ Create recovery entry to reduce floating balance (currently direct call; TODO: integrate with UnifiedLedgerService)
         $recoveryEntry = Ledger::createEntry([
-            'contact_id' => $payment->customer_id,  // ✅ FIX: Use contact_id instead of user_id
+            'contact_id' => $payment->customer_id,
             'contact_type' => 'customer',
             'transaction_date' => $transactionDate,
             'reference_no' => $referenceNo,
             'transaction_type' => 'bounce_recovery',
             'amount' => $payment->amount,
-            'notes' => "Recovery cheque cleared - {$payment->cheque_number} (reduces floating balance)"
+            'notes' => "Recovery cheque cleared - {$payment->cheque_number} (reduces floating balance)",
+            'created_by' => $userId
         ]);
         $ledgerEntries[] = $recoveryEntry;
 

@@ -158,7 +158,7 @@ class BalanceHelper
      */
     public static function getCustomerDue($customerId)
     {
-        return max(0, self::getCustomerBalance($customerId));
+        return max(0.0, self::getCustomerBalance($customerId));
     }
 
     /**
@@ -284,6 +284,8 @@ class BalanceHelper
         if (empty($customerIds)) {
             return collect();
         }
+
+        $customerIds = array_values(array_unique(array_map('intval', $customerIds)));
 
         // Remove walk-in customer (ID = 1) as they always have 0 balance
         $customerIds = array_values(array_filter($customerIds, fn($id) => $id != 1));

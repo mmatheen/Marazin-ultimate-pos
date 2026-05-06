@@ -2,6 +2,7 @@
 
 namespace App\Services\Sale;
 
+use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -68,7 +69,7 @@ class SaleAmountCalculator
      *   amount_given        — float
      *   balance_amount      — float
      */
-    public function calculate(array $products, Request $request, string $newStatus): array
+    public function calculate(array $products, Request $request, string $newStatus, ?int $saleId = null): array
     {
         // Step 1 — Correct product subtotals
         $correctedProducts = $this->correctProductSubtotals($products, $request);
@@ -86,8 +87,8 @@ class SaleAmountCalculator
         $totalAfterDiscount = $this->fromCents($totalAfterDiscountCents);
         $finalTotal = $this->fromCents($finalTotalCents);
 
-        // Step 3 — Payment amounts
-        $paymentAmounts = $this->computePaymentAmounts($finalTotalCents, $request, $newStatus);
+        // Step 3 — Payment amounts (pass saleId so it can check for existing payments)
+        $paymentAmounts = $this->computePaymentAmounts($finalTotalCents, $request, $newStatus, $saleId);
 
         return array_merge(
             [
@@ -186,6 +187,11 @@ class SaleAmountCalculator
     /**
      * Compute total_paid / total_due / amount_given / balance_amount.
      *
+     * When updating an existing sale:
+     *   - Fetch all previous payments from the Payment table
+     *   - Add amount_given from the current request
+     *   - Calculate total_paid and total_due based on ALL payments (previous + current)
+     *
      * Job ticket logic:
      *   - advance >= finalTotal → fully paid, surplus returned as balance
      *   - advance < finalTotal  → partial paid, remainder is due
@@ -194,9 +200,19 @@ class SaleAmountCalculator
      *   - amount_given drives total_paid (capped at finalTotal)
      *   - change (balance_amount) = amount_given − finalTotal  (if positive)
      */
-    private function computePaymentAmounts(int $finalTotalCents, Request $request, string $newStatus): array
+    private function computePaymentAmounts(int $finalTotalCents, Request $request, string $newStatus, ?int $saleId = null): array
     {
         $advanceAmountCents = $this->toCents((float) ($request->advance_amount ?? 0));
+
+        // If updating an existing sale, get payments already made for this sale
+        $existingPaymentsCents = 0;
+        if ($saleId && is_int($saleId) && $saleId > 0) {
+            $existingPayments = Payment::where('reference_id', $saleId)
+                ->where('payment_type', 'sale')   // Count sale payments across all methods, not advance credits
+                ->where('status', '!=', 'deleted') // Count active and edited payments, exclude only deleted
+                ->sum('amount');
+            $existingPaymentsCents = $this->toCents((float) $existingPayments);
+        }
 
         if ($newStatus === 'jobticket') {
             if ($advanceAmountCents >= $finalTotalCents) {
@@ -218,11 +234,12 @@ class SaleAmountCalculator
             ];
         }
 
-        // Normal sale
-        $amountGivenCents = $this->toCents((float) ($request->amount_given ?? $this->fromCents($finalTotalCents)));
-        $totalPaidCents = min($amountGivenCents, $finalTotalCents);
+        // Normal sale: combine existing payments with amount_given in current request
+        $amountGivenCents = $this->toCents((float) ($request->amount_given ?? 0));
+        $totalPaymentsCents = $existingPaymentsCents + $amountGivenCents;  // All payments (previous + current)
+        $totalPaidCents = min($totalPaymentsCents, $finalTotalCents);
         $totalDueCents = max(0, $finalTotalCents - $totalPaidCents);
-        $balanceAmountCents = max(0, $amountGivenCents - $finalTotalCents);
+        $balanceAmountCents = max(0, $totalPaymentsCents - $finalTotalCents);
 
         return [
             'advance_amount' => $this->fromCents($advanceAmountCents),

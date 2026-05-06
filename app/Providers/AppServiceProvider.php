@@ -9,7 +9,9 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\View;
 use App\Models\Setting;
 use App\Models\Sale;
+use App\Models\Purchase;
 use App\Observers\SaleObserver;
+use App\Observers\PurchaseObserver;
 use Illuminate\Support\Facades\Cache;
 use Darryldecode\Cart\Cart;
 
@@ -39,6 +41,7 @@ class AppServiceProvider extends ServiceProvider
         {
             Schema::defaultStringLength(191);
             Sale::observe(SaleObserver::class);
+                 Purchase::observe(PurchaseObserver::class);
             $this->DbBackup();
 
             View::composer('*', function ($view) {

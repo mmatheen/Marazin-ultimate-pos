@@ -1374,6 +1374,11 @@ $(document).ready(function() {
         $(button).html('<i class="fa fa-spinner fa-spin"></i> Processing...').prop('disabled', true);
 
         window.preventDoubleClick(button, () => {
+            const bypassPaymentMethodCheck = window._paymentMethodChangeConfirmed === 'cash';
+            if (bypassPaymentMethodCheck) {
+                window._paymentMethodChangeConfirmed = null;
+            }
+
             if (window.isEditing) {
                 const saleData = {
                     payment_status: window.originalSaleData?.payment_status,
@@ -1381,7 +1386,7 @@ $(document).ready(function() {
                     final_total: window.originalSaleData?.final_total
                 };
 
-                if (!window.validatePaymentMethodCompatibility('cash', saleData)) {
+                if (!bypassPaymentMethodCheck && !window.validatePaymentMethodCompatibility('cash', saleData)) {
                     window.enableButton(button);
                     return;
                 }
@@ -1498,6 +1503,11 @@ $(document).ready(function() {
     $('#confirmCardPayment').on('click', function() {
         const button = this;
         window.preventDoubleClick(button, () => {
+            const bypassPaymentMethodCheck = window._paymentMethodChangeConfirmed === 'card';
+            if (bypassPaymentMethodCheck) {
+                window._paymentMethodChangeConfirmed = null;
+            }
+
             if (window.isEditing) {
                 const saleData = {
                     payment_status: window.originalSaleData?.payment_status,
@@ -1505,7 +1515,7 @@ $(document).ready(function() {
                     final_total: window.originalSaleData?.final_total
                 };
 
-                if (!window.validatePaymentMethodCompatibility('card', saleData)) {
+                if (!bypassPaymentMethodCheck && !window.validatePaymentMethodCompatibility('card', saleData)) {
                     window.enableButton(button);
                     return;
                 }

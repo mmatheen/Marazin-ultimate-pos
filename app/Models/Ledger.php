@@ -281,21 +281,31 @@ class Ledger extends Model
         }
 
         // Prevent duplicate ledger entries.
-        // For payments: reference_no includes -PAY{id} (unique per payment), so check
-        // only by reference_no within 5 seconds — no amount check (amount check caused
-        // false positives when two payments in a bulk operation had the same amount).
-        // For other transactions: check within 30 seconds (prevents double-click submissions).
+        // Singleton transaction types must never have two ACTIVE rows with the same
+        // (contact_id, contact_type, reference_no, transaction_type), regardless of time.
+        // Other types keep a short time-window guard to prevent double-click submissions.
         $duplicateQuery = self::where('contact_id', $data['contact_id'])
             ->where('contact_type', $data['contact_type'])
             ->where('reference_no', $data['reference_no'])
             ->where('transaction_type', $data['transaction_type'])
             ->where('status', 'active');
 
-        // For payment transactions, check by reference_no + time window ONLY (no amount check).
-        // Bulk payment reference_no already includes -PAY{id} making each reference unique,
-        // so amount-based checking is NOT needed and caused false positives when two payments
-        // had the same amount submitted within the same bulk operation.
-        if (in_array($data['transaction_type'], ['payment', 'payments', 'sale_payment', 'purchase_payment'])) {
+        $singletonTransactionTypes = [
+            'opening_balance',
+            'sale',
+            'purchase',
+            'cheque_bounce',
+            'bounce_recovery',
+        ];
+
+        // For singleton types, always dedupe against any active existing entry.
+        if (in_array($data['transaction_type'], $singletonTransactionTypes, true)) {
+            // Intentionally no created_at window.
+        }
+        // For payment transactions, check by reference_no + time window ONLY.
+        // Bulk payment reference_no includes -PAY{id}, so this protects retries while
+        // allowing legitimate separate payment lines.
+        elseif (in_array($data['transaction_type'], ['payment', 'payments', 'sale_payment', 'purchase_payment', 'advance_credit_usage'], true)) {
             $duplicateQuery->where('created_at', '>=', Carbon::now()->subSeconds(5)); // Only within 5 seconds (prevents double-click only)
         } else {
             // For non-payment transactions (sales, purchases, etc.), check for exact duplicates
@@ -518,6 +528,17 @@ class Ledger extends Model
                 }
                 break;
 
+            case 'advance_credit_usage':
+                // Applying existing advance to bills.
+                // For customers, this reduces advance by increasing debit.
+                // For suppliers, mirror the opposite direction.
+                if ($data['contact_type'] === 'customer') {
+                    $debit = $data['amount'];
+                } else {
+                    $credit = $data['amount'];
+                }
+                break;
+
             case 'bank_charges':
                 // Bank charges increase customer debt (additional charges they owe us)
                 if ($data['contact_type'] === 'customer') {
@@ -624,9 +645,9 @@ class Ledger extends Model
                 if ($data['contact_type'] === 'supplier') {
                     // Purchase was CREDIT (we owe supplier), so adjustment is DEBIT (cancel the debt)
                     if ($data['amount'] < 0) {
-                        $debit = abs($data['amount']);
+                        $credit = abs($data['amount']);
                     } else {
-                        $credit = $data['amount'];
+                        $debit = $data['amount'];
                     }
                 } else {
                     // For customers (unlikely but handle it)
@@ -851,10 +872,22 @@ class Ledger extends Model
             'purchase_payment' => 'Purchase Payment',
             'payments' => 'Payment',
             'sale_return' => 'Sale Return',
+            'sale_return_with_bill' => 'Sale Return With Bill',
+            'sale_return_without_bill' => 'Sale Return Without Bill',
             'purchase_return' => 'Purchase Return',
+            'purchase_return_reversal' => 'Purchase Return Reversal',
             'return_payment' => 'Return Payment',
             'opening_balance_payment' => 'Opening Balance Payment',
             'opening_balance_adjustment' => 'Opening Balance Adjustment',
+            'sale_adjustment' => 'Sale Adjustment',
+            'purchase_adjustment' => 'Purchase Adjustment',
+            'payment_adjustment' => 'Payment Adjustment',
+            'bounce_recovery' => 'Bounce Recovery',
+            'cheque_bounce' => 'Cheque Bounce',
+            'advance_payment' => 'Advance Payment',
+            'advance_credit_usage' => 'Advance Credit Usage',
+            'bank_charges' => 'Bank Charges',
+            'penalty' => 'Penalty',
             'discount_given' => 'Discount Given',
             default => ucfirst(str_replace('_', ' ', $type))
         };

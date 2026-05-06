@@ -47,6 +47,7 @@ class SaleSaveService
         $oldSubtotal   = $isUpdate ? $sale->getOriginal('subtotal')     : null;
         $oldDiscount   = $isUpdate ? $sale->getOriginal('discount_amount') : null;
 
+
         $customerChanged = $isUpdate && ($oldCustomerId != $request->customer_id);
 
         // Check if financial data changed (for ledger update decision)
@@ -99,6 +100,7 @@ class SaleSaveService
             if (!$saveResult) {
                 throw new \Exception("Sale save operation returned false");
             }
+
         } catch (\Exception $e) {
             Log::error('CRITICAL: Sale save operation failed', [
                 'sale_id'          => $sale->id ?? 'NEW',

@@ -317,6 +317,8 @@ document.addEventListener('DOMContentLoaded', () => {
       $('#notesSection').hide();
       $('#submitButtonSection').hide();
     }
+
+    if (typeof window.updateSummaryTotals === 'function') window.updateSummaryTotals();
   }
 
   window.togglePaymentFields = togglePaymentFields;
@@ -477,6 +479,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (typeof window.updateIndividualPaymentTotal === 'function') window.updateIndividualPaymentTotal();
+    if (typeof window.updateSummaryTotals === 'function') window.updateSummaryTotals();
   });
 
   // Amount formatting UX: edit plain number, display with separators
@@ -1029,6 +1032,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const sales = window.availableCustomerSales || [];
       const retAlloc = window.billReturnCreditAllocations || {};
       const advAlloc = window.billAdvanceCreditAllocations || {};
+      const paymentMethod = $('#paymentMethod').val();
+      const paymentType = $('input[name="paymentType"]:checked').val();
+      const globalAmount =
+        typeof window.parseAmountValue === 'function'
+          ? window.parseAmountValue($('#globalPaymentAmount').val())
+          : parseFloat($('#globalPaymentAmount').val() || 0) || 0;
 
       const totalBills = sales.length || 0;
       const totalDueAmount = sales.reduce((sum, sale) => {
@@ -1038,11 +1047,15 @@ document.addEventListener('DOMContentLoaded', () => {
       }, 0);
 
       let totalPaymentAmount = 0;
-      const pma = window.paymentMethodAllocations || {};
-      if (pma && Object.keys(pma).length > 0) {
-        Object.values(pma).forEach((payment) => {
-          totalPaymentAmount += payment.totalAmount || 0;
-        });
+      if (paymentMethod === 'multiple') {
+        const pma = window.paymentMethodAllocations || {};
+        if (pma && Object.keys(pma).length > 0) {
+          Object.values(pma).forEach((payment) => {
+            totalPaymentAmount += payment.totalAmount || 0;
+          });
+        }
+      } else {
+        totalPaymentAmount = globalAmount;
       }
 
       let totalCashAllocatedToBills = 0;
@@ -1070,7 +1083,11 @@ document.addEventListener('DOMContentLoaded', () => {
         expectedSettlement = Math.max(0, expectedSettlement - returnsChecked - advanceApply);
       }
 
-      let balanceAmount = totalDueAmount - totalPaymentAmount;
+      const displayDueAmount = paymentType === 'opening_balance'
+        ? (window.originalOpeningBalance || 0)
+        : (paymentType === 'both' ? (window.totalCustomerDue || totalDueAmount) : totalDueAmount);
+
+      let balanceAmount = displayDueAmount - totalPaymentAmount;
 
       const selected = window.selectedReturns || [];
       const hasAppliedReturnCredits = selected.some((r) => r.action === 'apply_to_sales');
@@ -1085,7 +1102,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const $balanceAmount = $('#balanceAmount');
 
       if ($totalBillsCount.length) $totalBillsCount.text(totalBills);
-      if ($summaryDueAmount.length) $summaryDueAmount.text(`Rs. ${window.formatAmountValue ? window.formatAmountValue(totalDueAmount) : totalDueAmount}`);
+      if ($summaryDueAmount.length) $summaryDueAmount.text(`Rs. ${window.formatAmountValue ? window.formatAmountValue(displayDueAmount) : displayDueAmount}`);
 
       if ($totalPaymentAmount.length) {
         $totalPaymentAmount.text(`Rs. ${window.formatAmountValue ? window.formatAmountValue(totalPaymentAmount) : totalPaymentAmount}`);
@@ -1117,7 +1134,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Sticky submit bar metrics + enable/disable logic (UI only)
       const fmt = (n) => `Rs. ${window.formatAmountValue ? window.formatAmountValue(n) : n}`;
-      $('#stickyDueAmount').text(fmt(totalDueAmount));
+      $('#stickyDueAmount').text(fmt(displayDueAmount));
       $('#stickyCollectedAmount').text(fmt(totalPaymentAmount));
       $('#stickyBalanceAmount').text(fmt(balanceAmount));
 
@@ -1127,7 +1144,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // IMPORTANT: Allow partial payments. Do not gate submit by balance == 0.
       const isBalanced = Math.abs(balanceAmount) < 0.02;
-      const hasSomethingToSubmit = showReturnAdjustedState || (hasPaymentMethods && allocSum > 0.01);
+      const hasSomethingToSubmit = showReturnAdjustedState || (paymentMethod === 'multiple' ? hasPaymentMethods && allocSum > 0.01 : globalAmount > 0.01);
       const canSubmit = $('#customerSelect').val() && hasSomethingToSubmit;
 
       const $hint = $('#stickyStatusHint');

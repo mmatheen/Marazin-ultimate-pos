@@ -65,8 +65,9 @@
                                     <option value="50x25">50 x 25 mm</option>
                                     <option value="40x30">40 x 30 mm</option>
                                     <option value="40x25">40 x 25 mm</option>
+                                    <option value="40x20x2" selected>40 x 20 mm × 2</option>
                                     <option value="38x25">38 x 25 mm</option>
-                                    <option value="34x25x3" selected>34 x 25 mm x 3</option>
+                                    <option value="34x25x3">34 x 25 mm × 3</option>
                                 </select>
                             </div>
 
@@ -479,8 +480,10 @@
                 '50x25': { page: '50mm 25mm', margin: '1mm', width: '48mm', height: '23mm', gap: '0', svgW: '45mm', svgH: '4.5mm', wrap: false, perRow: false },
                 '40x30': { page: '40mm 30mm', margin: '1mm', width: '38mm', height: '28mm', gap: '0', svgW: '35mm', svgH: '4.5mm', wrap: false, perRow: false },
                 '40x25': { page: '40mm 25mm', margin: '1mm', width: '38mm', height: '23mm', gap: '0', svgW: '35mm', svgH: '4.5mm', wrap: false, perRow: false },
+                '40x20x2': { page: '40mm 20mm', margin: '1mm', width: '38mm', height: '18mm', gap: '0', svgW: '16mm', svgH: '8mm', wrap: false, perRow: 2, colWidth: '19mm' },
                 '38x25': { page: '38mm 25mm', margin: '1mm', width: '36mm', height: '23mm', gap: '0', svgW: '33mm', svgH: '4.5mm', wrap: false, perRow: false },
                 '34x25x3': { page: '4.634in auto', margin: '0', width: '1.378in', height: '0.984in', gap: '0.1in', svgW: '1.2in', svgH: '0.2in', wrap: false, perRow: 3 }
+
             };
 
             // Print Barcodes - Using hidden iframe (same page, no new window)
@@ -506,8 +509,8 @@
                 // Build print content
                 let printContent = '';
 
-                // For 3-in-1 row layout
-                if (config.perRow === 3) {
+                // If config.perRow is a number > 1, build rows grouping that many labels per row
+                if (typeof config.perRow === 'number' && config.perRow > 1) {
                     let rowContent = '';
                     window.barcodesData.forEach(function(barcode, index) {
                         rowContent += '<div class="b">' +
@@ -519,14 +522,14 @@
                             (showLocation && barcode.location_name ? '<div class="y">' + barcode.location_name + '</div>' : '') +
                         '</div>';
 
-                        // After every 3 labels or at the end, wrap in a row
-                        if ((index + 1) % 3 === 0 || index === window.barcodesData.length - 1) {
+                        // After every `perRow` labels or at the end, wrap in a row
+                        if (((index + 1) % config.perRow === 0) || index === window.barcodesData.length - 1) {
                             printContent += '<div class="r">' + rowContent + '</div>';
                             rowContent = '';
                         }
                     });
                 } else {
-                    // Regular layout
+                    // Regular (single label per row) layout
                     window.barcodesData.forEach(function(barcode) {
                         printContent += '<div class="b">' +
                             '<div class="n">' + barcode.product_name + '</div>' +
@@ -554,11 +557,18 @@
                 css += '@page{size:' + config.page + ';margin:' + config.margin + '}';
                 css += 'body{font-family:Arial,sans-serif;padding:0}';
 
-                if (config.perRow === 3) {
-                    // 3-in-1 row layout (like your demo HTML)
+                if (typeof config.perRow === 'number' && config.perRow > 1) {
+                    // Multi-column row layout (supports perRow = 2,3,...)
                     css += '.g{display:block}';
-                    css += '.r{display:flex;gap:' + config.gap + ';margin-left:' + config.gap + ';margin-right:' + config.gap + ';margin-bottom:0.2in;page-break-inside:avoid;page-break-after:avoid}';
-                    css += '.b{width:' + config.width + ';height:' + config.height + ';display:flex;flex-direction:column;align-items:center;justify-content:center;box-sizing:border-box;padding:0.5mm 1mm;text-align:center}';
+                    // Use a full-width row container and distribute columns evenly
+                    css += '.r{display:flex;justify-content:space-between;align-items:flex-start;gap:' + config.gap + ';width:100%;margin-bottom:0.5mm;page-break-inside:avoid;page-break-after:avoid}';
+                    // Each label column width can be provided by config.colWidth or computed from config.width
+                    var colW = config.colWidth ? config.colWidth : ('calc((' + config.width + ' - ' + config.gap + ' * ' + (config.perRow - 1) + ') / ' + config.perRow + ')');
+                    css += '.b{flex:0 0 ' + colW + ';height:' + config.height + ';display:flex;flex-direction:column;align-items:center;justify-content:flex-start;box-sizing:border-box;padding:0.3mm 0.6mm;text-align:center;overflow:hidden}';
+                    // Slightly reduce text sizes for small labels
+                    css += '.n{font-size:6pt;margin-bottom:0.2mm}';
+                    css += '.s{font-size:6.5pt;margin-top:0.2mm}';
+                    css += '.p{font-size:8pt;margin-top:0.3mm}';
                 } else if (config.wrap) {
                     // A4 sheet - multiple labels per page
                     css += '.g{display:flex;flex-wrap:wrap;gap:' + config.gap + ';justify-content:center}';

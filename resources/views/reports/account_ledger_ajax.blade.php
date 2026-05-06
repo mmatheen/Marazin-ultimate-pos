@@ -689,9 +689,15 @@ $(document).ready(function() {
             const balanceClass = runningBalance < 0 ? 'text-success' : 'text-dark';
 
             // Enhanced balance display using running_balance from response
+            // Check if this is a reversal entry (not active status) to show appropriate label
             let balanceDisplay = '';
             if (runningBalance < 0) {
-                balanceDisplay = '<div class="text-end fw-bold text-success">Rs. ' + formatCurrency(Math.abs(runningBalance)) + ' (Advance)</div>';
+                // ✅ FIX: Distinguish between actual advance credit and temporary negative from reversal
+                // During bill edits, negative balance might be temporary pending adjustment, not advance credit
+                const isReversalEntry = entry.status !== 'active' && entry.is_reversal_entry;
+                const label = isReversalEntry ? 'Pending' : 'Advance';
+                const color = isReversalEntry ? 'text-warning' : 'text-success';
+                balanceDisplay = '<div class="text-end fw-bold ' + color + '">Rs. ' + formatCurrency(Math.abs(runningBalance)) + ' (' + label + ')</div>';
             } else if (runningBalance > 0) {
                 balanceDisplay = '<div class="text-end fw-bold text-danger">Rs. ' + formatCurrency(runningBalance) + ' (Due)</div>';
             } else {

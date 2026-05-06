@@ -819,8 +819,8 @@ function validatePaymentMethodCompatibility(paymentMethod, saleData) {
 
     if (originalDue > 0 && originalPaymentStatus !== 'paid') {
         if (paymentMethod === 'cash' || paymentMethod === 'card') {
-            const confirmChange = confirm(
-                `⚠️ PAYMENT METHOD CHANGE WARNING\n\n` +
+            const warningTitle = 'PAYMENT METHOD CHANGE WARNING';
+            const warningText =
                 `Original Sale: Credit Sale (Due: Rs ${originalDue.toFixed(2)})\n` +
                 `New Payment: ${paymentMethod.toUpperCase()} Payment\n\n` +
                 `This will change the sale from CREDIT to CASH payment.\n` +
@@ -828,12 +828,39 @@ function validatePaymentMethodCompatibility(paymentMethod, saleData) {
                 `This action will:\n` +
                 `• Remove the credit from customer ledger\n` +
                 `• Mark sale as fully paid\n` +
-                `• Update payment records`
-            );
+                `• Update payment records`;
 
-            if (!confirmChange) {
+            // Use project-standard SweetAlert on POS page.
+            if (typeof window.swal === 'function') {
+                window.swal({
+                    title: warningTitle,
+                    text: warningText,
+                    type: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'OK',
+                    cancelButtonText: 'Cancel',
+                    closeOnConfirm: true,
+                    closeOnCancel: true
+                }, function(isConfirm) {
+                    if (!isConfirm) return;
+
+                    window._paymentMethodChangeConfirmed = paymentMethod;
+
+                    if (paymentMethod === 'cash') {
+                        const cashButton = document.getElementById('cashButton');
+                        if (cashButton) cashButton.click();
+                    } else if (paymentMethod === 'card') {
+                        const cardConfirmButton = document.getElementById('confirmCardPayment');
+                        if (cardConfirmButton) cardConfirmButton.click();
+                    }
+                });
+
                 return false;
             }
+
+            // Fallback to browser confirm if SweetAlert is unavailable.
+            const confirmChange = confirm('⚠️ ' + warningTitle + '\n\n' + warningText);
+            if (!confirmChange) return false;
 
         }
     }
