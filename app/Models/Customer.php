@@ -127,7 +127,7 @@ class Customer extends Model
     public function getTotalSaleDueAttribute()
     {
         return $this->sales()
-            ->whereIn('status', ['final', 'suspend'])
+            ->where('status', 'final')
             ->where('total_due', '>', 0)
             ->sum('total_due');
     }
@@ -322,7 +322,7 @@ class Customer extends Model
     public function getBillWiseOutstanding(): float
     {
         return (float) $this->sales()
-            ->whereIn('status', ['final', 'suspend'])
+            ->where('status', 'final')
             ->where('total_due', '>', 0)
             ->sum('total_due');
     }

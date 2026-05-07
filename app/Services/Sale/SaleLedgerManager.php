@@ -93,7 +93,7 @@ class SaleLedgerManager
      */
     private function handleNewSale(Sale $sale, string $transactionType): void
     {
-        if (in_array($sale->status, ['draft', 'quotation']) || $transactionType === 'sale_order') {
+        if (in_array($sale->status, ['draft', 'quotation', 'suspend']) || $transactionType === 'sale_order') {
             // No ledger entry for non-committed documents
             return;
         }
@@ -119,8 +119,17 @@ class SaleLedgerManager
         bool    $financialDataChanged,
         ?string $referenceNo
     ): void {
-        // Skip ledger updates for sale orders and non-final target statuses
-        if ($transactionType === 'sale_order' || in_array($newStatus, ['draft', 'quotation'])) {
+        // Skip ledger updates for sale orders and non-final target statuses.
+        if ($transactionType === 'sale_order' || in_array($newStatus, ['draft', 'quotation', 'jobticket'])) {
+            return;
+        }
+
+        // Suspended sales are non-committed hold records.
+        // If an existing final sale is moved to suspend, reverse its ledger impact.
+        if ($newStatus === 'suspend') {
+            if ($oldStatus === 'final') {
+                $this->ledger->deleteSaleLedger($sale);
+            }
             return;
         }
 
@@ -139,7 +148,7 @@ class SaleLedgerManager
         // ── Case 2: Draft / Quotation → Final conversion ────────────────────
         $isDraftToFinalConversion =
             in_array($oldStatus, ['draft', 'quotation']) &&
-            in_array($newStatus, ['final', 'suspend']);
+            $newStatus === 'final';
 
         if ($isDraftToFinalConversion) {
             // No old ledger entry exists for drafts — force-create a new one

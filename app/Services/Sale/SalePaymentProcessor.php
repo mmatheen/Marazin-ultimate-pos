@@ -65,6 +65,28 @@ class SalePaymentProcessor
             return;
         }
 
+        // ── Path A2: Suspended/Hold sale ─────────────────────────────────────
+        // Suspended sales are non-committed carts: keep no active payment rows,
+        // no advance-credit usage, and no monetary settlement on the sale.
+        if ($sale->status === 'suspend') {
+            Payment::where('reference_id', $sale->id)
+                ->where('status', '!=', 'deleted')
+                ->update([
+                    'status'         => 'deleted',
+                    'payment_status' => 'cancelled',
+                    'notes'          => DB::raw("CONCAT(COALESCE(notes, ''), ' | DELETED: Sale suspended (hold)')"),
+                ]);
+
+            $sale->update([
+                'payment_status' => 'Due',
+                'total_paid'     => 0,
+                'total_due'      => $sale->final_total,
+                'amount_given'   => 0,
+                'balance_amount' => 0,
+            ]);
+            return;
+        }
+
         // ── Path B: Job Ticket ───────────────────────────────────────────────
         // Create/update the JobTicket record and record advance payment if provided.
         if ($sale->status === 'jobticket') {
@@ -242,7 +264,7 @@ class SalePaymentProcessor
             $totalPaid += $paymentData['amount'];
         }
 
-        // total_due + payment_status: Sale::saving (final/suspend) — avoids duplicate Paid/Partial logic
+        // total_due + payment_status: Sale::saving (final) — avoids duplicate Paid/Partial logic
         $sale->update([
             'total_paid' => $totalPaid,
         ]);

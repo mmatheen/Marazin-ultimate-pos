@@ -332,7 +332,7 @@ class FlexibleBulkSalePaymentService
                 $ledgerBalance = (float) BalanceHelper::getCustomerBalance((int) $request->customer_id);
                 $saleDue = (float) Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
                     ->where('customer_id', (int) $request->customer_id)
-                    ->whereIn('status', ['final', 'suspend'])
+                    ->where('status', 'final')
                     ->sum('total_due');
                 if ($ledgerBalance >= 0) {
                     $availableCredit = max(0.0, $saleDue - $ledgerBalance);
@@ -352,7 +352,7 @@ class FlexibleBulkSalePaymentService
                         $sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
                             ->where('id', $saleId)
                             ->where('customer_id', (int) $request->customer_id)
-                            ->whereIn('status', ['final', 'suspend'])
+                            ->where('status', 'final')
                             ->first(['id', 'invoice_no', 'total_due']);
 
                         if (! $sale) {
@@ -394,7 +394,7 @@ class FlexibleBulkSalePaymentService
                     // Allocate credit FIFO across outstanding sales (after cash and return credits)
                     $sales = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
                         ->where('customer_id', (int) $request->customer_id)
-                        ->whereIn('status', ['final', 'suspend'])
+                        ->where('status', 'final')
                         ->where('total_due', '>', 0)
                         ->orderBy('sales_date')
                         ->orderBy('id')

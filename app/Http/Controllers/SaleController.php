@@ -471,7 +471,7 @@ class SaleController extends Controller
     {
         try {
             $sale         = Sale::findOrFail($id);
-            $restoreStock = !in_array($sale->status, ['draft', 'quotation']);
+            $restoreStock = $sale->status === 'final';
 
             $this->saleDeleteService->delete($sale, $restoreStock);
 
@@ -497,9 +497,9 @@ class SaleController extends Controller
                 return response()->json(['message' => 'Sale is not suspended.'], 400);
             }
 
-            $this->saleDeleteService->delete($sale, true);
+            $this->saleDeleteService->delete($sale, false);
 
-            return response()->json(['message' => 'Suspended sale deleted, stock restored, and customer balance updated successfully.'], 200);
+            return response()->json(['message' => 'Suspended sale deleted successfully.'], 200);
 
         } catch (\Exception $e) {
             Log::error('Error deleting suspended sale', [

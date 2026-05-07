@@ -25,7 +25,7 @@ class SaleLifecycleService
             $sale->total_due = $sale->final_total;
         }
 
-        if (! in_array($sale->status, ['final', 'suspend'], true)) {
+        if ($sale->status !== 'final') {
             return;
         }
 

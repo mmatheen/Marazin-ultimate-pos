@@ -383,12 +383,12 @@ class SaleValidationService
         // Note: $originalProducts is kept for signature compatibility but is no longer
         // used in the stock check.  The restoreStock() call in SaleProductProcessor
         // already returns original quantities to location_batches BEFORE this method
-        // runs (when oldStatus = final/suspend), so the DB reflects the correct
+        // runs (when oldStatus = final), so the DB reflects the correct
         // available amount without any manual addback.
 
         if (!empty($batchId) && $batchId !== 'all') {
             // Specific batch
-            // Note: restoreStock() has already run before this validation (when oldStatus=final/suspend),
+            // Note: restoreStock() has already run before this validation (when oldStatus=final),
             // so $currentStock already reflects the restored original quantities.
             // For draft→final edits, stock was never deducted, so $currentStock is simply
             // the true available amount. In both cases no addback is needed.

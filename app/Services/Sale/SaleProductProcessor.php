@@ -111,14 +111,14 @@ class SaleProductProcessor
                 if ($product->stock_alert === 0) {
                     if ($transactionType === 'sale_order') {
                         $this->processUnlimitedStockProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE_ORDER);
-                    } elseif (in_array($newStatus, ['final', 'suspend'])) {
+                    } elseif ($newStatus === 'final') {
                         $this->processUnlimitedStockProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
                     } else {
                         $this->simulateBatchSelection($productData, $sale->id, $request->location_id, $newStatus);
                     }
                 } else {
                 // For updates, check stock availability considering the original sale quantities
-                if ($isUpdate && in_array($newStatus, ['final', 'suspend'])) {
+                if ($isUpdate && $newStatus === 'final') {
                     $this->saleValidationService->validateStockForUpdate($productData, $request->location_id, $originalProducts);
                 }
 
@@ -126,8 +126,8 @@ class SaleProductProcessor
                 if ($transactionType === 'sale_order') {
                     $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE_ORDER, 'sale_order', $product);
                 }
-                // Always process sale for final/suspend status
-                elseif (in_array($newStatus, ['final', 'suspend'])) {
+                // Only committed final sales affect stock.
+                elseif ($newStatus === 'final') {
                     $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE, $newStatus, $product);
                 } else {
                     $this->simulateBatchSelection($productData, $sale->id, $request->location_id, $newStatus);
@@ -705,7 +705,7 @@ class SaleProductProcessor
                 ];
             }
             else {
-                // Only check stock for final/suspend status
+                // Only check stock for final status
                 if ($locationBatch && $locationBatch->qty >= $remainingQuantity) {
                     $batchDeductions[] = [
                         'batch_id' => $batch->id,
@@ -745,8 +745,8 @@ class SaleProductProcessor
                     $remainingQuantity -= $deductQuantity;
                 }
 
-                // Only validate stock if the sale status is final/suspend
-                if (in_array($newStatus, ['final', 'suspend'])) {
+                // Only validate stock if the sale status is final
+                if ($newStatus === 'final') {
                     if ($remainingQuantity > 0) {
                         throw new \Exception("Not enough stock across all batches to fulfill the sale.");
                     }
@@ -913,7 +913,7 @@ class SaleProductProcessor
             $originalProducts[$product->product_id][$product->batch_id]['quantity'] += $product->quantity;
             $originalProducts[$product->product_id][$product->batch_id]['free_quantity'] += ($product->free_quantity ?? 0);
 
-            if (in_array($oldStatus, ['final', 'suspend'])) {
+            if ($oldStatus === 'final') {
                 $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
             } else {
                 $this->restoreImeiNumbers($product);

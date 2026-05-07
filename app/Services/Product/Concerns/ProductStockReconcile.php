@@ -73,7 +73,7 @@ trait ProductStockReconcile
                 ->where('sp.product_id', $productId)
                 ->whereIn('sp.batch_id', $batchIds)
                 ->when($locationId, fn ($q) => $q->where('sp.location_id', (int) $locationId))
-                ->whereIn('s.status', ['final', 'suspend'])
+                ->where('s.status', 'final')
                 ->selectRaw('COALESCE(SUM(sp.quantity),0) as paid, COALESCE(SUM(sp.free_quantity),0) as free')
                 ->first();
 

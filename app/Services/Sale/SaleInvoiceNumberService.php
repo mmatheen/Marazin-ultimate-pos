@@ -65,13 +65,13 @@ class SaleInvoiceNumberService
         }
 
         // ------------------------------------------------------------------
-        // PATH 3: Job Ticket → Final/Suspend conversion
+        // PATH 3: Job Ticket → Final conversion
         //         (existing jobticket being converted to a normal invoice)
         // ------------------------------------------------------------------
         if (
             $isUpdate &&
             $oldStatus === 'jobticket' &&
-            in_array($newStatus, ['final', 'suspend'])
+            $newStatus === 'final'
         ) {
             return $this->forJobticketConversion($locationId);
         }
@@ -144,7 +144,7 @@ class SaleInvoiceNumberService
     }
 
     /**
-     * PATH 3 — Job Ticket being converted to a Final/Suspend sale.
+     * PATH 3 — Job Ticket being converted to a Final sale.
      * Generate a new standard invoice number.
      */
     private function forJobticketConversion(int $locationId): array
@@ -214,7 +214,7 @@ class SaleInvoiceNumberService
 
     /**
      * PATH 6 — Editing an existing sale.
-     * If the old invoice was a draft/quotation prefix and the new status is final/suspend,
+     * If the old invoice was a draft/quotation prefix and the new status is final,
      * generate a clean standard invoice number.
      * Otherwise keep the original invoice number unchanged.
      */
@@ -222,7 +222,7 @@ class SaleInvoiceNumberService
     {
         if (
             in_array($oldStatus, ['draft', 'quotation']) &&
-            in_array($newStatus, ['final', 'suspend']) &&
+            $newStatus === 'final' &&
             !preg_match('/^\d+$/', $sale->invoice_no)
         ) {
             $invoiceNo = $this->saleNumberingService->generateInvoiceNo($locationId);
