@@ -1071,29 +1071,25 @@
                             return 0;
                         });
 
+                        const optionNodes = [];
                         sortedCustomers.forEach(customer => {
-                            const option = $('<option></option>');
-                            option.val(customer.id);
+                            const optionNode = document.createElement('option');
+                            optionNode.value = customer.id;
+                            const option = $(optionNode);
+
                             if (customer.first_name === 'Walk-in') {
-                                option.text(
-                                    `${customer.first_name || ''} ${customer.last_name || ''}`
-                                );
-                                option.attr('data-customer-type',
-                                    'retailer'); // Walk-in customer is always retailer
+                                optionNode.textContent = `${customer.first_name || ''} ${customer.last_name || ''}`;
+                                optionNode.setAttribute('data-customer-type', 'retailer'); // Walk-in customer is always retailer
                             } else {
-                                const customerType = customer.customer_type ?
-                                    ` - ${customer.customer_type.charAt(0).toUpperCase() + customer.customer_type.slice(1)}` :
-                                    '';
-                                option.text(
-                                    `${customer.first_name || ''} ${customer.last_name || ''}${customerType} (${customer.mobile_no || ''})`
-                                );
-                                option.attr('data-customer-type', customer.customer_type ||
-                                    'retailer'); // Include customer type data attribute
+                                const customerType = customer.customer_type
+                                    ? ` - ${customer.customer_type.charAt(0).toUpperCase() + customer.customer_type.slice(1)}`
+                                    : '';
+                                optionNode.textContent = `${customer.first_name || ''} ${customer.last_name || ''}${customerType} (${customer.mobile_no || ''})`;
+                                optionNode.setAttribute('data-customer-type', customer.customer_type || 'retailer');
                             }
-                            option.data('due', customer.current_due ||
-                                0); // Default due to 0
-                            option.data('credit_limit', customer.credit_limit ||
-                                0); // Add credit limit data
+
+                            option.data('due', customer.current_due || 0); // Default due to 0
+                            option.data('credit_limit', customer.credit_limit || 0); // Add credit limit data
                             option.data('myInvoiceDue', parseFloat(customer.my_invoice_due) || 0);
                             posApplyLedgerFieldsToOption(option, customer);
                             const cid = String(customer.id || '');
@@ -1105,8 +1101,9 @@
                                     adv: Number.isFinite(advEff) ? advEff : 0
                                 };
                             }
-                            customerSelect.append(option);
+                            optionNodes.push(optionNode);
                         });
+                        customerSelect.append(optionNodes);
 
                         // Always select Walking Customer by default
                         const walkingCustomer = sortedCustomers.find(customer => customer
@@ -1347,7 +1344,7 @@
             return { lb: lb, adv: adv };
         }
 
-        function posRefreshAdvanceApplyUi() {
+        function posRefreshAdvanceApplyUi(baseTotalOverride) {
             const row = $('#pos-advance-apply-row');
             if (!row.length) return;
             const $chk = $('#pos-use-advance-checkbox');
@@ -1403,7 +1400,7 @@
                 return;
             }
 
-            const finalTotal = getPosBillFinalTotal();
+            const finalTotal = Number.isFinite(baseTotalOverride) ? baseTotalOverride : getPosBillFinalTotal();
 
             const { lb, adv } = posReadSelectedCustomerLedger(opt, customerId);
             const hasAdvanceSignal = (!Number.isNaN(adv) && adv > 0.005) || (!Number.isNaN(lb) && lb < -0.005);

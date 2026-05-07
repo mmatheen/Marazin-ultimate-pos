@@ -439,9 +439,24 @@ function updateTotals() {
     });
 
     updatePaymentButtonsState();
-    if (typeof window.posRefreshAdvanceApplyUi === 'function') {
-        window.posRefreshAdvanceApplyUi();
-    }
+    scheduleAdvanceUiRefresh(finalTotal);
+}
+
+let _advanceUiRefreshRaf = null;
+let _advanceUiRefreshTotal = null;
+
+function scheduleAdvanceUiRefresh(finalTotal) {
+    if (typeof window.posRefreshAdvanceApplyUi !== 'function') return;
+
+    _advanceUiRefreshTotal = finalTotal;
+    if (_advanceUiRefreshRaf !== null) return;
+
+    _advanceUiRefreshRaf = window.requestAnimationFrame(() => {
+        _advanceUiRefreshRaf = null;
+        const latestTotal = _advanceUiRefreshTotal;
+        _advanceUiRefreshTotal = null;
+        window.posRefreshAdvanceApplyUi(latestTotal);
+    });
 }
 
 /* ═══════════════════════════════════════════════════════════════════
