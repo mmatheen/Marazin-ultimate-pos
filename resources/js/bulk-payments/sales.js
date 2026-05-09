@@ -4,6 +4,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   if (!window.jQuery) return;
   const $ = window.jQuery;
+  const MONEY_EPSILON = window.BULK_MONEY_EPSILON || 0.01;
 
   function loadCustomersForBulkPayment() {
     $.ajax({
@@ -706,9 +707,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const bill = (window.availableCustomerSales || []).find((s) => String(s.id) === String(billId));
         const returnCreditApplied = window.billReturnCreditAllocations ? window.billReturnCreditAllocations[billId] || 0 : 0;
+        const advanceCreditApplied = getBillAdvanceCreditApplied(billId);
+        const totalCreditsApplied = returnCreditApplied + advanceCreditApplied;
         const billDue =
           bill && typeof window.parseAmountValue === 'function' ? window.parseAmountValue(bill.total_due) : parseFloat(bill?.total_due || 0) || 0;
-        const maxForBill = Math.max(0, billDue - returnCreditApplied);
+        const maxForBill = Math.max(0, billDue - totalCreditsApplied);
 
         let mergedAmount = rows.reduce((sum, $r) => {
           const v = typeof window.parseAmountValue === 'function' ? window.parseAmountValue($r.find('.allocation-amount').val()) : 0;
@@ -734,9 +737,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const after = Math.max(0, maxForBill - mergedAmount);
-        if (after <= 0.01) {
+        if (after <= MONEY_EPSILON) {
           $keepHint
-            .text(returnCreditApplied > 0 ? 'Settled (credit applied)' : 'Settled')
+            .text(totalCreditsApplied > 0 ? 'Settled (credit/advance applied)' : 'Settled')
             .removeClass('text-muted')
             .addClass('text-success')
             .show();
@@ -774,12 +777,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const currentAllocationAmount =
         typeof window.parseAmountValue === 'function' ? window.parseAmountValue($amountInput.val()) : parseFloat($amountInput.val() || 0) || 0;
       const returnCreditApplied = window.billReturnCreditAllocations ? window.billReturnCreditAllocations[billId] || 0 : 0;
+      const advanceCreditApplied = getBillAdvanceCreditApplied(billId);
+      const totalCreditsApplied = returnCreditApplied + advanceCreditApplied;
 
       const prevAmount = $amountInput.data('prev-amount') || 0;
       const otherPaymentAllocations = (window.billPaymentAllocations?.[billId] || 0) - prevAmount;
 
       const billTotalDue = typeof window.parseAmountValue === 'function' ? window.parseAmountValue(bill.total_due) : parseFloat(bill.total_due || 0) || 0;
-      const billRemainingDue = billTotalDue - returnCreditApplied - otherPaymentAllocations;
+      const billRemainingDue = billTotalDue - totalCreditsApplied - otherPaymentAllocations;
 
       let needsUpdate = false;
       let newAmount = currentAllocationAmount;
@@ -805,10 +810,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const $hint = $row.find('.bill-amount-hint');
       const remainingAfterPayment = billRemainingDue - newAmount;
 
-      if (returnCreditApplied > 0) {
+      if (totalCreditsApplied > 0) {
         const payNowTxt = typeof window.formatAmountValue === 'function' ? window.formatAmountValue(billRemainingDue) : billRemainingDue.toFixed(2);
         $hint.text(`Pay now: Rs. ${payNowTxt}`).removeClass('text-success').addClass('text-muted');
-      } else if (remainingAfterPayment <= 0.01) {
+      } else if (remainingAfterPayment <= MONEY_EPSILON) {
         $hint.text('Settled').removeClass('text-muted').addClass('text-success');
       } else {
         const afterTxt = typeof window.formatAmountValue === 'function' ? window.formatAmountValue(remainingAfterPayment) : remainingAfterPayment.toFixed(2);
@@ -993,7 +998,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     $addBtn.html('<i class="fas fa-plus"></i> Add payment method');
 
-    if (due <= 0.01) {
+    if (due <= MONEY_EPSILON) {
       $title.text('No cash collection needed');
       $hint.text('Return credit already covers this selection. Add method only if you collect additional amount.');
     } else {
@@ -1018,12 +1023,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (hasPm) $steps.eq(1).addClass('text-primary fw-bold');
     else $steps.eq(1).addClass('text-muted');
 
-    if (allocSum > 0.01) $steps.eq(2).addClass('text-primary fw-bold');
+    if (allocSum > MONEY_EPSILON) $steps.eq(2).addClass('text-primary fw-bold');
     else $steps.eq(2).addClass('text-muted');
 
     const balTxt = $('#balanceAmount').text().replace(/[^\d.-]/g, '');
     const bal = parseFloat(balTxt) || 0;
-    if (hasPm && Math.abs(bal) < 0.02 && allocSum > 0.01) $steps.eq(3).addClass('text-success fw-bold');
+    if (hasPm && Math.abs(bal) < 0.02 && allocSum > MONEY_EPSILON) $steps.eq(3).addClass('text-success fw-bold');
     else $steps.eq(3).addClass('text-muted');
   }
 
@@ -1066,7 +1071,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       let expectedSettlement = totalCashAllocatedToBills;
-      if (expectedSettlement < 0.01) {
+      if (expectedSettlement < MONEY_EPSILON) {
         expectedSettlement = sales.reduce((sum, sale) => sum + parseFloat(sale.total_due || 0), 0);
         let returnsChecked = 0;
         $('.return-checkbox:checked').each(function () {
@@ -1091,9 +1096,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const selected = window.selectedReturns || [];
       const hasAppliedReturnCredits = selected.some((r) => r.action === 'apply_to_sales');
-      const hasAppliedAdvanceCredits = getTotalAdvanceAllocatedFromBills() > 0.01;
+      const hasAppliedAdvanceCredits = getTotalAdvanceAllocatedFromBills() > MONEY_EPSILON;
       const hasPaymentMethods = $('.payment-method-item').length > 0;
-      const showReturnAdjustedState = (hasAppliedReturnCredits || hasAppliedAdvanceCredits) && !hasPaymentMethods && totalPaymentAmount < 0.01;
+      const showReturnAdjustedState =
+        (hasAppliedReturnCredits || hasAppliedAdvanceCredits) && !hasPaymentMethods && totalPaymentAmount < MONEY_EPSILON;
       if (showReturnAdjustedState) balanceAmount = 0;
 
       const $totalBillsCount = $('#totalBillsCount');
@@ -1144,7 +1150,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // IMPORTANT: Allow partial payments. Do not gate submit by balance == 0.
       const isBalanced = Math.abs(balanceAmount) < 0.02;
-      const hasSomethingToSubmit = showReturnAdjustedState || (paymentMethod === 'multiple' ? hasPaymentMethods && allocSum > 0.01 : globalAmount > 0.01);
+      const hasSomethingToSubmit =
+        showReturnAdjustedState || (paymentMethod === 'multiple' ? hasPaymentMethods && allocSum > MONEY_EPSILON : globalAmount > MONEY_EPSILON);
       const canSubmit = $('#customerSelect').val() && hasSomethingToSubmit;
 
       const $hint = $('#stickyStatusHint');
@@ -1443,7 +1450,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let billAdvanceCreditAllocations = {};
     if ($('#applyAdvanceCreditCheckbox').is(':checked') && window.billAdvanceCreditAllocations) {
       billAdvanceCreditAllocations = Object.fromEntries(
-        Object.entries(window.billAdvanceCreditAllocations).filter(([, v]) => (parseFloat(v) || 0) > 0.01)
+        Object.entries(window.billAdvanceCreditAllocations).filter(([, v]) => (parseFloat(v) || 0) > MONEY_EPSILON)
       );
     }
 
@@ -1520,7 +1527,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       const advancePaymentAmount = totalAmount - totalBillsAllocated;
       const selectedAdvanceOption = $payment.find(`input[name="excess_${paymentId}"]:checked`).val();
-      if (advancePaymentAmount > 0.01 && selectedAdvanceOption === 'advance') {
+      if (advancePaymentAmount > MONEY_EPSILON && selectedAdvanceOption === 'advance') {
         groupData.advance_amount = advancePaymentAmount;
       }
 
@@ -1529,13 +1536,15 @@ document.addEventListener('DOMContentLoaded', () => {
         groupData.ob_amount = parseAmountValue(obPortionText);
       }
 
+      const hasAdvanceCarry = (groupData.advance_amount || 0) > MONEY_EPSILON;
+
       if (paymentType === 'opening_balance') {
         paymentGroups.push(groupData);
         hasValidPayments = true;
-      } else if (paymentType === 'both' && (groupData.bills.length > 0 || (groupData.ob_amount || 0) > 0)) {
+      } else if (paymentType === 'both' && (groupData.bills.length > 0 || (groupData.ob_amount || 0) > 0 || hasAdvanceCarry)) {
         paymentGroups.push(groupData);
         hasValidPayments = true;
-      } else if (groupData.bills.length > 0) {
+      } else if (groupData.bills.length > 0 || hasAdvanceCarry) {
         paymentGroups.push(groupData);
         hasValidPayments = true;
       }
@@ -1555,7 +1564,7 @@ document.addEventListener('DOMContentLoaded', () => {
             allocSum += parseFloat(v) || 0;
           });
         }
-        if (allocSum < 0.01) return false;
+        if (allocSum < MONEY_EPSILON) return false;
       }
       return hasApply || hasRefund;
     };
@@ -1569,7 +1578,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
 
-      if (hasApplyOnly && allocSum < 0.01) {
+      if (hasApplyOnly && allocSum < MONEY_EPSILON) {
         if (window.toastr)
           window.toastr.warning(
             'Allocation missing: choose bill-wise return credit via Change Allocation, then submit.',
@@ -1601,21 +1610,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const ret = parseFloat(billReturnAllocations?.[billId] || 0) || 0;
       const adv = parseFloat(billAdvanceCreditAllocations?.[billId] || 0) || 0;
       const maxCashAllowed = Math.max(0, (parseFloat(bill?.total_due || 0) || 0) - ret - adv);
-      if (bill && totalAllocated > maxCashAllowed + 0.01) {
+      if (bill && totalAllocated > maxCashAllowed + MONEY_EPSILON) {
         if (window.toastr) window.toastr.error(`Total allocation for ${bill.invoice_no} exceeds bill amount`);
         return false;
       }
     }
 
-    $('#submitBulkPayment').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Processing...');
-
     let advanceCreditApplied = 0;
-    if ($('#applyAdvanceCreditCheckbox').is(':checked')) {
+    const advanceCreditSelected = $('#applyAdvanceCreditCheckbox').is(':checked');
+    if (advanceCreditSelected) {
       advanceCreditApplied = Object.values(billAdvanceCreditAllocations).reduce((s, v) => s + (parseFloat(v) || 0), 0);
     }
-
     const csrfToken = $('meta[name="csrf-token"]').attr('content');
-    $.ajax({
+    function submitBulkPaymentAjax() {
+      $.ajax({
       url: '/submit-flexible-bulk-payment',
       method: 'POST',
       contentType: 'application/json; charset=UTF-8',
@@ -1628,6 +1636,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selected_returns: selectedReturns,
         bill_return_allocations: billReturnAllocations,
         bill_advance_credit_allocations: billAdvanceCreditAllocations,
+        advance_credit_selected: advanceCreditSelected,
         advance_credit_applied: advanceCreditApplied,
         notes: $('#notes').val() || '',
         _token: csrfToken,
@@ -1639,7 +1648,7 @@ document.addEventListener('DOMContentLoaded', () => {
       success: function (response) {
         if (response.status === 200) {
           const total = parseFloat(response.total_amount || 0);
-          const allocationOnly = response.allocation_only === true || total <= 0.01;
+          const allocationOnly = response.allocation_only === true || total <= MONEY_EPSILON;
 
           $('#receiptReferenceNo').text(response.bulk_reference || 'N/A');
           $('#receiptTotalAmount').text(total.toFixed(2));
@@ -1685,7 +1694,128 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#submitBulkPayment').prop('disabled', false).html('<i class="fas fa-credit-card"></i> Submit Payment');
       },
     });
+    }
 
+    const returnCreditApplied = Object.values(billReturnAllocations || {}).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+    const effectiveSalesDue = (availableCustomerSales || []).reduce((sum, sale) => {
+      const saleId = String(sale?.id ?? '');
+      const due = parseFloat(sale?.total_due || 0) || 0;
+      const ret = parseFloat(billReturnAllocations?.[saleId] || billReturnAllocations?.[sale?.id] || 0) || 0;
+      const adv = parseFloat(billAdvanceCreditAllocations?.[saleId] || billAdvanceCreditAllocations?.[sale?.id] || 0) || 0;
+      return sum + Math.max(0, due - ret - adv);
+    }, 0);
+    const openingBalanceDue = Math.max(0, parseFloat(window.originalOpeningBalance || 0) || 0);
+    const totalDueNet = paymentType === 'opening_balance'
+      ? openingBalanceDue
+      : paymentType === 'both'
+        ? openingBalanceDue + effectiveSalesDue
+        : effectiveSalesDue;
+    const cashCollected = paymentGroups.reduce((s, g) => s + (parseFloat(g.totalAmount) || 0), 0);
+    const overpayment = Math.max(0, cashCollected - totalDueNet);
+
+    const applyExcessChoiceToGroups = (storeAsAdvance) => {
+      paymentGroups.forEach((group) => {
+        const groupBillsTotal = (group.bills || []).reduce((s, b) => s + (parseFloat(b.amount) || 0), 0);
+        const groupOpeningPortion = parseFloat(group.ob_amount || 0) || 0;
+        const groupExcess = Math.max(0, (parseFloat(group.totalAmount) || 0) - groupBillsTotal - groupOpeningPortion);
+        if (storeAsAdvance && groupExcess > MONEY_EPSILON) {
+          group.advance_amount = groupExcess;
+        } else {
+          delete group.advance_amount;
+        }
+      });
+    };
+
+    const proceedAfterConfirm = (storeAsAdvance = null) => {
+      if (storeAsAdvance !== null) {
+        applyExcessChoiceToGroups(storeAsAdvance);
+      }
+      $('#submitBulkPayment').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Processing...');
+      submitBulkPaymentAjax();
+    };
+
+    const fmt = (n) => (typeof window.formatAmountValue === 'function' ? window.formatAmountValue(n) : Number(n || 0).toFixed(2));
+    const detailsText =
+      `Total Due (net): Rs. ${fmt(totalDueNet)}\n` +
+      `Return Credit Allocated: Rs. ${fmt(returnCreditApplied)}\n` +
+      `Advance Credit Allocated: Rs. ${fmt(advanceCreditApplied)}\n` +
+      `Cash Collected: Rs. ${fmt(cashCollected)}\n` +
+      `Overpayment: Rs. ${fmt(overpayment)}`;
+    const detailsHtml =
+      '<div class="text-start" style="font-size:13px;">' +
+      '<div style="border:1px solid #e9ecef;border-radius:10px;overflow:hidden;background:#fff;">' +
+      '<div style="display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #f1f3f5;"><span class="text-muted">Total Due (net)</span><strong>Rs. ' + fmt(totalDueNet) + '</strong></div>' +
+      '<div style="display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #f1f3f5;"><span class="text-muted">Return Credit Allocated</span><strong class="text-success">Rs. ' + fmt(returnCreditApplied) + '</strong></div>' +
+      '<div style="display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #f1f3f5;"><span class="text-muted">Advance Credit Allocated</span><strong class="text-success">Rs. ' + fmt(advanceCreditApplied) + '</strong></div>' +
+      '<div style="display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #f1f3f5;"><span class="text-muted">Cash Collected</span><strong>Rs. ' + fmt(cashCollected) + '</strong></div>' +
+      '<div style="display:flex;justify-content:space-between;padding:10px 12px;background:' + (overpayment > MONEY_EPSILON ? '#fff5f5' : '#f8f9fa') + ';">' +
+      '<span class="text-muted">Overpayment</span><strong class="' + (overpayment > MONEY_EPSILON ? 'text-danger' : 'text-success') + '">Rs. ' + fmt(overpayment) + '</strong></div>' +
+      '</div>' +
+      '</div>';
+
+    if (window.Swal) {
+      if (overpayment > MONEY_EPSILON) {
+        window.Swal.fire({
+          title: 'Confirm Overpayment Handling',
+          html:
+            detailsHtml +
+            '<div class="mt-2 text-muted small text-start">Extra amount exists. Save extra as customer advance?</div>',
+          icon: 'question',
+          width: 560,
+          showCancelButton: true,
+          showDenyButton: true,
+          confirmButtonText: 'Yes, Save as Advance',
+          denyButtonText: 'No, Do Not Save',
+          cancelButtonText: 'Cancel',
+          reverseButtons: true,
+        }).then((result) => {
+          if (result.isConfirmed) {
+            proceedAfterConfirm(true);
+            return;
+          }
+          if (result.isDenied) {
+            proceedAfterConfirm(false);
+          }
+        });
+      } else {
+        window.Swal.fire({
+          title: 'Confirm Payment Submission',
+          html: detailsHtml,
+          icon: 'info',
+          width: 560,
+          showCancelButton: true,
+          confirmButtonText: 'Submit Payment',
+          cancelButtonText: 'Cancel',
+        }).then((result) => {
+          if (result.isConfirmed) {
+            proceedAfterConfirm();
+          }
+        });
+      }
+      return false;
+    }
+
+    if (overpayment > MONEY_EPSILON) {
+      const choice = window.prompt(
+        `${detailsText}\n\nExtra amount exists.\nType:\n1 = Save as advance\n2 = Do not save advance\n(Leave blank / Cancel = abort submit)`,
+        ''
+      );
+      if (choice === null || choice.trim() === '') return false;
+      if (choice.trim() === '1') {
+        proceedAfterConfirm(true);
+        return false;
+      }
+      if (choice.trim() === '2') {
+        proceedAfterConfirm(false);
+        return false;
+      }
+      if (window.toastr) window.toastr.warning('Invalid choice. Submission cancelled.');
+      return false;
+    }
+
+    const ok = window.confirm(`${detailsText}\n\nProceed with payment submission?`);
+    if (!ok) return false;
+    proceedAfterConfirm();
     return false;
   }
 
@@ -1712,7 +1842,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update summary line in customer section
     const totalApplied = getTotalAdvanceAllocatedFromBills();
-    if (totalApplied > 0.01) {
+    $('#advanceCreditAmountInput').val((Math.round(totalApplied * 100) / 100).toFixed(2));
+    if (totalApplied > MONEY_EPSILON) {
       $('#advanceCreditAppliedSummary')
         .html('Advance applied: <strong class="text-dark">Rs. ' + totalApplied.toFixed(2) + '</strong> (Bill-wise)')
         .show();
@@ -1728,7 +1859,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function showAdvanceCreditAllocationDialog() {
     const totalAdvanceCredit = parseFloat(window.customerAdvanceCredit || 0) || 0;
-    if (totalAdvanceCredit <= 0.01) {
+    if (totalAdvanceCredit <= MONEY_EPSILON) {
       if (window.toastr) window.toastr.warning('No advance credit available for allocation');
       return;
     }
@@ -1844,12 +1975,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }).then((result) => {
           if (result.isConfirmed) {
             if (!window.billAdvanceCreditAllocations) window.billAdvanceCreditAllocations = {};
-            if (result.value > 0.01) window.billAdvanceCreditAllocations[saleId] = result.value;
+            if (result.value > MONEY_EPSILON) window.billAdvanceCreditAllocations[saleId] = result.value;
             else delete window.billAdvanceCreditAllocations[saleId];
 
             const totalApplied = getTotalAdvanceAllocatedFromBills();
             $('#advanceCreditAmountInput').val((Math.round(totalApplied * 100) / 100).toFixed(2));
-            if (totalApplied > 0.01) {
+            if (totalApplied > MONEY_EPSILON) {
               $('#advanceCreditAppliedSummary')
                 .html('Advance applied: <strong class="text-dark">Rs. ' + totalApplied.toFixed(2) + '</strong> (Bill-wise)')
                 .show();
@@ -2025,8 +2156,11 @@ document.addEventListener('DOMContentLoaded', () => {
   $(document).on('change', '#applyAdvanceCreditCheckbox', function () {
     if ($(this).is(':checked')) {
       $('#reallocateAdvanceCreditsBtn').show();
+      const totalAdvanceCredit = parseFloat(window.customerAdvanceCredit || 0) || 0;
       const inputAmount = parseFloat($('#advanceCreditAmountInput').val()) || 0;
-      autoAllocateAdvanceCreditsToSales(inputAmount);
+      const amountToAllocate = inputAmount > 0 ? inputAmount : totalAdvanceCredit;
+      autoAllocateAdvanceCreditsToSales(amountToAllocate);
+      if (window.toastr) window.toastr.info('Advance credit FIFO auto-allocation applied. You can adjust via Select Bills.');
     } else {
       $('#reallocateAdvanceCreditsBtn').hide();
       window.billAdvanceCreditAllocations = {};

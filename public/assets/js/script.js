@@ -456,19 +456,19 @@
             from: 60 * 60 * 24 * 3,
         });
     }
-    if ($('[data-bs-toggle="tooltip"]').length > 0) {
+    if (typeof bootstrap !== "undefined" && $('[data-bs-toggle="tooltip"]').length > 0) {
         var tooltipTriggerList = [].slice.call(
             document.querySelectorAll('[data-bs-toggle="tooltip"]')
         );
-        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
             return new bootstrap.Tooltip(tooltipTriggerEl);
         });
     }
-    if ($(".popover-list").length > 0) {
+    if (typeof bootstrap !== "undefined" && $(".popover-list").length > 0) {
         var popoverTriggerList = [].slice.call(
             document.querySelectorAll('[data-bs-toggle="popover"]')
         );
-        var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+        popoverTriggerList.map(function (popoverTriggerEl) {
             return new bootstrap.Popover(popoverTriggerEl);
         });
     }

@@ -109,6 +109,7 @@ class SaleValidationService
             'jobticket_description'     => 'nullable|string',
             // Floating balance
             'pos_apply_advance_amount'  => 'nullable|numeric|min:0',
+            'pos_apply_advance_selected'=> 'nullable|boolean',
             'use_floating_balance'      => 'nullable|boolean',
             'floating_balance_amount'   => 'nullable|numeric|min:0',
             // Shipping
@@ -140,7 +141,8 @@ class SaleValidationService
             return null;
         }
 
-        if ((float) ($request->input('pos_apply_advance_amount') ?? 0) > 0.02) {
+        $advanceSelected = $request->boolean('pos_apply_advance_selected');
+        if ($advanceSelected && (float) ($request->input('pos_apply_advance_amount') ?? 0) > 0.02) {
             return [
                 'message' => 'Customer advance cannot be applied for Walk-In Customer.',
                 'errors'  => ['pos_apply_advance_amount' => ['Not allowed for walk-in.']],

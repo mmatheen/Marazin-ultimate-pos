@@ -7,6 +7,16 @@ use Carbon\Carbon;
 
 class PaymentReportService
 {
+    /**
+     * Internal credit-allocation rows are not fresh cash collections.
+     * Keep them visible in line-items, but exclude from collection totals.
+     */
+    private function isNonCashCollectionPayment($payment): bool
+    {
+        return $payment->payment_type === 'advance_credit_usage'
+            || $payment->payment_method === 'advance_credit';
+    }
+
     /** Build grouped collections (screen + PDF export). */
     public function getCollections(Request $request): array
     {
@@ -37,15 +47,22 @@ class PaymentReportService
     {
         $query = \App\Models\Payment::query();
         $this->applyFilters($query, $request);
+        $cashCollectionsQuery = (clone $query)->where(function ($q) {
+            $q->where('payment_type', '!=', 'advance_credit_usage')
+                ->orWhereNull('payment_type');
+        })->where(function ($q) {
+            $q->where('payment_method', '!=', 'advance_credit')
+                ->orWhereNull('payment_method');
+        });
 
-        $totalAmount       = $query->sum('amount');
-        $cashTotal         = (clone $query)->where('payment_method', 'cash')->sum('amount');
-        $cardTotal         = (clone $query)->where('payment_method', 'card')->sum('amount');
-        $chequeTotal       = (clone $query)->where('payment_method', 'cheque')->sum('amount');
-        $bankTransferTotal = (clone $query)->where('payment_method', 'bank_transfer')->sum('amount');
-        $otherTotal        = (clone $query)->whereNotIn('payment_method', ['cash','card','cheque','bank_transfer'])->sum('amount');
-        $salePayments      = (clone $query)->where('payment_type', 'sale')->sum('amount');
-        $purchasePayments  = (clone $query)->where('payment_type', 'purchase')->sum('amount');
+        $totalAmount       = (clone $cashCollectionsQuery)->sum('amount');
+        $cashTotal         = (clone $cashCollectionsQuery)->where('payment_method', 'cash')->sum('amount');
+        $cardTotal         = (clone $cashCollectionsQuery)->where('payment_method', 'card')->sum('amount');
+        $chequeTotal       = (clone $cashCollectionsQuery)->where('payment_method', 'cheque')->sum('amount');
+        $bankTransferTotal = (clone $cashCollectionsQuery)->where('payment_method', 'bank_transfer')->sum('amount');
+        $otherTotal        = (clone $cashCollectionsQuery)->whereNotIn('payment_method', ['cash','card','cheque','bank_transfer'])->sum('amount');
+        $salePayments      = (clone $cashCollectionsQuery)->where('payment_type', 'sale')->sum('amount');
+        $purchasePayments  = (clone $cashCollectionsQuery)->where('payment_type', 'purchase')->sum('amount');
 
         return compact(
             'totalAmount','cashTotal','cardTotal','chequeTotal',
@@ -170,7 +187,7 @@ class PaymentReportService
                     ? ($first->customer->address ?? '')
                     : ($first->supplier ? ($first->supplier->address ?? '') : ''),
                 'location'         => $locationName,
-                'total_amount'     => (float) $group->sum('amount'),
+                'total_amount'     => (float) $group->reject(fn ($payment) => $this->isNonCashCollectionPayment($payment))->sum('amount'),
                 'payments'         => $paymentsData->toArray(),
             ];
 

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Bulk Payment | Equinox ERP</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "outline-variant": "#c6c6cd",
+                    "primary": "#000000",
+                    "on-tertiary-fixed": "#271901",
+                    "primary-container": "#131b2e",
+                    "surface-dim": "#dcd9db",
+                    "on-primary": "#ffffff",
+                    "on-secondary-fixed-variant": "#38485d",
+                    "on-surface-variant": "#45464d",
+                    "inverse-primary": "#bec6e0",
+                    "secondary": "#505f76",
+                    "error": "#ba1a1a",
+                    "secondary-fixed-dim": "#b7c8e1",
+                    "on-tertiary": "#ffffff",
+                    "surface": "#fcf8fa",
+                    "on-secondary-container": "#54647a",
+                    "tertiary-container": "#271901",
+                    "tertiary": "#000000",
+                    "surface-container-lowest": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "on-secondary-fixed": "#0b1c30",
+                    "on-background": "#1b1b1d",
+                    "surface-container-high": "#eae7e9",
+                    "on-primary-fixed": "#131b2e",
+                    "secondary-fixed": "#d3e4fe",
+                    "surface-variant": "#e4e2e4",
+                    "on-surface": "#1b1b1d",
+                    "on-tertiary-container": "#98805d",
+                    "tertiary-fixed-dim": "#dec29a",
+                    "on-secondary": "#ffffff",
+                    "outline": "#76777d",
+                    "surface-container-highest": "#e4e2e4",
+                    "surface-bright": "#fcf8fa",
+                    "primary-fixed": "#dae2fd",
+                    "surface-tint": "#565e74",
+                    "inverse-surface": "#303032",
+                    "on-primary-container": "#7c839b",
+                    "surface-container-low": "#f6f3f5",
+                    "inverse-on-surface": "#f3f0f2",
+                    "on-primary-fixed-variant": "#3f465c",
+                    "secondary-container": "#d0e1fb",
+                    "on-error": "#ffffff",
+                    "error-container": "#ffdad6",
+                    "on-tertiary-fixed-variant": "#574425",
+                    "primary-fixed-dim": "#bec6e0",
+                    "surface-container": "#f0edef",
+                    "tertiary-fixed": "#fcdeb5",
+                    "background": "#fcf8fa"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "container-padding": "32px",
+                    "stack-md": "16px",
+                    "gutter": "24px",
+                    "unit": "4px",
+                    "stack-lg": "24px",
+                    "stack-sm": "8px"
+            },
+            "fontFamily": {
+                    "h2": ["Inter"],
+                    "body-sm": ["Inter"],
+                    "body-md": ["Inter"],
+                    "h1": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "label-caps": ["Inter"],
+                    "numeric-tabular": ["Inter"],
+                    "h3": ["Inter"]
+            },
+            "fontSize": {
+                    "h2": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "body-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "h1": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "numeric-tabular": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "h3": ["20px", {"lineHeight": "28px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #fcf8fa; color: #1b1b1d; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .card-shadow { box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .focus-halo:focus { outline: none; border-color: #000000; box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1); }
+        .tabular-nums { font-variant-numeric: tabular-nums; }
+    </style>
+</head>
+<body class="min-h-screen">
+<!-- TopNavBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-container-padding h-16 bg-surface border-b border-outline-variant">
+<div class="flex items-center gap-gutter">
+<span class="font-h3 text-h3 font-bold text-primary">Equinox ERP</span>
+<div class="relative hidden md:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="pl-10 pr-4 py-2 bg-surface-container-low border border-outline-variant rounded-lg w-80 text-body-md focus-halo" placeholder="Search invoices or customers..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-stack-lg">
+<button class="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full transition-colors cursor-pointer">notifications</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full transition-colors cursor-pointer">settings</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full transition-colors cursor-pointer">help</button>
+<div class="h-8 w-8 rounded-full overflow-hidden bg-outline-variant">
+<img alt="User profile" data-alt="A professional headshot of a corporate executive in a clean, modern studio setting with soft lighting. The individual has a confident yet approachable expression. The background is a neutral, light gray tone, reflecting a high-end corporate identity consistent with financial software branding." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA5kwiuSeHHY6yywuzvckH0AosahNWwq-LXDWWI_jinZYuydB4qsWzse0lY28LLavoTr2GWV6R0KGdOqGYQw_enISFmvRbXi8ZDW4FPZMwm1Kd7cJ9V2IuHwoFQEhU7pkrO6kVv0ESNqtK1uIQa48bYkZ3NBIDIuxuVPLVoVcR0TKcC1cIyV5V-6-96mxWEfACmZB8n7z-AXpp7YOwG3aoqgO90OmpqdlUu4RAgRmzSnf5LksdESnhSOKDyQLq_XSmwkHBf9bHtf58"/>
+</div>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-64 flex flex-col py-stack-lg px-stack-md bg-surface-container-low border-r border-outline-variant pt-20">
+<div class="flex items-center gap-stack-md px-2 mb-stack-lg">
+<div class="h-10 w-10 bg-primary text-on-primary rounded flex items-center justify-center font-black">GS</div>
+<div>
+<div class="font-label-caps text-label-caps text-on-surface">Global Sales Corp</div>
+<div class="text-[10px] text-on-surface-variant">Enterprise Edition</div>
+</div>
+</div>
+<nav class="flex-1 space-y-1">
+<div class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-high rounded-lg cursor-pointer transition-all active:scale-95">
+<span class="material-symbols-outlined">sell</span>
+<span class="font-body-md text-body-md">Sales</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-high rounded-lg cursor-pointer transition-all active:scale-95">
+<span class="material-symbols-outlined">inventory_2</span>
+<span class="font-body-md text-body-md">Inventory</span>
+</div>
+<!-- Active Tab: Payments -->
+<div class="flex items-center gap-3 px-3 py-2 bg-secondary-container text-on-secondary-container font-bold rounded-lg cursor-pointer transition-all active:scale-95">
+<span class="material-symbols-outlined">payments</span>
+<span class="font-body-md text-body-md">Payments</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-high rounded-lg cursor-pointer transition-all active:scale-95">
+<span class="material-symbols-outlined">analytics</span>
+<span class="font-body-md text-body-md">Reports</span>
+</div>
+</nav>
+<div class="mt-auto pt-stack-lg space-y-1 border-t border-outline-variant">
+<div class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-high rounded-lg cursor-pointer transition-all active:scale-95">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-high rounded-lg cursor-pointer transition-all active:scale-95">
+<span class="material-symbols-outlined">contact_support</span>
+<span class="font-body-md text-body-md">Support</span>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="ml-64 pt-20 pb-12 px-container-padding max-w-[1440px]">
+<div class="flex justify-between items-end mb-stack-lg">
+<div>
+<h1 class="font-h1 text-h1 text-primary">Bulk Payment</h1>
+<p class="text-on-surface-variant font-body-md mt-1">Settle multiple invoices and manage advances for a single customer.</p>
+</div>
+<div class="flex gap-stack-md">
+<button class="px-6 py-2 border border-primary text-primary font-body-md rounded-lg hover:bg-surface-container-high transition-colors">Discard Draft</button>
+<button class="px-6 py-2 bg-primary text-on-primary font-body-md rounded-lg hover:opacity-90 transition-opacity">Record Payment</button>
+</div>
+</div>
+<!-- Customer Selection -->
+<section class="bg-surface-container-lowest p-stack-lg rounded-xl border border-outline-variant card-shadow mb-stack-lg">
+<label class="block font-label-caps text-label-caps text-on-surface mb-2">Select Customer</label>
+<div class="relative">
+<select class="w-full md:w-1/3 appearance-none bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 font-body-lg focus-halo pr-10">
+<option>Acme Corporation (CUST-9821)</option>
+<option>Globex Ltd (CUST-4523)</option>
+<option>Stark Industries (CUST-1002)</option>
+<option>Wayne Enterprises (CUST-2234)</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 md:right-[calc(66.6%+12px)] top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">keyboard_arrow_down</span>
+</div>
+</section>
+<!-- Financial Summary Bento Grid -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-gutter mb-stack-lg">
+<div class="bg-surface-container-lowest p-stack-md rounded-xl border border-outline-variant card-shadow border-l-4 border-l-error">
+<span class="font-label-caps text-label-caps text-on-surface-variant block mb-2">Total Outstanding Due</span>
+<div class="text-h2 font-h2 text-error tabular-nums">$14,250.00</div>
+<div class="flex items-center gap-1 mt-2 text-body-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">history</span>
+<span>Last invoice: 2 days ago</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-stack-md rounded-xl border border-outline-variant card-shadow border-l-4 border-l-[#f97316]">
+<span class="font-label-caps text-label-caps text-on-surface-variant block mb-2">Total Sales Return</span>
+<div class="text-h2 font-h2 text-[#ea580c] tabular-nums">$840.50</div>
+<div class="flex items-center gap-1 mt-2 text-body-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">assignment_return</span>
+<span>3 pending credits</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-stack-md rounded-xl border border-outline-variant card-shadow border-l-4 border-l-[#3b82f6]">
+<span class="font-label-caps text-label-caps text-on-surface-variant block mb-2">Total Advance</span>
+<div class="text-h2 font-h2 text-[#2563eb] tabular-nums">$2,000.00</div>
+<div class="flex items-center gap-1 mt-2 text-body-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">account_balance_wallet</span>
+<span>From unused payments</span>
+</div>
+</div>
+<div class="bg-primary-container p-stack-md rounded-xl border border-outline-variant shadow-lg ring-2 ring-primary">
+<span class="font-label-caps text-label-caps text-on-primary-container block mb-2">Net Payable Amount</span>
+<div class="text-h2 font-h2 text-on-primary tabular-nums">$11,409.50</div>
+<div class="flex items-center gap-1 mt-2 text-body-sm text-on-primary-container">
+<span class="material-symbols-outlined text-[16px]">info</span>
+<span>Due - Return - Advance</span>
+</div>
+</div>
+</div>
+<!-- Invoice Table Section -->
+<section class="bg-surface-container-lowest rounded-xl border border-outline-variant card-shadow mb-stack-lg overflow-hidden">
+<div class="p-stack-lg border-b border-outline-variant flex flex-wrap justify-between items-center gap-stack-md">
+<h3 class="font-h3 text-h3">Pending Invoices</h3>
+<div class="flex items-center gap-stack-md w-full md:w-auto">
+<label class="font-label-caps text-label-caps text-on-surface-variant whitespace-nowrap">Global Payment (FIFO)</label>
+<div class="relative w-full md:w-64">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-on-surface-variant">$</span>
+<input class="pl-8 pr-4 py-2 w-full bg-surface-container-low border border-outline-variant rounded-lg focus-halo font-numeric-tabular" placeholder="Enter amount to auto-allocate" type="number"/>
+</div>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant">
+<th class="px-6 py-3 w-10"><input class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4" type="checkbox"/></th>
+<th class="px-4 py-3 font-label-caps text-label-caps text-on-surface-variant">Invoice No</th>
+<th class="px-4 py-3 font-label-caps text-label-caps text-on-surface-variant">Date</th>
+<th class="px-4 py-3 font-label-caps text-label-caps text-on-surface-variant text-right">Total Amount</th>
+<th class="px-4 py-3 font-label-caps text-label-caps text-on-surface-variant text-right">Paid Amount</th>
+<th class="px-4 py-3 font-label-caps text-label-caps text-on-surface-variant text-right">Due Amount</th>
+<th class="px-6 py-3 font-label-caps text-label-caps text-on-surface-variant text-right w-48">Allocate Amount</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-4"><input checked="" class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4" type="checkbox"/></td>
+<td class="px-4 py-4 font-body-md font-bold">INV-2023-001</td>
+<td class="px-4 py-4 font-body-md text-on-surface-variant">Oct 12, 2023</td>
+<td class="px-4 py-4 font-numeric-tabular text-right tabular-nums">$5,000.00</td>
+<td class="px-4 py-4 font-numeric-tabular text-right text-green-600 tabular-nums">$2,500.00</td>
+<td class="px-4 py-4 font-numeric-tabular text-right text-error tabular-nums">$2,500.00</td>
+<td class="px-6 py-4"><input class="w-full text-right py-1 px-3 border border-outline-variant rounded focus-halo font-numeric-tabular" type="text" value="2500.00"/></td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-4"><input checked="" class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4" type="checkbox"/></td>
+<td class="px-4 py-4 font-body-md font-bold">INV-2023-045</td>
+<td class="px-4 py-4 font-body-md text-on-surface-variant">Nov 05, 2023</td>
+<td class="px-4 py-4 font-numeric-tabular text-right tabular-nums">$8,250.00</td>
+<td class="px-4 py-4 font-numeric-tabular text-right text-green-600 tabular-nums">$0.00</td>
+<td class="px-4 py-4 font-numeric-tabular text-right text-error tabular-nums">$8,250.00</td>
+<td class="px-6 py-4"><input class="w-full text-right py-1 px-3 border border-outline-variant rounded focus-halo font-numeric-tabular" type="text" value="8250.00"/></td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-4"><input class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4" type="checkbox"/></td>
+<td class="px-4 py-4 font-body-md font-bold">INV-2023-112</td>
+<td class="px-4 py-4 font-body-md text-on-surface-variant">Dec 01, 2023</td>
+<td class="px-4 py-4 font-numeric-tabular text-right tabular-nums">$3,500.00</td>
+<td class="px-4 py-4 font-numeric-tabular text-right text-green-600 tabular-nums">$0.00</td>
+<td class="px-4 py-4 font-numeric-tabular text-right text-error tabular-nums">$3,500.00</td>
+<td class="px-6 py-4"><input class="w-full text-right py-1 px-3 border border-outline-variant rounded focus-halo font-numeric-tabular" type="text" value="0.00"/></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Payment Methods Section -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+<div class="lg:col-span-2 bg-surface-container-lowest rounded-xl border border-outline-variant card-shadow p-stack-lg">
+<div class="flex justify-between items-center mb-stack-md">
+<h3 class="font-h3 text-h3">Payment Details</h3>
+<button class="text-primary font-body-md flex items-center gap-1 hover:underline">
+<span class="material-symbols-outlined text-[18px]">add_circle</span>
+                        Add Method
+                    </button>
+</div>
+<div class="space-y-stack-md">
+<!-- Row 1 -->
+<div class="flex flex-wrap md:flex-nowrap gap-stack-md items-end bg-surface p-stack-md rounded-lg border border-outline-variant border-dashed">
+<div class="w-full md:w-1/3">
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-1">Method</label>
+<select class="w-full py-2 px-3 bg-surface-container-low border border-outline-variant rounded-lg focus-halo">
+<option>Bank Transfer</option>
+<option>Cash</option>
+<option>Card</option>
+<option>Online</option>
+</select>
+</div>
+<div class="w-full md:w-1/3">
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-1">Ref No / Cheque No</label>
+<input class="w-full py-2 px-3 bg-surface-container-low border border-outline-variant rounded-lg focus-halo font-body-md" type="text" value="TRX-9921-A"/>
+</div>
+<div class="w-full md:w-1/4">
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-1">Amount</label>
+<div class="relative">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">$</span>
+<input class="w-full pl-7 pr-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg focus-halo font-numeric-tabular text-right" type="text" value="10750.00"/>
+</div>
+</div>
+<button class="p-2 text-on-surface-variant hover:text-error hover:bg-error-container rounded-lg transition-colors">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+<!-- Row 2 -->
+<div class="flex flex-wrap md:flex-nowrap gap-stack-md items-end bg-surface p-stack-md rounded-lg border border-outline-variant border-dashed">
+<div class="w-full md:w-1/3">
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-1">Method</label>
+<select class="w-full py-2 px-3 bg-surface-container-low border border-outline-variant rounded-lg focus-halo">
+<option>Cash</option>
+<option>Bank Transfer</option>
+<option>Card</option>
+<option>Online</option>
+</select>
+</div>
+<div class="w-full md:w-1/3">
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-1">Ref No / Cheque No</label>
+<input class="w-full py-2 px-3 bg-surface-container-low border border-outline-variant rounded-lg focus-halo font-body-md" placeholder="Internal Cash Receipt" type="text"/>
+</div>
+<div class="w-full md:w-1/4">
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-1">Amount</label>
+<div class="relative">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">$</span>
+<input class="w-full pl-7 pr-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg focus-halo font-numeric-tabular text-right" type="text" value="500.00"/>
+</div>
+</div>
+<button class="p-2 text-on-surface-variant hover:text-error hover:bg-error-container rounded-lg transition-colors">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Real-time Totals and Validation -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant card-shadow p-stack-lg flex flex-col">
+<h3 class="font-h3 text-h3 mb-stack-lg">Payment Summary</h3>
+<div class="space-y-4 flex-1">
+<div class="flex justify-between items-center text-body-md text-on-surface-variant">
+<span>Total Allocated</span>
+<span class="font-numeric-tabular tabular-nums">$10,750.00</span>
+</div>
+<div class="flex justify-between items-center text-body-md text-on-surface-variant">
+<span>Total Collected</span>
+<span class="font-numeric-tabular tabular-nums">$11,250.00</span>
+</div>
+<div class="h-[1px] bg-outline-variant w-full my-2"></div>
+<div class="flex justify-between items-center">
+<span class="font-bold">Remaining Balance</span>
+<span class="font-h2 text-h2 text-[#2563eb] tabular-nums">$500.00</span>
+</div>
+<!-- Overpayment Warning -->
+<div class="mt-stack-lg bg-[#fff7ed] border border-[#fed7aa] p-stack-md rounded-lg flex gap-3">
+<span class="material-symbols-outlined text-[#ea580c]">warning</span>
+<div>
+<p class="font-bold text-sm text-[#9a3412]">Overpayment Detected</p>
+<p class="text-xs text-[#9a3412] mt-1">The collected amount exceeds the allocated total by $500.00.</p>
+</div>
+</div>
+<!-- Advance Toggle -->
+<div class="flex items-center justify-between mt-stack-md p-stack-md bg-surface border border-outline-variant rounded-lg">
+<div class="flex flex-col">
+<span class="font-body-md font-bold">Convert to Advance</span>
+<span class="text-xs text-on-surface-variant">Store excess as future credit</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-outline-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+</div>
+</div>
+</div>
+<!-- Success Toast Placeholder (Simulated) -->
+<div class="fixed bottom-6 right-6 z-[60] bg-primary text-on-primary px-6 py-4 rounded-xl shadow-2xl flex items-center gap-stack-md border border-on-primary-container">
+<div class="bg-green-500 rounded-full p-1 flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-[16px]">check</span>
+</div>
+<div class="flex flex-col">
+<span class="font-bold text-body-md">Payment Processing</span>
+<span class="text-xs opacity-80">Allocation data synchronized successfully</span>
+</div>
+<button class="material-symbols-outlined ml-4 text-[18px] opacity-60 hover:opacity-100">close</button>
+</div>
+</main>
+</body></html>

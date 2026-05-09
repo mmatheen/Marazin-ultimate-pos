@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Services\Ledger\LedgerBalanceQueryService;
 use App\Services\Ledger\LedgerMaintenanceService;
+use App\Services\Ledger\CustomerAdvanceBalanceService;
 use App\Models\Ledger;
 use App\Models\Customer;
 use App\Models\Supplier;
@@ -257,6 +258,10 @@ class UnifiedLedgerService
             'status' => 'reversed',
             'notes' => $this->appendNote($entry->notes, $this->reversedTag($message)),
         ]);
+
+        if ($entry->contact_type === 'customer') {
+            app(CustomerAdvanceBalanceService::class)->syncCustomer((int) $entry->contact_id);
+        }
     }
 
     private function detectPaymentMethodFromNotes(?string $notes): string

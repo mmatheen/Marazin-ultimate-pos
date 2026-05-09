@@ -1,5 +1,7 @@
 // Bulk payments shared helpers.
 // Exposes a small API on window for legacy Blade scripts.
+const BULK_MONEY_EPSILON = 0.01;
+window.BULK_MONEY_EPSILON = BULK_MONEY_EPSILON;
 
 function parseAmountValue(value) {
   if (value === null || value === undefined) return 0;
@@ -115,11 +117,11 @@ function syncCreditDeductionToAllocations() {
     });
 
     let toReduce = allocatedCash - desiredCash;
-    if (toReduce <= 0.01) return;
+    if (toReduce <= BULK_MONEY_EPSILON) return;
 
     const rows = $('.bill-allocation-row').get().reverse();
     rows.forEach((rowEl) => {
-      if (toReduce <= 0.01) return;
+      if (toReduce <= BULK_MONEY_EPSILON) return;
       const $row = $(rowEl);
       const $amountInput = $row.find('.allocation-amount');
       const billId = $row.find('.bill-select').val();
@@ -137,7 +139,7 @@ function syncCreditDeductionToAllocations() {
       if (typeof window.billPaymentAllocations === 'object' && window.billPaymentAllocations !== null) {
         const before = parseFloat(window.billPaymentAllocations[billId] || 0) || 0;
         const after = Math.max(0, before - reduceBy);
-        if (after <= 0.01) {
+        if (after <= BULK_MONEY_EPSILON) {
           delete window.billPaymentAllocations[billId];
         } else {
           window.billPaymentAllocations[billId] = after;
@@ -189,12 +191,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if ($(this).is(':checked')) {
       $('#advanceCreditAmountSection').slideDown();
       const maxAdvance = window.customerAdvanceCredit || window.supplierAdvanceCredit || 0;
-      const totalDue = window.totalCustomerDue || window.totalSupplierDue || maxAdvance;
-      const suggestedAmount = Math.min(maxAdvance, totalDue);
-      $('#advanceCreditAmountInput').val(suggestedAmount.toFixed(2));
       $('#advanceCreditAmountInput').attr('max', maxAdvance);
       callUpdateNetDue();
-      if (typeof window.syncCreditDeductionToAllocations === 'function') syncCreditDeductionToAllocations();
     } else {
       $('#advanceCreditAmountSection').slideUp();
       $('#advanceCreditAmountInput').val('');
@@ -212,7 +210,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
     callUpdateNetDue();
-    if (typeof window.syncCreditDeductionToAllocations === 'function') syncCreditDeductionToAllocations();
   });
 });
 

@@ -109,6 +109,7 @@
                                         <th>Status</th>
                                         <th>Action</th>
                                         <th style="display:none;">Group Key</th>
+                                        <th style="display:none;">Contact Key</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -119,185 +120,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
-
-<!-- Edit Payment Modal -->
-<div class="modal fade" id="editPaymentModal" tabindex="-1" role="dialog" aria-labelledby="editPaymentModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="editPaymentModalLabel">Edit Payment</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form id="editPaymentForm">
-                <div class="modal-body">
-                    <input type="hidden" id="edit_payment_id" name="payment_id">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group local-forms">
-                                <label>Amount <span class="login-danger">*</span></label>
-                                <input type="number" id="edit_amount" name="amount" class="form-control" step="0.01" min="0.01" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group local-forms">
-                                <label>Payment Date <span class="login-danger">*</span></label>
-                                <input type="datetime-local" id="edit_payment_date" name="payment_date" class="form-control" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group local-forms">
-                                <label>Payment Method <span class="login-danger">*</span></label>
-                                <select id="edit_payment_method" name="payment_method" class="form-control" required>
-                                    <option value="cash">Cash</option>
-                                    <option value="card">Card</option>
-                                    <option value="cheque">Cheque</option>
-                                    <option value="bank_transfer">Bank Transfer</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- Allow Advance Payment Option -->
-                        <div class="col-md-12">
-                            <div class="form-group local-forms">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="edit_allow_advance" name="allow_advance" value="1">
-                                    <label class="form-check-label" for="edit_allow_advance">
-                                        <strong>Allow Advance Payment</strong>
-                                        <small class="text-muted d-block">
-                                            <i class="fas fa-info-circle"></i> Check this if customer is paying MORE than the bill amount.
-                                            Excess amount will be stored as customer credit for future purchases.
-                                        </small>
-                                    </label>
-                                </div>
-                            </div>
-                            <div id="edit_advance_info" class="alert alert-info" style="display: none;">
-                                <i class="fas fa-calculator"></i>
-                                <strong>Advance Payment Details:</strong>
-                                <div id="edit_advance_calculation"></div>
-                            </div>
-                        </div>
-
-                        <!-- Card Details (shown only when payment method is card) -->
-                        <div id="edit_card_details" style="display: none;" class="col-12">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group local-forms">
-                                        <label>Card Number</label>
-                                        <input type="text" id="edit_card_number" name="card_number" class="form-control" placeholder="xxxx xxxx xxxx xxxx">
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group local-forms">
-                                        <label>Card Holder Name</label>
-                                        <input type="text" id="edit_card_holder_name" name="card_holder_name" class="form-control">
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group local-forms">
-                                        <label>Expiry Month</label>
-                                        <input type="text" id="edit_card_expiry_month" name="card_expiry_month" class="form-control" placeholder="MM">
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group local-forms">
-                                        <label>Expiry Year</label>
-                                        <input type="text" id="edit_card_expiry_year" name="card_expiry_year" class="form-control" placeholder="YYYY">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Cheque Details (shown only when payment method is cheque) -->
-                        <div id="edit_cheque_details" style="display: none;" class="col-12">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group local-forms">
-                                        <label>Cheque Number</label>
-                                        <input type="text" id="edit_cheque_number" name="cheque_number" class="form-control">
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group local-forms">
-                                        <label>Bank & Branch</label>
-                                        <input type="text" id="edit_cheque_bank_branch" name="cheque_bank_branch" class="form-control">
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group local-forms">
-                                        <label>Received Date</label>
-                                        <input type="date" id="edit_cheque_received_date" name="cheque_received_date" class="form-control">
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group local-forms">
-                                        <label>Valid Date</label>
-                                        <input type="date" id="edit_cheque_valid_date" name="cheque_valid_date" class="form-control">
-                                    </div>
-                                </div>
-                                <div class="col-md-12">
-                                    <div class="form-group local-forms">
-                                        <label>Given By</label>
-                                        <input type="text" id="edit_cheque_given_by" name="cheque_given_by" class="form-control">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-12">
-                            <div class="form-group local-forms">
-                                <label>Notes</label>
-                                <textarea id="edit_notes" name="notes" class="form-control" rows="3"></textarea>
-                            </div>
-                        </div>
-                        <div class="col-12">
-                            <div class="form-group local-forms">
-                                <label>Reason for Edit <span class="login-danger">*</span></label>
-                                <textarea id="edit_reason" name="reason" class="form-control" rows="2" placeholder="Please provide reason for editing this payment..." required></textarea>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> Update Payment
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Delete Payment Modal -->
-<div class="modal fade" id="deletePaymentModal" tabindex="-1" role="dialog" aria-labelledby="deletePaymentModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="deletePaymentModalLabel">Delete Payment</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form id="deletePaymentForm">
-                <div class="modal-body">
-                    <input type="hidden" id="delete_payment_id" name="payment_id">
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <strong>Warning!</strong> This action cannot be undone. The payment will be permanently deleted and the related sale/purchase balance will be updated.
-                    </div>
-                    <div class="form-group local-forms">
-                        <label>Reason for Deletion <span class="login-danger">*</span></label>
-                        <textarea id="delete_reason" name="reason" class="form-control" rows="3" placeholder="Please provide a detailed reason for deleting this payment..." required></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-trash"></i> Delete Payment
-                    </button>
-                </div>
-            </form>
         </div>
     </div>
 </div>
@@ -315,7 +137,11 @@
                     <input type="hidden" id="bulk_edit_reference_no">
                     <div class="alert alert-info py-2">
                         <strong>Bulk Reference:</strong> <span id="bulkEditReferenceLabel">-</span>
-                        <small class="d-block text-muted">Edit all rows under this bulk reference and save once.</small>
+                        <small class="d-block text-muted">Edit invoice payment rows below. Advance credit, new advance, returns, and opening-balance chunks in the same bulk are shown for context (read-only).</small>
+                    </div>
+                    <div id="bulkEditCompanionBlock" class="alert alert-secondary py-2 mb-3" style="display:none;">
+                        <strong class="d-block mb-1">Also part of this bulk (read-only)</strong>
+                        <ul id="bulkEditCompanionSummary" class="small mb-0 ps-3"></ul>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-sm table-bordered">
@@ -431,20 +257,27 @@
         background-color: #f8f9fa;
     }
 
-    /* DataTable row grouping styling */
-    #paymentsTable tr.group {
-        background-color: #e9ecef !important;
-        font-weight: 600;
-        font-size: 0.9rem;
-        cursor: pointer;
-    }
-
-    #paymentsTable tr.group td {
-        padding: 0.6rem 0.75rem;
-    }
-
-    #paymentsTable tr.group:hover {
+    /* DataTable row grouping: customer (outer) + bulk ref (inner) */
+    #paymentsTable tr.group-customer {
         background-color: #dee2e6 !important;
+        font-weight: 600;
+        font-size: 0.92rem;
+    }
+
+    #paymentsTable tr.group-customer td {
+        padding: 0.55rem 0.75rem;
+        border-bottom: 2px solid #ced4da;
+    }
+
+    #paymentsTable tr.group-bulk {
+        background-color: #f1f3f5 !important;
+        font-weight: 600;
+        font-size: 0.82rem;
+    }
+
+    #paymentsTable tr.group-bulk td {
+        padding: 0.45rem 0.75rem 0.45rem 1.25rem;
+        border-left: 3px solid #868e96;
     }
 
     /* Compact badge styling */
@@ -460,8 +293,210 @@
     }
 </style>
 
+
+<style>
+/* Custom styling for SweetAlert error popup */
+.swal-wide .sweet-alert {
+    width: 600px !important;
+    max-width: 90% !important;
+}
+
+.sweet-alert p {
+    text-align: left !important;
+}
+
+.sweet-alert .sa-error-container {
+    margin-top: 20px;
+}
+
+/* Enhanced UI Styling */
+.border-left-info {
+    border-left: 4px solid #17a2b8 !important;
+}
+
+.page-title i {
+    margin-right: 8px;
+}
+
+.form-group label i {
+    margin-right: 5px;
+    color: #6c757d;
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+}
+
+.badge i {
+    margin-right: 4px;
+}
+
+/* Payment type specific colors */
+.badge.bg-success {
+    background-color: #28a745 !important;
+}
+
+.badge.bg-primary {
+    background-color: #007bff !important;
+}
+
+.badge.bg-info {
+    background-color: #17a2b8 !important;
+}
+
+.badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #212529 !important;
+}
+
+/* Table enhancements */
+.table th {
+    border-top: none;
+    font-weight: 600;
+    background-color: #f8f9fa;
+    color: #495057;
+    vertical-align: middle;
+    padding: 12px 8px;
+}
+
+.table td {
+    vertical-align: middle;
+    padding: 12px 8px;
+}
+
+.table th i {
+    color: #6c757d;
+    margin-right: 5px;
+}
+
+/* Standard table styling */
+.datatable {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.datatable thead th {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.datatable tbody td {
+    border: 1px solid #dee2e6;
+    border-top: none;
+}
+
+/* Action buttons styling */
+.actions {
+    display: flex;
+    gap: 4px;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+}
+
+.actions .btn {
+    padding: 4px 8px;
+    font-size: 12px;
+    line-height: 1.2;
+}
+
+/* Checkbox styling */
+.payment-checkbox, #allchecked {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .actions {
+        justify-content: center;
+    }
+
+    .actions .btn {
+        padding: 2px 6px;
+        font-size: 11px;
+    }
+
+    .table td, .table th {
+        padding: 8px 4px;
+        font-size: 13px;
+    }
+}
+
+/* Alert enhancements */
+.alert-primary {
+    background-color: #cce7ff;
+    border-color: #b3d9ff;
+    color: #004085;
+}
+
+.alert-light {
+    background-color: #f8f9fa;
+    border-color: #e9ecef;
+    color: #6c757d;
+}
+
+/* Button group spacing */
+.btn-group .btn {
+    margin-right: 2px;
+}
+
+/* Select dropdown enhancements */
+select.form-control option {
+    padding: 8px 12px;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+
+    .badge {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+    }
+}
+</style>
+
+@endsection
+
+@push('scripts')
 <script>
 $(document).ready(function() {
+    // Bootstrap 5 loads before @stack('scripts'); helpers tolerate missing global (e.g. cached partial load)
+    function bulkPaymentsModalShow(modalEl) {
+        if (!modalEl) return;
+        var B = window.bootstrap;
+        if (B && B.Modal) {
+            var inst = B.Modal.getInstance(modalEl) || new B.Modal(modalEl);
+            inst.show();
+            return;
+        }
+        if (window.jQuery && jQuery.fn.modal) {
+            jQuery(modalEl).modal('show');
+            return;
+        }
+        console.error('Bootstrap Modal not available');
+        toastr.error('UI library not loaded. Try a hard refresh (Ctrl+F5).');
+    }
+    function bulkPaymentsModalHide(modalEl) {
+        if (!modalEl) return;
+        var B = window.bootstrap;
+        if (B && B.Modal) {
+            var inst = B.Modal.getInstance(modalEl);
+            if (inst) inst.hide();
+            return;
+        }
+        if (window.jQuery && jQuery.fn.modal) {
+            jQuery(modalEl).modal('hide');
+        }
+    }
+
     // Setup CSRF token for AJAX requests
     $.ajaxSetup({
         headers: {
@@ -499,73 +534,114 @@ $(document).ready(function() {
         }
 
         paymentsDataTable = $('#paymentsTable').DataTable({
-            "order": [[8, 'desc'], [0, 'desc']],
+            "order": [[9, 'asc'], [8, 'desc'], [0, 'desc']],
             "pageLength": 50,
             "responsive": true,
             "columnDefs": [
-                { "visible": false, "targets": 2 }, // Hide contact column
-                { "visible": false, "targets": 8 } // Hide grouping key column
+                { "visible": false, "targets": 2 },
+                { "visible": false, "targets": 8 },
+                { "visible": false, "targets": 9 }
             ],
             "drawCallback": function (settings) {
                 var api = this.api();
                 var rows = api.rows({ page: 'current' }).nodes();
-                var last = null;
+                var rowCount = rows.length;
+                if (rowCount === 0) {
+                    return;
+                }
 
-                api.column(8, { page: 'current' }).data().each(function (groupKey, i) {
-                    if (last !== groupKey) {
-                        const groupItems = paymentsByReference[groupKey] || [];
-                        const firstItem = groupItems[0] || null;
-                        const contactLabel = firstItem
-                            ? ((firstItem.customer
-                                ? ((firstItem.customer.first_name || '') + ' ' + (firstItem.customer.last_name || '') + ' (Customer)')
-                                : ((firstItem.supplier
-                                    ? ((firstItem.supplier.first_name || '') + ' ' + (firstItem.supplier.last_name || '') + ' (Supplier)')
-                                    : 'Unknown Contact'))) )
-                            : 'Unknown Contact';
+                var pageStatsByContact = {};
+                api.rows({ page: 'current' }).every(function() {
+                    var d = this.data();
+                    var ck = d[9];
+                    if (!pageStatsByContact[ck]) {
+                        pageStatsByContact[ck] = { total: 0, bulkRefs: {} };
+                    }
+                    var amountText = d[4];
+                    var amountMatch = amountText.match(/Rs\.\s*([\d,]+\.?\d*)/);
+                    var numericAmount = amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : 0;
+                    pageStatsByContact[ck].total += numericAmount;
+                    var rk = d[8];
+                    pageStatsByContact[ck].bulkRefs[rk] = (pageStatsByContact[ck].bulkRefs[rk] || 0) + 1;
+                });
 
-                        const allRowsToday = groupItems.length > 0 && groupItems.every(item => !!item.is_today);
+                var lastContactKey = null;
+                var lastRefKey = null;
+
+                for (var i = 0; i < rowCount; i++) {
+                    var rowData = api.row(rows[i]).data();
+                    var contactKey = rowData[9];
+                    var refKey = rowData[8];
+                    var contactLabel = rowData[2] || 'Unknown Contact';
+
+                    if (lastContactKey !== contactKey) {
+                        var cstats = pageStatsByContact[contactKey] || { total: 0, bulkRefs: {} };
+                        var bulkCount = Object.keys(cstats.bulkRefs).length;
+                        var lineCount = 0;
+                        var brMap = cstats.bulkRefs;
+                        for (var brk in brMap) {
+                            if (Object.prototype.hasOwnProperty.call(brMap, brk)) {
+                                lineCount += brMap[brk];
+                            }
+                        }
+
+                        var custRow =
+                            '<tr class="group group-customer">' +
+                            '<td colspan="7">' +
+                            '<i class="fas fa-user-circle text-secondary me-1"></i> ' +
+                            '<strong>' + contactLabel + '</strong>' +
+                            ' <span class="badge bg-secondary ms-2">' + bulkCount + ' bulk</span>' +
+                            ' <span class="badge bg-light text-dark border ms-1">' + lineCount + ' line(s) on page</span>' +
+                            ' <span class="float-end text-primary fw-semibold">Page total: Rs. ' +
+                            cstats.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) +
+                            '</span>' +
+                            '</td></tr>';
+                        $(rows[i]).before(custRow);
+                        lastContactKey = contactKey;
+                        lastRefKey = null;
+                    }
+
+                    if (lastRefKey !== refKey) {
+                        var groupItems = paymentsByReference[refKey] || [];
+                        var allRowsToday = groupItems.length > 0 && groupItems.every(function(item) { return !!item.is_today; });
 
                         var groupTotal = 0;
                         var groupCount = 0;
-
                         api.rows({ page: 'current' }).every(function() {
                             var data = this.data();
-                            if (data[8] === groupKey) {
-                                // Extract numeric value from HTML formatted amount
-                                // Amount is in format: <strong>Rs. 17,050.00</strong>
-                                var amountText = data[4];
-                                var amountMatch = amountText.match(/Rs\.\s*([\d,]+\.?\d*)/);
-                                if (amountMatch) {
-                                    var numericAmount = parseFloat(amountMatch[1].replace(/,/g, ''));
-                                    groupTotal += numericAmount;
+                            if (data[8] === refKey) {
+                                var amtText = data[4];
+                                var amtMatch = amtText.match(/Rs\.\s*([\d,]+\.?\d*)/);
+                                if (amtMatch) {
+                                    groupTotal += parseFloat(amtMatch[1].replace(/,/g, ''));
                                 }
                                 groupCount++;
                             }
                         });
 
-                        const groupActions = allRowsToday
-                            ? `<span class="ms-2">
-                                    <button type="button" class="btn btn-xs btn-outline-primary edit-bulk-group-btn" data-reference="${groupKey}" title="Edit entire bulk reference">
-                                        <i class="fas fa-edit"></i> Edit Bulk
-                                    </button>
-                                    <button type="button" class="btn btn-xs btn-outline-danger delete-bulk-group-btn" data-reference="${groupKey}" title="Delete entire bulk reference">
-                                        <i class="fas fa-trash"></i> Delete Bulk
-                                    </button>
-                                </span>`
-                            : `<span class="badge bg-secondary ms-2" title="Contains past rows, bulk edit/delete locked"><i class="fas fa-lock"></i> Locked</span>`;
+                        var groupActions = allRowsToday
+                            ? '<span class="ms-2">' +
+                                '<button type="button" class="btn btn-xs btn-outline-primary edit-bulk-group-btn" data-reference="' + refKey + '" title="Edit entire bulk reference">' +
+                                '<i class="fas fa-edit"></i> Edit Bulk</button> ' +
+                                '<button type="button" class="btn btn-xs btn-outline-danger delete-bulk-group-btn" data-reference="' + refKey + '" title="Delete entire bulk reference">' +
+                                '<i class="fas fa-trash"></i> Delete Bulk</button></span>'
+                            : '<span class="badge bg-secondary ms-2" title="Contains past rows, bulk edit/delete locked"><i class="fas fa-lock"></i> Locked</span>';
 
-                        $(rows).eq(i).before(
-                            '<tr class="group"><td colspan="7" style="background-color: #e9ecef; font-weight: 600;"><i class="fas fa-user-circle"></i> ' +
-                            contactLabel +
-                            ' <span class="badge bg-dark ms-2">' + groupKey + '</span>' +
-                            ' <span class="badge bg-secondary ms-2">' + groupCount + ' payment(s)</span>' +
+                        var bulkRow =
+                            '<tr class="group group-bulk">' +
+                            '<td colspan="7">' +
+                            '<i class="fas fa-layer-group text-muted me-1"></i> ' +
+                            '<span class="badge bg-dark">' + refKey + '</span>' +
+                            ' <span class="badge bg-white text-dark border ms-1">' + groupCount + ' line(s)</span>' +
                             groupActions +
-                            ' <span class="float-end text-success">Total: Rs. ' + groupTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span></td></tr>'
-                        );
-
-                        last = groupKey;
+                            ' <span class="float-end text-success">Subtotal: Rs. ' +
+                            groupTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) +
+                            '</span>' +
+                            '</td></tr>';
+                        $(rows[i]).before(bulkRow);
+                        lastRefKey = refKey;
                     }
-                });
+                }
             },
             "language": {
                 "search": "Search:",
@@ -575,15 +651,6 @@ $(document).ready(function() {
             }
         });
 
-        // Toggle group visibility on click
-        $('#paymentsTable tbody').on('click', 'tr.group', function() {
-            var currentOrder = paymentsDataTable.order()[0];
-            if (currentOrder[0] === 8 && currentOrder[1] === 'asc') {
-                paymentsDataTable.order([8, 'desc'], [0, 'desc']).draw();
-            } else {
-                paymentsDataTable.order([8, 'asc'], [0, 'desc']).draw();
-            }
-        });
     }
 
     // Initialize table on page load
@@ -744,16 +811,41 @@ $(document).ready(function() {
             // Get contact name for grouping
             let contactName = '';
             if (payment.customer) {
-                contactName = payment.customer.first_name + ' ' + payment.customer.last_name + ' (Customer)';
+                const cFn = payment.customer.first_name || '';
+                const cLn = payment.customer.last_name || '';
+                const namePart = (cFn + ' ' + cLn).trim();
+                contactName = (namePart || 'Unknown') + ' (Customer)';
             } else if (payment.supplier) {
                 contactName = (payment.supplier.first_name || '') + (payment.supplier.last_name ? ' ' + payment.supplier.last_name : '') + ' (Supplier)';
             } else {
                 contactName = 'Unknown Contact';
             }
 
-            // Get invoice/bill reference
+            var ctype = 'u';
+            var cid = 0;
+            if (payment.customer_id) {
+                ctype = 'c';
+                cid = payment.customer_id;
+            } else if (payment.supplier_id) {
+                ctype = 's';
+                cid = payment.supplier_id;
+            }
+            var contactKey = ctype + ':' + String(cid).padStart(10, '0');
+
+            // Get invoice/bill reference (include non-invoice bulk companions)
             let billRef = '-';
-            if (payment.sale && payment.sale.invoice_no) {
+            if (payment.payment_type === 'sale' && payment.sale && payment.sale.invoice_no) {
+                billRef = payment.sale.invoice_no;
+            } else if (payment.payment_type === 'advance') {
+                billRef = 'New advance (credit)';
+            } else if (payment.payment_type === 'advance_credit_usage' && payment.sale && payment.sale.invoice_no) {
+                billRef = 'Credit → ' + payment.sale.invoice_no;
+            } else if (payment.payment_type === 'opening_balance') {
+                billRef = 'Opening balance';
+            } else if (payment.payment_type === 'sale_return_with_bill' || payment.payment_type === 'sale_return_without_bill') {
+                const r = payment.sales_return;
+                billRef = r && r.invoice_number ? ('Return: ' + r.invoice_number) : 'Sale return refund';
+            } else if (payment.sale && payment.sale.invoice_no) {
                 billRef = payment.sale.invoice_no;
             } else if (payment.purchase && payment.purchase.reference_no) {
                 billRef = payment.purchase.reference_no;
@@ -766,8 +858,14 @@ $(document).ready(function() {
 
             // Format payment method
             let methodBadge = '';
-            if (payment.payment_type === 'advance_credit_usage' || payment.payment_method === 'advance_credit') {
+            if (payment.payment_type === 'advance') {
+                methodBadge = '<span class="badge bg-info text-dark">New advance</span>';
+            } else if (payment.payment_type === 'advance_credit_usage' || payment.payment_method === 'advance_credit') {
                 methodBadge = '<span class="badge bg-success">Credit Applied (no cash)</span>';
+            } else if (payment.payment_type === 'opening_balance') {
+                methodBadge = '<span class="badge bg-secondary">Opening balance</span>';
+            } else if (payment.payment_type === 'sale_return_with_bill' || payment.payment_type === 'sale_return_without_bill') {
+                methodBadge = '<span class="badge bg-warning text-dark">Return refund</span>';
             } else switch(payment.payment_method) {
                 case 'cash':
                     methodBadge = '<span class="badge bg-primary">Cash</span>';
@@ -785,28 +883,17 @@ $(document).ready(function() {
                     methodBadge = `<span class="badge bg-secondary">${payment.payment_method}</span>`;
             }
 
-            // Action buttons
+            // Actions: logs only — edits/deletes use Edit Bulk / Delete Bulk on the group row
             let actionsHtml = '';
-            if (isToday) {
-                actionsHtml = `
-                    <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary edit-payment-btn" data-id="${payment.id}" title="Edit">
-                        <i class="fas fa-edit"></i>
-                    </a>
-                    <a href="javascript:void(0);" class="btn btn-sm btn-outline-danger delete-payment-btn" data-id="${payment.id}" title="Delete">
-                        <i class="fas fa-trash"></i>
-                    </a>
-                    <a href="javascript:void(0);" class="btn btn-sm btn-outline-info view-payment-logs-btn" data-id="${payment.id}" data-reference="${payment.reference_no}" title="Logs">
-                        <i class="fas fa-history"></i>
-                    </a>
-                `;
-            } else {
-                actionsHtml = `
-                    <span class="badge bg-secondary" title="Locked"><i class="fas fa-lock"></i></span>
-                    <a href="javascript:void(0);" class="btn btn-sm btn-outline-info view-payment-logs-btn" data-id="${payment.id}" data-reference="${payment.reference_no}" title="Logs">
-                        <i class="fas fa-history"></i>
-                    </a>
-                `;
+            const saleListCompanion = entityType === 'sale' && payment.payment_type && payment.payment_type !== 'sale';
+            const refAttr = payment.reference_no || '';
+            if (saleListCompanion) {
+                actionsHtml += '<span class="badge bg-light text-dark border me-1" title="Edit or delete via group header"><i class="fas fa-layer-group"></i> Bulk</span>';
             }
+            if (!isToday) {
+                actionsHtml += '<span class="badge bg-secondary me-1" title="Locked"><i class="fas fa-lock"></i></span>';
+            }
+            actionsHtml += `<a href="javascript:void(0);" class="btn btn-sm btn-outline-info view-payment-logs-btn" data-id="${payment.id}" data-reference="${refAttr}" title="Logs"><i class="fas fa-history"></i></a>`;
 
             const rowData = [
                 '<div style="line-height: 1.3;"><strong>' + (payment.display_date || '-') + '</strong><br><span class="text-muted" style="font-size: 0.75rem;">' + (payment.display_time || '') + '</span></div>',
@@ -817,7 +904,8 @@ $(document).ready(function() {
                 methodBadge,
                 '<span class="badge bg-success"><i class="fas fa-check"></i> Paid</span>',
                 actionsHtml,
-                referenceKey
+                referenceKey,
+                contactKey
             ];
 
             paymentsDataTable.row.add(rowData);
@@ -873,18 +961,25 @@ $(document).ready(function() {
         return stringValue.slice(0, 10);
     }
 
-    function formatDateTimeLocalValue(value) {
-        if (!value) {
-            return '';
+    function getBulkCompanionRowDescription(payment) {
+        const amt = formatBulkCurrency(parseFloat(payment.amount || 0));
+        const pt = payment.payment_type || '';
+        if (pt === 'advance') {
+            return `New customer advance retained as credit — ${amt} (#${payment.id})`;
         }
-
-        const stringValue = String(value);
-
-        if (stringValue.includes('T')) {
-            return stringValue.slice(0, 16);
+        if (pt === 'advance_credit_usage') {
+            const inv = payment.sale && payment.sale.invoice_no ? payment.sale.invoice_no : 'invoice';
+            return `Existing advance/credit applied to ${inv} — ${amt} (#${payment.id})`;
         }
-
-        return stringValue;
+        if (pt === 'opening_balance') {
+            return `Opening balance payment — ${amt} (#${payment.id})`;
+        }
+        if (pt === 'sale_return_with_bill' || pt === 'sale_return_without_bill') {
+            const r = payment.sales_return;
+            const rlabel = r && r.invoice_number ? r.invoice_number : 'return';
+            return `Sale return / refund (${rlabel}) — ${amt} (#${payment.id})`;
+        }
+        return `${pt || 'Payment'} — ${amt} (#${payment.id})`;
     }
 
     function getBulkRowLimitInfo(payment) {
@@ -1007,7 +1102,25 @@ $(document).ready(function() {
         $('#bulkEditReferenceLabel').text(referenceNo);
         $('#bulk_edit_reason').val('');
 
-        const rowsHtml = groupPayments.map(p => {
+        const invoicePayments = groupPayments.filter(p => p.payment_type === 'sale');
+        const companionPayments = groupPayments.filter(p => p.payment_type !== 'sale');
+
+        const $companionBlock = $('#bulkEditCompanionBlock');
+        const $companionList = $('#bulkEditCompanionSummary');
+        if (companionPayments.length) {
+            $companionList.html(companionPayments.map(p => `<li>${getBulkCompanionRowDescription(p)}</li>`).join(''));
+            $companionBlock.show();
+        } else {
+            $companionList.empty();
+            $companionBlock.hide();
+        }
+
+        if (!invoicePayments.length) {
+            toastr.error('No invoice (sale) payment rows to edit in this bulk group.');
+            return;
+        }
+
+        const rowsHtml = invoicePayments.map(p => {
             const limitInfo = getBulkRowLimitInfo(p);
             const billRef = limitInfo.invoiceLabel;
             const currentMethod = p.payment_method || 'cash';
@@ -1112,7 +1225,7 @@ $(document).ready(function() {
         $('#bulkEditRowsBody .bulk-row-amount').each(function() {
             syncBulkRowAmountState($(this).closest('tr'));
         });
-        new bootstrap.Modal(document.getElementById('bulkGroupEditModal')).show();
+        bulkPaymentsModalShow(document.getElementById('bulkGroupEditModal'));
     });
 
     $('#bulkGroupEditForm').on('submit', async function(e) {
@@ -1165,8 +1278,7 @@ $(document).ready(function() {
                 }
             });
 
-            const modal = bootstrap.Modal.getInstance(document.getElementById('bulkGroupEditModal'));
-            modal.hide();
+            bulkPaymentsModalHide(document.getElementById('bulkGroupEditModal'));
             toastr.success(`Bulk reference ${referenceNo} updated successfully`);
             loadPayments();
         } catch (xhr) {
@@ -1198,7 +1310,7 @@ $(document).ready(function() {
         $('#bulk_delete_reference_no').val(referenceNo);
         $('#bulkDeleteReferenceLabel').text(referenceNo);
         $('#bulk_delete_reason').val('');
-        new bootstrap.Modal(document.getElementById('bulkGroupDeleteModal')).show();
+        bulkPaymentsModalShow(document.getElementById('bulkGroupDeleteModal'));
     });
 
     $('#bulkGroupDeleteForm').on('submit', async function(e) {
@@ -1226,8 +1338,7 @@ $(document).ready(function() {
                 data: { reason }
             });
 
-            const modal = bootstrap.Modal.getInstance(document.getElementById('bulkGroupDeleteModal'));
-            modal.hide();
+            bulkPaymentsModalHide(document.getElementById('bulkGroupDeleteModal'));
             toastr.success(`Bulk reference ${referenceNo} deleted successfully`);
             loadPayments();
         } catch (xhr) {
@@ -1241,340 +1352,12 @@ $(document).ready(function() {
         }
     });
 
-    // Quick search functionality (removed since DataTable has search)
-
-    // Clear search (removed)
-
-    // Handle edit payment
-    $(document).on('click', '.edit-payment-btn', function() {
-        const paymentId = $(this).data('id');
-
-        $.ajax({
-            url: `/bulk-payment/${paymentId}/edit`,
-            method: 'GET',
-            success: function(response) {
-                if (response.status === 200) {
-                    const payment = response.payment;
-
-                    // Use backend is_today (Carbon/Asia/Colombo) — no JS timezone logic needed
-                    const isToday = payment.is_today;
-
-                    if (!isToday) {
-                        toastr.error('Cannot edit past payments. Only TODAY\'s payments can be edited to maintain ledger integrity.', 'Edit Restricted');
-                        return;
-                    }
-
-                    populateEditModal(payment);
-                    var editModal = new bootstrap.Modal(document.getElementById('editPaymentModal'));
-                    editModal.show();
-                } else {
-                    toastr.error('Error loading payment details', 'Error');
-                }
-            },
-            error: function(xhr) {
-                toastr.error('Error: ' + (xhr.responseJSON?.message || 'Unknown error'), 'Error');
-            }
-        });
-    });
-
-    // Populate edit modal
-    function populateEditModal(payment) {
-        $('#edit_payment_id').val(payment.id);
-        $('#edit_amount').val(payment.amount);
-
-        // Use the backend-provided datetime in Asia/Colombo (Carbon formatted)
-        let paymentDateTime = formatDateTimeLocalValue(payment.display_datetime_input || payment.payment_date || '');
-        $('#edit_payment_date').val(paymentDateTime);
-
-        $('#edit_payment_method').val(payment.payment_method);
-        $('#edit_notes').val(payment.notes || '');
-        $('#edit_reason').val('');
-
-        // Populate card details
-        $('#edit_card_number').val(payment.card_number || '');
-        $('#edit_card_holder_name').val(payment.card_holder_name || '');
-        $('#edit_card_expiry_month').val(payment.card_expiry_month || '');
-        $('#edit_card_expiry_year').val(payment.card_expiry_year || '');
-
-        // Populate cheque details
-        $('#edit_cheque_number').val(payment.cheque_number || '');
-        $('#edit_cheque_bank_branch').val(payment.cheque_bank_branch || '');
-        $('#edit_cheque_received_date').val(formatDateInputValue(payment.cheque_received_date || ''));
-        $('#edit_cheque_valid_date').val(formatDateInputValue(payment.cheque_valid_date || ''));
-        $('#edit_cheque_given_by').val(payment.cheque_given_by || '');
-
-        // Reset advance payment checkbox
-        $('#edit_allow_advance').prop('checked', false);
-        $('#edit_advance_info').hide();
-
-        // Store payment details for advance calculation
-        window.currentEditPayment = payment;
-
-        // Show/hide appropriate fields based on payment method
-        toggleEditPaymentMethodFields(payment.payment_method);
-    }
-
-    // Toggle card/cheque fields based on payment method
-    function toggleEditPaymentMethodFields(method) {
-        $('#edit_card_details').hide();
-        $('#edit_cheque_details').hide();
-
-        if (method === 'card') {
-            $('#edit_card_details').show();
-        } else if (method === 'cheque') {
-            $('#edit_cheque_details').show();
-        }
-    }
-
-    // Handle payment method change in edit modal
-    $('#edit_payment_method').on('change', function() {
-        toggleEditPaymentMethodFields($(this).val());
-    });
-
-    // Handle advance payment checkbox
-    $('#edit_allow_advance').on('change', function() {
-        calculateAdvancePayment();
-    });
-
-    // Handle amount change to recalculate advance
-    $('#edit_amount').on('input', function() {
-        if ($('#edit_allow_advance').is(':checked')) {
-            calculateAdvancePayment();
-        }
-    });
-
-    // Calculate and display advance payment details
-    function calculateAdvancePayment() {
-        const isAdvanceAllowed = $('#edit_allow_advance').is(':checked');
-        const paymentAmount = parseFloat($('#edit_amount').val()) || 0;
-
-        if (!isAdvanceAllowed || !window.currentEditPayment) {
-            $('#edit_advance_info').hide();
-            return;
-        }
-
-        // Get payment details from stored data
-        const payment = window.currentEditPayment;
-
-        // Fetch current sale/purchase details via AJAX
-        $.ajax({
-            url: `/bulk-payment/${payment.id}/edit`,
-            method: 'GET',
-            success: function(response) {
-                if (response.status === 200) {
-                    const paymentData = response.payment;
-                    const entity = response.entity;
-
-                    // Calculate total payments excluding current one
-                    const totalOtherPayments = parseFloat(entity.total_paid || 0) - parseFloat(paymentData.amount || 0);
-                    const totalAmount = parseFloat(entity.total_amount || 0);
-                    const maxAllowedForBill = totalAmount - totalOtherPayments;
-
-                    if (paymentAmount > maxAllowedForBill) {
-                        const advanceAmount = paymentAmount - maxAllowedForBill;
-                        const billPayment = maxAllowedForBill;
-
-                        $('#edit_advance_calculation').html(`
-                            <div class="row mt-2">
-                                <div class="col-6"><strong>Total Payment Amount:</strong></div>
-                                <div class="col-6 text-end">Rs. ${paymentAmount.toFixed(2)}</div>
-
-                                <div class="col-6"><strong>Applied to Bill:</strong></div>
-                                <div class="col-6 text-end text-success">Rs. ${billPayment.toFixed(2)}</div>
-
-                                <div class="col-6"><strong>Advance (Customer Credit):</strong></div>
-                                <div class="col-6 text-end text-primary"><strong>Rs. ${advanceAmount.toFixed(2)}</strong></div>
-                            </div>
-                            <hr>
-                            <small class="text-muted">
-                                <i class="fas fa-lightbulb"></i>
-                                The advance amount will be added to customer's credit balance and can be used for future purchases.
-                            </small>
-                        `);
-                        $('#edit_advance_info').show();
-                    } else {
-                        $('#edit_advance_info').hide();
-                    }
-                }
-            }
-        });
-    }
-
-    // Handle edit form submission
-    $('#editPaymentForm').on('submit', function(e) {
-        e.preventDefault();
-
-        const paymentId = $('#edit_payment_id').val();
-        const formData = new FormData(this);
-        const data = Object.fromEntries(formData);
-
-        $.ajax({
-            url: `/bulk-payment/${paymentId}`,
-            method: 'PUT',
-            data: data,
-            beforeSend: function() {
-                toastr.info('Updating payment...', 'Please Wait');
-            },
-            success: function(response) {
-                toastr.clear();
-                if (response.status === 200) {
-                    var editModal = bootstrap.Modal.getInstance(document.getElementById('editPaymentModal'));
-                    editModal.hide();
-                    toastr.success('Payment updated successfully!', 'Success');
-                    loadPayments(); // Reload the table
-                } else {
-                    toastr.error(response.message || 'Error updating payment', 'Error');
-                }
-            },
-            error: function(xhr) {
-                // Clear all toastr notifications immediately
-                toastr.remove();
-                toastr.clear();
-
-                // Try to parse structured error message
-                let errorData = null;
-                let errorMessage = 'Unknown error';
-
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    try {
-                        // Try to parse JSON error structure
-                        errorData = JSON.parse(xhr.responseJSON.message);
-                    } catch (e) {
-                        // If not JSON, use as plain message
-                        errorMessage = xhr.responseJSON.message;
-                    }
-                }
-
-                // Delay slightly to ensure toastr is fully cleared
-                setTimeout(function() {
-                    // If we have structured error data, show in SweetAlert
-                    if (errorData && errorData.title) {
-                        let detailsHtml = '';
-
-                        // Build details HTML
-                        if (errorData.details) {
-                            detailsHtml += '<div style="text-align: left; margin-top: 15px; padding: 15px; background-color: #f8f9fa; border-radius: 5px; border-left: 4px solid #dc3545;">';
-                            detailsHtml += '<strong style="display: block; margin-bottom: 10px; color: #495057;">Payment Details:</strong>';
-                            for (let key in errorData.details) {
-                                detailsHtml += '<div style="margin: 8px 0; padding: 5px 0; border-bottom: 1px solid #dee2e6;"><strong>' + key + ':</strong> <span style="float: right; color: #dc3545;">' + errorData.details[key] + '</span></div>';
-                            }
-                            detailsHtml += '</div>';
-                        }
-
-                        // Add tip if exists
-                        if (errorData.tip) {
-                            detailsHtml += '<div style="margin-top: 15px; padding: 12px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 3px; text-align: left;">';
-                            detailsHtml += '<strong style="color: #856404;">💡 Tip:</strong> <span style="color: #856404;">' + errorData.tip + '</span>';
-                            detailsHtml += '</div>';
-                        }
-
-                        // Show SweetAlert v1
-                        swal({
-                            title: errorData.title,
-                            text: (errorData.message || '') + detailsHtml,
-                            html: true,
-                            type: 'error',
-                            confirmButtonText: 'OK',
-                            confirmButtonColor: '#dc3545',
-                            customClass: 'swal-wide'
-                        });
-                    } else {
-                        // Fallback to regular SweetAlert for simple errors
-                        if (xhr.responseJSON) {
-                            if (xhr.responseJSON.errors) {
-                                errorMessage = Object.values(xhr.responseJSON.errors).flat().join('<br>');
-                            } else if (xhr.responseJSON.message) {
-                                errorMessage = xhr.responseJSON.message;
-                            }
-                        }
-
-                        swal({
-                            title: 'Payment Update Failed',
-                            text: errorMessage,
-                            html: true,
-                            type: 'error',
-                            confirmButtonText: 'OK'
-                        });
-                    }
-                }, 100);
-            }
-        });
-    });
-
-    // Handle delete payment
-    $(document).on('click', '.delete-payment-btn', function() {
-        const paymentId = $(this).data('id');
-
-        // First verify the payment can be deleted (today's payment only)
-        $.ajax({
-            url: `/bulk-payment/${paymentId}/edit`,
-            method: 'GET',
-            success: function(response) {
-                if (response.status === 200) {
-                    const payment = response.payment;
-
-                    // Use backend is_today (Carbon/Asia/Colombo) — no JS timezone logic needed
-                    const isToday = payment.is_today;
-
-                    if (!isToday) {
-                        toastr.error('Cannot delete past payments. Only TODAY\'s payments can be deleted to maintain ledger integrity.', 'Delete Restricted');
-                        return;
-                    }
-
-                    // Show delete modal
-                    $('#delete_payment_id').val(paymentId);
-                    $('#delete_reason').val('');
-                    var deleteModal = new bootstrap.Modal(document.getElementById('deletePaymentModal'));
-                    deleteModal.show();
-                } else {
-                    toastr.error('Error loading payment details', 'Error');
-                }
-            },
-            error: function(xhr) {
-                toastr.error('Error: ' + (xhr.responseJSON?.message || 'Unable to verify payment'), 'Error');
-            }
-        });
-    });
-
-    // Handle delete form submission
-    $('#deletePaymentForm').on('submit', function(e) {
-        e.preventDefault();
-
-        const paymentId = $('#delete_payment_id').val();
-        const reason = $('#delete_reason').val();
-
-        $.ajax({
-            url: `/bulk-payment/${paymentId}`,
-            method: 'DELETE',
-            data: { reason: reason },
-            beforeSend: function() {
-                toastr.info('Deleting payment...', 'Please Wait');
-            },
-            success: function(response) {
-                toastr.clear();
-                if (response.status === 200) {
-                    var deleteModal = bootstrap.Modal.getInstance(document.getElementById('deletePaymentModal'));
-                    deleteModal.hide();
-                    toastr.success('Payment deleted successfully!', 'Success');
-                    loadPayments(); // Reload the table
-                } else {
-                    toastr.error('Error deleting payment');
-                }
-            },
-            error: function(xhr) {
-                toastr.clear();
-                toastr.error('Error: ' + (xhr.responseJSON?.message || 'Unknown error'));
-            }
-        });
-    });
-
     // Handle view logs
     $('#viewLogsBtn').on('click', function() {
         // Reset modal title to show all logs
         $('#logsModalLabel').text('Bulk Payment Logs - All Payments');
         loadLogs();
-        var logsModal = new bootstrap.Modal(document.getElementById('logsModal'));
-        logsModal.show();
+        bulkPaymentsModalShow(document.getElementById('logsModal'));
     });
 
     // Handle individual payment view logs button
@@ -1600,8 +1383,7 @@ $(document).ready(function() {
                     const logs = response.data.data || [];
                     if (logs.length > 0) {
                         populateLogsTable(logs);
-                        var logsModal = new bootstrap.Modal(document.getElementById('logsModal'));
-                        logsModal.show();
+                        bulkPaymentsModalShow(document.getElementById('logsModal'));
                         toastr.success(`Found ${logs.length} log(s) for payment #${paymentId}`, 'Logs Loaded');
                     } else {
                         toastr.info('No edit/delete logs found for this payment', 'No Logs');
@@ -1822,13 +1604,6 @@ $(document).ready(function() {
         });
     }
 
-    // Reset edit modal when closed
-    $('#editPaymentModal').on('hidden.bs.modal', function () {
-        $('#editPaymentForm')[0].reset();
-        $('#edit_card_details').hide();
-        $('#edit_cheque_details').hide();
-    });
-
     // Checkbox toggle functionality
     function toggleSelectAll(checkbox) {
         const checkboxes = document.querySelectorAll('.payment-checkbox');
@@ -1839,175 +1614,5 @@ $(document).ready(function() {
     window.toggleSelectAll = toggleSelectAll;
 });
 </script>
-
-<style>
-/* Custom styling for SweetAlert error popup */
-.swal-wide .sweet-alert {
-    width: 600px !important;
-    max-width: 90% !important;
-}
-
-.sweet-alert p {
-    text-align: left !important;
-}
-
-.sweet-alert .sa-error-container {
-    margin-top: 20px;
-}
-
-/* Enhanced UI Styling */
-.border-left-info {
-    border-left: 4px solid #17a2b8 !important;
-}
-
-.page-title i {
-    margin-right: 8px;
-}
-
-.form-group label i {
-    margin-right: 5px;
-    color: #6c757d;
-}
-
-.badge {
-    font-size: 0.75rem;
-    padding: 0.375rem 0.75rem;
-}
-
-.badge i {
-    margin-right: 4px;
-}
-
-/* Payment type specific colors */
-.badge.bg-success {
-    background-color: #28a745 !important;
-}
-
-.badge.bg-primary {
-    background-color: #007bff !important;
-}
-
-.badge.bg-info {
-    background-color: #17a2b8 !important;
-}
-
-.badge.bg-warning {
-    background-color: #ffc107 !important;
-    color: #212529 !important;
-}
-
-/* Table enhancements */
-.table th {
-    border-top: none;
-    font-weight: 600;
-    background-color: #f8f9fa;
-    color: #495057;
-    vertical-align: middle;
-    padding: 12px 8px;
-}
-
-.table td {
-    vertical-align: middle;
-    padding: 12px 8px;
-}
-
-.table th i {
-    color: #6c757d;
-    margin-right: 5px;
-}
-
-/* Standard table styling */
-.datatable {
-    border-collapse: separate;
-    border-spacing: 0;
-}
-
-.datatable thead th {
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-}
-
-.datatable tbody td {
-    border: 1px solid #dee2e6;
-    border-top: none;
-}
-
-/* Action buttons styling */
-.actions {
-    display: flex;
-    gap: 4px;
-    justify-content: flex-start;
-    flex-wrap: wrap;
-}
-
-.actions .btn {
-    padding: 4px 8px;
-    font-size: 12px;
-    line-height: 1.2;
-}
-
-/* Checkbox styling */
-.payment-checkbox, #allchecked {
-    width: 16px;
-    height: 16px;
-    margin: 0;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .actions {
-        justify-content: center;
-    }
-
-    .actions .btn {
-        padding: 2px 6px;
-        font-size: 11px;
-    }
-
-    .table td, .table th {
-        padding: 8px 4px;
-        font-size: 13px;
-    }
-}
-
-/* Alert enhancements */
-.alert-primary {
-    background-color: #cce7ff;
-    border-color: #b3d9ff;
-    color: #004085;
-}
-
-.alert-light {
-    background-color: #f8f9fa;
-    border-color: #e9ecef;
-    color: #6c757d;
-}
-
-/* Button group spacing */
-.btn-group .btn {
-    margin-right: 2px;
-}
-
-/* Select dropdown enhancements */
-select.form-control option {
-    padding: 8px 12px;
-}
-
-/* Responsive improvements */
-@media (max-width: 768px) {
-    .table-responsive {
-        font-size: 0.875rem;
-    }
-
-    .badge {
-        font-size: 0.7rem;
-        padding: 0.25rem 0.5rem;
-    }
-}
-</style>
-
-@endsection
+@endpush
 

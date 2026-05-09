@@ -73,6 +73,7 @@
                                         <th>Credit Limit</th>
                                         <th>Total Sale Due</th>
                                         <th>Total Return Due</th>
+                                        <th>Advance Credit</th>
                                         <th>Action</th>
                                     </tr>
                                 </thead>

@@ -29,6 +29,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Services\Payment\FlexibleBulkSalePaymentService;
 use App\Services\Payment\FlexibleBulkPurchasePaymentService;
+use App\Services\Ledger\CustomerAdvanceBalanceService;
 use Carbon\Carbon;
 
 class PaymentController extends Controller
@@ -800,6 +801,34 @@ class PaymentController extends Controller
         };
     }
 
+    /**
+     * Resolve accounting side safely for non-invoice payment types too
+     * (advance, advance_credit_usage, opening_balance, return variants).
+     */
+    private function resolvePaymentEntityType(Payment $payment): string
+    {
+        return $payment->customer_id ? 'sale' : 'purchase';
+    }
+
+    /**
+     * Bulk list payments that share a BLK-* reference (or multiple active rows on same reference_no)
+     * must be edited/deleted only via updateBulkPaymentByReference / deleteBulkPaymentByReference.
+     */
+    private function requiresBulkReferenceEndpoints(Payment $payment): bool
+    {
+        $ref = $payment->reference_no;
+        if ($ref === null || $ref === '') {
+            return false;
+        }
+        if (is_string($ref) && str_starts_with($ref, 'BLK-')) {
+            return true;
+        }
+
+        return Payment::where('reference_no', $ref)
+            ->where('status', 'active')
+            ->count() > 1;
+    }
+
     public function destroy(Payment $payment)
     {
         try {
@@ -941,9 +970,9 @@ class PaymentController extends Controller
             'payment_type'                         => 'required|in:opening_balance,sale_dues,both,all',
             'payment_groups'                       => 'required|array|min:1',
             'payment_groups.*.method'              => 'required|in:cash,cheque,card,bank_transfer,discount,advance_credit',
-            'payment_groups.*.bills'               => 'required_unless:payment_type,opening_balance|array|min:1',
-            'payment_groups.*.bills.*.sale_id'     => 'required_unless:payment_type,opening_balance|exists:sales,id',
-            'payment_groups.*.bills.*.amount'      => 'required_unless:payment_type,opening_balance|numeric|min:0.01',
+            'payment_groups.*.bills'               => 'nullable|array',
+            'payment_groups.*.bills.*.sale_id'     => 'nullable|exists:sales,id',
+            'payment_groups.*.bills.*.amount'      => 'nullable|numeric|min:0.01',
             'payment_groups.*.totalAmount'         => 'required_if:payment_type,opening_balance|numeric|min:0.01',
             'payment_groups.*.advance_amount'      => 'nullable|numeric|min:0',
             'selected_returns'                     => 'nullable|array',
@@ -962,6 +991,42 @@ class PaymentController extends Controller
             'payment_groups.*.bank_account_number' => 'required_if:payment_groups.*.method,bank_transfer',
             'notes'                                => 'nullable|string',
         ]);
+
+        $validator->after(function ($validator) use ($request) {
+            $paymentType = (string) $request->input('payment_type', '');
+            if ($paymentType === 'opening_balance') {
+                return;
+            }
+
+            $groups = $request->input('payment_groups', []);
+            foreach ($groups as $index => $group) {
+                $bills = collect($group['bills'] ?? [])
+                    ->filter(function ($bill) {
+                        return !empty($bill['sale_id']) && (float) ($bill['amount'] ?? 0) > 0.01;
+                    });
+                $advanceAmount = (float) ($group['advance_amount'] ?? 0);
+                $obAmount = (float) ($group['ob_amount'] ?? 0);
+
+                $hasBills = $bills->isNotEmpty();
+                $hasAdvanceCarry = $advanceAmount > 0.01;
+                $hasOpeningPortion = $obAmount > 0.01;
+
+                if ($paymentType === 'sale_dues' && ! $hasBills && ! $hasAdvanceCarry) {
+                    $validator->errors()->add(
+                        "payment_groups.$index.bills",
+                        'Each payment group must include bill allocations or advance carry amount for sale dues.'
+                    );
+                    continue;
+                }
+
+                if (in_array($paymentType, ['both', 'all'], true) && ! $hasBills && ! $hasAdvanceCarry && ! $hasOpeningPortion) {
+                    $validator->errors()->add(
+                        "payment_groups.$index.bills",
+                        'Each payment group must include bill allocations, opening-balance portion, or advance carry amount.'
+                    );
+                }
+            }
+        });
 
         if ($validator->fails()) {
             return response()->json(['status' => 400, 'errors' => $validator->messages()]);
@@ -1571,16 +1636,62 @@ class PaymentController extends Controller
 
             $entityType = $request->get('entity_type', 'sale'); // Default to sale
             $query = Payment::query();
+            $saleBulkListUsesReferenceExpansion = false;
 
             // Filter by entity type with more flexible conditions
             switch ($entityType) {
                 case 'sale':
-                    $query->where('payment_type', 'sale')
-                          ->with(['customer']);
-                    // Filter by specific customer if provided
+                    $saleBulkListUsesReferenceExpansion = true;
+                    // Base: sale invoice rows in range; expand: rows sharing the same bulk reference_no
+                    // (cash to bills, new advance, OB chunk, return refunds, etc.)
+                    // advance_credit_usage is excluded after fetch — it is allocation of existing credit, not new money (same rule as payment report totals).
+                    $salePaymentQuery = Payment::query()
+                        ->where('payment_type', 'sale')
+                        ->where('status', 'active')
+                        ->where('amount', '>', 0);
+
                     if ($request->customer_id) {
-                        $query->where('customer_id', $request->customer_id);
+                        $salePaymentQuery->where('customer_id', $request->customer_id);
                     }
+                    if ($request->entity_id) {
+                        $salePaymentQuery->where('reference_id', $request->entity_id);
+                    }
+                    if ($startDate = $request->get('start_date')) {
+                        $salePaymentQuery->whereDate('payment_date', '>=', $startDate);
+                    }
+                    if ($endDate = $request->get('end_date')) {
+                        $salePaymentQuery->whereDate('payment_date', '<=', $endDate);
+                    }
+
+                    $matchingSalePaymentIds = $salePaymentQuery->pluck('id');
+
+                    $bulkReferenceNos = Payment::query()
+                        ->whereIn('id', $matchingSalePaymentIds)
+                        ->whereNotNull('reference_no')
+                        ->where('reference_no', '!=', '')
+                        ->pluck('reference_no')
+                        ->unique()
+                        ->values();
+
+                    $scopedCustomerIds = Payment::query()
+                        ->whereIn('id', $matchingSalePaymentIds)
+                        ->pluck('customer_id')
+                        ->unique()
+                        ->filter();
+
+                    $query = Payment::query()
+                        ->with(['customer'])
+                        ->where('status', 'active')
+                        ->where('amount', '>', 0)
+                        ->where(function ($q) use ($matchingSalePaymentIds, $bulkReferenceNos, $scopedCustomerIds) {
+                            $q->whereIn('id', $matchingSalePaymentIds);
+                            if ($bulkReferenceNos->isNotEmpty() && $scopedCustomerIds->isNotEmpty()) {
+                                $q->orWhere(function ($q2) use ($bulkReferenceNos, $scopedCustomerIds) {
+                                    $q2->whereIn('reference_no', $bulkReferenceNos)
+                                        ->whereIn('customer_id', $scopedCustomerIds);
+                                });
+                            }
+                        });
                     break;
 
                 case 'purchase':
@@ -1622,8 +1733,8 @@ class PaymentController extends Controller
                           ->with(['customer']);
             }
 
-            // Filter by specific entity ID if provided
-            if ($request->entity_id) {
+            // Filter by specific entity ID if provided (skip for sale bulk expansion: companion rows may use reference_id differently)
+            if ($request->entity_id && ! $saleBulkListUsesReferenceExpansion) {
                 $query->where('reference_id', $request->entity_id);
             }
 
@@ -1642,17 +1753,27 @@ class PaymentController extends Controller
             // **IMPORTANT: Filter out zero-amount payments**
             // Zero-amount payments are typically from credit sales where no actual payment was made
             // They create ledger entries for sales but shouldn't appear in payment lists
-            $query->where('amount', '>', 0);
+            // (sale bulk reference expansion already applies this on its inner query)
+            if (! $saleBulkListUsesReferenceExpansion) {
+                $query->where('amount', '>', 0);
+            }
 
             // **IMPORTANT: Only show active payments**
             // Filter out deleted/inactive payments to show only current active payments
-            $query->where('status', 'active');
+            if (! $saleBulkListUsesReferenceExpansion) {
+                $query->where('status', 'active');
+            }
 
             // Get payments ordered by date descending (latest first)
             $payments = $query->orderBy('payment_date', 'desc')
                              ->orderBy('created_at', 'desc')
                              ->get();
 
+            if ($entityType === 'sale') {
+                $payments = $payments
+                    ->reject(fn ($p) => $p->payment_type === 'advance_credit_usage')
+                    ->values();
+            }
 
             // Add related entity information + Carbon-computed display fields (Asia/Colombo)
             $todayColombo = Carbon::now('Asia/Colombo')->toDateString();
@@ -1660,6 +1781,13 @@ class PaymentController extends Controller
                 switch ($payment->payment_type) {
                     case 'sale':
                         $payment->sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->find($payment->reference_id);
+                        break;
+                    case 'advance_credit_usage':
+                        if ($payment->reference_id) {
+                            $payment->sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->find($payment->reference_id);
+                        }
+                        break;
+                    case 'advance':
                         break;
                     case 'purchase':
                         $payment->purchase = Purchase::find($payment->reference_id);
@@ -1669,6 +1797,12 @@ class PaymentController extends Controller
                         break;
                     case 'sale_return':
                         $payment->sale_return = \App\Models\SalesReturn::find($payment->reference_id);
+                        break;
+                    case 'sale_return_with_bill':
+                    case 'sale_return_without_bill':
+                        if ($payment->reference_id) {
+                            $payment->sales_return = SalesReturn::find($payment->reference_id);
+                        }
                         break;
                     case 'opening_balance':
                         break;
@@ -1723,8 +1857,15 @@ class PaymentController extends Controller
         try {
             $payment = Payment::findOrFail($id);
 
-            // Determine entity type
-            $entityType = $payment->payment_type === 'sale' ? 'sale' : 'purchase';
+            if ($this->requiresBulkReferenceEndpoints($payment)) {
+                return response()->json([
+                    'status' => 422,
+                    'message' => 'This payment is part of a bulk group. Use Edit Bulk or Delete Bulk for reference '.$payment->reference_no.'.',
+                ], 422);
+            }
+
+            // Determine side by contact (safe for advance/opening_balance variants too)
+            $entityType = $this->resolvePaymentEntityType($payment);
 
             // Get related entity
             $entity = null;
@@ -1807,7 +1948,14 @@ class PaymentController extends Controller
                 ]);
             }
 
-            $entityType = $payment->payment_type === 'sale' ? 'sale' : 'purchase';
+            if ($this->requiresBulkReferenceEndpoints($payment)) {
+                return response()->json([
+                    'status' => 422,
+                    'message' => 'This payment is part of a bulk group. Use Edit Bulk for reference '.$payment->reference_no.'.',
+                ], 422);
+            }
+
+            $entityType = $this->resolvePaymentEntityType($payment);
             $advanceAmount = 0; // Initialize outside transaction
 
             DB::transaction(function () use ($request, $id, &$advanceAmount) {
@@ -1818,7 +1966,7 @@ class PaymentController extends Controller
                 $oldAmount = $payment->amount;
 
                 // Determine entity type and get related info
-                $entityType = $payment->payment_type === 'sale' ? 'sale' : 'purchase';
+                $entityType = $this->resolvePaymentEntityType($payment);
                 $entityId = $payment->reference_id;
                 $customerId = $payment->customer_id;
                 $supplierId = $payment->supplier_id;
@@ -2078,11 +2226,19 @@ class PaymentController extends Controller
 
                 // Update related tables and balances
                 if ($entityType === 'sale') {
-                    $this->updateSaleTable($entityId);
-                    $this->updateCustomerBalance($customerId);
+                    if ($entityId) {
+                        $this->updateSaleTable($entityId);
+                    }
+                    if ($customerId) {
+                        $this->updateCustomerBalance($customerId);
+                    }
                 } else {
-                    $this->updatePurchaseTable($entityId);
-                    $this->updateSupplierBalance($supplierId);
+                    if ($entityId) {
+                        $this->updatePurchaseTable($entityId);
+                    }
+                    if ($supplierId) {
+                        $this->updateSupplierBalance($supplierId);
+                    }
                 }
             }); // End of transaction
 
@@ -2134,6 +2290,13 @@ class PaymentController extends Controller
                 ]);
             }
 
+            if ($this->requiresBulkReferenceEndpoints($payment)) {
+                return response()->json([
+                    'status' => 422,
+                    'message' => 'This payment is part of a bulk group. Use Delete Bulk for reference '.$payment->reference_no.'.',
+                ], 422);
+            }
+
             $entityType = '';
             $amount = 0;
 
@@ -2142,7 +2305,7 @@ class PaymentController extends Controller
 
                 // Store data for logging before deletion
                 $paymentData = $payment->toArray();
-                $entityType = $payment->payment_type === 'sale' ? 'sale' : 'purchase';
+                $entityType = $this->resolvePaymentEntityType($payment);
                 $entityId = $payment->reference_id;
                 $customerId = $payment->customer_id;
                 $supplierId = $payment->supplier_id;
@@ -2294,7 +2457,7 @@ class PaymentController extends Controller
                     $oldPaymentData = $payment->toArray();
                     $oldAmount = (float) $payment->amount;
 
-                    $entityType = $payment->payment_type === 'sale' ? 'sale' : 'purchase';
+                    $entityType = $this->resolvePaymentEntityType($payment);
                     $entityId = $payment->reference_id;
                     $customerId = $payment->customer_id;
                     $supplierId = $payment->supplier_id;
@@ -2404,6 +2567,20 @@ class PaymentController extends Controller
                 }
             });
 
+            $customerIdsForAdvanceSync = Payment::query()
+                ->where('reference_no', $referenceNo)
+                ->where('status', 'active')
+                ->pluck('customer_id')
+                ->unique()
+                ->filter()
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all();
+
+            foreach ($customerIdsForAdvanceSync as $cid) {
+                app(CustomerAdvanceBalanceService::class)->syncCustomer($cid);
+            }
+
             return response()->json([
                 'status' => 200,
                 'message' => 'Bulk reference updated successfully with unified ledger sync.',
@@ -2458,10 +2635,12 @@ class PaymentController extends Controller
             $affectedCustomers = [];
             $affectedSuppliers = [];
 
+            $customerIdsForAdvanceSync = $payments->pluck('customer_id')->unique()->filter()->map(fn ($id) => (int) $id)->values()->all();
+
             DB::transaction(function () use ($payments, $referenceNo, $request, &$affectedSales, &$affectedPurchases, &$affectedCustomers, &$affectedSuppliers) {
                 foreach ($payments as $payment) {
                     $paymentData = $payment->toArray();
-                    $entityType = $payment->payment_type === 'sale' ? 'sale' : 'purchase';
+                    $entityType = $this->resolvePaymentEntityType($payment);
                     $entityId = $payment->reference_id;
                     $customerId = $payment->customer_id;
                     $supplierId = $payment->supplier_id;
@@ -2514,6 +2693,10 @@ class PaymentController extends Controller
                     $this->updateSupplierBalance($supplierId);
                 }
             });
+
+            foreach ($customerIdsForAdvanceSync as $cid) {
+                app(CustomerAdvanceBalanceService::class)->syncCustomer($cid);
+            }
 
             return response()->json([
                 'status' => 200,

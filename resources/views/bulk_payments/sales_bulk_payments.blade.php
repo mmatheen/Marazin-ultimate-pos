@@ -177,28 +177,32 @@
 
                 <!-- Credit / Advance Section - Similar to Returns -->
                 <div id="customerAdvanceSection" class="mb-3" style="display: none;">
-                    <div class="border rounded p-2 bg-white">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="mb-0 text-success">
-                                <i class="fas fa-piggy-bank"></i> Credit available (Rs. <span id="advanceToApplyToBills">0.00</span> available)
+                    <div class="border rounded-3 p-3 bg-white">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                            <h6 class="mb-0 text-success fw-semibold">
+                                <i class="fas fa-piggy-bank me-1"></i> Advance Credit
+                                <small class="text-muted ms-1">(Rs. <span id="advanceToApplyToBills">0.00</span> available)</small>
                             </h6>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" id="hideAdvanceBtn">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="hideAdvanceBtn" title="Hide advance section">
                                 <i class="fas fa-times"></i> Hide
                             </button>
                         </div>
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="checkbox" id="applyAdvanceCreditCheckbox">
-                            <label class="form-check-label" for="applyAdvanceCreditCheckbox">
-                                Apply credit to reduce cash to collect
-                            </label>
-                        </div>
-                        <div id="advanceCreditAmountSection" style="display: none;">
-                            <label for="advanceCreditAmountInput" class="form-label small">Amount to apply (Auto-allocated via FIFO)</label>
-                            <input type="number" class="form-control form-control-sm" id="advanceCreditAmountInput" placeholder="Enter amount" step="0.01" min="0" readonly>
-                            <small class="text-muted">Automatically allocated across unpaid bills</small>
-                            <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="reallocateAdvanceCreditsBtn" style="display:none;">
-                                <i class="fas fa-exchange-alt"></i> Change Allocation
+                        <p class="small text-muted mb-2">Manual mode: tick and allocate bills only if you want to use advance now.</p>
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 advance-toggle-row">
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" type="checkbox" id="applyAdvanceCreditCheckbox">
+                                <label class="form-check-label fw-semibold" for="applyAdvanceCreditCheckbox">
+                                    Use advance credit for this payment
+                                </label>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="reallocateAdvanceCreditsBtn" style="display:none;">
+                                <i class="fas fa-exchange-alt"></i> Select Bills
                             </button>
+                        </div>
+                        <div id="advanceCreditAmountSection" class="mt-2" style="display: none;">
+                            <label for="advanceCreditAmountInput" class="form-label small mb-1">Selected advance amount (bill-wise)</label>
+                            <input type="number" class="form-control form-control-sm" id="advanceCreditAmountInput" placeholder="0.00" step="0.01" min="0" readonly>
+                            <small class="text-muted">No auto deduction. Amount changes only from manual bill allocation.</small>
                         </div>
                     </div>
                 </div>
@@ -2562,7 +2566,9 @@
             // Calculate remaining amount BEFORE add/update
             const allocatedAmount = window.billPaymentAllocations[billId] || 0;
             const returnCreditApplied = window.billReturnCreditAllocations ? (window.billReturnCreditAllocations[billId] || 0) : 0;
-            const remainingAmount = bill.total_due - allocatedAmount - returnCreditApplied;
+            const advanceCreditApplied = getAdvanceCreditAppliedForBill(billId);
+            const totalCreditsApplied = returnCreditApplied + advanceCreditApplied;
+            const remainingAmount = bill.total_due - allocatedAmount - totalCreditsApplied;
 
             // If the bill is already added in this payment method, update that same row amount.
             const $existingRow = $firstPayment.find('.bill-allocation-row').filter(function() {
@@ -2581,7 +2587,7 @@
 
                 // Max allowed for this row considering other rows/allocations for same bill.
                 const otherAllocations = Math.max(0, (window.billPaymentAllocations[billId] || 0) - currentAmount);
-                const maxForRow = Math.max(0, parseAmountValue(bill.total_due) - returnCreditApplied - otherAllocations);
+                const maxForRow = Math.max(0, parseAmountValue(bill.total_due) - totalCreditsApplied - otherAllocations);
                 const newAmount = Math.min(maxForRow, currentAmount + remainingAmount);
 
                 $existingInput.data('system-update', true);
@@ -2592,7 +2598,7 @@
 
                 const remainingAfterThis = Math.max(0, maxForRow - newAmount);
                 if (remainingAfterThis <= 0.01) {
-                    $existingHint.text(returnCreditApplied > 0 ? 'Settled (credit applied)' : 'Settled').removeClass('text-muted').addClass('text-success').show();
+                    $existingHint.text(totalCreditsApplied > 0 ? 'Settled (credit/advance applied)' : 'Settled').removeClass('text-muted').addClass('text-success').show();
                 } else {
                     $existingHint.text(`Pay now after this: Rs. ${formatAmountValue(remainingAfterThis)}`).removeClass('text-success').addClass('text-muted').show();
                 }
@@ -2646,8 +2652,8 @@
             window.billPaymentAllocations[billId] = (window.billPaymentAllocations[billId] || 0) + amountValue;
 
             // Update hint
-            if (returnCreditApplied > 0) {
-                $hint.text('Settled (credit applied)').removeClass('text-muted').addClass('text-success').show();
+            if (totalCreditsApplied > 0) {
+                $hint.text('Settled (credit/advance applied)').removeClass('text-muted').addClass('text-success').show();
             } else {
                 $hint.text('Settled').removeClass('text-muted').addClass('text-success').show();
             }
@@ -2810,6 +2816,14 @@
     }
 
     #customerReturnsSection h6 {
+        font-size: 0.9rem;
+    }
+
+    #customerAdvanceSection .advance-toggle-row .form-check-input {
+        margin-top: 0.1rem;
+    }
+
+    #customerAdvanceSection .advance-toggle-row .form-check-label {
         font-size: 0.9rem;
     }
 

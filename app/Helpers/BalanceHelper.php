@@ -2,6 +2,7 @@
 
 namespace App\Helpers;
 
+use App\Services\Ledger\CustomerAdvanceBalanceService;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -171,19 +172,15 @@ class BalanceHelper
             return 0.0; // Walk-in customer never has advance
         }
 
-        $result = DB::selectOne("
-            SELECT
-                COALESCE(SUM(credit), 0) as total_credits,
-                COALESCE(SUM(debit), 0) as total_debits,
-                COALESCE(SUM(credit) - SUM(debit), 0) as advance
-            FROM ledgers
-            WHERE contact_id = ?
-                AND contact_type = 'customer'
-                AND status = 'active'
-        ", [$customerId]);
+        // Fast path: use cached snapshot on customers table.
+        $cachedAdvance = DB::table('customers')
+            ->where('id', $customerId)
+            ->value('advance_balance');
+        if ($cachedAdvance !== null) {
+            return max(0.0, (float) $cachedAdvance);
+        }
 
-        // Return advance only if credits exceed debits (customer has overpaid)
-        return $result && $result->advance > 0 ? (float) $result->advance : 0.0;
+        return app(CustomerAdvanceBalanceService::class)->calculateAdvanceFromLedger((int) $customerId);
     }
 
     /**
@@ -294,23 +291,36 @@ class BalanceHelper
             return collect();
         }
 
-        // Query for customers with negative balances (credits > debits = advance payment)
-        $placeholders = str_repeat('?,', count($customerIds) - 1) . '?';
-        $results = DB::select("
-            SELECT
-                contact_id,
-                COALESCE(SUM(credit) - SUM(debit), 0) as advance_amount
-            FROM ledgers
-            WHERE contact_id IN ({$placeholders})
-                AND contact_type = 'customer'
-                AND status = 'active'
-            GROUP BY contact_id
-            HAVING SUM(credit) > SUM(debit)
-        ", $customerIds);
-
         $advances = collect();
-        foreach ($results as $result) {
-            $advances->put((int) $result->contact_id, (float) $result->advance_amount);
+
+        // Fast path: read cached advance snapshot from customers table.
+        // Keep fallback below to support environments where the migration
+        // has not yet been executed.
+        try {
+            $cachedRows = DB::table('customers')
+                ->select('id', 'advance_balance')
+                ->whereIn('id', $customerIds)
+                ->get();
+
+            foreach ($cachedRows as $row) {
+                $advances->put((int) $row->id, max(0.0, (float) ($row->advance_balance ?? 0)));
+            }
+
+            foreach ($customerIds as $customerId) {
+                if (!$advances->has($customerId)) {
+                    $advances->put($customerId, 0.0);
+                }
+            }
+
+            return $advances;
+        } catch (\Throwable $e) {
+            // Fallback for pre-migration or schema mismatch.
+        }
+
+        // Fallback path: use centralized advance calculator per customer.
+        $advanceService = app(CustomerAdvanceBalanceService::class);
+        foreach ($customerIds as $customerId) {
+            $advances->put((int) $customerId, $advanceService->calculateAdvanceFromLedger((int) $customerId));
         }
 
         // Ensure all requested customer IDs are in the result (fill missing with 0)

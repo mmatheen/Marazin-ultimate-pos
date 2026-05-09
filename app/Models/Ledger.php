@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\LedgerTransactionType;
 use App\Services\Ledger\LedgerPostingRuleService;
+use App\Services\Ledger\CustomerAdvanceBalanceService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -371,6 +372,10 @@ class Ledger extends Model
             'status' => $ledger->status
         ]);
 
+        if ($ledger->contact_type === 'customer') {
+            app(CustomerAdvanceBalanceService::class)->syncCustomer((int) $ledger->contact_id);
+        }
+
         return $ledger;
     }
 
@@ -448,6 +453,10 @@ class Ledger extends Model
             'notes' => $entry->notes . "\n[REVERSED: " . $reason . "]",
             'created_by' => $reversedBy
         ]);
+
+        if ($entry->contact_type === 'customer') {
+            app(CustomerAdvanceBalanceService::class)->syncCustomer((int) $entry->contact_id);
+        }
 
         return $entry;
     }

@@ -213,11 +213,14 @@ class SaleController extends Controller
             if ($request->customer_id != 1) {
                 $customer  = Customer::withoutGlobalScopes()->findOrFail($request->customer_id);
                 $estimated = $this->saleAmountCalculator->estimateFinalTotal($request);
+                $posAdvanceApply = $request->boolean('pos_apply_advance_selected')
+                    ? (float) $request->input('pos_apply_advance_amount', 0)
+                    : 0.0;
 
                 try {
                     $this->saleValidationService->validateCreditLimit(
                         $customer, $estimated, $request->payments ?? [], $request->status,
-                        (float) $request->input('pos_apply_advance_amount', 0)
+                        $posAdvanceApply
                     );
                 } catch (\Exception $e) {
                     return response()->json([
@@ -251,9 +254,12 @@ class SaleController extends Controller
                 // Re-check credit limit inside transaction using the corrected final_total
                 if ($request->customer_id != 1) {
                     $customer = Customer::withoutGlobalScopes()->findOrFail($request->customer_id);
+                    $posAdvanceApply = $request->boolean('pos_apply_advance_selected')
+                        ? (float) $request->input('pos_apply_advance_amount', 0)
+                        : 0.0;
                     $this->saleValidationService->validateCreditLimit(
                         $customer, $amounts['final_total'], $request->payments ?? [], $newStatus,
-                        (float) $request->input('pos_apply_advance_amount', 0)
+                        $posAdvanceApply
                     );
                 }
 

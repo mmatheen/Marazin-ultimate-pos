@@ -30,6 +30,8 @@ class Customer extends Model
         'email',
         'address',
         'opening_balance',
+        'advance_balance',
+        'advance_updated_at',
         'credit_limit',
         'city_id',
         'customer_type',
@@ -41,6 +43,8 @@ class Customer extends Model
     protected $casts = [
         'allow_sms' => 'boolean',
         'opening_balance' => 'decimal:2',
+        'advance_balance' => 'decimal:2',
+        'advance_updated_at' => 'datetime',
         'credit_limit' => 'decimal:2',
     ];
 

@@ -166,6 +166,11 @@ class SalePaymentProcessor
                 'notes' => DB::raw("CONCAT(COALESCE(notes, ''), ' | DELETED: POS sale save')"),
             ]);
 
+        // Manual-only policy: apply advance only when user explicitly selected it.
+        if (!$request->boolean('pos_apply_advance_selected')) {
+            return;
+        }
+
         $amt = round((float) $request->input('pos_apply_advance_amount', 0), 2);
         if ($amt <= 0.02 || (int) $sale->customer_id <= 1) {
             return;
@@ -178,19 +183,15 @@ class SalePaymentProcessor
             ->sum('amount');
         $remainingOnInvoice = max(0.0, $finalTotal - $cashPaid);
 
-        $lb = (float) BalanceHelper::getCustomerBalance((int) $sale->customer_id);
+        $availableAdvance = (float) BalanceHelper::getCustomerAdvance((int) $sale->customer_id);
 
         if ($remainingOnInvoice <= 0.02) {
             throw new \Exception('No invoice remainder to apply advance to (invoice may already be fully paid).');
         }
 
-        if ($lb < -0.02) {
-            $maxApply = min($remainingOnInvoice, -$lb);
-        } elseif ($lb <= 0.02) {
-            $maxApply = $remainingOnInvoice;
-        } else {
-            $maxApply = min($remainingOnInvoice, max(0.0, $remainingOnInvoice - $lb));
-        }
+        // Manual-advance policy:
+        // apply only from explicit advance pool; customer due should not suppress it.
+        $maxApply = min($remainingOnInvoice, max(0.0, $availableAdvance));
 
         if ($maxApply <= 0.02) {
             throw new \Exception('No customer advance or unallocated credit is available to apply on this sale.');

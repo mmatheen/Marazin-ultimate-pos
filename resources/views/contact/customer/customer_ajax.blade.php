@@ -357,6 +357,19 @@
                         }
                     },
                     {
+                        data: 'total_advance_credit',
+                        title: 'Advance Credit',
+                        defaultContent: '0',
+                        render: function(data, type, row) {
+                            const advance = parseFloat(data) || 0;
+                            const formatted = advance.toFixed(2);
+                            if (advance > 0) {
+                                return `<span class="text-success fw-bold">${formatted}</span>`;
+                            }
+                            return formatted;
+                        }
+                    },
+                    {
                         data: 'current_balance',
                         title: 'Current Balance',
                         defaultContent: '0',
@@ -388,7 +401,7 @@
                         orientation: 'landscape',
                         pageSize: 'A4',
                         exportOptions: {
-                            columns: [1, 3, 4, 10, 12, 13, 14] // ID, First Name, Last Name, Opening Balance, Total Sale Due, Total Return Due, Current Balance
+                            columns: [1, 3, 4, 10, 12, 13, 14, 15] // ID, First Name, Last Name, Opening Balance, Total Sale Due, Total Return Due, Advance Credit, Current Balance
                         },
                         customize: function(doc) {
                             // Add two empty columns to the PDF table
@@ -515,7 +528,7 @@
                         className: 'btn btn-success btn-sm',
                         title: 'Customer List',
                         exportOptions: {
-                            columns: [1, 3, 4, 10, 12, 13, 14] // ID, First Name, Last Name, Opening Balance, Total Sale Due, Total Return Due, Current Balance
+                            columns: [1, 3, 4, 10, 12, 13, 14, 15] // ID, First Name, Last Name, Opening Balance, Total Sale Due, Total Return Due, Advance Credit, Current Balance
                         },
                         customize: function(xlsx) {
                             var sheet = xlsx.xl.worksheets['sheet1.xml'];
@@ -546,7 +559,7 @@
                         className: 'btn btn-info btn-sm',
                         title: 'Customer List - ' + ($('#cityFilter option:selected').text() || 'All Cities'),
                         exportOptions: {
-                            columns: [1, 3, 4, 10, 12, 13, 14] // ID, First Name, Last Name, Opening Balance, Total Sale Due, Total Return Due, Current Balance
+                            columns: [1, 3, 4, 10, 12, 13, 14, 15] // ID, First Name, Last Name, Opening Balance, Total Sale Due, Total Return Due, Advance Credit, Current Balance
                         },
                         customize: function(win) {
                             // Add two empty columns to the printed table
@@ -1416,15 +1429,16 @@
 
             let maxA = 0;
             if (finalTotal > 0.005) {
-                if (!Number.isNaN(lb) && lb < -0.005) {
-                    maxA = Math.min(finalTotal, -lb);
-                } else if (!Number.isNaN(lb) && lb > 0.005) {
-                    maxA = Math.min(finalTotal, Math.max(0, finalTotal - lb));
-                } else {
-                    maxA = finalTotal;
-                }
+                // Manual-advance policy:
+                // max applicable is limited by explicit advance pool only.
+                // Customer due/ledger debit must not auto-block using advance.
                 if (!Number.isNaN(adv) && adv > 0.005) {
-                    maxA = Math.min(maxA, adv);
+                    maxA = Math.min(finalTotal, adv);
+                } else if (!Number.isNaN(lb) && lb < -0.005) {
+                    // Legacy fallback for old payloads without explicit advance field.
+                    maxA = Math.min(finalTotal, -lb);
+                } else {
+                    maxA = 0;
                 }
             }
 

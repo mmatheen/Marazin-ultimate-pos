@@ -10,6 +10,7 @@ use App\Services\Sale\SaleSettlementService;
 use App\Services\UnifiedLedgerService;
 use App\Helpers\BalanceHelper;
 use App\Traits\BulkPaymentHelpers;
+use App\Services\Ledger\CustomerAdvanceBalanceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -55,7 +56,7 @@ class FlexibleBulkSalePaymentService
 
             foreach ($paymentGroupsInput as $paymentGroup) {
                 if (isset($paymentGroup['bills']) && is_array($paymentGroup['bills'])) {
-                    foreach ($paymentGroup['bills'] as $bill) {
+                    foreach (($paymentGroup['bills'] ?? []) as $bill) {
                         $totalPaymentAmount += $bill['amount'];
                     }
                 }
@@ -305,6 +306,13 @@ class FlexibleBulkSalePaymentService
             if (! is_array($billAdvanceAllocations)) {
                 $billAdvanceAllocations = [];
             }
+            $advanceCreditSelected = (bool) $request->boolean('advance_credit_selected');
+
+            // Manual-only hard gate:
+            // Ignore any incoming advance allocations unless user explicitly selected advance apply.
+            if (! $advanceCreditSelected) {
+                $billAdvanceAllocations = [];
+            }
 
             $normalizedAdvanceAllocations = [];
             foreach ($billAdvanceAllocations as $saleId => $amount) {
@@ -315,30 +323,19 @@ class FlexibleBulkSalePaymentService
                 }
             }
 
-            $creditToApply = 0.0;
-            if (! empty($normalizedAdvanceAllocations)) {
-                $creditToApply = (float) array_sum($normalizedAdvanceAllocations);
-            } elseif ($request->has('advance_credit_applied') && $request->advance_credit_applied > 0) {
-                $creditToApply = floatval($request->advance_credit_applied);
+            $creditToApply = ! empty($normalizedAdvanceAllocations)
+                ? (float) array_sum($normalizedAdvanceAllocations)
+                : 0.0;
+
+            // Manual-only policy: if selected, explicit bill allocations are mandatory.
+            if ($advanceCreditSelected && $creditToApply <= 0.01) {
+                throw new \Exception('Advance credit is manual. Please allocate advance to one or more invoices.');
             }
 
             if ($creditToApply > 0) {
 
-                // Cap for advance_credit_usage (no new ledger credit): piecewise is required.
-                // - ledgerBalance = debit - credit (BalanceHelper): >0 customer owes, <0 customer has credit.
-                // - When LB >= 0: bills may exceed receivable; applicable gap = max(0, saleDue - LB).
-                // - When LB < 0: only "pure" advance -LB exists; cannot apply more than min(saleDue, -LB)
-                //   (old formula saleDue + |LB| over-counted in this branch).
-                $ledgerBalance = (float) BalanceHelper::getCustomerBalance((int) $request->customer_id);
-                $saleDue = (float) Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
-                    ->where('customer_id', (int) $request->customer_id)
-                    ->where('status', 'final')
-                    ->sum('total_due');
-                if ($ledgerBalance >= 0) {
-                    $availableCredit = max(0.0, $saleDue - $ledgerBalance);
-                } else {
-                    $availableCredit = min($saleDue, -$ledgerBalance);
-                }
+                // Manual advance pool only (no implicit ledger-balance arithmetic).
+                $availableCredit = (float) BalanceHelper::getCustomerAdvance((int) $request->customer_id);
 
                 if ($availableCredit <= 0.01) {
                     throw new \Exception('Customer does not have any credit available to apply.');
@@ -347,101 +344,52 @@ class FlexibleBulkSalePaymentService
                     throw new \Exception("Credit amount Rs.{$creditToApply} exceeds available credit Rs." . number_format($availableCredit, 2));
                 }
 
-                if (! empty($normalizedAdvanceAllocations)) {
-                    foreach ($normalizedAdvanceAllocations as $saleId => $apply) {
-                        $sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
-                            ->where('id', $saleId)
-                            ->where('customer_id', (int) $request->customer_id)
-                            ->where('status', 'final')
-                            ->first(['id', 'invoice_no', 'total_due']);
-
-                        if (! $sale) {
-                            throw new \Exception("Sale {$saleId} not found for customer");
-                        }
-
-                        $creditAppliedAlready = (float) Payment::where('reference_id', $sale->id)
-                            ->where('payment_type', 'advance_credit_usage')
-                            ->sum('amount');
-                        $returnCredit = (float) $this->getAppliedReturnCreditForSale((int) $sale->id);
-                        $remainingDue = (float) $sale->total_due - $creditAppliedAlready - $returnCredit;
-
-                        if ($remainingDue <= 0.01) {
-                            throw new \Exception("Invoice {$sale->invoice_no} has no remaining due for advance credit allocation.");
-                        }
-                        if ($apply > $remainingDue + 0.02) {
-                            throw new \Exception(
-                                "Advance credit Rs.".number_format($apply, 2)." for invoice {$sale->invoice_no} exceeds remaining due Rs.".number_format($remainingDue, 2)
-                            );
-                        }
-
-                        $creditPayment = Payment::create([
-                            'payment_date'   => $request->payment_date,
-                            'amount'         => $apply,
-                            'payment_method' => 'advance_credit',
-                            'payment_type'   => 'advance_credit_usage',
-                            'reference_id'   => $sale->id,
-                            'reference_no'   => $bulkReference,
-                            'customer_id'    => $request->customer_id,
-                            'notes'          => 'Credit applied to invoice ' . $sale->invoice_no,
-                        ]);
-                        $createdPaymentIds[] = (int) $creditPayment->id;
-
-                        // IMPORTANT: no ledger entry here (credit already exists in ledger)
-                        $this->updateSaleTable((int) $sale->id, 0.0);
-                        $affectedSaleIds[(int) $sale->id] = true;
-                    }
-                } else {
-                    // Allocate credit FIFO across outstanding sales (after cash and return credits)
-                    $sales = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
+                foreach ($normalizedAdvanceAllocations as $saleId => $apply) {
+                    $sale = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
+                        ->where('id', $saleId)
                         ->where('customer_id', (int) $request->customer_id)
                         ->where('status', 'final')
-                        ->where('total_due', '>', 0)
-                        ->orderBy('sales_date')
-                        ->orderBy('id')
-                        ->get(['id', 'invoice_no', 'total_due']);
+                        ->first(['id', 'invoice_no', 'total_due']);
 
-                    $remainingCredit = $creditToApply;
-                    foreach ($sales as $sale) {
-                        if ($remainingCredit <= 0.01) break;
-
-                        $creditAppliedAlready = (float) Payment::where('reference_id', $sale->id)
-                            ->where('payment_type', 'advance_credit_usage')
-                            ->sum('amount');
-                        $returnCredit = (float) $this->getAppliedReturnCreditForSale((int) $sale->id);
-
-                        // IMPORTANT:
-                        // In this codebase, Sale::saving typically keeps total_due in sync with final_total - total_paid.
-                        // That means $sale->total_due is already net of cash payments we just created in Step 5.
-                        // Do not subtract cash payments again here (double-deduct).
-                        $remainingDue = (float) $sale->total_due - $creditAppliedAlready - $returnCredit;
-                        if ($remainingDue <= 0.01) continue;
-
-                        $apply = min($remainingCredit, $remainingDue);
-                        if ($apply <= 0.01) continue;
-
-                        $creditPayment = Payment::create([
-                            'payment_date'   => $request->payment_date,
-                            'amount'         => $apply,
-                            'payment_method' => 'advance_credit',
-                            'payment_type'   => 'advance_credit_usage',
-                            'reference_id'   => $sale->id,
-                            'reference_no'   => $bulkReference,
-                            'customer_id'    => $request->customer_id,
-                            'notes'          => 'Credit applied to invoice ' . $sale->invoice_no,
-                        ]);
-                        $createdPaymentIds[] = (int) $creditPayment->id;
-
-                        // IMPORTANT: no ledger entry here (credit already exists in ledger)
-                        $this->updateSaleTable((int) $sale->id, 0.0);
-                        $affectedSaleIds[(int) $sale->id] = true;
-
-                        $remainingCredit -= $apply;
+                    if (! $sale) {
+                        throw new \Exception("Sale {$saleId} not found for customer");
                     }
 
-                    if ($remainingCredit > 0.02) {
-                        throw new \Exception('Credit allocation incomplete. Please try again or contact support.');
+                    $creditAppliedAlready = (float) Payment::where('reference_id', $sale->id)
+                        ->where('payment_type', 'advance_credit_usage')
+                        ->sum('amount');
+                    $returnCredit = (float) $this->getAppliedReturnCreditForSale((int) $sale->id);
+                    $remainingDue = (float) $sale->total_due - $creditAppliedAlready - $returnCredit;
+
+                    if ($remainingDue <= 0.01) {
+                        throw new \Exception("Invoice {$sale->invoice_no} has no remaining due for advance credit allocation.");
                     }
+                    if ($apply > $remainingDue + 0.02) {
+                        throw new \Exception(
+                            "Advance credit Rs.".number_format($apply, 2)." for invoice {$sale->invoice_no} exceeds remaining due Rs.".number_format($remainingDue, 2)
+                        );
+                    }
+
+                    $creditPayment = Payment::create([
+                        'payment_date'   => $request->payment_date,
+                        'amount'         => $apply,
+                        'payment_method' => 'advance_credit',
+                        'payment_type'   => 'advance_credit_usage',
+                        'reference_id'   => $sale->id,
+                        'reference_no'   => $bulkReference,
+                        'customer_id'    => $request->customer_id,
+                        'notes'          => 'Credit applied to invoice ' . $sale->invoice_no,
+                    ]);
+                    $createdPaymentIds[] = (int) $creditPayment->id;
+
+                    // IMPORTANT: no ledger entry here (credit already exists in ledger)
+                    $this->updateSaleTable((int) $sale->id, 0.0);
+                    $affectedSaleIds[(int) $sale->id] = true;
                 }
+
+                // Advance-credit usage entries do not create ledger rows by design.
+                // Keep cached customers.advance_balance in sync immediately.
+                app(CustomerAdvanceBalanceService::class)->syncCustomer((int) $request->customer_id);
             }
 
             // ── Step 7: apply return-credit allocations for sales not updated in Step 5 ───
@@ -482,38 +430,45 @@ class FlexibleBulkSalePaymentService
 
             // ── Step 8: excess amount → advance payments for 'both' type ─────────
             if ($request->payment_type === 'both') {
-                $totalEntered = array_sum(array_column(
-                    array_map(fn ($pg) => ['t' => floatval($pg['totalAmount'] ?? 0)], $paymentGroupsInput),
-                    't'
-                ));
+                // New clients already send explicit per-group advance_amount.
+                // In that case, Step 5 already created advance payments; skip legacy fallback.
+                $explicitAdvanceInGroups = collect($paymentGroupsInput)->sum(function ($pg) {
+                    return (float) ($pg['advance_amount'] ?? 0);
+                });
+                if ($explicitAdvanceInGroups <= 0.01) {
+                    $totalEntered = array_sum(array_column(
+                        array_map(fn ($pg) => ['t' => floatval($pg['totalAmount'] ?? 0)], $paymentGroupsInput),
+                        't'
+                    ));
 
-                $advanceAmount = $totalEntered - ($totalOBPayment + $totalSalePayment);
+                    $advanceAmount = $totalEntered - ($totalOBPayment + $totalSalePayment);
 
-                if ($advanceAmount > 0.01) {
-                    foreach ($paymentGroupsInput as $paymentGroup) {
-                        $groupTotal = floatval($paymentGroup['totalAmount'] ?? 0);
-                        if ($groupTotal <= 0 || $totalEntered <= 0) continue;
+                    if ($advanceAmount > 0.01) {
+                        foreach ($paymentGroupsInput as $paymentGroup) {
+                            $groupTotal = floatval($paymentGroup['totalAmount'] ?? 0);
+                            if ($groupTotal <= 0 || $totalEntered <= 0) continue;
 
-                        $advanceForMethod = $advanceAmount * ($groupTotal / $totalEntered);
-                        if ($advanceForMethod <= 0.01) continue;
+                            $advanceForMethod = $advanceAmount * ($groupTotal / $totalEntered);
+                            if ($advanceForMethod <= 0.01) continue;
 
-                        $advanceData = [
-                            'payment_date'   => $request->payment_date,
-                            'amount'         => $advanceForMethod,
-                            'payment_method' => $paymentGroup['method'],
-                            'payment_type'   => 'advance',
-                            'reference_id'   => null,
-                            'reference_no'   => $bulkReference,
-                            'customer_id'    => $request->customer_id,
-                            'notes'          => ($request->notes ?? '') . ' [Advance Payment]',
-                        ];
-                        $this->addMethodSpecificFields($advanceData, $paymentGroup);
+                            $advanceData = [
+                                'payment_date'   => $request->payment_date,
+                                'amount'         => $advanceForMethod,
+                                'payment_method' => $paymentGroup['method'],
+                                'payment_type'   => 'advance',
+                                'reference_id'   => null,
+                                'reference_no'   => $bulkReference,
+                                'customer_id'    => $request->customer_id,
+                                'notes'          => ($request->notes ?? '') . ' [Advance Payment]',
+                            ];
+                            $this->addMethodSpecificFields($advanceData, $paymentGroup);
 
-                        $advancePayment = Payment::create($advanceData);
-                        $createdPaymentIds[] = (int) $advancePayment->id;
-                        $this->unifiedLedgerService->recordAdvancePayment($advancePayment, 'customer');
+                            $advancePayment = Payment::create($advanceData);
+                            $createdPaymentIds[] = (int) $advancePayment->id;
+                            $this->unifiedLedgerService->recordAdvancePayment($advancePayment, 'customer');
 
-                        $totalAmount += $advanceForMethod;
+                            $totalAmount += $advanceForMethod;
+                        }
                     }
                 }
             }

@@ -875,19 +875,23 @@ function appendPosAdvanceToSaleData(saleData) {
     if (!saleData) return;
     const st = saleData.status;
     if (st === 'jobticket' || st === 'suspend' || st === 'draft' || st === 'quotation') {
+        saleData.pos_apply_advance_selected = false;
         saleData.pos_apply_advance_amount = 0;
         return;
     }
     if (saleData.transaction_type === 'sale_order') {
+        saleData.pos_apply_advance_selected = false;
         saleData.pos_apply_advance_amount = 0;
         return;
     }
     const cid = String($('#customer-id').val() || '');
     if (!cid || cid === '1') {
+        saleData.pos_apply_advance_selected = false;
         saleData.pos_apply_advance_amount = 0;
         return;
     }
     const use = $('#pos-use-advance-checkbox').is(':checked');
+    saleData.pos_apply_advance_selected = !!use;
     let amt = use ? (parseFloat($('#pos-apply-advance-amount').val()) || 0) : 0;
     if (amt < 0) amt = 0;
     saleData.pos_apply_advance_amount = Math.round(amt * 100) / 100;
