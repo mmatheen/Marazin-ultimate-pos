@@ -5,7 +5,9 @@
     <title>A4 RECEIPT</title>
     @php
         $advance_used_amount = (float) ($advance_used_amount ?? 0);
-        $customer_paid_amount = (float) ($customer_paid_amount ?? ($sale->total_paid ?? 0));
+        $customer_paid_amount = isset($customer_paid_amount)
+            ? (float) $customer_paid_amount
+            : (float) (isset($payments) ? $payments->sum('amount') : 0);
         $remaining_advance_amount = (float) ($remaining_advance_amount ?? 0);
     @endphp
     <style>
@@ -468,12 +470,17 @@
         $fmtPctTrimA4 = static function ($v) {
             return rtrim(rtrim(number_format((float) $v, 2, '.', ''), '0'), '.');
         };
+        $a4ShowSubtotalRow = $sale->discount_amount > 0.0001
+            || (!is_null($sale->shipping_charges) && $sale->shipping_charges > 0.0001)
+            || abs((float) $sale->subtotal - (float) $sale->final_total) > 0.02;
     @endphp
     <table class="totals-table">
+        @if ($a4ShowSubtotalRow)
         <tr>
             <td class="label">SUBTOTAL</td>
             <td class="value">Rs. {{ number_format($sale->subtotal, 2) }}</td>
         </tr>
+        @endif
 
         @if ($sale->discount_amount > 0)
             <tr>
@@ -502,29 +509,60 @@
 
         {{-- Only show payment details for final sales, not for quotations, drafts, or sale orders --}}
         @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))
-            @if (!is_null($advance_used_amount) && $advance_used_amount > 0)
+            @php
+                $hasAdvanceOnBill = $advance_used_amount > 0.0001;
+                $hasCashLikePay = $customer_paid_amount > 0.0001;
+                $invoiceDue = (float) ($sale->total_due ?? 0);
+                $runningOutstanding = ($customer && isset($customer->id) && $customer->id != 1) ? \App\Helpers\BalanceHelper::getCustomerBalance($customer->id) : 0.0;
+                $showAccountRunningBalance = $customer && $customer->id != 1 && $runningOutstanding > ($invoiceDue + 0.05);
+                $a4RecvTol = 0.02;
+                $a4RecvTotalPaidVal = (float) ($sale->total_paid ?? 0);
+                $a4RecvComponentsSum = $advance_used_amount + $customer_paid_amount;
+                $a4RecvShowTotalSettledRow = $a4RecvTotalPaidVal > $a4RecvTol
+                    && (
+                        ($hasAdvanceOnBill && $hasCashLikePay)
+                        || abs($a4RecvTotalPaidVal - $a4RecvComponentsSum) > $a4RecvTol
+                    );
+                $a4RecvShowCashLikeBreakdown = $hasCashLikePay
+                    && ($hasAdvanceOnBill || (isset($payments) && $payments->count() > 1));
+                $a4RecvAmtGiven = (float) ($amount_given ?? 0);
+                $a4RecvShowAmountGiven = !$hasAdvanceOnBill
+                    && $a4RecvAmtGiven > $a4RecvTol
+                    && (
+                        (float) ($balance_amount ?? 0) > $a4RecvTol
+                        || $a4RecvAmtGiven > (float) $sale->final_total + $a4RecvTol
+                        || abs($a4RecvAmtGiven - (float) $sale->final_total) > $a4RecvTol
+                        || abs($a4RecvAmtGiven - (float) $customer_paid_amount) > $a4RecvTol
+                    );
+            @endphp
+            @if ($hasAdvanceOnBill)
                 <tr>
-                    <td class="label">ADVANCE USED</td>
+                    <td class="label">ADVANCE APPLIED (CREDIT)</td>
                     <td class="value">Rs. {{ number_format($advance_used_amount, 2) }}</td>
                 </tr>
             @endif
-            @if (!is_null($customer_paid_amount) && $customer_paid_amount > 0)
+            @if ($a4RecvShowCashLikeBreakdown)
                 <tr>
-                    <td class="label">CUSTOMER PAID</td>
+                    <td class="label">CASH / CARD / BANK (NOW)</td>
                     <td class="value">Rs. {{ number_format($customer_paid_amount, 2) }}</td>
                 </tr>
             @endif
-            @if ((!is_null($amount_given) && $amount_given > 0) && (is_null($advance_used_amount) || $advance_used_amount <= 0))
+            @if ($a4RecvShowTotalSettledRow)
+                <tr>
+                    <td class="label">TOTAL SETTLED ON BILL</td>
+                    <td class="value">Rs. {{ number_format($a4RecvTotalPaidVal, 2) }}</td>
+                </tr>
+            @endif
+            @if ($a4RecvShowAmountGiven)
                 <tr>
                     <td class="label">AMOUNT GIVEN</td>
                     <td class="value">Rs. {{ number_format($amount_given, 2) }}</td>
                 </tr>
             @endif
-
-            @if (is_null($advance_used_amount) || $advance_used_amount <= 0)
+            @if (!$hasAdvanceOnBill && !$hasCashLikePay && (float) ($sale->total_paid ?? 0) > 0.0001)
                 <tr>
                     <td class="label">PAID</td>
-                    <td class="value">Rs. {{ number_format($sale->total_paid, 2) }}</td>
+                    <td class="value">Rs. {{ number_format((float) $sale->total_paid, 2) }}</td>
                 </tr>
             @endif
 
@@ -535,17 +573,21 @@
                 </tr>
             @endif
 
-            @if (!is_null($sale->total_due) && $sale->total_due > 0)
+            @if ($invoiceDue > 0.0001)
                 <tr>
-                    <td class="label">BALANCE DUE</td>
-                    <td class="value" style="color: red;">
-                        (Rs. {{ number_format($sale->total_due, 2) }})
-                    </td>
+                    <td class="label">BALANCE DUE (THIS BILL)</td>
+                    <td class="value" style="color: red;">Rs. {{ number_format($invoiceDue, 2) }}</td>
+                </tr>
+            @endif
+            @if ($showAccountRunningBalance)
+                <tr>
+                    <td class="label">TOTAL DUE (ALL INVOICES)</td>
+                    <td class="value" style="color: red;">Rs. {{ number_format($runningOutstanding, 2) }}</td>
                 </tr>
             @endif
             @if (!is_null($remaining_advance_amount) && $remaining_advance_amount > 0)
                 <tr>
-                    <td class="label">ADVANCE BALANCE</td>
+                    <td class="label">ADVANCE BALANCE LEFT</td>
                     <td class="value">Rs. {{ number_format($remaining_advance_amount, 2) }}</td>
                 </tr>
             @endif

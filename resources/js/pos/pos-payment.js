@@ -67,7 +67,7 @@ window.togglePaymentFields = function (selectElement) {
 window.validateAmount = function () {
     document.querySelectorAll('.payment-amount').forEach(function (input) {
         var amountError = input.nextElementSibling;
-        var val = parseFloat(input.value);
+        var val = window.parseFormattedAmount(String(input.value || '').trim());
         if (isNaN(val) || val <= 0) {
             amountError.style.display = 'block';
         } else {
@@ -77,21 +77,25 @@ window.validateAmount = function () {
     updatePaymentSummary();
 };
 
-/* ── Payment Summary ────────────────────────────────────────── */
-function updatePaymentSummary() {
-    var totalItems  = fetchTotalItems();
+/* ── Modal total payable (same math as summary sidebar) ─────── */
+function getPaymentModalTotalPayable() {
     var totalAmount = fetchTotalAmount();
-
-    var discount     = parseFloat((document.getElementById('global-discount') || {}).value || 0);
+    var discount = parseFloat((document.getElementById('global-discount') || {}).value || 0);
     var discountType = (document.getElementById('discount-type') || {}).value || 'fixed';
-
-    totalPayable = discountType === 'percentage'
+    return discountType === 'percentage'
         ? totalAmount - (totalAmount * discount / 100)
         : totalAmount - discount;
+}
+
+/* ── Payment Summary ────────────────────────────────────────── */
+function updatePaymentSummary() {
+    var totalItems = fetchTotalItems();
+
+    totalPayable = getPaymentModalTotalPayable();
 
     var totalPaying = 0;
     document.querySelectorAll('.payment-amount').forEach(function (input) {
-        totalPaying += parseFloat(input.value) || 0;
+        totalPaying += window.parseFormattedAmount(String(input.value || '').trim());
     });
 
     var changeReturn = Math.max(totalPaying - totalPayable, 0);
@@ -179,6 +183,25 @@ document.addEventListener('DOMContentLoaded', function () {
             });
 
             togglePaymentFields(newPaymentRow.querySelector('.payment-method'));
+
+            // Pre-fill amount with remaining balance (excluding this new row) for split payments
+            var payable = getPaymentModalTotalPayable();
+            var payingOthers = 0;
+            document.querySelectorAll('.payment-row').forEach(function (row) {
+                if (row === newPaymentRow) {
+                    return;
+                }
+                var inp = row.querySelector('.payment-amount');
+                if (inp) {
+                    payingOthers += window.parseFormattedAmount(String(inp.value || '').trim());
+                }
+            });
+            var remaining = Math.max(0, payable - payingOthers);
+            var newAmt = newPaymentRow.querySelector('.payment-amount');
+            if (newAmt && remaining > 0.0001) {
+                newAmt.value = window.formatAmountWithSeparators(remaining.toFixed(2));
+            }
+
             updatePaymentSummary();
         });
     }
@@ -190,12 +213,7 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('paymentForm').reset();
             document.getElementById('paymentRows').innerHTML = '';
 
-            var totalAmount   = fetchTotalAmount();
-            var discount      = parseFloat((document.getElementById('global-discount') || {}).value || 0);
-            var discountType  = (document.getElementById('discount-type') || {}).value || 'fixed';
-            var defaultAmount = discountType === 'percentage'
-                ? totalAmount - (totalAmount * discount / 100)
-                : totalAmount - discount;
+            var defaultAmount = getPaymentModalTotalPayable();
 
             var defaultRow = document.createElement('div');
             defaultRow.className = 'card mb-3 payment-row position-relative';

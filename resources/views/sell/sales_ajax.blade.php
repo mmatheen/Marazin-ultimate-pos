@@ -4,6 +4,351 @@
         return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    /** Sale / payment / activity: ISO or YYYY-MM-DD → local DD/MM/YYYY HH:mm (short, readable). */
+    function formatSaleDetailsDateTime(value) {
+        if (value == null || value === '') {
+            return '';
+        }
+        var s = String(value).trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+            var p = s.split('-');
+            return p[2] + '/' + p[1] + '/' + p[0];
+        }
+        var d = new Date(s);
+        if (isNaN(d.getTime())) {
+            return s.replace('T', ' ').replace(/\.\d+Z?$/, '').replace(/Z$/, '').trim();
+        }
+        var pad = function(n) {
+            return String(n).padStart(2, '0');
+        };
+        return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' +
+            pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+
+    function activityFormatDisplayValue(v) {
+        if (v === null || v === undefined) {
+            return '(empty)';
+        }
+        if (typeof v === 'object') {
+            return JSON.stringify(v);
+        }
+        var str = String(v);
+        if (/^\d{4}-\d{2}-\d{2}(T|\s)/.test(str)) {
+            var asDt = formatSaleDetailsDateTime(str);
+            if (asDt) {
+                return asDt;
+            }
+        }
+        return str.length > 120 ? str.slice(0, 120) + '…' : str;
+    }
+
+    /** Calendar date from DB (YYYY-MM-DD or midnight UTC) → DD/MM/YYYY without timezone shift. */
+    function formatActivityCalendarDateOnly(v) {
+        if (v === null || v === undefined) {
+            return '';
+        }
+        var s = String(v).trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+            var p = s.split('-');
+            return p[2] + '/' + p[1] + '/' + p[0];
+        }
+        var m = s.match(/^(\d{4}-\d{2}-\d{2})T00:00:00(\.\d+)?Z?$/i);
+        if (m) {
+            var p2 = m[1].split('-');
+            return p2[2] + '/' + p2[1] + '/' + p2[0];
+        }
+        return '';
+    }
+
+    function humanizeActivityPaymentCode(keyLower, v) {
+        if (keyLower !== 'payment_method' && keyLower !== 'payment_type' && keyLower !== 'actual_payment_method') {
+            return null;
+        }
+        var s = String(v == null ? '' : v).trim().toLowerCase();
+        if (s === 'advance_credit') {
+            return 'Advance / credit';
+        }
+        if (s === 'advance_credit_usage') {
+            return 'Applied to invoice';
+        }
+        if (s === 'cash') {
+            return 'Cash';
+        }
+        if (s === 'card') {
+            return 'Card';
+        }
+        if (s === 'bank_transfer' || s === 'bank') {
+            return 'Bank transfer';
+        }
+        if (s === 'cheque' || s === 'check') {
+            return 'Cheque';
+        }
+        if (s === 'sale') {
+            return 'Sale payment';
+        }
+        return null;
+    }
+
+    function formatValueForActivityKey(key, v) {
+        if (v === null || v === undefined) {
+            return '(empty)';
+        }
+        if (typeof v === 'object') {
+            return activityFormatDisplayValue(v);
+        }
+        var keyLower = String(key).toLowerCase();
+        var hum = humanizeActivityPaymentCode(keyLower, v);
+        if (hum) {
+            return hum;
+        }
+        if (/_date$/.test(keyLower) || keyLower === 'payment_date' || keyLower === 'sales_date' ||
+            keyLower === 'order_date') {
+            var cal = formatActivityCalendarDateOnly(v);
+            if (cal) {
+                return cal;
+            }
+        }
+        if (/(amount|total_paid|total_due|final_total|subtotal|discount|balance|original_amount|bank_charges)/.test(
+                keyLower) &&
+            (typeof v === 'number' || (typeof v === 'string' && v !== '' && !isNaN(parseFloat(v))))) {
+            var n = parseFloat(v);
+            if (!isNaN(n)) {
+                return 'Rs. ' + n.toFixed(2);
+            }
+        }
+        return activityFormatDisplayValue(v);
+    }
+
+    function activityValueIsBlank(v) {
+        if (v === null || v === undefined) {
+            return true;
+        }
+        if (typeof v === 'string' && v.trim() === '') {
+            return true;
+        }
+        return false;
+    }
+
+    function activityChipLooksEmpty(text) {
+        return text === '(empty)' || text === '';
+    }
+
+    var ACTIVITY_NOISE_KEYS = {
+        id: true,
+        user_id: true,
+        location_id: true,
+        customer_id: true,
+        supplier_id: true,
+        created_by: true,
+        updated_by: true,
+        edited_by: true,
+        cash_register_id: true,
+        invoice_token: true,
+        recovery_for_payment_id: true,
+        card_number: true,
+        card_holder_name: true,
+        card_type: true,
+        bank_account_number: true,
+        cheque_number: true,
+        cheque_bank_branch: true,
+        cheque_received_date: true,
+        cheque_valid_date: true,
+        cheque_given_by: true,
+        cheque_status: true,
+        cheque_clearance_date: true,
+        cheque_bounce_date: true,
+        cheque_bounce_reason: true,
+        bank_charges: true,
+        original_amount: true,
+        edit_reason: true,
+        edited_at: true
+    };
+
+    function activitySubjectShort(act) {
+        var st = act.subject_type || '';
+        var parts = st.split('\\');
+        return parts[parts.length - 1] || '';
+    }
+
+    /** Only these fields on “Edited” rows — focuses on before/after money & payment status. */
+    var ACTIVITY_EDIT_SHOW_KEYS = {
+        final_total: true,
+        total_paid: true,
+        total_due: true,
+        payment_status: true,
+        amount: true
+    };
+
+    /** Minimal “Added” rows — match reference: invoice/totals/status, or payment amount + kind. */
+    function activityCreateSummaryKeys(subjectShort, attrs) {
+        if (subjectShort === 'Payment') {
+            var pk = [];
+            if (Object.prototype.hasOwnProperty.call(attrs, 'amount')) {
+                pk.push('amount');
+            }
+            if (Object.prototype.hasOwnProperty.call(attrs, 'payment_type')) {
+                pk.push('payment_type');
+            } else if (Object.prototype.hasOwnProperty.call(attrs, 'payment_method')) {
+                pk.push('payment_method');
+            }
+            return pk;
+        }
+        var order = ['invoice_no', 'final_total', 'total_paid', 'total_due', 'payment_status'];
+        return order.filter(function(k) {
+            return Object.prototype.hasOwnProperty.call(attrs, k);
+        });
+    }
+
+    function activityFieldLabel(key) {
+        var map = {
+            final_total: 'Total',
+            total_paid: 'Paid',
+            total_due: 'Due',
+            payment_status: 'Payment status',
+            payment_type: 'Type',
+            payment_method: 'Method',
+            amount: 'Amount',
+            invoice_no: 'Invoice'
+        };
+        if (map[key]) {
+            return map[key];
+        }
+        return String(key).replace(/_/g, ' ').replace(/\b\w/g, function(c) {
+            return c.toUpperCase();
+        });
+    }
+
+    function activityValueChip(displayText) {
+        return '<span class="sale-activity-val">' + escapeHtmlForExportSales(displayText) + '</span>';
+    }
+
+    function activityShortActionFromAct(act) {
+        var e = act.event ? String(act.event).toLowerCase() : '';
+        if (e === 'created') {
+            return 'Added';
+        }
+        if (e === 'updated') {
+            return 'Edited';
+        }
+        if (e === 'deleted') {
+            return 'Deleted';
+        }
+        var d = (act.description || '').toLowerCase();
+        if (/\bcreated\b/.test(d)) {
+            return 'Added';
+        }
+        if (/\bupdated\b/.test(d)) {
+            return 'Edited';
+        }
+        if (/\bdeleted\b/.test(d)) {
+            return 'Deleted';
+        }
+        return '—';
+    }
+
+    function activityActionTextClass(shortAction) {
+        if (shortAction === 'Added') {
+            return 'sale-activity-action-added';
+        }
+        if (shortAction === 'Edited') {
+            return 'sale-activity-action-edited';
+        }
+        if (shortAction === 'Deleted') {
+            return 'sale-activity-action-deleted';
+        }
+        return 'text-muted';
+    }
+
+    /** Spatie activity `properties` → simple HTML (chips, no empty dump). Caller must use .html(). */
+    function buildSaleActivityNoteHtml(act) {
+        var p = act.properties;
+        var subjectShort = activitySubjectShort(act);
+        var lineOne = function(k, chipsHtml) {
+            return '<div class="sale-activity-note-line">' +
+                '<span class="sale-activity-k">' + escapeHtmlForExportSales(activityFieldLabel(k)) +
+                ':</span>' +
+                '<span class="sale-activity-note-values">' + chipsHtml + '</span></div>';
+        };
+        if (p == null) {
+            return '<span class="text-muted small">—</span>';
+        }
+        if (typeof p === 'string') {
+            try {
+                p = JSON.parse(p);
+            } catch (e1) {
+                var flat = p.replace(/\s+/g, ' ').trim();
+                var t = flat.length > 280 ? flat.slice(0, 280) + '…' : flat;
+                return '<div class="sale-activity-note-plain small">' +
+                    escapeHtmlForExportSales(t) + '</div>';
+            }
+        }
+        var old = p.old;
+        var attrs = p.attributes;
+        var lines = [];
+        if (old && attrs && typeof old === 'object' && typeof attrs === 'object') {
+            var inAttrs = {};
+            Object.keys(attrs).forEach(function(k) {
+                if (ACTIVITY_NOISE_KEYS[k] || !ACTIVITY_EDIT_SHOW_KEYS[k]) {
+                    return;
+                }
+                inAttrs[k] = true;
+                if (!Object.prototype.hasOwnProperty.call(old, k)) {
+                    if (activityValueIsBlank(attrs[k])) {
+                        return;
+                    }
+                    var nvs = formatValueForActivityKey(k, attrs[k]);
+                    if (activityChipLooksEmpty(nvs)) {
+                        return;
+                    }
+                    lines.push(lineOne(k, activityValueChip(nvs)));
+                    return;
+                }
+                var ov = old[k];
+                var nv = attrs[k];
+                if (JSON.stringify(ov) === JSON.stringify(nv)) {
+                    return;
+                }
+                var ovs = formatValueForActivityKey(k, ov);
+                var nvs2 = formatValueForActivityKey(k, nv);
+                if (activityChipLooksEmpty(ovs) && activityChipLooksEmpty(nvs2)) {
+                    return;
+                }
+                lines.push(lineOne(k, activityValueChip(ovs) +
+                    '<span class="sale-activity-arrow">→</span>' + activityValueChip(nvs2)));
+            });
+            Object.keys(old).forEach(function(k) {
+                if (inAttrs[k] || ACTIVITY_NOISE_KEYS[k] || !ACTIVITY_EDIT_SHOW_KEYS[k]) {
+                    return;
+                }
+                if (activityValueIsBlank(old[k])) {
+                    return;
+                }
+                var ovsR = formatValueForActivityKey(k, old[k]);
+                if (activityChipLooksEmpty(ovsR)) {
+                    return;
+                }
+                lines.push(lineOne(k, '<span class="text-decoration-line-through text-muted small">' +
+                    escapeHtmlForExportSales(ovsR) + '</span> <span class="text-muted small">(removed)</span>'));
+            });
+            return lines.length ? lines.join('') : '<span class="text-muted small">—</span>';
+        }
+        if (attrs && typeof attrs === 'object') {
+            var keys = activityCreateSummaryKeys(subjectShort, attrs);
+            keys.forEach(function(k) {
+                if (ACTIVITY_NOISE_KEYS[k] || activityValueIsBlank(attrs[k])) {
+                    return;
+                }
+                var ds = formatValueForActivityKey(k, attrs[k]);
+                if (activityChipLooksEmpty(ds)) {
+                    return;
+                }
+                lines.push(lineOne(k, activityValueChip(ds)));
+            });
+            return lines.length ? lines.join('') : '<span class="text-muted small">—</span>';
+        }
+        return '<span class="text-muted small">—</span>';
+    }
+
     /**
      * Paid column for list/export: always `sales.total_paid` only.
      * Do not merge with sum(payments): when those differ (e.g. cheque bounce / bulk return credit),
@@ -1616,8 +1961,8 @@
                         $('#customerDetails').text((customer?.first_name || 'N/A') + ' ' + (
                             customer?.last_name || ''));
                         $('#locationDetails').text(location.name);
-                        $('#salesDetails').text('Date: ' + saleDetails.sales_date +
-                            ', Status: ' + saleDetails.status);
+                        $('#salesDetails').text('Date: ' + formatSaleDetailsDateTime(
+                                saleDetails.sales_date) + ', Status: ' + saleDetails.status);
 
                         // Populate sales notes
                         $('#salesNotes').text(saleDetails.sale_notes || 'No notes available');
@@ -1645,25 +1990,36 @@
                         // Populate payment info table
                         const paymentInfoTableBody = $('#paymentInfoTable tbody');
                         paymentInfoTableBody.empty();
+                        const isAdvancePayment = (payment) =>
+                            payment.payment_type === 'advance_credit_usage' ||
+                            payment.payment_method === 'advance_credit';
                         const displayPaymentMethod = (payment) => {
-                            if (payment.payment_type === 'advance_credit_usage' || payment.payment_method === 'advance_credit') {
-                                return 'Credit Applied (no cash)';
+                            if (isAdvancePayment(payment)) {
+                                return 'Advance / customer credit applied';
                             }
                             return payment.payment_method || 'N/A';
                         };
 
+                        let advanceAppliedSum = 0;
+                        let otherPaidSum = 0;
                         if (saleDetails.payments && Array.isArray(saleDetails.payments)) {
                             saleDetails.payments.forEach((payment) => {
+                                const amt = parseFloat(payment.amount) || 0;
+                                if (isAdvancePayment(payment)) {
+                                    advanceAppliedSum += amt;
+                                } else {
+                                    otherPaidSum += amt;
+                                }
                                 const paymentRow = $('<tr>');
-                                paymentRow.append('<td>' + payment.payment_date +
-                                    '</td>');
+                                paymentRow.append('<td>' + formatSaleDetailsDateTime(
+                                        payment.payment_date) + '</td>');
                                 paymentRow.append('<td>' + payment.reference_no +
                                     '</td>');
                                 paymentRow.append('<td>' + payment.amount +
                                     '</td>');
                                 paymentRow.append('<td>' + displayPaymentMethod(payment) +
                                     '</td>');
-                                paymentRow.append('<td>' + payment.notes + '</td>');
+                                paymentRow.append('<td>' + (payment.notes || '') + '</td>');
                                 paymentInfoTableBody.append(paymentRow);
                             });
                         }
@@ -1673,10 +2029,52 @@
                         amountDetailsTableBody.empty();
                         amountDetailsTableBody.append('<tr><td>Total Amount</td><td>' +
                             saleDetails.final_total + '</td></tr>');
-                        amountDetailsTableBody.append('<tr><td>Paid Amount</td><td>' +
+                        if (advanceAppliedSum > 0) {
+                            amountDetailsTableBody.append('<tr><td>Advance applied</td><td>' +
+                                advanceAppliedSum.toFixed(2) + '</td></tr>');
+                        }
+                        if (otherPaidSum > 0) {
+                            amountDetailsTableBody.append('<tr><td>Paid (cash/card/bank/etc.)</td><td>' +
+                                otherPaidSum.toFixed(2) + '</td></tr>');
+                        }
+                        amountDetailsTableBody.append('<tr><td>Total paid</td><td>' +
                             saleDetails.total_paid + '</td></tr>');
                         amountDetailsTableBody.append('<tr><td>Due Amount</td><td>' +
                             saleDetails.total_due + '</td></tr>');
+
+                        const activitiesTableBody = $('#activitiesTable tbody');
+                        activitiesTableBody.empty();
+                        const activityCauserName = (act) => {
+                            const c = act.causer;
+                            if (!c) {
+                                return '—';
+                            }
+                            return c.user_name || c.full_name || c.email || ('#' + c.id);
+                        };
+                        if (saleDetails.activities && saleDetails.activities.length > 0) {
+                            saleDetails.activities.forEach((act) => {
+                                const row = $('<tr>');
+                                const shortAction = activityShortActionFromAct(act);
+                                row.append($('<td>').addClass(
+                                    'sale-activity-cell-date align-top').text(
+                                    formatSaleDetailsDateTime(act.created_at)));
+                                row.append($('<td>').addClass('align-top').append(
+                                    $('<span>').addClass('sale-activity-action ' +
+                                        activityActionTextClass(shortAction)).text(
+                                        shortAction)));
+                                row.append($('<td>').addClass(
+                                    'sale-activity-cell-by align-top').text(
+                                    activityCauserName(act)));
+                                row.append($('<td>').addClass(
+                                    'sale-activity-note-cell align-top').html(
+                                    buildSaleActivityNoteHtml(act)));
+                                activitiesTableBody.append(row);
+                            });
+                        } else {
+                            activitiesTableBody.append(
+                                '<tr><td colspan="4" class="text-center">No records found.</td></tr>'
+                            );
+                        }
 
                         // Show modal using Bootstrap 5 API
                         const saleModal = new bootstrap.Modal(document.getElementById(
@@ -1773,7 +2171,7 @@
                             ' ' + (customer?.last_name || ''));
                         $('#viewBusinessDetail').text(saleDetails.location.name);
                         $('#viewReferenceNo').text(saleDetails.invoice_no);
-                        $('#viewDate').text(saleDetails.sales_date);
+                        $('#viewDate').text(formatSaleDetailsDateTime(saleDetails.sales_date));
                         $('#viewPurchaseStatus').text(saleDetails.status);
                         $('#viewPaymentStatus').text(saleDetails.payment_status);
 
@@ -1781,7 +2179,7 @@
                         paymentsTableBody.empty();
                         const displayPaymentMethod = (payment) => {
                             if (payment.payment_type === 'advance_credit_usage' || payment.payment_method === 'advance_credit') {
-                                return 'Credit Applied (no cash)';
+                                return 'Advance / customer credit applied';
                             }
                             return payment.payment_method || 'N/A';
                         };
@@ -1789,15 +2187,15 @@
                         if (saleDetails.payments && Array.isArray(saleDetails.payments)) {
                             saleDetails.payments.forEach((payment) => {
                                 const paymentRow = $('<tr>');
-                                paymentRow.append('<td>' + payment.payment_date +
-                                    '</td>');
+                                paymentRow.append('<td>' + formatSaleDetailsDateTime(
+                                        payment.payment_date) + '</td>');
                                 paymentRow.append('<td>' + payment.reference_no +
                                     '</td>');
                                 paymentRow.append('<td>' + payment.amount +
                                     '</td>');
                                 paymentRow.append('<td>' + displayPaymentMethod(payment) +
                                     '</td>');
-                                paymentRow.append('<td>' + payment.notes + '</td>');
+                                paymentRow.append('<td>' + (payment.notes || '') + '</td>');
                                 paymentRow.append('<td>' + 'Account Name' +
                                     '</td>'); // Replace with actual account name
                                 paymentRow.append(

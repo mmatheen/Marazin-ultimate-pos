@@ -54,9 +54,6 @@ const parseFormattedAmount       = PosUtils.parseFormattedAmount;
 const formatAmountWithSeparators = PosUtils.formatAmountWithSeparators;
 const formatCurrency             = PosUtils.formatCurrency;
 
-// ---- Module-local state ----
-let isProcessingAmountGiven = false;
-
 // ================================================================
 //  fetchEditSale — outside $(document).ready, but needs DOM
 // ================================================================
@@ -1432,7 +1429,10 @@ function resetForm() {
         row.remove();
     });
 
-    document.getElementById('amount-given').value = '';
+    const agInput = document.getElementById('amount-given');
+    if (agInput) {
+        agInput.value = '';
+    }
 
     const posAdvChk = document.getElementById('pos-use-advance-checkbox');
     if (posAdvChk) posAdvChk.checked = false;
@@ -2012,55 +2012,55 @@ $(document).ready(function() {
     });
 
     $('#amount-given').on('keyup', function(event) {
-        if (event.key === 'Enter') {
-            if (isProcessingAmountGiven) {
-                return;
-            }
-            isProcessingAmountGiven = true;
+        if (event.key !== 'Enter') {
+            return;
+        }
+        // SweetAlert v1: modal has .showSweetAlert while open — avoid stacking Enter while dialog is up
+        const swalModal = document.querySelector('.sweet-alert');
+        if (swalModal && swalModal.classList.contains('showSweetAlert')) {
+            return;
+        }
 
-            const totalAmount = parseFormattedAmount($('#final-total-amount').text().trim());
-            const amountGiven = parseFormattedAmount($('#amount-given').val().trim());
+        const totalAmount = parseFormattedAmount($('#final-total-amount').text().trim());
+        const amountGiven = parseFormattedAmount($('#amount-given').val().trim());
 
-            if (isNaN(amountGiven) || amountGiven <= 0) {
-                toastr.error('Please enter a valid amount given by the customer.');
-                isProcessingAmountGiven = false;
-                return;
-            }
+        if (isNaN(amountGiven) || amountGiven <= 0) {
+            toastr.error('Please enter a valid amount given by the customer.');
+            return;
+        }
 
-            const balance = amountGiven - totalAmount;
+        const balance = amountGiven - totalAmount;
 
-            if (balance > 0) {
-                const formattedBalance = formatAmountWithSeparators(balance.toFixed(2));
-                const customerId = $('#customer-id').val();
-                const isWalkInCustomer = customerId == 1;
+        if (balance > 0) {
+            const formattedBalance = formatAmountWithSeparators(balance.toFixed(2));
+            const customerId = $('#customer-id').val();
+            const isWalkInCustomer = customerId == 1;
 
-                if (isWalkInCustomer) {
-                    swal({
-                        title: "Return Amount",
-                        text: `<div style="text-align: center; font-size: 24px; font-weight: bold; color: #2ecc71; margin: 20px 0;">
+            if (isWalkInCustomer) {
+                swal({
+                    title: "Return Amount",
+                    text: `<div style="text-align: center; font-size: 24px; font-weight: bold; color: #2ecc71; margin: 20px 0;">
                                   <div style="font-size: 18px; color: #7f8c8d; margin-bottom: 10px;">Balance amount to be returned</div>
                                   <div style="font-size: 32px; color: #e74c3c;">Rs. ${formattedBalance}</div>
                                </div>`,
-                        html: true,
-                        type: "info",
-                        showCancelButton: false,
-                        confirmButtonText: "OK",
-                        allowOutsideClick: false,
-                        allowEscapeKey: true,
-                        closeOnEsc: true
-                    }, function(isConfirm) {
-                        isProcessingAmountGiven = false;
-                        if (isConfirm === true) {
-                            $('#cashButton').trigger('click');
-                        } else {
-                        }
-                    });
-                } else {
-                    let userMadeChoice = false;
+                    html: true,
+                    type: "info",
+                    showCancelButton: false,
+                    confirmButtonText: "OK",
+                    allowOutsideClick: false,
+                    allowEscapeKey: true,
+                    closeOnEsc: true
+                }, function(isConfirm) {
+                    if (isConfirm === true) {
+                        $('#cashButton').trigger('click');
+                    }
+                });
+            } else {
+                let userMadeChoice = false;
 
-                    swal({
-                        title: "Excess Payment Received",
-                        text: `<div style="text-align: center; margin: 20px 0;">
+                swal({
+                    title: "Excess Payment Received",
+                    text: `<div style="text-align: center; margin: 20px 0;">
                                   <div style="font-size: 18px; color: #7f8c8d; margin-bottom: 10px;">Excess Amount Received</div>
                                   <div style="font-size: 32px; color: #e74c3c; margin-bottom: 20px;">Rs. ${formattedBalance}</div>
                                   <div style="font-size: 16px; color: #34495e; margin-top: 15px; margin-bottom: 20px;">
@@ -2075,62 +2075,42 @@ $(document).ready(function() {
                                       </button>
                                   </div>
                                </div>`,
-                        html: true,
-                        type: "warning",
-                        showConfirmButton: false,
-                        showCancelButton: false,
-                        allowOutsideClick: false,
-                        allowEscapeKey: true,
-                        closeOnEsc: true
+                    html: true,
+                    type: "warning",
+                    showConfirmButton: false,
+                    showCancelButton: false,
+                    allowOutsideClick: false,
+                    allowEscapeKey: true,
+                    closeOnEsc: true
+                }, function() {
+                    if (!userMadeChoice) {
+                        sessionStorage.removeItem('excessPaymentAction');
+                        sessionStorage.removeItem('excessPaymentAmount');
+                    }
+                });
+
+                setTimeout(function() {
+                    $('#btnReturnCash').off('click.posExcess').on('click.posExcess', function() {
+                        userMadeChoice = true;
+                        swal.close();
+                        sessionStorage.setItem('excessPaymentAction', 'return_cash');
+                        sessionStorage.setItem('excessPaymentAmount', String(balance));
+                        toastr.info(`Rs. ${formattedBalance} will be returned to customer`, '💵 Return Cash');
+                        $('#cashButton').trigger('click');
                     });
 
-                    const swalOverlay = document.querySelector('.sweet-overlay');
-                    if (swalOverlay) {
-                        const observer = new MutationObserver(function(mutations) {
-                            mutations.forEach(function(mutation) {
-                                if (mutation.attributeName === 'style' || mutation.attributeName === 'class') {
-                                    const overlay = document.querySelector('.sweet-overlay');
-                                    const isHidden = !overlay || overlay.style.display === 'none' ||
-                                                     !overlay.classList.contains('sweet-overlay-visible') ||
-                                                     getComputedStyle(overlay).display === 'none';
-                                    if (isHidden && !userMadeChoice) {
-                                        isProcessingAmountGiven = false;
-                                        sessionStorage.removeItem('excessPaymentAction');
-                                        sessionStorage.removeItem('excessPaymentAmount');
-                                        observer.disconnect();
-                                    }
-                                }
-                            });
-                        });
-                        observer.observe(swalOverlay, { attributes: true });
-                    }
-
-                    setTimeout(function() {
-                        $('#btnReturnCash').on('click', function() {
-                            userMadeChoice = true;
-                            swal.close();
-                            isProcessingAmountGiven = false;
-                            sessionStorage.setItem('excessPaymentAction', 'return_cash');
-                            sessionStorage.setItem('excessPaymentAmount', balance);
-                            toastr.info(`Rs. ${formattedBalance} will be returned to customer`, '💵 Return Cash');
-                            $('#cashButton').trigger('click');
-                        });
-
-                        $('#btnSaveAdvance').on('click', function() {
-                            userMadeChoice = true;
-                            swal.close();
-                            isProcessingAmountGiven = false;
-                            sessionStorage.setItem('excessPaymentAction', 'save_advance');
-                            sessionStorage.setItem('excessPaymentAmount', balance);
-                            toastr.success(`Rs. ${formattedBalance} will be saved as customer advance credit`, '💰 Advance Credit');
-                            $('#cashButton').trigger('click');
-                        });
-                    }, 100);
-                }
-            } else {
-                isProcessingAmountGiven = false;
-                $('#cashButton').trigger('click');
+                    $('#btnSaveAdvance').off('click.posExcess').on('click.posExcess', function() {
+                        userMadeChoice = true;
+                        swal.close();
+                        sessionStorage.setItem('excessPaymentAction', 'save_advance');
+                        sessionStorage.setItem('excessPaymentAmount', String(balance));
+                        toastr.success(`Rs. ${formattedBalance} will be saved as customer advance credit`, '💰 Advance Credit');
+                        $('#cashButton').trigger('click');
+                    });
+                }, 100);
             }
+        } else {
+            $('#cashButton').trigger('click');
         }
     });
 

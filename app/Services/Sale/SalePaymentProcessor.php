@@ -501,6 +501,10 @@ class SalePaymentProcessor
                 'card_holder_name'  => $paymentData['card_holder_name']  ?? null,
                 'payment_status'    => 'completed',
             ]),
+            'bank_transfer' => array_merge($base, [
+                'bank_account_number' => $paymentData['bank_account_number'] ?? null,
+                'payment_status'      => 'completed',
+            ]),
             'cheque' => array_merge($base, [
                 'cheque_number'        => $paymentData['cheque_number']        ?? null,
                 'cheque_bank_branch'   => $paymentData['cheque_bank_branch']   ?? null,

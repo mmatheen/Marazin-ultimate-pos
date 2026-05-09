@@ -91,6 +91,7 @@ class PaymentService
                 'customer_id' => $sale->customer_id,
                 'card_number' => $paymentData['card_number'] ?? null,
                 'card_holder_name' => $paymentData['card_holder_name'] ?? null,
+                'bank_account_number' => $paymentData['bank_account_number'] ?? null,
                 'cheque_number' => $paymentData['cheque_number'] ?? null,
                 'cheque_bank_branch' => $paymentData['cheque_bank_branch'] ?? null,
                 'cheque_received_date' => $this->parseFlexibleDate($paymentData['cheque_received_date'] ?? null),

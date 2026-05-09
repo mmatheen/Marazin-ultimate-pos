@@ -2,6 +2,7 @@
 
 namespace App\Services\Sale;
 
+use App\Models\Payment;
 use App\Models\Sale;
 use App\Scopes\LocationScope;
 use Illuminate\Database\Eloquent\Builder;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Spatie\Activitylog\Models\Activity;
 
 /**
  * SaleQueryService
@@ -67,12 +69,38 @@ class SaleQueryService
      */
     public function getDetails(int $id): Sale
     {
-        return Sale::with([
+        $sale = Sale::with([
             'products.product',
             'customer' => fn ($q) => $q->withoutGlobalScopes(),
             'location',
-            'payments',
+            'invoicePayments',
         ])->findOrFail($id);
+
+        $sale->setRelation('payments', $sale->invoicePayments);
+        $sale->unsetRelation('invoicePayments');
+
+        $paymentIds = $sale->payments->pluck('id');
+
+        $activities = Activity::query()
+            ->where(function (Builder $q) use ($sale, $paymentIds) {
+                $q->where(function (Builder $q2) use ($sale) {
+                    $q2->where('subject_type', Sale::class)
+                        ->where('subject_id', $sale->id);
+                });
+                if ($paymentIds->isNotEmpty()) {
+                    $q->orWhere(function (Builder $q2) use ($paymentIds) {
+                        $q2->where('subject_type', Payment::class)
+                            ->whereIn('subject_id', $paymentIds);
+                    });
+                }
+            })
+            ->orderByDesc('created_at')
+            ->with('causer')
+            ->get();
+
+        $sale->setRelation('activities', $activities);
+
+        return $sale;
     }
 
     /**

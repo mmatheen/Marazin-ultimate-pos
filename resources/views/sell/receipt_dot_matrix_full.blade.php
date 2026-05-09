@@ -16,7 +16,9 @@
         $finalLineHeight = round(1.2 * $spacingMultiplier * $lineSpacingFactor, 2);
         $fontFamilyCss = "'" . $fontFamily . "', Arial, 'Courier New', monospace";
         $advance_used_amount = (float) ($advance_used_amount ?? 0);
-        $customer_paid_amount = (float) ($customer_paid_amount ?? ($sale->total_paid ?? 0));
+        $customer_paid_amount = isset($customer_paid_amount)
+            ? (float) $customer_paid_amount
+            : (float) (isset($payments) ? $payments->sum('amount') : 0);
         $remaining_advance_amount = (float) ($remaining_advance_amount ?? 0);
     @endphp
     <style>

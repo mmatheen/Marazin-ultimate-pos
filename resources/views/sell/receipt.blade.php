@@ -26,7 +26,10 @@
         $lineSpacingFactor = $lineSpacing / 5; // 5 is default, creates 0.2 to 2.0 range
         $finalSpacing = $spacingMultiplier * $lineSpacingFactor;
         $advance_used_amount = (float) ($advance_used_amount ?? 0);
-        $customer_paid_amount = (float) ($customer_paid_amount ?? ($sale->total_paid ?? 0));
+        // Sum sale-type payments only — do NOT default to total_paid (includes advance); that duplicated lines on receipt
+        $customer_paid_amount = isset($customer_paid_amount)
+            ? (float) $customer_paid_amount
+            : (float) (isset($payments) ? $payments->sum('amount') : 0);
         $remaining_advance_amount = (float) ($remaining_advance_amount ?? 0);
     @endphp
     <style>
@@ -608,13 +611,18 @@
                 $fmtPctTrimReceipt = static function ($v) {
                     return rtrim(rtrim(number_format((float) $v, 2, '.', ''), '0'), '.');
                 };
+                $recvShowSubtotalRow = $sale->discount_amount > 0.0001
+                    || ($sale->shipping_charges ?? 0) > 0.0001
+                    || abs((float) $sale->subtotal - (float) $sale->final_total) > 0.02;
             @endphp
             <table class="totals-table">
                 @if ($showDiscountBreakdown)
+                    @if ($recvShowSubtotalRow)
                     <tr>
                         <td class="label">SUBTOTAL</td>
                         <td class="value">{{ number_format($sale->subtotal, 2, '.', ',') }}</td>
                     </tr>
+                    @endif
 
                     @if ($sale->discount_amount > 0)
                         <tr>
@@ -644,31 +652,70 @@
 
                 {{-- Only show payment details for final sales --}}
                 @if (!in_array($sale->status, ['quotation', 'draft']) && (!isset($sale->transaction_type) || $sale->transaction_type !== 'sale_order'))
-                    @if (!is_null($advance_used_amount) && $advance_used_amount > 0)
+                    @php
+                        $hasAdvanceOnBill = $advance_used_amount > 0.0001;
+                        $hasCashLikePay = $customer_paid_amount > 0.0001;
+                        $invoiceDue = (float) ($sale->total_due ?? 0);
+                        $runningOutstanding = $customer ? \App\Helpers\BalanceHelper::getCustomerBalance($customer->id) : 0.0;
+                        // Same number twice (this bill only vs full ledger) — show running total only if customer owes more than this invoice remainder
+                        $showAccountRunningBalance = $showOutstandingDue && $customer && $customer->id != 1 && $runningOutstanding > ($invoiceDue + 0.05);
+                        $recvTol = 0.02;
+                        $recvTotalPaidVal = (float) ($sale->total_paid ?? 0);
+                        $recvComponentsSum = $advance_used_amount + $customer_paid_amount;
+                        // Avoid repeating the same figure: show summary only when advance + cash both used, or paid ≠ components
+                        $recvShowTotalSettledRow = $recvTotalPaidVal > $recvTol
+                            && (
+                                ($hasAdvanceOnBill && $hasCashLikePay)
+                                || abs($recvTotalPaidVal - $recvComponentsSum) > $recvTol
+                            );
+                        // Generic “cash/card/bank” line only when breakdown helps (advance + cash, or split tender).
+                        // If footer already shows PAYMENT METHOD: CASH for a simple sale, skip this row.
+                        $recvShowCashLikeBreakdown = $hasCashLikePay
+                            && ($hasAdvanceOnBill || ($payments && $payments->count() > 1));
+                        $recvAmtGiven = (float) ($amount_given ?? 0);
+                        $recvShowAmountGiven = !$hasAdvanceOnBill
+                            && $recvAmtGiven > $recvTol
+                            && (
+                                (float) ($balance_amount ?? 0) > $recvTol
+                                || $recvAmtGiven > (float) $sale->final_total + $recvTol
+                                || abs($recvAmtGiven - (float) $sale->final_total) > $recvTol
+                                || abs($recvAmtGiven - (float) $customer_paid_amount) > $recvTol
+                            );
+                    @endphp
+
+                    @if ($hasAdvanceOnBill)
                         <tr>
-                            <td class="label">ADVANCE USED</td>
+                            <td class="label">ADVANCE APPLIED (CREDIT)</td>
                             <td class="value">{{ number_format($advance_used_amount, 2, '.', ',') }}</td>
                         </tr>
                     @endif
 
-                    @if (!is_null($customer_paid_amount) && $customer_paid_amount > 0)
+                    @if ($recvShowCashLikeBreakdown)
                         <tr>
-                            <td class="label">CUSTOMER PAID</td>
+                            <td class="label">CASH / CARD / BANK (NOW)</td>
                             <td class="value">{{ number_format($customer_paid_amount, 2, '.', ',') }}</td>
                         </tr>
                     @endif
 
-                    @if ((!is_null($amount_given) && $amount_given > 0) && (is_null($advance_used_amount) || $advance_used_amount <= 0))
+                    @if ($recvShowTotalSettledRow)
+                        <tr>
+                            <td class="label">TOTAL SETTLED ON BILL</td>
+                            <td class="value">{{ number_format($recvTotalPaidVal, 2, '.', ',') }}</td>
+                        </tr>
+                    @endif
+
+                    @if ($recvShowAmountGiven)
                         <tr>
                             <td class="label">AMOUNT GIVEN</td>
                             <td class="value">{{ number_format($amount_given, 2, '.', ',') }}</td>
                         </tr>
                     @endif
 
-                    @if (is_null($advance_used_amount) || $advance_used_amount <= 0)
+                    {{-- Single "PAID" line only when no split breakdown (avoid duplicate with CUSTOMER PAID) --}}
+                    @if (!$hasAdvanceOnBill && !$hasCashLikePay && (float) ($sale->total_paid ?? 0) > 0.0001)
                         <tr>
                             <td class="label">PAID</td>
-                            <td class="value">{{ number_format($sale->total_paid, 2, '.', ',') }}</td>
+                            <td class="value">{{ number_format((float) $sale->total_paid, 2, '.', ',') }}</td>
                         </tr>
                     @endif
 
@@ -679,32 +726,26 @@
                         </tr>
                     @endif
 
-                    @if (!is_null($sale->total_due) && $sale->total_due > 0)
+                    @if ($invoiceDue > 0.0001)
                         <tr>
-                            <td class="label">BALANCE DUE</td>
-                            <td class="value">({{ number_format($sale->total_due, 2, '.', ',') }})</td>
+                            <td class="label">BALANCE DUE (THIS BILL)</td>
+                            <td class="value">{{ number_format($invoiceDue, 2, '.', ',') }}</td>
                         </tr>
                     @endif
 
-                    {{-- Total Outstanding Balance --}}
-                    @if($showOutstandingDue)
-                        @php
-                            $customer_outstanding = $customer ? \App\Helpers\BalanceHelper::getCustomerBalance($customer->id) : 0;
-                        @endphp
-                        @if ($customer && $customer_outstanding > 0)
-                            <tr>
-                                <td colspan="2"><hr class="divider"></td>
-                            </tr>
-                            <tr>
-                                <td class="label">TOTAL OUTSTANDING DUE</td>
-                                <td class="value outstanding-due">RS {{ number_format($customer_outstanding, 2, '.', ',') }}</td>
-                            </tr>
-                        @endif
+                    @if ($showAccountRunningBalance)
+                        <tr>
+                            <td colspan="2"><hr class="divider"></td>
+                        </tr>
+                        <tr>
+                            <td class="label">TOTAL DUE (ALL INVOICES)</td>
+                            <td class="value outstanding-due">RS {{ number_format($runningOutstanding, 2, '.', ',') }}</td>
+                        </tr>
                     @endif
 
                     @if (!is_null($remaining_advance_amount) && $remaining_advance_amount > 0)
                         <tr>
-                            <td class="label">ADVANCE BALANCE</td>
+                            <td class="label">ADVANCE BALANCE LEFT</td>
                             <td class="value">{{ number_format($remaining_advance_amount, 2, '.', ',') }}</td>
                         </tr>
                     @endif

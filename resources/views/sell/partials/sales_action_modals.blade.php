@@ -71,22 +71,118 @@
                     </div>
                     <div class="row">
                         <div class="col-md-12">
-                            <h5>Activities:</h5>
-                            <table class="table table-bordered" id="activitiesTable">
+                            <h5 class="mb-3">Activities</h5>
+                            <table class="table table-sm sale-activities-table mb-0" id="activitiesTable">
                                 <thead>
                                     <tr>
-                                        <th>Date</th>
-                                        <th>Action</th>
-                                        <th>By</th>
-                                        <th>Note</th>
+                                        <th class="sale-activities-th">Date</th>
+                                        <th class="sale-activities-th">Action</th>
+                                        <th class="sale-activities-th">By</th>
+                                        <th class="sale-activities-th">Note</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td colspan="4">No records found.</td>
+                                        <td colspan="4" class="text-center text-muted py-3">No records found.</td>
                                     </tr>
                                 </tbody>
                             </table>
+                            <style>
+                                .sale-activities-table {
+                                    border-collapse: separate;
+                                    border-spacing: 0;
+                                }
+                                .sale-activities-table thead .sale-activities-th {
+                                    border: none;
+                                    border-bottom: 2px solid #dee2e6;
+                                    color: #495057;
+                                    font-weight: 600;
+                                    font-size: 0.8rem;
+                                    padding: 0.65rem 0.5rem 0.5rem 0;
+                                    vertical-align: bottom;
+                                }
+                                .sale-activities-table tbody tr {
+                                    border: none;
+                                    border-bottom: 1px solid #e9ecef;
+                                }
+                                .sale-activities-table tbody td {
+                                    border: none !important;
+                                    padding: 0.85rem 0.75rem 0.85rem 0;
+                                    vertical-align: top;
+                                }
+                                .sale-activities-table tbody td:first-child {
+                                    padding-left: 0;
+                                }
+                                .sale-activity-cell-date {
+                                    font-size: 0.8rem;
+                                    color: #6c757d;
+                                    white-space: nowrap;
+                                }
+                                .sale-activity-cell-by {
+                                    font-size: 0.85rem;
+                                    font-weight: 500;
+                                    color: #212529;
+                                }
+                                .sale-activity-action {
+                                    font-size: 0.8rem;
+                                    font-weight: 600;
+                                }
+                                .sale-activity-action-added { color: #198754; }
+                                .sale-activity-action-edited { color: #0d6efd; }
+                                .sale-activity-action-deleted { color: #dc3545; }
+                                .sale-activity-note-cell {
+                                    font-size: 0.85rem;
+                                    line-height: 1.5;
+                                }
+                                .sale-activity-note-line {
+                                    display: flex;
+                                    justify-content: space-between;
+                                    align-items: baseline;
+                                    gap: 0.5rem 0.75rem;
+                                    flex-wrap: wrap;
+                                    margin-bottom: 0.35rem;
+                                }
+                                .sale-activity-note-line:last-child {
+                                    margin-bottom: 0;
+                                }
+                                .sale-activity-note-plain {
+                                    color: #495057;
+                                    line-height: 1.45;
+                                }
+                                .sale-activity-k {
+                                    color: #6c757d;
+                                    font-weight: 500;
+                                    flex: 0 1 auto;
+                                    min-width: 5rem;
+                                    max-width: 42%;
+                                }
+                                .sale-activity-note-values {
+                                    display: flex;
+                                    align-items: center;
+                                    flex-wrap: wrap;
+                                    gap: 0.35rem;
+                                    justify-content: flex-end;
+                                    text-align: right;
+                                    flex: 1 1 12rem;
+                                    min-width: 0;
+                                }
+                                .sale-activity-arrow {
+                                    color: #adb5bd;
+                                    font-weight: 600;
+                                    font-size: 0.85rem;
+                                }
+                                .sale-activity-val {
+                                    display: inline-block;
+                                    font-size: 0.8rem;
+                                    font-weight: 500;
+                                    padding: 0.15rem 0.45rem;
+                                    background: #f1f3f5;
+                                    color: #212529;
+                                    border: 1px solid #dee2e6;
+                                    border-radius: 0.25rem;
+                                    line-height: 1.3;
+                                }
+                            </style>
                         </div>
                     </div>
                 </div>

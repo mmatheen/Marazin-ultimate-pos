@@ -60,6 +60,16 @@ class UnifiedLedgerService
             }
         }
 
+        // Split tender (cash + bank transfer, etc.): several Payment rows share the same invoice
+        // reference_no. Ledger::createEntry dedupes (reference_no + payments + contact) within 5s,
+        // so the second line was incorrectly treated as a duplicate and skipped.
+        if ($payment->id && ($payment->payment_type ?? '') === 'sale') {
+            $suffix = '-PAY' . $payment->id;
+            if (substr($baseReferenceNo, -strlen($suffix)) !== $suffix && ! preg_match('/-PAY\d+$/', $baseReferenceNo)) {
+                return $baseReferenceNo . $suffix;
+            }
+        }
+
         return $baseReferenceNo;
     }
 

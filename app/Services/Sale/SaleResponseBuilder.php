@@ -58,6 +58,10 @@ class SaleResponseBuilder
         $shouldGenerateReceipt = !$request->header('X-Skip-Receipt')
             && $sale->status !== 'jobticket';
 
+        $advanceUsedAmount        = 0.0;
+        $customerPaidAmount       = 0.0;
+        $remainingAdvanceAmount   = 0.0;
+
         // ── Step 3: Load all data needed for viewData ────────────────────────
         if ($shouldGenerateReceipt) {
             $sale->load(['location', 'user']);
@@ -66,15 +70,21 @@ class SaleResponseBuilder
                 ? $this->walkInCustomerObject()
                 : Customer::withoutGlobalScopes()->findOrFail($sale->customer_id);
 
-            [$products, $payments] = [
-                SalesProduct::with(['product:id,product_name,sku', 'imeis:id,sale_product_id,imei_number'])
-                    ->where('sale_id', $sale->id)
-                    ->get(),
-                Payment::where('reference_id', $sale->id)
-                    ->where('payment_type', 'sale')
-                    ->select('id', 'amount', 'payment_method', 'payment_date', 'reference_no', 'notes')
-                    ->get(),
-            ];
+            $products = SalesProduct::with(['product:id,product_name,sku', 'imeis:id,sale_product_id,imei_number'])
+                ->where('sale_id', $sale->id)
+                ->get();
+
+            $allPaymentsForReceipt = Payment::where('reference_id', $sale->id)
+                ->whereIn('payment_type', ['sale', 'advance_credit_usage'])
+                ->select('id', 'amount', 'payment_method', 'payment_date', 'reference_no', 'notes', 'payment_type')
+                ->get();
+
+            $payments = $allPaymentsForReceipt->where('payment_type', 'sale')->values();
+
+            $advanceUsedAmount = (float) $allPaymentsForReceipt
+                ->where('payment_type', 'advance_credit_usage')
+                ->sum('amount');
+            $customerPaidAmount = (float) $payments->sum('amount');
 
             $user     = $sale->user;
             $location = $sale->location;
@@ -92,6 +102,12 @@ class SaleResponseBuilder
             $customerOutstandingBalance = $customer->calculateBalanceFromLedger();
         }
 
+        if ($shouldGenerateReceipt && $customer && $customer->id != 1) {
+            $remainingAdvanceAmount = $customerOutstandingBalance < 0
+                ? abs((float) $customerOutstandingBalance)
+                : 0.0;
+        }
+
         // ── Step 5: Build viewData ───────────────────────────────────────────
         $viewData = [
             'sale'                        => $sale,
@@ -101,6 +117,9 @@ class SaleResponseBuilder
             'total_discount'              => $request->discount_amount ?? 0,
             'amount_given'                => $sale->amount_given,
             'balance_amount'              => $sale->balance_amount,
+            'advance_used_amount'         => $advanceUsedAmount,
+            'customer_paid_amount'        => $customerPaidAmount,
+            'remaining_advance_amount'    => $remainingAdvanceAmount,
             'customer_outstanding_balance'=> $customerOutstandingBalance,
             'user'                        => $user,
             'location'                    => $location,
