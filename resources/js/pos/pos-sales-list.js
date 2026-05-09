@@ -45,7 +45,7 @@ function fetchSalesData() {
             recent_transactions: 'true', // Add parameter to get all statuses for Recent Transactions
             order_by: 'created_at', // Request sorting by creation date
             order_direction: 'desc', // Latest first
-            limit: 50 // Limit to last 50 transactions for better performance
+            limit: 200 // Server returns lean rows (no line items); 200 is fine for modal badges
         },
         success: function(data) {
             window.fetchingSalesData = false;

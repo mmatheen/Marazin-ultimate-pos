@@ -46,7 +46,7 @@ class SaleQueryService
     public function resolveIndex(Request $request): Collection
     {
         if ($request->has('recent_transactions') && $request->get('recent_transactions') == 'true') {
-            return $this->recentTransactions();
+            return $this->recentTransactions($request);
         }
 
         if ($request->has('sale_orders') && $request->get('sale_orders') == 'true') {
@@ -231,18 +231,41 @@ class SaleQueryService
         }
     }
 
-    private function recentTransactions(): Collection
+    /**
+     * Recent Transactions modal (POS): list rows only — do NOT eager-load products/payments.
+     * Full relations were ~1MB+ JSON and 10–20s; the UI only needs invoice, customer name, location, date, total.
+     */
+    private function recentTransactions(Request $request): Collection
     {
+        $limit = (int) $request->get('limit', 100);
+        $limit = max(10, min(200, $limit));
+
+        $salesTable = (new Sale())->getTable();
+
         // Ignore session "selected_location" so managers with multiple locations
         // see recent bills from every outlet they are assigned to (same as list-sale).
         $query = Sale::withoutGlobalScope(LocationScope::class)
-            ->with(self::withFullListing())
-            ->where(fn ($q) => $q->where('transaction_type', 'invoice')->orWhereNull('transaction_type'))
-            ->whereIn('status', ['final', 'quotation', 'draft', 'jobticket', 'suspend'])
-            ->where('payment_status', '!=', 'Cancelled')
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->limit(200);
+            ->select([
+                $salesTable.'.id',
+                $salesTable.'.status',
+                $salesTable.'.invoice_no',
+                $salesTable.'.final_total',
+                $salesTable.'.sales_date',
+                $salesTable.'.created_at',
+                $salesTable.'.customer_id',
+                $salesTable.'.location_id',
+            ])
+            ->with([
+                'customer' => fn ($q) => $q->withoutGlobalScopes()
+                    ->select('id', 'prefix', 'first_name', 'last_name'),
+                'location:id,name',
+            ])
+            ->where(fn ($q) => $q->where($salesTable.'.transaction_type', 'invoice')->orWhereNull($salesTable.'.transaction_type'))
+            ->whereIn($salesTable.'.status', ['final', 'quotation', 'draft', 'jobticket', 'suspend'])
+            ->where($salesTable.'.payment_status', '!=', 'Cancelled')
+            ->orderByDesc($salesTable.'.created_at')
+            ->orderByDesc($salesTable.'.id')
+            ->limit($limit);
 
         $user = auth()->user();
         if (! LocationScope::userBypassesLocationScope($user)) {
