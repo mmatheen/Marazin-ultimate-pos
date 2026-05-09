@@ -584,9 +584,6 @@ class PaymentController extends Controller
             'customer_id' => 'nullable|integer|exists:customers,id',
             'card_number' => 'nullable|string',
             'card_holder_name' => 'nullable|string',
-            'card_expiry_month' => 'nullable|string',
-            'card_expiry_year' => 'nullable|string',
-            'card_security_code' => 'nullable|string',
             'cheque_number' => 'nullable|string',
             'cheque_bank_branch' => 'nullable|string',
             'cheque_received_date' => 'nullable|date',
@@ -614,9 +611,6 @@ class PaymentController extends Controller
             'customer_id' => $request->customer_id,
             'card_number' => $request->card_number,
             'card_holder_name' => $request->card_holder_name,
-            'card_expiry_month' => $request->card_expiry_month,
-            'card_expiry_year' => $request->card_expiry_year,
-            'card_security_code' => $request->card_security_code,
             'cheque_number' => $request->cheque_number,
             'cheque_bank_branch' => $request->cheque_bank_branch,
             'cheque_received_date' => $request->cheque_received_date ? $this->parseFlexibleDate($request->cheque_received_date) : null,
@@ -953,10 +947,7 @@ class PaymentController extends Controller
             $payment->cheque_given_by = $request->input('cheque_given_by');
         } elseif ($payment->payment_method === 'card') {
             $payment->card_number = $request->input('card_number');
-            $payment->card_holder = $request->input('card_holder');
-            $payment->card_expiry_month = $request->input('card_expiry_month');
-            $payment->card_expiry_year = $request->input('card_expiry_year');
-            $payment->card_security_code = $request->input('card_security_code');
+            $payment->card_holder_name = $request->input('card_holder_name', $request->input('card_holder'));
         } elseif ($payment->payment_method === 'bank_transfer') {
             $payment->bank_account_number = $request->input('bank_account_number');
         }
@@ -1452,9 +1443,6 @@ class PaymentController extends Controller
         if ($paymentMethod === 'card') {
             $paymentData['card_number'] = $request->card_number;
             $paymentData['card_holder_name'] = $request->card_holder_name;
-            $paymentData['card_expiry_month'] = $request->card_expiry_month;
-            $paymentData['card_expiry_year'] = $request->card_expiry_year;
-            $paymentData['card_security_code'] = $request->card_security_code;
         }
 
         if ($paymentMethod === 'cheque') {
@@ -1917,9 +1905,6 @@ class PaymentController extends Controller
             // Card fields
             'card_number' => 'nullable|string',
             'card_holder_name' => 'nullable|string',
-            'card_expiry_month' => 'nullable|string',
-            'card_expiry_year' => 'nullable|string',
-            'card_security_code' => 'nullable|string',
             // Cheque fields
             'cheque_number' => 'nullable|string',
             'cheque_bank_branch' => 'nullable|string',
@@ -2127,9 +2112,6 @@ class PaymentController extends Controller
                     $updateData = array_merge($updateData, [
                         'card_number' => $request->card_number,
                         'card_holder_name' => $request->card_holder_name,
-                        'card_expiry_month' => $request->card_expiry_month,
-                        'card_expiry_year' => $request->card_expiry_year,
-                        'card_security_code' => $request->card_security_code,
                     ]);
                 } elseif ($request->payment_method === 'cheque') {
                     $updateData = array_merge($updateData, [
@@ -2402,9 +2384,6 @@ class PaymentController extends Controller
             'rows.*.cheque_given_by' => 'nullable|string',
             'rows.*.card_number' => 'nullable|string',
             'rows.*.card_holder_name' => 'nullable|string',
-            'rows.*.card_expiry_month' => 'nullable|string',
-            'rows.*.card_expiry_year' => 'nullable|string',
-            'rows.*.card_security_code' => 'nullable|string',
             'rows.*.bank_account_number' => 'nullable|string',
         ]);
 
@@ -2505,9 +2484,6 @@ class PaymentController extends Controller
                         $updateData = array_merge($updateData, [
                             'card_number' => $row['card_number'] ?? $payment->card_number,
                             'card_holder_name' => $row['card_holder_name'] ?? $payment->card_holder_name,
-                            'card_expiry_month' => $row['card_expiry_month'] ?? $payment->card_expiry_month,
-                            'card_expiry_year' => $row['card_expiry_year'] ?? $payment->card_expiry_year,
-                            'card_security_code' => $row['card_security_code'] ?? $payment->card_security_code,
                         ]);
                     } elseif (($row['payment_method'] ?? '') === 'cheque') {
                         $updateData = array_merge($updateData, [

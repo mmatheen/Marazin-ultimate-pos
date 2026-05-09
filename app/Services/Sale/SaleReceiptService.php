@@ -34,7 +34,7 @@ class SaleReceiptService
             ? Sale::withoutLocationScope()
             : Sale::query();
 
-        $sale = $saleQuery->findOrFail($saleId);
+        $sale = $saleQuery->with(['location', 'user'])->findOrFail($saleId);
 
         $authUser = auth()->user();
 
@@ -68,7 +68,7 @@ class SaleReceiptService
             ->whereIn('payment_type', ['sale', 'advance_credit_usage'])
             ->get();
         $payments = $allPayments->where('payment_type', 'sale')->values();
-        $user     = User::find($sale->user_id);
+        $user     = $sale->user;
         $location = $sale->location;
 
         $customerOutstandingBalance = 0;

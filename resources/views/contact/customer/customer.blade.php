@@ -123,6 +123,6 @@
         </div>
     </div>
 
-    @include('contact.customer.customer_ajax')
+    @include('contact.customer.customer_ajax_bootstrap')
     @include('contact.customer.cities_ajax')
 @endsection

@@ -1541,10 +1541,6 @@
             if (paymentMethod === 'card') {
                 paymentData.card_number = $('#cardNumber').val();
                 paymentData.card_holder_name = $('#cardHolderName').val();
-                paymentData.card_type = $('#cardType').val();
-                paymentData.card_expiry_month = $('#expiryMonth').val();
-                paymentData.card_expiry_year = $('#expiryYear').val();
-                paymentData.card_security_code = $('#securityCode').val();
             } else if (paymentMethod === 'cheque') {
                 paymentData.cheque_number = $('#chequeNumber').val();
                 paymentData.cheque_bank_branch = $('#bankBranch').val();

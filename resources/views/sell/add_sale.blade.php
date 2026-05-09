@@ -358,32 +358,19 @@
 
                                         <!-- Card Details -->
                                         <div class="payment-fields" id="card-details" style="display: none;">
-                                            <div class="col-md-4">
+                                            <div class="col-md-6">
                                                 <div class="form-group">
-                                                    <label for="card-number">Card Number</label>
+                                                    <label for="card-number">Card number</label>
                                                     <input type="text" class="form-control" id="card-number"
-                                                        name="card_number">
+                                                        name="card_number" maxlength="23" autocomplete="off"
+                                                        placeholder="Last 4 digits or full number">
                                                 </div>
                                             </div>
-                                            <div class="col-md-4">
+                                            <div class="col-md-6">
                                                 <div class="form-group">
-                                                    <label for="card-expiry">Card Expiry</label>
-                                                    <input type="text" class="form-control" id="card-expiry"
-                                                        name="card_expiry_month">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <div class="form-group">
-                                                    <label for="card-expiry-year">Card Expiry Year</label>
-                                                    <input type="text" class="form-control" id="card-expiry-year"
-                                                        name="card_expiry_year">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <div class="form-group">
-                                                    <label for="card-security-code">Card Security Code</label>
-                                                    <input type="text" class="form-control" id="card-security-code"
-                                                        name="card_security_code">
+                                                    <label for="card-holder-name">Card holder name</label>
+                                                    <input type="text" class="form-control" id="card-holder-name"
+                                                        name="card_holder_name" autocomplete="name">
                                                 </div>
                                             </div>
                                         </div>

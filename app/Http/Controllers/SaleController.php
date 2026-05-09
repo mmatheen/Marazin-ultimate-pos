@@ -284,10 +284,15 @@ class SaleController extends Controller
                     $sale, $request, $isUpdate, $customerChanged, $transactionType, $amounts
                 );
 
-                // Guard: Walk-In customers must pay in full
-                if ($transactionType !== 'sale_order' && $request->customer_id == 1
-                    && $amounts['amount_given'] < $sale->final_total) {
-                    throw new \Exception('Partial payment is not allowed for Walk-In Customer.');
+                // Guard: Walk-In customers must pay in full. Use settled total_paid (card/cheque
+                // flows omit request amount_given; payments are recorded above and synced to the sale).
+                if ($transactionType !== 'sale_order' && (int) $request->customer_id === 1) {
+                    $sale->refresh();
+                    $paid   = round((float) $sale->total_paid, 2);
+                    $payable = round((float) $sale->final_total, 2);
+                    if ($paid + 0.009 < $payable) {
+                        throw new \Exception('Partial payment is not allowed for Walk-In Customer.');
+                    }
                 }
 
                 // Deduct / restore stock and create sales_product records

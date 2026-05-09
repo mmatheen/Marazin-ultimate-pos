@@ -207,9 +207,6 @@ class PurchaseController extends Controller
             // Card specific fields
             'card_number' => 'nullable|string|max:255',
             'card_holder_name' => 'nullable|string|max:255',
-            'card_expiry_month' => 'nullable|integer|min:1|max:12',
-            'card_expiry_year' => 'nullable|integer|min:2023',
-            'card_security_code' => 'nullable|string|max:4',
         ]);
 
         if ($validator->fails()) {
@@ -411,9 +408,6 @@ class PurchaseController extends Controller
             // Card details
             'card_number' => $request->card_number,
             'card_holder_name' => $request->card_holder_name,
-            'card_expiry_month' => $request->card_expiry_month,
-            'card_expiry_year' => $request->card_expiry_year,
-            'card_security_code' => $request->card_security_code,
             // Cheque details
             'cheque_number' => $request->cheque_number,
             'cheque_bank_branch' => $request->cheque_bank_branch,

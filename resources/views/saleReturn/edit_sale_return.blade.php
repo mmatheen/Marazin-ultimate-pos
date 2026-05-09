@@ -323,7 +323,7 @@
 
     @include('contact.customer.add_customer_modal')
     @include('contact.customer.city_modal')
-    @include('contact.customer.customer_ajax')
+    @include('contact.customer.customer_ajax_bootstrap')
     @include('contact.customer.cities_ajax')
     @include('saleReturn.sale_return_ajax')
 @endsection

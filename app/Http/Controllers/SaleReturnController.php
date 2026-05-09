@@ -289,9 +289,6 @@ class SaleReturnController extends Controller
                         $paymentCreateData = array_merge($paymentCreateData, [
                             'card_number' => $paymentData['card_number'] ?? null,
                             'card_holder_name' => $paymentData['card_holder_name'] ?? null,
-                            'card_expiry_month' => $paymentData['card_expiry_month'] ?? null,
-                            'card_expiry_year' => $paymentData['card_expiry_year'] ?? null,
-                            'card_security_code' => $paymentData['card_security_code'] ?? null,
                         ]);
                     } elseif ($paymentData['payment_method'] === 'cheque') {
                         $paymentCreateData = array_merge($paymentCreateData, [

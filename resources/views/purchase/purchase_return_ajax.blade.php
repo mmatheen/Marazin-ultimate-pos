@@ -1138,21 +1138,6 @@
                     $('#cardHolderName').after(
                         '<span class="error text-danger">Card Holder Name is required.</span>');
                 }
-                if (!$('#expiryMonth').val()) {
-                    isValid = false;
-                    $('#expiryMonth').after(
-                        '<span class="error text-danger">Expiry Month is required.</span>');
-                }
-                if (!$('#expiryYear').val()) {
-                    isValid = false;
-                    $('#expiryYear').after(
-                        '<span class="error text-danger">Expiry Year is required.</span>');
-                }
-                if (!$('#securityCode').val()) {
-                    isValid = false;
-                    $('#securityCode').after(
-                        '<span class="error text-danger">Security Code is required.</span>');
-                }
             } else if (paymentMethod === 'cheque') {
                 if (!$('#chequeNumber').val()) {
                     isValid = false;

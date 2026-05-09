@@ -793,14 +793,35 @@ function runAfterSaleSuccess(saleData, onComplete) {
     resetForm();
     if (window.searchCache && window.searchCache.clear) window.searchCache.clear();
     if (onComplete) onComplete();
-    setTimeout(() => refreshStockDataAfterSale(saleData), 100);
+
+    const isFinalPosSale = saleData && saleData.status === 'final'
+        && saleData.transaction_type !== 'sale_order';
+
+    // Final POS sale: stock was committed — update the in-memory snapshot and redraw the grid.
+    // Avoids clearing allProducts + fetchPaginatedProducts(true), which showed a long "Loading products..."
+    // spinner for a redundant full network reload.
+    if (isFinalPosSale) {
+        refreshStockDataAfterSale(saleData);
+        if (window.allProducts && window.allProducts.length && typeof window.displayProducts === 'function') {
+            window.displayProducts(window.allProducts, false);
+            const mobileModal = document.getElementById('mobileProductModal');
+            if (mobileModal && mobileModal.classList.contains('show') && typeof window.displayMobileProducts === 'function') {
+                window.displayMobileProducts(window.allProducts, false);
+            }
+        } else if (typeof window.fetchPaginatedProducts === 'function') {
+            window.fetchPaginatedProducts(true);
+        }
+    } else {
+        setTimeout(() => refreshStockDataAfterSale(saleData), 100);
+        setTimeout(() => {
+            window.allProducts = [];
+            window.currentProductsPage = 1;
+            window.hasMoreProducts = true;
+            if (window.fetchPaginatedProducts) window.fetchPaginatedProducts(true);
+        }, 200);
+    }
+
     setTimeout(() => { if (!window.fetchingSalesData && window.fetchSalesData) window.fetchSalesData(); }, 150);
-    setTimeout(() => {
-        window.allProducts = [];
-        window.currentProductsPage = 1;
-        window.hasMoreProducts = true;
-        if (window.fetchPaginatedProducts) window.fetchPaginatedProducts(true);
-    }, 200);
     if (window.isSalesRep) {
         window.salesRepCustomerResetInProgress = true;
         window.lastCustomerResetTime = Date.now();
@@ -981,9 +1002,6 @@ function gatherCashPaymentData() {
 function gatherCardPaymentData() {
     const cardNumber = $('#card_number').val().trim();
     const cardHolderName = $('#card_holder_name').val().trim();
-    const cardExpiryMonth = $('#card_expiry_month').val().trim();
-    const cardExpiryYear = $('#card_expiry_year').val().trim();
-    const cardSecurityCode = $('#card_security_code').val().trim();
     const baseTotal = parseFormattedAmount($('#final-total-amount').text().trim());
     const netPreview = window.posAdvancePayablePreview && Number.isFinite(window.posAdvancePayablePreview.net_payable)
         ? window.posAdvancePayablePreview.net_payable
@@ -996,10 +1014,7 @@ function gatherCardPaymentData() {
         payment_date: today,
         amount: totalAmount,
         card_number: cardNumber,
-        card_holder_name: cardHolderName,
-        card_expiry_month: cardExpiryMonth,
-        card_expiry_year: cardExpiryYear,
-        card_security_code: cardSecurityCode
+        card_holder_name: cardHolderName
     }];
 }
 
@@ -1132,10 +1147,6 @@ function adjustCashPaymentForExcess(paymentData, finalTotal) {
 function resetCardModal() {
     $('#card_number').val('');
     $('#card_holder_name').val('');
-    $('#card_type').val('visa');
-    $('#card_expiry_month').val('');
-    $('#card_expiry_year').val('');
-    $('#card_security_code').val('');
 }
 
 function resetChequeModal() {
@@ -1633,6 +1644,14 @@ $(document).ready(function() {
             sessionStorage.removeItem('excessPaymentAmount');
 
             saleData.payments = gatherCardPaymentData();
+            const cardPaidTotal = (saleData.payments || []).reduce(
+                (sum, p) => sum + (parseFloat(String(p.amount)) || 0),
+                0
+            );
+            if (cardPaidTotal > 0) {
+                saleData.amount_given = cardPaidTotal;
+                saleData.balance_amount = Math.max(0, cardPaidTotal - saleData.final_total);
+            }
             sendSaleData(saleData, null, () => {
                 $('#cardModal').modal('hide');
                 resetCardModal();

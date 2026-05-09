@@ -11,6 +11,7 @@ export default defineConfig({
                 'resources/js/bulk-payments/common.js', // Bulk payments shared helpers
                 'resources/js/bulk-payments/sales.js', // Bulk payments (sales) bootstrap
                 'resources/js/bulk-payments/purchases.js', // Bulk payments (purchases) bootstrap
+                'resources/js/contact/customer_ajax.js',
                 // POS modules (Phase 2+)
                 'resources/js/pos/pos-utils.js',
                 'resources/js/pos/pos-cache.js',

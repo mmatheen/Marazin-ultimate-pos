@@ -320,47 +320,18 @@
 
                         <!-- Conditional Payment Fields -->
                         <div id="creditCardFields" class="row mb-3 d-none">
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="cardNumber" class="form-label">Card Number</label>
-                                    <input type="text" class="form-control" id="cardNumber" name="card_number">
+                                    <label for="cardNumber" class="form-label">Card number</label>
+                                    <input type="text" class="form-control" id="cardNumber" name="card_number"
+                                        maxlength="23" autocomplete="off" placeholder="Last 4 digits or full number">
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="cardHolderName" class="form-label">Card Holder Name</label>
+                                    <label for="cardHolderName" class="form-label">Card holder name</label>
                                     <input type="text" class="form-control" id="cardHolderName"
-                                        name="card_holder_name">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="cardType" class="form-label">Card Type</label>
-                                    <select class="form-select" id="cardType" name="card_type">
-                                        <option value="visa">Visa</option>
-                                        <option value="mastercard">MasterCard</option>
-                                        <option value="amex">American Express</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="expiryMonth" class="form-label">Expiry Month</label>
-                                    <input type="text" class="form-control" id="expiryMonth"
-                                        name="card_expiry_month">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="expiryYear" class="form-label">Expiry Year</label>
-                                    <input type="text" class="form-control" id="expiryYear" name="card_expiry_year">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="securityCode" class="form-label">Security Code</label>
-                                    <input type="text" class="form-control" id="securityCode"
-                                        name="card_security_code">
+                                        name="card_holder_name" autocomplete="name">
                                 </div>
                             </div>
                         </div>
@@ -461,7 +432,7 @@
             bankTransferFields.classList.add('d-none');
 
             // Clear all fields when changing payment method
-            $('#cardNumber, #cardHolderName, #expiryMonth, #expiryYear, #securityCode, #chequeNumber, #bankBranch, #cheque_received_date, #cheque_valid_date, #cheque_given_by, #bankAccountNumber')
+            $('#cardNumber, #cardHolderName, #chequeNumber, #bankBranch, #cheque_received_date, #cheque_valid_date, #cheque_given_by, #bankAccountNumber')
                 .val('');
             $('.error').remove(); // Remove any existing error messages
 
@@ -476,39 +447,19 @@
 
         document.addEventListener("DOMContentLoaded", function() {
             const cardNumberInput = document.getElementById("cardNumber");
-            const expiryMonthInput = document.getElementById("expiryMonth");
-            const expiryYearInput = document.getElementById("expiryYear");
-            const securityCodeInput = document.getElementById("securityCode");
             const chequeNumberInput = document.getElementById("chequeNumber");
-
-            // Format card number (max 16 digits, spaced every 4)
-            cardNumberInput.addEventListener("input", function(e) {
-                let value = this.value.replace(/\D/g, "").substring(0, 16);
-                value = value.replace(/(\d{4})/g, "$1 ").trim();
-                this.value = value;
-            });
-
-            // Validate expiry month (only 1-12 allowed)
-            expiryMonthInput.addEventListener("input", function() {
-                let value = this.value.replace(/\D/g, "").substring(0, 2);
-                let month = parseInt(value);
-                if (month < 1 || month > 12) {
-                    alert("Invalid month! Please enter a value between 1 and 12.");
-                    this.value = "";
-                } else {
+            if (cardNumberInput) {
+                cardNumberInput.addEventListener("input", function() {
+                    let value = this.value.replace(/\D/g, "").substring(0, 19);
+                    value = value.replace(/(\d{4})/g, "$1 ").trim();
                     this.value = value;
-                }
-            });
-
-            // Validate security code (3 digits only)
-            securityCodeInput.addEventListener("input", function() {
-                this.value = this.value.replace(/\D/g, "").substring(0, 3);
-            });
-
-            // Validate cheque number (max 12 digits)
-            chequeNumberInput.addEventListener("input", function() {
-                this.value = this.value.replace(/\D/g, "").substring(0, 12);
-            });
+                });
+            }
+            if (chequeNumberInput) {
+                chequeNumberInput.addEventListener("input", function() {
+                    this.value = this.value.replace(/\D/g, "").substring(0, 12);
+                });
+            }
         });
 
     </script>

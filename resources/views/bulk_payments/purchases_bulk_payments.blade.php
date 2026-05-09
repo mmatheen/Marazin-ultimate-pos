@@ -239,19 +239,13 @@
                 <div id="cardFields" class="border rounded p-3 mb-3 d-none">
                     <h6 class="mb-3 small">Card Details</h6>
                     <div class="row g-2">
-                        <div class="col-md-4">
-                            <label for="cardNumber" class="form-label small">Card Number</label>
-                            <input type="text" class="form-control form-control-sm" id="cardNumber" name="card_number">
+                        <div class="col-md-6">
+                            <label for="cardNumber" class="form-label small">Card number</label>
+                            <input type="text" class="form-control form-control-sm" id="cardNumber" name="card_number" maxlength="23" autocomplete="off" placeholder="Last 4 digits or full number">
                         </div>
-                        <div class="col-md-4">
-                            <label for="cardHolderName" class="form-label small">Card Holder</label>
-                            <input type="text" class="form-control form-control-sm" id="cardHolderName" name="card_holder_name">
-                        </div>
-                        <div class="col-md-4">
-                            <label for="cardType" class="form-label small">Card Type</label>
-                            <select class="form-select form-select-sm" id="cardType" name="card_type">
-                                <option value="visa">Visa</option>
-                            </select>
+                        <div class="col-md-6">
+                            <label for="cardHolderName" class="form-label small">Card holder name</label>
+                            <input type="text" class="form-control form-control-sm" id="cardHolderName" name="card_holder_name" autocomplete="name">
                         </div>
                     </div>
                 </div>
@@ -1860,10 +1854,6 @@ $(document).on('click', '#submitBulkPayment', function() {
     if (paymentMethod === 'card') {
         paymentData.card_number = $('#cardNumber').val();
         paymentData.card_holder_name = $('#cardHolderName').val();
-        paymentData.card_type = $('#cardType').val();
-        paymentData.card_expiry_month = $('#expiryMonth').val();
-        paymentData.card_expiry_year = $('#expiryYear').val();
-        paymentData.card_security_code = $('#securityCode').val();
     } else if (paymentMethod === 'cheque') {
         paymentData.cheque_number = $('#chequeNumber').val();
         paymentData.cheque_bank_branch = $('#bankBranch').val();

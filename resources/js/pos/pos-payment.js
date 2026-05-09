@@ -47,13 +47,8 @@ window.togglePaymentFields = function (selectElement) {
 
     if (paymentMethod === 'card') {
         conditionalFields.innerHTML =
-            '<div class="col-md-6"><label class="form-label">Card Number</label><input class="form-control" name="card_number" required></div>' +
-            '<div class="col-md-6"><label class="form-label">Card Holder Name</label><input class="form-control" name="card_holder_name"></div>' +
-            '<div class="col-md-6"><label class="form-label">Card Type</label><select class="form-select" name="card_type">' +
-            '<option value="visa">Visa</option><option value="mastercard">MasterCard</option><option value="amex">American Express</option></select></div>' +
-            '<div class="col-md-6"><label class="form-label">Expiry Month</label><input class="form-control" name="card_expiry_month"></div>' +
-            '<div class="col-md-6"><label class="form-label">Expiry Year</label><input class="form-control" name="card_expiry_year"></div>' +
-            '<div class="col-md-6"><label class="form-label">Security Code</label><input class="form-control" name="card_security_code"></div>';
+            '<div class="col-md-6"><label class="form-label">Card number</label><input class="form-control" name="card_number" maxlength="23" autocomplete="off" placeholder="Last 4 digits or full number" required></div>' +
+            '<div class="col-md-6"><label class="form-label">Card holder name</label><input class="form-control" name="card_holder_name" autocomplete="name"></div>';
     } else if (paymentMethod === 'cheque') {
         conditionalFields.innerHTML =
             '<div class="col-md-6"><label class="form-label">Cheque Number</label><input class="form-control" name="cheque_number" required></div>' +

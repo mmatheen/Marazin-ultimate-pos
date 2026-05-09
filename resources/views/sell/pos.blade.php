@@ -1612,29 +1612,15 @@
                 <div class="modal-body">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label for="cardNumber" class="form-label">Card Number</label>
-                            <input type="text" class="form-control" name="card_number" id="card_number">
+                            <label for="card_number" class="form-label">Card number</label>
+                            <input type="text" class="form-control" name="card_number" id="card_number"
+                                maxlength="23" autocomplete="off" placeholder="Last 4 digits or full number">
                             <div id="cardNumberError" class="text-danger"></div>
                         </div>
                         <div class="col-md-6">
-                            <label for="cardHolderName" class="form-label">Card Holder Name</label>
+                            <label for="card_holder_name" class="form-label">Card holder name</label>
                             <input type="text" class="form-control" name="card_holder_name"
-                                id="card_holder_name">
-                        </div>
-                        <div class="col-md-6">
-                            <label for="expiryMonth" class="form-label">Expiry Month</label>
-                            <input type="text" class="form-control" name="card_expiry_month"
-                                id="card_expiry_month">
-                        </div>
-                        <div class="col-md-6">
-                            <label for="expiryYear" class="form-label">Expiry Year</label>
-                            <input type="text" class="form-control" name="card_expiry_year"
-                                id="card_expiry_year">
-                        </div>
-                        <div class="col-md-6">
-                            <label for="securityCode" class="form-label">Security Code</label>
-                            <input type="text" class="form-control" name="card_security_code"
-                                id="card_security_code">
+                                id="card_holder_name" autocomplete="name">
                         </div>
                     </div>
                 </div>
@@ -2067,7 +2053,7 @@
     @vite('resources/js/pos/pos-init.js')
     @vite('resources/js/pos/pos-page.js')
     @vite('resources/js/pos/pos-payment.js')
-    @include('contact.customer.customer_ajax')
+    @include('contact.customer.customer_ajax_bootstrap')
     @include('contact.customer.cities_ajax')
     @include('contact.customer.add_customer_modal')
     @include('contact.customer.city_modal')

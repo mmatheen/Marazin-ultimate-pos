@@ -1,5 +1,4 @@
-<script type="text/javascript">
-    /** Slug for view-contact URLs (ASCII); server redirects to canonical Laravel Str::slug. */
+﻿    /** Slug for view-contact URLs (ASCII); server redirects to canonical Laravel Str::slug. */
     function slugifyContactNameForUrl(row) {
         var raw = (row.full_name || '').trim();
         if (!raw) {
@@ -22,8 +21,8 @@
     $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
 
-        // Check if current user is a sales rep (check early)
-        var isSalesRep = @json(auth()->user()->hasRole('Sales Rep'));
+        // Check if current user is a sales rep (check early) — set from Blade via window.CustomerAjaxBootstrap
+        var isSalesRep = !!(window.CustomerAjaxBootstrap && window.CustomerAjaxBootstrap.isSalesRep);
 
         // Initialize DataTable
         try {
@@ -221,9 +220,13 @@
                         title: 'Action',
                         render: function(data, type, row) {
                             const contactSlug = slugifyContactNameForUrl(row);
+                            const b = window.CustomerAjaxBootstrap || {};
+                            const r = b.routes || {};
+                            const listSale = r.listSale || '';
+                            const dueReport = r.dueReport || '';
+                            const viewBase = r.viewContactBase || '';
                             let actions = '<div class="btn-group" role="group">';
 
-                            // Main dropdown for all actions
                             actions += `
                                 <div class="dropdown">
                                     <button type="button" class="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
@@ -231,32 +234,36 @@
                                     </button>
                                     <ul class="dropdown-menu">
                                         <li><h6 class="dropdown-header">Sales Reports</h6></li>
-                                        <li><a class="dropdown-item" href="{{ route('list-sale') }}?customer_id=${row.id}" target="_blank">
+                                        <li><a class="dropdown-item" href="${listSale}?customer_id=${row.id}" target="_blank">
                                             <i class="feather-list text-success"></i> All Sales
                                         </a></li>
-                                        <li><a class="dropdown-item" href="{{ route('due.report') }}?report_type=customer&customer_id=${row.id}" target="_blank">
+                                        <li><a class="dropdown-item" href="${dueReport}?report_type=customer&customer_id=${row.id}" target="_blank">
                                             <i class="feather-alert-circle text-danger"></i> Due Sales
                                         </a></li>
                                         <li><hr class="dropdown-divider"></li>
-                                        <li><h6 class="dropdown-header">Customer Actions</h6></li>
-                                        @can('view customer')
-                                            <li><a class="dropdown-item" href="{{ url('/customer/view-contact') }}/${row.id}/${contactSlug}" target="_blank" data-customer-view-contact-link="1">
+                                        <li><h6 class="dropdown-header">Customer Actions</h6></li>`;
+                            if (b.canViewCustomer) {
+                                actions += `
+                                            <li><a class="dropdown-item" href="${viewBase}/${row.id}/${contactSlug}" target="_blank" data-customer-view-contact-link="1">
                                                 <i class="feather-user text-success"></i> View Contact
                                             </a></li>
                                             <li><a class="dropdown-item ledger_btn" href="#" data-id="${row.id}">
                                                 <i class="feather-book-open text-primary"></i> Ledger
-                                            </a></li>
-                                        @endcan
-                                        @can('edit customer')
+                                            </a></li>`;
+                            }
+                            if (b.canEditCustomer) {
+                                actions += `
                                             <li><a class="dropdown-item edit_btn" href="#" data-id="${row.id}">
                                                 <i class="feather-edit text-info"></i> Edit
-                                            </a></li>
-                                        @endcan
-                                        @can('delete customer')
+                                            </a></li>`;
+                            }
+                            if (b.canDeleteCustomer) {
+                                actions += `
                                             <li><a class="dropdown-item delete_btn" href="#" data-id="${row.id}">
                                                 <i class="feather-trash-2 text-danger"></i> Delete
-                                            </a></li>
-                                        @endcan
+                                            </a></li>`;
+                            }
+                            actions += `
                                     </ul>
                                 </div>
                             `;
@@ -1409,7 +1416,9 @@
                 $chk.prop('checked', false).prop('disabled', false);
                 $amt.val('0').prop('disabled', true).attr('max', '0').attr('data-max-advance', '0');
                 posAdvanceClearHints();
-                posUpdatePayablePreview(0);
+                // Walk-in / no customer: no advance UI — footer must show full bill total, not 0.
+                const billTotal = Number.isFinite(baseTotalOverride) ? baseTotalOverride : getPosBillFinalTotal();
+                posUpdatePayablePreview(billTotal);
                 return;
             }
 
@@ -1517,4 +1526,3 @@
         });
 
     });
-</script>

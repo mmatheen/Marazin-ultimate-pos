@@ -126,45 +126,49 @@
 
 <!-- Bulk Group Edit Modal -->
 <div class="modal fade" id="bulkGroupEditModal" tabindex="-1" role="dialog" aria-labelledby="bulkGroupEditModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="bulkGroupEditModalLabel">Edit Bulk Payment Group</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+        <div class="modal-content bulk-edit-modal border-0 shadow">
+            <div class="modal-header border-0 pb-0 align-items-start">
+                <div class="pe-3">
+                    <h5 class="modal-title fw-semibold mb-1" id="bulkGroupEditModalLabel">Edit bulk payment</h5>
+                    <p class="text-muted small mb-0">
+                        <span class="font-monospace fw-medium text-dark" id="bulkEditReferenceLabel">-</span>
+                        <span class="text-muted">·</span>
+                        <span id="bulkEditCustomerLabel">—</span>
+                    </p>
+                </div>
+                <button type="button" class="btn-close mt-1" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="bulkGroupEditForm">
-                <div class="modal-body">
+                <div class="modal-body pt-2">
                     <input type="hidden" id="bulk_edit_reference_no">
-                    <div class="alert alert-info py-2">
-                        <strong>Bulk Reference:</strong> <span id="bulkEditReferenceLabel">-</span>
-                        <small class="d-block text-muted">Edit invoice payment rows below. Advance credit, new advance, returns, and opening-balance chunks in the same bulk are shown for context (read-only).</small>
+                    <p class="small text-muted mb-3">Adjust invoice lines only. Other items in this bulk (advance, returns, etc.) stay as recorded — shown below for reference.</p>
+                    <div id="bulkEditCompanionBlock" class="bulk-edit-companion mb-3" style="display:none;">
+                        <div class="small text-uppercase text-muted fw-semibold mb-2" style="letter-spacing: .04em;">Also in this bulk</div>
+                        <div id="bulkEditCompanionSummary" class="d-flex flex-wrap gap-2"></div>
                     </div>
-                    <div id="bulkEditCompanionBlock" class="alert alert-secondary py-2 mb-3" style="display:none;">
-                        <strong class="d-block mb-1">Also part of this bulk (read-only)</strong>
-                        <ul id="bulkEditCompanionSummary" class="small mb-0 ps-3"></ul>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table table-sm table-bordered">
+                    <div class="table-responsive rounded-3 border bg-white">
+                        <table class="table table-sm table-hover align-middle mb-0 bulk-edit-table">
                             <thead class="table-light">
-                                <tr>
-                                    <th>Invoice</th>
+                                <tr class="small text-secondary text-uppercase" style="letter-spacing: .03em;">
+                                    <th class="ps-3">Invoice</th>
                                     <th>Method</th>
                                     <th>Amount</th>
-                                    <th>Payment Date</th>
-                                    <th>Notes</th>
+                                    <th>Date</th>
+                                    <th class="pe-3">Notes</th>
                                 </tr>
                             </thead>
                             <tbody id="bulkEditRowsBody"></tbody>
                         </table>
                     </div>
-                    <div class="form-group local-forms mt-2">
-                        <label>Reason for Bulk Edit <span class="login-danger">*</span></label>
-                        <textarea id="bulk_edit_reason" class="form-control" rows="2" placeholder="Why are you editing this bulk payment?" required></textarea>
+                    <div class="mt-3">
+                        <label class="form-label small fw-semibold">Reason for edit <span class="login-danger">*</span></label>
+                        <textarea id="bulk_edit_reason" class="form-control form-control-sm" rows="2" placeholder="Short reason (required for audit log)" required></textarea>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Update Bulk Group</button>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary px-4"><i class="fas fa-save me-1"></i>Save changes</button>
                 </div>
             </form>
         </div>
@@ -290,6 +294,34 @@
     .btn-sm {
         padding: 0.25rem 0.5rem;
         font-size: 0.75rem;
+    }
+
+    /* Bulk edit modal — clean, compact */
+    .bulk-edit-modal .modal-body {
+        background: linear-gradient(180deg, #f8f9fb 0%, #fff 120px);
+    }
+    .bulk-edit-companion .badge {
+        font-weight: 500;
+        max-width: 100%;
+        white-space: normal;
+        text-align: left;
+        line-height: 1.35;
+    }
+    .bulk-edit-table tbody tr.bulk-edit-main-row td {
+        vertical-align: middle;
+        padding-top: 0.65rem;
+        padding-bottom: 0.65rem;
+        border-bottom-color: #eef0f3;
+    }
+    .bulk-edit-table tbody tr.bulk-row-extra-row td {
+        background: #fafbfc;
+        border-bottom: 1px solid #e9ecef;
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
+    .bulk-edit-table .form-control-sm,
+    .bulk-edit-table .form-select-sm {
+        border-radius: 0.35rem;
     }
 </style>
 
@@ -1012,8 +1044,14 @@ $(document).ready(function() {
     }
 
     function toggleBulkRowSpecificFields($detailRow, method) {
-        $detailRow.find('.bulk-specific-block').hide();
-        $detailRow.find(`.bulk-specific-block[data-method="${method}"]`).show();
+        const needsExtra = method && method !== 'cash' && method !== 'advance_credit';
+        if (needsExtra) {
+            $detailRow.removeClass('d-none');
+            $detailRow.find('.bulk-specific-block').hide();
+            $detailRow.find(`.bulk-specific-block[data-method="${method}"]`).show();
+        } else {
+            $detailRow.addClass('d-none');
+        }
     }
 
     function getBulkRowValues($row) {
@@ -1031,9 +1069,6 @@ $(document).ready(function() {
             cheque_given_by: $detailRow.find('.bulk-row-cheque-given-by').val() || '',
             card_number: $detailRow.find('.bulk-row-card-number').val() || '',
             card_holder_name: $detailRow.find('.bulk-row-card-holder-name').val() || '',
-            card_expiry_month: $detailRow.find('.bulk-row-card-expiry-month').val() || '',
-            card_expiry_year: $detailRow.find('.bulk-row-card-expiry-year').val() || '',
-            card_security_code: $detailRow.find('.bulk-row-card-security-code').val() || '',
             bank_account_number: $detailRow.find('.bulk-row-bank-account-number').val() || ''
         };
     }
@@ -1045,8 +1080,8 @@ $(document).ready(function() {
         const amount = parseAmountValue($input.val());
         const newDue = Math.max(0, maxEditable - amount);
 
-        $row.find('.bulk-row-current-due-preview').text(formatBulkCurrency(currentDue));
         $row.find('.bulk-row-new-due-preview').text(formatBulkCurrency(newDue));
+        $row.find('.bulk-row-max-label').text(formatBulkCurrency(maxEditable));
 
         return { amount, maxEditable, currentDue, newDue };
     }
@@ -1102,13 +1137,25 @@ $(document).ready(function() {
         $('#bulkEditReferenceLabel').text(referenceNo);
         $('#bulk_edit_reason').val('');
 
+        const firstPay = groupPayments[0];
+        let custLabel = '—';
+        if (firstPay && firstPay.customer) {
+            const a = (firstPay.customer.first_name || '').trim();
+            const b = (firstPay.customer.last_name || '').trim();
+            custLabel = (a + ' ' + b).trim() || 'Customer';
+        }
+        $('#bulkEditCustomerLabel').text(custLabel);
+
         const invoicePayments = groupPayments.filter(p => p.payment_type === 'sale');
         const companionPayments = groupPayments.filter(p => p.payment_type !== 'sale');
 
         const $companionBlock = $('#bulkEditCompanionBlock');
         const $companionList = $('#bulkEditCompanionSummary');
         if (companionPayments.length) {
-            $companionList.html(companionPayments.map(p => `<li>${getBulkCompanionRowDescription(p)}</li>`).join(''));
+            $companionList.html(companionPayments.map(p => {
+                const txt = getBulkCompanionRowDescription(p).replace(/</g, '&lt;');
+                return '<span class="badge bg-white text-dark border rounded-3 px-2 py-2 shadow-sm">' + txt + '</span>';
+            }).join(''));
             $companionBlock.show();
         } else {
             $companionList.empty();
@@ -1125,58 +1172,56 @@ $(document).ready(function() {
             const billRef = limitInfo.invoiceLabel;
             const currentMethod = p.payment_method || 'cash';
             const safeNotes = (p.notes || '').replace(/"/g, '&quot;');
+            const initNewDue = Math.max(0, limitInfo.maxEditable - parseFloat(p.amount || 0));
+            const hideExtra = (currentMethod === 'cash' || currentMethod === 'advance_credit') ? 'd-none' : '';
             return `
-                <tr data-payment-id="${p.id}" data-max-editable="${limitInfo.maxEditable}" data-current-due="${limitInfo.currentDue}">
-                    <td><strong>${billRef}</strong><div class="small text-muted">#${p.id}</div></td>
-                    <td>
-                        <select class="form-control form-control-sm bulk-row-method">
+                <tr class="bulk-edit-main-row" data-payment-id="${p.id}" data-max-editable="${limitInfo.maxEditable}" data-current-due="${limitInfo.currentDue}">
+                    <td class="ps-3">
+                        <div class="fw-semibold text-dark">${billRef}</div>
+                        <div class="small text-muted">#${p.id}</div>
+                    </td>
+                    <td style="min-width: 8.5rem;">
+                        <select class="form-select form-select-sm bulk-row-method">
                             <option value="cash" ${p.payment_method === 'cash' ? 'selected' : ''}>Cash</option>
                             <option value="card" ${p.payment_method === 'card' ? 'selected' : ''}>Card</option>
                             <option value="cheque" ${p.payment_method === 'cheque' ? 'selected' : ''}>Cheque</option>
-                            <option value="bank_transfer" ${p.payment_method === 'bank_transfer' ? 'selected' : ''}>Bank Transfer</option>
-                            <option value="advance_credit" ${p.payment_method === 'advance_credit' ? 'selected' : ''}>Credit Applied (no cash)</option>
+                            <option value="bank_transfer" ${p.payment_method === 'bank_transfer' ? 'selected' : ''}>Bank transfer</option>
+                            <option value="advance_credit" ${p.payment_method === 'advance_credit' ? 'selected' : ''}>Credit applied</option>
                         </select>
-                        <div class="small text-muted mt-1">Current due: Rs. ${limitInfo.currentDue.toFixed(2)}<br>Max editable: Rs. ${limitInfo.maxEditable.toFixed(2)}</div>
                     </td>
-                    <td>
-                        <input type="number" class="form-control form-control-sm bulk-row-amount" step="0.01" min="0.01" max="${limitInfo.maxEditable.toFixed(2)}" value="${parseFloat(p.amount || 0).toFixed(2)}">
-                        <div class="small text-muted mt-1 bulk-row-amount-hint">
-                            <div>Remaining due now: <span class="bulk-row-current-due-preview">Rs. ${limitInfo.currentDue.toFixed(2)}</span></div>
-                            <div>New due after edit: <span class="bulk-row-new-due-preview">Rs. ${limitInfo.currentDue.toFixed(2)}</span></div>
-                            <div class="bulk-row-limit-hint">Enter payment amount for this invoice only. Max editable: Rs. ${limitInfo.maxEditable.toFixed(2)}</div>
+                    <td style="min-width: 9rem;">
+                        <input type="number" class="form-control form-control-sm bulk-row-amount" step="0.01" min="0.01" max="${limitInfo.maxEditable.toFixed(2)}" value="${parseFloat(p.amount || 0).toFixed(2)}" title="Max allowed for this line: ${limitInfo.maxEditable.toFixed(2)}">
+                        <div class="small text-muted mt-1 bulk-row-amount-meta">
+                            Due after save <span class="bulk-row-new-due-preview text-body">${formatBulkCurrency(initNewDue)}</span>
+                            <span class="text-muted"> · cap </span><span class="bulk-row-max-label">${formatBulkCurrency(limitInfo.maxEditable)}</span>
                         </div>
                         <div class="bulk-row-amount-error small text-danger mt-1" style="display:none;"></div>
                     </td>
-                    <td><input type="date" class="form-control form-control-sm bulk-row-date" value="${formatDateInputValue(p.payment_date || '')}"></td>
-                    <td><input type="text" class="form-control form-control-sm bulk-row-notes" value="${safeNotes}"></td>
+                    <td style="min-width: 9rem;"><input type="date" class="form-control form-control-sm bulk-row-date" value="${formatDateInputValue(p.payment_date || '')}"></td>
+                    <td class="pe-3" style="min-width: 7rem;"><input type="text" class="form-control form-control-sm bulk-row-notes" placeholder="—" value="${safeNotes}"></td>
                 </tr>
-                <tr class="bulk-row-extra-row">
-                    <td colspan="5" class="bg-light">
-                        <div class="bulk-specific-block" data-method="cheque" style="${currentMethod === 'cheque' ? '' : 'display:none;'}">
+                <tr class="bulk-row-extra-row ${hideExtra}">
+                    <td colspan="5" class="px-3">
+                        <div class="small text-muted mb-2 fw-semibold">Payment details</div>
+                        <div class="bulk-specific-block" data-method="cheque" style="display:none;">
                             <div class="row g-2">
-                                <div class="col-md-3"><input type="text" class="form-control form-control-sm bulk-row-cheque-number" placeholder="Cheque Number" value="${p.cheque_number || ''}"></div>
-                                <div class="col-md-3"><input type="text" class="form-control form-control-sm bulk-row-cheque-bank-branch" placeholder="Bank & Branch" value="${p.cheque_bank_branch || ''}"></div>
-                                <div class="col-md-2"><input type="date" class="form-control form-control-sm bulk-row-cheque-received-date" value="${formatDateInputValue(p.cheque_received_date || '')}"></div>
-                                <div class="col-md-2"><input type="date" class="form-control form-control-sm bulk-row-cheque-valid-date" value="${formatDateInputValue(p.cheque_valid_date || '')}"></div>
-                                <div class="col-md-2"><input type="text" class="form-control form-control-sm bulk-row-cheque-given-by" placeholder="Given By" value="${p.cheque_given_by || ''}"></div>
+                                <div class="col-md-3"><input type="text" class="form-control form-control-sm bulk-row-cheque-number" placeholder="Cheque no." value="${p.cheque_number || ''}"></div>
+                                <div class="col-md-3"><input type="text" class="form-control form-control-sm bulk-row-cheque-bank-branch" placeholder="Bank & branch" value="${p.cheque_bank_branch || ''}"></div>
+                                <div class="col-md-2"><input type="date" class="form-control form-control-sm bulk-row-cheque-received-date" title="Received" value="${formatDateInputValue(p.cheque_received_date || '')}"></div>
+                                <div class="col-md-2"><input type="date" class="form-control form-control-sm bulk-row-cheque-valid-date" title="Valid" value="${formatDateInputValue(p.cheque_valid_date || '')}"></div>
+                                <div class="col-md-2"><input type="text" class="form-control form-control-sm bulk-row-cheque-given-by" placeholder="Given by" value="${p.cheque_given_by || ''}"></div>
                             </div>
                         </div>
-                        <div class="bulk-specific-block" data-method="card" style="${currentMethod === 'card' ? '' : 'display:none;'}">
+                        <div class="bulk-specific-block" data-method="card" style="display:none;">
                             <div class="row g-2">
-                                <div class="col-md-3"><input type="text" class="form-control form-control-sm bulk-row-card-number" placeholder="Card Number" value="${p.card_number || ''}"></div>
-                                <div class="col-md-3"><input type="text" class="form-control form-control-sm bulk-row-card-holder-name" placeholder="Card Holder" value="${p.card_holder_name || ''}"></div>
-                                <div class="col-md-2"><input type="text" class="form-control form-control-sm bulk-row-card-expiry-month" placeholder="MM" value="${p.card_expiry_month || ''}"></div>
-                                <div class="col-md-2"><input type="text" class="form-control form-control-sm bulk-row-card-expiry-year" placeholder="YYYY" value="${p.card_expiry_year || ''}"></div>
-                                <div class="col-md-2"><input type="text" class="form-control form-control-sm bulk-row-card-security-code" placeholder="CVV" value="${p.card_security_code || ''}"></div>
+                                <div class="col-md-6"><input type="text" class="form-control form-control-sm bulk-row-card-number" placeholder="Last 4 digits or full number" maxlength="23" autocomplete="off" value="${p.card_number || ''}"></div>
+                                <div class="col-md-6"><input type="text" class="form-control form-control-sm bulk-row-card-holder-name" placeholder="Card holder name" autocomplete="name" value="${p.card_holder_name || ''}"></div>
                             </div>
                         </div>
-                        <div class="bulk-specific-block" data-method="bank_transfer" style="${currentMethod === 'bank_transfer' ? '' : 'display:none;'}">
+                        <div class="bulk-specific-block" data-method="bank_transfer" style="display:none;">
                             <div class="row g-2">
-                                <div class="col-md-4"><input type="text" class="form-control form-control-sm bulk-row-bank-account-number" placeholder="Bank Account Number" value="${p.bank_account_number || ''}"></div>
+                                <div class="col-md-6"><input type="text" class="form-control form-control-sm bulk-row-bank-account-number" placeholder="Bank account no." value="${p.bank_account_number || ''}"></div>
                             </div>
-                        </div>
-                        <div class="bulk-specific-block" data-method="cash" style="${currentMethod === 'cash' ? '' : 'display:none;'}">
-                            <small class="text-muted">Cash payment selected - no extra fields needed.</small>
                         </div>
                     </td>
                 </tr>

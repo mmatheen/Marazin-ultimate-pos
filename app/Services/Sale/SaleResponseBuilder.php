@@ -53,9 +53,10 @@ class SaleResponseBuilder
 
         // ── Step 2: Decide whether to render a full receipt ──────────────────
         $isWalkIn           = $sale->customer_id == 1;
+        // Include walk-in final sales: receipt HTML in this response avoids a second
+        // round-trip to /sales/print-recent-transaction (much faster print dialog on POS).
         $shouldGenerateReceipt = !$request->header('X-Skip-Receipt')
-            && $sale->status !== 'jobticket'
-            && !($isWalkIn && $request->status === 'final');
+            && $sale->status !== 'jobticket';
 
         // ── Step 3: Load all data needed for viewData ────────────────────────
         if ($shouldGenerateReceipt) {
@@ -119,24 +120,6 @@ class SaleResponseBuilder
         }
 
         // ── Step 8: Build JSON response ──────────────────────────────────────
-
-        // Walk-In final sales get a minimal fast response
-        if ($isWalkIn && $request->status === 'final') {
-            return response()->json([
-                'message'      => $saleId ? 'Sale updated successfully.' : 'Sale recorded successfully.',
-                'invoice_html' => '',
-                'data'         => [
-                    'sale'           => $sale,
-                    'customer'       => $this->walkInCustomerObject(),
-                    'products'       => collect(),
-                    'payments'       => collect(),
-                    'total_discount' => $request->discount_amount ?? 0,
-                    'amount_given'   => $sale->amount_given,
-                    'balance_amount' => $sale->balance_amount,
-                ],
-                'sale'         => $this->saleSummary($sale),
-            ], 200);
-        }
 
         return response()->json([
             'message'      => $this->successMessage($saleId, $sale),

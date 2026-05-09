@@ -1287,9 +1287,6 @@
                 if (latestPayment.payment_method === 'card') {
                     $('#cardNumber').val(latestPayment.card_number || '');
                     $('#cardHolderName').val(latestPayment.card_holder_name || '');
-                    $('#expiryMonth').val(latestPayment.card_expiry_month || '');
-                    $('#expiryYear').val(latestPayment.card_expiry_year || '');
-                    $('#securityCode').val(latestPayment.card_security_code || '');
                 }
 
                 // ✅ POPULATE BANK TRANSFER FIELDS if payment method is bank_transfer
@@ -1823,9 +1820,6 @@
                 } else if (paymentMethod === 'card') {
                     formData.append('card_number', $('#cardNumber').val() || '');
                     formData.append('card_holder_name', $('#cardHolderName').val() || '');
-                    formData.append('card_expiry_month', $('#expiryMonth').val() || '');
-                    formData.append('card_expiry_year', $('#expiryYear').val() || '');
-                    formData.append('card_security_code', $('#securityCode').val() || '');
                 } else if (paymentMethod === 'bank_transfer') {
                     formData.append('bank_account_number', $('#bankAccountNumber').val() || '');
                 }
