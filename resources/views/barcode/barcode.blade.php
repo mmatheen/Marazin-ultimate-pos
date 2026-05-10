@@ -659,11 +659,11 @@
                 '50x25': { page: '50mm 25mm', margin: '1mm', width: '48mm', height: '23mm', gap: '0', svgW: '45mm', svgH: '4.5mm', wrap: false, perRow: false },
                 '40x30': { page: '40mm 30mm', margin: '1mm', width: '38mm', height: '28mm', gap: '0', svgW: '35mm', svgH: '4.5mm', wrap: false, perRow: false },
                 '40x25': { page: '40mm 25mm', margin: '1mm', width: '38mm', height: '23mm', gap: '0', svgW: '35mm', svgH: '4.5mm', wrap: false, perRow: false },
-                '40x20x2': { page: '88mm 17mm', margin: '0mm', rollLabelHeight: '17mm', width: '38mm', height: '100%', gap: '2mm', svgW: '38mm', svgH: '3.8mm', wrap: false, perRow: 2, colWidth: '40mm', rowFlexJustify: 'flex-start', rowAlignItems: 'stretch', bodyPadding: '0 1mm', labelInnerPadding: '1mm 0.55mm 1mm', cellJustify: 'center', pageBreakRows: true },
+                '40x20x2': { page: '88mm 17mm', margin: '0mm', rollLabelHeight: '17mm', width: '38mm', height: '100%', gap: '2mm', svgW: '38mm', svgH: '3.8mm', wrap: false, perRow: 2, colWidth: '40mm', rowFlexJustify: 'flex-start', rowAlignItems: 'stretch', bodyPadding: '0 1mm', labelInnerPadding: '1mm 0.55mm 1mm', cellJustify: 'center', pageBreakRows: true, nameMaxWidth: '36mm', nameLineClamp: 2 },
                 '38x25': { page: '38mm 25mm', margin: '1mm', width: '36mm', height: '23mm', gap: '0', svgW: '33mm', svgH: '4.5mm', wrap: false, perRow: false },
                 // 3 × 38 mm × 25 mm = 114 mm × 25 mm per row. Smaller SVG + rollTextTight → less overflow on short labels.
                 // If roll has gutters: e.g. gap 2 mm → page '118mm 25mm', gap: '2mm'.
-                '38x25x3': { page: '114mm 25mm', margin: '0mm', rollLabelHeight: '25mm', width: '38mm', height: '100%', gap: '0mm', svgW: '26mm', svgH: '3.6mm', wrap: false, perRow: 3, colWidth: '38mm', rowFlexJustify: 'flex-start', rowAlignItems: 'stretch', bodyPadding: '0', labelInnerPadding: '0.15mm 0.35mm 0.15mm', cellJustify: 'center', pageBreakRows: true, rollTextTight: true },
+                '38x25x3': { page: '114mm 25mm', margin: '0mm', rollLabelHeight: '25mm', width: '38mm', height: '100%', gap: '0mm', svgW: '26mm', svgH: '3.6mm', wrap: false, perRow: 3, colWidth: '38mm', rowFlexJustify: 'flex-start', rowAlignItems: 'stretch', bodyPadding: '0', labelInnerPadding: '0.15mm 0.35mm 0.15mm', cellJustify: 'center', pageBreakRows: true, rollTextTight: true, nameMaxWidth: '34mm', nameLineClamp: 3 },
                 // Legacy: inch-based 3-up (~35 mm cell); keep for older installs / saved presets that still pass value "34x25x3".
                 '34x25x3': { page: '4.634in auto', margin: '0', width: '1.378in', height: '0.984in', gap: '0.1in', svgW: '1.2in', svgH: '0.2in', wrap: false, perRow: 3, rowFlexJustify: 'space-between' }
 
@@ -863,7 +863,12 @@
                     var fsP = rtTight ? '5.5pt' : '6.1pt';
                     var fsY = rtTight ? '5.1pt' : '5.7pt';
                     var lineN = rtTight ? '1.03' : '1.05';
-                    css += '.r .n{font-size:' + fsN + '!important;line-height:' + lineN + '!important;display:-webkit-box!important;-webkit-box-orient:vertical!important;-webkit-line-clamp:2!important;overflow:hidden!important;word-break:break-word!important;width:100%!important;margin-bottom:0.15mm!important}';
+                    var nameClamp = (config.nameLineClamp != null) ? config.nameLineClamp : 2;
+                    var nameWidthRule = '';
+                    if (config.nameMaxWidth != null && String(config.nameMaxWidth).length) {
+                        nameWidthRule = ';max-width:' + config.nameMaxWidth + '!important;box-sizing:border-box!important;margin-left:auto!important;margin-right:auto!important';
+                    }
+                    css += '.r .n{font-size:' + fsN + '!important;line-height:' + lineN + '!important;display:-webkit-box!important;-webkit-box-orient:vertical!important;-webkit-line-clamp:' + nameClamp + '!important;overflow:hidden!important;word-break:break-word!important;overflow-wrap:break-word!important;white-space:normal!important;text-align:center!important;width:100%!important' + nameWidthRule + ';margin-bottom:0.15mm!important}';
                     css += '.r .t{font-size:' + fsT + '!important;line-height:1.03!important;margin-bottom:0.1mm!important}';
                     css += '.r .c{display:flex!important;justify-content:center!important;align-items:center!important;margin:0!important;width:100%!important;flex-shrink:0!important}';
                     css += '.r .c svg{max-width:' + config.svgW + '!important;height:' + config.svgH + '!important;max-height:' + config.svgH + '!important;width:auto!important;flex-shrink:0!important}';
