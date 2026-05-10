@@ -122,6 +122,31 @@ class CustomerListingService
         ];
     }
 
+    /**
+     * Options for the All Sales customer filter — must match /customer-get-all visibility.
+     * Sales reps use route cities without the Customer location scope; otherwise scoped
+     * customers would be missing from the dropdown while still reachable via ?customer_id=.
+     */
+    public function customersForSaleFilterDropdown(User $user): Collection
+    {
+        $salesRepAssignments = SalesRep::where('user_id', $user->id)
+            ->where('status', 'active')
+            ->with(['route.cities'])
+            ->get();
+
+        if ($salesRepAssignments->isNotEmpty()) {
+            $query = Customer::withoutLocationScope()
+                ->select(['id', 'first_name', 'last_name']);
+            $this->applySalesRepFilter($query, $salesRepAssignments);
+
+            return $query->orderBy('first_name')->get();
+        }
+
+        return Customer::select(['id', 'first_name', 'last_name'])
+            ->orderBy('first_name')
+            ->get();
+    }
+
     private function applySalesRepFilter(Builder $query, Collection $salesRepAssignments): void
     {
         $allCityIds = [];

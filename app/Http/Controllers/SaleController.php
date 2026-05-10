@@ -23,6 +23,7 @@ use App\Services\Sale\SaleReceiptService;
 use App\Services\Sale\SaleOrderConversionService;
 use App\Services\Sale\SaleQueryService;
 use App\Services\User\UserAccessService;
+use App\Services\Customer\CustomerListingService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -50,6 +51,7 @@ class SaleController extends Controller
     protected $saleOrderConversionService;
     protected $saleQueryService;
     protected $userAccessService;
+    protected CustomerListingService $customerListingService;
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -70,7 +72,8 @@ class SaleController extends Controller
         SaleReceiptService          $saleReceiptService,
         CustomerPriceHistoryService $customerPriceHistoryService,
         SaleOrderConversionService  $saleOrderConversionService,
-        SaleQueryService            $saleQueryService
+        SaleQueryService            $saleQueryService,
+        CustomerListingService      $customerListingService
     ) {
         $this->saleValidationService       = $saleValidationService;
         $this->saleDeleteService           = $saleDeleteService;
@@ -87,6 +90,7 @@ class SaleController extends Controller
         $this->customerPriceHistoryService = $customerPriceHistoryService;
         $this->saleOrderConversionService  = $saleOrderConversionService;
         $this->saleQueryService            = $saleQueryService;
+        $this->customerListingService      = $customerListingService;
         $this->userAccessService           = app(UserAccessService::class);
 
         $this->middleware('permission:view all sales|view own sales', ['only' => ['listSale', 'index', 'show', 'getDataTableSales', 'salesDetails', 'fetchSuspendedSales', 'getSaleByInvoiceNo', 'searchSales']]);
@@ -133,7 +137,7 @@ class SaleController extends Controller
         $currentUser = auth()->user();
 
         $locations = Location::select('id', 'name')->get();
-        $customers = Customer::select('id', 'first_name', 'last_name')->get();
+        $customers = $this->customerListingService->customersForSaleFilterDropdown($currentUser);
 
         $isMasterSuperAdmin = $this->userAccessService->isMasterSuperAdmin($currentUser);
         $masterRoleName = $this->userAccessService->masterSuperAdminRoleName();

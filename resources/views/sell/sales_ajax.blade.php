@@ -405,8 +405,15 @@
 
     /** Shared by DataTable ajax and export — keeps filter query params in one place. */
     function appendSalesListFiltersToParams(requestData) {
-        if ($('#customerFilter').val()) {
-            requestData.customer_id = $('#customerFilter').val();
+        var customerFromSelect = $('#customerFilter').val();
+        var deepLinkId = window.salesListDeepLinkCustomerId || '';
+        var deepLinkDisabled = !!window.salesListUrlCustomerDisabled;
+        var effectiveCustomerId = customerFromSelect;
+        if (!effectiveCustomerId && deepLinkId && !deepLinkDisabled) {
+            effectiveCustomerId = deepLinkId;
+        }
+        if (effectiveCustomerId) {
+            requestData.customer_id = effectiveCustomerId;
         }
         if ($('#locationFilter').val()) {
             requestData.location_id = $('#locationFilter').val();
@@ -627,6 +634,8 @@
         const urlParams = new URLSearchParams(window.location.search);
         const urlCustomerId = urlParams.get('customer_id');
         const urlLocationId = urlParams.get('location_id');
+        window.salesListDeepLinkCustomerId = urlCustomerId || '';
+        window.salesListUrlCustomerDisabled = false;
 
 
         // Set filter values IMMEDIATELY before DataTable initialization
@@ -1130,6 +1139,13 @@
         // Add filter change handlers to refresh table
         $('#customerFilter, #locationFilter, #userFilter, #paymentStatusFilter, #paymentMethodFilter, #dateRangeFilter')
             .on('change', function() {
+                if ($(this).attr('id') === 'customerFilter') {
+                    if (!$(this).val()) {
+                        window.salesListUrlCustomerDisabled = true;
+                    } else {
+                        window.salesListUrlCustomerDisabled = false;
+                    }
+                }
                 console.log('Filter changed:', $(this).attr('id'), 'to:', $(this).val());
                 if ($.fn.DataTable.isDataTable('#salesTable')) {
                     $('#salesTable').DataTable().ajax.reload();
