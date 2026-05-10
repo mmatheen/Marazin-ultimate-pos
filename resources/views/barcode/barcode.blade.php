@@ -59,13 +59,13 @@
                             {{-- Label Size Selection --}}
                             <div class="col-md-2">
                                 <label class="form-label">Label Size</label>
-                                <select class="form-control" id="labelSize">
+                                <select class="form-control" id="labelSize" title="Your choice is saved in this browser until you change it">
                                     <option value="a4">A4 Sheet (6/row)</option>
                                     <option value="50x30">50 x 30 mm</option>
                                     <option value="50x25">50 x 25 mm</option>
                                     <option value="40x30">40 x 30 mm</option>
                                     <option value="40x25">40 x 25 mm</option>
-                                    <option value="40x20x2" selected>40 × 17 mm × 2 — 88 mm roll (8.8 cm)</option>
+                                    <option value="40x20x2">40 × 17 mm × 2 — 88 mm roll (8.8 cm)</option>
                                     <option value="38x25">38 x 25 mm</option>
                                     <option value="38x25x3">38 × 25 mm × 3 — 112 mm roll (mm)</option>
                                     <option value="34x25x3">34 × 25 mm × 3 — legacy (in, older printers / systems)</option>
@@ -396,6 +396,25 @@
             let searchTimeout = null;
             let currentRequest = null; // Track current AJAX request
 
+            (function initLabelSizePreference() {
+                var key = 'marazin_barcode_label_size';
+                var $sel = $('#labelSize');
+                var saved = null;
+                try {
+                    saved = localStorage.getItem(key);
+                } catch (e) {}
+                if (saved && $sel.find('option[value="' + saved + '"]').length) {
+                    $sel.val(saved);
+                } else {
+                    $sel.val('40x20x2');
+                }
+                $sel.on('change', function () {
+                    try {
+                        localStorage.setItem(key, $(this).val());
+                    } catch (e) {}
+                });
+            })();
+
             // Product Search with optimized debouncing
             $('#productSearch').on('input', function() {
                 const searchTerm = $(this).val().trim();
@@ -663,7 +682,7 @@
                 '38x25': { page: '38mm 25mm', margin: '1mm', width: '36mm', height: '23mm', gap: '0', svgW: '33mm', svgH: '4.5mm', wrap: false, perRow: false },
                 // 112 mm × 25 mm per row; 3 columns ≈ 37.33 mm each (112 ÷ 3, gap 0). Smaller SVG + rollTextTight → less overflow.
                 // If roll has gutters: widen page and gap (e.g. 118 mm, gap 2 mm) and recompute colWidth.
-                '38x25x3': { page: '112mm 25mm', margin: '0mm', rollLabelHeight: '25mm', width: '37.33mm', height: '100%', gap: '0mm', svgW: '26mm', svgH: '3.6mm', wrap: false, perRow: 3, colWidth: '37.33mm', rowFlexJustify: 'flex-start', rowAlignItems: 'stretch', bodyPadding: '0', labelInnerPadding: '0.15mm 0.35mm 0.15mm', cellJustify: 'center', pageBreakRows: true, rollTextTight: true, nameMaxWidth: '33mm', nameLineClamp: 3 },
+                '38x25x3': { page: '112mm 25mm', margin: '0mm', rollLabelHeight: '25mm', width: '37.33mm', height: '100%', gap: '0mm', svgW: '28mm', svgH: '4.7mm', wrap: false, perRow: 3, colWidth: '37.33mm', rowFlexJustify: 'flex-start', rowAlignItems: 'stretch', bodyPadding: '0', labelInnerPadding: '0.15mm 0.35mm 0.15mm', cellJustify: 'center', pageBreakRows: true, rollTextTight: true, nameMaxWidth: '33mm', nameLineClamp: 3, tightTypeSizes: { n: '6.2pt', t: '5.4pt', s: '6pt', p: '6.6pt', y: '6pt', lineN: '1.06' } },
                 // Legacy: inch-based 3-up (~35 mm cell); keep for older installs / saved presets that still pass value "34x25x3".
                 '34x25x3': { page: '4.634in auto', margin: '0', width: '1.378in', height: '0.984in', gap: '0.1in', svgW: '1.2in', svgH: '0.2in', wrap: false, perRow: 3, rowFlexJustify: 'space-between' }
 
@@ -857,12 +876,30 @@
                         css += '.r>.b:only-child{margin-inline-start:0!important;margin-inline-end:auto!important;flex:0 0 ' + config.colWidth + '!important;width:' + config.colWidth + '!important;max-width:' + config.colWidth + '!important;}';
                     }
                     var rtTight = config.rollTextTight === true;
-                    var fsN = rtTight ? '5.1pt' : '5.8pt';
-                    var fsT = rtTight ? '4.9pt' : '5.3pt';
-                    var fsS = rtTight ? '5.1pt' : '5.7pt';
-                    var fsP = rtTight ? '5.5pt' : '6.1pt';
-                    var fsY = rtTight ? '5.1pt' : '5.7pt';
-                    var lineN = rtTight ? '1.03' : '1.05';
+                    var fsN, fsT, fsS, fsP, fsY, lineN;
+                    if (rtTight && config.tightTypeSizes && typeof config.tightTypeSizes === 'object') {
+                        var tg = config.tightTypeSizes;
+                        fsN = tg.n || '5.1pt';
+                        fsT = tg.t || '4.9pt';
+                        fsS = tg.s || '5.1pt';
+                        fsP = tg.p || '5.5pt';
+                        fsY = tg.y || '5.1pt';
+                        lineN = tg.lineN || '1.03';
+                    } else if (rtTight) {
+                        fsN = '5.1pt';
+                        fsT = '4.9pt';
+                        fsS = '5.1pt';
+                        fsP = '5.5pt';
+                        fsY = '5.1pt';
+                        lineN = '1.03';
+                    } else {
+                        fsN = '5.8pt';
+                        fsT = '5.3pt';
+                        fsS = '5.7pt';
+                        fsP = '6.1pt';
+                        fsY = '5.7pt';
+                        lineN = '1.05';
+                    }
                     var nameClamp = (config.nameLineClamp != null) ? config.nameLineClamp : 2;
                     var nameWidthRule = '';
                     if (config.nameMaxWidth != null && String(config.nameMaxWidth).length) {
