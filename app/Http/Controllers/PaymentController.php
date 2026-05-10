@@ -997,7 +997,7 @@ class PaymentController extends Controller
                 $groups = [];
             }
 
-            // Match resources/js/bulk-payments/sales.js — return-only submit (no cash rows).
+            // Match resources/js/bulk-payments/sales.js — return-only and/or advance-only (no cash rows).
             if (count($groups) < 1) {
                 $selectedReturns = $request->input('selected_returns', []);
                 if (! is_array($selectedReturns)) {
@@ -1022,10 +1022,23 @@ class PaymentController extends Controller
                         }
                     }
                 }
-                if (! $returnOnlyOk) {
+
+                $advanceOnlyOk = false;
+                if ($request->boolean('advance_credit_selected')) {
+                    $advAlloc = $request->input('bill_advance_credit_allocations', []);
+                    if (! is_array($advAlloc)) {
+                        $advAlloc = [];
+                    }
+                    $advSum = (float) array_sum(array_map('floatval', $advAlloc));
+                    if ($advSum > 0.01) {
+                        $advanceOnlyOk = true;
+                    }
+                }
+
+                if (! $returnOnlyOk && ! $advanceOnlyOk) {
                     $validator->errors()->add(
                         'payment_groups',
-                        'Add at least one payment method with bill allocations, or submit return credit (apply to sales with bill allocations / cash refund) only.'
+                        'Add at least one payment method with bill allocations, submit return credit (apply to sales with bill allocations / cash refund) only, or apply advance credit to invoices only.'
                     );
                 }
                 return;

@@ -1571,7 +1571,20 @@ document.addEventListener('DOMContentLoaded', () => {
       return hasApply || hasRefund;
     };
 
-    if (!hasValidPayments && !canSubmitReturnOnlyWithoutCash()) {
+    /** Same idea as return-only: advance allocated bill-wise, no cash/card row required. */
+    const canSubmitAdvanceOnlyWithoutCash = () => {
+      if (paymentGroups.length > 0) return false;
+      if (!$('#applyAdvanceCreditCheckbox').is(':checked')) return false;
+      let advSum = 0;
+      if (billAdvanceCreditAllocations && typeof billAdvanceCreditAllocations === 'object') {
+        Object.values(billAdvanceCreditAllocations).forEach((v) => {
+          advSum += parseFloat(v) || 0;
+        });
+      }
+      return advSum > MONEY_EPSILON;
+    };
+
+    if (!hasValidPayments && !canSubmitReturnOnlyWithoutCash() && !canSubmitAdvanceOnlyWithoutCash()) {
       const hasApplyOnly = selectedReturns && selectedReturns.some((r) => r.action === 'apply_to_sales');
       let allocSum = 0;
       if (billReturnAllocations && typeof billReturnAllocations === 'object') {
@@ -1593,9 +1606,26 @@ document.addEventListener('DOMContentLoaded', () => {
         return false;
       }
 
+      const advanceOnlySelected = $('#applyAdvanceCreditCheckbox').is(':checked');
+      let advanceAllocSum = 0;
+      if (billAdvanceCreditAllocations && typeof billAdvanceCreditAllocations === 'object') {
+        Object.values(billAdvanceCreditAllocations).forEach((v) => {
+          advanceAllocSum += parseFloat(v) || 0;
+        });
+      }
+      if (advanceOnlySelected && advanceAllocSum < MONEY_EPSILON) {
+        if (window.toastr)
+          window.toastr.warning(
+            'Allocation missing: use Allocate on each bill to apply advance credit, then submit.',
+            'Advance allocation required',
+            { timeOut: 5000 }
+          );
+        return false;
+      }
+
       if (window.toastr)
         window.toastr.error(
-          'Please add at least one payment method with bill allocations, or submit returns only (apply to sales with credit allocated / cash refund).'
+          'Please add at least one payment method with bill allocations, or submit returns only (apply to sales with credit allocated / cash refund), or apply advance credit to bills only.'
         );
       return false;
     }
@@ -1656,14 +1686,31 @@ document.addEventListener('DOMContentLoaded', () => {
           $('#receiptTotalAmount').text(total.toFixed(2));
 
           if (allocationOnly) {
+            const retPart = Object.values(billReturnAllocations || {}).reduce(
+              (s, v) => s + (parseFloat(v) || 0),
+              0
+            );
+            const advPart =
+              advanceCreditSelected
+                ? Object.values(billAdvanceCreditAllocations || {}).reduce(
+                    (s, v) => s + (parseFloat(v) || 0),
+                    0
+                  )
+                : 0;
             $('#receiptModalTitle').html('<i class="fas fa-exchange-alt"></i> Allocation Successful');
             $('#receiptModalIcon').attr('class', 'fas fa-balance-scale fa-3x text-success mb-3');
-            $('#receiptModalSubtitle').text('Return credit settlement completed');
+            if (advPart > MONEY_EPSILON && retPart < MONEY_EPSILON) {
+              $('#receiptModalSubtitle').text('Advance credit applied to invoice(s)');
+              $('#receiptModalFootnote').text(
+                'Customer advance balance was reduced and invoice due was updated. No new cash payment was recorded.'
+              );
+            } else {
+              $('#receiptModalSubtitle').text('Return / credit settlement completed');
+              $('#receiptModalFootnote').text(
+                'Credits were applied to the sale(s). Balances were updated; no cash collection was required for this submission.'
+              );
+            }
             $('#receiptAmountLabel').text('Cash collected:');
-            $('#receiptModalFootnote').text(
-              'No payment row was created: return credit was applied to the sale. ' +
-                'Sales and returns balances were updated; ledger for cash did not change.'
-            );
             $('#receiptReferenceWrap, #receiptCopyWrap').hide();
           } else {
             $('#receiptModalTitle').html('<i class="fas fa-check-circle"></i> Payment Successful');

@@ -94,7 +94,8 @@ class SaleQueryService
                     });
                 }
             })
-            ->orderByDesc('created_at')
+            ->orderBy('created_at')
+            ->orderBy('id')
             ->with('causer')
             ->get();
 
