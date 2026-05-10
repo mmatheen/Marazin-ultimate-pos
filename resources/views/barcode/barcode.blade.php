@@ -661,9 +661,9 @@
                 '40x25': { page: '40mm 25mm', margin: '1mm', width: '38mm', height: '23mm', gap: '0', svgW: '35mm', svgH: '4.5mm', wrap: false, perRow: false },
                 '40x20x2': { page: '88mm 17mm', margin: '0mm', rollLabelHeight: '17mm', width: '38mm', height: '100%', gap: '2mm', svgW: '38mm', svgH: '3.8mm', wrap: false, perRow: 2, colWidth: '40mm', rowFlexJustify: 'flex-start', rowAlignItems: 'stretch', bodyPadding: '0 1mm', labelInnerPadding: '1mm 0.55mm 1mm', cellJustify: 'center', pageBreakRows: true },
                 '38x25': { page: '38mm 25mm', margin: '1mm', width: '36mm', height: '23mm', gap: '0', svgW: '33mm', svgH: '4.5mm', wrap: false, perRow: false },
-                // 3 × 38 mm × 25 mm = 114 mm × 25 mm per row. Prefer this for current Zebra mm roll setup.
+                // 3 × 38 mm × 25 mm = 114 mm × 25 mm per row. Smaller SVG + rollTextTight → less overflow on short labels.
                 // If roll has gutters: e.g. gap 2 mm → page '118mm 25mm', gap: '2mm'.
-                '38x25x3': { page: '114mm 25mm', margin: '0mm', rollLabelHeight: '25mm', width: '38mm', height: '100%', gap: '0mm', svgW: '34mm', svgH: '7mm', wrap: false, perRow: 3, colWidth: '38mm', rowFlexJustify: 'flex-start', rowAlignItems: 'stretch', bodyPadding: '0', labelInnerPadding: '0.4mm 0.6mm 0.4mm', cellJustify: 'center', pageBreakRows: true },
+                '38x25x3': { page: '114mm 25mm', margin: '0mm', rollLabelHeight: '25mm', width: '38mm', height: '100%', gap: '0mm', svgW: '26mm', svgH: '3.6mm', wrap: false, perRow: 3, colWidth: '38mm', rowFlexJustify: 'flex-start', rowAlignItems: 'stretch', bodyPadding: '0', labelInnerPadding: '0.15mm 0.35mm 0.15mm', cellJustify: 'center', pageBreakRows: true, rollTextTight: true },
                 // Legacy: inch-based 3-up (~35 mm cell); keep for older installs / saved presets that still pass value "34x25x3".
                 '34x25x3': { page: '4.634in auto', margin: '0', width: '1.378in', height: '0.984in', gap: '0.1in', svgW: '1.2in', svgH: '0.2in', wrap: false, perRow: 3, rowFlexJustify: 'space-between' }
 
@@ -850,18 +850,26 @@
                 if (typeof config.perRow === 'number' && config.perRow > 1 && pageBox && config.pageBreakRows) {
                     var rollPad = config.labelInnerPadding != null ? config.labelInnerPadding : '1mm 0.55mm 1mm';
                     css += '.r .b{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;height:' + rollFaceH + '!important;min-height:' + rollFaceH + '!important;max-height:' + rollFaceH + '!important;padding:' + rollPad + '!important;}';
-                    css += '.r .barcode-roll-stack{display:flex!important;flex-direction:column!important;align-items:center!important;width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;gap:0.08mm!important;}';
+                    var stackGap = config.rollTextTight === true ? '0.02mm' : '0.08mm';
+                    css += '.r .barcode-roll-stack{display:flex!important;flex-direction:column!important;align-items:center!important;width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;gap:' + stackGap + '!important;}';
                     css += '.r .barcode-roll-stack>*{margin-top:0!important;margin-bottom:0!important;padding-top:0!important;padding-bottom:0!important;}';
                     if (config.colWidth) {
                         css += '.r>.b:only-child{margin-inline-start:0!important;margin-inline-end:auto!important;flex:0 0 ' + config.colWidth + '!important;width:' + config.colWidth + '!important;max-width:' + config.colWidth + '!important;}';
                     }
-                    css += '.r .n{font-size:5.8pt!important;line-height:1.05!important;display:-webkit-box!important;-webkit-box-orient:vertical!important;-webkit-line-clamp:2!important;overflow:hidden!important;word-break:break-word!important;width:100%!important}';
-                    css += '.r .t{font-size:5.3pt!important;line-height:1.04!important}';
-                    css += '.r .c{display:flex!important;justify-content:center!important;align-items:center!important;margin:0!important;width:100%!important}';
-                    css += '.r .c svg{max-width:' + config.svgW + '!important;height:' + config.svgH + '!important;max-height:' + config.svgH + '!important;width:auto!important}';
-                    css += '.r .s{font-size:5.7pt!important;line-height:1.04!important}';
-                    css += '.r .p{font-size:6.1pt!important;line-height:1.04!important}';
-                    css += '.r .y{font-size:5.7pt!important;line-height:1.05!important}';
+                    var rtTight = config.rollTextTight === true;
+                    var fsN = rtTight ? '5.1pt' : '5.8pt';
+                    var fsT = rtTight ? '4.9pt' : '5.3pt';
+                    var fsS = rtTight ? '5.1pt' : '5.7pt';
+                    var fsP = rtTight ? '5.5pt' : '6.1pt';
+                    var fsY = rtTight ? '5.1pt' : '5.7pt';
+                    var lineN = rtTight ? '1.03' : '1.05';
+                    css += '.r .n{font-size:' + fsN + '!important;line-height:' + lineN + '!important;display:-webkit-box!important;-webkit-box-orient:vertical!important;-webkit-line-clamp:2!important;overflow:hidden!important;word-break:break-word!important;width:100%!important;margin-bottom:0.15mm!important}';
+                    css += '.r .t{font-size:' + fsT + '!important;line-height:1.03!important;margin-bottom:0.1mm!important}';
+                    css += '.r .c{display:flex!important;justify-content:center!important;align-items:center!important;margin:0!important;width:100%!important;flex-shrink:0!important}';
+                    css += '.r .c svg{max-width:' + config.svgW + '!important;height:' + config.svgH + '!important;max-height:' + config.svgH + '!important;width:auto!important;flex-shrink:0!important}';
+                    css += '.r .s{font-size:' + fsS + '!important;line-height:1.03!important;margin-top:0.1mm!important}';
+                    css += '.r .p{font-size:' + fsP + '!important;line-height:1.03!important;margin-top:0.1mm!important}';
+                    css += '.r .y{font-size:' + fsY + '!important;line-height:1.03!important;margin-top:0.1mm!important}';
                 }
 
                 // Write content to iframe (inline html dimensions help Chrome shrink preview vs Letter/A4)
