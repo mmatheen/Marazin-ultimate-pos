@@ -934,7 +934,9 @@ document.addEventListener('DOMContentLoaded', () => {
       success: function (response) {
         if (response.returns && response.returns.length > 0) {
           window.availableCustomerReturns = response.returns.filter((ret) => {
-            return parseFloat(ret.total_due) > 0 && ret.payment_status !== 'Paid';
+            const due = parseFloat(ret.total_due) || 0;
+            const ps = String(ret.payment_status || '').toLowerCase();
+            return due > 0.005 && ps !== 'paid';
           });
 
           if (window.availableCustomerReturns.length > 0) {

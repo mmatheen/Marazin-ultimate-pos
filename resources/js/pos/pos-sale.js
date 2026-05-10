@@ -1450,6 +1450,25 @@ function resetForm() {
     clearShippingData();
 
     if (PosCart.updateTotals) PosCart.updateTotals();
+
+    const cashBtn = document.getElementById('cashButton');
+    if (cashBtn && typeof window.enableButton === 'function') {
+        window.enableButton(cashBtn);
+    }
+}
+
+/** SweetAlert v1: overlay visible in computed style (class-only checks can block Enter after close). */
+function posSweetAlertV1OverlayVisible() {
+    var overlay = document.querySelector('.sweet-overlay');
+    if (!overlay) {
+        return false;
+    }
+    var cs = window.getComputedStyle(overlay);
+    if (cs.display === 'none' || cs.visibility === 'hidden') {
+        return false;
+    }
+    var op = parseFloat(cs.opacity);
+    return !isNaN(op) && op > 0.04;
 }
 
 // ================================================================
@@ -1470,9 +1489,9 @@ $(document).ready(function() {
     // ==================== CASH BUTTON ====================
     $('#cashButton').on('click', function() {
         const button = this;
-        $(button).html('<i class="fa fa-spinner fa-spin"></i> Processing...').prop('disabled', true);
+        window.preventDoubleClick(button, function() {
+            $(button).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
 
-        window.preventDoubleClick(button, () => {
             const bypassPaymentMethodCheck = window._paymentMethodChangeConfirmed === 'cash';
             if (bypassPaymentMethodCheck) {
                 window._paymentMethodChangeConfirmed = null;
@@ -1987,7 +2006,7 @@ $(document).ready(function() {
     });
 
     // ==================== AMOUNT GIVEN ====================
-    $('#amount-given').on('input', function() {
+    $(document).on('input', '#amount-given', function() {
         let amountGiven = parseFormattedAmount($(this).val().trim());
 
         if (isNaN(amountGiven) || amountGiven < 0) {
@@ -2011,18 +2030,18 @@ $(document).ready(function() {
         }
     });
 
-    $('#amount-given').on('keyup', function(event) {
+    $(document).on('keydown', '#amount-given', function(event) {
         if (event.key !== 'Enter') {
             return;
         }
-        // SweetAlert v1: modal has .showSweetAlert while open — avoid stacking Enter while dialog is up
-        const swalModal = document.querySelector('.sweet-alert');
-        if (swalModal && swalModal.classList.contains('showSweetAlert')) {
+        if (posSweetAlertV1OverlayVisible()) {
             return;
         }
+        event.preventDefault();
+        event.stopPropagation();
 
         const totalAmount = parseFormattedAmount($('#final-total-amount').text().trim());
-        const amountGiven = parseFormattedAmount($('#amount-given').val().trim());
+        const amountGiven = parseFormattedAmount($(this).val().trim());
 
         if (isNaN(amountGiven) || amountGiven <= 0) {
             toastr.error('Please enter a valid amount given by the customer.');

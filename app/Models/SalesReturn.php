@@ -96,7 +96,36 @@ class SalesReturn extends Model
 
             $model->payment_status = app(ReturnPaymentStatusService::class)
                 ->derive((float) $model->return_total, (float) $model->total_paid);
+
+            // Plain total_due column (no DB GENERATED): must be set or MySQL strict mode errors (1364).
+            // Skip when the column is generated — MySQL rejects explicit values on insert/update.
+            if (! static::totalDueIsDatabaseGenerated()) {
+                $model->total_due = round(
+                    (float) $model->return_total - (float) $model->total_paid,
+                    2
+                );
+            }
         });
+    }
+
+    /**
+     * Whether total_due is a MySQL/MariaDB generated (stored/virtual) column.
+     */
+    public static function totalDueIsDatabaseGenerated(): bool
+    {
+        $connection = (new static)->getConnection();
+        if (! in_array($connection->getDriverName(), ['mysql', 'mariadb'], true)) {
+            return false;
+        }
+
+        $db = $connection->getDatabaseName();
+        $table = $connection->getTablePrefix().(new static)->getTable();
+        $row = $connection->selectOne(
+            "SELECT EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'total_due'",
+            [$db, $table]
+        );
+
+        return $row && str_contains(strtolower((string) ($row->EXTRA ?? '')), 'generated');
     }
 
     /**

@@ -116,7 +116,15 @@ class Customer extends Model
      */
     public function getFullNameAttribute()
     {
-        return trim("{$this->first_name} {$this->last_name}");
+        $first = trim((string) ($this->first_name ?? ''));
+        $last = $this->last_name;
+        if ($last === null || strcasecmp((string) $last, 'null') === 0) {
+            $last = '';
+        } else {
+            $last = trim((string) $last);
+        }
+
+        return trim($first.' '.$last) ?: $first;
     }
 
     /**

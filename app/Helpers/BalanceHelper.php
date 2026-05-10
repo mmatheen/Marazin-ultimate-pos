@@ -2,6 +2,7 @@
 
 namespace App\Helpers;
 
+use App\Models\Ledger;
 use App\Services\Ledger\CustomerAdvanceBalanceService;
 use Illuminate\Support\Facades\DB;
 
@@ -160,6 +161,39 @@ class BalanceHelper
     public static function getCustomerDue($customerId)
     {
         return max(0.0, self::getCustomerBalance($customerId));
+    }
+
+    /**
+     * Remaining customer opening balance still collectible (ledger: opening_balance − opening_balance_payment).
+     * Mirrors PaymentController::calculateCurrentOpeningBalanceFromLedger for customers.
+     */
+    public static function getCustomerOpeningBalanceRemaining(int $customerId): float
+    {
+        if ($customerId <= 1) {
+            return 0.0;
+        }
+
+        $latestOpeningBalance = Ledger::query()
+            ->where('contact_id', $customerId)
+            ->where('contact_type', 'customer')
+            ->where('transaction_type', 'opening_balance')
+            ->where('status', 'active')
+            ->orderByDesc('id')
+            ->first();
+
+        $currentOpeningBalance = 0.0;
+        if ($latestOpeningBalance) {
+            $currentOpeningBalance = (float) $latestOpeningBalance->debit - (float) $latestOpeningBalance->credit;
+        }
+
+        $totalPayments = (float) Ledger::query()
+            ->where('contact_id', $customerId)
+            ->where('contact_type', 'customer')
+            ->where('transaction_type', 'opening_balance_payment')
+            ->where('status', 'active')
+            ->sum('debit');
+
+        return max(0.0, $currentOpeningBalance - $totalPayments);
     }
 
     /**

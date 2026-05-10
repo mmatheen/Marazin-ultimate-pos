@@ -118,12 +118,13 @@ class FlexibleBulkSalePaymentService
 
             if ($request->has('selected_returns') && is_array($request->selected_returns)) {
                 foreach ($request->selected_returns as $returnData) {
-                    $salesReturn = SalesReturn::findOrFail($returnData['return_id']);
+                    $salesReturn = SalesReturn::with('sale:id,customer_id')->findOrFail($returnData['return_id']);
 
-                    if ($salesReturn->customer_id != $request->customer_id) {
+                    $returnCustomerId = (int) ($salesReturn->customer_id ?: $salesReturn->sale?->customer_id);
+                    if ($returnCustomerId !== (int) $request->customer_id) {
                         throw new \Exception("Return {$salesReturn->invoice_number} does not belong to this customer");
                     }
-                    if ($salesReturn->total_due <= 0 || $salesReturn->payment_status === 'Paid') {
+                    if ((float) $salesReturn->total_due <= 0.01 || strcasecmp((string) $salesReturn->payment_status, 'Paid') === 0) {
                         throw new \Exception("Return {$salesReturn->invoice_number} has already been fully applied or paid. Remaining due: Rs.{$salesReturn->total_due}");
                     }
                     if ($returnData['amount'] > $salesReturn->total_due) {

@@ -20,6 +20,9 @@ use App\Helpers\BalanceHelper;
 
 class UnifiedLedgerService
 {
+    /** @var list<string> */
+    private const SALE_RETURN_LEDGER_TYPES = ['sale_return', 'sale_return_with_bill', 'sale_return_without_bill'];
+
     private function balanceQueries(): LedgerBalanceQueryService
     {
         return app(LedgerBalanceQueryService::class);
@@ -606,10 +609,67 @@ class UnifiedLedgerService
     }
 
     /**
+     * Customer for ledger: direct link or parent sale (fixes null/wrong customer_id on returns).
+     */
+    public function resolveSaleReturnCustomerId($saleReturn): int
+    {
+        if (! $saleReturn instanceof SalesReturn) {
+            return 0;
+        }
+        $saleReturn->loadMissing('sale:id,customer_id');
+
+        return (int) ($saleReturn->customer_id ?: $saleReturn->sale?->customer_id);
+    }
+
+    /**
+     * Ledger label: linked sale / with_bill stock → with bill; otherwise walk-in without bill.
+     */
+    private function saleReturnLedgerTransactionType(SalesReturn $saleReturn): string
+    {
+        $withBill = $saleReturn->sale_id !== null
+            || strtolower((string) ($saleReturn->stock_type ?? '')) === 'with_bill';
+
+        return $withBill ? 'sale_return_with_bill' : 'sale_return_without_bill';
+    }
+
+    private function buildSaleReturnLedgerNotes(SalesReturn $saleReturn, string $referenceNo): string
+    {
+        $saleReturn->loadMissing('sale:id,invoice_no');
+        $ledgerType = $this->saleReturnLedgerTransactionType($saleReturn);
+        $isWithBill = $ledgerType === 'sale_return_with_bill';
+        $segments = ['Sale return ' . $referenceNo, $isWithBill ? 'With bill' : 'Without bill'];
+        if ($isWithBill) {
+            $inv = $saleReturn->sale?->invoice_no;
+            if ($inv) {
+                $segments[] = 'Against invoice ' . $inv;
+            }
+        } else {
+            $segments[] = 'No parent sales invoice';
+        }
+
+        return implode(' · ', $segments);
+    }
+
+    /**
      * Record sale return
      */
     public function recordSaleReturn($saleReturn, $createdBy = null)
     {
+        $contactId = $this->resolveSaleReturnCustomerId($saleReturn);
+        if ($contactId <= 0) {
+            Log::error('recordSaleReturn: cannot post ledger without customer', [
+                'sales_return_id' => $saleReturn->id ?? null,
+                'sale_id'         => $saleReturn->sale_id ?? null,
+            ]);
+            throw new \RuntimeException(
+                'Sale return cannot be posted to the ledger: missing customer. Ensure the return is linked to a customer or a sale with a customer.'
+            );
+        }
+
+        if (! $saleReturn->customer_id) {
+            $saleReturn->forceFill(['customer_id' => $contactId])->saveQuietly();
+        }
+
         // Generate a proper reference number for the sale return
         $referenceNo = $saleReturn->invoice_number ?: 'SR-' . $saleReturn->id;
 
@@ -618,14 +678,17 @@ class UnifiedLedgerService
             Carbon::parse($saleReturn->created_at)->setTimezone('Asia/Colombo') :
             $this->nowColombo();
 
+        $ledgerTxType = $this->saleReturnLedgerTransactionType($saleReturn);
+        $notes = $this->buildSaleReturnLedgerNotes($saleReturn, $referenceNo);
+
         return $this->postLedgerEntry(
-            (int) $saleReturn->customer_id,
+            $contactId,
             'customer',
             $transactionDate,
             $referenceNo,
-            'sale_return',
+            $ledgerTxType,
             $saleReturn->return_total,
-            "Sale return #{$referenceNo}",
+            $notes,
             $createdBy
         );
     }
@@ -1407,7 +1470,7 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
             'discount_given',         // Reduces receivable like a payment
         ])->sum('credit');
 
-        $totalReturns = $activeTransactions->whereIn('transaction_type', ['sale_return'])->sum('credit');
+        $totalReturns = $activeTransactions->whereIn('transaction_type', self::SALE_RETURN_LEDGER_TYPES)->sum('credit');
 
         // Get current balance using BalanceHelper (SINGLE SOURCE OF TRUTH)
         $currentBalance = BalanceHelper::getCustomerBalance($customerId);
@@ -2392,14 +2455,18 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
     public function updateSaleReturn($saleReturn, $oldReferenceNo = null)
     {
         return DB::transaction(function () use ($saleReturn, $oldReferenceNo) {
-            $referenceNo = $oldReferenceNo ?: ('SR-' . $saleReturn->id);
+            // Must match reference used in recordSaleReturn (invoice_number, e.g. SR-0156)
+            $referenceNo = $oldReferenceNo
+                ?: ($saleReturn->invoice_number ?: ('SR-' . $saleReturn->id));
+
+            $contactId = $this->resolveSaleReturnCustomerId($saleReturn);
 
             // ✅ FIXED: Use proper reversal accounting instead of hard delete
             // Step 1: Mark original return entry as reversed
             $originalEntry = Ledger::where('reference_no', $referenceNo)
-                ->where('transaction_type', 'sale_return')
-                ->where('contact_id', $saleReturn->customer_id)
+                ->whereIn('transaction_type', self::SALE_RETURN_LEDGER_TYPES)
                 ->where('status', 'active')
+                ->when($contactId > 0, fn ($q) => $q->where('contact_id', $contactId))
                 ->first();
 
             if ($originalEntry) {
@@ -2407,11 +2474,11 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
 
                 // Step 2: Create REVERSAL entry to cancel old return
                 $this->postLedgerEntry(
-                    (int) $saleReturn->customer_id,
+                    (int) $originalEntry->contact_id,
                     'customer',
                     $this->nowColombo(),
                     $this->withTimedSuffix($referenceNo, 'REV'),
-                    'sale_return',
+                    $originalEntry->transaction_type,
                     -$originalEntry->credit, // Reverse the credit
                     'REVERSAL: Sale Return Update - Cancel previous amount Rs.' . number_format($originalEntry->credit, 2),
                     null,
@@ -2756,7 +2823,9 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
     public function deleteReturnLedger($return, $type = 'sale_return')
     {
         return DB::transaction(function () use ($return, $type) {
-            $referenceNo = $type === 'sale_return' ? 'SR-' . $return->id : 'PR-' . $return->id;
+            $referenceNo = $type === 'sale_return'
+                ? ($return->invoice_number ?? 'SR-' . $return->id)
+                : 'PR-' . $return->id;
             $userId = $type === 'sale_return' ? $return->customer_id : $return->supplier_id;
             $contactType = $type === 'sale_return' ? 'customer' : 'supplier';
 
@@ -2764,7 +2833,11 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
             // Step 1: Find and mark original entries as reversed
             $originalEntries = Ledger::where('reference_no', $referenceNo)
                 ->where('contact_id', $userId)
-                ->where('transaction_type', $type)
+                ->when(
+                    $type === 'sale_return',
+                    fn ($q) => $q->whereIn('transaction_type', self::SALE_RETURN_LEDGER_TYPES),
+                    fn ($q) => $q->where('transaction_type', $type)
+                )
                 ->where('status', 'active')
                 ->get();
 
@@ -2786,7 +2859,7 @@ public function editSale($sale, $oldFinalTotal, $editReason = null)
                         (string) $contactType,
                         $this->nowColombo(),
                         $this->withTimedSuffix($referenceNo, 'DEL-REV'),
-                        'sale_return',
+                        $entry->transaction_type,
                         $entry->credit, // Positive creates DEBIT to reverse CREDIT
                         'REVERSAL: Sale Return Deletion - Cancel amount Rs.' . number_format($entry->credit, 2) . ' [Cancels Entry ID: ' . $entry->id . ']',
                         null,

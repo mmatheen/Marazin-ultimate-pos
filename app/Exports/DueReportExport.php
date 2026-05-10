@@ -56,31 +56,39 @@ class DueReportExport implements FromCollection, WithHeadings, WithMapping, With
 
     public function map($row): array
     {
+        $g = function ($key, $default = null) use ($row) {
+            if (is_array($row)) {
+                return $row[$key] ?? $default;
+            }
+
+            return $row->{$key} ?? $default;
+        };
+
         if ($this->reportType === 'customer') {
             return [
-                $row->invoice_no ?? 'N/A',
-                $row->customer_name ?? 'N/A',
-                $row->sales_date ?? 'N/A',
-                number_format($row->final_total ?? 0, 2),
-                number_format($row->total_paid ?? 0, 2),
-                number_format($row->total_due ?? 0, 2),
-                ucfirst($row->payment_status ?? 'N/A'),
-                $row->due_days ?? 0,
-                ucfirst($row->due_status ?? 'N/A'),
-            ];
-        } else {
-            return [
-                $row->reference_no ?? 'N/A',
-                $row->supplier_name ?? 'N/A',
-                $row->purchase_date ?? 'N/A',
-                number_format($row->final_total ?? 0, 2),
-                number_format($row->total_paid ?? 0, 2),
-                number_format($row->total_due ?? 0, 2),
-                ucfirst($row->payment_status ?? 'N/A'),
-                $row->due_days ?? 0,
-                ucfirst($row->due_status ?? 'N/A'),
+                $g('invoice_no', 'N/A'),
+                $g('customer_name', 'N/A'),
+                $g('sales_date', 'N/A'),
+                number_format((float) $g('final_total', 0), 2),
+                number_format((float) $g('total_paid', 0), 2),
+                number_format((float) $g('total_due', 0), 2),
+                ucfirst((string) $g('payment_status', 'N/A')),
+                $g('due_days', 0),
+                ucfirst((string) $g('due_status', 'N/A')),
             ];
         }
+
+        return [
+            $g('reference_no', 'N/A'),
+            $g('supplier_name', 'N/A'),
+            $g('purchase_date', 'N/A'),
+            number_format((float) $g('final_total', 0), 2),
+            number_format((float) $g('total_paid', 0), 2),
+            number_format((float) $g('total_due', 0), 2),
+            ucfirst((string) $g('payment_status', 'N/A')),
+            $g('due_days', 0),
+            ucfirst((string) $g('due_status', 'N/A')),
+        ];
     }
 
     public function styles(Worksheet $sheet)

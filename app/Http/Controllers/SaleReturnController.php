@@ -244,8 +244,18 @@ class SaleReturnController extends Controller
             $salesReturn->save();
             $salesReturn->refresh();
 
-            // No manual total_due write here — the database-generated column updates from return_total and total_paid.
-            // The final payment-status recalculation still happens after payments are recorded.
+            // Ensure customer_id is set for with-bill returns (ledger, bulk payments, reports).
+            if ($salesReturn->sale_id && ! $salesReturn->customer_id) {
+                $salesReturn->loadMissing('sale:id,customer_id');
+                if ($salesReturn->sale?->customer_id) {
+                    $salesReturn->customer_id = $salesReturn->sale->customer_id;
+                    $salesReturn->save();
+                    $salesReturn->refresh();
+                }
+            }
+
+            // total_due is set on save by SalesReturn (return_total - total_paid), including when the DB
+            // column is not a generated column. Payment status still updates after payments are recorded.
 
             // Use unified ledger service to record or update the sale return
             if ($id) {
@@ -422,10 +432,25 @@ class SaleReturnController extends Controller
     public function getCustomerReturns($customerId)
     {
         try {
-            $returns = SalesReturn::where('customer_id', $customerId)
-                ->where(function($query) {
+            $customerId = (int) $customerId;
+            if ($customerId <= 0) {
+                return response()->json([
+                    'status' => 200,
+                    'returns' => [],
+                    'count' => 0,
+                ]);
+            }
+
+            // Include returns tied to this customer OR to a sale belonging to this customer
+            // (fixes rows where customer_id was null/wrong but parent invoice matches).
+            $returns = SalesReturn::query()
+                ->where(function ($q) use ($customerId) {
+                    $q->where('customer_id', $customerId)
+                        ->orWhereHas('sale', fn ($s) => $s->where('customer_id', $customerId));
+                })
+                ->where(function ($query) {
                     $query->where('payment_status', '!=', 'Paid')
-                          ->orWhere('total_due', '>', 0);
+                        ->orWhere('total_due', '>', 0);
                 })
                 ->with(['sale', 'payments'])
                 ->orderBy('return_date', 'desc')

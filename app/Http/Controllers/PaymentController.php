@@ -959,7 +959,8 @@ class PaymentController extends Controller
             'customer_id'                          => 'required|exists:customers,id',
             'payment_date'                         => 'required|date',
             'payment_type'                         => 'required|in:opening_balance,sale_dues,both,all',
-            'payment_groups'                       => 'required|array|min:1',
+            // Empty [] is valid for return-only settlement. `required|array` rejects [] in Laravel.
+            'payment_groups'                       => 'nullable|array',
             'payment_groups.*.method'              => 'required|in:cash,cheque,card,bank_transfer,discount,advance_credit',
             'payment_groups.*.bills'               => 'nullable|array',
             'payment_groups.*.bills.*.sale_id'     => 'nullable|exists:sales,id',
@@ -981,6 +982,8 @@ class PaymentController extends Controller
             'payment_groups.*.card_holder'         => 'nullable|string',
             'payment_groups.*.bank_account_number' => 'required_if:payment_groups.*.method,bank_transfer',
             'notes'                                => 'nullable|string',
+            'bill_return_allocations'              => 'nullable|array',
+            'bill_return_allocations.*'            => 'nullable|numeric|min:0',
         ]);
 
         $validator->after(function ($validator) use ($request) {
@@ -990,6 +993,44 @@ class PaymentController extends Controller
             }
 
             $groups = $request->input('payment_groups', []);
+            if (! is_array($groups)) {
+                $groups = [];
+            }
+
+            // Match resources/js/bulk-payments/sales.js — return-only submit (no cash rows).
+            if (count($groups) < 1) {
+                $selectedReturns = $request->input('selected_returns', []);
+                if (! is_array($selectedReturns)) {
+                    $selectedReturns = [];
+                }
+                $returnOnlyOk = false;
+                foreach ($selectedReturns as $r) {
+                    $action = (string) ($r['action'] ?? '');
+                    if ($action === 'cash_refund') {
+                        $returnOnlyOk = true;
+                        break;
+                    }
+                    if ($action === 'apply_to_sales') {
+                        $alloc = $request->input('bill_return_allocations', []);
+                        if (! is_array($alloc)) {
+                            $alloc = [];
+                        }
+                        $sum = (float) array_sum(array_map('floatval', $alloc));
+                        if ($sum > 0.01) {
+                            $returnOnlyOk = true;
+                            break;
+                        }
+                    }
+                }
+                if (! $returnOnlyOk) {
+                    $validator->errors()->add(
+                        'payment_groups',
+                        'Add at least one payment method with bill allocations, or submit return credit (apply to sales with bill allocations / cash refund) only.'
+                    );
+                }
+                return;
+            }
+
             foreach ($groups as $index => $group) {
                 $bills = collect($group['bills'] ?? [])
                     ->filter(function ($bill) {

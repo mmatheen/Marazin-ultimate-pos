@@ -2,6 +2,7 @@
 namespace App\Services\Report;
 
 use App\Models\Sale;
+use App\Models\SalesReturn;
 use App\Helpers\BalanceHelper;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -37,7 +38,7 @@ class DueReportService
         return response()->json(['data' => $data, 'summary' => $summary]);
     }
 
-    /** Customer due rows (ledger-based). */
+    /** Customer due rows: invoices, opening balance (ledger), returns without parent sale. */
     public function getCustomerData(Request $request): array
     {
         $query = Sale::with(['customer'])
@@ -48,14 +49,13 @@ class DueReportService
             ->where('status', 'final')
             ->where('transaction_type', 'invoice');
 
-        // Narrow to specific customer if filter applied
         if (filled($request->customer_id)) {
             $query->where('customer_id', $request->customer_id);
         }
 
         if (filled($request->city_id)) {
             $cityId = $request->city_id;
-            $query->whereHas('customer', fn($q) => $q->where('city_id', $cityId));
+            $query->whereHas('customer', fn ($q) => $q->where('city_id', $cityId));
         }
         if (filled($request->location_id)) {
             $query->where('location_id', $request->location_id);
@@ -65,7 +65,7 @@ class DueReportService
         }
 
         if (filled($request->date_range_filter)) {
-            $days  = (int) $request->date_range_filter;
+            $days = (int) $request->date_range_filter;
             $query->whereBetween('sales_date', [
                 Carbon::now()->subDays($days)->startOfDay(),
                 Carbon::now()->endOfDay(),
@@ -79,59 +79,173 @@ class DueReportService
             }
         }
 
-        // Sort by date oldest first (Jan → Dec), then group by customer
         $sales = $query->orderBy('sales_date', 'asc')->orderBy('customer_id', 'asc')->get();
-        if ($sales->isEmpty()) {
-            return [];
-        }
 
-        // Compute balances only for customers that already passed filters.
-        $customerBalances = [];
-        $customerIds = $sales->pluck('customer_id')->filter()->unique()->values();
-        foreach ($customerIds as $cid) {
-            $balance = (float) BalanceHelper::getCustomerBalance((int) $cid);
-            if ($balance > 0) {
-                $customerBalances[(int) $cid] = $balance;
-            }
-        }
-
-        $data  = [];
+        $data = [];
+        $customerIdsTouched = [];
 
         foreach ($sales as $sale) {
-            $customerId    = (int) $sale->customer_id;
-            $ledgerBalance = $customerBalances[$customerId] ?? 0.0;
-            if ($ledgerBalance <= 0) {
-                continue;
-            }
+            $customerId = (int) $sale->customer_id;
+            $ledgerBalance = (float) BalanceHelper::getCustomerBalance($customerId);
 
             $totalReturns = (float) ($sale->sales_return_total ?? 0);
-            $actualDue    = max(0, (float) $sale->total_due - $totalReturns);
+            $actualDue = max(0.0, (float) $sale->total_due);
 
-            if ($actualDue <= 0) {
+            if ($actualDue <= 0.01) {
                 continue;
             }
 
+            $customerIdsTouched[$customerId] = true;
             $salesDate = Carbon::parse($sale->sales_date);
-            $dueDays   = max(0, $salesDate->diffInDays(Carbon::now(), false));
+            $dueDays = max(0, $salesDate->diffInDays(Carbon::now(), false));
 
             $data[] = [
-                'id'              => $sale->id,
-                'customer_id'     => $customerId,
-                'invoice_no'      => $sale->invoice_no ?? 'N/A',
-                'customer_name'   => $sale->customer ? $sale->customer->full_name : 'N/A',
-                'sales_date'      => $salesDate->format('d-M-Y'),
-                'ledger_balance'  => $ledgerBalance,
-                'final_total'     => $sale->final_total,
-                'total_paid'      => $sale->total_paid,
-                'original_due'    => $sale->total_due,
-                'return_amount'   => $totalReturns,
-                'total_due'       => $actualDue,
-                'final_due'       => $actualDue,
-                'payment_status'  => $sale->payment_status,
-                'due_days'        => $dueDays,
-                'due_status'      => $this->getDueStatus($dueDays),
+                'id'               => $sale->id,
+                'row_kind'         => 'invoice',
+                'customer_id'      => $customerId,
+                'invoice_no'       => $sale->invoice_no ?? 'N/A',
+                'customer_name'    => $sale->customer ? $sale->customer->full_name : 'N/A',
+                'sales_date'       => $salesDate->format('d-M-Y'),
+                'ledger_balance'   => $ledgerBalance,
+                'final_total'      => $sale->final_total,
+                'total_paid'       => $sale->total_paid,
+                'original_due'     => $sale->total_due,
+                'return_amount'    => $totalReturns,
+                'total_due'        => $actualDue,
+                'final_due'        => $actualDue,
+                'group_footer_due' => $actualDue,
+                'payment_status'   => $sale->payment_status,
+                'due_days'         => $dueDays,
+                'due_status'       => $this->getDueStatus($dueDays),
+                '_sort_date'       => $salesDate->format('Y-m-d'),
+                '_row_order'       => 1,
             ];
         }
+
+        // Returns without bill (no parent sale): refund still owed — show as separate rows.
+        $returnsNoBillQuery = SalesReturn::query()
+            ->with('customer')
+            ->whereNull('sale_id')
+            ->where('total_due', '>', 0.01)
+            ->whereNotNull('customer_id');
+
+        if (filled($request->customer_id)) {
+            $returnsNoBillQuery->where('customer_id', $request->customer_id);
+        }
+        if (filled($request->city_id)) {
+            $returnsNoBillQuery->whereHas('customer', fn ($q) => $q->where('city_id', $request->city_id));
+        }
+        if (filled($request->location_id)) {
+            $returnsNoBillQuery->where('location_id', $request->location_id);
+        }
+        if (filled($request->user_id)) {
+            $returnsNoBillQuery->where('user_id', $request->user_id);
+        }
+        if (filled($request->date_range_filter)) {
+            $days = (int) $request->date_range_filter;
+            $returnsNoBillQuery->whereBetween('return_date', [
+                Carbon::now()->subDays($days)->startOfDay(),
+                Carbon::now()->endOfDay(),
+            ]);
+        } else {
+            if (filled($request->start_date)) {
+                $returnsNoBillQuery->whereDate('return_date', '>=', $request->start_date);
+            }
+            if (filled($request->end_date)) {
+                $returnsNoBillQuery->whereDate('return_date', '<=', $request->end_date);
+            }
+        }
+
+        foreach ($returnsNoBillQuery->orderBy('return_date', 'asc')->get() as $ret) {
+            $customerId = (int) $ret->customer_id;
+            if ($customerId <= 1) {
+                continue;
+            }
+            $customerIdsTouched[$customerId] = true;
+            $retDate = Carbon::parse($ret->return_date);
+            $dueDays = max(0, $retDate->diffInDays(Carbon::now(), false));
+            $refundDue = max(0.0, (float) $ret->total_due);
+
+            $data[] = [
+                'id'               => 'ret_nb_'.$ret->id,
+                'row_kind'         => 'return_no_bill',
+                'customer_id'      => $customerId,
+                'invoice_no'       => ($ret->invoice_number ?? 'SR').' · No invoice',
+                'customer_name'    => $ret->customer ? $ret->customer->full_name : 'N/A',
+                'sales_date'       => $retDate->format('d-M-Y'),
+                'ledger_balance'   => (float) BalanceHelper::getCustomerBalance($customerId),
+                'final_total'      => (float) $ret->return_total,
+                'total_paid'       => (float) $ret->total_paid,
+                'original_due'     => $refundDue,
+                'return_amount'    => 0.0,
+                'total_due'        => $refundDue,
+                'final_due'        => $refundDue,
+                'group_footer_due' => 0.0,
+                'payment_status'   => 'refund_due',
+                'due_days'         => $dueDays,
+                'due_status'       => $this->getDueStatus($dueDays),
+                '_sort_date'       => $retDate->format('Y-m-d'),
+                '_row_order'       => 2,
+            ];
+        }
+
+        // Opening balance still owed (ledger) — one row per customer in this result set (or filtered customer).
+        $customersForOb = array_keys($customerIdsTouched);
+        if (filled($request->customer_id)) {
+            $customersForOb = array_values(array_unique(array_merge($customersForOb, [(int) $request->customer_id])));
+        }
+        $obAdded = [];
+        foreach ($customersForOb as $cid) {
+            if ($cid <= 1 || isset($obAdded[$cid])) {
+                continue;
+            }
+            $obRem = BalanceHelper::getCustomerOpeningBalanceRemaining((int) $cid);
+            if ($obRem <= 0.01) {
+                continue;
+            }
+            $obAdded[$cid] = true;
+            $customer = \App\Models\Customer::find($cid);
+            $data[] = [
+                'id'               => 'ob_'.$cid,
+                'row_kind'         => 'opening_balance',
+                'customer_id'      => $cid,
+                'invoice_no'       => 'Opening balance',
+                'customer_name'    => $customer ? $customer->full_name : 'N/A',
+                'sales_date'       => '—',
+                'ledger_balance'   => (float) BalanceHelper::getCustomerBalance($cid),
+                'final_total'      => $obRem,
+                'total_paid'       => 0.0,
+                'original_due'     => $obRem,
+                'return_amount'    => 0.0,
+                'total_due'        => $obRem,
+                'final_due'        => $obRem,
+                'group_footer_due' => $obRem,
+                'payment_status'   => 'opening_balance_due',
+                'due_days'         => 0,
+                'due_status'       => 'recent',
+                '_sort_date'       => '0000-01-01',
+                '_row_order'       => 0,
+            ];
+        }
+
+        usort($data, function ($a, $b) {
+            $name = strcmp((string) ($a['customer_name'] ?? ''), (string) ($b['customer_name'] ?? ''));
+            if ($name !== 0) {
+                return $name;
+            }
+            $oa = (int) ($a['_row_order'] ?? 99);
+            $ob = (int) ($b['_row_order'] ?? 99);
+            if ($oa !== $ob) {
+                return $oa <=> $ob;
+            }
+
+            return strcmp((string) ($a['_sort_date'] ?? ''), (string) ($b['_sort_date'] ?? ''));
+        });
+
+        foreach ($data as &$row) {
+            unset($row['_sort_date'], $row['_row_order']);
+        }
+        unset($row);
 
         return $data;
     }
@@ -251,8 +365,9 @@ class DueReportService
         $ledgerByParty = [];
 
         foreach ($data as $row) {
-            $totalDue     += $row['total_due'];
-            $maxSingleDue  = max($maxSingleDue, $row['final_due'] ?? 0);
+            $lineAr = (float) ($row['group_footer_due'] ?? $row['total_due'] ?? 0);
+            $totalDue    += $lineAr;
+            $maxSingleDue = max($maxSingleDue, $lineAr);
 
             if ($reportType === 'customer') {
                 if (!empty($row['customer_id'])) {

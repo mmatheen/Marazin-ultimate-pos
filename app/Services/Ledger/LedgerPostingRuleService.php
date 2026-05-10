@@ -292,6 +292,8 @@ class LedgerPostingRuleService
                         case 'sale_payment':
                         case 'purchase_payment':
                         case 'sale_return':
+                        case 'sale_return_with_bill':
+                        case 'sale_return_without_bill':
                             if ($data['contact_type'] === 'customer') {
                                 if ($data['amount'] > 0) {
                                     $credit = $data['amount'];

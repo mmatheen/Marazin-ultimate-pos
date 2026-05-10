@@ -446,7 +446,7 @@
                     <div class="d-flex align-items-center">
                         <i class="fas fa-info-circle" style="color: #6c757d; font-size: 12px; margin-right: 8px;"></i>
                         <span style="color: #495057; font-size: 11px;">
-                            <strong>Total Due:</strong> Ledger balance • <strong>Bills Due:</strong> Individual bills sum
+                            <strong>Total Due:</strong> Ledger balance • <strong>Bills Due (footer):</strong> Sum of invoice + opening-balance lines (refund rows excluded from that subtotal)
                         </span>
                     </div>
                 </div>
@@ -690,7 +690,7 @@
                         while (j < rows.length && !$(rows[j]).hasClass('dtrg-group')) {
                             const rowData = api.row(rows[j]).data();
                             if (rowData) {
-                                sum += toNumber(rowData.total_due);
+                                sum += toNumber(rowData.group_footer_due != null ? rowData.group_footer_due : rowData.total_due);
                             }
                             j++;
                         }
@@ -775,7 +775,7 @@
                             let totalDueBills = 0;
                             rows.every(function() {
                                 let data = this.data();
-                                totalDueBills += toNumber(data.total_due);
+                                totalDueBills += toNumber(data.group_footer_due != null ? data.group_footer_due : data.total_due);
                             });
 
                             return $('<tr/>')
@@ -858,7 +858,11 @@
                         {
                             "data": "total_due",
                             "className": "text-end",
-                            "render": function(data) {
+                            "render": function(data, type, row) {
+                                const ps = String(row.payment_status || '').toLowerCase();
+                                if (ps === 'refund_due') {
+                                    return '<span style="color: #0d6efd; border-left: 3px solid #0d6efd; padding-left: 8px; display: inline-block;" title="Refund owed to customer"><strong>Rs. ' + formatAmount(data) + '</strong></span>';
+                                }
                                 return '<span style="color: #dc3545; border-left: 3px solid #dc3545; padding-left: 8px; display: inline-block;"><strong>Rs. ' + formatAmount(data) + '</strong></span>';
                             }
                         },
@@ -866,8 +870,13 @@
                             "data": "payment_status",
                             "className": "text-center",
                             "render": function(data) {
-                                let badgeClass = data === 'paid' ? 'bg-success' : (data === 'partial' ? 'bg-warning text-dark' : 'bg-danger');
-                                return '<span class="badge ' + badgeClass + '">' + data.toUpperCase() + '</span>';
+                                const s = String(data || '').toLowerCase();
+                                let badgeClass = 'bg-danger';
+                                if (s === 'paid') badgeClass = 'bg-success';
+                                else if (s === 'partial') badgeClass = 'bg-warning text-dark';
+                                else if (s === 'refund_due') badgeClass = 'bg-info text-dark';
+                                else if (s === 'opening_balance_due') badgeClass = 'bg-secondary';
+                                return '<span class="badge ' + badgeClass + '">' + String(data || 'N/A').replace(/_/g, ' ').toUpperCase() + '</span>';
                             }
                         },
                         {
@@ -1456,8 +1465,11 @@
                 const refNo = isCustomer ? rowData.invoice_no : rowData.reference_no;
                 const partyName = isCustomer ? rowData.customer_name : rowData.supplier_name;
                 const transDate = isCustomer ? rowData.sales_date : rowData.purchase_date;
-
-                $('#detailDocType').text(isCustomer ? 'Sale' : 'Purchase');
+                const rk = String(rowData.row_kind || '');
+                let docType = isCustomer ? 'Sale' : 'Purchase';
+                if (isCustomer && rk === 'return_no_bill') docType = 'Return (no invoice)';
+                else if (isCustomer && rk === 'opening_balance') docType = 'Opening balance';
+                $('#detailDocType').text(docType);
                 $('#detailRefNo').html(escapeHtml(refNo || '-'));
                 $('#detailParty').html(escapeHtml(partyName || '-'));
                 $('#detailDate').html(escapeHtml(transDate || '-'));
@@ -1466,7 +1478,16 @@
                 $('#detailOriginalDue').text('Rs. ' + formatAmount(rowData.original_due));
                 $('#detailReturn').text('Rs. ' + formatAmount(rowData.return_amount));
                 $('#detailFinalDue').text('Rs. ' + formatAmount(rowData.total_due));
-                $('#detailStatus').html('<span class="badge ' + (rowData.payment_status === 'paid' ? 'bg-success' : (rowData.payment_status === 'partial' ? 'bg-warning text-dark' : 'bg-danger')) + '">' + escapeHtml((rowData.payment_status || 'N/A').toUpperCase()) + '</span>');
+                (function () {
+                    const ps = String(rowData.payment_status || '').toLowerCase();
+                    let bc = 'bg-danger';
+                    if (ps === 'paid') bc = 'bg-success';
+                    else if (ps === 'partial') bc = 'bg-warning text-dark';
+                    else if (ps === 'refund_due') bc = 'bg-info text-dark';
+                    else if (ps === 'opening_balance_due') bc = 'bg-secondary';
+                    const label = String(rowData.payment_status || 'N/A').replace(/_/g, ' ');
+                    $('#detailStatus').html('<span class="badge ' + bc + '">' + escapeHtml(label.toUpperCase()) + '</span>');
+                })();
                 $('#detailDueDays').text(toNumber(rowData.due_days) + ' days');
 
                 const modalEl = document.getElementById('dueDetailsModal');
