@@ -67,7 +67,8 @@
                                     <option value="40x25">40 x 25 mm</option>
                                     <option value="40x20x2" selected>40 × 17 mm × 2 — 88 mm roll (8.8 cm)</option>
                                     <option value="38x25">38 x 25 mm</option>
-                                    <option value="34x25x3">34 x 25 mm × 3</option>
+                                    <option value="38x25x3">38 × 25 mm × 3 — 114 mm roll (mm)</option>
+                                    <option value="34x25x3">34 × 25 mm × 3 — legacy (in, older printers / systems)</option>
                                 </select>
                             </div>
 
@@ -660,6 +661,10 @@
                 '40x25': { page: '40mm 25mm', margin: '1mm', width: '38mm', height: '23mm', gap: '0', svgW: '35mm', svgH: '4.5mm', wrap: false, perRow: false },
                 '40x20x2': { page: '88mm 17mm', margin: '0mm', rollLabelHeight: '17mm', width: '38mm', height: '100%', gap: '2mm', svgW: '38mm', svgH: '3.8mm', wrap: false, perRow: 2, colWidth: '40mm', rowFlexJustify: 'flex-start', rowAlignItems: 'stretch', bodyPadding: '0 1mm', labelInnerPadding: '1mm 0.55mm 1mm', cellJustify: 'center', pageBreakRows: true },
                 '38x25': { page: '38mm 25mm', margin: '1mm', width: '36mm', height: '23mm', gap: '0', svgW: '33mm', svgH: '4.5mm', wrap: false, perRow: false },
+                // 3 × 38 mm × 25 mm = 114 mm × 25 mm per row. Prefer this for current Zebra mm roll setup.
+                // If roll has gutters: e.g. gap 2 mm → page '118mm 25mm', gap: '2mm'.
+                '38x25x3': { page: '114mm 25mm', margin: '0mm', rollLabelHeight: '25mm', width: '38mm', height: '100%', gap: '0mm', svgW: '34mm', svgH: '7mm', wrap: false, perRow: 3, colWidth: '38mm', rowFlexJustify: 'flex-start', rowAlignItems: 'stretch', bodyPadding: '0', labelInnerPadding: '0.4mm 0.6mm 0.4mm', cellJustify: 'center', pageBreakRows: true },
+                // Legacy: inch-based 3-up (~35 mm cell); keep for older installs / saved presets that still pass value "34x25x3".
                 '34x25x3': { page: '4.634in auto', margin: '0', width: '1.378in', height: '0.984in', gap: '0.1in', svgW: '1.2in', svgH: '0.2in', wrap: false, perRow: 3, rowFlexJustify: 'space-between' }
 
             };
