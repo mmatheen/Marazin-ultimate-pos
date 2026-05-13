@@ -28,6 +28,69 @@ function escapeHtml(text) {
 }
 
 /**
+ * Same summary card as flexible bulk "Confirm Payment Submission" (sales bulk payments).
+ *
+ * @param {{ totalDueNet: number, returnCreditApplied?: number, advanceCreditApplied?: number, cashCollected: number, headerHtml?: string }} options
+ */
+function buildBulkPaymentSubmissionSummaryHtml(options) {
+  const eps = window.BULK_MONEY_EPSILON != null ? window.BULK_MONEY_EPSILON : 0.01;
+  const fmt = (n) =>
+    typeof window.formatAmountValue === 'function' ? window.formatAmountValue(n) : formatAmountValue(n);
+  const totalDueNet = Number(options.totalDueNet) || 0;
+  const returnCreditApplied = Number(options.returnCreditApplied) || 0;
+  const advanceCreditApplied = Number(options.advanceCreditApplied) || 0;
+  const cashCollected = Number(options.cashCollected) || 0;
+  const overpayment = Math.max(0, cashCollected - totalDueNet);
+  const headerHtml = options.headerHtml || '';
+
+  return (
+    '<div class="text-start" style="font-size:13px;">' +
+    headerHtml +
+    '<div style="border:1px solid #e9ecef;border-radius:10px;overflow:hidden;background:#fff;">' +
+    '<div style="display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #f1f3f5;"><span class="text-muted">Total Due (net)</span><strong>Rs. ' +
+    fmt(totalDueNet) +
+    '</strong></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #f1f3f5;"><span class="text-muted">Return Credit Allocated</span><strong class="text-success">Rs. ' +
+    fmt(returnCreditApplied) +
+    '</strong></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #f1f3f5;"><span class="text-muted">Advance Credit Allocated</span><strong class="text-success">Rs. ' +
+    fmt(advanceCreditApplied) +
+    '</strong></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #f1f3f5;"><span class="text-muted">Cash Collected</span><strong>Rs. ' +
+    fmt(cashCollected) +
+    '</strong></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:10px 12px;background:' +
+    (overpayment > eps ? '#fff5f5' : '#f8f9fa') +
+    ';">' +
+    '<span class="text-muted">Overpayment</span><strong class="' +
+    (overpayment > eps ? 'text-danger' : 'text-success') +
+    '">Rs. ' +
+    fmt(overpayment) +
+    '</strong></div>' +
+    '</div>' +
+    '</div>'
+  );
+}
+
+/** Plain-text variant for `window.confirm` fallback. */
+function buildBulkPaymentSubmissionSummaryText(options) {
+  const fmt = (n) =>
+    typeof window.formatAmountValue === 'function' ? window.formatAmountValue(n) : formatAmountValue(n);
+  const totalDueNet = Number(options.totalDueNet) || 0;
+  const returnCreditApplied = Number(options.returnCreditApplied) || 0;
+  const advanceCreditApplied = Number(options.advanceCreditApplied) || 0;
+  const cashCollected = Number(options.cashCollected) || 0;
+  const overpayment = Math.max(0, cashCollected - totalDueNet);
+  return (
+    `Total Due (net): Rs. ${fmt(totalDueNet)}\n` +
+    `Return Credit Allocated: Rs. ${fmt(returnCreditApplied)}\n` +
+    `Advance Credit Allocated: Rs. ${fmt(advanceCreditApplied)}\n` +
+    `Cash Collected: Rs. ${fmt(cashCollected)}\n` +
+    `Overpayment: Rs. ${fmt(overpayment)}`
+  );
+}
+
+/**
  * Rebuild `window.billPaymentAllocations` from all `.bill-allocation-row` inputs.
  * Shared by sales and purchases bulk payment UIs.
  */
@@ -173,6 +236,8 @@ window.parseAmountValue = parseAmountValue;
 window.formatAmountValue = formatAmountValue;
 window.formatRs = formatRs;
 window.escapeHtml = escapeHtml;
+window.buildBulkPaymentSubmissionSummaryHtml = buildBulkPaymentSubmissionSummaryHtml;
+window.buildBulkPaymentSubmissionSummaryText = buildBulkPaymentSubmissionSummaryText;
 window.recalcBillPaymentAllocationsFromUI = recalcBillPaymentAllocationsFromUI;
 window.resetFlexiblePaymentSystem = resetFlexiblePaymentSystem;
 window.syncCreditDeductionToAllocations = syncCreditDeductionToAllocations;

@@ -63,6 +63,9 @@ class FlexibleBulkSalePaymentService
                 if ($request->payment_type === 'both' && isset($paymentGroup['ob_amount'])) {
                     $totalOBPayment += floatval($paymentGroup['ob_amount']);
                 }
+                if ($request->payment_type === 'opening_balance' && isset($paymentGroup['totalAmount'])) {
+                    $totalOBPayment += floatval($paymentGroup['totalAmount']);
+                }
             }
 
             if ($request->payment_type === 'both') {
@@ -81,13 +84,6 @@ class FlexibleBulkSalePaymentService
             $obAlreadyAllocated = 0.0;
 
             if ($request->payment_type === 'both' && $totalOBPayment > 0) {
-                if (Payment::where('customer_id', $request->customer_id)
-                           ->where('payment_type', 'opening_balance')
-                           ->where('status', 'active')
-                           ->exists()) {
-                    throw new \Exception('Opening balance payment already exists for this customer. Cannot create duplicate opening balance payments.');
-                }
-
                 foreach ($paymentGroupsInput as $paymentGroup) {
                     $obAmount = floatval($paymentGroup['ob_amount'] ?? 0);
                     if ($obAmount <= 0) continue;
@@ -188,14 +184,6 @@ class FlexibleBulkSalePaymentService
                 $groupPayments = [];
 
                 if ($request->payment_type === 'opening_balance') {
-                    // Prevent duplicate opening-balance payments
-                    if (Payment::where('customer_id', $request->customer_id)
-                               ->where('payment_type', 'opening_balance')
-                               ->where('status', 'active')
-                               ->exists()) {
-                        throw new \Exception('Opening balance payment already exists for this customer. Cannot create duplicate opening balance payments.');
-                    }
-
                     $paymentData = [
                         'payment_date'   => $request->payment_date,
                         'amount'         => $paymentGroup['totalAmount'],

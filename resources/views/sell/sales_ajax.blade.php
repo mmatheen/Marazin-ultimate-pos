@@ -1,4 +1,69 @@
 <script>
+    (function () {
+        if (typeof window.buildBulkPaymentSubmissionSummaryHtml === 'function') return;
+        window.BULK_MONEY_EPSILON = window.BULK_MONEY_EPSILON || 0.01;
+        function _fmtAmt(n) {
+            if (typeof window.formatAmountValue === 'function') return window.formatAmountValue(n);
+            var num = Number(n || 0);
+            return num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+        window.buildBulkPaymentSubmissionSummaryHtml = function (options) {
+            var eps = window.BULK_MONEY_EPSILON != null ? window.BULK_MONEY_EPSILON : 0.01;
+            var totalDueNet = Number(options.totalDueNet) || 0;
+            var returnCreditApplied = Number(options.returnCreditApplied) || 0;
+            var advanceCreditApplied = Number(options.advanceCreditApplied) || 0;
+            var cashCollected = Number(options.cashCollected) || 0;
+            var overpayment = Math.max(0, cashCollected - totalDueNet);
+            var headerHtml = options.headerHtml || '';
+            return (
+                '<div class="text-start" style="font-size:13px;">' +
+                headerHtml +
+                '<div style="border:1px solid #e9ecef;border-radius:10px;overflow:hidden;background:#fff;">' +
+                '<div style="display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #f1f3f5;"><span class="text-muted">Total Due (net)</span><strong>Rs. ' +
+                _fmtAmt(totalDueNet) +
+                '</strong></div>' +
+                '<div style="display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #f1f3f5;"><span class="text-muted">Return Credit Allocated</span><strong class="text-success">Rs. ' +
+                _fmtAmt(returnCreditApplied) +
+                '</strong></div>' +
+                '<div style="display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #f1f3f5;"><span class="text-muted">Advance Credit Allocated</span><strong class="text-success">Rs. ' +
+                _fmtAmt(advanceCreditApplied) +
+                '</strong></div>' +
+                '<div style="display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #f1f3f5;"><span class="text-muted">Cash Collected</span><strong>Rs. ' +
+                _fmtAmt(cashCollected) +
+                '</strong></div>' +
+                '<div style="display:flex;justify-content:space-between;padding:10px 12px;background:' +
+                (overpayment > eps ? '#fff5f5' : '#f8f9fa') +
+                ';">' +
+                '<span class="text-muted">Overpayment</span><strong class="' +
+                (overpayment > eps ? 'text-danger' : 'text-success') +
+                '">Rs. ' +
+                _fmtAmt(overpayment) +
+                '</strong></div>' +
+                '</div>' +
+                '</div>'
+            );
+        };
+        window.buildBulkPaymentSubmissionSummaryText = function (options) {
+            var totalDueNet = Number(options.totalDueNet) || 0;
+            var returnCreditApplied = Number(options.returnCreditApplied) || 0;
+            var advanceCreditApplied = Number(options.advanceCreditApplied) || 0;
+            var cashCollected = Number(options.cashCollected) || 0;
+            var overpayment = Math.max(0, cashCollected - totalDueNet);
+            return (
+                'Total Due (net): Rs. ' +
+                _fmtAmt(totalDueNet) +
+                '\nReturn Credit Allocated: Rs. ' +
+                _fmtAmt(returnCreditApplied) +
+                '\nAdvance Credit Allocated: Rs. ' +
+                _fmtAmt(advanceCreditApplied) +
+                '\nCash Collected: Rs. ' +
+                _fmtAmt(cashCollected) +
+                '\nOverpayment: Rs. ' +
+                _fmtAmt(overpayment)
+            );
+        };
+    })();
+
     function escapeHtmlForExportSales(text) {
         if (text === null || text === undefined) return '';
         return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -1914,6 +1979,7 @@
 
             console.log('Payment data being sent:', paymentData);
 
+            function runBulkPaymentModalSubmit() {
             $.ajax({
                 url: '/api/submit-bulk-payment',
                 type: 'POST',
@@ -1951,6 +2017,52 @@
                     }
                 }
             });
+            }
+
+            if (paymentType === 'opening_balance') {
+                var payAmt = hasIndividualPayments ? totalIndividualAmount : globalPaymentAmount;
+                payAmt = payAmt || 0;
+                var hdr = '';
+                var clientName = ($('#customerSelect option:selected').text() || '').trim();
+                if (clientName) {
+                    hdr = '<p class="text-muted small mb-2 text-start">' + $('<div/>').text(clientName).html() + '</p>';
+                }
+                var sumOpts = {
+                    totalDueNet: customerOpeningBalance || 0,
+                    returnCreditApplied: 0,
+                    advanceCreditApplied: 0,
+                    cashCollected: payAmt,
+                    headerHtml: hdr
+                };
+                var detailsHtml = typeof window.buildBulkPaymentSubmissionSummaryHtml === 'function'
+                    ? window.buildBulkPaymentSubmissionSummaryHtml(sumOpts)
+                    : '';
+                var detailsText = typeof window.buildBulkPaymentSubmissionSummaryText === 'function'
+                    ? window.buildBulkPaymentSubmissionSummaryText(sumOpts)
+                    : '';
+                if (window.Swal) {
+                    window.Swal.fire({
+                        title: 'Confirm Payment Submission',
+                        html: detailsHtml,
+                        icon: 'info',
+                        width: 560,
+                        showCancelButton: true,
+                        confirmButtonText: 'Submit Payment',
+                        cancelButtonText: 'Cancel',
+                        reverseButtons: true,
+                    }).then(function (result) {
+                        if (result.isConfirmed) {
+                            runBulkPaymentModalSubmit();
+                        }
+                    });
+                    return;
+                }
+                if (!window.confirm((detailsText || 'Confirm payment') + '\n\nSubmit this payment?')) {
+                    return;
+                }
+            }
+
+            runBulkPaymentModalSubmit();
         });
 
 

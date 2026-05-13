@@ -1788,23 +1788,48 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const fmt = (n) => (typeof window.formatAmountValue === 'function' ? window.formatAmountValue(n) : Number(n || 0).toFixed(2));
+    const summaryOpts = {
+      totalDueNet,
+      returnCreditApplied,
+      advanceCreditApplied,
+      cashCollected,
+      headerHtml: '',
+    };
     const detailsText =
-      `Total Due (net): Rs. ${fmt(totalDueNet)}\n` +
-      `Return Credit Allocated: Rs. ${fmt(returnCreditApplied)}\n` +
-      `Advance Credit Allocated: Rs. ${fmt(advanceCreditApplied)}\n` +
-      `Cash Collected: Rs. ${fmt(cashCollected)}\n` +
-      `Overpayment: Rs. ${fmt(overpayment)}`;
+      typeof window.buildBulkPaymentSubmissionSummaryText === 'function'
+        ? window.buildBulkPaymentSubmissionSummaryText(summaryOpts)
+        : `Total Due (net): Rs. ${fmt(totalDueNet)}\n` +
+          `Return Credit Allocated: Rs. ${fmt(returnCreditApplied)}\n` +
+          `Advance Credit Allocated: Rs. ${fmt(advanceCreditApplied)}\n` +
+          `Cash Collected: Rs. ${fmt(cashCollected)}\n` +
+          `Overpayment: Rs. ${fmt(Math.max(0, cashCollected - totalDueNet))}`;
     const detailsHtml =
-      '<div class="text-start" style="font-size:13px;">' +
-      '<div style="border:1px solid #e9ecef;border-radius:10px;overflow:hidden;background:#fff;">' +
-      '<div style="display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #f1f3f5;"><span class="text-muted">Total Due (net)</span><strong>Rs. ' + fmt(totalDueNet) + '</strong></div>' +
-      '<div style="display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #f1f3f5;"><span class="text-muted">Return Credit Allocated</span><strong class="text-success">Rs. ' + fmt(returnCreditApplied) + '</strong></div>' +
-      '<div style="display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #f1f3f5;"><span class="text-muted">Advance Credit Allocated</span><strong class="text-success">Rs. ' + fmt(advanceCreditApplied) + '</strong></div>' +
-      '<div style="display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #f1f3f5;"><span class="text-muted">Cash Collected</span><strong>Rs. ' + fmt(cashCollected) + '</strong></div>' +
-      '<div style="display:flex;justify-content:space-between;padding:10px 12px;background:' + (overpayment > MONEY_EPSILON ? '#fff5f5' : '#f8f9fa') + ';">' +
-      '<span class="text-muted">Overpayment</span><strong class="' + (overpayment > MONEY_EPSILON ? 'text-danger' : 'text-success') + '">Rs. ' + fmt(overpayment) + '</strong></div>' +
-      '</div>' +
-      '</div>';
+      typeof window.buildBulkPaymentSubmissionSummaryHtml === 'function'
+        ? window.buildBulkPaymentSubmissionSummaryHtml(summaryOpts)
+        : '<div class="text-start" style="font-size:13px;">' +
+          '<div style="border:1px solid #e9ecef;border-radius:10px;overflow:hidden;background:#fff;">' +
+          '<div style="display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #f1f3f5;"><span class="text-muted">Total Due (net)</span><strong>Rs. ' +
+          fmt(totalDueNet) +
+          '</strong></div>' +
+          '<div style="display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #f1f3f5;"><span class="text-muted">Return Credit Allocated</span><strong class="text-success">Rs. ' +
+          fmt(returnCreditApplied) +
+          '</strong></div>' +
+          '<div style="display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #f1f3f5;"><span class="text-muted">Advance Credit Allocated</span><strong class="text-success">Rs. ' +
+          fmt(advanceCreditApplied) +
+          '</strong></div>' +
+          '<div style="display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #f1f3f5;"><span class="text-muted">Cash Collected</span><strong>Rs. ' +
+          fmt(cashCollected) +
+          '</strong></div>' +
+          '<div style="display:flex;justify-content:space-between;padding:10px 12px;background:' +
+          (overpayment > MONEY_EPSILON ? '#fff5f5' : '#f8f9fa') +
+          ';">' +
+          '<span class="text-muted">Overpayment</span><strong class="' +
+          (overpayment > MONEY_EPSILON ? 'text-danger' : 'text-success') +
+          '">Rs. ' +
+          fmt(overpayment) +
+          '</strong></div>' +
+          '</div>' +
+          '</div>';
 
     if (window.Swal) {
       if (overpayment > MONEY_EPSILON) {

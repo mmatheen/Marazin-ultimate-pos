@@ -749,6 +749,7 @@
 
         console.log('Payment data being sent:', paymentData);
 
+        function runLegacyBulkPaymentSubmit() {
         $.ajax({
             url: '/submit-bulk-payment',
             method: 'POST',
@@ -814,6 +815,52 @@
                 }
             }
         });
+        }
+
+        if (paymentType === 'opening_balance') {
+            var payAmt = hasIndividualPayments ? totalIndividualAmount : globalPaymentAmount;
+            payAmt = payAmt || 0;
+            var hdr = '';
+            var clientName = ($('#customerSelect option:selected').text() || '').trim();
+            if (clientName) {
+                hdr = '<p class="text-muted small mb-2 text-start">' + $('<div/>').text(clientName).html() + '</p>';
+            }
+            var sumOpts = {
+                totalDueNet: customerOpeningBalance || 0,
+                returnCreditApplied: 0,
+                advanceCreditApplied: 0,
+                cashCollected: payAmt,
+                headerHtml: hdr
+            };
+            var detailsHtml = typeof window.buildBulkPaymentSubmissionSummaryHtml === 'function'
+                ? window.buildBulkPaymentSubmissionSummaryHtml(sumOpts)
+                : '';
+            var detailsText = typeof window.buildBulkPaymentSubmissionSummaryText === 'function'
+                ? window.buildBulkPaymentSubmissionSummaryText(sumOpts)
+                : '';
+            if (window.Swal) {
+                window.Swal.fire({
+                    title: 'Confirm Payment Submission',
+                    html: detailsHtml,
+                    icon: 'info',
+                    width: 560,
+                    showCancelButton: true,
+                    confirmButtonText: 'Submit Payment',
+                    cancelButtonText: 'Cancel',
+                    reverseButtons: true,
+                }).then(function (result) {
+                    if (result.isConfirmed) {
+                        runLegacyBulkPaymentSubmit();
+                    }
+                });
+                return;
+            }
+            if (!window.confirm((detailsText || 'Confirm opening balance payment') + '\n\nSubmit this payment?')) {
+                return;
+            }
+        }
+
+        runLegacyBulkPaymentSubmit();
     });
 
     // Payment method UI toggling moved into `resources/js/bulk-payments/sales.js`.
