@@ -440,7 +440,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (paymentType === 'opening_balance') {
       const newOpeningBalance = Math.max(0, customerOpeningBalance - remainingAmount);
-      $('#openingBalance').text('Rs. ' + newOpeningBalance.toFixed(2));
+      // #openingBalance sits inside markup that already prefixes "Rs." — store digits only.
+      $('#openingBalance').text(newOpeningBalance.toFixed(2));
       $('.reference-amount').val(0);
     } else if (paymentType === 'sale_dues') {
       $('.reference-amount').each(function () {
@@ -453,7 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
           $(this).val(0);
         }
       });
-      $('#openingBalance').text('Rs. ' + customerOpeningBalance.toFixed(2));
+      $('#openingBalance').text(customerOpeningBalance.toFixed(2));
     } else if (paymentType === 'both') {
       let newOpeningBalance = customerOpeningBalance;
       if (newOpeningBalance > 0 && remainingAmount > 0) {
@@ -465,7 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
           newOpeningBalance = 0;
         }
       }
-      $('#openingBalance').text('Rs. ' + newOpeningBalance.toFixed(2));
+      $('#openingBalance').text(newOpeningBalance.toFixed(2));
 
       $('.reference-amount').each(function () {
         const referenceDue = parseFloat($(this).closest('tr').find('td:eq(3)').text()) || 0;
@@ -648,18 +649,20 @@ document.addEventListener('DOMContentLoaded', () => {
       if (saleDue > displaySalesUnpaid + 0.02) $('#salesDueGrossAmount').text(saleDue.toFixed(2));
     }
 
-    // Cash to pay: gross sales invoices + opening balance owed − return credits you select − advance applied.
-    // Do NOT use totalCustomerDue (ledger current_due) here — it often already nets return credit; subtracting returnsToApply again double-deducts.
-    let netDue = openingBalance + saleDue - returnsToApply - advanceCreditToApply;
-    if (netDue < 0) netDue = 0;
+    // Cash to pay (all components): invoices + opening balance − return credits − advance applied.
+    let totalCashToCollect = openingBalance + saleDue - returnsToApply - advanceCreditToApply;
+    if (totalCashToCollect < 0) totalCashToCollect = 0;
 
-    if (typeof window.formatRs === 'function') $('#netCustomerDue').text(window.formatRs(netDue));
-    else $('#netCustomerDue').text('Rs. ' + netDue.toFixed(2));
+    // Highlight card is labelled "Sales due (invoices)" — show invoice net only (matches #totalDueAmount line).
+    const invoiceNetDue = displaySalesUnpaid;
+    if (typeof window.formatRs === 'function') $('#netCustomerDue').text(window.formatRs(invoiceNetDue));
+    else $('#netCustomerDue').text('Rs. ' + invoiceNetDue.toFixed(2));
 
     $('#returnCreditBreakdownLine').empty().hide();
     $('#totalSettledBreakdownLine').empty().hide();
 
-    window.netCustomerDue = netDue;
+    window.netCustomerDue = invoiceNetDue;
+    window.totalCashToCollect = totalCashToCollect;
 
     // eslint-disable-next-line no-console
     console.log('Net customer due updated:', {
@@ -668,7 +671,8 @@ document.addEventListener('DOMContentLoaded', () => {
       totalDueLedger: totalDue,
       returnsToApply,
       advanceCreditToApply,
-      netDue,
+      invoiceNetDue,
+      totalCashToCollect,
     });
 
     if (typeof window.updateReturnApplyHint === 'function') window.updateReturnApplyHint();

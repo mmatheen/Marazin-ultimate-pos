@@ -209,6 +209,7 @@ class FlexibleBulkSalePaymentService
                     $this->addMethodSpecificFields($paymentData, $paymentGroup);
 
                     $payment = Payment::create($paymentData);
+                    $createdPaymentIds[] = (int) $payment->id;
                     $this->unifiedLedgerService->recordOpeningBalancePayment($payment, 'customer');
 
                     $groupTotal      = $paymentGroup['totalAmount'];

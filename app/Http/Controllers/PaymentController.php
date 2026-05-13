@@ -63,8 +63,8 @@ class PaymentController extends Controller
         $this->middleware('permission:delete payment', ['only' => ['destroy']]);
 
         // Bulk payment permissions
-        $this->middleware('permission:bulk sale payment', ['only' => ['addSaleBulkPayments', 'storeSaleBulkPayments', 'getBulkPaymentsList', 'editBulkPayment', 'updateBulkPayment', 'deleteBulkPayment', 'getBulkPaymentLogs']]);
-        $this->middleware('permission:bulk purchase payment', ['only' => ['addPurchaseBulkPayments', 'storePurchaseBulkPayments', 'getBulkPaymentsList', 'editBulkPayment', 'updateBulkPayment', 'deleteBulkPayment', 'getBulkPaymentLogs']]);
+        $this->middleware('permission:bulk sale payment', ['only' => ['addSaleBulkPayments', 'submitFlexibleBulkPayment', 'getBulkPaymentsList', 'editBulkPayment', 'updateBulkPayment', 'deleteBulkPayment', 'getBulkPaymentLogs']]);
+        $this->middleware('permission:bulk purchase payment', ['only' => ['addPurchaseBulkPayments', 'submitFlexibleBulkPurchasePayment', 'getBulkPaymentsList', 'editBulkPayment', 'updateBulkPayment', 'deleteBulkPayment', 'getBulkPaymentLogs']]);
 
         // Cheque management methods are accessible to all authenticated users for now
         // Methods: chequeManagement, updateChequeStatus, bulkUpdateChequeStatus, chequeStatusHistory, getFloatingBalance
@@ -1262,6 +1262,391 @@ class PaymentController extends Controller
         }
     }
 
+    /**
+     * Legacy URL `/submit-bulk-payment` (simple form: entity_type, entity_id, global_amount, …).
+     * Implementation delegates to the same services as the flexible endpoints — one payment pipeline.
+     */
+    public function submitBulkPayment(Request $request)
+    {
+        if (! $request->has('payments') && $request->has('sale_payments')) {
+            $request->merge(['payments' => $request->input('sale_payments', [])]);
+        }
+
+        $validator = Validator::make($request->all(), $this->getBulkPaymentValidationRules($request));
+
+        $validator->after(function ($v) use ($request) {
+            $global = (float) ($request->input('global_amount', 0) ?? 0);
+            $payments = $request->input('payments', []);
+            if (! is_array($payments)) {
+                $payments = [];
+            }
+            if ($global <= 0 && count($payments) === 0) {
+                $v->errors()->add('global_amount', 'Enter a payment amount or provide individual invoice payments.');
+            }
+        });
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status'  => 422,
+                'message' => 'Validation failed',
+                'errors'  => $validator->errors(),
+            ], 422);
+        }
+
+        $entityType = (string) $request->input('entity_type');
+        $user       = $request->user();
+        if ($entityType === 'customer' && ! $user?->can('bulk sale payment')) {
+            return response()->json([
+                'status'  => 403,
+                'message' => 'You do not have permission to record sale bulk payments.',
+            ], 403);
+        }
+        if ($entityType === 'supplier' && ! $user?->can('bulk purchase payment')) {
+            return response()->json([
+                'status'  => 403,
+                'message' => 'You do not have permission to record purchase bulk payments.',
+            ], 403);
+        }
+
+        $entityId = (int) $request->input('entity_id');
+
+        try {
+            $entity = $this->validateEntity($entityType, $entityId);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 404, 'message' => $e->getMessage()], 404);
+        }
+
+        $paymentType = $request->input('payment_type');
+        if ($paymentType === null || $paymentType === '') {
+            $paymentType = $entityType === 'customer' ? 'sale_dues' : 'purchase_dues';
+        }
+
+        $globalAmount = max(0.0, (float) $request->input('global_amount', 0));
+        $maxPayable   = $this->legacyBulkPaymentMaxPayable($entityType, $entity, $paymentType);
+
+        if ($globalAmount > $maxPayable + 0.02) {
+            return response()->json([
+                'status'  => 422,
+                'message' => 'Payment amount exceeds the maximum allowed for this payment type (max Rs. '.number_format($maxPayable, 2).').',
+            ], 422);
+        }
+
+        try {
+            if ($entityType === 'customer') {
+                $flex = $this->buildLegacyCustomerFlexibleBulkRequest($request, $entity, $paymentType, $globalAmount);
+                $result = $this->flexibleBulkSalePaymentService->process($flex);
+            } else {
+                $flex = $this->buildLegacySupplierFlexibleBulkRequest($request, $entity, $paymentType, $globalAmount);
+                $result = $this->flexibleBulkPurchasePaymentService->process($flex);
+                \Illuminate\Support\Facades\Cache::flush();
+            }
+
+            return response()->json([
+                'status'         => 200,
+                'message'        => 'Payment submitted successfully!',
+                'bulk_reference' => $result['bulk_reference'] ?? null,
+                'total_amount'   => $result['total_amount'] ?? null,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status'  => 500,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Max total legacy `/submit-bulk-payment` may take in one submission (aligned with previous rules).
+     */
+    private function legacyBulkPaymentMaxPayable(string $entityType, Customer|Supplier $entity, string $paymentType): float
+    {
+        if ($entityType === 'customer') {
+            $currentBalance = (float) $entity->current_balance;
+
+            return match ($paymentType) {
+                'opening_balance' => $this->calculateCurrentOpeningBalanceFromLedger($entity),
+                'sale_dues' => (float) Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
+                    ->where('customer_id', $entity->id)->where('total_due', '>', 0)->sum('total_due'),
+                'both' => max(0.0, $currentBalance),
+                default => max(0.0, $currentBalance),
+            };
+        }
+
+        $currentBalance = (float) $entity->getCurrentTotalBalance();
+
+        return match ($paymentType) {
+            'opening_balance' => $this->calculateCurrentOpeningBalanceFromLedger($entity),
+            'purchase_dues' => (float) Purchase::where('supplier_id', $entity->id)->where('total_due', '>', 0)->sum('total_due'),
+            'both' => max(0.0, $currentBalance),
+            default => max(0.0, $currentBalance),
+        };
+    }
+
+    /**
+     * @return array<int, array{sale_id: int, amount: float}>
+     */
+    private function legacyCustomerBillsFromExplicitPayments(array $payments): array
+    {
+        $bills = [];
+        foreach ($payments as $p) {
+            $amt = (float) ($p['amount'] ?? 0);
+            if ($amt <= 0.01) {
+                continue;
+            }
+            $sid = (int) ($p['reference_id'] ?? 0);
+            if ($sid <= 0) {
+                continue;
+            }
+            $bills[] = ['sale_id' => $sid, 'amount' => $amt];
+        }
+
+        return $bills;
+    }
+
+    /**
+     * @return array<int, array{sale_id: int, amount: float}>
+     */
+    private function legacyCustomerBillsFifoForAmount(int $customerId, float $amount): array
+    {
+        $bills    = [];
+        $remaining = $amount;
+        $sales    = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
+            ->where('customer_id', $customerId)
+            ->where('total_due', '>', 0)
+            ->orderBy('created_at', 'asc')
+            ->get(['id', 'total_due']);
+
+        foreach ($sales as $sale) {
+            if ($remaining <= 0.01) {
+                break;
+            }
+            $due  = (float) $sale->total_due;
+            $part = min($remaining, $due);
+            if ($part > 0.01) {
+                $bills[] = ['sale_id' => (int) $sale->id, 'amount' => $part];
+                $remaining -= $part;
+            }
+        }
+
+        return $bills;
+    }
+
+    /**
+     * @return array<int, array{purchase_id: int, amount: float}>
+     */
+    private function legacySupplierBillsFromExplicitPayments(array $payments): array
+    {
+        $bills = [];
+        foreach ($payments as $p) {
+            $amt = (float) ($p['amount'] ?? 0);
+            if ($amt <= 0.01) {
+                continue;
+            }
+            $pid = (int) ($p['reference_id'] ?? 0);
+            if ($pid <= 0) {
+                continue;
+            }
+            $bills[] = ['purchase_id' => $pid, 'amount' => $amt];
+        }
+
+        return $bills;
+    }
+
+    /**
+     * @return array<int, array{purchase_id: int, amount: float}>
+     */
+    private function legacySupplierBillsFifoForAmount(int $supplierId, float $amount): array
+    {
+        $bills     = [];
+        $remaining = $amount;
+        $purchases = Purchase::where('supplier_id', $supplierId)
+            ->where('total_due', '>', 0)
+            ->orderBy('created_at', 'asc')
+            ->get(['id', 'total_due']);
+
+        foreach ($purchases as $purchase) {
+            if ($remaining <= 0.01) {
+                break;
+            }
+            $due  = (float) $purchase->total_due;
+            $part = min($remaining, $due);
+            if ($part > 0.01) {
+                $bills[] = ['purchase_id' => (int) $purchase->id, 'amount' => $part];
+                $remaining -= $part;
+            }
+        }
+
+        return $bills;
+    }
+
+    /**
+     * Cheque / card / bank fields copied from legacy form into a flexible payment_groups row.
+     *
+     * @return array<string, mixed>
+     */
+    private function legacyPaymentMethodDetailFields(Request $request): array
+    {
+        $m = (string) $request->payment_method;
+        if ($m === 'cheque') {
+            return array_filter([
+                'cheque_number'       => $request->input('cheque_number'),
+                'cheque_bank_branch'  => $request->input('cheque_bank_branch'),
+                'cheque_valid_date'   => $request->input('cheque_valid_date'),
+                'cheque_given_by'     => $request->input('cheque_given_by'),
+            ], fn ($v) => $v !== null && $v !== '');
+        }
+        if ($m === 'card') {
+            return array_filter([
+                'card_number' => $request->input('card_number'),
+                'card_holder' => $request->input('card_holder_name', $request->input('card_holder')),
+            ], fn ($v) => $v !== null && $v !== '');
+        }
+        if ($m === 'bank_transfer') {
+            return array_filter([
+                'bank_account_number' => $request->input('bank_account_number'),
+            ], fn ($v) => $v !== null && $v !== '');
+        }
+
+        return [];
+    }
+
+    private function legacyBulkPaymentDate(Request $request): string
+    {
+        if ($request->filled('payment_date')) {
+            return $this->parseFlexibleDate($request->payment_date);
+        }
+
+        return Carbon::now()->format('Y-m-d');
+    }
+
+    private function buildLegacyCustomerFlexibleBulkRequest(Request $request, Customer $customer, string $paymentType, float $globalAmount): Request
+    {
+        $payments = $request->input('payments', []);
+        if (! is_array($payments)) {
+            $payments = [];
+        }
+
+        $paymentDate = $this->legacyBulkPaymentDate($request);
+        $method      = (string) $request->payment_method;
+        $groups      = [];
+
+        if ($paymentType === 'opening_balance') {
+            $groups[] = array_merge([
+                'method'      => $method,
+                'totalAmount' => $globalAmount,
+                'bills'       => [],
+            ], $this->legacyPaymentMethodDetailFields($request));
+        } elseif ($paymentType === 'sale_dues') {
+            $bills = $this->legacyCustomerBillsFromExplicitPayments($payments);
+            if (empty($bills) && $globalAmount > 0.01) {
+                $bills = $this->legacyCustomerBillsFifoForAmount($customer->id, $globalAmount);
+            }
+            if (empty($bills)) {
+                throw new \Exception('No outstanding sale invoices to allocate this payment to.');
+            }
+            $groups[] = array_merge([
+                'method' => $method,
+                'bills'  => $bills,
+            ], $this->legacyPaymentMethodDetailFields($request));
+        } elseif ($paymentType === 'both') {
+            $ledgerOb = $this->calculateCurrentOpeningBalanceFromLedger($customer);
+            $obPart    = min(max(0.0, $globalAmount), max(0.0, $ledgerOb));
+            $salesPart = max(0.0, $globalAmount - $obPart);
+
+            $bills = $this->legacyCustomerBillsFromExplicitPayments($payments);
+            if (empty($bills) && $salesPart > 0.01) {
+                $bills = $this->legacyCustomerBillsFifoForAmount($customer->id, $salesPart);
+            }
+
+            $groups[] = array_merge([
+                'method'      => $method,
+                'totalAmount' => $globalAmount,
+                'ob_amount'   => $obPart,
+                'bills'       => $bills,
+            ], $this->legacyPaymentMethodDetailFields($request));
+
+            if ($obPart <= 0.01 && empty($bills)) {
+                throw new \Exception('No opening balance due and no outstanding sale invoices for this payment.');
+            }
+        } else {
+            throw new \Exception('Unsupported payment_type for customer legacy bulk payment.');
+        }
+
+        return Request::create('/', 'POST', [
+            'customer_id'                   => $customer->id,
+            'payment_date'                  => $paymentDate,
+            'payment_type'                  => $paymentType,
+            'payment_groups'                => $groups,
+            'notes'                         => $request->input('notes'),
+            'advance_credit_selected'       => false,
+            'selected_returns'              => [],
+            'bill_return_allocations'       => [],
+            'bill_advance_credit_allocations' => [],
+        ]);
+    }
+
+    private function buildLegacySupplierFlexibleBulkRequest(Request $request, Supplier $supplier, string $paymentType, float $globalAmount): Request
+    {
+        $payments = $request->input('payments', []);
+        if (! is_array($payments)) {
+            $payments = [];
+        }
+
+        $paymentDate = $this->legacyBulkPaymentDate($request);
+        $method      = (string) $request->payment_method;
+        $groups      = [];
+
+        if ($paymentType === 'opening_balance') {
+            $groups[] = array_merge([
+                'method'      => $method,
+                'totalAmount' => $globalAmount,
+                'bills'       => [],
+            ], $this->legacyPaymentMethodDetailFields($request));
+        } elseif ($paymentType === 'purchase_dues') {
+            $bills = $this->legacySupplierBillsFromExplicitPayments($payments);
+            if (empty($bills) && $globalAmount > 0.01) {
+                $bills = $this->legacySupplierBillsFifoForAmount($supplier->id, $globalAmount);
+            }
+            if (empty($bills)) {
+                throw new \Exception('No outstanding purchase invoices to allocate this payment to.');
+            }
+            $groups[] = array_merge([
+                'method' => $method,
+                'bills'  => $bills,
+            ], $this->legacyPaymentMethodDetailFields($request));
+        } elseif ($paymentType === 'both') {
+            $ledgerOb = $this->calculateCurrentOpeningBalanceFromLedger($supplier);
+            $obPart    = min(max(0.0, $globalAmount), max(0.0, $ledgerOb));
+            $purchasePart = max(0.0, $globalAmount - $obPart);
+
+            $bills = $this->legacySupplierBillsFromExplicitPayments($payments);
+            if (empty($bills) && $purchasePart > 0.01) {
+                $bills = $this->legacySupplierBillsFifoForAmount($supplier->id, $purchasePart);
+            }
+
+            $groups[] = array_merge([
+                'method'      => $method,
+                'totalAmount' => $globalAmount,
+                'ob_amount'   => $obPart,
+                'bills'       => $bills,
+            ], $this->legacyPaymentMethodDetailFields($request));
+
+            if ($obPart <= 0.01 && empty($bills)) {
+                throw new \Exception('No opening balance due and no outstanding purchase invoices for this payment.');
+            }
+        } else {
+            throw new \Exception('Unsupported payment_type for supplier legacy bulk payment.');
+        }
+
+        return Request::create('/', 'POST', [
+            'supplier_id'    => $supplier->id,
+            'payment_date'   => $paymentDate,
+            'payment_type'   => $paymentType,
+            'payment_groups' => $groups,
+            'notes'          => $request->input('notes'),
+        ]);
+    }
+
     private function getBulkPaymentValidationRules(Request $request)
     {
         return [
@@ -1293,108 +1678,6 @@ class PaymentController extends Controller
             'customer' => Customer::withoutGlobalScopes()->findOrFail($entityId),
             default => throw new \Exception('Invalid entity type')
         };
-    }
-
-    private function calculateTotalDueAmount($entityType, $entityId, $openingBalance)
-    {
-        $totalDueFromReferences = match ($entityType) {
-            'supplier' => Purchase::where('supplier_id', $entityId)->where('total_due', '>', 0)->sum('total_due'),
-            'customer' => Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->where('customer_id', $entityId)->where('total_due', '>', 0)->sum('total_due'),
-            default => 0,
-        };
-
-        return $openingBalance + $totalDueFromReferences;
-    }
-
-    /**
-     * Calculate maximum payment amount based on payment type
-     * @param string $entityType - 'customer' or 'supplier'
-     * @param int $entityId - customer_id or supplier_id
-     * @param float $currentBalance - Use current_balance (ledger-based), NOT opening_balance from table
-     * @param string $paymentType - 'opening_balance', 'sale_dues', or 'both'
-     * @return float - maximum allowed payment amount
-     */
-    private function calculateMaxPaymentAmount($entityType, $entityId, $currentBalance, $paymentType)
-    {
-        $totalDueFromReferences = match ($entityType) {
-            'supplier' => Purchase::where('supplier_id', $entityId)->where('total_due', '>', 0)->sum('total_due'),
-            'customer' => Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->where('customer_id', $entityId)->where('total_due', '>', 0)->sum('total_due'),
-            default => 0,
-        };
-
-        return match ($paymentType) {
-            'opening_balance' => max(0, $currentBalance - $totalDueFromReferences), // Only remaining OB (current - sales due)
-            'sale_dues', 'purchase_dues' => $totalDueFromReferences, // Only sale/purchase dues
-            'both' => max(0, $currentBalance), // Total current balance (includes OB + sales due)
-            default => max(0, $currentBalance), // Default to current balance
-        };
-    }
-
-    private function reduceEntityOpeningBalance($entity, &$remainingAmount, $paymentMethod = 'cash', $request = null)
-    {
-        // Calculate available opening balance from ledger, not customer table
-        $currentOpeningBalance = $this->calculateCurrentOpeningBalanceFromLedger($entity);
-
-        if ($currentOpeningBalance > 0 && $remainingAmount > 0) {
-            $openingBalancePayment = min($remainingAmount, $currentOpeningBalance);
-
-            // Create opening balance settlement payment
-            $this->createOpeningBalancePayment($entity, $openingBalancePayment, $paymentMethod, $request);
-
-            // **IMPORTANT**: DO NOT update customer table opening_balance field during payments
-            // Customer table opening_balance should only change during edits via CustomerController
-            // Current balance is calculated from ledger entries, not customer table field
-            $entityType = $entity instanceof Customer ? 'customer' : 'supplier';
-
-            Log::info("Opening balance payment recorded for {$entityType} {$entity->id}: Payment amount {$openingBalancePayment}");
-
-            // Reduce remaining amount
-            $remainingAmount -= $openingBalancePayment;
-        }
-    }
-
-    /**
-     * Create payment record for opening balance settlement using unified ledger
-     */
-    private function createOpeningBalancePayment($entity, $amount, $paymentMethod = 'cash', $request = null)
-    {
-        $entityType = $entity instanceof Customer ? 'customer' : 'supplier';
-        $referenceNo = 'OB-PAYMENT-' . $entity->id . '-' . time();
-
-        // Store payment_date as plain date (Y-m-d) — time is captured in created_at (UTC)
-        $paymentDate = ($request && $request->payment_date)
-            ? $this->parseFlexibleDate($request->payment_date)
-            : Carbon::now()->format('Y-m-d');
-
-        $paymentData = [
-            'payment_date' => $paymentDate,
-            'amount' => $amount,
-            'payment_method' => $paymentMethod,
-            'payment_type' => 'opening_balance',
-            'reference_id' => null, // No specific sale/purchase reference
-            'reference_no' => $referenceNo,
-            'notes' => 'Opening Balance Settlement for ' . ($entity->first_name ?? $entity->business_name) . ' ' . ($entity->last_name ?? ''),
-        ];
-
-        if ($entityType === 'customer') {
-            $paymentData['customer_id'] = $entity->id;
-        } else {
-            $paymentData['supplier_id'] = $entity->id;
-        }
-
-        $payment = Payment::create($paymentData);
-
-        // Use unified ledger service for opening balance payment
-        $this->unifiedLedgerService->recordOpeningBalancePayment($payment, $entityType);
-
-        // Update entity balance
-        if ($entityType === 'customer') {
-            $this->updateCustomerBalance($entity->id);
-        } else {
-            $this->updateSupplierBalance($entity->id);
-        }
-
-        return $payment;
     }
 
     /**
@@ -1431,99 +1714,6 @@ class PaymentController extends Controller
 
         // Return remaining unpaid opening balance
         return max(0, $currentOpeningBalance - $totalPayments);
-    }
-
-    private function applyGlobalAmountToReferences($entity, &$remainingAmount, $data, $request)
-    {
-        if ($data['global_amount'] > 0) {
-            $references = $this->getReferencesByEntityType($data['entity_type'], $entity->id);
-
-            foreach ($references as $reference) {
-                if ($remainingAmount <= 0) {
-                    break;
-                }
-
-                $paidAmount = min($remainingAmount, $reference->total_due);
-                $this->createBulkPayment($reference, $paidAmount, $data['payment_method'], $data['entity_type'], $entity->id, 'Bulk payment', $request);
-                $remainingAmount -= $paidAmount;
-            }
-        }
-    }
-
-    private function handleIndividualPayments($entity, $data, $request)
-    {
-        if ($data['global_amount'] == 0 && isset($data['payments']) && count($data['payments']) > 0) {
-            foreach ($data['payments'] as $paymentData) {
-                $reference = $this->getReferenceForBulk($data['entity_type'], $paymentData['reference_id']);
-                $this->createBulkPayment($reference, $paymentData['amount'], $data['payment_method'], $data['entity_type'], $entity->id, 'Individual payment', $request);
-            }
-        }
-    }
-
-    private function getReferencesByEntityType($entityType, $entityId)
-    {
-        return match ($entityType) {
-            'supplier' => Purchase::where('supplier_id', $entityId)->where('total_due', '>', 0)->orderBy('created_at', 'asc')->get(),
-            'customer' => Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->where('customer_id', $entityId)->where('total_due', '>', 0)->orderBy('created_at', 'asc')->get(),
-            default => collect(),
-        };
-    }
-
-    private function getReferenceForBulk($entityType, $refId)
-    {
-        return $entityType === 'supplier'
-            ? Purchase::find($refId)
-            : Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)->find($refId);
-    }
-
-    private function createBulkPayment($reference, $amount, $paymentMethod, $entityType, $entityId, $notes, $request)
-    {
-        // Store payment_date as plain date (Y-m-d) — time is captured in created_at (UTC)
-        $paymentDate = $request->payment_date
-            ? $this->parseFlexibleDate($request->payment_date)
-            : Carbon::now()->format('Y-m-d');
-
-        $paymentData = [
-            'payment_date' => $paymentDate,
-            'amount' => $amount,
-            'payment_method' => $paymentMethod,
-            'payment_type' => $entityType === 'supplier' ? 'purchase' : 'sale',
-            'reference_id' => $reference->id,
-            'reference_no' => $reference->invoice_no ?? $reference->reference_no,
-            $entityType === 'supplier' ? 'supplier_id' : 'customer_id' => $entityId,
-            'notes' => $notes,
-        ];
-
-        if ($paymentMethod === 'card') {
-            $paymentData['card_number'] = $request->card_number;
-            $paymentData['card_holder_name'] = $request->card_holder_name;
-        }
-
-        if ($paymentMethod === 'cheque') {
-            $paymentData['cheque_number'] = $request->cheque_number;
-            $paymentData['cheque_bank_branch'] = $request->cheque_bank_branch;
-            $paymentData['cheque_received_date'] = $request->cheque_received_date ? $this->parseFlexibleDate($request->cheque_received_date) : null;
-            $paymentData['cheque_valid_date'] = $request->cheque_valid_date ? $this->parseFlexibleDate($request->cheque_valid_date) : null;
-            $paymentData['cheque_given_by'] = $request->cheque_given_by;
-        }
-
-        if ($paymentMethod === 'bank_transfer') {
-            $paymentData['bank_account_number'] = $request->bank_account_number;
-        }
-
-        $payment = Payment::create($paymentData);
-
-        // Use unified ledger service for bulk payment ledger entries
-        if ($entityType === 'customer') {
-            // ✅ FIX: Pass the actual Sale object so ledger shows specific invoice number
-            $this->unifiedLedgerService->recordSalePayment($payment, $reference);
-            $this->updateSaleTable($reference->id);
-            $this->updateCustomerBalance($entityId);
-        } else {
-            $this->unifiedLedgerService->recordPurchasePayment($payment);
-            $this->updatePurchaseTable($reference->id);
-            $this->updateSupplierBalance($entityId);
-        }
     }
 
     private function updatePurchaseTable($purchaseId)
