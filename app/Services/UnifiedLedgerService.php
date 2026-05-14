@@ -1626,8 +1626,8 @@ class UnifiedLedgerService
     private function getLocationForTransaction($ledger)
     {
         try {
-            // Extract invoice/reference numbers to find related records
-            $referenceNo = $ledger->reference_no;
+            // Ledger reference_no can be null; resolver methods require string (PHP 8+ TypeError otherwise).
+            $referenceNo = (string) ($ledger->reference_no ?? '');
 
             // For opening balance transactions, get customer/supplier's location_id
             if ($ledger->transaction_type === 'opening_balance') {
@@ -1685,8 +1685,8 @@ class UnifiedLedgerService
                 }
             }
 
-        } catch (\Exception $e) {
-            // Log error if needed, but don't break the flow
+        } catch (\Throwable $e) {
+            // Log error if needed, but don't break the flow (TypeError from null ref, etc.)
             Log::warning("Error getting location for transaction {$ledger->id}: " . $e->getMessage());
         }
 
@@ -1696,7 +1696,7 @@ class UnifiedLedgerService
             if ($defaultLocationName !== null) {
                 return $defaultLocationName;
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::warning("Error getting default location: " . $e->getMessage());
         }
 

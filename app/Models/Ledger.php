@@ -515,6 +515,8 @@ class Ledger extends Model
      */
     public static function formatTransactionType($type)
     {
+        $type = $type === null || $type === '' ? '' : (string) $type;
+
         return match($type) {
             'opening_balance' => 'Opening Balance',
             'sale' => 'Sale',

@@ -147,7 +147,13 @@ class PaymentController extends Controller
                 'advance_application' => $ledgerData['advance_application']
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            Log::error('getCustomerLedger failed', [
+                'customer_id' => $request->customer_id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'status' => 500,
                 'message' => 'Failed to retrieve customer ledger: ' . $e->getMessage()
