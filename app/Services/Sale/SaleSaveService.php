@@ -42,6 +42,12 @@ class SaleSaveService
         string  $referenceNo
     ): array {
         // ----- Capture pre-save state (needed by SaleLedgerManager) -----
+        $oldInvoiceNo = null;
+        if ($isUpdate) {
+            $rawInv = trim((string) ($sale->invoice_no ?? ''));
+            $oldInvoiceNo = ($rawInv === '' || $rawInv === '-') ? null : $rawInv;
+        }
+
         $oldCustomerId = $isUpdate ? $sale->getOriginal('customer_id') : null;
         $oldFinalTotal = $isUpdate ? $sale->getOriginal('final_total')  : null;
         $oldSubtotal   = $isUpdate ? $sale->getOriginal('subtotal')     : null;
@@ -121,9 +127,10 @@ class SaleSaveService
 
 
         return [
-            'old_customer_id'      => $oldCustomerId,
-            'old_final_total'      => $oldFinalTotal,
-            'customer_changed'     => $customerChanged,
+            'old_customer_id'        => $oldCustomerId,
+            'old_final_total'        => $oldFinalTotal,
+            'old_invoice_no'         => $oldInvoiceNo,
+            'customer_changed'       => $customerChanged,
             'financial_data_changed' => $financialDataChanged,
         ];
     }

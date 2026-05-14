@@ -47,6 +47,7 @@ class SaleLedgerManager
      * @param  bool        $customerChanged
      * @param  bool        $financialDataChanged
      * @param  string      $referenceNo
+     * @param  string|null $oldInvoiceNo       Invoice number before this save (for ledger reversal keys)
      */
     public function record(
         Sale    $sale,
@@ -59,7 +60,8 @@ class SaleLedgerManager
         ?float  $oldFinalTotal,
         bool    $customerChanged,
         bool    $financialDataChanged,
-        ?string $referenceNo
+        ?string $referenceNo,
+        ?string $oldInvoiceNo = null
     ): void {
         // Walk-In customers have no credit ledger — skip entirely
         if ($customerId == 1) {
@@ -78,7 +80,8 @@ class SaleLedgerManager
                 $oldFinalTotal,
                 $customerChanged,
                 $financialDataChanged,
-                $referenceNo
+                $referenceNo,
+                $oldInvoiceNo
             );
         }
     }
@@ -117,7 +120,8 @@ class SaleLedgerManager
         ?float  $oldFinalTotal,
         bool    $customerChanged,
         bool    $financialDataChanged,
-        ?string $referenceNo
+        ?string $referenceNo,
+        ?string $oldInvoiceNo = null
     ): void {
         // Skip ledger updates for sale orders and non-final target statuses.
         if ($transactionType === 'sale_order' || in_array($newStatus, ['draft', 'quotation', 'jobticket'])) {
@@ -163,7 +167,8 @@ class SaleLedgerManager
                 $oldCustomerId,
                 $sale->customer_id,
                 $oldFinalTotal,
-                'Customer changed during sale edit'
+                'Customer changed during sale edit',
+                $oldInvoiceNo
             );
             return;
         }
@@ -189,7 +194,8 @@ class SaleLedgerManager
             }
 
             // UnifiedLedgerService handles both reversal of old entry and creation of new entry
-            $this->ledger->updateSale($sale, $referenceNo ?? '');
+            $ledgerOldRef = $oldInvoiceNo ?: ($referenceNo ?? '');
+            $this->ledger->updateSale($sale, $ledgerOldRef !== '' ? $ledgerOldRef : null);
             return;
         }
 

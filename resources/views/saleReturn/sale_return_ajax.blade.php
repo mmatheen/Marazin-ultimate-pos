@@ -21,6 +21,48 @@
         window.productSearchInProgress = false;
         const canUseFreeQty = {!! json_encode($canUseFreeQty ?? false) !!};
 
+        /** Avoid "First null" in UI when API sends null last_name (template literals stringify null). */
+        function formatCustomerName(customer) {
+            if (!customer) {
+                return '';
+            }
+            var a = customer.first_name != null ? String(customer.first_name).trim() : '';
+            var b = customer.last_name != null ? String(customer.last_name).trim() : '';
+            var joined = (a + ' ' + b).trim();
+            if (joined) {
+                return joined;
+            }
+            if (customer.name) {
+                return String(customer.name).trim();
+            }
+            return customer.id ? ('Customer #' + customer.id) : '';
+        }
+
+        function saleReturnCustomerDetails(sr) {
+            var c = (sr.sale && sr.sale.customer) ? sr.sale.customer : (sr.customer || null);
+            if (!c) {
+                return 'N/A';
+            }
+            var parts = [c.prefix, formatCustomerName(c), c.address, c.mobile_no, c.email].filter(function(x) {
+                return x != null && String(x).trim() !== '';
+            }).map(function(x) {
+                return String(x).trim();
+            });
+            return parts.length ? parts.join(', ') : 'N/A';
+        }
+
+        function saleReturnLocationDetails(sr) {
+            var loc = (sr.sale && sr.sale.location) ? sr.sale.location : (sr.location || null);
+            if (!loc) {
+                return 'N/A';
+            }
+            return [loc.name, loc.address, loc.city, loc.district, loc.province, loc.email, loc.mobile].filter(function(x) {
+                return x != null && String(x).trim() !== '';
+            }).map(function(x) {
+                return String(x).trim();
+            }).join(', ') || 'N/A';
+        }
+
         // Debounce utility function
         function debounce(func, wait) {
             let timeout;
@@ -235,7 +277,7 @@
                         const customerSelect = $("#customerId");
                         window.customerCache.forEach(customer => {
                             customerSelect.append(new Option(
-                                `${customer.first_name} ${customer.last_name}`, customer.id));
+                                formatCustomerName(customer), customer.id));
                         });
                         return;
                     }
@@ -250,7 +292,7 @@
                             const customerSelect = $("#customerId");
                             data.message.forEach(customer => {
                                 customerSelect.append(new Option(
-                                    `${customer.first_name} ${customer.last_name}`, customer
+                                    formatCustomerName(customer), customer
                                     .id));
                             });
                         },
@@ -259,6 +301,21 @@
                         }
                     });
                 }
+
+                $('#withBill, #withoutBill').on('change', function() {
+                    if ($('#withoutBill').is(':checked')) {
+                        window.originalDiscountData = null;
+                    }
+                    calculateReturnTotal();
+                });
+
+                $('#customerId').on('change', function() {
+                    var v = $(this).val() || '';
+                    $('#customer-id').val(v);
+                    if (v) {
+                        fetchCustomerDetails(v);
+                    }
+                });
             } else {
                 console.log('📋 List page detected: Skipping form location/customer loading');
             }
@@ -315,7 +372,7 @@
                             $('#displayDate').html(`<strong>Date:</strong> ${data.sale.created_at ? new Date(data.sale.created_at).toLocaleDateString() : ''}`);
                         }
                         if (data.customer) {
-                            $('#displayCustomer').html(`<strong>Customer:</strong> ${data.customer.first_name || ''} ${data.customer.last_name || ''}`);
+                            $('#displayCustomer').html('<strong>Customer:</strong> ' + formatCustomerName(data.customer));
                         }
                         if (data.location) {
                             $('#displayLocation').html(`<strong>Business Location:</strong> ${data.location.name || ''}`);
@@ -332,6 +389,17 @@
                     $('#date').val(data.return_date ? data.return_date.split(' ')[0] : '');
                     $('#isDefective').prop('checked', data.is_defective);
                     $('#notes').val(data.notes || '');
+
+                    var savedDiscType = data.discount_type || '';
+                    if (savedDiscType === 'fixed') {
+                        savedDiscType = 'flat';
+                    }
+                    $('#discountType').val(savedDiscType || '');
+                    $('#discountAmount').val(
+                        data.discount_amount != null && data.discount_amount !== ''
+                            ? data.discount_amount
+                            : ''
+                    );
 
                     // Load existing products into the table - handle both snake_case and camelCase
                     const returnProducts = data.return_products || data.returnProducts || [];
@@ -646,17 +714,32 @@
                         );
 
                         // Store original discount data for proportional calculation
-                        window.originalDiscountData = data.original_discount;
+                        window.originalDiscountData = data.original_discount || null;
 
-                        // Initially clear discount fields
-                        $("#discountType").val("");
-                        $("#discountAmount").val("");
+                        const od = window.originalDiscountData;
+                        const billDisc = parseFloat(od && od.discount_amount != null ? od.discount_amount : 0) || 0;
+                        if (od && billDisc > 0) {
+                            const ndt = normalizeBillDiscountType(od.discount_type);
+                            if (ndt === 'percentage') {
+                                $("#discountType").val('percentage');
+                                $("#discountAmount").val(billDisc.toFixed(2));
+                            } else if (ndt === 'fixed') {
+                                $("#discountType").val('flat');
+                                $("#discountAmount").val(billDisc.toFixed(2));
+                            } else {
+                                $("#discountType").val("");
+                                $("#discountAmount").val("");
+                            }
+                        } else {
+                            $("#discountType").val("");
+                            $("#discountAmount").val("");
+                        }
 
                         fetchCustomerDetails(data.customer_id);
                         setLocationId(data.location_id);
 
                         // Improved input handler for decimals and cursor position
-                        $(".return-quantity").on('input', function(e) {
+                        $(".return-quantity").off('input').on('input', function(e) {
                             const $input = $(this);
                             let value = $input.val();
 
@@ -702,7 +785,7 @@
                         });
 
                         // Handler for free quantity input validation
-                        $(".return-free-quantity").on('input', function(e) {
+                        $(".return-free-quantity").off('input').on('input', function(e) {
                             const $input = $(this);
                             let value = $input.val();
 
@@ -746,7 +829,7 @@
                             calculateReturnTotal();
                         });
 
-                        $(".remove-product").on('click', function() {
+                        $(".remove-product").off('click').on('click', function() {
                             // Remove immediately without confirmation
                             $(this).closest('tr').remove();
                             toastr.success('Product removed successfully.');
@@ -757,6 +840,8 @@
                                 resetInvoice();
                             }
                         });
+
+                        calculateReturnTotal();
                     },
                     error: function(xhr, status, error) {
                         console.error('Error fetching sales data:', error);
@@ -850,7 +935,7 @@
                     const customer = window.customerCache.find(c => c.id == customerId);
                     if (customer) {
                         $("#displayCustomer").html(
-                            `<strong>Customer:</strong> ${customer.first_name} ${customer.last_name}`
+                            '<strong>Customer:</strong> ' + formatCustomerName(customer)
                         );
                         $("#customer-id").val(customer.id); // Set the customer ID
                     } else {
@@ -869,7 +954,7 @@
                         const customer = data.message.find(c => c.id == customerId);
                         if (customer) {
                             $("#displayCustomer").html(
-                                `<strong>Customer:</strong> ${customer.first_name} ${customer.last_name}`
+                                '<strong>Customer:</strong> ' + formatCustomerName(customer)
                             );
                             $("#customer-id").val(customer.id); // Set the customer ID
                         } else {
@@ -891,6 +976,28 @@
                     $("#displayLocation").html(
                         `<strong>Business Location:</strong> ${locationSelect.find("option:selected").text()}`);
                 }
+            }
+
+            /** Parse "Rs. 27,950.00" / "Rs. 6950" style amounts from table cells */
+            function parseRsAmount(raw) {
+                if (raw == null || raw === '') {
+                    return 0;
+                }
+                const s = String(raw).replace(/Rs\.?/gi, '').replace(/,/g, '').replace(/\s+/g, '').trim();
+                const n = parseFloat(s);
+                return isNaN(n) ? 0 : n;
+            }
+
+            /** Match parent sale discount_type to sale-return form values */
+            function normalizeBillDiscountType(dt) {
+                const t = String(dt || '').toLowerCase().trim();
+                if (t === 'percentage' || t === 'percent') {
+                    return 'percentage';
+                }
+                if (t === 'fixed' || t === 'flat') {
+                    return 'fixed';
+                }
+                return t;
             }
 
             function calculateVatPerUnit(unitPrice, taxPercent, sellingPriceTaxType) {
@@ -931,16 +1038,16 @@
                 let totalVat = 0;
                 let totalReturnQuantity = 0;
 
-                // Calculate total subtotal and return quantity
-                $('.return-subtotal').each(function() {
-                    totalSubtotal += parseFloat($(this).text().replace('Rs. ', ''));
+                // Scope to invoice lines table only (avoids summing wrong nodes on complex pages)
+                $('#productsTableBody .return-subtotal').each(function() {
+                    totalSubtotal += parseRsAmount($(this).text());
                 });
 
-                $('.vat-display').each(function() {
-                    totalVat += parseFloat($(this).text().replace('Rs. ', '')) || 0;
+                $('#productsTableBody .vat-display').each(function() {
+                    totalVat += parseRsAmount($(this).text());
                 });
 
-                $('.return-quantity').each(function() {
+                $('#productsTableBody .return-quantity').each(function() {
                     const qty = parseFloat($(this).val()) || 0;
                     totalReturnQuantity += qty;
                 });
@@ -950,35 +1057,52 @@
                 let discountType = "";
                 let discountAmount = 0;
 
-                if (window.originalDiscountData && window.originalDiscountData.discount_amount > 0 && totalReturnQuantity > 0) {
-                    const originalDiscount = window.originalDiscountData;
+                const originalDiscount = window.originalDiscountData;
+                const originalBillDiscountAmt = parseFloat(originalDiscount && originalDiscount
+                    .discount_amount != null ? originalDiscount.discount_amount : 0) || 0;
+
+                if (originalDiscount && originalBillDiscountAmt > 0 && totalReturnQuantity > 0 &&
+                    $('#withBill').is(':checked') && $('#sale-id').val()) {
                     const originalQuantity = originalDiscount.total_original_quantity || 1;
 
                     // Calculate proportion of return vs original sale
                     const returnProportion = totalReturnQuantity / originalQuantity;
 
-                    discountType = originalDiscount.discount_type;
+                    discountType = normalizeBillDiscountType(originalDiscount.discount_type);
 
                     if (discountType === "percentage") {
-                        // For percentage discount, use the same percentage
-                        discountAmount = originalDiscount.discount_amount;
+                        // Same bill % on current return line subtotal
+                        discountAmount = originalBillDiscountAmt;
                         totalDiscount = (totalSubtotal * discountAmount) / 100;
                     } else if (discountType === "fixed") {
-                        // For fixed discount, apply proportionally
-                        discountAmount = originalDiscount.discount_amount * returnProportion;
+                        discountAmount = originalBillDiscountAmt * returnProportion;
                         totalDiscount = discountAmount;
+                    } else if (!String(originalDiscount.discount_type || '').trim() && originalBillDiscountAmt > 0) {
+                        // Legacy rows with amount but missing discount_type
+                        if (originalBillDiscountAmt <= 100) {
+                            discountType = 'percentage';
+                            discountAmount = originalBillDiscountAmt;
+                            totalDiscount = (totalSubtotal * discountAmount) / 100;
+                        } else {
+                            discountType = 'fixed';
+                            discountAmount = originalBillDiscountAmt * returnProportion;
+                            totalDiscount = discountAmount;
+                        }
                     }
 
                     // Update UI to show the calculated discount
-                    const frontendDiscountType = discountType === "fixed" ? "flat" : discountType;
-                    $("#discountType").val(frontendDiscountType);
-                    $("#discountAmount").val(discountAmount.toFixed(2));
+                    const frontendDiscountType = discountType === "fixed" ? "flat" : (discountType ===
+                        "percentage" ? "percentage" : "");
+                    if (frontendDiscountType) {
+                        $("#discountType").val(frontendDiscountType);
+                        $("#discountAmount").val(discountAmount.toFixed(2));
+                    }
 
                     console.log('Proportional discount calculated:', {
                         originalQuantity: originalQuantity,
                         returnQuantity: totalReturnQuantity,
                         proportion: returnProportion,
-                        originalDiscountAmount: originalDiscount.discount_amount,
+                        originalDiscountAmount: originalBillDiscountAmt,
                         calculatedDiscountAmount: discountAmount,
                         discountType: discountType
                     });
@@ -990,6 +1114,7 @@
                     if (discountType === 'percentage') {
                         totalDiscount = (totalSubtotal * discountAmount) / 100;
                     } else {
+                        // flat / fixed / empty treat as fixed rupee amount
                         totalDiscount = discountAmount;
                     }
                 }
@@ -1207,15 +1332,14 @@
                             if (quantity > 0 || freeQuantity > 0) {
                                 const $input = $(row).find('.return-quantity');
                                 const $vatCell = $(row).find('.return-vat');
-                                const lineVat = parseFloat($(row).find('.vat-display').text().replace('Rs. ', '')) || 0;
+                                const lineVat = parseRsAmount($(row).find('.vat-display').text());
                                 const product = {
                                     product_id: $input.data('productId'),
                                     quantity: quantity,
                                     free_quantity: freeQuantity,
                                     original_price: $input.data('originalPrice') || $input.data('unitPrice'),
                                     return_price: $input.data('unitPrice'), // This is the actual return price
-                                    subtotal: parseFloat($(row).find('.return-subtotal').text()
-                                        .replace('Rs. ', '')),
+                                    subtotal: parseRsAmount($(row).find('.return-subtotal').text()),
                                     batch_id: $input.data('batchId') || null,
                                     price_type: "retail",
                                     discount: 0,
@@ -1233,6 +1357,9 @@
                             $submitButton.prop('disabled', false).html(originalButtonText);
                             return;
                         }
+
+                        jsonData.discount_type = $('#discountType').val() || null;
+                        jsonData.discount_amount = parseFloat($('#discountAmount').val()) || 0;
 
                         // Additional validation for billing options
                         if (withBill && !jsonData.sale_id) {
@@ -1363,7 +1490,7 @@
 
                 // Check if at least one product has return quantity > 0
                 let hasReturnQuantity = false;
-                $('.return-quantity').each(function() {
+                $('#productsTableBody .return-quantity').each(function() {
                     const quantity = parseFloat($(this).val()) || 0;
                     if (quantity > 0) {
                         hasReturnQuantity = true;
@@ -1439,7 +1566,7 @@
                             const $select = $('select[name="customer"]');
                             $select.empty().append('<option value="">All</option>');
                             customers.forEach(function(customer) {
-                                const name = `${customer.first_name} ${customer.last_name}`.trim();
+                                const name = formatCustomerName(customer);
                                 $select.append(`<option value="${customer.id}">${name}</option>`);
                             });
                             console.log(`✅ Loaded ${customers.length} customers (fast mode)`);
@@ -1566,18 +1693,13 @@
                             var totalAmount = response.totalAmount;
                             var totalDue = response.totalDue;
 
-                            // NO CLIENT-SIDE SORTING - Backend already sorts by latest first
-
-                            // Prepare table rows
-                            var rows = salesReturns.map(function(salesReturn, index) {
+                            // Rows: index 0 = return id (hidden) for DataTables sort = newest first
+                            var rows = salesReturns.map(function(salesReturn) {
                                 var parentSaleInvoice = salesReturn.sale ? salesReturn.sale
                                     .invoice_no : 'N/A';
-                                var customerName = salesReturn.sale && salesReturn.sale
-                                    .customer ?
-                                    salesReturn.sale.customer.first_name + ' ' + salesReturn
-                                    .sale.customer.last_name :
-                                    (salesReturn.customer ? salesReturn.customer.first_name +
-                                        ' ' + salesReturn.customer.last_name : 'N/A');
+                                var customerName = salesReturn.sale && salesReturn.sale.customer
+                                    ? formatCustomerName(salesReturn.sale.customer)
+                                    : (salesReturn.customer ? formatCustomerName(salesReturn.customer) : 'N/A');
                                 var locationName = salesReturn.sale ?
                                     (salesReturn.sale.location ? salesReturn.sale.location
                                         .name : 'N/A') :
@@ -1586,7 +1708,7 @@
                                     'N/A';
 
                                 return [
-                                    index + 1,
+                                    salesReturn.id,
                                     new Date(salesReturn.return_date).toLocaleDateString() +
                                     ' ' + new Date(salesReturn.return_date)
                                     .toLocaleTimeString(),
@@ -1621,60 +1743,89 @@
                                 processing: false, // Disable processing indicator since data is already loaded
                                 pageLength: 25, // Show 25 rows per page
                                 lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-                                columns: [{
-                                        title: "#"
+                                columnDefs: [{
+                                        targets: 0,
+                                        visible: false,
+                                        searchable: false,
+                                        orderable: true
                                     },
                                     {
+                                        targets: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+                                        orderable: false
+                                    }
+                                ],
+                                columns: [{
+                                        data: 0
+                                    },
+                                    {
+                                        data: null,
+                                        title: "#",
+                                        searchable: false,
+                                        render: function(data, type, row, meta) {
+                                            return meta.row + meta.settings._iDisplayStart + 1;
+                                        }
+                                    },
+                                    {
+                                        data: 1,
                                         title: "Return Date"
                                     },
                                     {
+                                        data: 2,
                                         title: "Return Invoice No."
                                     },
                                     {
+                                        data: 3,
                                         title: "Parent Sale Invoice"
                                     },
                                     {
+                                        data: 4,
                                         title: "Customer"
                                     },
                                     {
+                                        data: 5,
                                         title: "Location"
                                     },
                                     {
+                                        data: 6,
                                         title: "User"
                                     }, // Add User column
                                     {
+                                        data: 7,
                                         title: "Payment Status"
                                     },
                                     {
+                                        data: 8,
                                         title: "Return Total"
                                     },
                                     {
+                                        data: 9,
                                         title: "Total Due"
                                     },
                                     {
+                                        data: 10,
                                         title: "Actions",
                                         orderable: false,
                                         searchable: false
                                     }
                                 ],
-                                // Default order already applied by backend (latest first)
+                                // Newest return first: numeric id (matches backend created_at/id desc)
                                 order: [
-                                    [1, 'desc']
+                                    [0, 'desc']
                                 ],
                                 footerCallback: function(row, data, start, end, display) {
                                     var api = this.api();
                                     // Calculate total for Return Total and Total Due columns
-                                    var totalReturn = api.column(8).data().reduce(function(
+                                    var totalReturn = api.column(9).data().reduce(function(
                                         a, b) {
                                         return parseFloat(a) + parseFloat(b);
                                     }, 0);
-                                    var totalDue = api.column(9).data().reduce(function(a,
+                                    var totalDue = api.column(10).data().reduce(function(a,
                                         b) {
                                         return parseFloat(a) + parseFloat(b);
                                     }, 0);
 
-                                    $(api.column(8).footer()).html(totalReturn.toFixed(2));
-                                    $(api.column(9).footer()).html(totalDue.toFixed(2));
+                                    $(api.column(9).footer()).html(totalReturn.toFixed(2));
+                                    $(api.column(10).footer()).html(totalDue.toFixed(2));
                                 }
                             });
                         }
@@ -1739,29 +1890,10 @@
                             var saleReturn = response.data;
                             $('#modalTitle').text('Sale Return Details - ' +
                                 saleReturn.invoice_number);
-                            var customerDetails = (saleReturn.sale && saleReturn
-                                    .sale.customer) ?
-                                saleReturn.sale.customer.prefix + ' ' + saleReturn
-                                .sale.customer.first_name + ' ' + saleReturn.sale
-                                .customer.last_name +
-                                ', ' + saleReturn.sale.customer.address + ', ' +
-                                saleReturn.sale.customer.mobile_no + ', ' +
-                                saleReturn.sale.customer.email : 'N/A';
-                            var locationDetails = (saleReturn.sale && saleReturn
-                                    .sale.location) ?
-                                saleReturn.sale.location.name + ', ' + saleReturn
-                                .sale.location.address + ', ' + saleReturn.sale
-                                .location.city + ', ' +
-                                saleReturn.sale.location.district + ', ' +
-                                saleReturn.sale.location.province + ', ' +
-                                saleReturn.sale.location.email + ', ' + saleReturn
-                                .sale.location.mobile : 'N/A';
-                            var salesDetails = saleReturn.sale ? saleReturn.sale
-                                .invoice_no + ' - ' + saleReturn.sale.final_total :
-                                'N/A';
-
-                            $('#customerDetails').text(customerDetails);
-                            $('#locationDetails').text(locationDetails);
+                            $('#customerDetails').text(saleReturnCustomerDetails(saleReturn));
+                            $('#locationDetails').text(saleReturnLocationDetails(saleReturn));
+                            var salesDetails = saleReturn.sale ? (saleReturn.sale.invoice_no + ' — ' + saleReturn.sale.final_total) :
+                                'Walk-in / without bill return';
                             $('#salesDetails').text(salesDetails);
 
 
@@ -1783,8 +1915,9 @@
                             });
 
                             $('#paymentInfoTable tbody').empty();
-                            saleReturn.payments.forEach(function(payment) {
-                                $('#paymentInfoTable tbody').append(`
+                            if (saleReturn.payments && saleReturn.payments.length) {
+                                saleReturn.payments.forEach(function(payment) {
+                                    $('#paymentInfoTable tbody').append(`
                                                     <tr>
                                                         <td>${new Date(payment.payment_date).toLocaleDateString()}</td>
                                                         <td>${payment.reference_no ? payment.reference_no : 'N/A'}</td>
@@ -1793,9 +1926,31 @@
                                                         <td>${payment.notes}</td>
                                                     </tr>
                                                 `);
+                                });
+                            }
+
+                            var linesSum = 0;
+                            (saleReturn.return_products || []).forEach(function(p) {
+                                linesSum += parseFloat(p.subtotal) || 0;
                             });
+                            var retTot = parseFloat(saleReturn.return_total) || 0;
+                            var discAmt = Math.max(0, Math.round((linesSum - retTot) * 100) / 100);
+                            var discLabel = 'Discount';
+                            if (saleReturn.discount_type === 'percentage' && saleReturn.discount_amount != null) {
+                                discLabel = 'Discount (' + saleReturn.discount_amount + '%)';
+                            } else if (saleReturn.discount_type && (saleReturn.discount_type === 'flat' || saleReturn.discount_type === 'fixed')) {
+                                discLabel = 'Discount (flat)';
+                            }
 
                             var amountDetails = `
+                                                <tr>
+                                                    <td>Subtotal (lines):</td>
+                                                    <td>${linesSum.toFixed(2)}</td>
+                                                </tr>
+                                                ${discAmt > 0.005 ? `<tr>
+                                                    <td>${discLabel}:</td>
+                                                    <td>${discAmt.toFixed(2)}</td>
+                                                </tr>` : ''}
                                                 <tr>
                                                     <td>Total Amount:</td>
                                                     <td>${saleReturn.return_total}</td>
@@ -1847,20 +2002,8 @@
                             $('#customer_id').val(saleReturn.customer_id);
                             $('#reference_no').val(saleReturn.invoice_number);
 
-                            var customerDetails = saleReturn.sale && saleReturn.sale
-                                .customer ? saleReturn.sale.customer.prefix + ' ' +
-                                saleReturn.sale.customer.first_name + ' ' +
-                                saleReturn.sale.customer.last_name + ', ' +
-                                saleReturn.sale.customer.address + ', ' + saleReturn
-                                .sale.customer.mobile_no + ', ' + saleReturn.sale
-                                .customer.email : 'N/A';
-                            var locationDetails = saleReturn.sale && saleReturn.sale
-                                .location ? saleReturn.sale.location.name + ', ' +
-                                saleReturn.sale.location.address + ', ' + saleReturn
-                                .sale.location.city + ', ' + saleReturn.sale
-                                .location.district + ', ' + saleReturn.sale.location
-                                .province + ', ' + saleReturn.sale.location.email +
-                                ', ' + saleReturn.sale.location.mobile : 'N/A';
+                            var customerDetails = saleReturnCustomerDetails(saleReturn);
+                            var locationDetails = saleReturnLocationDetails(saleReturn);
 
                             $('#paymentCustomerDetail').text(customerDetails);
                             $('#paymentReferenceNo').text(saleReturn
@@ -1908,23 +2051,8 @@
                         if (response.status === 200) {
                             var saleReturn = response.data;
 
-                            var customerDetails = (saleReturn.sale && saleReturn
-                                    .sale.customer) ?
-                                saleReturn.sale.customer.prefix + ' ' + saleReturn
-                                .sale.customer.first_name + ' ' + saleReturn.sale
-                                .customer.last_name +
-                                ', ' + saleReturn.sale.customer.address + ', ' +
-                                saleReturn.sale.customer.mobile_no + ', ' +
-                                saleReturn.sale.customer.email : 'N/A';
-                            var locationDetails = (saleReturn.sale && saleReturn
-                                    .sale.location) ?
-                                saleReturn.sale.location.name + ', ' + saleReturn
-                                .sale.location.address + ', ' + saleReturn.sale
-                                .location.city + ', ' +
-                                saleReturn.sale.location.district + ', ' +
-                                saleReturn.sale.location.province + ', ' +
-                                saleReturn.sale.location.email + ', ' + saleReturn
-                                .sale.location.mobile : 'N/A';
+                            var customerDetails = saleReturnCustomerDetails(saleReturn);
+                            var locationDetails = saleReturnLocationDetails(saleReturn);
 
                             $('#viewCustomerDetail').text(customerDetails);
                             $('#viewBusinessDetail').text(locationDetails);
@@ -1936,7 +2064,7 @@
                             $('#viewPaymentStatus').text(saleReturn.payment_status);
 
                             var paymentRows = '';
-                            if (saleReturn.payments.length > 0) {
+                            if (saleReturn.payments && saleReturn.payments.length > 0) {
                                 paymentRows = saleReturn.payments.map(payment => `
                         <tr>
                             <td>${new Date(payment.payment_date).toLocaleDateString()}</td>

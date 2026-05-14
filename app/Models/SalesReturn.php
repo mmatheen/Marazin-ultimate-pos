@@ -21,6 +21,8 @@ class SalesReturn extends Model
         'location_id',
         'return_date',
         'return_total',
+        'discount_type',
+        'discount_amount',
         'total_paid',
         'total_due',
         'payment_status',

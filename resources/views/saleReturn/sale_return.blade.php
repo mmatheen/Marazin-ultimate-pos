@@ -170,17 +170,19 @@
                                             <table class="table table-striped table-bordered" id="salesReturnTable">
                                                 <thead>
                                                     <tr>
+                                                        {{-- 12 columns: col 0 hidden id (sort key), must match DataTables columns in sale_return_ajax --}}
+                                                        <th class="d-none"></th>
                                                         <th>#</th>
-                                                        <th>Date</th>
-                                                        <th>Invoice No.</th>
-                                                        <th>Parent Sale</th>
-                                                        <th>Customer Name</th>
-                                                        <th>User</th>
+                                                        <th>Return Date</th>
+                                                        <th>Return Invoice No.</th>
+                                                        <th>Parent Sale Invoice</th>
+                                                        <th>Customer</th>
                                                         <th>Location</th>
+                                                        <th>User</th>
                                                         <th>Payment Status</th>
-                                                        <th>Total Amount</th>
-                                                        <th>Payment Due</th>
-                                                        <th>Action</th>
+                                                        <th>Return Total</th>
+                                                        <th>Total Due</th>
+                                                        <th>Actions</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -188,8 +190,15 @@
                                                 </tbody>
                                                 <tfoot>
                                                     <tr>
-                                                        <td colspan="6"></td>
-                                                        <td>Total:</td>
+                                                        <td class="d-none"></td>
+                                                        <td></td>
+                                                        <td></td>
+                                                        <td></td>
+                                                        <td></td>
+                                                        <td></td>
+                                                        <td></td>
+                                                        <td></td>
+                                                        <td class="text-end fw-bold">Total:</td>
                                                         <td>0</td>
                                                         <td>0</td>
                                                         <td></td>

@@ -524,7 +524,18 @@
                         <div class="card card-table">
                             <div class="card-body">
                                 <div class="page-header">
-                                    <h5 class="mb-4">Add Payment</h5>
+                                    <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+                                        <div>
+                                            <h5 class="mb-0">Add Payment</h5>
+                                            <p class="text-muted small mb-0">Optional — expand only if you are paying now.</p>
+                                        </div>
+                                        <button type="button" class="btn btn-outline-primary btn-sm flex-shrink-0"
+                                            id="purchase-toggle-inline-payment" aria-expanded="false"
+                                            aria-controls="purchase-inline-payment-fields">
+                                            Show payment fields
+                                        </button>
+                                    </div>
+                                    <div id="purchase-inline-payment-fields" class="d-none">
                                     <div class="row g-3">
                                         <div class="col-md-4">
                                             <div class="form-group">
@@ -650,6 +661,7 @@
                                                 <textarea class="form-control" id="payment-note" name="payment_note" placeholder="Payment note" rows="3"></textarea>
                                             </div>
                                         </div>
+                                    </div>
                                     </div>
                                     <hr class="my-4">
                                     <div class="row justify-content-end">
@@ -820,6 +832,26 @@
 
                 $('#payment-method').on('change', function() {
                     togglePaymentFields();
+                });
+
+                window.setPurchaseInlinePaymentVisible = function (show) {
+                    var $panel = $('#purchase-inline-payment-fields');
+                    var $btn = $('#purchase-toggle-inline-payment');
+                    if (!$panel.length || !$btn.length) {
+                        return;
+                    }
+                    if (show) {
+                        $panel.removeClass('d-none');
+                        $btn.attr('aria-expanded', 'true').text('Hide payment fields');
+                    } else {
+                        $panel.addClass('d-none');
+                        $btn.attr('aria-expanded', 'false').text('Show payment fields');
+                    }
+                };
+
+                $('#purchase-toggle-inline-payment').on('click', function () {
+                    var willShow = $('#purchase-inline-payment-fields').hasClass('d-none');
+                    window.setPurchaseInlinePaymentVisible(willShow);
                 });
 
                 function togglePaymentFields() {

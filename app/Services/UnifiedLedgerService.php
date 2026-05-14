@@ -1812,8 +1812,10 @@ class UnifiedLedgerService
 
     /**
      * Handle sale edit with customer change - properly manages ledger transfers
+     *
+     * @param  string|null  $oldInvoiceNo  Invoice number before save (ledger rows may still use this ref)
      */
-    public function editSaleWithCustomerChange($sale, $oldCustomerId, $newCustomerId, $oldFinalTotal, $editReason = null)
+    public function editSaleWithCustomerChange($sale, $oldCustomerId, $newCustomerId, $oldFinalTotal, $editReason = null, ?string $oldInvoiceNo = null)
     {
         // ✅ FIX: Validate customer IDs before proceeding
         if (empty($newCustomerId) || $newCustomerId === null) {
@@ -1826,9 +1828,20 @@ class UnifiedLedgerService
             throw new \Exception("Cannot edit sale: new customer_id is missing or empty. Sale ID: {$sale->id}");
         }
 
-        return DB::transaction(function () use ($sale, $oldCustomerId, $newCustomerId, $oldFinalTotal, $editReason) {
-            $referenceNo = $sale->invoice_no ?: 'INV-' . $sale->id;
+        return DB::transaction(function () use ($sale, $oldCustomerId, $newCustomerId, $oldFinalTotal, $editReason, $oldInvoiceNo) {
+            $inv = trim((string) ($sale->invoice_no ?? ''));
+            $newReferenceNo = ($inv !== '' && $inv !== '-') ? $inv : 'INV-' . (int) $sale->id;
             $newFinalTotal = $sale->final_total;
+
+            $refsForOldCustomer = array_values(array_unique(array_filter([
+                ($oldInvoiceNo !== null && trim((string) $oldInvoiceNo) !== '' && trim((string) $oldInvoiceNo) !== '-')
+                    ? trim((string) $oldInvoiceNo) : null,
+                'INV-' . (int) $sale->id,
+            ], static fn ($r) => $r !== null && $r !== '' && $r !== '-')));
+
+            if ($refsForOldCustomer === []) {
+                $refsForOldCustomer = [$newReferenceNo];
+            }
 
             // Skip if both customers are Walk-In (no ledger impact)
             if ($oldCustomerId == 1 && $newCustomerId == 1) {
@@ -1837,7 +1850,9 @@ class UnifiedLedgerService
 
             Log::info("Processing sale edit with customer change", [
                 'sale_id' => $sale->id,
-                'reference_no' => $referenceNo,
+                'new_reference_no' => $newReferenceNo,
+                'refs_for_old_customer' => $refsForOldCustomer,
+                'old_invoice_no' => $oldInvoiceNo,
                 'old_customer_id' => $oldCustomerId,
                 'new_customer_id' => $newCustomerId,
                 'old_amount' => $oldFinalTotal,
@@ -1846,71 +1861,66 @@ class UnifiedLedgerService
 
             // STEP 1: Remove/reverse entries from old customer (if not Walk-In)
             if ($oldCustomerId != 1) {
-                // Find ACTIVE sale entries for old customer (don't reverse already reversed entries)
-                $oldSaleEntries = Ledger::where('reference_no', $referenceNo)
-                    ->where('contact_id', $oldCustomerId)
-                    ->where('contact_type', 'customer')
-                    ->where('transaction_type', 'sale')
-                    ->where('debit', '>', 0) // Only actual sale entries
-                    ->where('status', '!=', 'reversed') // Only reverse ACTIVE entries
-                    ->get();
+                foreach ($refsForOldCustomer as $ledgerRef) {
+                    $oldSaleEntries = Ledger::where('reference_no', $ledgerRef)
+                        ->where('contact_id', $oldCustomerId)
+                        ->where('contact_type', 'customer')
+                        ->where('transaction_type', 'sale')
+                        ->where('debit', '>', 0)
+                        ->where('status', '!=', 'reversed')
+                        ->get();
 
-                foreach ($oldSaleEntries as $entry) {
-                    // Mark original entry as reversed
-                    $this->markEntryReversed($entry, 'Customer changed');
+                    foreach ($oldSaleEntries as $entry) {
+                        $this->markEntryReversed($entry, 'Customer changed');
 
-                    // Create reversal entry for old customer
-                    $this->postLedgerEntry(
-                        (int) $oldCustomerId,
-                        'customer',
-                        $this->nowColombo(),
-                        'EDIT-CUST-REV-' . $referenceNo,
-                        'sale',
-                        -$entry->debit, // Negative to create credit (reversal)
-                        'Sale Customer Change - Removed from Customer #' . $oldCustomerId . ' (Rs' . number_format($entry->debit, 2) . ')' .
-                        ($editReason ? ' | Reason: ' . $editReason : ''),
-                        null,
-                        'reversed'
-                    );
-                }
+                        $this->postLedgerEntry(
+                            (int) $oldCustomerId,
+                            'customer',
+                            $this->nowColombo(),
+                            $this->withTimedSuffix('EDIT-CUST-REV-' . $entry->reference_no, (string) $entry->id),
+                            'sale',
+                            -$entry->debit,
+                            'Sale Customer Change - Removed from Customer #' . $oldCustomerId . ' (Rs' . number_format($entry->debit, 2) . ')' .
+                            ($editReason ? ' | Reason: ' . $editReason : ''),
+                            null,
+                            'reversed'
+                        );
+                    }
 
-                // Also reverse any related payment entries from old customer (ACTIVE only)
-                $oldPaymentEntries = Ledger::where('reference_no', $referenceNo)
-                    ->where('contact_id', $oldCustomerId)
-                    ->where('contact_type', 'customer')
-                    ->where('transaction_type', 'payments')
-                    ->where('credit', '>', 0) // Only actual payment entries
-                    ->where('status', '!=', 'reversed') // Only reverse ACTIVE entries
-                    ->get();
+                    $oldPaymentEntries = Ledger::where('reference_no', $ledgerRef)
+                        ->where('contact_id', $oldCustomerId)
+                        ->where('contact_type', 'customer')
+                        ->where('transaction_type', 'payments')
+                        ->where('credit', '>', 0)
+                        ->where('status', '!=', 'reversed')
+                        ->get();
 
-                foreach ($oldPaymentEntries as $entry) {
-                    // Mark original payment entry as reversed
-                    $this->markEntryReversed($entry, 'Customer changed');
+                    foreach ($oldPaymentEntries as $entry) {
+                        $this->markEntryReversed($entry, 'Customer changed');
 
-                    // Create reversal entry for old customer payments
-                    $this->postLedgerEntry(
-                        (int) $oldCustomerId,
-                        'customer',
-                        $this->nowColombo(),
-                        'EDIT-PAY-REV-' . $referenceNo,
-                        'payments',
-                        $entry->credit, // Positive to create debit (reversal of credit)
-                        'Payment Customer Change - Removed from Customer #' . $oldCustomerId . ' (Rs' . number_format($entry->credit, 2) . ')' .
-                        ($editReason ? ' | Reason: ' . $editReason : ''),
-                        null,
-                        'reversed'
-                    );
+                        $this->postLedgerEntry(
+                            (int) $oldCustomerId,
+                            'customer',
+                            $this->nowColombo(),
+                            $this->withTimedSuffix('EDIT-PAY-REV-' . $entry->reference_no, (string) $entry->id),
+                            'payments',
+                            $entry->credit,
+                            'Payment Customer Change - Removed from Customer #' . $oldCustomerId . ' (Rs' . number_format($entry->credit, 2) . ')' .
+                            ($editReason ? ' | Reason: ' . $editReason : ''),
+                            null,
+                            'reversed'
+                        );
+                    }
                 }
             }
 
             // STEP 2: Add entries to new customer (if not Walk-In)
             if ($newCustomerId != 1) {
-                // Create sale entry for new customer
                 $this->postLedgerEntry(
                     (int) $newCustomerId,
                     'customer',
                     $this->nowColombo(),
-                    $referenceNo,
+                    $newReferenceNo,
                     'sale',
                     $newFinalTotal,
                     "Sale Customer Change - Added to Customer #{$newCustomerId} (Rs{$newFinalTotal})" .
@@ -1997,6 +2007,53 @@ class UnifiedLedgerService
 
         Log::info('ReverseSale: No active entry found to reverse');
         return null;
+    }
+
+    /**
+     * Reverse a stray active customer "sale" debit by reference (e.g. invoice renumbered,
+     * customer moved, invoice cleared) so BalanceHelper matches open sales again.
+     *
+     * @return \App\Models\Ledger|null  The reversal row, or null if nothing matched
+     */
+    public function reverseOrphanCustomerSaleLedgerEntry(
+        int $customerId,
+        string $referenceNo,
+        string $reason = 'Orphan sale ledger cleanup',
+        $createdBy = null
+    ): ?Ledger {
+        $referenceNo = trim($referenceNo);
+        if ($customerId <= 1 || $referenceNo === '') {
+            return null;
+        }
+
+        return DB::transaction(function () use ($customerId, $referenceNo, $reason, $createdBy) {
+            $entry = Ledger::where('contact_id', $customerId)
+                ->where('contact_type', 'customer')
+                ->where('transaction_type', 'sale')
+                ->where('reference_no', $referenceNo)
+                ->where('status', 'active')
+                ->where('debit', '>', 0)
+                ->orderByDesc('id')
+                ->first();
+
+            if (!$entry) {
+                return null;
+            }
+
+            $this->markEntryReversed($entry, $reason);
+
+            return $this->postLedgerEntry(
+                (int) $customerId,
+                'customer',
+                $this->nowColombo(),
+                $this->withTimedSuffix($referenceNo, 'ORPHAN-REV'),
+                'sale',
+                -(float) $entry->debit,
+                'REVERSAL: ' . $reason . ' — Original sale debit Rs.' . number_format((float) $entry->debit, 2) . ' (Ledger ID: ' . $entry->id . ')',
+                $createdBy,
+                'reversed'
+            );
+        });
     }
 
     /**

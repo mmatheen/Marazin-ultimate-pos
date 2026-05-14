@@ -578,6 +578,7 @@ class PaymentController extends Controller
             'payment_method' => 'required|string',
             'reference_no' => 'nullable|string',
             'notes' => 'nullable|string',
+            'attach_document' => 'nullable|file|max:5120|mimes:pdf,csv,zip,doc,docx,jpeg,jpg,png',
             'payment_type' => 'required|string|in:purchase,sale,purchase_return,sale_return_with_bill,sale_return_without_bill',
             'reference_id' => 'nullable|integer',
             'supplier_id' => 'nullable|integer|exists:suppliers,id',
@@ -599,12 +600,17 @@ class PaymentController extends Controller
             ? Carbon::parse($request->payment_date)->format('Y-m-d')
             : now()->format('Y-m-d');
 
-        return [
+        $notes = $request->input('payment_note');
+        if ($notes === null || $notes === '') {
+            $notes = $request->input('notes');
+        }
+
+        $data = [
             'payment_date' => $paymentDate,
             'amount' => $request->amount,
             'payment_method' => $request->payment_method,
             'reference_no' => $request->reference_no,
-            'notes' => $request->notes,
+            'notes' => $notes,
             'payment_type' => $request->payment_type,
             'reference_id' => $request->reference_id,
             'supplier_id' => $request->supplier_id,
@@ -617,6 +623,19 @@ class PaymentController extends Controller
             'cheque_valid_date' => $request->cheque_valid_date ? $this->parseFlexibleDate($request->cheque_valid_date) : null,
             'cheque_given_by' => $request->cheque_given_by,
         ];
+
+        if ($request->hasFile('attach_document')) {
+            $file = $request->file('attach_document');
+            $fileName = time() . '.' . $file->getClientOriginalExtension();
+            $dir = public_path('assets/documents');
+            if (!is_dir($dir)) {
+                @mkdir($dir, 0755, true);
+            }
+            $file->move($dir, $fileName);
+            $data['attach_document'] = $fileName;
+        }
+
+        return $data;
     }
 
     private function saveOrUpdatePayment($paymentData, $paymentId = null)

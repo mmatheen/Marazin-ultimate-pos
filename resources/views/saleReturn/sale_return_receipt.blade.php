@@ -249,14 +249,33 @@
                 $returnVatGrandTotal = (float) ($saleReturn->returnProducts->sum(function ($p) {
                     return (float) ($p->vat_total ?? 0);
                 }) ?? 0);
-                $returnSubtotalExVat = max(0, (float) $saleReturn->return_total - $returnVatGrandTotal);
+                // Sum of line subtotals as stored (before header-level return discount).
+                $linesGrossTotal = (float) $saleReturn->returnProducts->sum(function ($p) {
+                    return (float) ($p->subtotal ?? 0);
+                });
+                $headerDiscountMoney = max(
+                    0,
+                    round($linesGrossTotal - (float) $saleReturn->return_total, 2)
+                );
+                $discountLabel = 'DISCOUNT';
+                if (! empty($saleReturn->discount_type) && $saleReturn->discount_type === 'percentage' && $saleReturn->discount_amount != null) {
+                    $discountLabel = 'DISCOUNT (' . rtrim(rtrim(number_format((float) $saleReturn->discount_amount, 2, '.', ''), '0'), '.') . '%)';
+                } elseif (! empty($saleReturn->discount_type) && in_array($saleReturn->discount_type, ['flat', 'fixed'], true)) {
+                    $discountLabel = 'DISCOUNT (FLAT)';
+                }
             @endphp
             <table width="100%" border="0" style="color: #000;">
                 <tbody>
                     <tr>
-                        <td align="right"><strong>SUBTOTAL</strong></td>
-                        <td width="80" align="right">{{ number_format($returnSubtotalExVat, 2, '.', ',') }}</td>
+                        <td align="right"><strong>SUBTOTAL (LINES)</strong></td>
+                        <td width="80" align="right">{{ number_format($linesGrossTotal, 2, '.', ',') }}</td>
                     </tr>
+                    @if ($headerDiscountMoney > 0.005)
+                        <tr>
+                            <td align="right"><strong>{{ $discountLabel }}</strong></td>
+                            <td width="80" align="right">-{{ number_format($headerDiscountMoney, 2, '.', ',') }}</td>
+                        </tr>
+                    @endif
                     @if ($returnVatGrandTotal > 0)
                         <tr>
                             <td align="right"><strong>VAT</strong></td>
@@ -292,6 +311,15 @@
             $products = $saleReturn->returnProducts ?? collect([]);
             $totalItems = $products->count();
             $totalQty = $products->sum('quantity');
+            $receiptDiscountTotal = isset($headerDiscountMoney) ? $headerDiscountMoney : max(
+                0,
+                round(
+                    (float) $products->sum(function ($p) {
+                        return (float) ($p->subtotal ?? 0);
+                    }) - (float) $saleReturn->return_total,
+                    2
+                )
+            );
         @endphp
 
         <div style="display: flex; text-align: center;">
@@ -304,7 +332,7 @@
                 <span style="font-size: 10px;">TOTAL QTY</span>
             </div>
             <div style="flex: 1; padding: 4px;">
-                <strong style="font-size: 16px;">0</strong><br>
+                <strong style="font-size: 16px;">{{ number_format($receiptDiscountTotal, 2, '.', ',') }}</strong><br>
                 <span style="font-size: 10px;">TOTAL DISCOUNT</span>
             </div>
         </div>

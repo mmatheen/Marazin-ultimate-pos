@@ -66,6 +66,8 @@ class SaleReturnController extends Controller
             'location_id' => 'required|exists:locations,id',
             'return_date' => 'required|date',
             'return_total' => 'required|numeric',
+            'discount_type' => 'nullable|string|in:percentage,flat,fixed',
+            'discount_amount' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string',
             'is_defective' => 'nullable|boolean',
             'products.*.product_id' => 'required|exists:products,id',
@@ -238,9 +240,29 @@ class SaleReturnController extends Controller
                 $this->processProductReturn($productData, $salesReturn->id, $request->location_id, $stockType, $request->sale_id);
             }
 
-            // Recalculate authoritative totals from saved lines (prevents client-side tampering).
-            $correctedReturnTotal = (float) SalesReturnProduct::where('sales_return_id', $salesReturn->id)->sum('subtotal');
-            $salesReturn->return_total = $correctedReturnTotal;
+            // Line subtotals from persisted rows, then apply header discount from request (matches UI).
+            $linesTotal = (float) SalesReturnProduct::where('sales_return_id', $salesReturn->id)->sum('subtotal');
+            $headerDiscount = $this->computeSaleReturnHeaderDiscount(
+                $linesTotal,
+                $request->input('discount_type'),
+                $request->input('discount_amount')
+            );
+            $salesReturn->return_total = max(0, round($linesTotal - $headerDiscount, 2));
+
+            $rawType = $request->input('discount_type');
+            $salesReturn->discount_type = (is_string($rawType) && trim($rawType) !== '')
+                ? trim($rawType)
+                : null;
+            if ($request->exists('discount_amount') && $request->input('discount_amount') !== '' && $request->input('discount_amount') !== null) {
+                $salesReturn->discount_amount = round((float) $request->input('discount_amount'), 2);
+            } else {
+                $salesReturn->discount_amount = null;
+            }
+            if ($headerDiscount <= 0.00001) {
+                $salesReturn->discount_type = null;
+                $salesReturn->discount_amount = null;
+            }
+
             $salesReturn->save();
             $salesReturn->refresh();
 
@@ -353,7 +375,7 @@ class SaleReturnController extends Controller
     // Controller method
     public function getAllSaleReturns(Request $request)
     {
-        // Start with base query - order by latest created first for better UX
+        // Newest return first (by primary key; matches list UI sort)
         // Use select() to only fetch needed columns for better performance
         $query = SalesReturn::select([
                 'sales_returns.*'
@@ -366,8 +388,7 @@ class SaleReturnController extends Controller
                 'location:id,name',
                 'user:id,user_name,full_name'
             ])
-            ->orderBy('sales_returns.created_at', 'desc')
-            ->orderBy('sales_returns.id', 'desc'); // Secondary sort by ID for same-datetime returns
+            ->orderBy('sales_returns.id', 'desc'); // newest first
 
         // Apply filters if provided - use indexed columns
         if ($request->filled('location_id')) {
@@ -419,7 +440,14 @@ class SaleReturnController extends Controller
      */
     public function getSaleReturnById($id)
     {
-        $salesReturn = SalesReturn::with(['returnProducts.product', 'sale.customer', 'sale.location', 'payments'])->find($id);
+        $salesReturn = SalesReturn::with([
+            'returnProducts.product',
+            'customer',
+            'location',
+            'sale.customer',
+            'sale.location',
+            'payments',
+        ])->find($id);
         if (!$salesReturn) {
             return response()->json(['status' => 404, 'message' => 'Sale return not found']);
         }
@@ -745,6 +773,8 @@ class SaleReturnController extends Controller
                 'sale' => function ($query) {
                     $query->with(['customer', 'location']);
                 },
+                'customer',
+                'location',
                 'returnProducts.product',
                 'payments'
             ])->findOrFail($id);
@@ -766,7 +796,7 @@ class SaleReturnController extends Controller
             } else {
                 $location = $saleReturn->sale && $saleReturn->sale->location
                     ? $saleReturn->sale->location
-                    : null;
+                    : ($saleReturn->location ?? null);
             }
 
             // Handle payments safely
@@ -814,5 +844,26 @@ class SaleReturnController extends Controller
                 'error' => 'Unable to generate receipt. Please try again later.'
             ], 500);
         }
+    }
+
+    /**
+     * Header-level return discount from request (flat/fixed or percentage). Capped at line subtotal sum.
+     */
+    private function computeSaleReturnHeaderDiscount(float $linesTotal, ?string $discountType, $discountAmountRaw): float
+    {
+        $amount = (float) ($discountAmountRaw ?? 0);
+        if ($linesTotal <= 0 || $amount < 0) {
+            return 0.0;
+        }
+        $type = strtolower((string) ($discountType ?? ''));
+        if ($type === 'percentage') {
+            $discount = round($linesTotal * ($amount / 100.0), 2);
+        } elseif (in_array($type, ['flat', 'fixed'], true)) {
+            $discount = round($amount, 2);
+        } else {
+            return 0.0;
+        }
+
+        return min(max($discount, 0.0), $linesTotal);
     }
 }

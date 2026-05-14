@@ -1064,7 +1064,8 @@
 
             if (discountType === 'fixed') {
                 discountAmount = discountInput;
-            } else if (discountType === 'percentage') {
+            } else if (discountType === 'percentage' || discountType === 'percent') {
+                // Form option uses value="percent" (see add_purchase); server also accepts "percentage"
                 discountAmount = (netTotalAmount * discountInput) / 100;
             }
 
@@ -1076,7 +1077,11 @@
 
             $('#purchase-total').text(`Purchase Total: Rs ${finalTotal.toFixed(2)}`);
             $('#final-total').val(finalTotal.toFixed(2));
-            $('#discount-display').text(`(-) Rs ${discountAmount.toFixed(2)}`);
+            let discountDisplayText = `(-) Rs ${discountAmount.toFixed(2)}`;
+            if (discountType === 'percentage' || discountType === 'percent') {
+                discountDisplayText += ` (${discountInput}%)`;
+            }
+            $('#discount-display').text(discountDisplayText);
             $('#tax-display').text(`(+) Rs ${taxAmount.toFixed(2)}`);
 
             const paidAmount = parseFloat($('#paid-amount').val()) || 0;
@@ -1292,6 +1297,11 @@
                 // ✅ POPULATE BANK TRANSFER FIELDS if payment method is bank_transfer
                 if (latestPayment.payment_method === 'bank_transfer') {
                     $('#bankAccountNumber').val(latestPayment.bank_account_number || '');
+                }
+
+                if (typeof window.setPurchaseInlinePaymentVisible === 'function' &&
+                    parseFloat(latestPayment.amount || 0) > 0) {
+                    window.setPurchaseInlinePaymentVisible(true);
                 }
             }
 
@@ -2841,6 +2851,11 @@
                     paymentInfoTable.empty();
                     if (purchase.payments && purchase.payments.length > 0) {
                         purchase.payments.forEach(function(payment) {
+                            var docCell = '&mdash;';
+                            if (payment.attach_document) {
+                                docCell = '<a href="/assets/documents/' + encodeURIComponent(payment.attach_document) +
+                                    '" target="_blank" rel="noopener noreferrer">View</a>';
+                            }
                             let row = $('<tr>');
                             row.append('<td>' + (payment.payment_date || 'N/A') +
                                 '</td>');
@@ -2850,16 +2865,22 @@
                                 '</td>');
                             row.append('<td>' + (payment.notes || 'No notes') +
                                 '</td>');
+                            row.append('<td>' + docCell + '</td>');
                             paymentInfoTable.append(row);
                         });
                     } else {
                         paymentInfoTable.append(
-                            '<tr><td colspan="5" class="text-center">No payments found</td></tr>'
+                            '<tr><td colspan="6" class="text-center">No payments found</td></tr>'
                         );
                     }
 
                     var amountDetailsTable = $('#amountDetailsTable tbody');
                     amountDetailsTable.empty();
+                    if (purchase.attached_document) {
+                        var attHref = '/assets/documents/' + encodeURIComponent(purchase.attached_document);
+                        amountDetailsTable.append('<tr><td><strong>Purchase attachment:</strong> <a href="' + attHref +
+                            '" target="_blank" rel="noopener noreferrer">View document</a></td></tr>');
+                    }
                     amountDetailsTable.append('<tr><td>Total: ' + purchase.total +
                         '</td></tr>');
                     amountDetailsTable.append('<tr><td>Discount: ' + purchase.discount_amount +
@@ -3276,6 +3297,7 @@
                                         '<a class="dropdown-item text-danger" href="#" onclick="deletePurchase(event, ' + row.id + ')"><i class="fas fa-trash"></i>&nbsp;&nbsp;Delete</a>' +
                                         '<a class="dropdown-item" href="#" onclick="openPaymentModal(event, ' + row.id + ')"><i class="fas fa-money-bill-alt"></i>&nbsp;&nbsp;Add payments</a>' +
                                         '<a class="dropdown-item" href="#" onclick="openViewPaymentModal(event, ' + row.id + ')"><i class="fas fa-money-bill-alt"></i>&nbsp;&nbsp;View payments</a>' +
+                                        '<a class="dropdown-item" href="#" onclick="openPurchaseDocumentsModal(event, ' + row.id + ')"><i class="fas fa-paperclip"></i>&nbsp;&nbsp;View documents</a>' +
                                         (claimLink ? '<div class="dropdown-divider"></div>' + claimLink : '') +
                                         '</div>';
                                 }
@@ -3728,6 +3750,64 @@
                 });
             }
 
+            window.openPurchaseDocumentsModal = function(event, purchaseId) {
+                if (event) {
+                    event.preventDefault();
+                }
+                var docBase = '/assets/documents/';
+                $.ajax({
+                    url: '/get-purchase/' + purchaseId,
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(response) {
+                        var $body = $('#purchaseDocumentsModalBody');
+                        $body.empty();
+                        var any = false;
+
+                        function appendRow(label, fileName) {
+                            var href = docBase + encodeURIComponent(fileName);
+                            var $row = $('<div class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2"></div>');
+                            $row.append($('<span class="me-2"></span>').text(label));
+                            $row.append($('<a class="btn btn-sm btn-primary"></a>')
+                                .attr('href', href)
+                                .attr('target', '_blank')
+                                .attr('rel', 'noopener noreferrer')
+                                .text('View / download'));
+                            $body.append($row);
+                        }
+
+                        if (response.attached_document) {
+                            any = true;
+                            appendRow('Purchase attachment (header)', response.attached_document);
+                        }
+                        if (Array.isArray(response.payments) && response.payments.length > 0) {
+                            response.payments.forEach(function(payment) {
+                                if (payment.attach_document) {
+                                    any = true;
+                                    var label = 'Payment #' + (payment.id || '') + ' — ' + (payment.payment_date || '') +
+                                        ' — Rs. ' + (payment.amount != null ? payment.amount : '');
+                                    appendRow(label, payment.attach_document);
+                                }
+                            });
+                        }
+                        if (!any) {
+                            $body.append(
+                                '<div class="p-3 text-muted text-center">No documents attached to this purchase or its payments.</div>'
+                            );
+                        }
+                        $('#purchaseDocumentsModal').modal('show');
+                    },
+                    error: function(xhr) {
+                        var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Could not load purchase.';
+                        if (typeof toastr !== 'undefined') {
+                            toastr.error(msg, 'Error');
+                        } else {
+                            alert(msg);
+                        }
+                    }
+                });
+            };
+
             // Define the openViewPaymentModal function
             window.openViewPaymentModal = function(event, purchaseId) {
                 event.preventDefault();
@@ -3762,6 +3842,11 @@
                         if (Array.isArray(response.payments) && response.payments
                             .length > 0) {
                             response.payments.forEach(function(payment) {
+                                var docCell = '&mdash;';
+                                if (payment.attach_document) {
+                                    docCell = '<a href="/assets/documents/' + encodeURIComponent(payment.attach_document) +
+                                        '" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary">View</a>';
+                                }
                                 $('#viewPaymentModal .modal-body .table tbody')
                                     .append(
                                         '<tr>' +
@@ -3774,6 +3859,7 @@
                                         '</td>' +
                                         '<td>' + (payment.notes || '') +
                                         '</td>' +
+                                        '<td>' + docCell + '</td>' +
                                         '<td>' + (payment.payment_account ||
                                             '') + '</td>' +
                                         '<td><button class="btn btn-sm btn-danger" onclick="deletePayment(' +
@@ -3783,7 +3869,7 @@
                             });
                         } else {
                             $('#viewPaymentModal .modal-body .table tbody').append(
-                                '<tr><td colspan="7" class="text-center">No records found</td></tr>'
+                                '<tr><td colspan="8" class="text-center">No records found</td></tr>'
                             );
                         }
 
@@ -3980,22 +4066,39 @@
 
                             var paymentInfoTable = $('#paymentInfoTable tbody');
                             paymentInfoTable.empty();
-                            purchase.payments.forEach(function(payment) {
-                                let row = $('<tr>');
-                                row.append('<td>' + payment.payment_date +
-                                    '</td>');
-                                row.append('<td>' + payment.id + '</td>');
-                                row.append('<td>' + payment.amount +
-                                    '</td>');
-                                row.append('<td>' + payment.payment_method +
-                                    '</td>');
-                                row.append('<td>' + payment.notes +
-                                    '</td>');
-                                paymentInfoTable.append(row);
-                            });
+                            if (purchase.payments && purchase.payments.length > 0) {
+                                purchase.payments.forEach(function(payment) {
+                                    var docCell = '&mdash;';
+                                    if (payment.attach_document) {
+                                        docCell = '<a href="/assets/documents/' + encodeURIComponent(payment.attach_document) +
+                                            '" target="_blank" rel="noopener noreferrer">View</a>';
+                                    }
+                                    let row = $('<tr>');
+                                    row.append('<td>' + payment.payment_date +
+                                        '</td>');
+                                    row.append('<td>' + payment.id + '</td>');
+                                    row.append('<td>' + payment.amount +
+                                        '</td>');
+                                    row.append('<td>' + payment.payment_method +
+                                        '</td>');
+                                    row.append('<td>' + (payment.notes || '') +
+                                        '</td>');
+                                    row.append('<td>' + docCell + '</td>');
+                                    paymentInfoTable.append(row);
+                                });
+                            } else {
+                                paymentInfoTable.append(
+                                    '<tr><td colspan="6" class="text-center">No payments found</td></tr>'
+                                );
+                            }
 
                             var amountDetailsTable = $('#amountDetailsTable tbody');
                             amountDetailsTable.empty();
+                            if (purchase.attached_document) {
+                                var attHref2 = '/assets/documents/' + encodeURIComponent(purchase.attached_document);
+                                amountDetailsTable.append('<tr><td><strong>Purchase attachment:</strong> <a href="' + attHref2 +
+                                    '" target="_blank" rel="noopener noreferrer">View document</a></td></tr>');
+                            }
                             amountDetailsTable.append('<tr><td>Total: ' + purchase
                                 .total + '</td></tr>');
                             amountDetailsTable.append('<tr><td>Discount: ' +

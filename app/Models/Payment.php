@@ -24,6 +24,7 @@ class Payment extends Model
         'payment_method',
         'reference_no',
         'notes',
+        'attach_document',
         'payment_type',
         'reference_id',
         'cash_register_id',

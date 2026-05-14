@@ -412,6 +412,7 @@
                                             <th>Amount</th>
                                             <th>Payment Mode</th>
                                             <th>Payment Note</th>
+                                            <th>Document</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -450,7 +451,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="paymentForm">
+                    <form id="paymentForm" enctype="multipart/form-data">
                         <input type="hidden" id="purchaseId" name="reference_id">
                         <input type="hidden" id="payment_type" name="payment_type">
                         <input type="hidden" id="supplier_id" name="supplier_id">
@@ -669,13 +670,14 @@
                                 <th>Amount</th>
                                 <th>Payment Method</th>
                                 <th>Payment Note</th>
+                                <th>Document</th>
                                 <th>Payment Account</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td colspan="7" class="text-center">No records found</td>
+                                <td colspan="8" class="text-center">No records found</td>
                             </tr>
                         </tbody>
                     </table>
@@ -687,6 +689,26 @@
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="purchaseDocumentsModal" tabindex="-1" aria-labelledby="purchaseDocumentsModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="purchaseDocumentsModalLabel">Attached documents</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-2">Purchase header attachment and payment receipts stored with this purchase.</p>
+                    <div id="purchaseDocumentsModalBody" class="list-group list-group-flush border rounded"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal fade" id="bulkPaymentModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="bulkPaymentModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">

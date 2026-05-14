@@ -273,6 +273,7 @@ class SaleController extends Controller
                 );
                 $oldCustomerId        = $saveData['old_customer_id'];
                 $oldFinalTotal        = $saveData['old_final_total'];
+                $oldInvoiceNo         = $saveData['old_invoice_no'] ?? null;
                 $customerChanged      = $saveData['customer_changed'];
                 $financialDataChanged = $saveData['financial_data_changed'];
 
@@ -280,7 +281,8 @@ class SaleController extends Controller
                 $this->saleLedgerManager->record(
                     $sale, $isUpdate, $oldStatus, $newStatus, $transactionType,
                     (int) $request->customer_id, $oldCustomerId, $oldFinalTotal,
-                    $customerChanged, $financialDataChanged, $referenceNo
+                    $customerChanged, $financialDataChanged, $referenceNo,
+                    $oldInvoiceNo
                 );
 
                 // Record payments (and job ticket advance if applicable)

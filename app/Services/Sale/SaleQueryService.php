@@ -174,6 +174,11 @@ class SaleQueryService
             return $product;
         })->filter(fn ($p) => $p->current_quantity > 0)->values();
 
+        $billDiscountType = $sale->discount_type;
+        if (is_string($billDiscountType) && strtolower($billDiscountType) === 'percent') {
+            $billDiscountType = 'percentage';
+        }
+
         return [
             'sale_id'           => $sale->id,
             'invoice_no'        => $invoiceNo,
@@ -181,10 +186,10 @@ class SaleQueryService
             'location_id'       => $sale->location_id,
             'products'          => $products,
             'original_discount' => [
-                'discount_type'           => $sale->discount_type,
-                'discount_amount'         => $sale->discount_amount ?? 0,
-                'subtotal'                => $sale->subtotal ?? 0,
-                'final_total'             => $sale->final_total ?? 0,
+                'discount_type'           => $billDiscountType,
+                'discount_amount'         => (float) ($sale->discount_amount ?? 0),
+                'subtotal'                => (float) ($sale->subtotal ?? 0),
+                'final_total'             => (float) ($sale->final_total ?? 0),
                 'total_original_quantity' => $sale->products->sum('quantity'),
             ],
         ];
