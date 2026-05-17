@@ -174,28 +174,28 @@
                                         </div>
                                     </div>
 
-                                    <div class="col-md-6">
-                                        <div class="form-group local-forms">
-                                            <label>Password <span class="login-danger">*</span></label>
-                                            <input class="form-control pass-input1" id="edit_password" name="password"
-                                                type="password" placeholder="Enter Password">
-                                            <span class="profile-views feather-eye-off toggle-password1"></span>
-                                            <span class="text-danger" id="password_error"></span>
+                                    <div id="userCreatePasswordFields" class="row g-0 px-0 mx-0 w-100">
+                                        <div class="col-md-6">
+                                            <div class="form-group local-forms">
+                                                <label>Password <span class="login-danger">*</span></label>
+                                                <input class="form-control pass-input1" id="edit_password" name="password"
+                                                    type="password" placeholder="Enter Password" autocomplete="new-password">
+                                                <span class="profile-views feather-eye-off toggle-password1"></span>
+                                                <span class="text-danger" id="password_error"></span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group local-forms">
+                                                <label>Confirm Password <span class="login-danger">*</span></label>
+                                                <input class="form-control pass-input2" id="edit_confirm_password"
+                                                    name="password_confirmation" autocomplete="new-password" type="password"
+                                                    placeholder="Enter Password">
+                                                <span class="profile-views feather-eye-off toggle-password2"></span>
+                                                <span class="text-danger" id="confirm_password_error"></span>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div class="col-md-6">
-                                        <div class="form-group local-forms">
-                                            <label>Confirm Password <span class="login-danger">*</span></label>
-                                            <input class="form-control pass-input2" id="edit_confirm_password"
-                                                name="password_confirmation" autocomplete="new-password" type="password"
-                                                placeholder="Enter Password">
-                                            <span class="profile-views feather-eye-off toggle-password2"></span>
-                                            <span class="text-danger" id="confirm_password_error"></span>
-                                        </div>
-                                    </div>
-
-                                </div>
                             </div>
                             <div class="modal-footer">
                                 <button type="submit" id="modalButton" class="btn btn-outline-primary">Save</button>
@@ -206,6 +206,51 @@
                     </div>
                 </div>
             </form>
+        </div>
+
+
+        {{-- Change Password Modal --}}
+        <div id="changePasswordModal" class="modal fade" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <form id="changePasswordForm">
+                        <div class="text-center my-4">
+                            <h5>Change Password</h5>
+                            <p class="text-muted mb-0 small" id="changePasswordUserName"></p>
+                        </div>
+                        <div class="modal-body">
+                            <input type="hidden" id="change_password_user_id" name="user_id">
+                            <div class="form-group local-forms mb-3 {{ ($passwordChangeRequiresCurrentPassword ?? true) ? '' : 'd-none' }}"
+                                id="changePasswordCurrentWrap">
+                                <label>Your Current Password <span class="login-danger">*</span></label>
+                                <input class="form-control pass-input5" id="change_password_current" name="current_password"
+                                    type="password" placeholder="Enter your current password" autocomplete="current-password">
+                                <span class="profile-views feather-eye-off toggle-password5"></span>
+                                <span class="text-danger" id="change_password_current_error"></span>
+                                <small class="text-muted">Enter your login password to authorize this change.</small>
+                            </div>
+                            <div class="form-group local-forms mb-3">
+                                <label>New Password <span class="login-danger">*</span></label>
+                                <input class="form-control pass-input3" id="change_password_new" name="password"
+                                    type="password" placeholder="Enter new password" autocomplete="new-password">
+                                <span class="profile-views feather-eye-off toggle-password3"></span>
+                                <span class="text-danger" id="change_password_error"></span>
+                            </div>
+                            <div class="form-group local-forms">
+                                <label>Confirm Password <span class="login-danger">*</span></label>
+                                <input class="form-control pass-input4" id="change_password_confirm" name="password_confirmation"
+                                    type="password" placeholder="Confirm new password" autocomplete="new-password">
+                                <span class="profile-views feather-eye-off toggle-password4"></span>
+                                <span class="text-danger" id="change_password_confirm_error"></span>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-outline-primary">Update Password</button>
+                            <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
 
         {{-- Locations View Modal --}}
@@ -280,3 +325,4 @@
     @include('user.user_ajax')
     {{-- @include('location.location_ajax') --}}
 @endsection
+

@@ -106,6 +106,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/user-get-all', [UserController::class, 'index']);
         Route::post('/user-store', [UserController::class, 'store'])->middleware('location.access');
         Route::post('/user-update/{id}', [UserController::class, 'update'])->middleware('location.access');
+        Route::post('/user-change-password/{id}', [UserController::class, 'changePassword'])->middleware('location.access');
         Route::delete('/user-delete/{id}', [UserController::class, 'destroy'])->middleware('location.access');
 
          // -------------------- RoleController Routes --------------------

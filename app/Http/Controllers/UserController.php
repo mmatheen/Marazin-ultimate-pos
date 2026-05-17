@@ -6,7 +6,9 @@ use App\Models\User;
 use App\Services\User\UserAccessService;
 use App\Services\User\UserProfileImageService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
 class UserController extends Controller
@@ -22,7 +24,8 @@ class UserController extends Controller
         $this->middleware('permission:create user', ['only' => ['store']]);
         $this->middleware('permission:edit user', ['only' => ['edit', 'update']]);
         $this->middleware('permission:delete user', ['only' => ['destroy']]);
-        $this->middleware('role.security', ['only' => ['edit', 'update', 'destroy']]);
+        $this->middleware('permission:change user password', ['only' => ['changePassword']]);
+        $this->middleware('role.security', ['only' => ['edit', 'update', 'destroy', 'changePassword']]);
     }
 
     public function user()
@@ -31,6 +34,7 @@ class UserController extends Controller
 
         return view('user.user', [
             'canBrowseUserDirectory' => $this->userAccessService->canBrowseUserDirectory($currentUser),
+            'passwordChangeRequiresCurrentPassword' => !$this->userAccessService->canChangeUserPasswordWithoutVerification($currentUser),
         ]);
     }
 
@@ -135,8 +139,11 @@ class UserController extends Controller
 
             $user->assignRole($request->roles);
 
-            // Validate and sync locations
-            $this->userAccessService->validateAndSyncUserLocations($currentUser, $user, $request->location_id ?? []);
+            $locationIds = $this->userAccessService->normalizeLocationIdsForRole(
+                $request->roles,
+                $request->location_id ?? []
+            );
+            $this->userAccessService->validateAndSyncUserLocations($currentUser, $user, $locationIds);
 
             DB::commit();
 
@@ -440,8 +447,12 @@ class UserController extends Controller
                 $user->syncRoles([$request->roles]);
             }
 
-            // Validate and sync locations
-            $this->userAccessService->validateAndSyncUserLocations($currentUser, $user, $request->location_id ?? []);
+            $roleForLocations = $request->roles ?: $user->roles->first()?->name;
+            $locationIds = $this->userAccessService->normalizeLocationIdsForRole(
+                $roleForLocations,
+                $request->location_id ?? []
+            );
+            $this->userAccessService->validateAndSyncUserLocations($currentUser, $user, $locationIds);
 
             DB::commit();
         } catch (\Exception $e) {
@@ -580,6 +591,103 @@ class UserController extends Controller
         return response()->json([
             'status' => 200,
             'message' => "User Deleted Successfully!"
+        ]);
+    }
+
+    public function changePassword(Request $request, int $id)
+    {
+        $currentUser = auth()->user();
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json([
+                'status' => 404,
+                'message' => 'No Such User Found!',
+            ]);
+        }
+
+        $currentUserIsMasterSuperAdmin = $this->userAccessService->isMasterSuperAdmin($currentUser);
+        $targetUserIsMasterSuperAdmin = $this->userAccessService->isMasterSuperAdmin($user);
+        $targetUserIsSuperAdmin = $this->userAccessService->isSuperAdmin($user) && !$targetUserIsMasterSuperAdmin;
+        $canBypassLocationScope = $this->userAccessService->hasLocationBypassPermission($currentUser);
+
+        if ($targetUserIsMasterSuperAdmin && !$currentUserIsMasterSuperAdmin) {
+            return response()->json([
+                'status' => 403,
+                'message' => 'You do not have permission to change Master Super Admin passwords.',
+            ], 403);
+        }
+
+        if ($targetUserIsSuperAdmin && !$currentUserIsMasterSuperAdmin) {
+            return response()->json([
+                'status' => 403,
+                'message' => 'You do not have permission to change Super Admin passwords.',
+            ], 403);
+        }
+
+        if (!$this->userAccessService->canViewUserRecord($currentUser, $user)) {
+            return response()->json([
+                'status' => 403,
+                'message' => 'You do not have permission to change this user\'s password.',
+            ], 403);
+        }
+
+        if ($currentUser->id !== $user->id && !$currentUserIsMasterSuperAdmin && !$canBypassLocationScope) {
+            if (!$this->userAccessService->hasSharedLocationAccess($currentUser, $user)) {
+                return response()->json([
+                    'status' => 403,
+                    'message' => 'You do not have permission to change passwords for users from different locations.',
+                ], 403);
+            }
+        }
+
+        $requiresCurrentPassword = !$this->userAccessService->canChangeUserPasswordWithoutVerification($currentUser);
+
+        $validationRules = [
+            'password' => 'required|string|min:5|confirmed',
+        ];
+
+        if ($requiresCurrentPassword) {
+            $validationRules['current_password'] = 'required|string';
+        }
+
+        $validator = Validator::make($request->all(), $validationRules);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 400,
+                'errors' => $validator->messages(),
+            ]);
+        }
+
+        if ($requiresCurrentPassword && !Hash::check($request->current_password, $currentUser->password)) {
+            return response()->json([
+                'status' => 400,
+                'errors' => [
+                    'current_password' => ['Your current password is incorrect.'],
+                ],
+            ]);
+        }
+
+        $user->update([
+            'password' => bcrypt($request->password),
+        ]);
+
+        $forceLogout = $requiresCurrentPassword;
+
+        if ($forceLogout) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
+
+        return response()->json([
+            'status' => 200,
+            'message' => $forceLogout
+                ? 'Password updated successfully. Please sign in again.'
+                : 'Password updated successfully.',
+            'force_logout' => $forceLogout,
+            'redirect_url' => $forceLogout ? route('login') : null,
         ]);
     }
 

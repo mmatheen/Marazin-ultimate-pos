@@ -1,6 +1,7 @@
 <script type="text/javascript">
     $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
+        const passwordChangeRequiresCurrentPassword = @json($passwordChangeRequiresCurrentPassword ?? true);
         showFetchData();
 
         $.validator.addMethod('profileImageType', function(value, element) {
@@ -46,14 +47,9 @@
                 },
                 password: {
                     required: function() {
-                        // Check if the hidden edit_id value is empty.
-                        // It returns true if it is empty (indicating an add operation),
-                        // and false if a value is available (indicating an update operation).
-                        return $('#edit_id').val() === '';
-                        // When updating the record, the password field will not be validated as required.
+                        return $('#edit_id').val() === '' && !$('#userCreatePasswordFields').hasClass('d-none');
                     },
-                    minlength: 6 // Minimum password length validation
-
+                    minlength: 6
                 },
                 profile_image: {
                     profileImageType: true,
@@ -153,7 +149,10 @@
                         dropdown.empty().append('<option value="">Select Role</option>');
 
                         $.each(response.roles, function(index, role) {
-                            dropdown.append('<option value="' + role.name + '">' + role.name + '</option>');
+                            const roleKey = role.key || '';
+                            dropdown.append(
+                                '<option value="' + role.name + '" data-key="' + roleKey + '">' + role.name + '</option>'
+                            );
                         });
                     }
                 },
@@ -168,6 +167,8 @@
         // Clear form and validation errors when the modal is hidden
         $('#addAndEditModal').on('hidden.bs.modal', function() {
             resetFormAndValidation();
+            setUserFormPasswordMode('create');
+            cachedAccessibleLocations = [];
         });
 
         // Re-initialize Select2 when modal is shown to fix typing/search functionality
@@ -185,13 +186,111 @@
             $('#' + fieldName + '_error').html(''); // Clear specific field error message
         });
 
-        // Show Add Warranty Modal
+        function setUserFormPasswordMode(mode) {
+            const isCreate = mode === 'create';
+            if (isCreate) {
+                $('#userCreatePasswordFields').removeClass('d-none');
+            } else {
+                $('#userCreatePasswordFields').addClass('d-none');
+                $('#edit_password').val('');
+                $('#edit_confirm_password').val('');
+            }
+        }
+
+        const changePasswordValidationRules = {
+            password: {
+                required: true,
+                minlength: 6
+            },
+            password_confirmation: {
+                required: true,
+                equalTo: '#change_password_new'
+            }
+        };
+
+        const changePasswordValidationMessages = {
+            password: {
+                required: 'Password is required',
+                minlength: 'Password must be at least 5 characters long'
+            },
+            password_confirmation: {
+                required: 'Please confirm the password',
+                equalTo: 'Passwords do not match'
+            }
+        };
+
+        if (passwordChangeRequiresCurrentPassword) {
+            changePasswordValidationRules.current_password = {
+                required: true,
+                minlength: 1
+            };
+            changePasswordValidationMessages.current_password = {
+                required: 'Your current password is required'
+            };
+        }
+
+        $('#changePasswordForm').validate({
+            rules: changePasswordValidationRules,
+            messages: changePasswordValidationMessages,
+            errorElement: 'span',
+            errorPlacement: function(error, element) {
+                error.addClass('text-danger');
+                const field = element.attr('name');
+                if (field === 'current_password') {
+                    $('#change_password_current_error').html(error.text());
+                } else if (field === 'password') {
+                    $('#change_password_error').html(error.text());
+                } else if (field === 'password_confirmation') {
+                    $('#change_password_confirm_error').html(error.text());
+                } else {
+                    error.insertAfter(element);
+                }
+            },
+            highlight: function(element) {
+                $(element).addClass('is-invalidRed').removeClass('is-validGreen');
+            },
+            unhighlight: function(element) {
+                $(element).removeClass('is-invalidRed').addClass('is-validGreen');
+            }
+        });
+
+        $('#changePasswordModal').on('hidden.bs.modal', function() {
+            const $form = $('#changePasswordForm');
+            $form[0].reset();
+            const validator = $form.data('validator');
+            if (validator) {
+                validator.resetForm();
+            }
+            $('#change_password_current_error, #change_password_error, #change_password_confirm_error').html('');
+            $form.find('.is-invalidRed, .is-validGreen').removeClass('is-invalidRed is-validGreen');
+        });
+
+        $(document).on('click', '#changePasswordModal .toggle-password5', function() {
+            $(this).toggleClass('feather-eye feather-eye-off');
+            const input = $(this).closest('.form-group').find('#change_password_current');
+            input.attr('type', input.attr('type') === 'password' ? 'text' : 'password');
+        });
+
+        $(document).on('click', '#changePasswordModal .toggle-password3', function() {
+            $(this).toggleClass('feather-eye feather-eye-off');
+            const input = $(this).closest('.form-group').find('#change_password_new');
+            input.attr('type', input.attr('type') === 'password' ? 'text' : 'password');
+        });
+
+        $(document).on('click', '#changePasswordModal .toggle-password4', function() {
+            $(this).toggleClass('feather-eye feather-eye-off');
+            const input = $(this).closest('.form-group').find('#change_password_confirm');
+            input.attr('type', input.attr('type') === 'password' ? 'text' : 'password');
+        });
+
+        // Show Add User Modal
         $('#addButton').click(function() {
             $('#modalTitle').text('New User');
             $('#modalButton').text('Save');
             $('#addAndUserUpdateForm')[0].reset();
-            $('.text-danger').text(''); // Clear all error messages
-            $('#edit_id').val(''); // Clear the edit_id to ensure it's not considered an update
+            $('.text-danger').text('');
+            $('#edit_id').val('');
+            setUserFormPasswordMode('create');
             $('#addAndEditModal').modal('show');
         });
 
@@ -251,6 +350,10 @@
                             '@can('edit user')<button type="button" value="' +
                             item.id +
                             '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
+                            '@can('change user password')<button type="button" value="' +
+                            item.id +
+                            '" data-user-name="' + safeFullName +
+                            '" class="change_password_btn btn btn-outline-warning btn-sm me-2"><i class="fas fa-key me-1"></i> Password</button>@endcan' +
                             '@can('delete user')<button type="button" value="' +
                             item.id +
                             '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +
@@ -262,6 +365,77 @@
             });
         }
 
+        $('#user').on('click', '.change_password_btn', function() {
+            const id = $(this).val();
+            const userName = $(this).data('user-name') || 'User';
+            $('#change_password_user_id').val(id);
+            $('#changePasswordUserName').text(userName);
+            $('#change_password_current_error, #change_password_error, #change_password_confirm_error').html('');
+            $('#changePasswordForm')[0].reset();
+            if (passwordChangeRequiresCurrentPassword) {
+                $('#changePasswordCurrentWrap').removeClass('d-none');
+            }
+            $('#changePasswordModal').modal('show');
+        });
+
+        $('#changePasswordForm').on('submit', function(e) {
+            e.preventDefault();
+            if (!$(this).valid()) {
+                document.getElementsByClassName('warningSound')[0].play();
+                toastr.error('Invalid inputs, check and try again.', 'Warning');
+                return;
+            }
+
+            const id = $('#change_password_user_id').val();
+            const formData = new FormData(this);
+
+            $.ajax({
+                url: 'user-change-password/' + id,
+                type: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                data: formData,
+                contentType: false,
+                processData: false,
+                dataType: 'json',
+                success: function(response) {
+                    if (response.status === 400 && response.errors) {
+                        $.each(response.errors, function(key, messages) {
+                            const msg = Array.isArray(messages) ? messages[0] : messages;
+                            if (key === 'current_password') {
+                                $('#change_password_current_error').html(msg);
+                            } else if (key === 'password') {
+                                $('#change_password_error').html(msg);
+                            } else if (key === 'password_confirmation') {
+                                $('#change_password_confirm_error').html(msg);
+                            }
+                            toastr.error(msg, 'Validation Error');
+                        });
+                        document.getElementsByClassName('errorSound')[0].play();
+                        return;
+                    }
+
+                    if (response.status === 200) {
+                        $('#changePasswordModal').modal('hide');
+                        document.getElementsByClassName('successSound')[0].play();
+                        toastr.success(response.message, 'Success');
+
+                        if (response.force_logout && response.redirect_url) {
+                            setTimeout(function() {
+                                window.location.href = response.redirect_url;
+                            }, 1200);
+                        }
+                    }
+                },
+                error: function(xhr) {
+                    const message = xhr.responseJSON?.message || 'Failed to update password.';
+                    toastr.error(message, xhr.status === 403 ? 'Access Denied' : 'Error');
+                    document.getElementsByClassName('errorSound')[0].play();
+                }
+            });
+        });
+
         // Show Edit Modal (scoped to user table only — avoids conflict with role page)
         $('#user').on('click', '.edit_btn', function() {
             var id = $(this).val();
@@ -270,6 +444,7 @@
             resetFormAndValidation();
             $('.text-danger').text('');
             $('#edit_id').val(id);
+            setUserFormPasswordMode('edit');
 
             $.ajax({
                 url: 'user-edit/' + id,
@@ -280,14 +455,13 @@
                     } else if (response.status == 403) {
                         toastr.error(response.message || 'You do not have permission to edit this user.', 'Access Denied');
                     } else if (response.status == 200) {
+                        $('#edit_role_name').val(response.message.role);
                         populateLocationDropdown(function() {
                             $('#edit_full_name').val(response.message.full_name);
                             $('#edit_user_name').val(response.message.user_name);
                             $('#edit_email').val(response.message.email);
-                            $('#edit_role_name').val(response.message.role);
-                            $('#edit_location_id').val(response.message.location_ids).trigger('change');
                             $('#addAndEditModal').modal('show');
-                        });
+                        }, response.message.location_ids);
                     }
                 },
                 error: function(xhr) {
@@ -312,6 +486,10 @@
             }
 
             let formData = new FormData(this);
+            if ($('#edit_id').val() !== '') {
+                formData.delete('password');
+                formData.delete('password_confirmation');
+            }
             let id = $('#edit_id').val(); // for edit
             let url = id ? 'user-update/' + id : 'user-store';
             let type = id ? 'post' : 'post';
@@ -433,70 +611,120 @@
             });
         });
 
-        populateLocationDropdown();
+        const SALES_REP_ROLE_KEY = 'sales_rep';
+        let cachedAccessibleLocations = [];
 
-        // Populate Location Dropdown - Show only locations accessible to logged-in user
-        function populateLocationDropdown(callback) {
+        function isSalesRepRoleSelected() {
+            const roleKey = $('#edit_role_name option:selected').data('key');
+            return roleKey === SALES_REP_ROLE_KEY;
+        }
+
+        function buildLocationLabel(loc) {
+            if (loc.parent_id && loc.parent) {
+                let label = `${loc.parent.name} → ${loc.name}`;
+                if (loc.vehicle_number) {
+                    label += ` (${loc.vehicle_number})`;
+                }
+                if (loc.vehicle_type) {
+                    label += ` - ${loc.vehicle_type}`;
+                }
+                return label;
+            }
+
+            return loc.name;
+        }
+
+        function renderLocationDropdown(selectedIds) {
+            const dropdown = $('#edit_location_id');
+            const parentsOnly = isSalesRepRoleSelected();
+            let previousSelected = selectedIds || dropdown.val() || [];
+
+            if (parentsOnly && previousSelected.length) {
+                const mappedParentIds = [];
+                (Array.isArray(previousSelected) ? previousSelected : [previousSelected]).forEach(function(id) {
+                    const loc = cachedAccessibleLocations.find(function(item) {
+                        return String(item.id) === String(id);
+                    });
+                    if (loc && loc.parent_id) {
+                        mappedParentIds.push(String(loc.parent_id));
+                    } else if (loc) {
+                        mappedParentIds.push(String(loc.id));
+                    }
+                });
+                previousSelected = [...new Set(mappedParentIds)];
+            }
+
+            dropdown.empty().append('<option value="">Select Location</option>');
+
+            if (!cachedAccessibleLocations.length) {
+                dropdown.append('<option value="" disabled>No locations available</option>');
+                dropdown.trigger('change.select2');
+                return;
+            }
+
+            cachedAccessibleLocations.forEach(function(loc) {
+                if (parentsOnly && loc.parent_id) {
+                    return;
+                }
+
+                dropdown.append(`<option value="${loc.id}">${buildLocationLabel(loc)}</option>`);
+            });
+
+            if (dropdown.find('option').length === 1) {
+                dropdown.append('<option value="" disabled>No accessible locations</option>');
+            }
+
+            const validSelected = (Array.isArray(previousSelected) ? previousSelected : [previousSelected])
+                .filter(function(id) {
+                    return id && dropdown.find(`option[value="${id}"]`).length;
+                });
+
+            dropdown.val(validSelected.length ? validSelected : null).trigger('change.select2');
+        }
+
+        function populateLocationDropdown(callback, selectedIds) {
+            if (cachedAccessibleLocations.length) {
+                renderLocationDropdown(selectedIds);
+                if (typeof callback === 'function') {
+                    callback();
+                }
+                return;
+            }
+
             $.ajax({
                 url: '/location-get-all',
                 type: 'GET',
                 dataType: 'json',
                 success: function(res) {
-                    const dropdown = $('#edit_location_id');
-                    dropdown.empty().append('<option value="">Select Location</option>');
+                    cachedAccessibleLocations = (res.status && Array.isArray(res.data)) ? res.data : [];
+                    renderLocationDropdown(selectedIds);
 
-                    if (res.status && Array.isArray(res.data)) {
-                        res.data.forEach(function(loc) {
-                            let label = '';
-
-                            // If it's a sub-location (vehicle), show parent info
-                            if (loc.parent_id && loc.parent) {
-                                label = `${loc.parent.name} → ${loc.name}`;
-                                if (loc.vehicle_number) {
-                                    label += ` (${loc.vehicle_number})`;
-                                }
-                                if (loc.vehicle_type) {
-                                    label += ` - ${loc.vehicle_type}`;
-                                }
-                            } else {
-                                // Main location
-                                label = loc.name;
-                            }
-
-                            dropdown.append(`<option value="${loc.id}">${label}</option>`);
-                        });
-
-                        // Show message if no locations found
-                        if (dropdown.find('option').length === 1) { // Only the "Select Location" option
-                            dropdown.append('<option value="" disabled>No accessible locations</option>');
-                        }
-
-                        // Refresh Select2 to show updated options
-                        dropdown.trigger('change.select2');
-
-                        console.log(`Loaded ${dropdown.find('option').length - 1} accessible locations`);
-
-                    } else {
-                        dropdown.append('<option value="" disabled>No locations available</option>');
-                    }
-
-                    // Execute callback if provided
                     if (typeof callback === 'function') {
                         callback();
                     }
                 },
                 error: function(xhr) {
                     console.error("Failed to load locations:", xhr.responseJSON?.message);
+                    cachedAccessibleLocations = [];
                     $('#edit_location_id').html('<option value="" disabled>Failed to load locations</option>');
                     toastr.error('Could not load locations.');
 
-                    // Execute callback even on error
                     if (typeof callback === 'function') {
                         callback();
                     }
                 }
             });
         }
+
+        $('#edit_role_name').on('change', function() {
+            if (!cachedAccessibleLocations.length) {
+                populateLocationDropdown();
+                return;
+            }
+            renderLocationDropdown();
+        });
+
+        populateLocationDropdown();
 
         // Refresh location dropdown when modal is shown for add mode
         $('#addAndEditModal').on('shown.bs.modal', function() {

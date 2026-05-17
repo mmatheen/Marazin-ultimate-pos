@@ -2,6 +2,7 @@
 
 namespace App\Services\User;
 
+use App\Models\Location;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Schema;
@@ -162,6 +163,14 @@ class UserAccessService
             $this->isMasterSuperAdmin($user);
     }
 
+    /**
+     * Super Admin / Master Super Admin may reset another user's password without re-entering their own.
+     */
+    public function canChangeUserPasswordWithoutVerification(User $user): bool
+    {
+        return $this->isMasterSuperAdmin($user) || $this->isSuperAdmin($user);
+    }
+
     public function isAdmin(User $user): bool
     {
         if (!$user->relationLoaded('roles')) {
@@ -202,6 +211,39 @@ class UserAccessService
         $targetUserLocationIds = $this->getUserLocationIds($targetUser);
 
         return !empty(array_intersect($currentUserLocationIds, $targetUserLocationIds));
+    }
+
+    public function isSalesRepRoleName(?string $roleName): bool
+    {
+        if (!$roleName) {
+            return false;
+        }
+
+        $role = Role::where('name', $roleName)->first();
+
+        return $role && (
+            ($role->key ?? null) === self::ROLE_KEY_SALES_REP
+            || $roleName === self::ROLE_SALES_REP
+        );
+    }
+
+    /**
+     * Sales Rep users get parent (shop) locations only; vehicles are assigned in Sales Rep module.
+     */
+    public function normalizeLocationIdsForRole(?string $roleName, array $locationIds): array
+    {
+        if (!$this->isSalesRepRoleName($roleName) || empty($locationIds)) {
+            return $locationIds;
+        }
+
+        $locations = Location::whereIn('id', $locationIds)->get(['id', 'parent_id']);
+        $normalized = [];
+
+        foreach ($locations as $location) {
+            $normalized[] = $location->parent_id ? (int) $location->parent_id : (int) $location->id;
+        }
+
+        return array_values(array_unique($normalized));
     }
 
     public function validateAndSyncUserLocations(User $actor, User $targetUser, array $locationIds): void

@@ -65,7 +65,8 @@ class RoleController extends Controller
                 'roles' => $roles->map(function($role) {
                     return [
                         'id' => $role->id,
-                        'name' => $role->name
+                        'name' => $role->name,
+                        'key' => $role->key,
                     ];
                 }),
             ]);
