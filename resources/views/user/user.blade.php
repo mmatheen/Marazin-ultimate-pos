@@ -24,10 +24,13 @@
                 <div class="card card-table">
                     <div class="card-body">
                         <div class="page-header">
+                            @if (!($canBrowseUserDirectory ?? true))
+                                <div class="alert alert-info py-2 mb-3">
+                                    You can view only your own user details here. Contact an administrator to manage other users.
+                                </div>
+                            @endif
                             <div class="row align-items-center">
                                 <div class="col-auto text-end float-end ms-auto download-grp">
-                                    <!-- Button trigger modal -->
-
                                     @can('create user')
                                         <button type="button" class="btn btn-outline-info " id="addButton">
                                             New <i class="fas fa-plus px-2"> </i>

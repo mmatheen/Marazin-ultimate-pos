@@ -27,7 +27,11 @@ class UserController extends Controller
 
     public function user()
     {
-        return view('user.user');
+        $currentUser = auth()->user();
+
+        return view('user.user', [
+            'canBrowseUserDirectory' => $this->userAccessService->canBrowseUserDirectory($currentUser),
+        ]);
     }
 
     public function index()
@@ -156,6 +160,13 @@ class UserController extends Controller
         $user = User::with(['roles', 'locations'])->find($id);
 
         if ($user) {
+            if (!$this->userAccessService->canViewUserRecord($currentUser, $user)) {
+                return response()->json([
+                    'status' => 403,
+                    'message' => 'You may only view your own user profile.',
+                ], 403);
+            }
+
             $currentUserIsMasterSuperAdmin = $this->userAccessService->isMasterSuperAdmin($currentUser);
             $targetUserIsMasterSuperAdmin = $this->userAccessService->isMasterSuperAdmin($user);
             $targetUserIsSuperAdmin = $this->userAccessService->isSuperAdmin($user) && !$targetUserIsMasterSuperAdmin;
@@ -218,6 +229,13 @@ class UserController extends Controller
                 'status' => 404,
                 'message' => "No Such User Found!"
             ]);
+        }
+
+        if (!$this->userAccessService->canViewUserRecord($currentUser, $user)) {
+            return response()->json([
+                'status' => 403,
+                'message' => 'You may only view your own user profile.',
+            ], 403);
         }
 
         // Check role hierarchy

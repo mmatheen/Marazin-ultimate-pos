@@ -286,6 +286,33 @@ class UserAccessService
     }
 
     /**
+     * Whether the user may browse the full user directory (not only their own row).
+     * Master/Super Admin, or roles with create/edit/delete user management.
+     */
+    public function canBrowseUserDirectory(User $user): bool
+    {
+        if ($this->isMasterSuperAdmin($user) || $this->isSuperAdmin($user)) {
+            return true;
+        }
+
+        return $this->userHasPermission($user, 'create user')
+            || $this->userHasPermission($user, 'edit user')
+            || $this->userHasPermission($user, 'delete user');
+    }
+
+    /**
+     * Whether $viewer may open $target's user record (show/edit APIs).
+     */
+    public function canViewUserRecord(User $viewer, User $target): bool
+    {
+        if ($viewer->id === $target->id) {
+            return true;
+        }
+
+        return $this->canBrowseUserDirectory($viewer);
+    }
+
+    /**
      * Build the users query visible to the current user.
      */
     public function getVisibleUsersQuery(User $currentUser): Builder
@@ -300,6 +327,18 @@ class UserAccessService
             $query->whereDoesntHave('roles', function ($roleQuery) {
                 $roleQuery->where('name', self::ROLE_MASTER_SUPER_ADMIN)
                     ->orWhere('key', 'master_super_admin');
+            });
+        }
+
+        // view user only (e.g. Cashier): own profile — hide Super Admin & other users
+        if (!$this->canBrowseUserDirectory($currentUser)) {
+            return $query->where('id', $currentUser->id);
+        }
+
+        if (!$isSuperAdmin) {
+            $query->whereDoesntHave('roles', function ($roleQuery) {
+                $roleQuery->where('name', self::ROLE_SUPER_ADMIN)
+                    ->orWhere('key', self::ROLE_KEY_SUPER_ADMIN);
             });
         }
 
